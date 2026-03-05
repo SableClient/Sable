@@ -17,6 +17,7 @@ import './index.css';
 import './app/styles/themes.css';
 import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
+import './app/styles/overrides/TauriDesktop.css';
 import { pushSessionToSW } from './sw-session';
 import {
   getFallbackSession,

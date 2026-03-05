@@ -21,7 +21,27 @@ tauri-build = { version = "2.5.6", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.10.3", features = [] }
+tokio = { version = "1", features = ["time"] }
+
+tauri = { version = "2.10.3", features = ["tray-icon"] }
+
+specta = "2.0.0-rc.22"
+specta-typescript = "0.0.9"
+tauri-specta = { version = "2.0.0-rc.21", features = ["derive", "typescript"] }
+
 tauri-plugin-log = "2"
-tauri-plugin-deep-link = "2.4.7"
 tauri-plugin-opener = "2.5.3"
+tauri-plugin-os = "2.3.2"
+tauri-plugin-deep-link = "2.4.7"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+enigo = "0.5.0"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_Threading",
+  "Win32_System_ProcessStatus"
+] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2.4.0", features = ["deep-link"] }

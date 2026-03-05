@@ -1,0 +1,10 @@
+C:\Users\haz\dev\sable\crates\tauri-plugin-splashscreen\target\debug\deps\toml_datetime-b7bb64ff8e8f2d10.d: C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\lib.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\datetime.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\de.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\ser.rs
+
+C:\Users\haz\dev\sable\crates\tauri-plugin-splashscreen\target\debug\deps\libtoml_datetime-b7bb64ff8e8f2d10.rlib: C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\lib.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\datetime.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\de.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\ser.rs
+
+C:\Users\haz\dev\sable\crates\tauri-plugin-splashscreen\target\debug\deps\libtoml_datetime-b7bb64ff8e8f2d10.rmeta: C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\lib.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\datetime.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\de.rs C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\ser.rs
+
+C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\lib.rs:
+C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\datetime.rs:
+C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\de.rs:
+C:\Users\haz\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.5+spec-1.1.0\src\ser.rs:

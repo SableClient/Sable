@@ -1,0 +1,6 @@
+R_DEF: Internal format may change without notice
+local
+color splashscreen_background
+drawable loading_icon
+style Theme.App
+style Theme.App.Starting

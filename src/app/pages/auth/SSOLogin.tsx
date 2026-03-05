@@ -1,6 +1,8 @@
 import { Avatar, AvatarImage, Box, Button, Text } from 'folds';
 import { IIdentityProvider, SSOAction, createClient } from '$types/matrix-sdk';
-import { useMemo } from 'react';
+import { MouseEvent, useMemo } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 
 type SSOLoginProps = {
@@ -25,6 +27,12 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
 
   const renderAsIcons = withoutIcon ? false : saveScreenSpace && providers && providers.length > 2;
 
+  const openSso = async (event: MouseEvent, url: string) => {
+    if (!isTauri()) return;
+    event.preventDefault();
+    await openUrl(url);
+  };
+
   return (
     <Box justifyContent="Center" gap="600" wrap="Wrap">
       {providers ? (
@@ -41,6 +49,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
                 key={id}
                 as="a"
                 href={getSSOIdUrl(id)}
+                onClick={(event) => openSso(event, getSSOIdUrl(id))}
                 aria-label={buttonTitle}
                 size="300"
                 radii="300"
@@ -56,6 +65,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
               key={id}
               as="a"
               href={getSSOIdUrl(id)}
+              onClick={(event) => openSso(event, getSSOIdUrl(id))}
               size="500"
               variant="Secondary"
               fill="Soft"
@@ -79,6 +89,7 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
           style={{ width: '100%' }}
           as="a"
           href={getSSOIdUrl()}
+          onClick={(event) => openSso(event, getSSOIdUrl())}
           size="500"
           variant="Secondary"
           fill="Soft"

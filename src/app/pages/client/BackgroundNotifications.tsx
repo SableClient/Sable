@@ -10,6 +10,7 @@ import {
   PushProcessor,
 } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
 import {
   sessionsAtom,
   activeSessionIdAtom,
@@ -153,7 +154,7 @@ export function BackgroundNotifications() {
       // by the SW notificationclick event. This routes through HandleNotificationClick
       // (postMessage path) which does the account switch + deep link reliably on all
       // platforms including iOS where window.Notification onclick is not fired.
-      if ('serviceWorker' in navigator) {
+      if ('serviceWorker' in navigator && !isTauri()) {
         try {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification(opts.title, {

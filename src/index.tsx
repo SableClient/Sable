@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { enableMapSet } from 'immer';
+import { isTauri } from '@tauri-apps/api/core';
 import '@fontsource-variable/nunito';
 import '@fontsource-variable/nunito/wght-italic.css';
 import '@fontsource/space-mono/400.css';
@@ -59,21 +60,6 @@ if ('serviceWorker' in navigator) {
     }
   };
 
-  navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
-    registration.addEventListener('updatefound', () => {
-      const installingWorker = registration.installing;
-      if (installingWorker) {
-        installingWorker.onstatechange = () => {
-          if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              showUpdateAvailablePrompt(registration);
-            }
-          }
-        };
-      }
-    });
-  });
-
   const sendSessionToSW = () => {
     // Use the active session from the new multi-session store, fall back to legacy
     const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
@@ -84,8 +70,22 @@ if ('serviceWorker' in navigator) {
   };
 
   navigator.serviceWorker
-    .register(swUrl)
-    .then(sendSessionToSW)
+    .register(swUrl, swRegisterOptions)
+    .then((registration) => {
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (installingWorker) {
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed') {
+              if (!isTauri() && navigator.serviceWorker.controller) {
+                showUpdateAvailablePrompt(registration);
+              }
+            }
+          };
+        }
+      });
+      sendSessionToSW();
+    })
     .catch((err) => {
       log.warn('SW registration failed:', err);
     });

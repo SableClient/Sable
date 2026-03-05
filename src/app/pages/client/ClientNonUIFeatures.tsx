@@ -1,6 +1,7 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isTauri } from '@tauri-apps/api/core';
 import {
   MatrixEventEvent,
   PushProcessor,
@@ -124,7 +125,7 @@ function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications) {
+      if (usePushNotifications && registration) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));
@@ -538,7 +539,7 @@ export function HandleNotificationClick() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
+    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
 
     const handleMessage = (ev: MessageEvent) => {
       const { data } = ev;
@@ -594,7 +595,7 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.

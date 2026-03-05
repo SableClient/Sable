@@ -14,6 +14,7 @@ import {
   OverlayCenter,
   Text,
 } from 'folds';
+import { isTauri } from '@tauri-apps/api/core';
 import FocusTrap from 'focus-trap-react';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -36,12 +37,14 @@ import { General } from './general';
 import { Cosmetics } from './cosmetics/Cosmetics';
 import { Experimental } from './experimental/Experimental';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
+import { Desktop } from './desktop';
 
 export enum SettingsPages {
   GeneralPage,
   AccountPage,
   NotificationPage,
   DevicesPage,
+  DesktopPage,
   EmojisStickersPage,
   CosmeticsPage,
   DeveloperToolsPage,
@@ -86,6 +89,15 @@ const useSettingsMenuItems = (): SettingsMenuItem[] =>
         name: 'Devices',
         icon: Icons.Monitor,
       },
+      ...(isTauri()
+        ? [
+            {
+              page: SettingsPages.DesktopPage,
+              name: 'Desktop',
+              icon: Icons.Monitor,
+            },
+          ]
+        : []),
       {
         page: SettingsPages.EmojisStickersPage,
         name: 'Emojis & Stickers',
@@ -255,6 +267,9 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
       )}
       {activePage === SettingsPages.DevicesPage && (
         <Devices requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SettingsPages.DesktopPage && (
+        <Desktop requestClose={handlePageRequestClose} />
       )}
       {activePage === SettingsPages.EmojisStickersPage && (
         <EmojisStickers requestClose={handlePageRequestClose} />

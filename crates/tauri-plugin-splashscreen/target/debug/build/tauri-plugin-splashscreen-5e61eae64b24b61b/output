@@ -1,0 +1,6 @@
+cargo:rerun-if-changed=permissions
+cargo:PERMISSION_FILES_PATH=C:\Users\haz\dev\sable\crates\tauri-plugin-splashscreen\target\debug\build\tauri-plugin-splashscreen-5e61eae64b24b61b\out\tauri-plugin-splashscreen-permission-files
+cargo:rerun-if-env-changed=REMOVE_UNUSED_COMMANDS
+cargo:rustc-check-cfg=cfg(mobile)
+cargo:rustc-check-cfg=cfg(desktop)
+cargo:rustc-cfg=desktop

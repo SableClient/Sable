@@ -1,0 +1,4 @@
+int color splashscreen_background 0x0
+int drawable loading_icon 0x0
+int style Theme_App 0x0
+int style Theme_App_Starting 0x0

@@ -75,6 +75,7 @@ import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { TauriDeepLinkBridge } from './TauriDeepLinkBridge';
 
 /**
  * Returns true if there is at least one stored session.
@@ -100,50 +101,58 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
   const routes = createRoutesFromElements(
     <Route>
       <Route
-        index
-        loader={() => {
-          if (hasStoredSession()) return redirect(getHomePath());
-          const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
-          if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
-          return redirect(getLoginPath());
-        }}
-      />
-      <Route
-        loader={({ request }) => {
-          // Allow reaching the login page with ?addAccount=1 even when already logged in
-          const url = new URL(request.url);
-          if (url.searchParams.get('addAccount') === '1') return null;
-          if (hasStoredSession()) return redirect(getHomePath());
-          return null;
-        }}
         element={
           <>
-            <AuthLayout />
-            <UnAuthRouteThemeManager />
+            <TauriDeepLinkBridge />
+            <Outlet />
           </>
         }
       >
-        <Route path={LOGIN_PATH} element={<Login />} />
-        <Route path={REGISTER_PATH} element={<Register />} />
-        <Route path={RESET_PASSWORD_PATH} element={<ResetPassword />} />
-      </Route>
-
-      <Route
-        loader={() => {
-          const session = getFirstSession();
-          if (!session) {
-            const afterLoginPath = getAppPathFromHref(
-              getOriginBaseUrl(hashRouter),
-              window.location.href
-            );
+        <Route
+          index
+          loader={() => {
+            if (hasStoredSession()) return redirect(getHomePath());
+            const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
             if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
             return redirect(getLoginPath());
+          }}
+        />
+        <Route
+          loader={({ request }) => {
+            // Allow reaching the login page with ?addAccount=1 even when already logged in
+            const url = new URL(request.url);
+            if (url.searchParams.get('addAccount') === '1') return null;
+            if (hasStoredSession()) return redirect(getHomePath());
+            return null;
+          }}
+          element={
+            <>
+              <AuthLayout />
+              <UnAuthRouteThemeManager />
+            </>
           }
-          return null;
-        }}
-        element={
-          <AuthRouteThemeManager>
-            {/* HandleNotificationClick must live outside ClientRoot's loading gate so
+        >
+          <Route path={LOGIN_PATH} element={<Login />} />
+          <Route path={REGISTER_PATH} element={<Register />} />
+          <Route path={RESET_PASSWORD_PATH} element={<ResetPassword />} />
+        </Route>
+
+        <Route
+          loader={() => {
+            const session = getFirstSession();
+            if (!session) {
+              const afterLoginPath = getAppPathFromHref(
+                getOriginBaseUrl(hashRouter),
+                window.location.href
+              );
+              if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
+              return redirect(getLoginPath());
+            }
+            return null;
+          }}
+          element={
+            <AuthRouteThemeManager>
+              {/* HandleNotificationClick must live outside ClientRoot's loading gate so
                 SW notification-click postMessages are never dropped during client
                 reloads (e.g., account switches). It only needs navigate + Jotai atoms. */}
             <HandleNotificationClick />
@@ -274,75 +283,76 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                 const decodedSpaceIdOrAlias =
                   encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
 
-                if (decodedSpaceIdOrAlias) {
-                  return redirect(getSpaceLobbyPath(decodedSpaceIdOrAlias));
-                }
-                return null;
-              }}
-              element={<WelcomePage />}
+                  if (decodedSpaceIdOrAlias) {
+                    return redirect(getSpaceLobbyPath(decodedSpaceIdOrAlias));
+                  }
+                  return null;
+                }}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
+            <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
+            <Route
+              path={ROOM_PATH_SEGMENT}
+              element={
+                <SpaceRouteRoomProvider>
+                  <Room />
+                </SpaceRouteRoomProvider>
+              }
             />
-          )}
-          <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
-          <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
+          </Route>
           <Route
-            path={ROOM_PATH_SEGMENT}
+            path={EXPLORE_PATH}
             element={
-              <SpaceRouteRoomProvider>
-                <Room />
-              </SpaceRouteRoomProvider>
+              <PageRoot
+                nav={
+                  <MobileFriendlyPageNav path={EXPLORE_PATH}>
+                    <Explore />
+                  </MobileFriendlyPageNav>
+                }
+              >
+                <Outlet />
+              </PageRoot>
             }
-          />
+          >
+            {mobile ? null : (
+              <Route
+                index
+                loader={() => redirect(getExploreFeaturedPath())}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
+            <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
+          </Route>
+          <Route path={CREATE_PATH} element={<Create />} />
+          <Route
+            path={INBOX_PATH}
+            element={
+              <PageRoot
+                nav={
+                  <MobileFriendlyPageNav path={INBOX_PATH}>
+                    <Inbox />
+                  </MobileFriendlyPageNav>
+                }
+              >
+                <Outlet />
+              </PageRoot>
+            }
+          >
+            {mobile ? null : (
+              <Route
+                index
+                loader={() => redirect(getInboxNotificationsPath())}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
+            <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          </Route>
+          <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
         </Route>
-        <Route
-          path={EXPLORE_PATH}
-          element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Explore />
-                </MobileFriendlyPageNav>
-              }
-            >
-              <Outlet />
-            </PageRoot>
-          }
-        >
-          {mobile ? null : (
-            <Route
-              index
-              loader={() => redirect(getExploreFeaturedPath())}
-              element={<WelcomePage />}
-            />
-          )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
-        </Route>
-        <Route path={CREATE_PATH} element={<Create />} />
-        <Route
-          path={INBOX_PATH}
-          element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
-                </MobileFriendlyPageNav>
-              }
-            >
-              <Outlet />
-            </PageRoot>
-          }
-        >
-          {mobile ? null : (
-            <Route
-              index
-              loader={() => redirect(getInboxNotificationsPath())}
-              element={<WelcomePage />}
-            />
-          )}
-          <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
-          <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
-        </Route>
-        <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>

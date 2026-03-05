@@ -1,0 +1,3 @@
+moe.sable.app.plugin.splashscreen
+color splashscreen_background
+drawable loading_icon

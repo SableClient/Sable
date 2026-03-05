@@ -48,6 +48,11 @@ const resolveBuildHash = (): string | undefined => {
 
 const appVersion = packageJson.version;
 const buildHash = resolveBuildHash();
+const tauriDevHost = process.env.TAURI_DEV_HOST;
+const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
+const isTauriDebug = process.env.TAURI_ENV_DEBUG === 'true';
+const tauriBuildTarget = process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13';
+const tauriBuildMinify = !isTauriDebug ? 'esbuild' : false;
 
 const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
@@ -115,9 +120,11 @@ function serverMatrixSdkCryptoWasm() {
 }
 
 export default defineConfig({
+  clearScreen: false,
   appType: 'spa',
   publicDir: false,
   base: buildConfig.base,
+  envPrefix: ['VITE_', 'TAURI_ENV_*'],
   define: {
     APP_VERSION: JSON.stringify(appVersion),
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
@@ -140,7 +147,18 @@ export default defineConfig({
   },
   server: {
     port: 8080,
-    host: true,
+    strictPort: true,
+    host: tauriDevHost || true,
+    hmr: tauriDevHost
+      ? {
+          protocol: 'ws',
+          host: tauriDevHost,
+          port: 1421,
+        }
+      : undefined,
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..'],
@@ -215,8 +233,10 @@ export default defineConfig({
     },
   },
   build: {
+    target: isTauriBuild ? tauriBuildTarget : undefined,
+    minify: isTauriBuild ? tauriBuildMinify : undefined,
+    sourcemap: isTauriBuild ? isTauriDebug : true,
     outDir: 'dist',
-    sourcemap: true,
     copyPublicDir: false,
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],

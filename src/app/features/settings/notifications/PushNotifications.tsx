@@ -1,4 +1,5 @@
 import { MatrixClient } from '$types/matrix-sdk';
+import { isTauri } from '@tauri-apps/api/core';
 import { ClientConfig } from '../../../hooks/useClientConfig';
 
 type PushSubscriptionState = [
@@ -23,6 +24,9 @@ export async function enablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
+  if (isTauri()) {
+    throw new Error('Push notifications are disabled in Tauri runtime.');
+  }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push messaging is not supported in this browser.');
   }
@@ -113,6 +117,8 @@ export async function disablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
+  if (isTauri()) return;
+
   const [pushSubAtom] = pushSubscriptionAtom;
 
   const pusherData = {

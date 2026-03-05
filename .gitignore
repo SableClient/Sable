@@ -18,3 +18,11 @@ devAssets
 *.tfbackend
 !*.tfbackend.example
 crash.log
+
+/build
+/target/
+/gen/schemas
+
+# Tauri
+/src-tauri/target/
+/src-tauri/gen/

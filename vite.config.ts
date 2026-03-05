@@ -140,6 +140,7 @@ export default defineConfig({
       $styles: path.resolve(__dirname, 'src/app/styles'),
       $utils: path.resolve(__dirname, 'src/app/utils'),
       $pages: path.resolve(__dirname, 'src/app/pages'),
+      $generated: path.resolve(__dirname, 'src/app/generated'),
       $types: path.resolve(__dirname, 'src/types'),
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
@@ -209,6 +210,8 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
+    // Include service worker entry so worker-only imports are discovered during startup.
+    entries: ['index.html', 'src/sw.ts'],
     // Rebuild dep optimizer cache on each dev start to avoid stale API shapes.
     force: true,
     // Keep matrix-widget-api prebundled so matrix-js-sdk can import its named exports in dev.

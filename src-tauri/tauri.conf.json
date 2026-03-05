@@ -15,6 +15,7 @@
         "title": "sable",
         "width": 1280,
         "height": 720,
+        "visible": false,
         "resizable": true,
         "fullscreen": false
       }
@@ -37,9 +38,7 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "sable"
-        ]
+        "schemes": ["sable"]
       }
     }
   }

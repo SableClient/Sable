@@ -3,8 +3,12 @@ import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProv
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 
 import { ClientConfigLoader } from '$components/ClientConfigLoader';
+import { TauriFrontendReady } from '$components/tauri/TauriFrontendReady';
+import { WindowsTitleBar } from '$components/tauri/WindowsTitleBar';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { ScreenSizeProvider, useScreenSize } from '$hooks/useScreenSize';
 import { useCompositionEndTracking } from '$hooks/useComposingCheck';
@@ -17,6 +21,7 @@ const queryClient = new QueryClient();
 function App() {
   const screenSize = useScreenSize();
   useCompositionEndTracking();
+  const useCustomWindowsTitleBar = isTauri() && osType() === 'windows';
 
   const portalContainer = document.getElementById('portalContainer') ?? undefined;
 
@@ -36,7 +41,21 @@ function App() {
                   <ClientConfigProvider value={clientConfig}>
                     <QueryClientProvider client={queryClient}>
                       <JotaiProvider>
-                        <RouterProvider router={createRouter(clientConfig, screenSize)} />
+                        <TauriFrontendReady />
+                        {useCustomWindowsTitleBar && <WindowsTitleBar />}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            width: '100%',
+                            minHeight: 0,
+                            height: useCustomWindowsTitleBar
+                              ? 'calc(100% - var(--tauri-titlebar-height))'
+                              : '100%',
+                          }}
+                        >
+                          <RouterProvider router={createRouter(clientConfig, screenSize)} />
+                        </div>
                       </JotaiProvider>
                       <ReactQueryDevtools initialIsOpen={false} />
                     </QueryClientProvider>

@@ -18,6 +18,8 @@ import FocusTrap from 'focus-trap-react';
 import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import {
   clearCacheAndReload,
   clearLoginData,
@@ -74,6 +76,10 @@ type ClientRootOptionsProps = {
 };
 function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const isWindowsTauri = isTauri() && osType() === 'windows';
+  const topOffset = isWindowsTauri
+    ? `calc(var(--tauri-titlebar-height) + ${config.space.S100})`
+    : config.space.S100;
 
   const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const cords = evt.currentTarget.getBoundingClientRect();
@@ -87,7 +93,7 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
     <IconButton
       style={{
         position: 'absolute',
-        top: config.space.S100,
+        top: topOffset,
         right: config.space.S100,
       }}
       variant="Background"

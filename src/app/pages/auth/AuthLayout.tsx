@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { Box, Header, Scroll, Spinner, Text, color } from 'folds';
+import { Box, Spinner, Text, color } from 'folds';
 import {
   Outlet,
   generatePath,
@@ -9,12 +9,9 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import classNames from 'classnames';
 
-import * as PatternsCss from '$styles/Patterns.css';
 import { clientAllowedServer, clientDefaultServer, useClientConfig } from '$hooks/useClientConfig';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import CinnySVG from '$public/favicon.png';
 import { SpecVersionsLoader } from '$components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
@@ -24,8 +21,7 @@ import { AuthServerProvider } from '$hooks/useAuthServer';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
-import * as css from './styles.css';
-import { AuthFooter } from './AuthFooter';
+import { AuthShell } from './AuthShell';
 
 const currentAuthPath = (pathname: string): string => {
   if (matchPath(LOGIN_PATH, pathname)) {
@@ -124,92 +120,66 @@ export function AuthLayout() {
     discoveryState.status === AsyncStatus.Success ? discoveryState.data.response : [];
 
   return (
-    <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
-      <Box
-        className={classNames(css.AuthLayout, PatternsCss.BackgroundDotPattern)}
-        direction="Column"
-        alignItems="Center"
-        justifyContent="SpaceBetween"
-        gap="400"
-      >
-        <Box direction="Column" className={css.AuthCard}>
-          <Header className={css.AuthHeader} size="600" variant="Surface">
-            <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={CinnySVG} alt="Cinny Logo" />
-              <Text size="H3">Sable</Text>
-            </Box>
-            {isAddingAccount && (
-              <Text size="T200" priority="300" style={{ marginLeft: 'auto', marginRight: 4 }}>
-                Adding account
-              </Text>
-            )}
-          </Header>
-          <Box className={css.AuthCardContent} direction="Column">
-            <Box direction="Column" gap="100">
-              <Text as="label" size="L400" priority="300">
-                Homeserver
-              </Text>
-              <ServerPicker
-                server={server}
-                serverList={clientConfig.homeserverList ?? []}
-                allowCustomServer={clientConfig.allowCustomHomeservers}
-                onServerChange={selectServer}
-              />
-            </Box>
-            {discoveryState.status === AsyncStatus.Loading && (
-              <AuthLayoutLoading message="Looking for homeserver..." />
-            )}
-            {discoveryState.status === AsyncStatus.Error && (
-              <AuthLayoutError message="Failed to find homeserver." />
-            )}
-            {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_PROMPT && (
-              <AuthLayoutError
-                message={`Failed to connect. Homeserver configuration found with ${autoDiscoveryError.host} appears unusable.`}
-              />
-            )}
-            {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_ERROR && (
-              <AuthLayoutError message="Failed to connect. Homeserver configuration base_url appears invalid." />
-            )}
-            {discoveryState.status === AsyncStatus.Success && autoDiscoveryInfo && (
-              <AuthServerProvider value={discoveryState.data.serverName}>
-                <AutoDiscoveryInfoProvider value={autoDiscoveryInfo}>
-                  <SpecVersionsLoader
-                    baseUrl={autoDiscoveryInfo['m.homeserver'].base_url}
-                    fallback={() => (
-                      <AuthLayoutLoading
-                        message={`Connecting to ${autoDiscoveryInfo['m.homeserver'].base_url}`}
-                      />
-                    )}
+    <AuthShell isAddingAccount={isAddingAccount}>
+      <Box direction="Column" gap="100">
+        <Text as="label" size="L400" priority="300">
+          Homeserver
+        </Text>
+        <ServerPicker
+          server={server}
+          serverList={clientConfig.homeserverList ?? []}
+          allowCustomServer={clientConfig.allowCustomHomeservers}
+          onServerChange={selectServer}
+        />
+      </Box>
+      {discoveryState.status === AsyncStatus.Loading && (
+        <AuthLayoutLoading message="Looking for homeserver..." />
+      )}
+      {discoveryState.status === AsyncStatus.Error && (
+        <AuthLayoutError message="Failed to find homeserver." />
+      )}
+      {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_PROMPT && (
+        <AuthLayoutError
+          message={`Failed to connect. Homeserver configuration found with ${autoDiscoveryError.host} appears unusable.`}
+        />
+      )}
+      {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_ERROR && (
+        <AuthLayoutError message="Failed to connect. Homeserver configuration base_url appears invalid." />
+      )}
+      {discoveryState.status === AsyncStatus.Success && autoDiscoveryInfo && (
+        <AuthServerProvider value={discoveryState.data.serverName}>
+          <AutoDiscoveryInfoProvider value={autoDiscoveryInfo}>
+            <SpecVersionsLoader
+              baseUrl={autoDiscoveryInfo['m.homeserver'].base_url}
+              fallback={() => (
+                <AuthLayoutLoading
+                  message={`Connecting to ${autoDiscoveryInfo['m.homeserver'].base_url}`}
+                />
+              )}
+              error={() => (
+                <AuthLayoutError message="Failed to connect. Either homeserver is unavailable at this moment or does not exist." />
+              )}
+            >
+              {(specVersions) => (
+                <SpecVersionsProvider value={specVersions}>
+                  <AuthFlowsLoader
+                    fallback={() => <AuthLayoutLoading message="Loading authentication flow..." />}
                     error={() => (
-                      <AuthLayoutError message="Failed to connect. Either homeserver is unavailable at this moment or does not exist." />
+                      <AuthLayoutError message="Failed to get authentication flow information." />
                     )}
                   >
-                    {(specVersions) => (
-                      <SpecVersionsProvider value={specVersions}>
-                        <AuthFlowsLoader
-                          fallback={() => (
-                            <AuthLayoutLoading message="Loading authentication flow..." />
-                          )}
-                          error={() => (
-                            <AuthLayoutError message="Failed to get authentication flow information." />
-                          )}
-                        >
-                          {(authFlows) => (
-                            <AuthFlowsProvider value={authFlows}>
-                              <Outlet />
-                            </AuthFlowsProvider>
-                          )}
-                        </AuthFlowsLoader>
-                      </SpecVersionsProvider>
+                    {(authFlows) => (
+                      <AuthFlowsProvider value={authFlows}>
+                        <Outlet />
+                      </AuthFlowsProvider>
                     )}
-                  </SpecVersionsLoader>
-                </AutoDiscoveryInfoProvider>
-              </AuthServerProvider>
-            )}
-          </Box>
-        </Box>
-        <AuthFooter />
-      </Box>
-    </Scroll>
+                  </AuthFlowsLoader>
+                </SpecVersionsProvider>
+              )}
+            </SpecVersionsLoader>
+          </AutoDiscoveryInfoProvider>
+        </AuthServerProvider>
+      )}
+    </AuthShell>
   );
 }

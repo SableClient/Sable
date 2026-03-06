@@ -595,7 +595,7 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
+    if (!('serviceWorker' in navigator) || isTauri()) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.

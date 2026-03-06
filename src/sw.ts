@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /// <reference lib="WebWorker" />
 
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';

@@ -12,7 +12,7 @@ import { LoginPathSearchParams } from '$pages/paths';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { SSOLogin } from '$pages/auth/SSOLogin';
 import { OrDivider } from '$pages/auth/OrDivider';
-import { buildTauriSsoRedirectUrl } from '$pages/auth/tauriSso';
+import { buildTauriSsoRedirectUrl } from '$pages/auth/SSOTauri';
 import { PasswordLoginForm } from './PasswordLoginForm';
 import { TokenLogin } from './TokenLogin';
 

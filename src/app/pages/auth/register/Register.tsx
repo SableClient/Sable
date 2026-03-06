@@ -12,7 +12,7 @@ import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';
 import { OrDivider } from '$pages/auth/OrDivider';
-import { buildTauriSsoRedirectUrl } from '$pages/auth/tauriSso';
+import { buildTauriSsoRedirectUrl } from '$pages/auth/SSOTauri';
 import { PasswordRegisterForm, SUPPORTED_REGISTER_STAGES } from './PasswordRegisterForm';
 
 const useRegisterSearchParams = (searchParams: URLSearchParams): RegisterPathSearchParams =>

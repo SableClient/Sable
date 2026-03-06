@@ -1,5 +1,10 @@
+import { SSO_CALLBACK_PATH } from '$pages/paths';
+
 const TAURI_SSO_PROTOCOL = 'sable:';
 const TAURI_SSO_HOST = 'login';
+
+const getAppBaseUrl = (): string =>
+  import.meta.env.DEV ? 'http://localhost:8080' : 'https://app.sable.moe';
 
 type TauriSsoCallback = {
   loginToken: string;
@@ -7,7 +12,7 @@ type TauriSsoCallback = {
 };
 
 export const buildTauriSsoRedirectUrl = (server?: string): string => {
-  const redirectUrl = new URL(`${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`);
+  const redirectUrl = new URL(SSO_CALLBACK_PATH, getAppBaseUrl());
 
   if (server) {
     redirectUrl.searchParams.set('server', server);

@@ -6,3 +6,4 @@ LICENSE
 README.md
 CHANGELOG.md
 ./changeset
+src/app/generated

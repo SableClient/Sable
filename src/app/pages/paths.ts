@@ -94,3 +94,5 @@ export const TO_ROOM_EVENT_PATH = `${TO_PATH}/:user_id/:room_id/:event_id?`;
 export const SPACE_SETTINGS_PATH = '/space-settings/';
 
 export const ROOM_SETTINGS_PATH = '/room-settings/';
+
+export const SSO_CALLBACK_PATH = '/lp/sso-callback';

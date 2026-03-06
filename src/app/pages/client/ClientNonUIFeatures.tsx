@@ -525,7 +525,7 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
+    if (!('serviceWorker' in navigator) || isTauri()) return;
     const payload = {
       type: 'setNotificationSettings' as const,
       notificationSoundEnabled: notificationSound,

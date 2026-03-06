@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /// <reference lib="WebWorker" />
 // eslint-disable-next-line import-x/no-extraneous-dependencies
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';

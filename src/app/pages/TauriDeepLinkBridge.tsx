@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isTauri } from '@tauri-apps/api/core';
 import { createLogger } from '$utils/debug';
-import { parseTauriSsoCallback } from '$pages/auth/tauriSso';
+import { parseTauriSsoCallback } from '$pages/auth/SSOTauri';
 import { getLoginPath, withSearchParam } from './pathUtils';
 
 const log = createLogger('TauriDeepLinkBridge');

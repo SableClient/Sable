@@ -25,7 +25,7 @@ pub fn run() {
             Typescript::default().header("/* eslint-disable */"),
             "../src/app/generated/tauri.ts",
         )
-        .expect("Failed to export tauri-specta bindings");
+        .unwrap_or_else(|e| eprintln!("Warning: Failed to export tauri-specta bindings: {e}"));
 
     let invoke_handler = specta_builder.invoke_handler();
 

@@ -149,7 +149,7 @@ pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> taur
     }
 
     let window = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default())
-        .title("sable")
+        .title(app.package_info().name.clone())
         .build()?;
     configure_main_window(&window);
 

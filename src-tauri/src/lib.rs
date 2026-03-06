@@ -6,6 +6,7 @@ use std::sync::Arc;
 #[cfg(debug_assertions)]
 use specta_typescript::Typescript;
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 use tauri_specta::{collect_commands, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -30,6 +31,13 @@ pub fn run() {
     let invoke_handler = specta_builder.invoke_handler();
 
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    StateFlags::all() & !StateFlags::VISIBLE & !StateFlags::DECORATIONS,
+                )
+                .build(),
+        )
         .manage(desktop_tray::DesktopSettingsState::new(true))
         .manage(Arc::new(windows::window_tracking::TrackingState::new()))
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {

@@ -1,6 +1,6 @@
 
 [packages.sable]
-versioned_files = ["package.json", "package-lock.json"]
+versioned_files = ["package.json", "package-lock.json", "src-tauri/tauri.conf.json"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
     { name = "Documentation", types = ["docs"] },

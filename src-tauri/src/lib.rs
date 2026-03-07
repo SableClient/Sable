@@ -1,17 +1,24 @@
-mod desktop_tray;
 mod windows;
 
-use std::sync::Arc;
+#[cfg(desktop)]
+mod desktop_tray;
 
 #[cfg(debug_assertions)]
 use specta_typescript::Typescript;
+
+#[cfg(desktop)]
 use tauri::Manager;
+
+use sable_macros::collect_commands;
+use tauri_specta::Builder;
+
+#[cfg(desktop)]
 use tauri_plugin_window_state::StateFlags;
-use tauri_specta::{collect_commands, Builder};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let specta_builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+        #[cfg(desktop)]
         desktop_tray::set_close_to_tray_enabled,
         windows::snap_overlay::show_snap_overlay,
         windows::snap_overlay::hide_snap_overlay,
@@ -30,22 +37,32 @@ pub fn run() {
 
     let invoke_handler = specta_builder.invoke_handler();
 
-    tauri::Builder::default()
-        .plugin(
-            tauri_plugin_window_state::Builder::default()
-                .with_state_flags(
-                    StateFlags::all() & !StateFlags::VISIBLE & !StateFlags::DECORATIONS,
-                )
-                .build(),
-        )
-        .manage(desktop_tray::DesktopSettingsState::new(true))
-        .manage(Arc::new(windows::window_tracking::TrackingState::new()))
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            let _ = desktop_tray::show_or_create_main_window(app);
-        }))
+    let builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(
+        tauri_plugin_window_state::Builder::default()
+            .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE & !StateFlags::DECORATIONS)
+            .build(),
+    );
+
+    #[cfg(desktop)]
+    let builder = builder.manage(desktop_tray::DesktopSettingsState::new(true));
+
+    let builder = builder.manage(std::sync::Arc::new(
+        windows::window_tracking::TrackingState::new(),
+    ));
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        let _ = desktop_tray::show_or_create_main_window(app);
+    }));
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_splashscreen::init())
         .setup(|app| {
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             {
@@ -53,11 +70,13 @@ pub fn run() {
                 app.deep_link().register_all()?;
             }
 
-            if let Some(window) = app.get_webview_window(desktop_tray::MAIN_WINDOW_LABEL) {
-                desktop_tray::configure_main_window(&window);
+            #[cfg(desktop)]
+            {
+                if let Some(window) = app.get_webview_window(desktop_tray::MAIN_WINDOW_LABEL) {
+                    desktop_tray::configure_main_window(&window);
+                }
+                desktop_tray::create_system_tray(app.handle())?;
             }
-
-            desktop_tray::create_system_tray(app.handle())?;
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -71,5 +90,11 @@ pub fn run() {
         .invoke_handler(invoke_handler)
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(desktop_tray::handle_run_event);
+        .run(|app, event| {
+            #[cfg(desktop)]
+            desktop_tray::handle_run_event(app, event);
+
+            #[cfg(not(desktop))]
+            let _ = (app, event);
+        });
 }

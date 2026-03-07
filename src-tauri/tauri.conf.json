@@ -39,7 +39,13 @@
     "deep-link": {
       "desktop": {
         "schemes": ["sable"]
-      }
+      },
+      "mobile": [
+        {
+          "scheme": ["sable"],
+          "appLink": false
+        }
+      ]
     }
   }
 }

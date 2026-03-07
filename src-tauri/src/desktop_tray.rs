@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    menu::{Menu, MenuItem, MenuEvent},
+    tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
@@ -114,10 +114,10 @@ fn handle_tray_double_click<R: tauri::Runtime>(app: &AppHandle<R>, event: &TrayI
     }
 }
 
-pub fn configure_main_window<R: tauri::Runtime>(window: &WebviewWindow<R>) {
+pub fn configure_main_window<R: tauri::Runtime>(_window: &WebviewWindow<R>) {
     #[cfg(target_os = "windows")]
     {
-        let _ = window.set_decorations(false);
+        let _ = _window.set_decorations(false);
     }
 }
 
@@ -149,14 +149,13 @@ pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> taur
     }
 
     let window = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default())
-        .title(app.package_info().name.clone())
         .build()?;
     configure_main_window(&window);
 
     Ok(())
 }
 
-pub fn create_system_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+pub fn create_system_tray(app: &AppHandle) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, "Show", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, TRAY_MENU_QUIT_ID, "Quit", true, None::<&str>)?;
     let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
@@ -164,7 +163,7 @@ pub fn create_system_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Resul
     let mut tray_builder = TrayIconBuilder::new()
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id().as_ref() {
+        .on_menu_event(|app, event: MenuEvent| match event.id().as_ref() {
             TRAY_MENU_SHOW_ID => {
                 let _ = show_or_create_main_window(app);
             }
@@ -173,7 +172,7 @@ pub fn create_system_tray<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Resul
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
+        .on_tray_icon_event(|tray: &TrayIcon<tauri::Wry>, event| {
             let app = tray.app_handle();
             handle_tray_double_click(app, &event);
         });

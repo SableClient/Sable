@@ -169,9 +169,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                               </MobileFriendlyClientNav>
                             }
                           >
-                            <PersistentCallContainer>
-                              <Outlet />
-                            </PersistentCallContainer>
+                            <Outlet />
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>

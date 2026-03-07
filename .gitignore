@@ -26,6 +26,7 @@ crash.log
 # Tauri
 /src-tauri/target/
 /src-tauri/gen/
+dist-js
 
 # Worktrees
 .worktrees

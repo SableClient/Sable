@@ -185,12 +185,9 @@ export default defineConfig({
     VitePWA({
       srcDir: 'src',
       filename: 'sw.ts',
-      strategies: 'injectManifest',
+      strategies: 'generateSW',
       injectRegister: false,
       manifest: false,
-      injectManifest: {
-        injectionPoint: undefined,
-      },
       devOptions: {
         enabled: true,
         type: 'module',
@@ -226,6 +223,7 @@ export default defineConfig({
       'workbox-core',
       'workbox-routing',
       'workbox-strategies',
+      '@vanilla-extract/recipes/createRuntimeFn',
     ],
     needsInterop: ['matrix-widget-api'],
     esbuildOptions: {

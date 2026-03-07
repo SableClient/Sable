@@ -7,7 +7,7 @@ interface Splashscreen {
 
 const splashscreen: Splashscreen = {
   async ping(value: string): Promise<string | null> {
-    return await invoke<{ value?: string }>('plugin:splashscreen|ping', {
+    return invoke<{ value?: string }>('plugin:splashscreen|ping', {
       payload: {
         value,
       },

@@ -181,12 +181,9 @@ export default defineConfig({
     VitePWA({
       srcDir: 'src',
       filename: 'sw.ts',
-      strategies: 'injectManifest',
+      strategies: 'generateSW',
       injectRegister: false,
       manifest: false,
-      injectManifest: {
-        injectionPoint: undefined,
-      },
       devOptions: {
         enabled: true,
         type: 'module',

@@ -4,7 +4,9 @@ const TAURI_SSO_PROTOCOL = 'sable:';
 const TAURI_SSO_HOST = 'login';
 
 const getAppBaseUrl = (): string =>
-  import.meta.env.DEV ? 'http://localhost:8080' : 'https://app.sable.moe';
+  import.meta.env.DEV
+    ? 'https://feat-tauri-integration-sable.raspy-dream-bb1d.workers.dev'
+    : 'https://app.sable.moe';
 
 type TauriSsoCallback = {
   loginToken: string;

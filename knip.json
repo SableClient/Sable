@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
+  "entry": ["src/sw.ts", "scripts/**/*.js"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true

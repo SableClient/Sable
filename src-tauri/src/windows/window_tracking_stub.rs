@@ -8,42 +8,9 @@ use specta::Type;
 use tauri::{AppHandle, State};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
-pub struct WindowInfo {
-    pub mouse_x: i32,
-    pub mouse_y: i32,
-    pub window_class: Option<String>,
-    pub exe_name: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
 pub struct WindowTarget {
     pub window_class: Option<String>,
     pub exe_name: Option<String>,
-}
-
-impl WindowTarget {
-    pub fn new(window_class: Option<String>, exe_name: Option<String>) -> Self {
-        Self {
-            window_class,
-            exe_name,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
-pub enum EventType {
-    Started,
-    TargetLost,
-    Timeout,
-    Stopped,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
-pub struct TrackingEvent {
-    pub event_type: EventType,
-    pub window_info: Option<WindowInfo>,
-    pub target: WindowTarget,
-    pub message: String,
 }
 
 pub struct TrackingState {

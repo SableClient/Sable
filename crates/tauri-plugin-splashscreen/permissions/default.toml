@@ -1,0 +1,8 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Default permissions for the splashscreen plugin"
+permissions = [
+  "allow-ping",
+  "allow-close",
+]

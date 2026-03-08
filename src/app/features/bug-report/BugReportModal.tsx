@@ -33,56 +33,69 @@ type SimilarIssue = {
 const GITHUB_REPO = '7w1/sable';
 
 async function searchSimilarIssues(query: string, signal: AbortSignal): Promise<SimilarIssue[]> {
-  const params = new URLSearchParams({
-    q: `${query} repo:${GITHUB_REPO} is:issue is:open`,
-    per_page: '5',
-  });
+  // Split into individual words, drop very short ones, and join with OR so that
+  // partial / stemmed titles (e.g. "reporting" still matches "report") surface results.
+  const words = query
+    .split(/[\s\-_/]+/)
+    .map((w) => w.replace(/[^\w]/g, ''))
+    .filter((w) => w.length >= 3);
+
+  if (words.length === 0) return [];
+
+  const q = `${words.join(' OR ')} repo:${GITHUB_REPO} is:issue is:open`;
+  const params = new URLSearchParams({ q, per_page: '5' });
   const res = await fetch(`https://api.github.com/search/issues?${params}`, { signal });
   if (!res.ok) return [];
   const data = (await res.json()) as { items?: SimilarIssue[] };
   return data.items ?? [];
 }
 
-function buildGitHubUrl(
-  type: ReportType,
-  title: string,
-  description: string,
-  steps: string,
-  solution: string
-): string {
+// Field IDs match the ids defined in .github/ISSUE_TEMPLATE/bug_report.yml
+// and feature_request.yml so GitHub pre-fills each form field directly.
+function buildGitHubUrl(type: ReportType, title: string, fields: Record<string, string>): string {
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const version = `v${APP_VERSION}${devLabel}${buildLabel}`;
 
-  let body: string;
+  const params: Record<string, string> = { title };
+
   if (type === 'bug') {
-    const sections: string[] = [
-      `**Describe the bug**\n\n${description}`,
-      steps ? `**Reproduction**\n\n${steps}` : '',
-      `**Platform and versions**\n\n- Sable: ${version}\n- Browser: ${navigator.userAgent}`,
-    ];
-    body = sections.filter(Boolean).join('\n\n---\n\n');
+    params.template = 'bug_report.yml';
+    if (fields.description) params.description = fields.description;
+    if (fields.reproduction) params.reproduction = fields.reproduction;
+    if (fields['expected-behavior']) params['expected-behavior'] = fields['expected-behavior'];
+    // Auto-populate the platform/versions field
+    params.info = `- OS: ${navigator.platform || 'unknown'}\n- Browser: ${navigator.userAgent}\n- Sable: ${version}`;
+    if (fields.context) params.context = fields.context;
   } else {
-    const sections: string[] = [
-      `**Describe the problem**\n\n${description}`,
-      solution ? `**Describe the solution you'd like**\n\n${solution}` : '',
-    ];
-    body = sections.filter(Boolean).join('\n\n---\n\n');
+    params.template = 'feature_request.yml';
+    if (fields.problem) params.problem = fields.problem;
+    if (fields.solution) params.solution = fields.solution;
+    if (fields.alternatives) params.alternatives = fields.alternatives;
+    if (fields.context) params.context = fields.context;
   }
 
-  const params = new URLSearchParams({ title, body });
-  if (type === 'bug') params.set('labels', 'bug');
-  if (type === 'feature') params.set('labels', 'enhancement');
-  return `https://github.com/${GITHUB_REPO}/issues/new?${params}`;
+  return `https://github.com/${GITHUB_REPO}/issues/new?${new URLSearchParams(params)}`;
 }
 
 function BugReportModal() {
   const close = useCloseBugReportModal();
   const [type, setType] = useState<ReportType>('bug');
   const [title, setTitle] = useState('');
+
+  // Bug fields (match bug_report.yml ids)
   const [description, setDescription] = useState('');
-  const [steps, setSteps] = useState('');
+  const [reproduction, setReproduction] = useState('');
+  const [expectedBehavior, setExpectedBehavior] = useState('');
+
+  // Feature fields (match feature_request.yml ids)
+  const [problem, setProblem] = useState('');
   const [solution, setSolution] = useState('');
+  const [alternatives, setAlternatives] = useState('');
+
+  // Shared optional field
+  const [context, setContext] = useState('');
+
   const [similarIssues, setSimilarIssues] = useState<SimilarIssue[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -116,17 +129,19 @@ function BugReportModal() {
     };
   }, [title]);
 
-  const canSubmit = title.trim().length > 0;
+  const canSubmit =
+    title.trim().length > 0 &&
+    (type === 'bug'
+      ? description.trim().length > 0
+      : problem.trim().length > 0 && solution.trim().length > 0);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const url = buildGitHubUrl(
-      type,
-      title.trim(),
-      description.trim(),
-      steps.trim(),
-      solution.trim()
-    );
+    const fields: Record<string, string> =
+      type === 'bug'
+        ? { description, reproduction, 'expected-behavior': expectedBehavior, context }
+        : { problem, solution, alternatives, context };
+    const url = buildGitHubUrl(type, title.trim(), fields);
     window.open(url, '_blank', 'noopener,noreferrer');
     close();
   };
@@ -234,8 +249,12 @@ function BugReportModal() {
                           ? 'A clear description of what the bug is.'
                           : 'A clear description of the problem this feature would solve.'
                       }
-                      value={description}
-                      onChange={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
+                      value={type === 'bug' ? description : problem}
+                      onChange={(e) =>
+                        type === 'bug'
+                          ? setDescription((e.target as HTMLTextAreaElement).value)
+                          : setProblem((e.target as HTMLTextAreaElement).value)
+                      }
                     />
                   </Box>
 
@@ -249,8 +268,26 @@ function BugReportModal() {
                         radii="400"
                         rows={3}
                         placeholder={'1. Go to…\n2. Click on…\n3. See error'}
-                        value={steps}
-                        onChange={(e) => setSteps((e.target as HTMLTextAreaElement).value)}
+                        value={reproduction}
+                        onChange={(e) => setReproduction((e.target as HTMLTextAreaElement).value)}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Bug: expected behavior */}
+                  {type === 'bug' && (
+                    <Box direction="Column" gap="100">
+                      <Text size="L400">Expected behavior (optional)</Text>
+                      <TextArea
+                        size="500"
+                        variant="SurfaceVariant"
+                        radii="400"
+                        rows={2}
+                        placeholder="A clear description of what you expected to happen."
+                        value={expectedBehavior}
+                        onChange={(e) =>
+                          setExpectedBehavior((e.target as HTMLTextAreaElement).value)
+                        }
                       />
                     </Box>
                   )}
@@ -271,6 +308,22 @@ function BugReportModal() {
                     </Box>
                   )}
 
+                  {/* Feature: alternatives */}
+                  {type === 'feature' && (
+                    <Box direction="Column" gap="100">
+                      <Text size="L400">Alternatives considered (optional)</Text>
+                      <TextArea
+                        size="500"
+                        variant="SurfaceVariant"
+                        radii="400"
+                        rows={2}
+                        placeholder="Any alternative solutions or features you've considered."
+                        value={alternatives}
+                        onChange={(e) => setAlternatives((e.target as HTMLTextAreaElement).value)}
+                      />
+                    </Box>
+                  )}
+
                   {/* Platform info for bugs */}
                   {type === 'bug' && (
                     <Box direction="Column" gap="100">
@@ -280,6 +333,20 @@ function BugReportModal() {
                       </Text>
                     </Box>
                   )}
+
+                  {/* Additional context — shared */}
+                  <Box direction="Column" gap="100">
+                    <Text size="L400">Additional context (optional)</Text>
+                    <TextArea
+                      size="500"
+                      variant="SurfaceVariant"
+                      radii="400"
+                      rows={2}
+                      placeholder="Any other context or screenshots."
+                      value={context}
+                      onChange={(e) => setContext((e.target as HTMLTextAreaElement).value)}
+                    />
+                  </Box>
 
                   {/* Actions */}
                   <Box gap="300" justifyContent="End">

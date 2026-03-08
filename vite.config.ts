@@ -185,12 +185,25 @@ export default defineConfig({
     VitePWA({
       srcDir: 'src',
       filename: 'sw.ts',
-      strategies: 'generateSW',
+      strategies: 'injectManifest',
       injectRegister: false,
       manifest: false,
+      injectManifest: {
+        injectionPoint: undefined,
+      },
       devOptions: {
         enabled: true,
         type: 'module',
+      },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+        globIgnores: [
+          '**/matrix_sdk_crypto_wasm_bg-*.wasm',
+          '**/vision_wasm_internal-*.wasm',
+          '**/qcms_bg.wasm',
+          '**/openjpeg.wasm',
+          '**/jbig2.wasm',
+        ],
       },
     }),
     cloudflare({
@@ -247,6 +260,15 @@ export default defineConfig({
     copyPublicDir: false,
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('pdfjs-dist')) return 'pdf';
+          if (id.includes('@element-hq/element-call-embedded')) return 'element-call';
+          if (id.includes('@matrix-org') || id.includes('matrix-js-sdk')) return 'matrix';
+          if (id.includes('react-prism') || id.includes('prism')) return 'prism';
+          return undefined;
+        },
+      },
     },
   },
 });

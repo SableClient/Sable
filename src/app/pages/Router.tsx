@@ -19,6 +19,7 @@ import { SpaceSettingsRenderer } from '$features/space-settings';
 import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
+import { BugReportModalRenderer } from '$features/bug-report';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, Sessions } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
@@ -168,6 +169,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                       <UserRoomProfileRenderer />
                       <CreateRoomModalRenderer />
                       <CreateSpaceModalRenderer />
+                      <BugReportModalRenderer />
                       <RoomSettingsRenderer />
                       <SpaceSettingsRenderer />
                       <GlobalKeyboardShortcuts />

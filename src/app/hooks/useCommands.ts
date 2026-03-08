@@ -243,7 +243,7 @@ export enum Command {
   DelExt = 'delext',
   DiscardSession = 'discardsession',
   // Meta
-  Report = 'report',
+  Report = 'bugreport',
 }
 
 export type CommandContent = {

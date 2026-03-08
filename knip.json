@@ -6,7 +6,12 @@
     "type": true
   },
   "ignoreFiles": ["crates/**/*"],
-  "ignoreDependencies": ["buffer", "@element-hq/element-call-embedded", "workbox-precaching"],
+  "ignoreDependencies": [
+    "buffer",
+    "@element-hq/element-call-embedded",
+    "workbox-precaching",
+    "tauri-plugin-splashscreen-api"
+  ],
   "ignoreBinaries": ["knope"],
   "rules": {
     "exports": "off",

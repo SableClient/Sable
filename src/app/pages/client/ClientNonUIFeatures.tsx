@@ -7,7 +7,6 @@ import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-ht
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import LogoSVG from '$public/res/svg/cinny.svg';
-import { NotificationBanner } from '$components/notification-banner';
 import LogoUnreadSVG from '$public/res/svg/cinny-unread.svg';
 import LogoHighlightSVG from '$public/res/svg/cinny-highlight.svg';
 import NotificationSound from '$public/sound/notification.ogg';
@@ -559,7 +558,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
-      <NotificationBanner />
       {children}
     </>
   );

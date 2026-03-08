@@ -1306,7 +1306,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           }
         },
       },
-<<<<<<< HEAD
       // Cute Events
       [Command.Hug]: {
         name: Command.Hug,

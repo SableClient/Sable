@@ -49,10 +49,10 @@ export function MobileRoomOverlay({ children }: { children: ReactNode }) {
         const flung = vx > SWIPE_VELOCITY && dx > 0 && mx > 0;
         log.log(`drag end — mx:${mx.toFixed(0)} vx:${vx.toFixed(2)} dx:${dx} flung:${flung}`);
         if (mx > SWIPE_DISTANCE || flung) {
-          log.log('✓ threshold met — calling navigateBack');
+          log.log('threshold met — calling navigateBack');
           navigateBack();
         } else {
-          log.log('✗ snapping back');
+          log.log('snapping back');
           animate(x, 0, SNAP_SPRING);
         }
       }

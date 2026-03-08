@@ -59,7 +59,7 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { mobileOrTablet } from '$utils/user-agent';
-import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
+import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$components/useBackRoute';
 import { createLogger } from '$utils/debug';
@@ -198,7 +198,7 @@ export function Direct() {
   const routeSelectedRoomId = useSelectedRoom();
   const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
   const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
-  const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
+  const lastRoomId = useLastFocusedRoom('direct');
 
   useEffect(() => {
     log.log(
@@ -239,11 +239,12 @@ export function Direct() {
   );
 
   const handleSwipeToRoom = useCallback(() => {
-    if (mobileOrTablet() && lastRoomId) {
-      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, lastRoomId);
+    if (mobileOrTablet() && sortedDirects.length > 0) {
+      const targetRoomId = selectedRoomId ?? lastRoomId ?? sortedDirects[0];
+      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, targetRoomId);
       navigate(getDirectRoomPath(roomAliasOrId));
     }
-  }, [lastRoomId, mx, navigate]);
+  }, [selectedRoomId, lastRoomId, sortedDirects, mx, navigate]);
 
   return (
     <PageNav>

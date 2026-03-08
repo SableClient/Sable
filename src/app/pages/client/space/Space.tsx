@@ -78,7 +78,7 @@ import { BreakWord } from '$styles/Text.css';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { mobileOrTablet } from '$utils/user-agent';
-import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
+import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$components/useBackRoute';
 import { createLogger } from '$utils/debug';
@@ -392,7 +392,7 @@ export function Space() {
   const routeSelectedRoomId = useSelectedRoom();
   const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
   const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
-  const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
+  const lastRoomId = useLastFocusedRoom({ spaceId: space.roomId });
 
   useEffect(() => {
     log.log(
@@ -459,12 +459,20 @@ export function Space() {
     getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
 
   const navigate = useNavigate();
+  const firstRoomId = useMemo(() => {
+    const firstRoom = hierarchy.find((item) => {
+      const room = mx.getRoom(item.roomId);
+      return room && !room.isSpaceRoom();
+    });
+    return firstRoom?.roomId;
+  }, [hierarchy, mx]);
   const handleSwipeToRoom = useCallback(() => {
-    if (mobileOrTablet() && lastRoomId) {
-      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, lastRoomId);
+    if (mobileOrTablet() && firstRoomId) {
+      const targetRoomId = selectedRoomId ?? lastRoomId ?? firstRoomId;
+      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, targetRoomId);
       navigate(getSpaceRoomPath(spaceIdOrAlias, roomAliasOrId));
     }
-  }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
+  }, [selectedRoomId, lastRoomId, firstRoomId, spaceIdOrAlias, mx, navigate]);
 
   return (
     <PageNav>

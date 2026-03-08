@@ -211,6 +211,7 @@ export type MessageProps = {
   mEvent: MatrixEvent;
   collapse: boolean;
   highlight: boolean;
+  notifyHighlight?: 'silent' | 'loud';
   edit?: boolean;
   canDelete?: boolean;
   canSendReaction?: boolean;
@@ -314,6 +315,7 @@ function MessageInternal(
     mEvent,
     collapse,
     highlight,
+    notifyHighlight,
     edit,
     canDelete,
     canSendReaction,
@@ -676,6 +678,7 @@ function MessageInternal(
       space={messageSpacing}
       collapse={collapse}
       highlight={highlight}
+      notifyHighlight={notifyHighlight}
       selected={!!menuAnchor || !!emojiBoardAnchor}
       {...props}
       {...hoverProps}
@@ -1031,6 +1034,7 @@ export type EventProps = {
   room: Room;
   mEvent: MatrixEvent;
   highlight: boolean;
+  notifyHighlight?: 'silent' | 'loud';
   canDelete?: boolean;
   onReplyClick: (
     ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
@@ -1047,6 +1051,7 @@ export const Event = as<'div', EventProps>(
       room,
       mEvent,
       highlight,
+      notifyHighlight,
       canDelete,
       onReplyClick,
       messageSpacing,
@@ -1131,6 +1136,7 @@ export const Event = as<'div', EventProps>(
         space={messageSpacing}
         autoCollapse
         highlight={highlight}
+        notifyHighlight={notifyHighlight}
         selected={!!menuAnchor}
         {...props}
         {...hoverProps}

@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { ReactNode, useCallback, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { Transforms } from 'slate';
 import { Box, Text, config, toRem } from 'folds';
-import { EventType } from '$types/matrix-sdk';
+import { EventType, Room } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useStateEvent } from '$hooks/useStateEvent';
@@ -26,7 +26,6 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { GlobalModalManager } from '$components/message/modals/GlobalModalManager';
 import { useDelayedEventsSupport } from '$hooks/useDelayedEventsSupport';
 import { delayedEventsSupportedAtom } from '$state/scheduledMessages';
-import { useRoom } from '$hooks/useRoom';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import { RoomInput } from './RoomInput';
 import { RoomTombstone } from './RoomTombstone';
@@ -38,12 +37,8 @@ import { ScheduledMessagesList } from './schedule-send';
 const FN_KEYS_REGEX = /^F\d+$/;
 const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
   const { code } = evt;
-  if (evt.metaKey || evt.altKey || evt.ctrlKey) {
-    return false;
-  }
-
+  if (evt.metaKey || evt.altKey || evt.ctrlKey) return false;
   if (FN_KEYS_REGEX.test(code)) return false;
-
   if (
     code.startsWith('OS') ||
     code.startsWith('Meta') ||
@@ -62,27 +57,30 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
   ) {
     return false;
   }
-
   return true;
 };
 
-export function RoomView({ eventId }: { eventId?: string }) {
+export function RoomView({
+  room,
+  eventId,
+  header,
+}: {
+  room: Room;
+  eventId?: string;
+  header?: ReactNode;
+}) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const screenSize = useScreenSizeContext();
-
-  const room = useRoom();
   const { roomId } = room;
   const editor = useEditor();
-
   const mx = useMatrixClient();
 
   const tombstoneEvent = useStateEvent(room, StateEvent.RoomTombstone);
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
-
   const permissions = useRoomPermissions(creators, powerLevels);
   const canMessage = permissions.event(EventType.RoomMessage, mx.getSafeUserId());
 
@@ -107,9 +105,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
       (evt) => {
         if (editableActiveElement()) return;
         const portalContainer = document.getElementById('portalContainer');
-        if (portalContainer && portalContainer.children.length > 0) {
-          return;
-        }
+        if (portalContainer && portalContainer.children.length > 0) return;
         if (shouldFocusMessageField(evt) || isKeyHotkey('mod+v', evt)) {
           ReactEditor.focus(editor);
         }
@@ -139,6 +135,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
           }
         >
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
+            {header}
             <Box grow="Yes" direction="Column">
               <RoomTimeline
                 key={roomId}

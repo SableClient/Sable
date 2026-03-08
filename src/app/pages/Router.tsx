@@ -66,7 +66,8 @@ import { Notifications, Inbox, Invites } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
-import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
+import { MobileFriendlyPageNav } from './MobileFriendly';
+import { MobileRoomOverlay } from './MobileRoomOverlay';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
@@ -75,17 +76,12 @@ import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
 
-/**
- * Returns true if there is at least one stored session.
- * Reads localStorage directly — safe to call outside React (in route loaders).
- */
 const hasStoredSession = (): boolean => {
   const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
   if (sessions.length > 0) return true;
   return !!getFallbackSession();
 };
 
-/** Returns the first available session for the SW push. */
 const getFirstSession = () => {
   const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
   if (sessions.length > 0) return sessions[0];
@@ -95,6 +91,9 @@ const getFirstSession = () => {
 export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
   const { hashRouter } = clientConfig;
   const mobile = screenSize === ScreenSize.Mobile;
+
+  const wrapRoom = (element: JSX.Element) =>
+    mobile ? <MobileRoomOverlay>{element}</MobileRoomOverlay> : element;
 
   const routes = createRoutesFromElements(
     <Route>
@@ -153,13 +152,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                     <ClientNonUIFeatures>
                       <NotificationJumper />
                       <CallEmbedProvider>
-                        <ClientLayout
-                          nav={
-                            <MobileFriendlyClientNav>
-                              <SidebarNav />
-                            </MobileFriendlyClientNav>
-                          }
-                        >
+                        <ClientLayout nav={<SidebarNav />}>
                           <Outlet />
                         </ClientLayout>
                         <CallStatusRenderer />
@@ -216,11 +209,11 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
-            element={
+            element={wrapRoom(
               <HomeRouteRoomProvider>
                 <Room />
               </HomeRouteRoomProvider>
-            }
+            )}
           />
         </Route>
         <Route
@@ -241,11 +234,11 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
           <Route
             path={ROOM_PATH_SEGMENT}
-            element={
+            element={wrapRoom(
               <DirectRouteRoomProvider>
                 <Room />
               </DirectRouteRoomProvider>
-            }
+            )}
           />
         </Route>
         <Route
@@ -271,7 +264,6 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                 const encodedSpaceIdOrAlias = params.spaceIdOrAlias;
                 const decodedSpaceIdOrAlias =
                   encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
-
                 if (decodedSpaceIdOrAlias) {
                   return redirect(getSpaceLobbyPath(decodedSpaceIdOrAlias));
                 }
@@ -284,11 +276,11 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
-            element={
+            element={wrapRoom(
               <SpaceRouteRoomProvider>
                 <Room />
               </SpaceRouteRoomProvider>
-            }
+            )}
           />
         </Route>
         <Route

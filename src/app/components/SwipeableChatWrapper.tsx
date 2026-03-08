@@ -1,76 +1,83 @@
 import { ReactNode } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { animate, motion, useMotionValue } from 'motion/react';
 import { useDrag } from '@use-gesture/react';
 import { useAtomValue } from 'jotai';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
-import { mobileOrTablet } from '$utils/user-agent';
+import { useIsMobile } from '$hooks/useIsMobile';
+import { SwipeContext } from './SwipeContext';
+
+const SWIPE_DISTANCE = 80;
+const SWIPE_VELOCITY = 0.4;
+const SNAP_SPRING = { type: 'spring' as const, stiffness: 600, damping: 50, mass: 0.6 };
 
 interface SwipeableChatWrapperProps {
   children: ReactNode;
   onOpenSidebar?: () => void;
   onOpenMembers?: () => void;
-  onReply?: () => void;
 }
 
 export function SwipeableChatWrapper({
   children,
   onOpenSidebar,
   onOpenMembers,
-  onReply,
 }: SwipeableChatWrapperProps) {
   const settings = useAtomValue(settingsAtom);
+  const isMobile = useIsMobile();
   const x = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 400, damping: 40 });
+
+  // On mobile, MobileRoomOverlay owns the right-swipe gesture so canSwipeRight
+  // is always false. canSwipeLeft is only active if Members mode is on.
+  // If neither direction is active, skip binding entirely, an idle useDrag
+  // with rubberband still captures and rubber-bands touches, stealing clicks.
+  const canSwipeRight = !isMobile && !!onOpenSidebar;
+  const canSwipeLeft =
+    settings.mobileGestures &&
+    isMobile &&
+    settings.rightSwipeAction === RightSwipeAction.Members &&
+    !!onOpenMembers;
+  const gesturesEnabled = settings.mobileGestures && (canSwipeRight || canSwipeLeft);
 
   const bind = useDrag(
     ({ active, movement: [mx], velocity: [vx], direction: [dx], event: e }) => {
       if (e && 'target' in e && e.target instanceof HTMLElement) {
-        if (e.target.closest('[data-gestures="ignore"]')) {
-          return;
-        }
+        if (e.target.closest('[data-gestures="ignore"]')) return;
       }
 
-      if (!settings.mobileGestures || !mobileOrTablet()) return;
-
       let val = mx;
-
-      const canSwipeRight = !!onOpenSidebar;
-      const canSwipeLeft =
-        settings.rightSwipeAction === RightSwipeAction.Members ? !!onOpenMembers : !!onReply;
-
       if (!canSwipeRight && val > 0) val = 0;
       if (!canSwipeLeft && val < 0) val = 0;
 
       if (active) {
         x.set(val);
       } else {
-        const swipeThreshold = 120;
-        const velocityThreshold = 0.5;
-
-        if (val > swipeThreshold || (vx > velocityThreshold && dx > 0 && val > 0)) {
+        if (canSwipeRight && (val > SWIPE_DISTANCE || (vx > SWIPE_VELOCITY && dx > 0 && val > 0))) {
           onOpenSidebar?.();
-        } else if (val < -swipeThreshold || (vx > velocityThreshold && dx < 0 && val < 0)) {
-          if (settings.rightSwipeAction === RightSwipeAction.Members) {
-            onOpenMembers?.();
-          } else {
-            onReply?.();
-          }
+        } else if (
+          canSwipeLeft &&
+          (val < -SWIPE_DISTANCE || (vx > SWIPE_VELOCITY && dx < 0 && val < 0))
+        ) {
+          onOpenMembers?.();
         }
-        x.set(0);
+        animate(x, 0, SNAP_SPRING);
       }
     },
     {
       axis: 'x',
-      bounds: { left: -200, right: 200 },
+      bounds: { left: -160, right: 160 },
       rubberband: true,
       filterTaps: true,
+      pointer: { capture: false },
+      enabled: gesturesEnabled,
     }
   );
 
-  if (!settings.mobileGestures || !mobileOrTablet()) {
-    return (
+  return (
+    <SwipeContext.Provider value={x}>
       <div
+        {...(gesturesEnabled ? bind() : {})}
         style={{
+          touchAction: 'pan-y',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
@@ -78,35 +85,19 @@ export function SwipeableChatWrapper({
           width: '100%',
         }}
       >
-        {children}
+        <motion.div
+          style={{
+            x,
+            display: 'flex',
+            flexDirection: 'column',
+            flexGrow: 1,
+            height: '100%',
+            willChange: 'transform',
+          }}
+        >
+          {children}
+        </motion.div>
       </div>
-    );
-  }
-
-  return (
-    <div
-      {...bind()}
-      style={{
-        touchAction: 'pan-y',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        flexGrow: 1,
-        height: '100%',
-        width: '100%',
-      }}
-    >
-      <motion.div
-        style={{
-          x: springX,
-          display: 'flex',
-          flexDirection: 'column',
-          flexGrow: 1,
-          height: '100%',
-        }}
-      >
-        {children}
-      </motion.div>
-    </div>
+    </SwipeContext.Provider>
   );
 }

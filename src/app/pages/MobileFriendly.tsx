@@ -1,7 +1,15 @@
 import { ReactNode } from 'react';
 import { useMatch } from 'react-router-dom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { DIRECT_PATH, EXPLORE_PATH, HOME_PATH, INBOX_PATH, SPACE_PATH } from './paths';
+import {
+  DIRECT_PATH,
+  EXPLORE_PATH,
+  HOME_PATH,
+  INBOX_PATH,
+  SPACE_PATH,
+  LOBBY_PATH_SEGMENT,
+  ROOM_PATH_SEGMENT,
+} from './paths';
 
 type MobileFriendlyClientNavProps = {
   children: ReactNode;
@@ -30,14 +38,26 @@ type MobileFriendlyPageNavProps = {
 };
 export function MobileFriendlyPageNav({ path, children }: MobileFriendlyPageNavProps) {
   const screenSize = useScreenSizeContext();
-  const exactPath = useMatch({
-    path,
+  const exactPath = useMatch({ path, caseSensitive: true, end: true });
+  const spaceLobbyMatch = useMatch({
+    path: `${SPACE_PATH}${LOBBY_PATH_SEGMENT}`,
     caseSensitive: true,
     end: true,
   });
+  const roomMatch = useMatch({
+    path: `${path}${ROOM_PATH_SEGMENT}`,
+    caseSensitive: true,
+    end: false,
+  });
 
-  if (screenSize === ScreenSize.Mobile && !exactPath) {
-    return null;
+  if (screenSize === ScreenSize.Mobile) {
+    return children;
+  }
+
+  if (path === SPACE_PATH) {
+    if (!exactPath && !spaceLobbyMatch && !roomMatch) return null;
+  } else {
+    if (!exactPath && !roomMatch) return null;
   }
 
   return children;

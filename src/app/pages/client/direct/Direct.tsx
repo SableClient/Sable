@@ -1,4 +1,12 @@
-import { MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
+import {
+  MouseEventHandler,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   Avatar,
@@ -17,7 +25,7 @@ import {
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import {
@@ -50,6 +58,13 @@ import {
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
+import { mobileOrTablet } from '$utils/user-agent';
+import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
+import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
+import { BACK_ROOM_PARAM } from '$components/useBackRoute';
+import { createLogger } from '$utils/debug';
+
+const log = createLogger('Direct');
 import { useDirectRooms } from './useDirectRooms';
 
 type DirectMenuProps = {
@@ -179,7 +194,24 @@ export function Direct() {
 
   const createDirectSelected = useDirectCreateSelected();
 
-  const selectedRoomId = useSelectedRoom();
+  const [searchParams] = useSearchParams();
+  const routeSelectedRoomId = useSelectedRoom();
+  const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
+  const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
+  const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
+
+  useEffect(() => {
+    log.log(
+      'selectedRoomId:',
+      selectedRoomId,
+      '| routeSelectedRoomId:',
+      routeSelectedRoomId,
+      '| backRoomParam:',
+      backRoomParam,
+      '| searchParams:',
+      Object.fromEntries(searchParams.entries())
+    );
+  }, [selectedRoomId, routeSelectedRoomId, backRoomParam, searchParams]);
   const noRoomToDisplay = directs.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
@@ -206,79 +238,88 @@ export function Direct() {
     closedCategories.has(categoryId)
   );
 
+  const handleSwipeToRoom = useCallback(() => {
+    if (mobileOrTablet() && lastRoomId) {
+      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, lastRoomId);
+      navigate(getDirectRoomPath(roomAliasOrId));
+    }
+  }, [lastRoomId, mx, navigate]);
+
   return (
     <PageNav>
-      <DirectHeader />
-      {noRoomToDisplay ? (
-        <DirectEmpty />
-      ) : (
-        <PageNavContent scrollRef={scrollRef}>
-          <Box direction="Column" gap="300">
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
-                <NavButton onClick={() => navigate(getDirectCreatePath())}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Create Chat
-                        </Text>
+      <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
+        <DirectHeader />
+        {noRoomToDisplay ? (
+          <DirectEmpty />
+        ) : (
+          <PageNavContent scrollRef={scrollRef}>
+            <Box direction="Column" gap="300">
+              <NavCategory>
+                <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
+                  <NavButton onClick={() => navigate(getDirectCreatePath())}>
+                    <NavItemContent>
+                      <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Avatar size="200" radii="400">
+                          <Icon src={Icons.Plus} size="100" />
+                        </Avatar>
+                        <Box as="span" grow="Yes">
+                          <Text as="span" size="Inherit" truncate>
+                            Create Chat
+                          </Text>
+                        </Box>
                       </Box>
-                    </Box>
-                  </NavItemContent>
-                </NavButton>
-              </NavItem>
-            </NavCategory>
-            <NavCategory>
-              <NavCategoryHeader>
-                <RoomNavCategoryButton
-                  closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                  data-category-id={DEFAULT_CATEGORY_ID}
-                  onClick={handleCategoryClick}
+                    </NavItemContent>
+                  </NavButton>
+                </NavItem>
+              </NavCategory>
+              <NavCategory>
+                <NavCategoryHeader>
+                  <RoomNavCategoryButton
+                    closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                    data-category-id={DEFAULT_CATEGORY_ID}
+                    onClick={handleCategoryClick}
+                  >
+                    Chats
+                  </RoomNavCategoryButton>
+                </NavCategoryHeader>
+                <div
+                  style={{
+                    position: 'relative',
+                    height: virtualizer.getTotalSize(),
+                  }}
                 >
-                  Chats
-                </RoomNavCategoryButton>
-              </NavCategoryHeader>
-              <div
-                style={{
-                  position: 'relative',
-                  height: virtualizer.getTotalSize(),
-                }}
-              >
-                {virtualizer.getVirtualItems().map((vItem) => {
-                  const roomId = sortedDirects[vItem.index];
-                  const room = mx.getRoom(roomId);
-                  if (!room) return null;
-                  const selected = selectedRoomId === roomId;
+                  {virtualizer.getVirtualItems().map((vItem) => {
+                    const roomId = sortedDirects[vItem.index];
+                    const room = mx.getRoom(roomId);
+                    if (!room) return null;
+                    const selected = selectedRoomId === roomId;
 
-                  return (
-                    <VirtualTile
-                      virtualItem={vItem}
-                      key={vItem.index}
-                      ref={virtualizer.measureElement}
-                    >
-                      <RoomNavItem
-                        room={room}
-                        selected={selected}
-                        showAvatar
-                        direct
-                        linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                        notificationMode={getRoomNotificationMode(
-                          notificationPreferences,
-                          room.roomId
-                        )}
-                      />
-                    </VirtualTile>
-                  );
-                })}
-              </div>
-            </NavCategory>
-          </Box>
-        </PageNavContent>
-      )}
+                    return (
+                      <VirtualTile
+                        virtualItem={vItem}
+                        key={vItem.index}
+                        ref={virtualizer.measureElement}
+                      >
+                        <RoomNavItem
+                          room={room}
+                          selected={selected}
+                          showAvatar
+                          direct
+                          linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                          notificationMode={getRoomNotificationMode(
+                            notificationPreferences,
+                            room.roomId
+                          )}
+                        />
+                      </VirtualTile>
+                    );
+                  })}
+                </div>
+              </NavCategory>
+            </Box>
+          </PageNavContent>
+        )}
+      </SwipeableOverlayWrapper>
     </PageNav>
   );
 }

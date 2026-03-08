@@ -18,3 +18,5 @@ devAssets
 *.tfbackend
 !*.tfbackend.example
 crash.log
+
+.worktrees

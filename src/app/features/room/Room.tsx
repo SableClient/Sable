@@ -58,15 +58,7 @@ export function Room() {
             </Box>
           </Box>
         )}
-        {!callView && (
-          <Box grow="Yes" direction="Column">
-            <RoomViewHeader />
-            <Box grow="Yes">
-              <RoomView eventId={eventId} />
-            </Box>
-          </Box>
-        )}
-
+        {!callView && <RoomView room={room} eventId={eventId} header={<RoomViewHeader />} />}
         {callView && chat && (
           <>
             {screenSize === ScreenSize.Desktop && (

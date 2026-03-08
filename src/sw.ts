@@ -16,7 +16,6 @@ let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
 const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
-  notificationSoundEnabled,
   showMessageContent,
   showEncryptedMessageContent,
 }));

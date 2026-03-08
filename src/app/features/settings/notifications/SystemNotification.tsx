@@ -186,24 +186,39 @@ export function SystemNotification() {
     settingsAtom,
     'clearNotificationsOnRead'
   );
+  const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
+  const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
+  const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+
+  // Describe what the current badge combo actually does so users aren't left guessing.
+  const badgeBehaviourSummary = (): string => {
+    if (!showUnreadCounts && !showPingCounts) {
+      return 'Badges show a plain dot for any unread activity — no numbers displayed.';
+    }
+    if (!showUnreadCounts && showPingCounts) {
+      return 'Badges show a number only when you are directly mentioned; all other unread activity shows a plain dot.';
+    }
+    if (showUnreadCounts && badgeCountDMsOnly) {
+      return 'Only Direct Message badges show a number count. Rooms and spaces show a plain dot instead.';
+    }
+    return 'All rooms and DMs show a number count for every unread message.';
+  };
 
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
-      {mobileOrTablet() && (
-        <SequenceCard
-          className={SequenceCardStyle}
-          variant="SurfaceVariant"
-          direction="Column"
-          gap="400"
-        >
-          <SettingTile
-            title="Mobile In-App Notifications"
-            description="Show a notification banner inside the app when a message arrives."
-            after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-          />
-        </SequenceCard>
-      )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="In-App Notifications"
+          description="Show a notification banner inside the app when a message arrives."
+          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
+        />
+      </SequenceCard>
       {mobileOrTablet() && (
         <SequenceCard
           className={SequenceCardStyle}
@@ -223,11 +238,23 @@ export function SystemNotification() {
         >
           <SettingTile
             title="System Notifications"
-            description="Show an OS-level notification banner when a message arrives while the app is open. On mobile, the in-app banner is used instead."
+            description="Show an OS-level notification banner when a message arrives while the app is open."
             after={<Switch value={showSystemNotifs} onChange={setShowSystemNotifs} />}
           />
         </SequenceCard>
       )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="In-App Notification Sound"
+          description="Play a sound inside the app when a new message arrives."
+          after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
+        />
+      </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -276,18 +303,6 @@ export function SystemNotification() {
         direction="Column"
         gap="400"
       >
-        <SettingTile
-          title="Notification Sound"
-          description="Play sound when new message arrives and app is open."
-          after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
         <EmailNotification />
       </SequenceCard>
 
@@ -298,6 +313,56 @@ export function SystemNotification() {
         gap="400"
       >
         <DeregisterAllPushersSetting />
+      </SequenceCard>
+
+      <Text size="L400">Badges</Text>
+      <Text size="T300" style={{ opacity: 0.7 }}>
+        {badgeBehaviourSummary()}
+      </Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Show Message Counts"
+          description="Show a number on room, space, and DM badges for every unread message."
+          after={
+            <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Direct Messages Only"
+          description="Only DM badges display a count. Room and space badges show a plain dot instead."
+          after={
+            <Switch
+              variant="Primary"
+              value={badgeCountDMsOnly}
+              onChange={setBadgeCountDMsOnly}
+              disabled={!showUnreadCounts}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Always Count Mentions"
+          description="Show a number on any badge where you were directly mentioned, even if message counts are turned off."
+          after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
+        />
       </SequenceCard>
     </Box>
   );

@@ -20,6 +20,7 @@ import {
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { NotificationModeSwitcher } from './NotificationModeSwitcher';
+import { NotificationLevelsHint } from './NotificationLevelsHint';
 
 const getAllMessageDefaultRule = (
   ruleId: RuleId,
@@ -89,13 +90,17 @@ export function AllMessagesNotifications() {
     <Box direction="Column" gap="100">
       <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
         <Text size="L400">All Messages</Text>
-        <Box gap="100">
+        <Box gap="100" alignItems="Center">
+          <NotificationLevelsHint />
           <Text size="T200">Badge: </Text>
           <Badge radii="300" variant="Secondary" fill="Solid">
             <Text size="L400">1</Text>
           </Badge>
         </Box>
       </Box>
+      <Text size="T300" priority="300">
+        Default notification level for all messages in rooms where no per-room override is set.
+      </Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

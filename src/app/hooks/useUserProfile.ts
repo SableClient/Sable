@@ -11,6 +11,11 @@ import { useMatrixClient } from './useMatrixClient';
 
 const inFlightProfiles = new Map<string, Promise<any>>();
 
+export type ExternalListenbrainzConnection = {
+  username?: string;
+  v?: number;
+};
+
 export type UserProfile = {
   avatarUrl?: string;
   displayName?: string;
@@ -22,6 +27,7 @@ export type UserProfile = {
   nameColor?: string;
   isCat?: boolean;
   hasCats?: boolean;
+  listenBrainzAccount?: ExternalListenbrainzConnection;
   extended?: Record<string, any>;
   _fetched?: boolean;
 };
@@ -40,6 +46,8 @@ const normalizeInfo = (info: any): UserProfile => {
     'moe.sable.app.name_color',
     'kitty.meow.has_cats',
     'kitty.meow.is_cat',
+    // listenbrainz linking
+    'fyi.cisnt.external.listenbrainz',
   ];
 
   const extended: Record<string, any> = {};
@@ -60,6 +68,7 @@ const normalizeInfo = (info: any): UserProfile => {
     nameColor: info['moe.sable.app.name_color'],
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
+    listenBrainzAccount: info['fyi.cisnt.external.listenbrainz'],
     extended,
     _fetched: true,
   };

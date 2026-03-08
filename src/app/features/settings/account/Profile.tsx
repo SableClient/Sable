@@ -54,6 +54,7 @@ import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
 import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
+import { ExternalConnectionsEditor } from './ExternalConnections';
 
 type PronounSet = {
   summary: string;
@@ -735,6 +736,7 @@ export function Profile() {
       </Box>
       <ProfileExtended userId={userId} profile={profile} />
       <AnimalCosmetics userId={userId} profile={profile} />
+      <ExternalConnectionsEditor userId={userId} profile={profile} />
     </Box>
   );
 }

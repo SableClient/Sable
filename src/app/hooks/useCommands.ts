@@ -29,6 +29,7 @@ import { getStateEvent } from '$utils/room';
 import { splitWithSpace } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { createRoomEncryptionState } from '$components/create-room';
 import { parsePronounsInput } from '$utils/pronouns';
 import { useRoomNavigate } from './useRoomNavigate';
@@ -248,6 +249,8 @@ export enum Command {
   Wave = 'wave',
   Poke = 'poke',
   Headpat = 'headpat',
+  // Meta
+  Report = 'bugreport',
 }
 
 export type CommandContent = {
@@ -262,6 +265,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
   const { navigateRoom } = useRoomNavigate();
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
   const profile = useUserProfile(mx.getSafeUserId());
+  const openBugReport = useOpenBugReportModal();
 
   const commands: CommandRecord = useMemo(
     () => ({
@@ -1302,6 +1306,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           }
         },
       },
+<<<<<<< HEAD
       // Cute Events
       [Command.Hug]: {
         name: Command.Hug,
@@ -1379,8 +1384,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } as any);
         },
       },
+      // Meta commands
+      [Command.Report]: {
+        name: Command.Report,
+        description: 'Report a bug or request a feature',
+        exe: async () => {
+          openBugReport();
+        },
+      },
     }),
-    [mx, navigateRoom, room, profile.displayName, profile.avatarUrl, developerTools]
+    [mx, navigateRoom, room, profile.displayName, profile.avatarUrl, developerTools, openBugReport]
   );
 
   return commands;

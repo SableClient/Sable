@@ -23,6 +23,7 @@ import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from '.
 const log = createLogger('initMatrix');
 const slidingSyncByClient = new WeakMap<MatrixClient, SlidingSyncManager>();
 const FAST_SYNC_POLL_TIMEOUT_MS = 10000;
+const SLIDING_SYNC_POLL_TIMEOUT_MS = 20000;
 type SyncTransport = 'classic' | 'sliding';
 type SyncTransportReason =
   | 'sliding_active'
@@ -425,7 +426,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig) 
   const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
     ...(slidingConfig ?? {}),
     includeInviteList: true,
-    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? FAST_SYNC_POLL_TIMEOUT_MS,
+    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
   });
   const supported = await SlidingSyncManager.probe(
     mx,

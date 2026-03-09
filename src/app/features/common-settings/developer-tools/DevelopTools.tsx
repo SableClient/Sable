@@ -445,9 +445,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                       Proxy: {syncDiagnostics.sliding.proxyBaseUrl}
                                     </Text>
                                     <Text size="T200">
-                                      Timeline limit: {syncDiagnostics.sliding.timelineLimit} | page
-                                      size: {syncDiagnostics.sliding.listPageSize} | adaptive:{' '}
-                                      {syncDiagnostics.sliding.adaptiveTimeline ? 'yes' : 'no'}
+                                      Page size: {syncDiagnostics.sliding.listPageSize}
                                     </Text>
                                   </>
                                 ) : (

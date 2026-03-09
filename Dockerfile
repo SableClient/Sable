@@ -11,7 +11,7 @@ RUN git init && \
     git fetch --depth=1 origin ${ELEMENT_CALL_COMMIT} && \
     git checkout FETCH_HEAD
 
-RUN cd embedded/web && npm ci && npm run build
+RUN cd embedded/web && npm install && npm run build
 
 ## Builder
 FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS builder

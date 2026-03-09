@@ -17,6 +17,7 @@ const log = createLogger('slidingSync');
 const LIST_JOINED = 'joined';
 const LIST_INVITES = 'invites';
 const LIST_SPACES = 'spaces';
+const LIST_SEARCH = 'search';
 // One event of timeline per list room is enough to compute unread counts;
 // the full history is loaded when the user opens the room.
 const LIST_TIMELINE_LIMIT = 1;
@@ -151,7 +152,9 @@ const buildEncryptedSubscription = (timelineLimit: number): MSC3575RoomSubscript
     required_state: [
       [EventType.RoomCreate, ''],
       [EventType.RoomTombstone, ''],
-      [EventType.RoomCanonicalAlias, ''],
+      [EventType.SpaceChild, MSC3575_WILDCARD],
+      [EventType.SpaceParent, MSC3575_WILDCARD],
+      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
     ],
   },
 });
@@ -170,7 +173,9 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
     required_state: [
       [EventType.RoomCreate, ''],
       [EventType.RoomTombstone, ''],
-      [EventType.RoomCanonicalAlias, ''],
+      [EventType.SpaceChild, MSC3575_WILDCARD],
+      [EventType.SpaceParent, MSC3575_WILDCARD],
+      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
     ],
   },
 });
@@ -191,8 +196,6 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
       [EventType.RoomTombstone, ''],
       [EventType.RoomEncryption, ''],
       [EventType.RoomCreate, ''],
-      [EventType.RoomName, ''],
-      [EventType.RoomCanonicalAlias, ''],
       [EventType.SpaceChild, MSC3575_WILDCARD],
       [EventType.SpaceParent, MSC3575_WILDCARD],
       [EventType.RoomMember, MSC3575_STATE_KEY_ME],
@@ -213,16 +216,27 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
     },
   });
 
+  const listIncludeOldRooms: MSC3575List['include_old_rooms'] = {
+    timeline_limit: 0,
+    required_state: [
+      [EventType.RoomCreate, ''],
+      [EventType.RoomTombstone, ''],
+      [EventType.SpaceChild, MSC3575_WILDCARD],
+      [EventType.SpaceParent, MSC3575_WILDCARD],
+      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+    ],
+  };
+
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, pageSize - 1)]],
     sort: LIST_SORT_ORDER,
     timeline_limit: LIST_TIMELINE_LIMIT,
     required_state: listRequiredState,
-    slow_get_all_rooms: true,
     filters: {
       is_invite: false,
       not_room_types: ['m.space'],
     },
+    include_old_rooms: listIncludeOldRooms,
   });
 
   if (includeInviteList) {
@@ -231,10 +245,10 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
       sort: LIST_SORT_ORDER,
       timeline_limit: LIST_TIMELINE_LIMIT,
       required_state: listRequiredState,
-      slow_get_all_rooms: true,
       filters: {
         is_invite: true,
       },
+      include_old_rooms: listIncludeOldRooms,
     });
   }
 
@@ -392,6 +406,77 @@ export class SlidingSyncManager {
         );
       }
     });
+  }
+
+  /**
+   * Spider through all rooms by incrementally expanding a search list, matching
+   * Element Web's `startSpidering` behaviour. The search list uses recency sorting
+   * so the most recently active rooms are returned first, and is filtered to exclude
+   * spaces (which are covered by LIST_SPACES).
+   *
+   * This runs in the background after the initial sync is running; callers should
+   * not await it.
+   */
+  public async startSpidering(batchSize: number, gapBetweenRequestsMs: number): Promise<void> {
+    // Keep window [0, batchSize-1] always to give the user instant access to
+    // recent rooms, plus a sliding window [startIndex, endIndex] that advances
+    // through the full room list.
+    let startIndex = batchSize;
+    this.slidingSync.setList(LIST_SEARCH, {
+      ranges: [
+        [0, batchSize - 1],
+        [startIndex, startIndex + batchSize - 1],
+      ],
+      sort: ['by_recency'],
+      timeline_limit: 0,
+      required_state: [
+        [EventType.RoomJoinRules, ''],
+        [EventType.RoomAvatar, ''],
+        [EventType.RoomTombstone, ''],
+        [EventType.RoomEncryption, ''],
+        [EventType.RoomCreate, ''],
+        [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+      ],
+      filters: {
+        not_room_types: ['m.space'],
+      },
+    });
+
+    // Advance the window until we have fetched all known rooms.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (this.disposed) return;
+      await new Promise<void>((res) => {
+        setTimeout(res, gapBetweenRequestsMs);
+      });
+      if (this.disposed) return;
+
+      const listData = this.slidingSync.getListData(LIST_SEARCH);
+      const knownCount = listData?.joinedCount ?? 0;
+      if (knownCount > 0 && startIndex >= knownCount) break;
+
+      startIndex += batchSize;
+      this.slidingSync.setList(LIST_SEARCH, {
+        ranges: [
+          [0, batchSize - 1],
+          [startIndex, startIndex + batchSize - 1],
+        ],
+        sort: ['by_recency'],
+        timeline_limit: 0,
+        required_state: [
+          [EventType.RoomJoinRules, ''],
+          [EventType.RoomAvatar, ''],
+          [EventType.RoomTombstone, ''],
+          [EventType.RoomEncryption, ''],
+          [EventType.RoomCreate, ''],
+          [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+        ],
+        filters: {
+          not_room_types: ['m.space'],
+        },
+      });
+    }
+    log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);
   }
 
   /**

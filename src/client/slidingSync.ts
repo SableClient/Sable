@@ -16,7 +16,6 @@ const log = createLogger('slidingSync');
 
 const LIST_JOINED = 'joined';
 const LIST_INVITES = 'invites';
-const LIST_SPACES = 'spaces';
 const LIST_SEARCH = 'search';
 // One event of timeline per list room is enough to compute unread counts;
 // the full history is loaded when the user opens the room.
@@ -46,13 +45,6 @@ export type PartialSlidingSyncRequest = {
   ranges?: [number, number][];
 };
 
-export type SlidingSyncServerCapabilities = {
-  /** Server supports room_types / not_room_types in list filters (newer MSC3575). */
-  roomTypesFilter: boolean;
-  /** Server supports include_old_rooms on list params (not just room subscriptions). */
-  includeOldRoomsInLists: boolean;
-};
-
 export type SlidingSyncConfig = {
   enabled?: boolean;
   proxyBaseUrl?: string;
@@ -63,8 +55,6 @@ export type SlidingSyncConfig = {
   maxRooms?: number;
   includeInviteList?: boolean;
   probeTimeoutMs?: number;
-  /** Detected server capabilities; gates optional features. Defaults to minimal (all false). */
-  caps?: SlidingSyncServerCapabilities;
 };
 
 export type SlidingSyncListDiagnostics = {
@@ -160,98 +150,28 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.
-const buildEncryptedSubscription = (
-  timelineLimit: number,
-  includeOldRooms = false
-): MSC3575RoomSubscription => ({
+const buildEncryptedSubscription = (timelineLimit: number): MSC3575RoomSubscription => ({
   timeline_limit: timelineLimit,
   required_state: [[MSC3575_WILDCARD, MSC3575_WILDCARD]],
-  ...(includeOldRooms
-    ? {
-        include_old_rooms: {
-          timeline_limit: 0,
-          required_state: [
-            [EventType.RoomCreate, ''],
-            [EventType.RoomTombstone, ''],
-            [EventType.SpaceChild, MSC3575_WILDCARD],
-            [EventType.SpaceParent, MSC3575_WILDCARD],
-            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-          ],
-        },
-      }
-    : {}),
 });
 
 // For an active unencrypted room: fetch everything, plus explicit lazy+ME members so
 // the member list and display names are always available.
-const buildUnencryptedSubscription = (
-  timelineLimit: number,
-  includeOldRooms = false
-): MSC3575RoomSubscription => ({
+const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscription => ({
   timeline_limit: timelineLimit,
   required_state: [
     [MSC3575_WILDCARD, MSC3575_WILDCARD],
     [EventType.RoomMember, MSC3575_STATE_KEY_ME],
     [EventType.RoomMember, MSC3575_STATE_KEY_LAZY],
   ],
-  ...(includeOldRooms
-    ? {
-        include_old_rooms: {
-          timeline_limit: 0,
-          required_state: [
-            [EventType.RoomCreate, ''],
-            [EventType.RoomTombstone, ''],
-            [EventType.SpaceChild, MSC3575_WILDCARD],
-            [EventType.SpaceParent, MSC3575_WILDCARD],
-            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-          ],
-        },
-      }
-    : {}),
-});
-
-// Required state for tombstone upgrade chains; followed when a room is replaced by another.
-const buildListIncludeOldRooms = (): MSC3575RoomSubscription => ({
-  timeline_limit: 0,
-  required_state: [
-    [EventType.RoomCreate, ''],
-    [EventType.RoomTombstone, ''],
-    [EventType.SpaceChild, MSC3575_WILDCARD],
-    [EventType.SpaceParent, MSC3575_WILDCARD],
-    [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-  ],
 });
 
 const buildLists = (
   pageSize: number,
-  includeInviteList: boolean,
-  caps: SlidingSyncServerCapabilities
+  includeInviteList: boolean
 ): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
-  const includeOldRooms = caps.includeOldRoomsInLists ? buildListIncludeOldRooms() : undefined;
-
-  // Dedicated spaces list — only registered when the server supports room_types filtering.
-  if (caps.roomTypesFilter) {
-    lists.set(LIST_SPACES, {
-      ranges: [[0, 20]],
-      sort: ['by_name'],
-      timeline_limit: 0,
-      required_state: [
-        [EventType.RoomJoinRules, ''],
-        [EventType.RoomAvatar, ''],
-        [EventType.RoomTombstone, ''],
-        [EventType.RoomEncryption, ''],
-        [EventType.RoomCreate, ''],
-        [EventType.SpaceChild, MSC3575_WILDCARD],
-        [EventType.SpaceParent, MSC3575_WILDCARD],
-        [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-      ],
-      slow_get_all_rooms: true,
-      filters: { room_types: ['m.space'] },
-      ...(includeOldRooms ? { include_old_rooms: includeOldRooms } : {}),
-    });
-  }
 
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, pageSize - 1)]],
@@ -259,11 +179,7 @@ const buildLists = (
     timeline_limit: LIST_TIMELINE_LIMIT,
     required_state: listRequiredState,
     slow_get_all_rooms: true,
-    filters: {
-      is_invite: false,
-      ...(caps.roomTypesFilter ? { not_room_types: ['m.space'] } : {}),
-    },
-    ...(includeOldRooms ? { include_old_rooms: includeOldRooms } : {}),
+    filters: { is_invite: false },
   });
 
   if (includeInviteList) {
@@ -274,7 +190,6 @@ const buildLists = (
       required_state: listRequiredState,
       slow_get_all_rooms: true,
       filters: { is_invite: true },
-      ...(includeOldRooms ? { include_old_rooms: includeOldRooms } : {}),
     });
   }
 
@@ -303,8 +218,6 @@ export class SlidingSyncManager {
 
   private readonly configuredTimelineLimit?: number;
 
-  private readonly caps: SlidingSyncServerCapabilities;
-
   private readonly onConnectionChange: () => void;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
@@ -331,10 +244,9 @@ export class SlidingSyncManager {
     this.adaptiveTimeline = adaptiveTimeline;
     this.roomTimelineLimit = roomTimelineLimit;
     this.configuredTimelineLimit = config.timelineLimit;
-    this.caps = config.caps ?? { roomTypesFilter: false, includeOldRoomsInLists: false };
 
-    const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit, this.caps.includeOldRoomsInLists);
-    const lists = buildLists(listPageSize, includeInviteList, this.caps);
+    const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
+    const lists = buildLists(listPageSize, includeInviteList);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
@@ -342,7 +254,7 @@ export class SlidingSyncManager {
     // the default subscription (which already has [*,*]).
     this.slidingSync.addCustomSubscription(
       UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(roomTimelineLimit, this.caps.includeOldRoomsInLists)
+      buildUnencryptedSubscription(roomTimelineLimit)
     );
 
     this.onLifecycle = (state, resp, err) => {
@@ -392,10 +304,10 @@ export class SlidingSyncManager {
   }
 
   private applyRoomTimelineLimit(timelineLimit: number): void {
-    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit, this.caps.includeOldRoomsInLists));
+    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit));
     this.slidingSync.addCustomSubscription(
       UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(timelineLimit, this.caps.includeOldRoomsInLists)
+      buildUnencryptedSubscription(timelineLimit)
     );
   }
 
@@ -451,10 +363,9 @@ export class SlidingSyncManager {
     if (!list) {
       list = {
         ranges: [[0, 20]],
-        sort: ['by_notification_level', 'by_recency'],
+        sort: LIST_SORT_ORDER,
         timeline_limit: LIST_TIMELINE_LIMIT,
         required_state: buildListRequiredState(),
-        ...(this.caps.includeOldRoomsInLists ? { include_old_rooms: buildListIncludeOldRooms() } : {}),
         ...updateArgs,
       };
     } else {
@@ -519,9 +430,6 @@ export class SlidingSyncManager {
             sort: ['by_recency'],
             timeline_limit: 0,
             required_state: spideringRequiredState,
-            // include_old_rooms intentionally omitted to reduce spidering impact;
-            // the direct room subscription will fill in any gaps when the user opens a room.
-            ...(this.caps.roomTypesFilter ? { filters: { not_room_types: ['m.space'] } } : {}),
           });
         } else {
           // Cheaper range-only update for subsequent pages; sticky params are preserved.
@@ -576,48 +484,6 @@ export class SlidingSyncManager {
     this.activeRoomSubscriptions.delete(roomId);
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
     log.log(`Sliding Sync active room subscription removed: ${roomId}`);
-  }
-
-  public static async probeCapabilities(
-    mx: MatrixClient,
-    proxyBaseUrl: string,
-    probeTimeoutMs: number
-  ): Promise<SlidingSyncServerCapabilities> {
-    const probeFeature = async (lists: Record<string, MSC3575List>): Promise<boolean> => {
-      try {
-        await mx.slidingSync(
-          { lists, timeout: 0, clientTimeout: probeTimeoutMs },
-          proxyBaseUrl
-        );
-        return true;
-      } catch {
-        // Any error (400, 500, network) means the server could not handle these
-        // params — treat the feature as unsupported. The basic probe() already
-        // validates connectivity and auth, so any error here is parameter-specific.
-        return false;
-      }
-    };
-
-    const [roomTypesFilter, includeOldRoomsInLists] = await Promise.all([
-      probeFeature({
-        cap_roomtypes: {
-          ranges: [[0, 0]],
-          timeline_limit: 0,
-          required_state: [],
-          filters: { room_types: ['m.space'] },
-        },
-      }),
-      probeFeature({
-        cap_oldrooms: {
-          ranges: [[0, 0]],
-          timeline_limit: 0,
-          required_state: [],
-          include_old_rooms: { timeline_limit: 0, required_state: [] },
-        },
-      }),
-    ]);
-    log.log(`Sliding Sync capability probe: roomTypesFilter=${roomTypesFilter} includeOldRoomsInLists=${includeOldRoomsInLists}`);
-    return { roomTypesFilter, includeOldRoomsInLists };
   }
 
   public static async probe(

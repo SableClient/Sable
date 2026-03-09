@@ -423,16 +423,15 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig) 
   }
 
   const resolvedProxyBaseUrl = proxyBaseUrl;
-  // Compute probeTimeoutMs from config (mirrors clampPositive(config.probeTimeoutMs, 5000) in
-  // SlidingSyncManager) so capability probes can run before constructing the manager.
   const probeTimeoutMs = (() => {
     const v = slidingConfig?.probeTimeoutMs;
     return typeof v === 'number' && !Number.isNaN(v) && v > 0 ? Math.round(v) : 5000;
   })();
-  const [supported, caps] = await Promise.all([
-    SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs),
-    SlidingSyncManager.probeCapabilities(mx, resolvedProxyBaseUrl, probeTimeoutMs),
-  ]);
+  // Capability probing is disabled: Synapse (MSC4186) returns 200 for minimal timeout:0
+  // probe requests even when it will 500 on the actual sync with those same params.
+  // Both capabilities are hardcoded to false until a reliable detection method is available.
+  const caps = { roomTypesFilter: false, includeOldRoomsInLists: false };
+  const supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
   log.log('startClient sliding probe result', {
     userId: mx.getUserId(),
     requestedEnabled: slidingRequested,

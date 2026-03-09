@@ -39,3 +39,6 @@ crates/**/target/
 
 # Worktrees
 .worktrees
+
+# Exception due to Kotlin version mismatch
+!/src-tauri/gen/android/build.gradle.kts

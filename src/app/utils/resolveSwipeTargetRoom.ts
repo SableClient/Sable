@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { MatrixClient } from '$types/matrix-sdk';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 
@@ -18,4 +19,16 @@ export function resolveSwipeTargetRoom(
     const roomId = resolveRoomId(mx, candidate);
     return roomId && validRoomIds.has(roomId) ? roomId : undefined;
   }, undefined);
+}
+
+export function useSwipeTargetRoomId(
+  mx: MatrixClient,
+  validRoomIds: Set<string>,
+  ...candidates: (string | undefined)[]
+): string | undefined {
+  return useMemo(
+    () => resolveSwipeTargetRoom(mx, validRoomIds, ...candidates),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mx, validRoomIds, ...candidates]
+  );
 }

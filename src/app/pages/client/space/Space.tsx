@@ -78,11 +78,11 @@ import { BreakWord } from '$styles/Text.css';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { mobileOrTablet } from '$utils/user-agent';
-import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
+import { useLastFocusedRoom, useSetLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$hooks/useBackRoute';
 import { createLogger } from '$utils/debug';
-import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
+import { resolveSwipeTargetRoom, useSwipeTargetRoomId } from '$utils/resolveSwipeTargetRoom';
 
 const log = createLogger('Space');
 
@@ -393,7 +393,13 @@ export function Space() {
   const routeSelectedRoomId = useSelectedRoom();
   const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
   const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
-  const lastRoomId = useLastFocusedRoom({ spaceId: spaceIdOrAlias });
+  const setLastFocusedRoom = useSetLastFocusedRoom();
+
+  useEffect(() => {
+    if (routeSelectedRoomId) setLastFocusedRoom({ spaceId: space.roomId }, routeSelectedRoomId);
+  }, [routeSelectedRoomId, space.roomId, setLastFocusedRoom]);
+
+  const lastRoomId = useLastFocusedRoom({ spaceId: space.roomId });
 
   useEffect(() => {
     log.log(
@@ -472,6 +478,8 @@ export function Space() {
     () => new Set(hierarchy.map((item) => item.roomId)),
     [hierarchy]
   );
+
+  const swipeTargetRoomId = useSwipeTargetRoomId(mx, hierarchyRoomIds, lastRoomId, firstRoomId);
 
   const handleSwipeToRoom = useCallback(() => {
     if (!mobileOrTablet()) return;
@@ -578,6 +586,7 @@ export function Space() {
                     <RoomNavItem
                       room={room}
                       selected={selectedRoomId === roomId}
+                      swipeSelected={swipeTargetRoomId === roomId}
                       showAvatar={mDirects.has(roomId)}
                       direct={mDirects.has(roomId)}
                       linkPath={getToLink(roomId)}

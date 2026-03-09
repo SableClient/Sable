@@ -18,6 +18,8 @@ import {
   SPACE_ROOM_PATH,
 } from '$pages/paths';
 import { useSetLastFocusedRoom, LastFocusedContext } from '$hooks/useLastFocusedRooms';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { isRoomAlias } from '$utils/matrix';
 import { createLogger } from '$utils/debug';
 
 const log = createLogger('useBackRoute');
@@ -28,18 +30,32 @@ export function useBackRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const setLastFocusedRoom = useSetLastFocusedRoom();
+  const mx = useMatrixClient();
+
+  const resolveSpaceId = useCallback(
+    (idOrAlias: string): string => {
+      if (!isRoomAlias(idOrAlias)) return idOrAlias;
+      return mx.getRooms().find((r) => r.getCanonicalAlias() === idOrAlias)?.roomId ?? idOrAlias;
+    },
+    [mx]
+  );
+
+  const resolveRoomId = useCallback(
+    (idOrAlias: string): string => {
+      if (!isRoomAlias(idOrAlias)) return idOrAlias;
+      return mx.getRooms().find((r) => r.getCanonicalAlias() === idOrAlias)?.roomId ?? idOrAlias;
+    },
+    [mx]
+  );
 
   return useCallback(() => {
     log.log('goBack called — pathname:', location.pathname);
 
     const roomPaths = [HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH];
-    log.log('checking room paths:', roomPaths);
-
     const roomMatches = roomPaths.map((path) => ({
       path,
       match: matchPath({ path, end: false }, location.pathname),
     }));
-    log.log('room path matches:', roomMatches);
 
     const roomMatch = roomMatches.find((m) => m.match !== null)?.match ?? null;
     const currentRoomIdOrAlias = roomMatch?.params.roomIdOrAlias;
@@ -49,8 +65,6 @@ export function useBackRoute() {
 
     log.log('currentRoomIdOrAlias:', currentRoomIdOrAlias, '→ decodedRoomId:', decodedRoomId);
 
-    // Determine context and store last focused room
-    let context: LastFocusedContext | undefined;
     const spaceMatch = matchPath(
       { path: SPACE_PATH, caseSensitive: true, end: false },
       location.pathname
@@ -58,18 +72,23 @@ export function useBackRoute() {
     const decodedSpaceIdOrAlias =
       spaceMatch?.params.spaceIdOrAlias && decodeURIComponent(spaceMatch.params.spaceIdOrAlias);
 
+    const resolvedSpaceId = decodedSpaceIdOrAlias
+      ? resolveSpaceId(decodedSpaceIdOrAlias)
+      : undefined;
+
+    let context: LastFocusedContext | undefined;
     if (matchPath({ path: HOME_PATH, caseSensitive: true, end: false }, location.pathname)) {
       context = 'home';
     } else if (
       matchPath({ path: DIRECT_PATH, caseSensitive: true, end: false }, location.pathname)
     ) {
       context = 'direct';
-    } else if (decodedSpaceIdOrAlias) {
-      context = { spaceId: decodedSpaceIdOrAlias };
+    } else if (resolvedSpaceId) {
+      context = { spaceId: resolvedSpaceId };
     }
 
     if (decodedRoomId && context) {
-      setLastFocusedRoom(context, decodedRoomId);
+      setLastFocusedRoom(context, resolveRoomId(decodedRoomId));
     }
 
     const roomSuffix = decodedRoomId
@@ -106,5 +125,5 @@ export function useBackRoute() {
       return;
     }
     log.warn('no path matched! pathname was:', location.pathname);
-  }, [navigate, location, setLastFocusedRoom]);
+  }, [location.pathname, resolveSpaceId, setLastFocusedRoom, resolveRoomId, navigate]);
 }

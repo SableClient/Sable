@@ -255,6 +255,7 @@ type RoomNavItemProps = {
   notificationMode?: RoomNotificationMode;
   showAvatar?: boolean;
   direct?: boolean;
+  swipeSelected?: boolean;
 };
 
 export function RoomNavItem({
@@ -264,6 +265,7 @@ export function RoomNavItem({
   direct,
   notificationMode,
   linkPath,
+  swipeSelected,
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -368,7 +370,7 @@ export function RoomNavItem({
         variant="Background"
         radii="400"
         highlight={unread !== undefined || hasRoomUnread}
-        aria-selected={selected}
+        aria-selected={selected || swipeSelected}
         data-hover={!!menuAnchor}
         onContextMenu={handleContextMenu}
         {...hoverProps}

@@ -59,11 +59,11 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { mobileOrTablet } from '$utils/user-agent';
-import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
+import { useLastFocusedRoom, useSetLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$hooks/useBackRoute';
 import { createLogger } from '$utils/debug';
-import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
+import { resolveSwipeTargetRoom, useSwipeTargetRoomId } from '$utils/resolveSwipeTargetRoom';
 import { useDirectRooms } from './useDirectRooms';
 
 const log = createLogger('Direct');
@@ -199,6 +199,12 @@ export function Direct() {
   const routeSelectedRoomId = useSelectedRoom();
   const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
   const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
+  const setLastFocusedRoom = useSetLastFocusedRoom();
+
+  useEffect(() => {
+    if (routeSelectedRoomId) setLastFocusedRoom('direct', routeSelectedRoomId);
+  }, [routeSelectedRoomId, setLastFocusedRoom]);
+
   const lastRoomId = useLastFocusedRoom('direct');
 
   useEffect(() => {
@@ -237,6 +243,13 @@ export function Direct() {
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
+  );
+
+  const swipeTargetRoomId = useSwipeTargetRoomId(
+    mx,
+    new Set(sortedDirects),
+    lastRoomId,
+    sortedDirects[0]
   );
 
   const handleSwipeToRoom = useCallback(() => {
@@ -311,6 +324,7 @@ export function Direct() {
                         <RoomNavItem
                           room={room}
                           selected={selected}
+                          swipeSelected={swipeTargetRoomId === roomId}
                           showAvatar
                           direct
                           linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}

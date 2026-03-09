@@ -70,11 +70,11 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { RoomSearchParams } from '$pages/paths';
 import { mobileOrTablet } from '$utils/user-agent';
-import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
+import { useLastFocusedRoom, useSetLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$hooks/useBackRoute';
 import { createLogger } from '$utils/debug';
-import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
+import { resolveSwipeTargetRoom, useSwipeTargetRoomId } from '$utils/resolveSwipeTargetRoom';
 import { useHomeRooms } from './useHomeRooms';
 
 const log = createLogger('Home');
@@ -220,6 +220,12 @@ export function Home() {
   const routeSelectedRoomId = useSelectedRoom();
   const backRoomParam = searchParams.get(BACK_ROOM_PARAM);
   const selectedRoomId = routeSelectedRoomId ?? backRoomParam ?? undefined;
+  const setLastFocusedRoom = useSetLastFocusedRoom();
+
+  useEffect(() => {
+    if (routeSelectedRoomId) setLastFocusedRoom('home', routeSelectedRoomId);
+  }, [routeSelectedRoomId, setLastFocusedRoom]);
+
   const lastRoomId = useLastFocusedRoom('home');
 
   useEffect(() => {
@@ -264,6 +270,13 @@ export function Home() {
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
     closedCategories.has(categoryId)
+  );
+
+  const swipeTargetRoomId = useSwipeTargetRoomId(
+    mx,
+    new Set(sortedRooms),
+    lastRoomId,
+    sortedRooms[0]
   );
 
   const handleSwipeToRoom = useCallback(() => {
@@ -392,6 +405,7 @@ export function Home() {
                         <RoomNavItem
                           room={room}
                           selected={selected}
+                          swipeSelected={swipeTargetRoomId === roomId}
                           linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                           notificationMode={getRoomNotificationMode(
                             notificationPreferences,

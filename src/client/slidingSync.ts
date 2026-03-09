@@ -138,13 +138,17 @@ const resolveAdaptiveRoomTimelineLimit = (
   return ACTIVE_ROOM_TIMELINE_LIMIT_HIGH;
 };
 
-// Minimal required_state for list entries; enough to render the room list sidebar
-// and compute unread state without fetching full room history.
+// Minimal required_state for list entries; enough to render the room list sidebar,
+// compute unread state, and build the space hierarchy without fetching full room history.
 // Notes:
 //   - RoomName/RoomCanonicalAlias are omitted: sliding sync returns the room name as a
 //     top-level field in every list response, so fetching them as state events is redundant.
 //   - MSC3575_STATE_KEY_LAZY is omitted: lazy-loading members is only needed when the
 //     user is actively viewing a room; loading them for every list entry wastes bandwidth.
+//   - SpaceChild with wildcard is required: the roomToParents atom reads m.space.child
+//     state events (one per child, keyed by child room ID) to build the space hierarchy.
+//     Without these events the SDK has no parent→child mapping, so all rooms appear as
+//     orphans in the Home view and spaces appear empty.
 const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
   [EventType.RoomJoinRules, ''],
   [EventType.RoomAvatar, ''],
@@ -152,6 +156,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomEncryption, ''],
   [EventType.RoomCreate, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+  ['m.space.child', MSC3575_WILDCARD],
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.
@@ -431,6 +436,7 @@ export class SlidingSyncManager {
       [EventType.RoomEncryption, ''],
       [EventType.RoomCreate, ''],
       [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+      ['m.space.child', MSC3575_WILDCARD],
     ];
 
     while (hasMore) {

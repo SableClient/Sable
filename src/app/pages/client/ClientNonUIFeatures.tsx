@@ -549,6 +549,50 @@ function SyncNotificationSettingsWithServiceWorker() {
   return null;
 }
 
+function UnifiedPushManager() {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const [useUP] = useSetting(settingsAtom, 'useUnifiedPush');
+  const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
+  const [showEncryptedMessageContent] = useSetting(
+    settingsAtom,
+    'showMessageContentInEncryptedNotifications'
+  );
+
+  useEffect(() => {
+    if (!isTauri() || !useUP) return undefined;
+
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      const { listenForUnifiedPushMessages } =
+        await import('$features/settings/notifications/UnifiedPushNotifications');
+      const listener = await listenForUnifiedPushMessages(() => ({
+        mx,
+        useAuthentication,
+        showMessageContent,
+        showEncryptedMessageContent,
+        notificationSoundEnabled: isNotificationSounds,
+      }));
+      cleanup = () => listener.unregister();
+    })();
+
+    return () => {
+      cleanup?.();
+    };
+  }, [
+    mx,
+    useAuthentication,
+    useUP,
+    isNotificationSounds,
+    showMessageContent,
+    showEncryptedMessageContent,
+  ]);
+
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   return (
     <>
@@ -560,6 +604,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <UnifiedPushManager />
       <NotificationBanner />
       {children}
     </>

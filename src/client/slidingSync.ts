@@ -154,12 +154,17 @@ const resolveAdaptiveRoomTimelineLimit = (
 //     getGlobalImagePacks reads these from pack rooms listed in im.ponies.emote_rooms
 //     account data; imagePackRooms also reads them from parent spaces. Without these
 //     events all list-entry rooms would show no emoji or sticker packs.
+//   - m.room.topic is required: topics are displayed for joined child rooms in space
+//     lobby (RoomItem → LocalRoomSummaryLoader → useLocalRoomSummary) and in the
+//     invite list. Without this event the topic always shows as blank for non-active
+//     rooms.
 const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
   [EventType.RoomJoinRules, ''],
   [EventType.RoomAvatar, ''],
   [EventType.RoomTombstone, ''],
   [EventType.RoomEncryption, ''],
   [EventType.RoomCreate, ''],
+  [EventType.RoomTopic, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
@@ -441,6 +446,7 @@ export class SlidingSyncManager {
       [EventType.RoomTombstone, ''],
       [EventType.RoomEncryption, ''],
       [EventType.RoomCreate, ''],
+      [EventType.RoomTopic, ''],
       [EventType.RoomMember, MSC3575_STATE_KEY_ME],
       ['m.space.child', MSC3575_WILDCARD],
       ['im.ponies.room_emotes', MSC3575_WILDCARD],

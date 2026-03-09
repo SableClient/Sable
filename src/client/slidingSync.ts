@@ -31,7 +31,12 @@ const LIST_SORT_ORDER = ['by_notification_level', 'by_recency', 'by_name'];
 // Subscription key for the room the user is actively viewing.
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
-const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
+// Adaptive timeline limits for the room the user is actively viewing.
+// Lower limits reduce initial bandwidth on constrained devices/connections;
+// the user can always paginate further once the room is open.
+const ACTIVE_ROOM_TIMELINE_LIMIT_LOW = 20;
+const ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM = 35;
+const ACTIVE_ROOM_TIMELINE_LIMIT_HIGH = 50;
 
 export type SlidingSyncConfig = {
   enabled?: boolean;
@@ -53,6 +58,8 @@ export type SlidingSyncListDiagnostics = {
 
 export type SlidingSyncDiagnostics = {
   proxyBaseUrl: string;
+  timelineLimit: number;
+  adaptiveTimeline: boolean;
   listPageSize: number;
   lists: SlidingSyncListDiagnostics[];
 };
@@ -60,6 +67,63 @@ export type SlidingSyncDiagnostics = {
 const clampPositive = (value: number | undefined, fallback: number): number => {
   if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return fallback;
   return Math.round(value);
+};
+
+type AdaptiveSignals = {
+  saveData: boolean;
+  effectiveType: string | null;
+  deviceMemoryGb: number | null;
+  mobile: boolean;
+  missingSignals: number;
+};
+
+const readAdaptiveSignals = (): AdaptiveSignals => {
+  const navigatorLike = typeof navigator !== 'undefined' ? navigator : undefined;
+  const connection = (navigatorLike as any)?.connection;
+  const effectiveType = connection?.effectiveType;
+  const deviceMemory = (navigatorLike as any)?.deviceMemory;
+  const uaMobile = (navigatorLike as any)?.userAgentData?.mobile;
+  const fallbackMobileUA = navigatorLike?.userAgent ?? '';
+  const mobileByUA =
+    typeof uaMobile === 'boolean'
+      ? uaMobile
+      : /Mobi|Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(fallbackMobileUA);
+  const saveData = connection?.saveData === true;
+  const normalizedEffectiveType = typeof effectiveType === 'string' ? effectiveType : null;
+  const normalizedDeviceMemory = typeof deviceMemory === 'number' ? deviceMemory : null;
+  const missingSignals =
+    Number(normalizedEffectiveType === null) + Number(normalizedDeviceMemory === null);
+  return {
+    saveData,
+    effectiveType: normalizedEffectiveType,
+    deviceMemoryGb: normalizedDeviceMemory,
+    mobile: mobileByUA,
+    missingSignals,
+  };
+};
+
+// Resolve the timeline limit for the active-room subscription based on device/network.
+// The list subscription always uses LIST_TIMELINE_LIMIT=1 regardless of conditions.
+const resolveAdaptiveRoomTimelineLimit = (
+  configuredLimit: number | undefined,
+  signals: AdaptiveSignals
+): number => {
+  if (typeof configuredLimit === 'number' && configuredLimit > 0) {
+    return clampPositive(configuredLimit, ACTIVE_ROOM_TIMELINE_LIMIT_HIGH);
+  }
+  if (signals.saveData || signals.effectiveType === 'slow-2g' || signals.effectiveType === '2g') {
+    return ACTIVE_ROOM_TIMELINE_LIMIT_LOW;
+  }
+  if (
+    signals.effectiveType === '3g' ||
+    (signals.deviceMemoryGb !== null && signals.deviceMemoryGb <= 4)
+  ) {
+    return ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM;
+  }
+  if (signals.mobile && signals.missingSignals > 0) {
+    return ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM;
+  }
+  return ACTIVE_ROOM_TIMELINE_LIMIT_HIGH;
 };
 
 // Minimal required_state for list entries; enough to render the room list sidebar
@@ -191,6 +255,14 @@ export class SlidingSyncManager {
 
   private readonly listPageSize: number;
 
+  private roomTimelineLimit: number;
+
+  private readonly adaptiveTimeline: boolean;
+
+  private readonly configuredTimelineLimit?: number;
+
+  private readonly onConnectionChange: () => void;
+
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
 
   public readonly slidingSync: SlidingSync;
@@ -209,7 +281,14 @@ export class SlidingSyncManager {
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
 
-    const defaultSubscription = buildEncryptedSubscription(ACTIVE_ROOM_TIMELINE_LIMIT);
+    const adaptiveTimeline = !(typeof config.timelineLimit === 'number' && config.timelineLimit > 0);
+    const signals = readAdaptiveSignals();
+    const roomTimelineLimit = resolveAdaptiveRoomTimelineLimit(config.timelineLimit, signals);
+    this.adaptiveTimeline = adaptiveTimeline;
+    this.roomTimelineLimit = roomTimelineLimit;
+    this.configuredTimelineLimit = config.timelineLimit;
+
+    const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
     const lists = buildLists(listPageSize, includeInviteList);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
@@ -218,28 +297,68 @@ export class SlidingSyncManager {
     // the default subscription (which already has [*,*]).
     this.slidingSync.addCustomSubscription(
       UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(ACTIVE_ROOM_TIMELINE_LIMIT)
+      buildUnencryptedSubscription(roomTimelineLimit)
     );
 
     this.onLifecycle = (state, resp, err) => {
       if (this.disposed || err || !resp || state !== SlidingSyncState.Complete) return;
       this.expandListsToKnownCount();
     };
+
+    this.onConnectionChange = () => {
+      if (this.disposed || !this.adaptiveTimeline) return;
+      const nextLimit = resolveAdaptiveRoomTimelineLimit(
+        this.configuredTimelineLimit,
+        readAdaptiveSignals()
+      );
+      if (nextLimit === this.roomTimelineLimit) return;
+      this.roomTimelineLimit = nextLimit;
+      this.applyRoomTimelineLimit(nextLimit);
+      log.log(`Sliding Sync adaptive room timeline updated to ${nextLimit} for ${this.mx.getUserId()}`);
+    };
   }
 
   public attach(): void {
     this.slidingSync.on(SlidingSyncEvent.Lifecycle, this.onLifecycle);
+    const connection = (typeof navigator !== 'undefined' ? (navigator as any).connection : undefined) as
+      | { addEventListener?: (e: string, cb: () => void) => void; removeEventListener?: (e: string, cb: () => void) => void; onchange?: (() => void) | null }
+      | undefined;
+    connection?.addEventListener?.('change', this.onConnectionChange);
+    if (connection && connection.onchange === null) connection.onchange = this.onConnectionChange;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.onConnectionChange);
+      window.addEventListener('offline', this.onConnectionChange);
+    }
   }
 
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
+    const connection = (typeof navigator !== 'undefined' ? (navigator as any).connection : undefined) as
+      | { addEventListener?: (e: string, cb: () => void) => void; removeEventListener?: (e: string, cb: () => void) => void; onchange?: (() => void) | null }
+      | undefined;
+    connection?.removeEventListener?.('change', this.onConnectionChange);
+    if (connection?.onchange === this.onConnectionChange) connection.onchange = null;
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.onConnectionChange);
+      window.removeEventListener('offline', this.onConnectionChange);
+    }
+  }
+
+  private applyRoomTimelineLimit(timelineLimit: number): void {
+    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit));
+    this.slidingSync.addCustomSubscription(
+      UNENCRYPTED_SUBSCRIPTION_KEY,
+      buildUnencryptedSubscription(timelineLimit)
+    );
   }
 
   public getDiagnostics(): SlidingSyncDiagnostics {
     return {
       proxyBaseUrl: this.proxyBaseUrl,
+      timelineLimit: this.roomTimelineLimit,
+      adaptiveTimeline: this.adaptiveTimeline,
       listPageSize: this.listPageSize,
       lists: this.listKeys.map((key) => {
         const listData = this.slidingSync.getListData(key);

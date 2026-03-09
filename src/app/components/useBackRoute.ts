@@ -60,7 +60,9 @@ export function useBackRoute() {
 
     if (matchPath({ path: HOME_PATH, caseSensitive: true, end: false }, location.pathname)) {
       context = 'home';
-    } else if (matchPath({ path: DIRECT_PATH, caseSensitive: true, end: false }, location.pathname)) {
+    } else if (
+      matchPath({ path: DIRECT_PATH, caseSensitive: true, end: false }, location.pathname)
+    ) {
       context = 'direct';
     } else if (decodedSpaceIdOrAlias) {
       context = { spaceId: decodedSpaceIdOrAlias };

@@ -74,9 +74,10 @@ import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$components/useBackRoute';
 import { createLogger } from '$utils/debug';
+import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
+import { useHomeRooms } from './useHomeRooms';
 
 const log = createLogger('Home');
-import { useHomeRooms } from './useHomeRooms';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -266,11 +267,17 @@ export function Home() {
   );
 
   const handleSwipeToRoom = useCallback(() => {
-    if (mobileOrTablet() && sortedRooms.length > 0) {
-      const targetRoomId = selectedRoomId ?? lastRoomId ?? sortedRooms[0];
-      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, targetRoomId);
-      navigate(getHomeRoomPath(roomAliasOrId));
-    }
+    if (!mobileOrTablet()) return;
+    const validRoomIds = new Set(sortedRooms);
+    const targetRoomId = resolveSwipeTargetRoom(
+      mx,
+      validRoomIds,
+      selectedRoomId,
+      lastRoomId,
+      sortedRooms[0]
+    );
+    if (!targetRoomId) return;
+    navigate(getHomeRoomPath(getCanonicalAliasOrRoomId(mx, targetRoomId)));
   }, [selectedRoomId, lastRoomId, sortedRooms, mx, navigate]);
 
   return (

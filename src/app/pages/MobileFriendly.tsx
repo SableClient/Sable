@@ -56,9 +56,7 @@ export function MobileFriendlyPageNav({ path, children }: MobileFriendlyPageNavP
 
   if (path === SPACE_PATH) {
     if (!exactPath && !spaceLobbyMatch && !roomMatch) return null;
-  } else {
-    if (!exactPath && !roomMatch) return null;
-  }
+  } else if (!exactPath && !roomMatch) return null;
 
   return children;
 }

@@ -18,7 +18,6 @@ import {
 import {
   MouseEventHandler,
   MouseEvent,
-  PointerEvent,
   ReactNode,
   memo,
   useCallback,
@@ -27,7 +26,6 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
 import {
@@ -271,7 +269,7 @@ function useLongPress(
         cancel();
       }, delay);
     },
-    [onLongPress, delay, cancel]
+    [isMobile, delay, onLongPress, cancel]
   );
 
   const onPointerMove = useCallback(

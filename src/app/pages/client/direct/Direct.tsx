@@ -63,9 +63,10 @@ import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { BACK_ROOM_PARAM } from '$components/useBackRoute';
 import { createLogger } from '$utils/debug';
+import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
+import { useDirectRooms } from './useDirectRooms';
 
 const log = createLogger('Direct');
-import { useDirectRooms } from './useDirectRooms';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -239,11 +240,17 @@ export function Direct() {
   );
 
   const handleSwipeToRoom = useCallback(() => {
-    if (mobileOrTablet() && sortedDirects.length > 0) {
-      const targetRoomId = selectedRoomId ?? lastRoomId ?? sortedDirects[0];
-      const roomAliasOrId = getCanonicalAliasOrRoomId(mx, targetRoomId);
-      navigate(getDirectRoomPath(roomAliasOrId));
-    }
+    if (!mobileOrTablet()) return;
+    const validRoomIds = new Set(sortedDirects);
+    const targetRoomId = resolveSwipeTargetRoom(
+      mx,
+      validRoomIds,
+      selectedRoomId,
+      lastRoomId,
+      sortedDirects[0]
+    );
+    if (!targetRoomId) return;
+    navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, targetRoomId)));
   }, [selectedRoomId, lastRoomId, sortedDirects, mx, navigate]);
 
   return (

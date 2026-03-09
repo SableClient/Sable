@@ -423,22 +423,23 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig) 
   }
 
   const resolvedProxyBaseUrl = proxyBaseUrl;
-  const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...(slidingConfig ?? {}),
-    includeInviteList: true,
-    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
-  });
-  const supported = await SlidingSyncManager.probe(
-    mx,
-    resolvedProxyBaseUrl,
-    manager.probeTimeoutMs
-  );
+  // Compute probeTimeoutMs from config (mirrors clampPositive(config.probeTimeoutMs, 5000) in
+  // SlidingSyncManager) so capability probes can run before constructing the manager.
+  const probeTimeoutMs = (() => {
+    const v = slidingConfig?.probeTimeoutMs;
+    return typeof v === 'number' && !Number.isNaN(v) && v > 0 ? Math.round(v) : 5000;
+  })();
+  const [supported, caps] = await Promise.all([
+    SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs),
+    SlidingSyncManager.probeCapabilities(mx, resolvedProxyBaseUrl, probeTimeoutMs),
+  ]);
   log.log('startClient sliding probe result', {
     userId: mx.getUserId(),
     requestedEnabled: slidingRequested,
     hasSlidingProxy,
     proxyBaseUrl: resolvedProxyBaseUrl,
     supported,
+    caps,
   });
   if (!supported) {
     log.warn('Sliding Sync unavailable, falling back to classic sync for', mx.getUserId());
@@ -446,6 +447,12 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig) 
     return;
   }
 
+  const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
+    ...(slidingConfig ?? {}),
+    includeInviteList: true,
+    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
+    caps,
+  });
   manager.attach();
   // Begin background spidering so all rooms are eventually indexed.
   // Not awaited — this runs incrementally in the background.

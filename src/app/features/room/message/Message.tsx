@@ -72,6 +72,7 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { useBlobCache } from '$hooks/useBlobCache';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
 import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
@@ -348,6 +349,7 @@ function MessageInternal(
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
 
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
@@ -362,7 +364,7 @@ function MessageInternal(
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
   }, [collapse, profile.avatarUrl, senderId, mx, room, useAuthentication]);
 
-  const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
+  const cachedAvatar = useBlobCache(avatarUrl ?? undefined, mediaToken);
 
   // UI State
   const [isDesktopHover, setIsDesktopHover] = useState(false);

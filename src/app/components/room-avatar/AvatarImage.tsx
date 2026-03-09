@@ -3,6 +3,7 @@ import { ReactEventHandler, useState } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import * as css from './RoomAvatar.css';
 
 type AvatarImageProps = {
@@ -17,6 +18,7 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
   const normalizedBg = image ? bgColorImg(image) : undefined;
   const useUniformIcons = uniformIconsSetting && uniformIcons === true;
+  const resolvedSrc = useMediaSrc(src);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
@@ -27,7 +29,7 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
     <FoldsAvatarImage
       className={css.RoomAvatar}
       style={{ backgroundColor: useUniformIcons ? normalizedBg : undefined }}
-      src={src}
+      src={resolvedSrc ?? src}
       crossOrigin="anonymous"
       alt={alt}
       onError={() => {

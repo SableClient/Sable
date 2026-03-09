@@ -32,6 +32,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { StateEvent } from '$types/matrix/room';
 import { suffixRename } from '$utils/common';
@@ -40,6 +41,11 @@ import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+
+function PackAvatarImage({ url }: { url: string }) {
+  const resolved = useMediaSrc(url);
+  return <AvatarImage style={{ objectFit: 'contain' }} src={resolved ?? url} />;
+}
 
 type CreatePackTileProps = {
   packs: ImagePack[];
@@ -236,7 +242,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
                 ))}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
-                  <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                  <PackAvatarImage url={avatarUrl} />
                 ) : (
                   <AvatarFallback>
                     <Icon size="400" src={Icons.Sticker} filled />

@@ -2,6 +2,7 @@ import { AvatarFallback, AvatarImage, color } from 'folds';
 import { ReactEventHandler, ReactNode, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import * as css from './UserAvatar.css';
 
 type UserAvatarProps = {
@@ -13,6 +14,7 @@ type UserAvatarProps = {
 };
 export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
   const [error, setError] = useState(false);
+  const resolvedSrc = useMediaSrc(src);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
@@ -32,7 +34,7 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
   return (
     <AvatarImage
       className={classNames(css.UserAvatar, className)}
-      src={src}
+      src={resolvedSrc ?? src}
       alt={alt}
       onError={() => setError(true)}
       onLoad={handleLoad}

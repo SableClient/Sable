@@ -305,21 +305,29 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
-  const blob = await res.blob();
-  return blob;
+export const authenticatedMediaFetch = async (
+  src: string,
+  accessToken?: string | null
+): Promise<Response> => {
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return fetch(src, { method: 'GET', headers });
+};
+
+export const downloadMedia = async (src: string, accessToken?: string | null): Promise<Blob> => {
+  const res = await authenticatedMediaFetch(src, accessToken);
+  return res.blob();
 };
 
 export const downloadEncryptedMedia = async (
   src: string,
-  decryptContent: (buf: ArrayBuffer) => Promise<Blob>
+  decryptContent: (buf: ArrayBuffer) => Promise<Blob>,
+  accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src);
-  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
-
-  return decryptedContent;
+  const encryptedContent = await downloadMedia(src, accessToken);
+  return decryptContent(await encryptedContent.arrayBuffer());
 };
 
 export const rateLimitedActions = async <T, R = void>(

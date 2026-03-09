@@ -11,7 +11,7 @@ RUN git init && \
     git fetch --depth=1 origin ${ELEMENT_CALL_COMMIT} && \
     git checkout FETCH_HEAD
 
-RUN yarn install && yarn build:embedded
+RUN corepack enable && yarn install && yarn build:embedded
 
 ## Builder
 FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS builder

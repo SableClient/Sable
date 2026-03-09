@@ -1,2 +1,0 @@
-cargo:rustc-link-search=native=C:\Users\haz\dev\sable\crates\tauri-plugin-splashscreen\target\debug\build\webview2-com-sys-9572d99045a96f14\out\x64
-cargo:rustc-link-lib=advapi32

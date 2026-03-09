@@ -23,6 +23,7 @@ import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { createUploadAtom, UploadSuccess } from '$state/upload';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 
@@ -31,10 +32,11 @@ type ImagePackAvatarProps = {
   name?: string;
 };
 function ImagePackAvatar({ url, name }: ImagePackAvatarProps) {
+  const resolvedUrl = useMediaSrc(url);
   return (
     <Avatar size="500" className={ContainerColor({ variant: 'Secondary' })}>
       {url ? (
-        <AvatarImage src={url} alt={name ?? 'Unknown'} />
+        <AvatarImage src={resolvedUrl ?? url} alt={name ?? 'Unknown'} />
       ) : (
         <AvatarFallback>
           <Text size="H2">{nameInitials(name ?? 'Unknown')}</Text>

@@ -72,6 +72,7 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { useBlobCache } from '$hooks/useBlobCache';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
 import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHistory';
@@ -355,6 +356,7 @@ function MessageInternal(
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
 
   const pmp = useMemo(
     () =>
@@ -386,7 +388,7 @@ function MessageInternal(
     [pmp, senderDisplayName]
   );
 
-  const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
+  const cachedAvatar = useBlobCache(avatarUrl ?? undefined, mediaToken);
 
   // UI State
   const [isDesktopHover, setIsDesktopHover] = useState(false);

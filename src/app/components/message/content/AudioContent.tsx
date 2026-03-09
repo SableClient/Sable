@@ -18,6 +18,7 @@ import { useThrottle } from '$hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -46,16 +47,21 @@ export function AudioContent({
 }: AudioContentProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
 
   const [srcState, loadSrc] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            mediaToken
+          )
+        : await downloadMedia(mediaUrl, mediaToken);
       return URL.createObjectURL(fileContent);
-    }, [mx, url, useAuthentication, mimeType, encInfo])
+    }, [mx, url, useAuthentication, mimeType, encInfo, mediaToken])
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

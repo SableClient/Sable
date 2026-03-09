@@ -36,6 +36,7 @@ import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import {
   parseMatrixToRoom,
@@ -325,11 +326,13 @@ export function CodeBlock({
  */
 function FallbackImg({
   fallback,
+  src,
   ...props
 }: ComponentPropsWithoutRef<'img'> & { fallback: ReactNode }) {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = useMediaSrc(src);
   if (failed) return <>{fallback}</>;
-  return <img {...props} onError={() => setFailed(true)} />;
+  return <img {...props} src={resolvedSrc ?? src} onError={() => setFailed(true)} />;
 }
 
 export const getReactCustomHtmlParser = (

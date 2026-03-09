@@ -6,6 +6,7 @@ import { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaSrc } from '$hooks/useMediaSrc';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
 type UserPackProps = {
@@ -18,6 +19,7 @@ export function UserPack({ onViewPack }: UserPackProps) {
   const userPack = useUserImagePack();
   const avatarMxc = userPack?.getAvatarUrl(ImageUsage.Emoticon);
   const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
+  const resolvedAvatarUrl = useMediaSrc(avatarUrl ?? undefined);
 
   const handleView = () => {
     if (userPack) {
@@ -43,7 +45,10 @@ export function UserPack({ onViewPack }: UserPackProps) {
           before={
             <Avatar size="300" radii="300">
               {avatarUrl ? (
-                <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                <AvatarImage
+                  style={{ objectFit: 'contain' }}
+                  src={resolvedAvatarUrl ?? avatarUrl}
+                />
               ) : (
                 <AvatarFallback>
                   <Icon size="400" src={Icons.Sticker} filled />

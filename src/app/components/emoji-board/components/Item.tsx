@@ -4,6 +4,7 @@ import { PackImageReader } from '$plugins/custom-emoji';
 import { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { EmojiItemInfo, EmojiType } from '$components/emoji-board/types';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './styles.css';
 
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {
@@ -63,7 +64,7 @@ export function CustomEmojiItem({ mx, useAuthentication, image }: CustomEmojiIte
       data-emoji-data={image.url}
       data-emoji-shortcode={image.shortcode}
     >
-      <img
+      <AuthenticatedImg
         loading="lazy"
         className={css.CustomEmojiImg}
         alt={image.body || image.shortcode}
@@ -93,7 +94,7 @@ export function StickerItem({ mx, useAuthentication, image }: StickerItemProps) 
       data-emoji-data={image.url}
       data-emoji-shortcode={image.shortcode}
     >
-      <img
+      <AuthenticatedImg
         loading="lazy"
         className={css.StickerImg}
         alt={image.body || image.shortcode}

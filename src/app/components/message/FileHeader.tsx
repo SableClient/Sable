@@ -7,6 +7,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 
 const badgeStyles = { maxWidth: toRem(100) };
 
@@ -19,19 +20,24 @@ type FileDownloadButtonProps = {
 export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDownloadButtonProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
 
   const [downloadState, download] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            mediaToken
+          )
+        : await downloadMedia(mediaUrl, mediaToken);
 
       const fileURL = URL.createObjectURL(fileContent);
       FileSaver.saveAs(fileURL, filename);
       return fileURL;
-    }, [mx, url, useAuthentication, mimeType, encInfo, filename])
+    }, [mx, url, useAuthentication, mimeType, encInfo, filename, mediaToken])
   );
 
   const downloading = downloadState.status === AsyncStatus.Loading;

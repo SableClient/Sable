@@ -30,6 +30,7 @@ import {
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { ModalWide } from '$styles/Modal.css';
 
 const renderErrorButton = (retry: () => void, text: string) => (
@@ -77,6 +78,7 @@ type ReadTextFileProps = {
 export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: ReadTextFileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
   const [textViewer, setTextViewer] = useState(false);
 
   const [textState, loadText] = useAsyncCallback(
@@ -84,13 +86,17 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            mediaToken
+          )
+        : await downloadMedia(mediaUrl, mediaToken);
 
       const text = fileContent.text();
       setTextViewer(true);
       return text;
-    }, [mx, useAuthentication, mimeType, encInfo, url])
+    }, [mx, useAuthentication, mimeType, encInfo, url, mediaToken])
   );
 
   return (
@@ -168,6 +174,7 @@ export type ReadPdfFileProps = {
 export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: ReadPdfFileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
   const [pdfViewer, setPdfViewer] = useState(false);
 
   const [pdfState, loadPdf] = useAsyncCallback(
@@ -175,11 +182,15 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            mediaToken
+          )
+        : await downloadMedia(mediaUrl, mediaToken);
       setPdfViewer(true);
       return URL.createObjectURL(fileContent);
-    }, [mx, url, useAuthentication, mimeType, encInfo])
+    }, [mx, url, useAuthentication, mimeType, encInfo, mediaToken])
   );
 
   return (
@@ -247,19 +258,24 @@ export type DownloadFileProps = {
 export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const mediaToken = useMediaDownloadToken();
 
   const [downloadState, download] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
       const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+        ? await downloadEncryptedMedia(
+            mediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+            mediaToken
+          )
+        : await downloadMedia(mediaUrl, mediaToken);
 
       const fileURL = URL.createObjectURL(fileContent);
       FileSaver.saveAs(fileURL, body);
       return fileURL;
-    }, [mx, url, useAuthentication, mimeType, encInfo, body])
+    }, [mx, url, useAuthentication, mimeType, encInfo, body, mediaToken])
   );
 
   return downloadState.status === AsyncStatus.Error ? (

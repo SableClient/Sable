@@ -25,9 +25,10 @@ const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
 
-// Sort order matching Element Web: most urgent rooms (highlights/notifications) first,
-// then most recently active, then alphabetical as a tiebreaker.
-const LIST_SORT_ORDER = ['by_notification_level', 'by_recency', 'by_name'];
+// Sort order for MSC4186 (Simplified Sliding Sync): most recently active first,
+// then alphabetical as a tiebreaker. by_notification_level is MSC3575-only and
+// not supported by Synapse's native MSC4186 implementation.
+const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 
 // Subscription key for the room the user is actively viewing.
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.

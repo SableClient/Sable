@@ -26,10 +26,6 @@ export function SwipeableChatWrapper({
   const isMobile = useIsMobile();
   const x = useMotionValue(0);
 
-  // On mobile, MobileRoomOverlay owns the right-swipe gesture so canSwipeRight
-  // is always false. canSwipeLeft is only active if Members mode is on.
-  // If neither direction is active, skip binding entirely, an idle useDrag
-  // with rubberband still captures and rubber-bands touches, stealing clicks.
   const canSwipeRight = !isMobile && !!onOpenSidebar;
   const canSwipeLeft =
     settings.mobileGestures &&

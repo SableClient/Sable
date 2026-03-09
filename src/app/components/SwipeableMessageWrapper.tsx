@@ -86,9 +86,7 @@ function ActiveSwipeWrapper({
       rubberband: true,
       filterTaps: true,
       eventOptions: { passive: true },
-      // Without this, useDrag calls setPointerCapture on pointerdown, stealing
-      // the pointer from MobileRoomOverlay on rightward swipes, causing it to
-      // always see mx=0 and snap back instead of navigating.
+      // Without this, useDrag calls setPointerCapture on pointerdown, stealing the pointer from MobileRoomOverlay on rightward swipes, causing it to always see mx=0 and snap back instead of navigating.
       pointer: { capture: false },
     }
   );

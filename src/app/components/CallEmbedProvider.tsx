@@ -57,6 +57,7 @@ export function CallEmbedProvider({ children }: CallEmbedProviderProps) {
           left: 0,
           width: '100%',
           height: '50%',
+          zIndex: 11,
         }}
         ref={callEmbedRef}
       />

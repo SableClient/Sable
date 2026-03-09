@@ -892,6 +892,21 @@ export function RoomTimeline({
     setTimeline(getInitialTimeline(room));
   }, [eventId, room, timeline.linkedTimelines.length]);
 
+  // Fix stale rangeAtEnd after a sliding sync TimelineRefresh. The SDK fires
+  // TimelineRefresh before adding new events to the freshly-created live
+  // EventTimeline, so getInitialTimeline captures range.end=0. New events then
+  // arrive via useLiveEventArrive, but its atLiveEndRef guard is stale-false
+  // (hasn't re-rendered yet), bypassing the range-advance path. The next render
+  // ends up with liveTimelineLinked=true but rangeAtEnd=false, making the
+  // "Jump to Latest" button appear while the user is already at the bottom.
+  // Re-running getInitialTimeline post-render (after events were added to the
+  // live EventTimeline object) snaps range.end to the correct event count.
+  useEffect(() => {
+    if (liveTimelineLinked && !rangeAtEnd && atBottom) {
+      setTimeline(getInitialTimeline(room));
+    }
+  }, [liveTimelineLinked, rangeAtEnd, atBottom, room]);
+
   // Stay at bottom when room editor resize
   useResizeObserver(
     useMemo(() => {
@@ -2137,6 +2152,19 @@ export function RoomTimeline({
         </Box>
       );
     } else if (timelineItems.length === 0) {
+      // When eventsLength===0 AND liveTimelineLinked the live EventTimeline was
+      // just reset by a sliding sync TimelineRefresh and new events haven't
+      // arrived yet. Attaching the IntersectionObserver anchor here would
+      // immediately fire a server-side /messages request before current events
+      // land — potentially causing a "/messages hangs → spinner stuck" scenario.
+      // Suppressing the anchor for this transient state is safe: the rangeAtEnd
+      // self-heal useEffect will call getInitialTimeline once events arrive, and
+      // at that point the correct anchor (below) will be re-observed.
+      // eventsLength>0 covers the range={K,K} case from recalibratePagination
+      // where items=0 but events exist — that needs the anchor for local range
+      // extension (no server call since start>0).
+      const placeholderBackAnchor =
+        eventsLength > 0 || !liveTimelineLinked ? observeBackAnchor : undefined;
       backPaginationJSX =
         messageLayout === MessageLayout.Compact ? (
           <>
@@ -2152,7 +2180,7 @@ export function RoomTimeline({
             <MessageBase>
               <CompactPlaceholder />
             </MessageBase>
-            <MessageBase ref={observeBackAnchor}>
+            <MessageBase ref={placeholderBackAnchor}>
               <CompactPlaceholder />
             </MessageBase>
           </>
@@ -2164,7 +2192,7 @@ export function RoomTimeline({
             <MessageBase>
               <DefaultPlaceholder />
             </MessageBase>
-            <MessageBase ref={observeBackAnchor}>
+            <MessageBase ref={placeholderBackAnchor}>
               <DefaultPlaceholder />
             </MessageBase>
           </>

@@ -14,9 +14,14 @@ import { createLogger } from '$utils/debug';
 
 const log = createLogger('slidingSync');
 
-const LIST_JOINED = 'joined';
-const LIST_INVITES = 'invites';
-const LIST_SEARCH = 'search';
+export const LIST_JOINED = 'joined';
+export const LIST_INVITES = 'invites';
+export const LIST_DMS = 'dms';
+export const LIST_SEARCH = 'search';
+// Separate key for live room-name filtering; avoids conflicting with the spidering list.
+export const LIST_ROOM_SEARCH = 'room_search';
+// Dynamic list key used for space-scoped room views.
+export const LIST_SPACE = 'space';
 // One event of timeline per list room is enough to compute unread counts;
 // the full history is loaded when the user opens the room.
 const LIST_TIMELINE_LIMIT = 1;
@@ -192,6 +197,15 @@ const buildLists = (
       filters: { is_invite: true },
     });
   }
+
+  lists.set(LIST_DMS, {
+    ranges: [[0, Math.max(0, pageSize - 1)]],
+    sort: LIST_SORT_ORDER,
+    timeline_limit: LIST_TIMELINE_LIMIT,
+    required_state: listRequiredState,
+    slow_get_all_rooms: true,
+    filters: { is_dm: true },
+  });
 
   return lists;
 };
@@ -448,6 +462,47 @@ export class SlidingSyncManager {
       firstTime = false;
     }
     log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);
+  }
+
+  /**
+   * Enable or disable server-side room name filtering.
+   * When `query` is a non-empty string, registers (or updates) a dedicated
+   * `room_search` list that uses the MSC4186 `room_name_like` filter so the
+   * server returns only rooms whose name matches the query. When `query` is
+   * null or empty the list is reset to an unfiltered minimal range — callers
+   * should hide/ignore the list results in that case.
+   * This is a no-op after dispose().
+   */
+  public setRoomNameSearch(query: string | null): void {
+    if (this.disposed) return;
+    const trimmed = query?.trim() ?? '';
+    const filters: MSC3575List['filters'] = trimmed ? { room_name_like: trimmed } : {};
+    this.ensureListRegistered(LIST_ROOM_SEARCH, {
+      filters,
+      ranges: [[0, 19]],
+      sort: LIST_SORT_ORDER,
+    });
+  }
+
+  /**
+   * Activate or clear a space-scoped room list.
+   * When `spaceId` is provided, registers (or updates) a dedicated `space`
+   * list filtered to rooms that are children of that space, returning the
+   * first page sorted by recency. This supplements the main `joined` list
+   * rather than replacing it, so background sync of all rooms is unaffected.
+   * Pass `null` to deactivate the space list (collapses range to 0–0).
+   * This is a no-op after dispose().
+   */
+  public setSpaceScope(spaceId: string | null): void {
+    if (this.disposed) return;
+    const filters: MSC3575List['filters'] = spaceId
+      ? { is_invite: false, spaces: [spaceId] }
+      : { is_invite: false };
+    this.ensureListRegistered(LIST_SPACE, {
+      filters,
+      ranges: spaceId ? [[0, Math.min(this.listPageSize - 1, 499)]] : [[0, 0]],
+      sort: LIST_SORT_ORDER,
+    });
   }
 
   /**

@@ -159,40 +159,54 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.
-const buildEncryptedSubscription = (timelineLimit: number): MSC3575RoomSubscription => ({
+const buildEncryptedSubscription = (
+  timelineLimit: number,
+  includeOldRooms = false
+): MSC3575RoomSubscription => ({
   timeline_limit: timelineLimit,
   required_state: [[MSC3575_WILDCARD, MSC3575_WILDCARD]],
-  include_old_rooms: {
-    timeline_limit: 0,
-    required_state: [
-      [EventType.RoomCreate, ''],
-      [EventType.RoomTombstone, ''],
-      [EventType.SpaceChild, MSC3575_WILDCARD],
-      [EventType.SpaceParent, MSC3575_WILDCARD],
-      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-    ],
-  },
+  ...(includeOldRooms
+    ? {
+        include_old_rooms: {
+          timeline_limit: 0,
+          required_state: [
+            [EventType.RoomCreate, ''],
+            [EventType.RoomTombstone, ''],
+            [EventType.SpaceChild, MSC3575_WILDCARD],
+            [EventType.SpaceParent, MSC3575_WILDCARD],
+            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+          ],
+        },
+      }
+    : {}),
 });
 
 // For an active unencrypted room: fetch everything, plus explicit lazy+ME members so
 // the member list and display names are always available.
-const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscription => ({
+const buildUnencryptedSubscription = (
+  timelineLimit: number,
+  includeOldRooms = false
+): MSC3575RoomSubscription => ({
   timeline_limit: timelineLimit,
   required_state: [
     [MSC3575_WILDCARD, MSC3575_WILDCARD],
     [EventType.RoomMember, MSC3575_STATE_KEY_ME],
     [EventType.RoomMember, MSC3575_STATE_KEY_LAZY],
   ],
-  include_old_rooms: {
-    timeline_limit: 0,
-    required_state: [
-      [EventType.RoomCreate, ''],
-      [EventType.RoomTombstone, ''],
-      [EventType.SpaceChild, MSC3575_WILDCARD],
-      [EventType.SpaceParent, MSC3575_WILDCARD],
-      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-    ],
-  },
+  ...(includeOldRooms
+    ? {
+        include_old_rooms: {
+          timeline_limit: 0,
+          required_state: [
+            [EventType.RoomCreate, ''],
+            [EventType.RoomTombstone, ''],
+            [EventType.SpaceChild, MSC3575_WILDCARD],
+            [EventType.SpaceParent, MSC3575_WILDCARD],
+            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+          ],
+        },
+      }
+    : {}),
 });
 
 // Required state for tombstone upgrade chains; followed when a room is replaced by another.
@@ -318,7 +332,7 @@ export class SlidingSyncManager {
     this.configuredTimelineLimit = config.timelineLimit;
     this.caps = config.caps ?? { roomTypesFilter: false, includeOldRoomsInLists: false };
 
-    const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
+    const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit, this.caps.includeOldRoomsInLists);
     const lists = buildLists(listPageSize, includeInviteList, this.caps);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
@@ -327,7 +341,7 @@ export class SlidingSyncManager {
     // the default subscription (which already has [*,*]).
     this.slidingSync.addCustomSubscription(
       UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(roomTimelineLimit)
+      buildUnencryptedSubscription(roomTimelineLimit, this.caps.includeOldRoomsInLists)
     );
 
     this.onLifecycle = (state, resp, err) => {
@@ -377,10 +391,10 @@ export class SlidingSyncManager {
   }
 
   private applyRoomTimelineLimit(timelineLimit: number): void {
-    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit));
+    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit, this.caps.includeOldRoomsInLists));
     this.slidingSync.addCustomSubscription(
       UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(timelineLimit)
+      buildUnencryptedSubscription(timelineLimit, this.caps.includeOldRoomsInLists)
     );
   }
 

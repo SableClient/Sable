@@ -870,8 +870,21 @@ export function RoomTimeline({
       // Unconditionally reinitializing is correct: TimelineRefresh signals that
       // the SDK has replaced the timeline chain, so any stored range/indices
       // against the old chain are invalid anyway.
+      //
+      // Also force atBottom=true and queue a scroll-to-bottom. The SDK fires
+      // TimelineRefresh before adding new events to the fresh live timeline, so
+      // getInitialTimeline captures range.end=0. Once events arrive the
+      // rangeAtEnd self-heal useEffect needs atBottom=true to run; the
+      // IntersectionObserver may have transiently fired isIntersecting=false
+      // during the render transition, leaving atBottom=false and causing the
+      // "Jump to Latest" button to stick permanently. Forcing atBottom here is
+      // correct: TimelineRefresh always reinits to the live end, so the user
+      // should be repositioned to the bottom regardless.
       setTimeline(getInitialTimeline(room));
-    }, [room])
+      setAtBottom(true);
+      scrollToBottomRef.current.count += 1;
+      scrollToBottomRef.current.smooth = false;
+    }, [room, setAtBottom])
   );
 
   // Re-render when non-live Replace relations arrive (bundled/historical edits

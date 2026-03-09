@@ -16,7 +16,6 @@ const log = createLogger('slidingSync');
 
 const LIST_JOINED = 'joined';
 const LIST_INVITES = 'invites';
-const LIST_SPACES = 'spaces';
 const LIST_SEARCH = 'search';
 // One event of timeline per list room is enough to compute unread counts;
 // the full history is loaded when the user opens the room.
@@ -190,59 +189,15 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
 
-  // Dedicated spaces list: sorted alpha, no timeline needed, space-child/parent relations
-  // included so the spaces sidebar tree can be built from this list alone.
-  lists.set(LIST_SPACES, {
-    ranges: [[0, 20]],
-    sort: ['by_name'],
-    timeline_limit: 0,
-    required_state: [
-      [EventType.RoomJoinRules, ''],
-      [EventType.RoomAvatar, ''],
-      [EventType.RoomTombstone, ''],
-      [EventType.RoomEncryption, ''],
-      [EventType.RoomCreate, ''],
-      [EventType.SpaceChild, MSC3575_WILDCARD],
-      [EventType.SpaceParent, MSC3575_WILDCARD],
-      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-    ],
-    slow_get_all_rooms: true,
-    filters: {
-      room_types: ['m.space'],
-    },
-    include_old_rooms: {
-      timeline_limit: 0,
-      required_state: [
-        [EventType.RoomCreate, ''],
-        [EventType.RoomTombstone, ''],
-        [EventType.SpaceChild, MSC3575_WILDCARD],
-        [EventType.SpaceParent, MSC3575_WILDCARD],
-        [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-      ],
-    },
-  });
-
-  const listIncludeOldRooms: MSC3575List['include_old_rooms'] = {
-    timeline_limit: 0,
-    required_state: [
-      [EventType.RoomCreate, ''],
-      [EventType.RoomTombstone, ''],
-      [EventType.SpaceChild, MSC3575_WILDCARD],
-      [EventType.SpaceParent, MSC3575_WILDCARD],
-      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-    ],
-  };
-
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, pageSize - 1)]],
     sort: LIST_SORT_ORDER,
     timeline_limit: LIST_TIMELINE_LIMIT,
     required_state: listRequiredState,
+    slow_get_all_rooms: true,
     filters: {
       is_invite: false,
-      not_room_types: ['m.space'],
     },
-    include_old_rooms: listIncludeOldRooms,
   });
 
   if (includeInviteList) {
@@ -251,10 +206,10 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
       sort: LIST_SORT_ORDER,
       timeline_limit: LIST_TIMELINE_LIMIT,
       required_state: listRequiredState,
+      slow_get_all_rooms: true,
       filters: {
         is_invite: true,
       },
-      include_old_rooms: listIncludeOldRooms,
     });
   }
 
@@ -431,16 +386,6 @@ export class SlidingSyncManager {
         sort: ['by_notification_level', 'by_recency'],
         timeline_limit: LIST_TIMELINE_LIMIT,
         required_state: buildListRequiredState(),
-        include_old_rooms: {
-          timeline_limit: 0,
-          required_state: [
-            [EventType.RoomCreate, ''],
-            [EventType.RoomTombstone, ''],
-            [EventType.SpaceChild, MSC3575_WILDCARD],
-            [EventType.SpaceParent, MSC3575_WILDCARD],
-            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-          ],
-        },
         ...updateArgs,
       };
     } else {
@@ -507,7 +452,6 @@ export class SlidingSyncManager {
             required_state: spideringRequiredState,
             // include_old_rooms intentionally omitted to reduce spidering impact;
             // the direct room subscription will fill in any gaps when the user opens a room.
-            filters: { not_room_types: ['m.space'] },
           });
         } else {
           // Cheaper range-only update for subsequent pages; sticky params are preserved.

@@ -416,7 +416,11 @@ export class SlidingSyncManager {
     await new Promise<void>((res) => { setTimeout(res, gapBetweenRequestsMs); });
     if (this.disposed) return;
 
-    let startIndex = batchSize;
+    // Use a single expanding range [[0, endIndex]] rather than a two-range sliding
+    // window. Synapse's extension handler asserts len(actual_list.ops) == 1, which
+    // fails when the response contains multiple ops (one per range). A single range
+    // always produces a single SYNC op, avoiding the assertion.
+    let endIndex = batchSize - 1;
     let hasMore = true;
     let firstTime = true;
 
@@ -431,11 +435,7 @@ export class SlidingSyncManager {
 
     while (hasMore) {
       if (this.disposed) return;
-      const endIndex = startIndex + batchSize - 1;
-      const ranges: [number, number][] = [
-        [0, batchSize - 1],
-        [startIndex, endIndex],
-      ];
+      const ranges: [number, number][] = [[0, endIndex]];
       try {
         if (firstTime) {
           // Full setList on first call to register the list with all params.
@@ -458,7 +458,7 @@ export class SlidingSyncManager {
       if (this.disposed) return;
       const listData = this.slidingSync.getListData(LIST_SEARCH);
       hasMore = endIndex + 1 < (listData?.joinedCount ?? 0);
-      startIndex += batchSize;
+      endIndex += batchSize;
       firstTime = false;
     }
     log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);

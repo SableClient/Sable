@@ -1,3 +1,18 @@
+## Element Call embedded build
+FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS element-call-builder
+
+RUN apk add --no-cache git
+
+WORKDIR /element-call
+
+ARG ELEMENT_CALL_COMMIT=ecef381c246c177af28b8c99c5076da19878a136
+RUN git init && \
+    git remote add origin https://github.com/melogale/element-call.git && \
+    git fetch --depth=1 origin ${ELEMENT_CALL_COMMIT} && \
+    git checkout FETCH_HEAD
+
+RUN cd embedded/web && npm ci && npm run build
+
 ## Builder
 FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS builder
 
@@ -7,6 +22,10 @@ ARG VITE_BUILD_HASH
 ARG VITE_IS_RELEASE_TAG=false
 ENV VITE_BUILD_HASH=$VITE_BUILD_HASH
 ENV VITE_IS_RELEASE_TAG=$VITE_IS_RELEASE_TAG
+
+# Copy the pre-built element-call embedded package so npm ci can resolve the
+# file: dependency and vite can find the dist/ assets to copy.
+COPY --from=element-call-builder /element-call/embedded/web /src/element-call/embedded/web
 
 COPY .npmrc package.json package-lock.json /src/
 RUN npm ci --ignore-scripts

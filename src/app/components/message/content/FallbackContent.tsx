@@ -16,12 +16,16 @@ export const MessageDeletedContent = as<'div', { children?: never; reason?: stri
   )
 );
 
-export const MessageUnsupportedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
-  <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Warning} />
-    <i>Unsupported message</i>
-  </Box>
-));
+export const MessageUnsupportedContent = as<'div', { children?: never; body?: string }>(
+  ({ body, ...props }, ref) => (
+    <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
+      <Icon size="50" src={Icons.Warning} />
+      <i>Unsupported message</i>
+      {body && `: ${body}`}
+      {!body && ' (no body)'}
+    </Box>
+  )
+);
 
 export const MessageFailedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
@@ -44,12 +48,17 @@ export const MessageNotDecryptedContent = as<'div', { children?: never }>(({ ...
   </Box>
 ));
 
-export const MessageBrokenContent = as<'div', { children?: never }>(({ ...props }, ref) => (
-  <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Warning} />
-    <i>Broken message</i>
-  </Box>
-));
+// display body of the message if it is available, as it may give some clue about why the message is broken
+export const MessageBrokenContent = as<'div', { children?: never; body?: string }>(
+  ({ body, ...props }, ref) => (
+    <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
+      <Icon size="50" src={Icons.Warning} />
+      <i>Broken message</i>
+      {body && `: ${body}`}
+      {!body && ' (no body)'}
+    </Box>
+  )
+);
 
 export const MessageEmptyContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>

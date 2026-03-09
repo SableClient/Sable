@@ -18,3 +18,4 @@ devAssets
 *.tfbackend
 !*.tfbackend.example
 crash.log
+build.sh

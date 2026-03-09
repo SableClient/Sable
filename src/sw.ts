@@ -269,6 +269,20 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return;
   }
 
+  // Since widgets like element call have their own client ids,
+  // we need this logic. We just go through the sessions list and get a session
+  // with the right base url. Media requests to a homeserver simply are fine with any account
+  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
+  // If you have two tabs for different users on the same homeserver, it might authenticate
+  // as the wrong one.
+  // Thus any logic in the future which cares about which user is authenticating the request
+  // might break this. Also, again, it is technically wrong.
+  const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
+  if (byBaseUrl) {
+    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    return;
+  }
+
   event.respondWith(
     requestSessionWithTimeout(clientId).then((s) => {
       if (s && validMediaRequest(url, s.baseUrl)) {

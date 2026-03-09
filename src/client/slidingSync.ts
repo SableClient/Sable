@@ -39,6 +39,12 @@ const ACTIVE_ROOM_TIMELINE_LIMIT_LOW = 20;
 const ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM = 35;
 const ACTIVE_ROOM_TIMELINE_LIMIT_HIGH = 50;
 
+export type PartialSlidingSyncRequest = {
+  filters?: MSC3575List['filters'];
+  sort?: string[];
+  ranges?: [number, number][];
+};
+
 export type SlidingSyncConfig = {
   enabled?: boolean;
   proxyBaseUrl?: string;
@@ -409,72 +415,115 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Spider through all rooms by incrementally expanding a search list, matching
-   * Element Web's `startSpidering` behaviour. The search list uses recency sorting
-   * so the most recently active rooms are returned first, and is filtered to exclude
-   * spaces (which are covered by LIST_SPACES).
+   * Ensure a dynamic list is registered (or updated) on the sliding sync session.
+   * If the list does not yet exist it is created with sensible defaults merged with
+   * `updateArgs`. If it already exists and the merged result differs, only the ranges
+   * are updated (cheaper — avoids resending sticky params) when `updateArgs` only
+   * contains `ranges`; otherwise the full list is replaced.
    *
-   * This runs in the background after the initial sync is running; callers should
-   * not await it.
+   * This mirrors Element Web's `SlidingSyncManager.ensureListRegistered`.
+   */
+  public ensureListRegistered(listKey: string, updateArgs: PartialSlidingSyncRequest): MSC3575List {
+    let list = this.slidingSync.getListParams(listKey);
+    if (!list) {
+      list = {
+        ranges: [[0, 20]],
+        sort: ['by_notification_level', 'by_recency'],
+        timeline_limit: LIST_TIMELINE_LIMIT,
+        required_state: buildListRequiredState(),
+        include_old_rooms: {
+          timeline_limit: 0,
+          required_state: [
+            [EventType.RoomCreate, ''],
+            [EventType.RoomTombstone, ''],
+            [EventType.SpaceChild, MSC3575_WILDCARD],
+            [EventType.SpaceParent, MSC3575_WILDCARD],
+            [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+          ],
+        },
+        ...updateArgs,
+      };
+    } else {
+      const updated = { ...list, ...updateArgs };
+      if (JSON.stringify(list) === JSON.stringify(updated)) return list;
+      list = updated;
+    }
+
+    try {
+      if (updateArgs.ranges && Object.keys(updateArgs).length === 1) {
+        this.slidingSync.setListRanges(listKey, updateArgs.ranges);
+      } else {
+        this.slidingSync.setList(listKey, list);
+      }
+    } catch {
+      // ignore — the list will be re-sent on the next sync cycle
+    }
+    return this.slidingSync.getListParams(listKey) ?? list;
+  }
+
+  /**
+   * Spider through all rooms by incrementally expanding the search list, matching
+   * Element Web's `startSpidering` behaviour. Called once after `attach()` and runs
+   * in the background; callers must not await it.
+   *
+   * The first request uses `setList` to register the list with its full config;
+   * subsequent page advances use the cheaper `setListRanges` (sticky params are
+   * not resent). A gap sleep is applied before the first request and after each
+   * subsequent one to avoid hammering the proxy at startup.
    */
   public async startSpidering(batchSize: number, gapBetweenRequestsMs: number): Promise<void> {
-    // Keep window [0, batchSize-1] always to give the user instant access to
-    // recent rooms, plus a sliding window [startIndex, endIndex] that advances
-    // through the full room list.
+    // Delay before the first request — startSpidering is called right after attach(),
+    // so give the initial sync a moment to settle first.
+    await new Promise<void>((res) => { setTimeout(res, gapBetweenRequestsMs); });
+    if (this.disposed) return;
+
     let startIndex = batchSize;
-    this.slidingSync.setList(LIST_SEARCH, {
-      ranges: [
+    let hasMore = true;
+    let firstTime = true;
+
+    const spideringRequiredState: MSC3575List['required_state'] = [
+      [EventType.RoomJoinRules, ''],
+      [EventType.RoomAvatar, ''],
+      [EventType.RoomTombstone, ''],
+      [EventType.RoomEncryption, ''],
+      [EventType.RoomCreate, ''],
+      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+    ];
+
+    while (hasMore) {
+      if (this.disposed) return;
+      const endIndex = startIndex + batchSize - 1;
+      const ranges: [number, number][] = [
         [0, batchSize - 1],
-        [startIndex, startIndex + batchSize - 1],
-      ],
-      sort: ['by_recency'],
-      timeline_limit: 0,
-      required_state: [
-        [EventType.RoomJoinRules, ''],
-        [EventType.RoomAvatar, ''],
-        [EventType.RoomTombstone, ''],
-        [EventType.RoomEncryption, ''],
-        [EventType.RoomCreate, ''],
-        [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-      ],
-      filters: {
-        not_room_types: ['m.space'],
-      },
-    });
+        [startIndex, endIndex],
+      ];
+      try {
+        if (firstTime) {
+          // Full setList on first call to register the list with all params.
+          this.slidingSync.setList(LIST_SEARCH, {
+            ranges,
+            sort: ['by_recency'],
+            timeline_limit: 0,
+            required_state: spideringRequiredState,
+            // include_old_rooms intentionally omitted to reduce spidering impact;
+            // the direct room subscription will fill in any gaps when the user opens a room.
+            filters: { not_room_types: ['m.space'] },
+          });
+        } else {
+          // Cheaper range-only update for subsequent pages; sticky params are preserved.
+          this.slidingSync.setListRanges(LIST_SEARCH, ranges);
+        }
+      } catch {
+        // Swallow errors — the next iteration will retry with updated ranges.
+      } finally {
+        await new Promise<void>((res) => { setTimeout(res, gapBetweenRequestsMs); });
+      }
 
-    // Advance the window until we have fetched all known rooms.
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
       if (this.disposed) return;
-      await new Promise<void>((res) => {
-        setTimeout(res, gapBetweenRequestsMs);
-      });
-      if (this.disposed) return;
-
       const listData = this.slidingSync.getListData(LIST_SEARCH);
-      const knownCount = listData?.joinedCount ?? 0;
-      if (knownCount > 0 && startIndex >= knownCount) break;
-
+      hasMore = endIndex + 1 < (listData?.joinedCount ?? 0);
       startIndex += batchSize;
-      this.slidingSync.setList(LIST_SEARCH, {
-        ranges: [
-          [0, batchSize - 1],
-          [startIndex, startIndex + batchSize - 1],
-        ],
-        sort: ['by_recency'],
-        timeline_limit: 0,
-        required_state: [
-          [EventType.RoomJoinRules, ''],
-          [EventType.RoomAvatar, ''],
-          [EventType.RoomTombstone, ''],
-          [EventType.RoomEncryption, ''],
-          [EventType.RoomCreate, ''],
-          [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-        ],
-        filters: {
-          not_room_types: ['m.space'],
-        },
-      });
+      firstTime = false;
     }
     log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);
   }

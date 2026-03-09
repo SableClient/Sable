@@ -858,10 +858,20 @@ export function RoomTimeline({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
-      if (liveTimelineLinked || timeline.linkedTimelines.length === 0) {
-        setTimeline(getInitialTimeline(room));
-      }
-    }, [room, liveTimelineLinked, timeline.linkedTimelines.length])
+      // Always reinitialize on TimelineRefresh. With sliding sync, a limited
+      // response replaces the room's live EventTimeline with a brand-new object,
+      // firing TimelineRefresh. At that moment liveTimelineLinked is stale-false
+      // (the stored linkedTimelines still reference the old detached object),
+      // so the previous guard `if (liveTimelineLinked || ...)` would silently
+      // skip reinit. Back-pagination then calls paginateEventTimeline against
+      // the dead old timeline, which no-ops, and the IntersectionObserver never
+      // re-fires because intersection state didn't change — causing a permanent
+      // hang at the top of the timeline with no spinner and no history loaded.
+      // Unconditionally reinitializing is correct: TimelineRefresh signals that
+      // the SDK has replaced the timeline chain, so any stored range/indices
+      // against the old chain are invalid anyway.
+      setTimeline(getInitialTimeline(room));
+    }, [room])
   );
 
   // Re-render when non-live Replace relations arrive (bundled/historical edits

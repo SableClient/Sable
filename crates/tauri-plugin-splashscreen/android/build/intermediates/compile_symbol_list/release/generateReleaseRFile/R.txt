@@ -1,2 +1,0 @@
-int color splashscreen_background 0x0
-int drawable loading_icon 0x0

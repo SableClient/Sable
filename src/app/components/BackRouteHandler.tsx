@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { useBackRoute } from './useBackRoute';
+import { useBackRoute } from '$hooks/useBackRoute';
 
 type BackRouteHandlerProps = {
   children: (onBack: () => void) => ReactNode;

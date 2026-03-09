@@ -61,7 +61,7 @@ import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useLastFocusedRoom } from '$hooks/useLastFocusedRooms';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
-import { BACK_ROOM_PARAM } from '$components/useBackRoute';
+import { BACK_ROOM_PARAM } from '$hooks/useBackRoute';
 import { createLogger } from '$utils/debug';
 import { resolveSwipeTargetRoom } from '$utils/resolveSwipeTargetRoom';
 import { useDirectRooms } from './useDirectRooms';

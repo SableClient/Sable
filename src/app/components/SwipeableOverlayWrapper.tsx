@@ -1,14 +1,15 @@
-import { ReactNode, useRef, useCallback } from 'react';
+import { ReactNode } from 'react';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { useIsMobile } from '$hooks/useIsMobile';
+import { useDrag } from '@use-gesture/react';
 import { createLogger } from '$utils/debug';
 
 const log = createLogger('SwipeableOverlayWrapper');
 
 const SWIPE_DISTANCE = 60;
-const AXIS_LOCK_RATIO = 1.5;
 const SWIPE_VELOCITY = 0.3;
+const AXIS_LOCK_RATIO = 1.5;
 
 interface SwipeableOverlayWrapperProps {
   children: ReactNode;
@@ -23,85 +24,43 @@ export function SwipeableOverlayWrapper({
 }: SwipeableOverlayWrapperProps) {
   const settings = useAtomValue(settingsAtom);
   const isMobile = useIsMobile();
+  const gesturesEnabled = settings.mobileGestures && isMobile;
 
-  const startX = useRef<number | null>(null);
-  const startY = useRef<number | null>(null);
-  const startTime = useRef<number | null>(null);
+  const bind = useDrag(
+    ({ active, movement: [mx, my], velocity: [vx], direction: [dx] }) => {
+      if (active) return;
 
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (!settings.mobileGestures || !isMobile) return;
-      const t = e.touches[0];
-      startX.current = t.clientX;
-      startY.current = t.clientY;
-      startTime.current = Date.now();
-    },
-    [settings.mobileGestures, isMobile]
-  );
+      const axisBlocked = Math.abs(my) * AXIS_LOCK_RATIO > Math.abs(mx);
+      if (axisBlocked) return;
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      if (!settings.mobileGestures || !isMobile) return;
-      if (startX.current === null || startY.current === null || startTime.current === null) return;
+      const thresholdMet =
+        direction === 'left'
+          ? mx < -SWIPE_DISTANCE || (vx > SWIPE_VELOCITY && dx < 0 && mx < 0)
+          : mx > SWIPE_DISTANCE || (vx > SWIPE_VELOCITY && dx > 0 && mx > 0);
 
-      const t = e.changedTouches[0];
-      const dx = t.clientX - startX.current;
-      const dy = t.clientY - startY.current;
-      const dt = Date.now() - startTime.current;
-      const velocity = Math.abs(dx) / dt;
-
-      const axisBlocked = Math.abs(dy) * AXIS_LOCK_RATIO > Math.abs(dx);
-      const swipedLeft =
-        direction === 'left' &&
-        dx < 0 &&
-        (Math.abs(dx) > SWIPE_DISTANCE || velocity > SWIPE_VELOCITY);
-      const swipedRight =
-        direction === 'right' &&
-        dx > 0 &&
-        (Math.abs(dx) > SWIPE_DISTANCE || velocity > SWIPE_VELOCITY);
-
-      log.log(
-        `touchend — dx:${dx.toFixed(1)} dy:${dy.toFixed(1)} dt:${dt}ms vel:${velocity.toFixed(3)}`,
-        `| axisBlocked:${axisBlocked} swipedLeft:${swipedLeft} swipedRight:${swipedRight}`,
-        `| direction:${direction}`
-      );
-
-      startX.current = null;
-      startY.current = null;
-      startTime.current = null;
-
-      if (axisBlocked) {
-        log.log('axis blocked — ignoring (vertical scroll)');
-        return;
-      }
-
-      if (swipedLeft || swipedRight) {
+      if (thresholdMet) {
         log.log('swipe detected — calling onClose');
         onClose();
-      } else {
-        log.log('not a swipe — ignoring');
       }
     },
-    [settings.mobileGestures, isMobile, direction, onClose]
+    {
+      axis: 'x',
+      filterTaps: true,
+      pointer: { capture: false },
+      enabled: gesturesEnabled,
+    }
   );
-
-  const handleTouchCancel = useCallback(() => {
-    startX.current = null;
-    startY.current = null;
-    startTime.current = null;
-  }, []);
 
   return (
     <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchCancel}
+      {...(gesturesEnabled ? bind() : {})}
       style={{
         display: 'flex',
         flexDirection: 'column',
         flexGrow: 1,
         height: '100%',
         width: '100%',
+        touchAction: 'pan-y',
       }}
     >
       {children}

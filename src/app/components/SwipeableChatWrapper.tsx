@@ -1,14 +1,15 @@
-import { ReactNode } from 'react';
-import { animate, motion, useMotionValue } from 'motion/react';
+import { ReactNode, createContext } from 'react';
+import { animate, motion, useMotionValue, MotionValue } from 'motion/react';
 import { useDrag } from '@use-gesture/react';
 import { useAtomValue } from 'jotai';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
 import { useIsMobile } from '$hooks/useIsMobile';
-import { SwipeContext } from './SwipeContext';
 
 const SWIPE_DISTANCE = 80;
 const SWIPE_VELOCITY = 0.4;
 const SNAP_SPRING = { type: 'spring' as const, stiffness: 600, damping: 50, mass: 0.6 };
+
+const SwipeContext = createContext<MotionValue<number> | null>(null);
 
 interface SwipeableChatWrapperProps {
   children: ReactNode;

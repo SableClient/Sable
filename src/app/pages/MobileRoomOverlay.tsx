@@ -4,7 +4,7 @@ import { useDrag } from '@use-gesture/react';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
-import { useBackRoute } from '$components/useBackRoute';
+import { useBackRoute } from '$hooks/useBackRoute';
 import { createLogger } from '$utils/debug';
 
 const log = createLogger('MobileRoomOverlay');

@@ -158,6 +158,10 @@ const resolveAdaptiveRoomTimelineLimit = (
 //     lobby (RoomItem → LocalRoomSummaryLoader → useLocalRoomSummary) and in the
 //     invite list. Without this event the topic always shows as blank for non-active
 //     rooms.
+//   - m.room.canonical_alias is required: getCanonicalAlias() is used in several places
+//     for non-active rooms — notification serverName extraction, mention autocomplete
+//     alias display, and getCanonicalAliasOrRoomId for navigation. Without it, aliases
+//     fall back silently to room IDs.
 const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
   [EventType.RoomJoinRules, ''],
   [EventType.RoomAvatar, ''],
@@ -165,6 +169,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomEncryption, ''],
   [EventType.RoomCreate, ''],
   [EventType.RoomTopic, ''],
+  [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
@@ -447,6 +452,7 @@ export class SlidingSyncManager {
       [EventType.RoomEncryption, ''],
       [EventType.RoomCreate, ''],
       [EventType.RoomTopic, ''],
+      [EventType.RoomCanonicalAlias, ''],
       [EventType.RoomMember, MSC3575_STATE_KEY_ME],
       ['m.space.child', MSC3575_WILDCARD],
       ['im.ponies.room_emotes', MSC3575_WILDCARD],

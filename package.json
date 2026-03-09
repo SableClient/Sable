@@ -22,8 +22,8 @@
     "knope": "knope",
     "document-change": "knope document-change",
     "postinstall": "node scripts/install-knope.js",
-    "setup:knope":         "node scripts/install-knope.js",
-    "setup:tauri-icons":   "node scripts/symlink-tauri-icons.js",
+    "setup:knope": "node scripts/install-knope.js",
+    "setup:tauri-icons": "node scripts/symlink-tauri-icons.js",
     "lint:normalize-imports": "node scripts/normalize-imports.js"
   },
   "keywords": [],
@@ -42,7 +42,6 @@
     "@tauri-apps/plugin-deep-link": "2.4.7",
     "@tauri-apps/plugin-opener": "2.5.3",
     "@tauri-apps/plugin-os": "2.3.2",
-    "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
     "@use-gesture/react": "10.3.1",
     "@vanilla-extract/css": "^1.18.0",
     "@vanilla-extract/recipes": "^0.5.7",
@@ -94,6 +93,7 @@
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
+    "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
     "ua-parser-js": "^1.0.41",
     "workbox-precaching": "^7.4.0"
   },

@@ -4,6 +4,7 @@ import { Box, Text, Switch, Button, color, Spinner, config } from 'folds';
 import { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { isTauri } from '@tauri-apps/api/core';
+import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
@@ -15,12 +16,21 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { pushSubscriptionAtom } from '$state/pushSubscription';
+import { unifiedPushEndpointAtom } from '$state/unifiedPushEndpoint';
 import { mobileOrTablet } from '$utils/user-agent';
+import { stopPropagation } from '$utils/keyboard';
 import {
   requestBrowserNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
 } from './PushNotifications';
+import {
+  enableUnifiedPush,
+  disableUnifiedPush,
+  getUnifiedPushDistributors,
+  getUnifiedPushDistributor,
+  saveUnifiedPushDistributor,
+} from './UnifiedPushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
 
 function EmailNotification() {
@@ -190,7 +200,149 @@ function WebPushNotificationSetting() {
   );
 }
 
+function UnifiedPushNotificationSetting() {
+  const mx = useMatrixClient();
+  const clientConfig = useClientConfig();
+  const [useUP, setUseUP] = useSetting(settingsAtom, 'useUnifiedPush');
+  const [upEndpoint, setUpEndpoint] = useAtom(unifiedPushEndpointAtom);
+  const [isLoading, setIsLoading] = useState(false);
+  const [distributors, setDistributors] = useState<string[]>([]);
+  const [currentDistributor, setCurrentDistributor] = useState<string>('');
+  const [menuCords, setMenuCords] = useState<RectCords>();
+
+  useEffect(() => {
+    getUnifiedPushDistributors()
+      .then((result: { distributors: string[] }) => setDistributors(result.distributors))
+      .catch(() => {});
+    getUnifiedPushDistributor()
+      .then((result: { distributor: string }) => setCurrentDistributor(result.distributor))
+      .catch(() => {});
+  }, []);
+
+  const handleToggle = async (wantsUP: boolean) => {
+    setIsLoading(true);
+    try {
+      if (wantsUP) {
+        const result = await enableUnifiedPush(mx, clientConfig);
+        setUpEndpoint(result);
+        setUseUP(true);
+      } else {
+        await disableUnifiedPush(mx, clientConfig, upEndpoint?.endpoint);
+        setUpEndpoint(null);
+        setUseUP(false);
+      }
+    } catch (e) {
+      console.error('UnifiedPush toggle failed:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectDistributor = async (distributor: string) => {
+    setMenuCords(undefined);
+    if (distributor === currentDistributor) return;
+    setIsLoading(true);
+    try {
+      if (useUP) {
+        await disableUnifiedPush(mx, clientConfig, upEndpoint?.endpoint);
+      }
+      await saveUnifiedPushDistributor(distributor);
+      setCurrentDistributor(distributor);
+      if (useUP) {
+        const result = await enableUnifiedPush(mx, clientConfig);
+        setUpEndpoint(result);
+      }
+    } catch (e) {
+      console.error('Distributor switch failed:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const distributorLabel = (pkg: string) => {
+    const parts = pkg.split('.');
+    return parts[parts.length - 1] ?? pkg;
+  };
+
+  const handleDistributorMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  return (
+    <>
+      <SettingTile
+        title="UnifiedPush Notifications"
+        description={
+          distributors.length === 0 ? (
+            <Text as="span" style={{ color: color.Warning.Main }} size="T200">
+              No UnifiedPush distributor installed. Install one (e.g. ntfy, NextPush) to use this
+              feature.
+            </Text>
+          ) : (
+            'Receive background notifications via UnifiedPush without Google Services.'
+          )
+        }
+        after={
+          isLoading ? (
+            <Spinner variant="Secondary" />
+          ) : (
+            <Switch value={useUP} onChange={handleToggle} disabled={distributors.length === 0} />
+          )
+        }
+      />
+      {distributors.length > 1 && (
+        <SettingTile
+          title="Distributor"
+          description={currentDistributor ? distributorLabel(currentDistributor) : 'Not selected'}
+          after={
+            <>
+              <PopOut
+                anchor={menuCords}
+                position="Bottom"
+                align="End"
+                content={
+                  <FocusTrap
+                    focusTrapOptions={{
+                      initialFocus: false,
+                      onDeactivate: () => setMenuCords(undefined),
+                      clickOutsideDeactivates: true,
+                      escapeDeactivates: stopPropagation,
+                    }}
+                  >
+                    <Menu>
+                      {distributors.map((d) => (
+                        <MenuItem
+                          key={d}
+                          radii="300"
+                          onClick={() => handleSelectDistributor(d)}
+                          aria-pressed={d === currentDistributor}
+                        >
+                          <Text size="B300">{distributorLabel(d)}</Text>
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </FocusTrap>
+                }
+              />
+              <Button
+                size="300"
+                radii="300"
+                variant="Secondary"
+                fill="Soft"
+                onClick={handleDistributorMenu}
+              >
+                <Text size="B300">Change</Text>
+              </Button>
+            </>
+          }
+        />
+      )}
+    </>
+  );
+}
+
 export function SystemNotification() {
+  const isTauriApp = isTauri();
   const [showInAppNotifs, setShowInAppNotifs] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifs, setShowSystemNotifs] = useSetting(
     settingsAtom,
@@ -250,18 +402,6 @@ export function SystemNotification() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="In-App Notifications"
-          description="Show a notification banner inside the app when a message arrives."
-          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-        />
-      </SequenceCard>
       {mobileOrTablet() && (
         <SequenceCard
           className={SequenceCardStyle}
@@ -269,7 +409,31 @@ export function SystemNotification() {
           direction="Column"
           gap="400"
         >
+          <SettingTile
+            title="Mobile In-App Notifications"
+            description="Show a notification banner inside the app when a message arrives."
+            after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
+          />
+        </SequenceCard>
+      )}
+      {mobileOrTablet() && !isTauriApp && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
           <WebPushNotificationSetting />
+        </SequenceCard>
+      )}
+      {isTauriApp && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <UnifiedPushNotificationSetting />
         </SequenceCard>
       )}
       {!mobileOrTablet() && (

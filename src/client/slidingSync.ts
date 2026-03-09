@@ -575,11 +575,11 @@ export class SlidingSyncManager {
           proxyBaseUrl
         );
         return true;
-      } catch (err) {
-        // 400 means the server explicitly rejected the params; any other error
-        // (network, 401) defaults to supported so transient issues don't
-        // permanently disable features.
-        return (err as { httpStatus?: number })?.httpStatus !== 400;
+      } catch {
+        // Any error (400, 500, network) means the server could not handle these
+        // params — treat the feature as unsupported. The basic probe() already
+        // validates connectivity and auth, so any error here is parameter-specific.
+        return false;
       }
     };
 

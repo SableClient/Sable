@@ -322,38 +322,53 @@ function MessageNotifications() {
         if (first) notifiedEventsRef.current.delete(first);
       }
 
-      // On desktop: fire an OS notification so the user is alerted even when the
-      // browser window is minimised or the tab is not active.
-      if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
-        const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
-        const avatarMxc =
-          room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
-        const osPayload = buildRoomMessageNotification({
-          roomName: room.name ?? 'Unknown',
-          roomAvatar: avatarMxc
-            ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
-            : undefined,
-          username:
-            getMemberDisplayName(room, sender, nicknamesRef.current) ??
-            getMxIdLocalPart(sender) ??
-            sender,
-          previewText: resolveNotificationPreviewText({
-            content: mEvent.getContent(),
-            eventType: mEvent.getType(),
-            isEncryptedRoom,
-            showMessageContent,
-            showEncryptedMessageContent,
-          }),
-          silent: !notificationSound || !isLoud,
-          eventId,
-        });
-        const noti = new window.Notification(osPayload.title, osPayload.options);
-        const { roomId } = room;
-        noti.onclick = () => {
-          window.focus();
-          setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
-          noti.close();
-        };
+      // On desktop: fire an OS notification when the window is not focused so
+      // the user is alerted while the browser is minimised or the tab is in the
+      // background.  When the window IS focused the in-app banner (below) is the
+      // appropriate alert — we skip the OS notification to avoid a duplicate.
+      // The whole block is wrapped in try/catch: window.Notification() can throw
+      // in sandboxed environments, browsers with DnD active, or Electron — and
+      // an uncaught exception here would abort the handler before setInAppBanner
+      // is reached, causing in-app notifications to silently vanish too.
+      if (
+        !mobileOrTablet() &&
+        !document.hasFocus() &&
+        showSystemNotifications &&
+        notificationPermission('granted')
+      ) {
+        try {
+          const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
+          const avatarMxc =
+            room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
+          const osPayload = buildRoomMessageNotification({
+            roomName: room.name ?? 'Unknown',
+            roomAvatar: avatarMxc
+              ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+              : undefined,
+            username:
+              getMemberDisplayName(room, sender, nicknamesRef.current) ??
+              getMxIdLocalPart(sender) ??
+              sender,
+            previewText: resolveNotificationPreviewText({
+              content: mEvent.getContent(),
+              eventType: mEvent.getType(),
+              isEncryptedRoom,
+              showMessageContent,
+              showEncryptedMessageContent,
+            }),
+            silent: !notificationSound || !isLoud,
+            eventId,
+          });
+          const noti = new window.Notification(osPayload.title, osPayload.options);
+          const { roomId } = room;
+          noti.onclick = () => {
+            window.focus();
+            setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
+            noti.close();
+          };
+        } catch {
+          // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
+        }
       }
 
       // Everything below requires the page to be visible (in-app UI + audio).

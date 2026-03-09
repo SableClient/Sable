@@ -44,7 +44,7 @@ import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { getSettings, settingsAtom } from '$state/settings';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import {
@@ -317,7 +317,7 @@ export function RoomNavItem({
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
     if (room.isCallRoom()) {
       if (!isMobile) {
-        if (!isActiveCall && !callEmbed) {
+        if (!isActiveCall && !callEmbed && getSettings().joinVoiceImmediately) {
           startCall(
             room,
             new CallControlState(callPref.microphone, callPref.video, callPref.sound)

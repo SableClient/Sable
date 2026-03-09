@@ -48,6 +48,7 @@ export interface Settings {
   urlPreview: boolean;
   encUrlPreview: boolean;
   showHiddenEvents: boolean;
+  joinVoiceImmediately: boolean;
   legacyUsernameColor: boolean;
   allowPipVideos: boolean;
 
@@ -122,6 +123,7 @@ const defaultSettings: Settings = {
   urlPreview: true,
   encUrlPreview: false,
   showHiddenEvents: false,
+  joinVoiceImmediately: true,
   legacyUsernameColor: false,
   allowPipVideos: false,
 

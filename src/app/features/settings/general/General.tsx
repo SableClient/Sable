@@ -924,6 +924,30 @@ function Messages() {
   );
 }
 
+function Navigation() {
+  const [joinVoiceImmediately, setJoinVoiceImmediately] = useSetting(
+    settingsAtom,
+    'joinVoiceImmediately'
+  );
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Navigation</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Join Calls Immediately When Switching to Channel"
+          after={
+            <Switch
+              variant="Primary"
+              value={joinVoiceImmediately}
+              onChange={setJoinVoiceImmediately}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 export function Sync() {
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
@@ -1033,6 +1057,7 @@ export function General({ requestClose }: GeneralProps) {
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
+              <Navigation />
             </Box>
           </PageContent>
         </Scroll>

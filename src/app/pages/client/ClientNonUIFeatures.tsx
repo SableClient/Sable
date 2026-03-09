@@ -307,6 +307,14 @@ function MessageNotifications() {
       // If neither a loud nor a highlight rule matches, and it's not a DM, nothing to show.
       if (!isHighlightByRule && !loudByRule && !isDM) return;
 
+      // With sliding sync we only load m.room.member/$ME in required_state, so
+      // PushProcessor cannot evaluate the room_member_count == 2 condition on
+      // .m.rule.room_one_to_one.  That rule therefore fails to match, and DM
+      // messages fall through to .m.rule.message which carries no sound tweak —
+      // leaving loudByRule=false.  Treat known DMs as inherently loud so that
+      // the OS notification and badge are consistent with the DM context.
+      const isLoud = loudByRule || isDM;
+
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
       if (notifiedEventsRef.current.size > 200) {
@@ -336,7 +344,7 @@ function MessageNotifications() {
             showMessageContent,
             showEncryptedMessageContent,
           }),
-          silent: !notificationSound || !loudByRule,
+          silent: !notificationSound || !isLoud,
           eventId,
         });
         const noti = new window.Notification(osPayload.title, osPayload.options);
@@ -395,7 +403,7 @@ function MessageNotifications() {
           roomAvatar,
           username: resolvedSenderName,
           previewText,
-          silent: !notificationSound || !loudByRule,
+          silent: !notificationSound || !isLoud,
           eventId,
         });
         const { roomId } = room;

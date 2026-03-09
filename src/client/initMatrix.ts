@@ -340,6 +340,9 @@ export const stopClient = (mx: MatrixClient): void => {
   mx.stopClient();
 };
 
+export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | undefined =>
+  slidingSyncByClient.get(mx);
+
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig) => {
   log.log('startClient', mx.getUserId());
   disposeSlidingSync(mx);

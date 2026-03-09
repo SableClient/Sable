@@ -24,6 +24,16 @@ const TIMELINE_LIMIT_HIGH = 30;
 const DEFAULT_POLL_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_ROOMS = 5000;
 
+// Sort order matching Element Web: most urgent rooms (highlights/notifications) first,
+// then most recently active, then alphabetical as a tiebreaker.
+const LIST_SORT_ORDER = ['by_notification_level', 'by_recency', 'by_name'];
+
+// Custom subscription name used for the room currently being viewed.
+// It uses a higher timeline limit so initial message history loads without
+// a follow-up pagination request.
+const ACTIVE_ROOM_SUBSCRIPTION_KEY = 'active-room';
+const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
+
 export type SlidingSyncConfig = {
   enabled?: boolean;
   proxyBaseUrl?: string;
@@ -146,6 +156,16 @@ const buildDefaultSubscription = (timelineLimit: number): MSC3575RoomSubscriptio
     [StateEvent.RoomCosmeticsFont, '*'],
     [StateEvent.RoomCosmeticsPronouns, '*'],
   ],
+  // When a room is upgraded (tombstoned), also pull the minimal state of the
+  // predecessor so the client can render the upgrade notice and link correctly.
+  include_old_rooms: {
+    timeline_limit: 0,
+    required_state: [
+      [EventType.RoomCreate, ''],
+      [EventType.RoomTombstone, ''],
+      [EventType.RoomCanonicalAlias, ''],
+    ],
+  },
 });
 
 const buildLists = (
@@ -157,6 +177,7 @@ const buildLists = (
   const lists = new Map<string, MSC3575List>();
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, pageSize - 1)]],
+    sort: LIST_SORT_ORDER,
     timeline_limit: timelineLimit,
     required_state: requiredState,
     slow_get_all_rooms: true,
@@ -168,6 +189,7 @@ const buildLists = (
   if (includeInviteList) {
     lists.set(LIST_INVITES, {
       ranges: [[0, Math.max(0, pageSize - 1)]],
+      sort: LIST_SORT_ORDER,
       timeline_limit: timelineLimit,
       required_state: requiredState,
       slow_get_all_rooms: true,
@@ -191,6 +213,8 @@ export class SlidingSyncManager {
   private readonly maxRooms: number;
 
   private readonly listKeys: string[];
+
+  private readonly activeRoomSubscriptions = new Set<string>();
 
   private timelineLimit: number;
 
@@ -240,6 +264,15 @@ export class SlidingSyncManager {
     );
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, subscription, mx, pollTimeoutMs);
+
+    // Register a custom subscription for the room the user is actively viewing.
+    // It requests more timeline events than the background list subscription so
+    // the visible message history loads without an immediate pagination hit.
+    this.slidingSync.addCustomSubscription(ACTIVE_ROOM_SUBSCRIPTION_KEY, {
+      timeline_limit: ACTIVE_ROOM_TIMELINE_LIMIT,
+      required_state: subscription.required_state,
+      include_old_rooms: subscription.include_old_rooms,
+    });
 
     this.onLifecycle = (state, resp, err) => {
       if (this.disposed || err || !resp || state !== SlidingSyncState.Complete) return;
@@ -357,6 +390,31 @@ export class SlidingSyncManager {
         timeline_limit: timelineLimit,
       });
     });
+  }
+
+  /**
+   * Subscribe to a room with the active-room custom subscription (higher timeline limit).
+   * Safe to call when already subscribed — the SDK deduplicates.
+   * This is a no-op after dispose().
+   */
+  public subscribeToRoom(roomId: string): void {
+    if (this.disposed) return;
+    this.slidingSync.useCustomSubscription(roomId, ACTIVE_ROOM_SUBSCRIPTION_KEY);
+    this.activeRoomSubscriptions.add(roomId);
+    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    log.log(`Sliding Sync active room subscription added: ${roomId}`);
+  }
+
+  /**
+   * Remove the explicit room subscription for a room.
+   * Rooms that are still in a list will continue to receive background updates.
+   * This is a no-op after dispose().
+   */
+  public unsubscribeFromRoom(roomId: string): void {
+    if (this.disposed) return;
+    this.activeRoomSubscriptions.delete(roomId);
+    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    log.log(`Sliding Sync active room subscription removed: ${roomId}`);
   }
 
   public static async probe(

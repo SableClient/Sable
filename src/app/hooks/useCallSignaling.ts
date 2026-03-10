@@ -6,6 +6,7 @@ import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import InviteSound from '$public/sound/invite.ogg';
 import { useMatrixClient } from './useMatrixClient';
+import { MatrixEvent } from 'matrix-js-sdk';
 
 export function useCallSignaling() {
   const mx = useMatrixClient();
@@ -93,7 +94,29 @@ export function useCallSignaling() {
       checkDMsForActiveCalls();
     };
 
-    const handleRoomState = () => {
+    const handleRoomState = (event: MatrixEvent) => {
+      const type = event.getType();
+
+      if (type === 'org.matrix.msc4075.rtc.notification') {
+        const content = event.getContent();
+        const sender = event.getSender();
+        const serverTs = event.getTs();
+        const senderTs = content.sender_ts || serverTs;
+        const lifetime = content.lifetime || 30000;
+
+        const now = Date.now();
+        const isExpired = now - senderTs > lifetime;
+
+        if (isExpired) {
+          return;
+        }
+
+        if (content.notification_type === 'ring' && sender !== mx.getUserId()) {
+          playRinging(event.getRoomId()!);
+          return;
+        }
+      }
+
       checkDMsForActiveCalls();
     };
 

@@ -109,12 +109,26 @@ export const ImageContent = as<'div', ImageContentProps>(
       }, [rawMediaUrl, resolvedMediaUrl, url, mimeType, encInfo, mediaToken])
     );
 
+    // When the source download succeeds, reset image-element error state so the
+    // Retry button doesn't flash before the <img> has had a chance to load.
+    useEffect(() => {
+      if (srcState.status === AsyncStatus.Success) {
+        setError(false);
+      }
+    }, [srcState.status]);
+
     const handleLoad = () => {
       setLoad(true);
+      setError(false);
     };
     const handleError = () => {
-      setLoad(false);
-      setError(true);
+      // Only show the error if the source download already succeeded — if
+      // it's still loading the image element may fire a transient error
+      // before the blob URL is ready.
+      if (srcState.status === AsyncStatus.Success) {
+        setLoad(false);
+        setError(true);
+      }
     };
 
     const handleRetry = () => {
@@ -225,12 +239,13 @@ export const ImageContent = as<'div', ImageContentProps>(
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
+          !error &&
           !blurred && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!load && (error || srcState.status === AsyncStatus.Error) && (
           <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
             <TooltipProvider
               tooltip={

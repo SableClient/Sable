@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { hasServiceWorker } from '$utils/platform';
 import { authenticatedMediaFetch } from '$utils/matrix';
+import { getFromMediaCache, putInMediaCache } from '$utils/mediaCache';
 
 const blobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string | undefined>>();
 
 /**
- * On platforms without service workers (e.g. Android WebViews), media URLs
- * that require authentication cannot be loaded directly by `<img>` tags
- * because there is no SW to inject the Authorization header. This hook
- * fetches the resource with the token attached and returns a blob URL.
- *
- * When a service worker IS available it returns the original URL unchanged.
+ * On platforms without a service worker (e.g. Android WebViews), fetches
+ * media with the access token and returns a blob: URL.
+ * When a SW is available the original URL is returned unchanged.
  */
 export function useAuthenticatedMediaUrl(
   url: string | undefined,
@@ -45,7 +43,15 @@ export function useAuthenticatedMediaUrl(
     const fetchBlob = async () => {
       let promise = inflightRequests.get(url);
       if (!promise) {
-        promise = authenticatedMediaFetch(url, accessToken).then(async (res) => {
+        promise = (async () => {
+          const cachedBlob = await getFromMediaCache(url);
+          if (cachedBlob) {
+            const objectUrl = URL.createObjectURL(cachedBlob);
+            blobCache.set(url, objectUrl);
+            return objectUrl;
+          }
+
+          const res = await authenticatedMediaFetch(url, accessToken);
           if (!res.ok) {
             inflightRequests.delete(url);
             return undefined;
@@ -53,8 +59,11 @@ export function useAuthenticatedMediaUrl(
           const blob = await res.blob();
           const objectUrl = URL.createObjectURL(blob);
           blobCache.set(url, objectUrl);
+
+          putInMediaCache(url, blob);
+
           return objectUrl;
-        });
+        })();
         inflightRequests.set(url, promise);
       }
 

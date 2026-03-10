@@ -206,23 +206,41 @@ function UnifiedPushNotificationSetting() {
   const [useUP, setUseUP] = useSetting(settingsAtom, 'useUnifiedPush');
   const [upEndpoint, setUpEndpoint] = useAtom(unifiedPushEndpointAtom);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [distributors, setDistributors] = useState<string[]>([]);
   const [currentDistributor, setCurrentDistributor] = useState<string>('');
   const [menuCords, setMenuCords] = useState<RectCords>();
 
   useEffect(() => {
-    getUnifiedPushDistributors()
-      .then((result: { distributors: string[] }) => setDistributors(result.distributors))
-      .catch(() => {});
-    getUnifiedPushDistributor()
-      .then((result: { distributor: string }) => setCurrentDistributor(result.distributor))
-      .catch(() => {});
+    Promise.all([
+      getUnifiedPushDistributors().catch(() => ({ distributors: [] as string[] })),
+      getUnifiedPushDistributor().catch(() => ({ distributor: '' })),
+    ]).then(async ([distResult, savedResult]) => {
+      setDistributors(distResult.distributors);
+      setCurrentDistributor(savedResult.distributor);
+
+      // Auto-save the only available distributor when none is saved yet.
+      // UP connector 3.x requires an explicit selection before register() works.
+      if (!savedResult.distributor && distResult.distributors.length === 1) {
+        await saveUnifiedPushDistributor(distResult.distributors[0]);
+        setCurrentDistributor(distResult.distributors[0]);
+      }
+    });
   }, []);
 
   const handleToggle = async (wantsUP: boolean) => {
     setIsLoading(true);
+    setError(null);
     try {
       if (wantsUP) {
+        // Ensure a distributor is saved before registration.
+        // UP connector 3.x requires an explicit distributor selection;
+        // if none is saved, register() silently does nothing.
+        if (!currentDistributor && distributors.length > 0) {
+          await saveUnifiedPushDistributor(distributors[0]);
+          setCurrentDistributor(distributors[0]);
+        }
+
         const result = await enableUnifiedPush(mx, clientConfig);
         setUpEndpoint(result);
         setUseUP(true);
@@ -232,7 +250,9 @@ function UnifiedPushNotificationSetting() {
         setUseUP(false);
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error('UnifiedPush toggle failed:', e);
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -273,7 +293,11 @@ function UnifiedPushNotificationSetting() {
       <SettingTile
         title="UnifiedPush Notifications"
         description={
-          distributors.length === 0 ? (
+          error ? (
+            <Text as="span" style={{ color: color.Critical.Main }} size="T200">
+              {error}
+            </Text>
+          ) : distributors.length === 0 ? (
             <Text as="span" style={{ color: color.Warning.Main }} size="T200">
               No UnifiedPush distributor installed. Install one (e.g. ntfy, NextPush) to use this
               feature.

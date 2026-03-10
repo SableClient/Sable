@@ -315,7 +315,7 @@ export function RoomNavItem({
   };
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
-    if (room.isCallRoom()) {
+    if (room.isCallRoom() || (direct && callMembers.length > 0)) {
       if (!isMobile) {
         if (!isActiveCall && !callEmbed) {
           startCall(
@@ -440,11 +440,14 @@ export function RoomNavItem({
                   aria-label={notificationMode}
                 />
               )}
-              {room.isCallRoom() && callMembers.length > 0 && !optionsVisible && (
+              {(room.isCallRoom() || direct) && callMembers.length > 0 && !optionsVisible && (
                 <Badge variant="Critical" fill="Solid" size="400">
-                  <Text as="span" size="L400" truncate>
-                    {callMembers.length} Live
-                  </Text>
+                  <Box alignItems="Center" gap="100">
+                    <Icon size="50" src={Icons.Phone} color="Inherit" />
+                    <Text as="span" size="L400" truncate>
+                      {direct ? 'Calling' : `${callMembers.length} Live`}
+                    </Text>
+                  </Box>
                 </Badge>
               )}
             </Box>
@@ -452,7 +455,7 @@ export function RoomNavItem({
         </NavButton>
         {optionsVisible && (
           <NavItemOptions>
-            {room.isCallRoom() && (
+            {(room.isCallRoom() || (direct && callMembers.length > 0)) && (
               <TooltipProvider
                 position="Bottom"
                 offset={4}

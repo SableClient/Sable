@@ -41,6 +41,7 @@ import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { useCallSignaling } from '$hooks/useCallSignaling';
 
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
@@ -592,6 +593,7 @@ function PresenceFeature() {
 }
 
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
+  useCallSignaling();
   return (
     <>
       <SystemEmojiFeature />

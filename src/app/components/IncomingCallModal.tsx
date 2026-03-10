@@ -1,0 +1,127 @@
+import {
+  Box,
+  Dialog,
+  Header,
+  IconButton,
+  Icon,
+  Icons,
+  Text,
+  Button,
+  Avatar,
+  config,
+  Overlay,
+  OverlayCenter,
+  OverlayBackdrop,
+} from 'folds';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useRoomName } from '$hooks/useRoomMeta';
+import { getRoomAvatarUrl } from '$utils/room';
+import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import FocusTrap from 'focus-trap-react';
+import { stopPropagation } from '$utils/keyboard';
+import { useAtom, useSetAtom } from 'jotai';
+import { autoJoinCallIntentAtom, incomingCallRoomIdAtom } from '$state/callEmbed';
+import { RoomAvatar } from './room-avatar';
+
+type IncomingCallInternalProps = {
+  room: any;
+  onClose: () => void;
+};
+
+export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProps) {
+  const mx = useMatrixClient();
+  const roomName = useRoomName(room);
+  const { navigateRoom } = useRoomNavigate();
+  const avatarUrl = getRoomAvatarUrl(mx, room, 96);
+  const setAutoJoinIntent = useSetAtom(autoJoinCallIntentAtom);
+
+  const handleAnswer = () => {
+    setAutoJoinIntent(room.roomId);
+    onClose();
+    navigateRoom(room.roomId);
+  };
+
+  return (
+    <Dialog variant="Surface" style={{ width: '340px' }}>
+      <Header
+        style={{
+          padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+          borderBottomWidth: config.borderWidth.B300,
+        }}
+        variant="Surface"
+        size="500"
+      >
+        <Box grow="Yes">
+          <Text size="H4">Incoming Call</Text>
+        </Box>
+        <IconButton size="300" onClick={onClose} radii="300">
+          <Icon src={Icons.Cross} />
+        </IconButton>
+      </Header>
+
+      <Box style={{ padding: config.space.S600 }} direction="Column" alignItems="Center" gap="500">
+        <Avatar size="500">
+          <RoomAvatar
+            roomId={room.roomId}
+            src={avatarUrl ?? undefined}
+            alt={roomName}
+            renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+          />
+        </Avatar>
+
+        <Box direction="Column" alignItems="Center" gap="100">
+          <Text size="L400" align="Center" truncate>
+            {roomName}
+          </Text>
+          <Text priority="400" size="T300" align="Center">
+            Incoming voice chat request
+          </Text>
+        </Box>
+
+        <Box gap="300" style={{ width: '100%' }} justifyContent="Center">
+          <Button variant="Critical" fill="Soft" style={{ minWidth: '110px' }} onClick={onClose}>
+            <Text size="B400">Decline</Text>
+          </Button>
+          <Button
+            fill="Solid"
+            variant="Primary"
+            style={{ minWidth: '110px' }}
+            onClick={handleAnswer}
+            before={<Icon size="100" src={Icons.Phone} />}
+          >
+            <Text size="B400">Answer</Text>
+          </Button>
+        </Box>
+      </Box>
+    </Dialog>
+  );
+}
+
+export function IncomingCallModal() {
+  const [ringingRoomId, setRingingRoomId] = useAtom(incomingCallRoomIdAtom);
+  const mx = useMatrixClient();
+  const room = ringingRoomId ? mx.getRoom(ringingRoomId) : null;
+
+  if (!ringingRoomId || !room) return null;
+
+  const close = () => setRingingRoomId(null);
+
+  return (
+    <Overlay open backdrop={<OverlayBackdrop />}>
+      <OverlayCenter>
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: false,
+            onDeactivate: close,
+            clickOutsideDeactivates: true,
+            escapeDeactivates: stopPropagation,
+          }}
+        >
+          <div>
+            <IncomingCallInternal room={room} onClose={close} />
+          </div>
+        </FocusTrap>
+      </OverlayCenter>
+    </Overlay>
+  );
+}

@@ -26,6 +26,10 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { GlobalModalManager } from '$components/message/modals/GlobalModalManager';
 import { useDelayedEventsSupport } from '$hooks/useDelayedEventsSupport';
 import { delayedEventsSupportedAtom } from '$state/scheduledMessages';
+import { useCallMembers, useCallSession } from '$hooks/useCall';
+import { callEmbedAtom } from '$state/callEmbed';
+import { useCallJoined } from '$hooks/useCallEmbed';
+import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import { RoomInput } from './RoomInput';
@@ -127,6 +131,12 @@ export function RoomView({ eventId }: { eventId?: string }) {
     }
   }, [screenSize, openSettings, room.roomId, space?.roomId]);
 
+  const callSession = useCallSession(room);
+  const callMembers = useCallMembers(room, callSession);
+  const callEmbed = useAtomValue(callEmbedAtom);
+  const isJoinedInThisRoom = useCallJoined(callEmbed) && callEmbed?.roomId === room.roomId;
+  const showCallView = callMembers.length > 0 || isJoinedInThisRoom;
+
   return (
     <BackRouteHandler>
       {(onBack) => (
@@ -140,6 +150,11 @@ export function RoomView({ eventId }: { eventId?: string }) {
         >
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
             <Box grow="Yes" direction="Column">
+              {showCallView && (
+                <Box shrink="No" style={{ height: '40vh', minHeight: toRem(300) }}>
+                  <CallView />
+                </Box>
+              )}
               <RoomTimeline
                 key={roomId}
                 room={room}

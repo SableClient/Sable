@@ -18,3 +18,6 @@ export const callEmbedAtom = atom<CallEmbed | undefined, [CallEmbed | undefined]
 );
 
 export const callChatAtom = atom<boolean>(false);
+
+export const incomingCallRoomIdAtom = atom<string | null>(null);
+export const autoJoinCallIntentAtom = atom<string | null>(null);

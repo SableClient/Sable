@@ -1,0 +1,121 @@
+name: Create Release PR
+
+on:
+  push:
+    branches: [dev]
+
+permissions: {}
+
+jobs:
+  load-packages:
+    if: "!contains(github.event.head_commit.message, 'chore: prepare release')"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.parse.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Parse packages from knope.toml
+        id: parse
+        shell: python3 {0}
+        run: |
+          import tomllib, json, os
+
+          with open("knope.toml", "rb") as f:
+              config = tomllib.load(f)
+
+          packages = config.get("packages", {})
+          matrix = [
+              {"package": name, "changelog": pkg["changelog"]}
+              for name, pkg in packages.items()
+          ]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"matrix={json.dumps(matrix)}\n")
+
+  prepare-release:
+    needs: load-packages
+    if: needs.load-packages.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      # Run each package independently so one with no changes doesn't block others
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.load-packages.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
+
+      - uses: knope-dev/action@407e9ef7c272d2dd53a4e71e39a7839e29933c48 # v2.1.0
+        with:
+          version: 0.22.1
+
+      - name: Switch to release branch
+        shell: bash
+        run: git switch -c release/${{ matrix.package }}
+
+      - name: Prepare Release
+        id: knope
+        shell: bash
+        run: |
+          if knope prepare-release --package ${{ matrix.package }} --verbose; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and push release branch
+        if: steps.knope.outputs.released == 'true'
+        shell: bash
+        run: |
+          git commit -m "chore: prepare release ${{ matrix.package }}"
+          git push --force --set-upstream origin release/${{ matrix.package }}
+
+      - name: Read version and changelog
+        id: meta
+        if: steps.knope.outputs.released == 'true'
+        shell: bash
+        run: |
+          # Read the top version header from the changelog knope just wrote.
+          VERSION=$(awk '/^## [0-9]/{print $2; exit}' ${{ matrix.changelog }})
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          CHANGELOG=$(awk "/^## $VERSION/{found=1; next} found && /^## /{exit} found{print}" ${{ matrix.changelog }})
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release PR
+        if: steps.knope.outputs.released == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE: ${{ matrix.package }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          CHANGELOG: ${{ steps.meta.outputs.changelog }}
+        run: |
+          BRANCH="release/${PACKAGE}"
+          TITLE="chore: prepare release ${PACKAGE} ${VERSION}"
+          BODY="> [!IMPORTANT]
+          > Merging this PR will create a new release.
+
+          ${CHANGELOG}"
+
+          if gh pr view "$BRANCH" --json number -q '.number' &>/dev/null; then
+            gh pr edit "$BRANCH" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --head "$BRANCH" --base main --title "$TITLE" --body "$BODY"
+          fi

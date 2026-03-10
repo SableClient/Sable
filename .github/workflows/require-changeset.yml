@@ -1,0 +1,104 @@
+name: Require Changeset
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [dev]
+
+permissions: {}
+
+jobs:
+  require-changeset:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check for internal label
+        id: labels
+        shell: bash
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"internal"'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.labels.outputs.skip == 'false'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check for changeset added by this PR
+        if: steps.labels.outputs.skip == 'false'
+        id: check
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # Only count changeset files this PR added, ignoring pre-existing ones on the base branch.
+          count=$(git diff --name-only --diff-filter=A "origin/${BASE_REF}...HEAD"             | grep -E '^\.changeset/.+\.md$' | grep -cv README.md || true)
+          if [[ "$count" -eq 0 ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Found $count new changeset file(s)."
+          fi
+
+      - name: Manage changeset comment
+        if: steps.labels.outputs.skip == 'false'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          CHANGESET_FOUND: ${{ steps.check.outputs.found }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = '<!-- require-changeset -->';
+            const found = process.env.CHANGESET_FOUND === 'true';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            // Always delete the old comment first so the new one appears fresh after each commit
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number,
+            });
+            const existing = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.deleteComment({
+                owner, repo, comment_id: existing.id,
+              });
+            }
+
+            if (!found) {
+              const body = `${marker}
+            ### ⚠️ Missing changeset
+
+            This pull request does not include a changeset. Please add one before requesting review so the change is properly documented and included in the release notes.
+
+            **How to add a changeset:**
+
+            1. Run \`npm run document-change\` (interactive) and commit the generated file, or
+            2. Manually create \`.changeset/<descriptive-name>.md\`:
+
+            \`\`\`md
+            ---
+            sable: patch
+            ---
+
+            Short user-facing summary of the change.
+            \`\`\`
+
+            Replace \`patch\` with \`major\`, \`minor\`, \`patch\`, \`docs\`, or \`note\` as appropriate.
+
+            📖 Read more in [CONTRIBUTING.md](https://github.com/SableClient/Sable/blob/dev/CONTRIBUTING.md#release-notes-and-versioning-knope).
+
+            > If this PR is internal/maintenance with no user-facing impact, a maintainer can add the \`internal\` label to skip this check.`;
+
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              core.setFailed('No changeset found. Add a changeset file or apply the "internal" label to skip.');
+            }

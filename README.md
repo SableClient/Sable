@@ -33,9 +33,9 @@ Prebuilt images are published to `ghcr.io/sableclient/sable`.
 Run the latest image with:
 
 ```sh
-docker run --rm -p 8080:80 ghcr.io/sableclient/sable:latest
+docker run --rm -p 8080:8080 ghcr.io/sableclient/sable:latest
 ```
-
+s
 Then open `http://localhost:8080`.
 
 If you want to override the bundled [`config.json`](config.json), mount your own

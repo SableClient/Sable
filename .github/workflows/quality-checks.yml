@@ -3,6 +3,7 @@ name: Quality checks
 on:
   pull_request:
   push:
+    branches: [dev]
 
 jobs:
   format:

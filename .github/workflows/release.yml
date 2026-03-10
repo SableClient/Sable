@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [dev]
+
+permissions: {}
+
+jobs:
+  release:
+    # Matches any release/<package> branch pattern
+    if: startsWith(github.head_ref, 'release/') && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve package name from branch
+        id: branch
+        shell: bash
+        run: |
+          # Strips the "release/" prefix to get the package name, e.g. release/sable -> sable
+          echo "package=${GITHUB_HEAD_REF#release/}" >> "$GITHUB_OUTPUT"
+
+      - uses: knope-dev/action@407e9ef7c272d2dd53a4e71e39a7839e29933c48 # v2.1.0
+        with:
+          version: 0.22.1
+
+      - name: Create Release
+        run: knope release --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

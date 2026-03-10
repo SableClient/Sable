@@ -23,12 +23,11 @@ const slideOut = keyframes({
   },
 });
 
-// Floats at the top of the chat area, starting after the icon sidebar.
+// Floats at the top of the viewport, spanning full width on all platforms.
 export const BannerContainer = style({
   position: 'fixed',
   top: 0,
-  // 66px = sidebar icon strip width — overridden to 0 on mobile below
-  left: toRem(66),
+  left: 0,
   right: 0,
   zIndex: 9999,
   display: 'flex',
@@ -37,13 +36,6 @@ export const BannerContainer = style({
   padding: config.space.S400,
   pointerEvents: 'none',
   alignItems: 'stretch',
-
-  '@media': {
-    // On narrow screens the sidebar collapses, so span the full width.
-    '(max-width: 768px)': {
-      left: 0,
-    },
-  },
 });
 
 export const Banner = style({

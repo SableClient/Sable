@@ -66,18 +66,16 @@ jobs:
         id: vars
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - name: Setup app
+        uses: ./.github/actions/setup
         with:
-          node-version: '24'
-          cache: 'npm'
+          install-command: npm ci --ignore-scripts
 
       - name: Build site
         env:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
         run: |
-          npm ci --ignore-scripts
           NODE_OPTIONS=--max_old_space_size=4096 npm run build
 
       - name: Set up QEMU

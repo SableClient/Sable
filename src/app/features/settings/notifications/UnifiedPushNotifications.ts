@@ -12,8 +12,11 @@ import {
   removeActive,
   createChannel,
   Importance,
-} from '$plugins/tauri-notifications';
-import type { MessagingStyleMessage, MessagingStylePerson } from '$plugins/tauri-notifications';
+} from '@sableclient/tauri-plugin-notifications-api';
+import type {
+  MessagingStyleMessage,
+  MessagingStylePerson,
+} from '@sableclient/tauri-plugin-notifications-api';
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import { resolveNotificationPreviewText } from '$utils/notificationStyle';
 import { getMxIdLocalPart } from '$utils/matrix';

@@ -92,7 +92,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
     "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
-    "@choochmeque/tauri-plugin-notifications-api": "file:./crates/tauri-plugin-notifications",
+    "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#fc33075e9967b62f0c7f569e9bbcaa7851d6df71",
     "ua-parser-js": "^1.0.41"
   },
   "devDependencies": {

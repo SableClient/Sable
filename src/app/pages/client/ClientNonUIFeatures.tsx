@@ -551,7 +551,6 @@ function SyncNotificationSettingsWithServiceWorker() {
 
 function UnifiedPushManager() {
   const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
   const [useUP] = useSetting(settingsAtom, 'useUnifiedPush');
   const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
@@ -559,6 +558,7 @@ function UnifiedPushManager() {
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
+  const [useInAppNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
 
   useEffect(() => {
     if (!isTauri() || !useUP) return undefined;
@@ -570,10 +570,10 @@ function UnifiedPushManager() {
         await import('$features/settings/notifications/UnifiedPushNotifications');
       const listener = await listenForUnifiedPushMessages(() => ({
         mx,
-        useAuthentication,
         showMessageContent,
         showEncryptedMessageContent,
         notificationSoundEnabled: isNotificationSounds,
+        useInAppNotifications,
       }));
       cleanup = () => listener.unregister();
     })();
@@ -583,11 +583,11 @@ function UnifiedPushManager() {
     };
   }, [
     mx,
-    useAuthentication,
     useUP,
     isNotificationSounds,
     showMessageContent,
     showEncryptedMessageContent,
+    useInAppNotifications,
   ]);
 
   return null;

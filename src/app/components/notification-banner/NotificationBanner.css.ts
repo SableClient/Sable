@@ -24,6 +24,8 @@ const slideOut = keyframes({
 });
 
 // Floats at the top of the chat area, starting after the icon sidebar.
+// On Android (Tauri) the insets are injected via JS from Kotlin; the
+// env() fallback handles the window between page load and injection.
 export const BannerContainer = style({
   position: 'fixed',
   top: 0,
@@ -35,6 +37,7 @@ export const BannerContainer = style({
   flexDirection: 'column',
   gap: config.space.S200,
   padding: config.space.S400,
+  paddingTop: `calc(${config.space.S400} + var(--sable-inset-top, env(safe-area-inset-top, 0px)))`,
   pointerEvents: 'none',
   alignItems: 'stretch',
 

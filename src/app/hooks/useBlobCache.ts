@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authenticatedMediaFetch } from '$utils/matrix';
+import { getFromMediaCache, putInMediaCache } from '$utils/mediaCache';
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
@@ -30,18 +31,22 @@ export function useBlobCache(url?: string, accessToken?: string | null): string 
       }
 
       const requestPromise = (async () => {
-        try {
-          const res = await authenticatedMediaFetch(url, accessToken);
-          if (!res.ok) throw new Error();
-          const blob = await res.blob();
-          const objectUrl = URL.createObjectURL(blob);
-
+        const cachedBlob = await getFromMediaCache(url);
+        if (cachedBlob) {
+          const objectUrl = URL.createObjectURL(cachedBlob);
           imageBlobCache.set(url, objectUrl);
           return objectUrl;
-        } catch (e) {
-          inflightRequests.delete(url);
-          throw e;
         }
+
+        const res = await authenticatedMediaFetch(url, accessToken);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        imageBlobCache.set(url, objectUrl);
+        putInMediaCache(url, blob);
+
+        return objectUrl;
       })();
 
       inflightRequests.set(url, requestPromise);

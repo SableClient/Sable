@@ -17,8 +17,10 @@ const ANDROID_ICONS = [
     `${dir}/ic_launcher.png`,
     `${dir}/ic_launcher_round.png`,
     `${dir}/ic_launcher_foreground.png`,
+    `${dir}/ic_notification.png`,
   ])
-  .concat(['mipmap-anydpi-v26/ic_launcher.xml', 'values/ic_launcher_background.xml']);
+  .concat(['mipmap-anydpi-v26/ic_launcher.xml', 'values/ic_launcher_background.xml'])
+  .concat(['drawable/ic_notification.xml', 'drawable/notification_icon.xml']);
 
 const IOS_ICONS = [
   'AppIcon-20x20@1x.png',

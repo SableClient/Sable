@@ -92,6 +92,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
     "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
+    "@choochmeque/tauri-plugin-notifications-api": "file:./crates/tauri-plugin-notifications",
     "ua-parser-js": "^1.0.41"
   },
   "devDependencies": {

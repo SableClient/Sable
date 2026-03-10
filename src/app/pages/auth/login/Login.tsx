@@ -37,6 +37,7 @@ const useLoginSearchParams = (searchParams: URLSearchParams): LoginPathSearchPar
 export function Login() {
   const server = useAuthServer();
   const { hashRouter } = useClientConfig();
+  const { hideUsernamePasswordFields } = useClientConfig();
   const { loginFlows } = useAuthFlows();
   const [searchParams] = useSearchParams();
   const loginSearchParams = useLoginSearchParams(searchParams);
@@ -62,7 +63,7 @@ export function Login() {
       {parsedFlows.token && loginSearchParams.loginToken && (
         <TokenLogin token={loginSearchParams.loginToken} />
       )}
-      {parsedFlows.password && (
+      {!hideUsernamePasswordFields && parsedFlows.password && (
         <>
           <PasswordLoginForm
             defaultUsername={loginSearchParams.username}

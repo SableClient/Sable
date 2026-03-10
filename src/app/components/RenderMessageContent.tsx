@@ -218,6 +218,15 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === MsgType.Emote) {
+    if (content['fyi.cisnt.headpat']) {
+      return (
+        <MCuteEvent
+          content={content}
+          type={CuteEventType.Headpat}
+          mentionedUserIds={content?.['m.mentions']?.user_ids}
+        />
+      );
+    }
     return (
       <MEmote
         displayName={displayName}
@@ -359,6 +368,7 @@ function RenderMessageContentInternal({
         mentionedUserIds={content?.['m.mentions']?.user_ids}
       />
     );
+  // as fallback to render older events where msgtype was set instead of m.emote with a custom property
   if (msgType === 'fyi.cisnt.headpat')
     return (
       <MCuteEvent

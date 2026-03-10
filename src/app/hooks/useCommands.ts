@@ -1375,11 +1375,12 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           const target = payload.trim();
           await mx.sendMessage(room.roomId, {
-            msgtype: 'fyi.cisnt.headpat',
+            msgtype: 'm.emote',
             'm.mentions': {
               user_ids: target ? [target] : [],
             },
-            body: `*pat pat*`,
+            body: `pats ${target || 'you'}`,
+            'fyi.cisnt.headpat': true,
           } as any);
         },
       },

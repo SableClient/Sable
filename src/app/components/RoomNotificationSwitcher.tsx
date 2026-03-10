@@ -104,9 +104,16 @@ export function RoomNotificationModeSwitcher({
                     />
                   }
                 >
-                  <Text size="T300">
-                    {mode === value ? <b>{modeToStr[mode]}</b> : modeToStr[mode]}
-                  </Text>
+                  <Box direction="Column" gap="100">
+                    <Text size="T300">
+                      {mode === value ? <b>{modeToStr[mode]}</b> : modeToStr[mode]}
+                    </Text>
+                    {mode === RoomNotificationMode.Unset && (
+                      <Text size="T200" priority="300">
+                        Follows your global notification rules
+                      </Text>
+                    )}
+                  </Box>
                 </MenuItem>
               ))}
             </Box>

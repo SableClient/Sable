@@ -65,6 +65,17 @@ const HighlightVariant = styleVariants({
   },
 });
 
+const NotifyHighlightVariant = styleVariants({
+  silent: {
+    backgroundColor: color.Secondary.Container,
+    boxShadow: `inset ${config.borderWidth.B700} 0 0 ${color.Secondary.ContainerLine}`,
+  },
+  loud: {
+    backgroundColor: color.Warning.Container,
+    boxShadow: `inset ${config.borderWidth.B700} 0 0 ${color.Warning.ContainerLine}`,
+  },
+});
+
 const SelectedVariant = styleVariants({
   true: {
     backgroundColor: color.Surface.ContainerActive,
@@ -101,6 +112,7 @@ export const MessageBase = recipe({
       true: AutoCollapse,
     },
     highlight: HighlightVariant,
+    notifyHighlight: NotifyHighlightVariant,
     selected: SelectedVariant,
   },
   defaultVariants: {

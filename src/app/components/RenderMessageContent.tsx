@@ -366,7 +366,7 @@ function RenderMessageContentInternal({
         mentionedUserIds={content?.['m.mentions']?.user_ids}
       />
     );
-  return <UnsupportedContent />;
+  return <UnsupportedContent body={content?.body} />;
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

@@ -1,5 +1,18 @@
 # Sable Client Changelog
 
+## 1.5.3 (2026-03-08)
+
+### Fixes
+
+* Fix scroll clamping to bottom while scrolling up.
+* Fix message links sometimes scrolling to bottom of timeline instead of message + maybe other scroll bugs.
+* Merge upstream call fixes
+* Fix crash when invalid location events are sent.
+* Add rendering of per-message-profiles.
+* custom emojis are now also visible in forwards, instead of being reduced to it's shortcode
+
+* fix: default badge unread counts to off
+
 ## 1.5.2 (2026-03-08)
 
 ### Fixes

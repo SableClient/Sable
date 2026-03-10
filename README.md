@@ -1,3 +1,7 @@
+> [!WARNING]  
+> Sable has moved to [SableClient/Sable](https://github.com/SableClient/Sable), please head there for all future pull requests, discussions, questions, and meowing!
+
+
 # Sable
 
 A Matrix client built to enhance the user experience with quality-of-life features, cosmetics, utilities, and sheer usability. See the [changelog](https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md).
@@ -42,7 +46,7 @@ services:
   sable:
     image: ghcr.io/sableclient/sable:latest
     ports:
-      - '8080:80'
+      - '8080:8080'
     volumes:
       - ./config.json:/app/config.json:ro
 ```

@@ -157,7 +157,7 @@ const defaultSettings: Settings = {
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
   useRightBubbles: false,
-  showUnreadCounts: true,
+  showUnreadCounts: false,
   badgeCountDMsOnly: false,
   showPingCounts: true,
   hideReads: false,

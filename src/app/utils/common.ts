@@ -87,9 +87,17 @@ export const scaleYDimension = (x: number, scaledX: number, y: number): number =
 };
 
 export const parseGeoUri = (location: string) => {
+  if (!location) return null;
+
   const [, data] = location.split(':');
+  if (!data) return null;
+
   const [cords] = data.split(';');
+  if (!cords) return null;
+
   const [latitude, longitude] = cords.split(',');
+  if (!latitude || !longitude) return null;
+
   return {
     latitude,
     longitude,

@@ -388,9 +388,6 @@ function PageZoomInput() {
 }
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
-  const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
-  const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
-  const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
 
   return (
     <Box direction="Column" gap="700">
@@ -409,31 +406,6 @@ export function Appearance() {
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile title="Page Zoom" after={<PageZoomInput />} />
-        </SequenceCard>
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Show Unread Counts"
-            description="Display the number of unread messages on room and sidebar badges."
-            after={
-              <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
-            }
-          />
-        </SequenceCard>
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Badge Counts for DMs Only"
-            description="Only show unread counts on Direct Message badges. Non-DM rooms and spaces show a plain dot instead."
-            after={
-              <Switch variant="Primary" value={badgeCountDMsOnly} onChange={setBadgeCountDMsOnly} />
-            }
-          />
-        </SequenceCard>
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Show Unread Ping Counts"
-            description="When enabled overrides Show Unread Counts to still display counts."
-            after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
-          />
         </SequenceCard>
       </Box>
     </Box>

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
 import { EventType } from '$types/matrix-sdk';
-import { useCallEmbed, useCallJoined, useSyncCallEmbedPlacement } from '$hooks/useCallEmbed';
+import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
@@ -44,7 +44,7 @@ export function CallView() {
   const room = useRoom();
 
   const callViewRef = useRef<HTMLDivElement>(null);
-  useSyncCallEmbedPlacement(callViewRef);
+  useCallEmbedPlacementSync(callViewRef);
 
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);

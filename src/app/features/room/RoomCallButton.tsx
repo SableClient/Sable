@@ -23,7 +23,8 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
     startCall(room);
     try {
       const now = Date.now();
-      await mx.sendEvent(room.roomId, 'org.matrix.msc4075.rtc.notification', {
+      // TODO not use as any one day someday i swear
+      await mx.sendEvent(room.roomId, 'org.matrix.msc4075.rtc.notification' as any, {
         notification_type: 'ring',
         sender_ts: now,
         lifetime: 30000,

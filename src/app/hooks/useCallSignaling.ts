@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { MatrixEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { useSetAtom, useAtomValue } from 'jotai';
@@ -6,7 +7,6 @@ import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import InviteSound from '$public/sound/invite.ogg';
 import { useMatrixClient } from './useMatrixClient';
-import { MatrixEvent } from 'matrix-js-sdk';
 
 export function useCallSignaling() {
   const mx = useMatrixClient();

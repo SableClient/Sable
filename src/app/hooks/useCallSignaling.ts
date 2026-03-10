@@ -62,8 +62,8 @@ export function useCallSignaling() {
           session.sessionDescription
         );
 
-        const remoteMembers = memberships.filter((m) => m.userId !== mx.getUserId());
-        const isSelfInCall = memberships.some((m) => m.userId === mx.getUserId());
+        const remoteMembers = memberships.filter((m: any) => m.userId !== mx.getUserId());
+        const isSelfInCall = memberships.some((m: any) => m.userId === mx.getUserId());
 
         return remoteMembers.length > 0 && !isSelfInCall ? roomId : null;
       }, null);

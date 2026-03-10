@@ -13,10 +13,22 @@ export interface BackgroundPaginationConfig {
 }
 
 /**
- * Read adaptive signals from browser APIs
- * This mirrors the logic used in slidingSync.ts for consistency
+ * Adaptive signals from browser APIs for device/network capability detection.
+ * Shared by sliding sync and background pagination for consistent behavior.
  */
-function readAdaptiveSignals() {
+export type AdaptiveSignals = {
+  saveData: boolean;
+  effectiveType: string | null;
+  deviceMemoryGb: number | null;
+  mobile: boolean;
+  missingSignals: number;
+};
+
+/**
+ * Read adaptive signals from browser APIs.
+ * Single source of truth for device capability detection across the app.
+ */
+export function readAdaptiveSignals(): AdaptiveSignals {
   const navigatorLike = typeof navigator !== 'undefined' ? navigator : undefined;
   const connection = (navigatorLike as any)?.connection;
   const effectiveType = connection?.effectiveType;

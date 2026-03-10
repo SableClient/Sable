@@ -39,9 +39,9 @@ import {
 import { mobileOrTablet } from '$utils/user-agent';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
+import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
-import { useCallSignaling } from '$hooks/useCallSignaling';
 
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;

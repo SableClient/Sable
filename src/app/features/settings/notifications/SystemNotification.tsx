@@ -192,16 +192,33 @@ export function SystemNotification() {
 
   // Describe what the current badge combo actually does so users aren't left guessing.
   const badgeBehaviourSummary = (): string => {
-    if (!showUnreadCounts && !showPingCounts) {
-      return 'Badges show a plain dot for any unread activity — no numbers displayed.';
+    const showDMs = badgeCountDMsOnly;
+    const showRooms = showUnreadCounts;
+    const showPings = showPingCounts;
+
+    if (showDMs && showRooms && showPings) {
+      return 'All unread messages—DMs, Rooms, and mentions—show a number count.';
     }
-    if (!showUnreadCounts && showPingCounts) {
-      return 'Badges show a number only when you are directly mentioned; all other unread activity shows a plain dot.';
+    if (!showDMs && !showRooms && !showPings) {
+      return 'Badges show a plain dot for all unread activity—no numbers displayed.';
     }
-    if (showUnreadCounts && badgeCountDMsOnly) {
-      return 'Only Direct Message badges show a number count. Rooms and spaces show a plain dot instead.';
-    }
-    return 'All rooms and DMs show a number count for every unread message.';
+
+    if (showDMs && !showRooms && !showPings)
+      return 'Only Direct Messages show a number count. Rooms and mentions show a plain dot.';
+    if (!showDMs && showRooms && !showPings)
+      return 'Only Rooms and spaces show a number count. DMs and mentions show a plain dot.';
+    if (!showDMs && !showRooms && showPings)
+      return 'Only mentions and keywords show a number count. All other activity shows a plain dot.';
+
+    // Case 4: Exactly two are ON
+    if (showDMs && showRooms && !showPings)
+      return 'DMs and Rooms show a number count. Mentions show a plain dot.';
+    if (showDMs && !showRooms && showPings)
+      return 'DMs and mentions show a number count. Rooms and spaces show a plain dot.';
+    if (!showDMs && showRooms && showPings)
+      return 'Rooms and mentions show a number count. Direct Messages show a plain dot.';
+
+    return ''; // Fallback
   };
 
   return (
@@ -328,8 +345,8 @@ export function SystemNotification() {
         gap="400"
       >
         <SettingTile
-          title="Show Message Counts"
-          description="Show a number on room, space, and DM badges for every unread message."
+          title="Show Room Counts"
+          description="Displays a number for unread activity in Rooms and Spaces."
           after={
             <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
           }
@@ -342,15 +359,10 @@ export function SystemNotification() {
         gap="400"
       >
         <SettingTile
-          title="Direct Messages Only"
-          description="Only DM badges display a count. Room and space badges show a plain dot instead."
+          title="Show DM Counts"
+          description="Displays a number for unread Direct Messages."
           after={
-            <Switch
-              variant="Primary"
-              value={badgeCountDMsOnly}
-              onChange={setBadgeCountDMsOnly}
-              disabled={!showUnreadCounts}
-            />
+            <Switch variant="Primary" value={badgeCountDMsOnly} onChange={setBadgeCountDMsOnly} />
           }
         />
       </SequenceCard>
@@ -361,8 +373,8 @@ export function SystemNotification() {
         gap="400"
       >
         <SettingTile
-          title="Always Count Mentions"
-          description="Show a number on any badge where you were directly mentioned, even if message counts are turned off."
+          title="Show Mention Counts"
+          description="Displays a number for mentions and keyword alerts."
           after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
         />
       </SequenceCard>

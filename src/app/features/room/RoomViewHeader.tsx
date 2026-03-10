@@ -82,6 +82,7 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
+import { RoomCallButton } from './RoomCallButton';
 
 const log = createLogger('RoomViewHeader');
 
@@ -577,6 +578,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                   </IconButton>
                 )}
               </TooltipProvider>
+              <RoomCallButton room={room} />
               <PopOut
                 anchor={pinMenuAnchor}
                 position="Bottom"

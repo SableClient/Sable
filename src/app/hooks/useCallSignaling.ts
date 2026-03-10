@@ -55,6 +55,7 @@ export function useCallSignaling() {
     const checkDMsForActiveCalls = () => {
       const activeRoomId = [...mDirects].reduce<string | null>((found, roomId) => {
         if (found) return found;
+        if (ringingRoomIdRef.current === roomId) return null;
         if (mutedRoomId === roomId) return null;
         const room = mx.getRoom(roomId);
         if (!room) return null;
@@ -65,8 +66,9 @@ export function useCallSignaling() {
           session.sessionDescription
         );
 
-        const remoteMembers = memberships.filter((m: any) => m.userId !== mx.getUserId());
-        const isSelfInCall = memberships.some((m: any) => m.userId === mx.getUserId());
+        const myUserId = mx.getUserId();
+        const remoteMembers = memberships.filter((m: any) => (m.userId || m.sender) !== myUserId);
+        const isSelfInCall = memberships.some((m: any) => (m.userId || m.sender) === myUserId);
 
         return remoteMembers.length > 0 && !isSelfInCall ? roomId : null;
       }, null);

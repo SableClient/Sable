@@ -47,7 +47,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
     navigateRoom(room.roomId);
   };
 
-  const handleDecline = () => {
+  const handleDecline = async () => {
     setMutedRoomId(room.roomId);
     onClose();
   };

@@ -1,6 +1,6 @@
 # Sable
 
-A Matrix client built to enhance the user experience with quality-of-life features, cosmetics, utilities, and sheer usability. See the [changelog](https://github.com/7w1/sable/blob/dev/CHANGELOG.md).
+A Matrix client built to enhance the user experience with quality-of-life features, cosmetics, utilities, and sheer usability. See the [changelog](https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md).
 
 Join our matrix space [here](https://matrix.to/#/#sable:sable.moe) to discuss features, issues, or meowing.
 
@@ -9,7 +9,7 @@ Forked from [Cinny](https://github.com/cinnyapp/cinny/).
 ## Getting started
 The web app is available at [app.sable.moe](https://app.sable.moe/) and gets updated on frequently, as soon as a feature is deemed stable.
 
-You can also download our desktop app for windows and linux from [releases](https://github.com/7w1/sable/releases/latest).
+You can also download our desktop app for windows and linux from [releases](https://github.com/SableClient/Sable/releases/latest).
 
 ## Self-hosting
 You have a few options for self hosting, you can:
@@ -19,7 +19,7 @@ You have a few options for self hosting, you can:
 
 ### Docker
 
-Prebuilt images are published to `ghcr.io/7w1/sable`.
+Prebuilt images are published to `ghcr.io/sableclient/sable`.
 
 - `latest` tracks the current `dev` branch image.
 - `X.Y.Z` tags are versioned releases.
@@ -29,7 +29,7 @@ Prebuilt images are published to `ghcr.io/7w1/sable`.
 Run the latest image with:
 
 ```sh
-docker run --rm -p 8080:80 ghcr.io/7w1/sable:latest
+docker run --rm -p 8080:80 ghcr.io/sableclient/sable:latest
 ```
 
 Then open `http://localhost:8080`.
@@ -40,7 +40,7 @@ file at `/app/config.json`:
 ```yaml
 services:
   sable:
-    image: ghcr.io/7w1/sable:latest
+    image: ghcr.io/sableclient/sable:latest
     ports:
       - '8080:80'
     volumes:
@@ -49,7 +49,25 @@ services:
 
 ### Build it yourself
 
-To build and serve Sable yourself with nginx, clone this repo and build it:
+To build and serve Sable yourself with nginx or caddy, clone this repo with submodules:
+
+```sh
+git clone --recurse-submodules https://github.com/SableClient/Sable.git 
+cd Sable
+```
+
+Before building Sable itself, you must build Sable Call:
+
+```sh
+cd sable-call
+corepack enable
+yarn install --immutable
+yarn build:embedded:production
+cd ..
+```
+
+Then you can build Sable itself:
+
 
 ```sh
 npm ci # Installs all dependencies
@@ -66,6 +84,17 @@ After that, you can copy the dist/ directory to your server and serve it.
 ## Local development
 > [!TIP]
 > We recommend using a version manager as versions change quickly. [fnm](https://github.com/Schniz/fnm) is a great cross-platform option (Windows, macOS, and Linux). [NVM on Windows](https://github.com/coreybutler/nvm-windows#installation--upgrades) and [nvm](https://github.com/nvm-sh/nvm) on Linux/macOS are also good choices. Use the version defined in [`.node-version`](.node-version).
+
+First, build Sable Call, making sure you have submodule downloaded.
+If you aren't touching the repo, you need only do this once:
+
+```sh
+cd sable-call                                         
+corepack enable                     
+yarn install --immutable                             
+yarn build:embedded:production
+cd ..
+```
 
 Execute the following commands to start a development server:
 ```sh

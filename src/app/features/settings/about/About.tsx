@@ -190,7 +190,7 @@ export function About({ requestClose }: AboutProps) {
                   <Box gap="200" wrap="Wrap">
                     <Button
                       as="a"
-                      href="https://github.com/7w1/sable"
+                      href="https://github.com/SableClient/Sable"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Secondary"
@@ -203,7 +203,7 @@ export function About({ requestClose }: AboutProps) {
                     </Button>
                     <Button
                       as="a"
-                      href="https://github.com/7w1/sable/pulls"
+                      href="https://github.com/SableClient/Sable/pulls"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Critical"

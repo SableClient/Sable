@@ -1,3 +1,4 @@
-[submodule "element-call"]
-	path = element-call
-	url = https://github.com/melogale/element-call.git
+[submodule "sable-call"]
+	path = sable-call
+	url = https://github.com/SableClient/SableCall.git
+	branch = livekit

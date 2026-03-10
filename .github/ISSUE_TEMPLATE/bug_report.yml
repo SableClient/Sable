@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         ## First of all
-        1. Please search for [existing issues](https://github.com/7w1/sable/issues?q=is%3Aissue) about this problem first.
+        1. Please search for [existing issues](https://github.com/SableClient/Sable/issues?q=is%3Aissue) about this problem first.
         2. Make sure Sable is up to date.
         3. Make sure it's an issue with Sable and not something else you are using.
         4. Remember to be friendly.

@@ -1,3 +1,11 @@
+## build sable call!
+FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS sable-call-builder
+
+WORKDIR /sable-call
+COPY sable-call/ .
+RUN corepack enable && yarn install --immutable
+RUN NODE_OPTIONS=--max-old-space-size=4096 yarn build:embedded:production
+
 ## Builder
 FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS builder
 
@@ -11,7 +19,8 @@ ENV VITE_IS_RELEASE_TAG=$VITE_IS_RELEASE_TAG
 COPY .npmrc package.json package-lock.json /src/
 RUN npm ci --ignore-scripts
 COPY . /src/
-ENV NODE_OPTIONS=--max_old_space_size=4096
+COPY --from=sable-call-builder /sable-call/embedded/web/dist/ sable-call/embedded/web/dist/
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 ## Dist

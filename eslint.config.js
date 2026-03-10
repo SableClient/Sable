@@ -134,7 +134,7 @@ const projectOverrides = defineConfig([
 ]);
 
 export default defineConfig([
-  { ignores: ['element-call/'] },
+  { ignores: ['sable-call/'] },
   includeIgnoreFile(gitignorePath),
   ...jsConfig,
   ...reactConfig,

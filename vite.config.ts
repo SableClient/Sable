@@ -62,7 +62,7 @@ const isReleaseTag = (() => {
 const copyFiles = {
   targets: [
     {
-      src: 'node_modules/@element-hq/element-call-embedded/dist/*',
+      src: 'sable-call/embedded/web/dist/*',
       dest: 'public/element-call',
     },
     {

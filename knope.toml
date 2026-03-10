@@ -37,8 +37,8 @@ help_text = "Create a new change file to be included in the next release"
 type = "CreateChangeFile"
 
 [github]
-owner = "7w1"
-repo = "sable"
+owner = "SableClient"
+repo = "Sable"
 
 [bot.releases]
 enabled = true

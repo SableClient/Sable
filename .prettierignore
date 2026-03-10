@@ -1,6 +1,6 @@
 dist
 node_modules
-element-call
+sable-call
 package.json
 package-lock.json
 LICENSE

@@ -20,7 +20,11 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useAtom, useSetAtom } from 'jotai';
-import { autoJoinCallIntentAtom, incomingCallRoomIdAtom } from '$state/callEmbed';
+import {
+  autoJoinCallIntentAtom,
+  incomingCallRoomIdAtom,
+  mutedCallRoomIdAtom,
+} from '$state/callEmbed';
 import { RoomAvatar } from './room-avatar';
 
 type IncomingCallInternalProps = {
@@ -34,11 +38,18 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
   const { navigateRoom } = useRoomNavigate();
   const avatarUrl = getRoomAvatarUrl(mx, room, 96);
   const setAutoJoinIntent = useSetAtom(autoJoinCallIntentAtom);
+  const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
   const handleAnswer = () => {
+    setMutedRoomId(room.roomId);
     setAutoJoinIntent(room.roomId);
     onClose();
     navigateRoom(room.roomId);
+  };
+
+  const handleDecline = () => {
+    setMutedRoomId(room.roomId);
+    onClose();
   };
 
   return (
@@ -79,7 +90,12 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
         </Box>
 
         <Box gap="300" style={{ width: '100%' }} justifyContent="Center">
-          <Button variant="Critical" fill="Soft" style={{ minWidth: '110px' }} onClick={onClose}>
+          <Button
+            variant="Critical"
+            fill="Soft"
+            style={{ minWidth: '110px' }}
+            onClick={handleDecline}
+          >
             <Text size="B400">Decline</Text>
           </Button>
           <Button

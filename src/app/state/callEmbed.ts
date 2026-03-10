@@ -21,3 +21,4 @@ export const callChatAtom = atom<boolean>(false);
 
 export const incomingCallRoomIdAtom = atom<string | null>(null);
 export const autoJoinCallIntentAtom = atom<string | null>(null);
+export const mutedCallRoomIdAtom = atom<string | null>(null);

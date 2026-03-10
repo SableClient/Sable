@@ -3,7 +3,7 @@ import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
-import { incomingCallRoomIdAtom } from '$state/callEmbed';
+import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import InviteSound from '$public/sound/invite.ogg';
 import { useMatrixClient } from './useMatrixClient';
 
@@ -14,6 +14,8 @@ export function useCallSignaling() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ringingRoomIdRef = useRef<string | null>(null);
+  const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
+  const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
   useEffect(() => {
     const audio = new Audio(InviteSound);
@@ -53,6 +55,7 @@ export function useCallSignaling() {
     const checkDMsForActiveCalls = () => {
       const activeRoomId = [...mDirects].reduce<string | null>((found, roomId) => {
         if (found) return found;
+        if (mutedRoomId === roomId) return null;
         const room = mx.getRoom(roomId);
         if (!room) return null;
 
@@ -81,7 +84,10 @@ export function useCallSignaling() {
       }
     };
 
-    const handleSessionEnded = () => {
+    const handleSessionEnded = (roomId: string) => {
+      if (mutedRoomId === roomId) {
+        setMutedRoomId(null);
+      }
       checkDMsForActiveCalls();
     };
 
@@ -103,5 +109,5 @@ export function useCallSignaling() {
     }
 
     return cleanup;
-  }, [mx, mDirects, playRinging, stopRinging]);
+  }, [mx, mDirects, playRinging, stopRinging, mutedRoomId, setMutedRoomId]);
 }

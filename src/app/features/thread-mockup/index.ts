@@ -1,1 +1,0 @@
-export { ThreadMockupPage } from './ThreadMockupPage';

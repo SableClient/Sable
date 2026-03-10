@@ -26,13 +26,11 @@ import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/search';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
-import { ThreadMockupPage } from '$features/thread-mockup';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
 import {
   DIRECT_PATH,
   EXPLORE_PATH,
   HOME_PATH,
-  THREAD_MOCKUP_PATH,
   LOGIN_PATH,
   INBOX_PATH,
   REGISTER_PATH,
@@ -345,7 +343,6 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
         </Route>
         <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
-        <Route path={THREAD_MOCKUP_PATH} element={<ThreadMockupPage />} />
       </Route>
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>

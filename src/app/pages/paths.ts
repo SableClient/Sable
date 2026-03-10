@@ -1,5 +1,7 @@
 export const ROOT_PATH = '/';
 
+export const THREAD_MOCKUP_PATH = '/thread-mockup/';
+
 export type LoginPathSearchParams = {
   username?: string;
   email?: string;

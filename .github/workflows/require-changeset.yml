@@ -91,7 +91,7 @@ jobs:
 
             \`\`\`md
             ---
-            sable: patch
+            default: patch
             ---
 
             Short user-facing summary of the change.

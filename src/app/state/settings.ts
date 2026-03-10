@@ -160,7 +160,7 @@ const defaultSettings: Settings = {
   hideMembershipInReadOnly: true,
   useRightBubbles: false,
   showUnreadCounts: false,
-  badgeCountDMsOnly: false,
+  badgeCountDMsOnly: true,
   showPingCounts: true,
   hideReads: false,
   emojiSuggestThreshold: 2,

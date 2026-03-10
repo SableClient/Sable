@@ -1207,6 +1207,12 @@ export function RoomTimeline({
     const forceScroll = () => {
       // if the user isn't scrolling jump down to latest content
       if (!atBottomRef.current) return;
+
+      // Also verify the scroll is actually near the bottom (within 150px threshold)
+      // to prevent force-scrolling during back pagination when refs haven't updated yet
+      const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.offsetHeight;
+      if (distanceFromBottom > 150) return;
+
       scrollToBottom(scrollEl, 'instant');
     };
 

@@ -81,6 +81,10 @@ import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import {
+  addStickerToDefaultPack,
+  doesStickerExistInDefaultPack,
+} from '$utils/addStickerToDefaultStickerPack';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 
@@ -669,6 +673,7 @@ function MessageInternal(
   });
 
   const isThreadedMessage = mEvent.threadRootId !== undefined;
+  const isStickerMessage = mEvent.getType() === 'm.sticker';
 
   const evtId = mEvent.getId()!;
   const evtTimeline = room.getTimelineForEvent(evtId);
@@ -820,6 +825,33 @@ function MessageInternal(
                             </Text>
                           </MenuItem>
                         )}
+                        {isStickerMessage &&
+                          !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
+                            <MenuItem
+                              size="300"
+                              after={<Icon size="100" src={Icons.Star} />}
+                              radii="300"
+                              onClick={() => {
+                                addStickerToDefaultPack(
+                                  mx,
+                                  `sticker-${mEvent.getId()}`,
+                                  mEvent.getContent().url,
+                                  mEvent.getContent().body,
+                                  mEvent.getContent().info
+                                );
+                                closeMenu();
+                              }}
+                            >
+                              <Text
+                                className={css.MessageMenuItemText}
+                                as="span"
+                                size="T300"
+                                truncate
+                              >
+                                Add to User Sticker Pack
+                              </Text>
+                            </MenuItem>
+                          )}
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"

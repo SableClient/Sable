@@ -85,7 +85,7 @@ Alternatively, you can document the change manually by creating a change file:
 
 ```md
 ---
-sable: patch
+default: patch
 ---
 
 Short user-facing summary of the change.

@@ -3,6 +3,7 @@ import { Box, Line } from 'folds';
 import { useParams } from 'react-router-dom';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
+import { Direction } from '$types/matrix-sdk';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -17,6 +18,7 @@ import { WidgetsDrawer } from '$features/widgets/WidgetsDrawer';
 import { callChatAtom } from '$state/callEmbed';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
+import { getBackgroundPaginationConfig } from '$utils/device-capabilities';
 import { RoomViewHeader } from './RoomViewHeader';
 import { MembersDrawer } from './MembersDrawer';
 import { RoomView } from './RoomView';
@@ -72,6 +74,34 @@ export function Room() {
       [mx, room.roomId, hideReads]
     )
   );
+
+  // Background pagination to load additional message history
+  useEffect(() => {
+    const config = getBackgroundPaginationConfig();
+    if (!config.enabled) return undefined;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+
+      const timeline = room.getLiveTimeline();
+      const token = timeline.getPaginationToken(Direction.Backward);
+
+      if (token) {
+        mx.paginateEventTimeline(timeline, {
+          backwards: true,
+          limit: config.limit,
+        }).catch((err) => {
+          console.warn('Background pagination failed:', err);
+        });
+      }
+    }, config.delayMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [room, mx]);
 
   const callView = room.isCallRoom();
 

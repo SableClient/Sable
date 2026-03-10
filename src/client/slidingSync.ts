@@ -86,38 +86,8 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
   return Math.round(value);
 };
 
-type AdaptiveSignals = {
-  saveData: boolean;
-  effectiveType: string | null;
-  deviceMemoryGb: number | null;
-  mobile: boolean;
-  missingSignals: number;
-};
-
-const readAdaptiveSignals = (): AdaptiveSignals => {
-  const navigatorLike = typeof navigator !== 'undefined' ? navigator : undefined;
-  const connection = (navigatorLike as any)?.connection;
-  const effectiveType = connection?.effectiveType;
-  const deviceMemory = (navigatorLike as any)?.deviceMemory;
-  const uaMobile = (navigatorLike as any)?.userAgentData?.mobile;
-  const fallbackMobileUA = navigatorLike?.userAgent ?? '';
-  const mobileByUA =
-    typeof uaMobile === 'boolean'
-      ? uaMobile
-      : /Mobi|Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(fallbackMobileUA);
-  const saveData = connection?.saveData === true;
-  const normalizedEffectiveType = typeof effectiveType === 'string' ? effectiveType : null;
-  const normalizedDeviceMemory = typeof deviceMemory === 'number' ? deviceMemory : null;
-  const missingSignals =
-    Number(normalizedEffectiveType === null) + Number(normalizedDeviceMemory === null);
-  return {
-    saveData,
-    effectiveType: normalizedEffectiveType,
-    deviceMemoryGb: normalizedDeviceMemory,
-    mobile: mobileByUA,
-    missingSignals,
-  };
-};
+// Import shared device capability detection logic
+import { readAdaptiveSignals, type AdaptiveSignals } from '../app/utils/device-capabilities';
 
 // Resolve the timeline limit for the active-room subscription based on device/network.
 // The list subscription always uses LIST_TIMELINE_LIMIT=1 regardless of conditions.

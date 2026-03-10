@@ -35,7 +35,7 @@ Run the latest image with:
 ```sh
 docker run --rm -p 8080:8080 ghcr.io/sableclient/sable:latest
 ```
-s
+
 Then open `http://localhost:8080`.
 
 If you want to override the bundled [`config.json`](config.json), mount your own
@@ -90,7 +90,7 @@ After that, you can copy the dist/ directory to your server and serve it.
 > We recommend using a version manager as versions change quickly. [fnm](https://github.com/Schniz/fnm) is a great cross-platform option (Windows, macOS, and Linux). [NVM on Windows](https://github.com/coreybutler/nvm-windows#installation--upgrades) and [nvm](https://github.com/nvm-sh/nvm) on Linux/macOS are also good choices. Use the version defined in [`.node-version`](.node-version).
 
 First, build Sable Call, making sure you have submodule downloaded.
-If you aren't touching the repo, you need only do this once:
+If you won't be changing anything in the call repo, you need only do this once:
 
 ```sh
 cd sable-call                                         

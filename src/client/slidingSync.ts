@@ -16,6 +16,7 @@ import {
   User,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
+import { readAdaptiveSignals, type AdaptiveSignals } from '../app/utils/device-capabilities';
 
 const log = createLogger('slidingSync');
 
@@ -85,9 +86,6 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
   if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return fallback;
   return Math.round(value);
 };
-
-// Import shared device capability detection logic
-import { readAdaptiveSignals, type AdaptiveSignals } from '../app/utils/device-capabilities';
 
 // Resolve the timeline limit for the active-room subscription based on device/network.
 // The list subscription always uses LIST_TIMELINE_LIMIT=1 regardless of conditions.

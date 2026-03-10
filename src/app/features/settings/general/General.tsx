@@ -972,7 +972,7 @@ export function Sync() {
                   More info/Documentation
                 </a>
                 .{' '}
-                <a href="https://github.com/7w1/sable/issues/146" target="_blank" rel="noreferrer">
+                <a href="https://github.com/SableClient/Sable/issues/146" target="_blank" rel="noreferrer">
                   Known issues (Sable GitHub)
                 </a>
                 .

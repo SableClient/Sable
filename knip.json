@@ -5,7 +5,7 @@
     "interface": true,
     "type": true
   },
-  "ignoreDependencies": ["buffer", "@element-hq/element-call-embedded", "workbox-precaching"],
+  "ignoreDependencies": ["buffer", "workbox-precaching"],
   "ignoreBinaries": ["knope"],
   "rules": {
     "exports": "off",

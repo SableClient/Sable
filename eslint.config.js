@@ -134,6 +134,10 @@ const projectOverrides = defineConfig([
 ]);
 
 export default defineConfig([
+<<<<<<< HEAD
+  { ignores: ['sable-call/'] },
+=======
+>>>>>>> upstream/dev
   includeIgnoreFile(gitignorePath),
   ...jsConfig,
   ...reactConfig,

@@ -1,3 +1,7 @@
+> [!WARNING]  
+> Sable has moved to [SableClient/Sable](https://github.com/SableClient/Sable), please head there for all future pull requests, discussions, questions, and meowing!
+
+
 # Sable
 
 A Matrix client built to enhance the user experience with quality-of-life features, cosmetics, utilities, and sheer usability. See the [changelog](https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md).
@@ -31,7 +35,7 @@ Run the latest image with:
 ```sh
 docker run --rm -p 8080:8080 ghcr.io/sableclient/sable:latest
 ```
-
+s
 Then open `http://localhost:8080`.
 
 If you want to override the bundled [`config.json`](config.json), mount your own
@@ -49,7 +53,25 @@ services:
 
 ### Build it yourself
 
-To build and serve Sable yourself with nginx, clone this repo and build it:
+To build and serve Sable yourself with nginx or caddy, clone this repo with submodules:
+
+```sh
+git clone --recurse-submodules https://github.com/SableClient/Sable.git 
+cd Sable
+```
+
+Before building Sable itself, you must build Sable Call:
+
+```sh
+cd sable-call
+corepack enable
+yarn install --immutable
+yarn build:embedded:production
+cd ..
+```
+
+Then you can build Sable itself:
+
 
 ```sh
 npm ci # Installs all dependencies
@@ -66,6 +88,17 @@ After that, you can copy the dist/ directory to your server and serve it.
 ## Local development
 > [!TIP]
 > We recommend using a version manager as versions change quickly. [fnm](https://github.com/Schniz/fnm) is a great cross-platform option (Windows, macOS, and Linux). [NVM on Windows](https://github.com/coreybutler/nvm-windows#installation--upgrades) and [nvm](https://github.com/nvm-sh/nvm) on Linux/macOS are also good choices. Use the version defined in [`.node-version`](.node-version).
+
+First, build Sable Call, making sure you have submodule downloaded.
+If you aren't touching the repo, you need only do this once:
+
+```sh
+cd sable-call                                         
+corepack enable                     
+yarn install --immutable                             
+yarn build:embedded:production
+cd ..
+```
 
 Execute the following commands to start a development server:
 ```sh

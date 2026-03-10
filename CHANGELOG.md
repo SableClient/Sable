@@ -1,5 +1,35 @@
 # Sable Client Changelog
 
+## 1.7.0 (2026-03-10)
+
+### Features
+
+* full-width highlight for notify-loud/silent push rule messages
+* notification settings page improvements
+* in-app bug report and feature request modal
+* match form fields to GitHub issue templates
+* improve sliding sync to match Element Web approach
+* register ExtensionPresence for live presence updates
+* tie presence extension into sendPresence setting
+
+### Fixes
+
+* in-app notification banner placement
+* prevent duplicate forwards by managing forwarding state in MessageForwardInternal
+* remove NotificationBanner from ClientNonUIFeatures
+* remove stray conflict marker in useCommands.ts
+* update GITHUB_REPO constant to SableClient/Sable
+* notification delivery bugs (push sound, OS notifications, in-app audio, media session)
+* treat DMs as loud regardless of mention/push-rule sound tweak
+* revert DM badge highlight — only highlight on actual mentions/replies
+* use orphan parent space for deep-link navigation
+* suppress OS notification when app is focused; wrap in try/catch
+* always fire OS notification on desktop (Discord-style)
+* always reinit on TimelineRefresh to fix sliding sync hang
+* fix import order and suppress intentional await-in-loop
+* fix ESLint errors in ExtensionPresence and add changeset
+* make sendPresence toggle work for classic sync too
+
 ## 1.6.0 (2026-03-10)
 
 ### Features

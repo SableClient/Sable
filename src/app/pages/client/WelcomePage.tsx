@@ -1,11 +1,8 @@
 import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
-import { useNavigate } from 'react-router-dom';
 import { Page, PageHero, PageHeroSection } from '$components/page';
 import CinnySVG from '$public/res/svg/cinny.svg';
-import { THREAD_MOCKUP_PATH } from '../paths';
 
 export function WelcomePage() {
-  const navigate = useNavigate();
   return (
     <Page>
       <Box
@@ -70,15 +67,6 @@ export function WelcomePage() {
               >
                 <Text as="span" size="B400" truncate>
                   Features
-                </Text>
-              </Button>
-              <Button
-                fill="Soft"
-                onClick={() => navigate(THREAD_MOCKUP_PATH)}
-                before={<Icon size="200" src={Icons.Thread} />}
-              >
-                <Text as="span" size="B400" truncate>
-                  Thread UI Mockups
                 </Text>
               </Button>
             </Box>

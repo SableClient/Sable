@@ -93,14 +93,14 @@ const copyFiles = {
 const require = createRequire(import.meta.url);
 
 function serverMatrixSdkCryptoWasm() {
-  const resolvedPath = path.join(
-    path.dirname(require.resolve('@matrix-org/matrix-sdk-crypto-wasm')),
-    'pkg/matrix_sdk_crypto_wasm_bg.wasm'
-  );
-
   return {
     name: 'vite-plugin-serve-matrix-sdk-crypto-wasm',
     configureServer(server: ViteDevServer) {
+      const resolvedPath = path.join(
+        path.dirname(require.resolve('@matrix-org/matrix-sdk-crypto-wasm')),
+        'pkg/matrix_sdk_crypto_wasm_bg.wasm'
+      );
+
       server.middlewares.use((req, res, next) => {
         if (!req.url?.endsWith('matrix_sdk_crypto_wasm_bg.wasm')) {
           next();

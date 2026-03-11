@@ -3,6 +3,7 @@ FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
+RUN apk add --no-cache git
 
 ## Builder
 FROM base AS builder
@@ -13,10 +14,10 @@ ARG VITE_BUILD_HASH
 ARG VITE_IS_RELEASE_TAG=false
 ENV VITE_BUILD_HASH=$VITE_BUILD_HASH
 ENV VITE_IS_RELEASE_TAG=$VITE_IS_RELEASE_TAG
-COPY pnpm-lock.yaml /src/
+COPY pnpm-lock.yaml pnpm-workspace.yaml /src/
 RUN pnpm fetch
 COPY . /src/
-RUN pnpm install --offline --frozen-lockfile --ignore-scripts
+RUN pnpm install --offline --frozen-lockfile
 ENV NODE_OPTIONS=--max_old_space_size=4096
 RUN pnpm run build
 

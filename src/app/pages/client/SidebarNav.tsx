@@ -4,6 +4,7 @@ import { Scroll } from 'folds';
 import { Sidebar, SidebarContent, SidebarStackSeparator, SidebarStack } from '$components/sidebar';
 import {
   DirectTab,
+  DirectDMsList,
   HomeTab,
   SpaceTabs,
   InboxTab,
@@ -25,6 +26,7 @@ export function SidebarNav() {
             <SidebarStack>
               <HomeTab />
               <DirectTab />
+              <DirectDMsList />
             </SidebarStack>
             <SpaceTabs scrollRef={scrollRef} />
             <SidebarStackSeparator />

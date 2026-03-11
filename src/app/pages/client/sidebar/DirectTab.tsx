@@ -1,6 +1,6 @@
-import { MouseEventHandler, forwardRef, useState, useMemo } from 'react';
+import { MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
@@ -25,12 +25,6 @@ import { stopPropagation } from '$utils/keyboard';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
-import { RoomAvatar } from '$components/room-avatar';
-import { getDirectRoomAvatarUrl } from '$utils/room';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { nameInitials } from '$utils/common';
-import { factoryRoomIdByActivity } from '$utils/sort';
-import * as css from './DirectTab.css';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -69,33 +63,15 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
 export function DirectTab() {
   const navigate = useNavigate();
   const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
   const screenSize = useScreenSizeContext();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
 
   const mDirects = useAtomValue(mDirectAtom);
   const directs = useDirects(mx, allRoomsAtom, mDirects);
   const directUnread = useRoomsUnread(directs, roomToUnreadAtom);
-  const roomToUnread = useAtomValue(roomToUnreadAtom);
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const directSelected = useDirectSelected();
-
-  // Get up to 3 recent DMs, prioritizing ones with unread messages
-  const recentDMs = useMemo(() => {
-    const withUnread = directs.filter((roomId) => {
-      const unread = roomToUnread.get(roomId);
-      return unread && (unread.total > 0 || unread.highlight > 0);
-    });
-
-    const sorted = Array.from(directs).sort(factoryRoomIdByActivity(mx));
-    const prioritized = [
-      ...withUnread.sort(factoryRoomIdByActivity(mx)),
-      ...sorted.filter((id) => !withUnread.includes(id)),
-    ];
-
-    return prioritized.slice(0, 3).map((roomId) => mx.getRoom(roomId)).filter(Boolean);
-  }, [directs, mx, roomToUnread]);
 
   const handleDirectClick = () => {
     const activePath = navToActivePath.get('direct');
@@ -126,37 +102,7 @@ export function DirectTab() {
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >
-            {recentDMs.length === 0 ? (
-              <Icon src={Icons.User} filled={directSelected} />
-            ) : (
-              <div className={css.DMStackContainer}>
-                {recentDMs.map((room, index) => {
-                  const avatarClass =
-                    recentDMs.length === 1
-                      ? css.DMStackSingle
-                      : recentDMs.length === 2
-                        ? css.DMStackDouble
-                        : css.DMStackTriple;
-
-                  return (
-                    <div key={room.roomId} className={avatarClass}>
-                      <Avatar size="100" radii="400" className={css.DMAvatar}>
-                        <RoomAvatar
-                          roomId={room.roomId}
-                          src={getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)}
-                          alt={room.name}
-                          renderFallback={() => (
-                            <Text as="span" size="Inherit">
-                              {nameInitials(room.name)}
-                            </Text>
-                          )}
-                        />
-                      </Avatar>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <Icon src={Icons.User} filled={directSelected} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

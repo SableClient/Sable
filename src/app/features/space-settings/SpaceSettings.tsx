@@ -23,6 +23,7 @@ type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
   name: string;
   icon: IconSrc;
+  activeIcon?: IconSrc;
 };
 
 const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
@@ -47,6 +48,7 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
         page: SpaceSettingsPage.CosmeticsPage,
         name: 'Cosmetics',
         icon: Icons.Alphabet,
+        activeIcon: Icons.AlphabetUnderline,
       },
       {
         page: SpaceSettingsPage.EmojisStickersPage,
@@ -132,26 +134,34 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
             <Box grow="Yes" direction="Column">
               <PageNavContent>
                 <div style={{ flexGrow: 1 }}>
-                  {menuItems.map((item) => (
-                    <MenuItem
-                      key={item.name}
-                      variant="Background"
-                      radii="400"
-                      aria-pressed={activePage === item.page}
-                      before={<Icon src={item.icon} size="100" filled={activePage === item.page} />}
-                      onClick={() => setActivePage(item.page)}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: activePage === item.page ? config.fontWeight.W600 : undefined,
-                        }}
-                        size="T300"
-                        truncate
+                  {menuItems.map((item) => {
+                    const currentIcon =
+                      activePage === item.page && item.activeIcon ? item.activeIcon : item.icon;
+
+                    return (
+                      <MenuItem
+                        key={item.name}
+                        variant="Background"
+                        radii="400"
+                        aria-pressed={activePage === item.page}
+                        before={
+                          <Icon src={currentIcon} size="100" filled={activePage === item.page} />
+                        }
+                        onClick={() => setActivePage(item.page)}
                       >
-                        {item.name}
-                      </Text>
-                    </MenuItem>
-                  ))}
+                        <Text
+                          style={{
+                            fontWeight:
+                              activePage === item.page ? config.fontWeight.W600 : undefined,
+                          }}
+                          size="T300"
+                          truncate
+                        >
+                          {item.name}
+                        </Text>
+                      </MenuItem>
+                    );
+                  })}
                 </div>
               </PageNavContent>
             </Box>

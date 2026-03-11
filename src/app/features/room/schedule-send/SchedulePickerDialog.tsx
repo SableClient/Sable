@@ -98,7 +98,13 @@ export function SchedulePickerDialog({
               <Box grow="Yes">
                 <Text size="H4">Schedule Send</Text>
               </Box>
-              <IconButton size="300" onClick={onCancel} radii="300">
+              <IconButton
+                size="300"
+                onClick={onCancel}
+                radii="300"
+                title="Cancel scheduling"
+                aria-label="Cancel scheduling"
+              >
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>
@@ -243,7 +249,14 @@ export function SchedulePickerDialog({
                   {error || 'Selected time is in the past'}
                 </Text>
               )}
-              <Button type="submit" variant="Primary" aria-disabled={isPast} onClick={handleSubmit}>
+              <Button
+                type="submit"
+                variant="Primary"
+                aria-disabled={isPast}
+                onClick={handleSubmit}
+                title="Schedule Send"
+                aria-label="Schedule send"
+              >
                 <Text size="B400">Schedule Send</Text>
               </Button>
             </Box>

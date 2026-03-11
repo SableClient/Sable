@@ -69,14 +69,14 @@ jobs:
       - name: Setup app
         uses: ./.github/actions/setup
         with:
-          install-command: npm ci --ignore-scripts
+          install-command: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build site
         env:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
         run: |
-          NODE_OPTIONS=--max_old_space_size=4096 npm run build
+          NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0

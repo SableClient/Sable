@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Check formatting
-        run: npm run fmt:check
+        run: pnpm run fmt:check
 
   lint:
     name: Lint
@@ -38,7 +38,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run ESLint
-        run: npm run lint
+        run: pnpm run lint
 
   typecheck:
     name: Typecheck
@@ -55,7 +55,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run TypeScript typecheck
-        run: npm run typecheck -- --pretty false
+        run: pnpm run typecheck --pretty false
 
   knip:
     name: Knip
@@ -70,8 +70,6 @@ jobs:
 
       - name: Setup app
         uses: ./.github/actions/setup
-        with:
-          install-command: npm ci --ignore-scripts
 
       - name: Run Knip
-        run: npm run knip
+        run: pnpm run knip

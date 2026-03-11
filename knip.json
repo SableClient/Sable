@@ -5,7 +5,11 @@
     "interface": true,
     "type": true
   },
-  "ignoreDependencies": ["buffer", "@element-hq/element-call-embedded", "workbox-precaching"],
+  "ignoreDependencies": [
+    "buffer",
+    "@element-hq/element-call-embedded",
+    "@matrix-org/matrix-sdk-crypto-wasm"
+  ],
   "ignoreBinaries": ["knope"],
   "rules": {
     "exports": "off",

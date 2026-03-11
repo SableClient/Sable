@@ -1,5 +1,5 @@
 import { ClientWidgetApi } from 'matrix-widget-api';
-import EventEmitter from 'events';
+import EventEmitter from 'eventemitter3';
 import { CallControlState } from './CallControlState';
 import { ElementMediaStateDetail, ElementMediaStatePayload, ElementWidgetActions } from './types';
 

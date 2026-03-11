@@ -285,6 +285,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+    const [silentReply, setSilentReply] = useState(false);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -343,6 +344,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [roomId, editor, setMsgDraft]
     );
+
+    useEffect(() => {
+      if (replyDraft !== undefined) {
+        setSilentReply(replyDraft.userId === mx.getUserId());
+      }
+    }, [mx, replyDraft]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -517,7 +524,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         body,
       };
 
-      if (replyDraft && replyDraft.userId !== mx.getUserId()) {
+      if (replyDraft && !silentReply) {
         mentionData.users.add(replyDraft.userId);
       }
 
@@ -581,6 +588,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       mx,
       roomId,
       replyDraft,
+      silentReply,
       scheduledTime,
       editingScheduledDelayId,
       handleQuickReact,
@@ -828,6 +836,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"
+                      title="schedule message send"
                     >
                       <Icon src={Icons.Cross} size="50" />
                     </IconButton>
@@ -853,27 +862,61 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"
+                      aria-label="Cancel reply"
+                      title="Cancel reply"
                     >
                       <Icon src={Icons.Cross} size="50" />
                     </IconButton>
-                    <Box direction="Row" gap="200" alignItems="Center">
-                      {replyDraft.relation?.rel_type === RelationType.Thread && <ThreadIndicator />}
-                      <ReplyLayout
-                        userColor={replyUsernameColor}
-                        username={
-                          <Text size="T300" truncate style={{ fontFamily: replyUsernameFont }}>
-                            <b>
-                              {getMemberDisplayName(room, replyDraft.userId, nicknames) ??
-                                getMxIdLocalPart(replyDraft.userId) ??
-                                replyDraft.userId}
-                            </b>
-                          </Text>
-                        }
+                    <Box
+                      direction="Row"
+                      gap="200"
+                      alignItems="Center"
+                      grow="Yes"
+                      style={{ minWidth: 0 }}
+                    >
+                      <Box
+                        direction="Row"
+                        gap="200"
+                        alignItems="Center"
+                        grow="Yes"
+                        style={{ minWidth: 0 }}
                       >
-                        <Text size="T300" truncate>
-                          {replyBodyJSX}
-                        </Text>
-                      </ReplyLayout>
+                        {replyDraft.relation?.rel_type === RelationType.Thread && (
+                          <ThreadIndicator />
+                        )}
+                        <ReplyLayout
+                          userColor={replyUsernameColor}
+                          username={
+                            <Text size="T300" truncate style={{ fontFamily: replyUsernameFont }}>
+                              <b>
+                                {getMemberDisplayName(room, replyDraft.userId, nicknames) ??
+                                  getMxIdLocalPart(replyDraft.userId) ??
+                                  replyDraft.userId}
+                              </b>
+                            </Text>
+                          }
+                        >
+                          <Text size="T300" truncate>
+                            {replyBodyJSX}
+                          </Text>
+                        </ReplyLayout>
+                      </Box>
+                      <IconButton
+                        variant="SurfaceVariant"
+                        size="300"
+                        radii="300"
+                        title={
+                          silentReply ? 'Unmute reply notifications' : 'Mute reply notifications'
+                        }
+                        aria-pressed={silentReply}
+                        aria-label={
+                          silentReply ? 'Unmute reply notifications' : 'Mute reply notifications'
+                        }
+                        onClick={() => setSilentReply(!silentReply)}
+                      >
+                        {!silentReply && <Icon src={Icons.BellPing} />}
+                        {silentReply && <Icon src={Icons.BellMute} />}
+                      </IconButton>
                     </Box>
                   </Box>
                 </div>
@@ -886,6 +929,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               variant="SurfaceVariant"
               size="300"
               radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
             >
               <Icon src={Icons.PlusCircle} />
             </IconButton>
@@ -896,6 +941,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
+                title={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
+                aria-pressed={toolbar}
+                aria-label={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
                 onClick={() => setToolbar(!toolbar)}
               >
                 <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
@@ -940,6 +988,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         variant="SurfaceVariant"
                         size="300"
                         radii="300"
+                        title="open sticker picker"
+                        aria-label="Open sticker picker"
                       >
                         <Icon
                           src={Icons.Sticker}
@@ -956,6 +1006,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"
+                      title="open emoji picker"
+                      aria-label="Open emoji picker"
                     >
                       <Icon
                         src={Icons.Smile}
@@ -1012,6 +1064,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               />
               <Box display="Flex" alignItems="Center">
                 <IconButton
+                  title="Send Message"
+                  aria-label="Send your composed Message"
                   onClick={() => {
                     if (isLongPress.current) {
                       isLongPress.current = false;
@@ -1053,6 +1107,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     onClick={(evt: MouseEvent<HTMLButtonElement>) => {
                       setScheduleMenuAnchor(evt.currentTarget.getBoundingClientRect());
                     }}
+                    title="Schedule Message"
+                    aria-label="Schedule message send"
                     variant={scheduledTime ? 'Primary' : 'SurfaceVariant'}
                     size="300"
                     radii="0"

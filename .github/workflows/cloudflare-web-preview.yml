@@ -11,14 +11,26 @@ on:
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
+  push:
+    branches:
+      - dev
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/cloudflare-web-preview.yml'
+      - '.github/actions/setup/**'
 
 concurrency:
-  group: cloudflare-worker-preview-${{ github.event.pull_request.number }}
+  group: cloudflare-worker-preview-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,6 +59,18 @@ jobs:
         with:
           build: 'true'
 
+      - name: Set deploy alias
+        id: alias
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "alias=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            branch="${{ github.ref_name }}"
+            alias="$(echo "$branch" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g')"
+            echo "alias=${alias}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload Worker preview
         id: deploy
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
@@ -58,7 +82,7 @@ jobs:
           command: >
             versions upload
             -c dist/wrangler.json
-            --preview-alias pr-${{ github.event.pull_request.number }}
+            --preview-alias ${{ steps.alias.outputs.alias }}
             --message "$PREVIEW_MESSAGE"
 
       - name: Resolve preview URL
@@ -66,17 +90,16 @@ jobs:
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
           COMMAND_OUTPUT: ${{ steps.deploy.outputs.command-output }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ALIAS: ${{ steps.alias.outputs.alias }}
         shell: bash
         run: |
-          alias="pr-${PR_NUMBER}"
+          alias_url_pattern="^https?://${ALIAS}-[^[:space:]]+$"
           preview_url=""
-          alias_url_pattern="^https?://${alias}-[^[:space:]]+$"
 
           if printf '%s\n' "$DEPLOYMENT_URL" | grep -Eq "$alias_url_pattern"; then
             preview_url="$DEPLOYMENT_URL"
           else
-            preview_url="$(printf '%s\n' "$COMMAND_OUTPUT" | grep -Eo "https?://${alias}-[^[:space:]\"'<>)]+" | head -n 1 || true)"
+            preview_url="$(printf '%s\n' "$COMMAND_OUTPUT" | grep -Eo "https?://${ALIAS}-[^[:space:]\"'<>)]+" | head -n 1 || true)"
           fi
 
           if ! printf '%s\n' "$preview_url" | grep -Eq "$alias_url_pattern"; then
@@ -84,18 +107,15 @@ jobs:
             exit 1
           fi
 
-          {
-            echo "preview_alias=${alias}"
-            echo "preview_url=${preview_url}"
-          } >> "$GITHUB_OUTPUT"
+          echo "preview_url=${preview_url}" >> "$GITHUB_OUTPUT"
 
-      - name: Publish preview URL and write summary
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+      - name: Publish summary and PR comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           MARKER: '<!-- cloudflare-worker-preview -->'
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
-          PREVIEW_ALIAS: ${{ steps.preview.outputs.preview_alias }}
-          SHORT_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_ALIAS: ${{ steps.alias.outputs.alias }}
+          SHORT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -120,10 +140,10 @@ jobs:
               tableRow,
             ].join("\n");
 
-            // Write to step summary (marker stripped — not needed there)
             await core.summary.addRaw(comment.replace(marker + "\n", "")).write();
 
-            // Always delete and recreate so the comment appears fresh after each push
+            if (context.eventName !== 'pull_request') return;
+
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, {

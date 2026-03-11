@@ -1,5 +1,5 @@
 [package]
-versioned_files = ["package.json", "package-lock.json"]
+versioned_files = ["package.json"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
     { name = "Documentation", types = ["docs"] },

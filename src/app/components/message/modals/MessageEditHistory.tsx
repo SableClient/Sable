@@ -7,7 +7,15 @@ import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { EventHistory } from '$components/event-history';
 
-export function MessageEditHistoryItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
+export function MessageEditHistoryItem({
+  room,
+  mEvent,
+  closeMenu,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  closeMenu: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
@@ -18,6 +26,7 @@ export function MessageEditHistoryItem({ room, mEvent }: { room: Room; mEvent: M
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        closeMenu();
         setModal({
           type: ModalType.EditHistory,
           room,

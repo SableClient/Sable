@@ -78,120 +78,141 @@ export function CallControls({ callEmbed }: CallControlsProps) {
       className={css.CallControlContainer}
       justifyContent="Center"
       alignItems="Center"
-      style={{ maxWidth: '100%', overflowX: 'auto' }}
+      style={{
+        maxWidth: '100%',
+        padding: compact ? `0 ${toRem(8)}` : undefined,
+        overflowX: 'auto',
+      }}
     >
       <SequenceCard
         className={css.ControlCard}
         variant="SurfaceVariant"
-        gap="400"
+        gap={compact ? '100' : '200'}
         radii="500"
         alignItems="Center"
-        justifyContent="SpaceBetween"
+        justifyContent="Center"
+        direction="Row"
       >
-        <Box alignItems="Center" gap="Inherit" grow="Yes" direction={compact ? 'Column' : 'Row'}>
-          <Box shrink="No" alignItems="Inherit" justifyContent="Inherit" gap="200">
-            <MicrophoneButton
-              enabled={microphone}
-              onToggle={() => callEmbed.control.toggleMicrophone()}
-            />
-            <SoundButton enabled={sound} onToggle={() => callEmbed.control.toggleSound()} />
-          </Box>
-          {!compact && <ControlDivider />}
-          <Box shrink="No" alignItems="Inherit" justifyContent="Inherit" gap="200">
-            <VideoButton enabled={video} onToggle={() => callEmbed.control.toggleVideo()} />
-            <ScreenShareButton
-              enabled={screenshare}
-              onToggle={() => callEmbed.control.toggleScreenshare()}
-            />
-          </Box>
+        <Box
+          shrink="No"
+          alignItems="Center"
+          justifyContent="Center"
+          gap={compact ? '100' : '200'}
+          direction="Row"
+        >
+          <MicrophoneButton
+            enabled={microphone}
+            onToggle={() => callEmbed.control.toggleMicrophone()}
+          />
+          <SoundButton enabled={sound} onToggle={() => callEmbed.control.toggleSound()} />
+        </Box>
+
+        {!compact && <ControlDivider />}
+
+        <Box
+          shrink="No"
+          alignItems="Center"
+          justifyContent="Center"
+          gap={compact ? '100' : '200'}
+          direction="Row"
+        >
+          <VideoButton enabled={video} onToggle={() => callEmbed.control.toggleVideo()} />
+          <ScreenShareButton
+            enabled={screenshare}
+            onToggle={() => callEmbed.control.toggleScreenshare()}
+          />
         </Box>
         {!compact && <ControlDivider />}
-        <Box alignItems="Center" gap="Inherit" grow="Yes" direction={compact ? 'Column' : 'Row'}>
-          <Box shrink="No" alignItems="Inherit" justifyContent="Inherit" gap="200">
-            {room?.isCallRoom() && <ChatButton />}
-            <PopOut
-              anchor={cords}
-              position="Top"
-              align="Center"
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    onDeactivate: () => setCords(undefined),
-                    clickOutsideDeactivates: true,
-                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <Menu>
-                    <Box direction="Column" style={{ padding: config.space.S100 }}>
-                      <MenuItem
-                        size="300"
-                        variant="Surface"
-                        radii="300"
-                        onClick={handleSpotlightClick}
-                      >
-                        <Text size="B300" truncate>
-                          {spotlight ? 'Grid View' : 'Spotlight View'}
-                        </Text>
-                      </MenuItem>
-                      <MenuItem
-                        size="300"
-                        variant="Surface"
-                        radii="300"
-                        onClick={handleReactionsClick}
-                      >
-                        <Text size="B300" truncate>
-                          Reactions
-                        </Text>
-                      </MenuItem>
-                      <MenuItem
-                        size="300"
-                        variant="Surface"
-                        radii="300"
-                        onClick={handleSettingsClick}
-                      >
-                        <Text size="B300" truncate>
-                          Settings
-                        </Text>
-                      </MenuItem>
-                    </Box>
-                  </Menu>
-                </FocusTrap>
-              }
-            >
-              <IconButton
-                variant="Surface"
-                fill="Soft"
-                radii="400"
-                size="400"
-                onClick={handleOpenMenu}
-                outlined
-                aria-pressed={!!cords}
+        <Box
+          shrink="No"
+          alignItems="Center"
+          justifyContent="Center"
+          gap={compact ? '100' : '200'}
+          direction="Row"
+        >
+          {room?.isCallRoom() && <ChatButton />}
+
+          <PopOut
+            anchor={cords}
+            position="Top"
+            align="Center"
+            content={
+              <FocusTrap
+                focusTrapOptions={{
+                  initialFocus: false,
+                  onDeactivate: () => setCords(undefined),
+                  clickOutsideDeactivates: true,
+                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                  escapeDeactivates: stopPropagation,
+                }}
               >
-                <Icon size="400" src={Icons.VerticalDots} />
-              </IconButton>
-            </PopOut>
-          </Box>
-          <Box shrink="No" direction="Column">
-            <Button
-              style={{ minWidth: toRem(88) }}
-              variant="Critical"
-              fill="Solid"
-              onClick={hangup}
-              before={
-                exiting ? (
-                  <Spinner variant="Critical" fill="Solid" size="200" />
-                ) : (
-                  <Icon src={Icons.PhoneDown} size="200" filled />
-                )
-              }
-              disabled={exiting}
+                <Menu>
+                  <Box direction="Column" style={{ padding: config.space.S100 }}>
+                    <MenuItem
+                      size="300"
+                      variant="Surface"
+                      radii="300"
+                      onClick={handleSpotlightClick}
+                    >
+                      <Text size="B300" truncate>
+                        {spotlight ? 'Grid View' : 'Spotlight View'}
+                      </Text>
+                    </MenuItem>
+                    <MenuItem
+                      size="300"
+                      variant="Surface"
+                      radii="300"
+                      onClick={handleReactionsClick}
+                    >
+                      <Text size="B300" truncate>
+                        Reactions
+                      </Text>
+                    </MenuItem>
+                    <MenuItem
+                      size="300"
+                      variant="Surface"
+                      radii="300"
+                      onClick={handleSettingsClick}
+                    >
+                      <Text size="B300" truncate>
+                        Settings
+                      </Text>
+                    </MenuItem>
+                  </Box>
+                </Menu>
+              </FocusTrap>
+            }
+          >
+            <IconButton
+              variant="Surface"
+              fill="Soft"
+              radii="400"
+              size="400"
+              onClick={handleOpenMenu}
+              outlined
+              aria-pressed={!!cords}
             >
-              <Text size="B400">End</Text>
-            </Button>
-          </Box>
+              <Icon size="400" src={Icons.VerticalDots} />
+            </IconButton>
+          </PopOut>
+
+          <Button
+            style={{ minWidth: compact ? toRem(48) : toRem(88), padding: compact ? 0 : undefined }}
+            variant="Critical"
+            fill="Solid"
+            onClick={hangup}
+            before={
+              exiting ? (
+                <Spinner variant="Critical" fill="Solid" size="200" />
+              ) : (
+                <Icon src={Icons.PhoneDown} size="200" filled />
+              )
+            }
+            disabled={exiting}
+          >
+            {!compact && <Text size="B400">End</Text>}
+          </Button>
         </Box>
       </SequenceCard>
     </Box>

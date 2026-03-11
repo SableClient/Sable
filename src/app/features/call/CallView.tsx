@@ -10,6 +10,7 @@ import { useLivekitSupport } from '$hooks/useLivekitSupport';
 import { StateEvent } from '$types/matrix/room';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
@@ -150,6 +151,9 @@ interface CallViewProps {
 
 export function CallView({ resizable }: CallViewProps) {
   const room = useRoom();
+  const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
+
   const callViewRef = useRef<HTMLDivElement>(null);
   const callContainerRef = useRef<HTMLDivElement>(null);
   useCallEmbedPlacementSync(callContainerRef);
@@ -159,31 +163,47 @@ export function CallView({ resizable }: CallViewProps) {
 
   const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
 
-  const [height, setHeight] = useState(380);
+  const [height, setHeight] = useState(isMobile ? 240 : 380);
   const [isDragging, setIsDragging] = useState(false);
   const isResizing = useRef(false);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing.current || !callViewRef.current) return;
-    const { top } = callViewRef.current.getBoundingClientRect();
-    setHeight(Math.max(150, Math.min(e.clientY - top, window.innerHeight * 0.8)));
-  }, []);
+  const handleMove = useCallback(
+    (clientY: number) => {
+      if (!isResizing.current || !callViewRef.current) return;
+      const { top } = callViewRef.current.getBoundingClientRect();
+      setHeight(Math.max(isMobile ? 120 : 150, Math.min(clientY - top, window.innerHeight * 0.8)));
+    },
+    [isMobile]
+  );
+
+  const handleMouseMove = useCallback((e: MouseEvent) => handleMove(e.clientY), [handleMove]);
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      handleMove(e.touches[0].clientY);
+    },
+    [handleMove]
+  );
 
   const stopResizing = useCallback(() => {
     isResizing.current = false;
     setIsDragging(false);
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', stopResizing);
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', stopResizing);
     document.body.style.userSelect = 'auto';
-  }, [handleMouseMove]);
+  }, [handleMouseMove, handleTouchMove]);
 
   const startResizing = useCallback(() => {
     isResizing.current = true;
     setIsDragging(true);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', stopResizing);
     document.body.style.userSelect = 'none';
-  }, [handleMouseMove, stopResizing]);
+  }, [handleMouseMove, handleTouchMove, stopResizing]);
 
   return (
     <Box
@@ -219,13 +239,14 @@ export function CallView({ resizable }: CallViewProps) {
         <button
           type="button"
           onMouseDown={startResizing}
+          onTouchStart={startResizing}
           aria-label="Resize call view"
           style={{
             position: 'absolute',
-            bottom: '-4px',
+            bottom: '-12px',
             left: 0,
             right: 0,
-            height: '8px',
+            height: '24px',
             cursor: 'ns-resize',
             zIndex: 100,
             display: 'flex',
@@ -236,15 +257,16 @@ export function CallView({ resizable }: CallViewProps) {
             padding: 0,
             outline: 'none',
             pointerEvents: 'all',
+            touchAction: 'none',
           }}
         >
           <div
             style={{
-              width: '32px',
+              width: '40px',
               height: '4px',
               borderRadius: '2px',
               background: 'var(--sable-surface-container-line)',
-              opacity: 0.6,
+              opacity: 0.8,
             }}
           />
         </button>

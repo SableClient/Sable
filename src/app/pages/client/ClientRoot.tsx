@@ -36,7 +36,12 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSyncState } from '$hooks/useSyncState';
 import { stopPropagation } from '$utils/keyboard';
 import { AuthMetadataProvider } from '$hooks/useAuthMetadata';
-import { sessionsAtom, activeSessionIdAtom, Session, SessionsAction } from '$state/sessions';
+import {
+  sessionsAtom,
+  activeSessionIdAtom,
+  type Session,
+  type SessionsAction,
+} from '$state/sessions';
 import { createLogger } from '$utils/debug';
 import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
@@ -45,6 +50,7 @@ import { useClientConfig } from '$hooks/useClientConfig';
 import { pushSessionToSW } from '../../../sw-session';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
+import { AutoDiscovery } from './AutoDiscovery';
 
 const log = createLogger('ClientRoot');
 
@@ -171,7 +177,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   const activeSession: Session | undefined =
     sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
 
-  const { baseUrl } = activeSession ?? {};
+  const { baseUrl, userId } = activeSession ?? {};
 
   const loadedUserIdRef = useRef<string | undefined>(undefined);
 
@@ -193,7 +199,9 @@ export function ClientRoot({ children }: ClientRootProps) {
       return newMx;
     }, [activeSession, activeSessionId, setActiveSessionId])
   );
+
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
+
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
       (m) =>
@@ -216,7 +224,6 @@ export function ClientRoot({ children }: ClientRootProps) {
         activeSession.userId,
         '— reloading client'
       );
-      // Update the SW immediately so media requests use the new account's token
       pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
       if (mx?.clientRunning) {
         stopClient(mx);
@@ -278,48 +285,57 @@ export function ClientRoot({ children }: ClientRootProps) {
       }
     }, [])
   );
+
   return (
-    <SpecVersions baseUrl={baseUrl}>
-      {mx && <SyncStatus mx={mx} />}
-      {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
-      {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
-        <SplashScreen>
-          <Box direction="Column" grow="Yes" alignItems="Center" justifyContent="Center" gap="400">
-            <Dialog>
-              <Box direction="Column" gap="400" style={{ padding: config.space.S400 }}>
-                {loadState.status === AsyncStatus.Error && (
-                  <Text>{`Failed to load. ${loadState.error.message}`}</Text>
-                )}
-                {startState.status === AsyncStatus.Error && (
-                  <Text>{`Failed to start. ${startState.error.message}`}</Text>
-                )}
-                <Button variant="Critical" onClick={mx ? () => startMatrix(mx) : loadMatrix}>
-                  <Text as="span" size="B400">
-                    Retry
-                  </Text>
-                </Button>
-              </Box>
-            </Dialog>
-          </Box>
-        </SplashScreen>
-      )}
-      {loading || !mx ? (
-        <ClientRootLoading />
-      ) : (
-        <MatrixClientProvider value={mx}>
-          <ServerConfigsLoader>
-            {(serverConfigs) => (
-              <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
-                <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
-                  <AuthMetadataProvider value={serverConfigs.authMetadata}>
-                    {children}
-                  </AuthMetadataProvider>
-                </MediaConfigProvider>
-              </CapabilitiesProvider>
-            )}
-          </ServerConfigsLoader>
-        </MatrixClientProvider>
-      )}
-    </SpecVersions>
+    <AutoDiscovery userId={userId} baseUrl={baseUrl}>
+      <SpecVersions baseUrl={baseUrl}>
+        {mx && <SyncStatus mx={mx} />}
+        {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
+        {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
+          <SplashScreen>
+            <Box
+              direction="Column"
+              grow="Yes"
+              alignItems="Center"
+              justifyContent="Center"
+              gap="400"
+            >
+              <Dialog>
+                <Box direction="Column" gap="400" style={{ padding: config.space.S400 }}>
+                  {loadState.status === AsyncStatus.Error && (
+                    <Text>{`Failed to load. ${loadState.error.message}`}</Text>
+                  )}
+                  {startState.status === AsyncStatus.Error && (
+                    <Text>{`Failed to start. ${startState.error.message}`}</Text>
+                  )}
+                  <Button variant="Critical" onClick={mx ? () => startMatrix(mx) : loadMatrix}>
+                    <Text as="span" size="B400">
+                      Retry
+                    </Text>
+                  </Button>
+                </Box>
+              </Dialog>
+            </Box>
+          </SplashScreen>
+        )}
+        {loading || !mx ? (
+          <ClientRootLoading />
+        ) : (
+          <MatrixClientProvider value={mx}>
+            <ServerConfigsLoader>
+              {(serverConfigs) => (
+                <CapabilitiesProvider value={serverConfigs.capabilities ?? {}}>
+                  <MediaConfigProvider value={serverConfigs.mediaConfig ?? {}}>
+                    <AuthMetadataProvider value={serverConfigs.authMetadata}>
+                      {children}
+                    </AuthMetadataProvider>
+                  </MediaConfigProvider>
+                </CapabilitiesProvider>
+              )}
+            </ServerConfigsLoader>
+          </MatrixClientProvider>
+        )}
+      </SpecVersions>
+    </AutoDiscovery>
   );
 }

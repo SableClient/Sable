@@ -151,8 +151,8 @@ export function RoomView({ eventId }: { eventId?: string }) {
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
             <Box grow="Yes" direction="Column">
               {showCallView && (
-                <Box shrink="No" style={{ height: '40vh', minHeight: toRem(300) }}>
-                  <CallView />
+                <Box shrink="No">
+                  <CallView resizable />
                 </Box>
               )}
               <RoomTimeline

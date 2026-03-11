@@ -1,11 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { MatrixEvent } from 'matrix-js-sdk';
+import { RoomStateEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
-import InviteSound from '$public/sound/invite.ogg';
+import RingtoneSound from '$public/sound/ringtone.webm';
 import { useMatrixClient } from './useMatrixClient';
 
 export function useCallSignaling() {
@@ -22,11 +22,11 @@ export function useCallSignaling() {
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
   useEffect(() => {
-    const inc = new Audio(InviteSound);
+    const inc = new Audio(RingtoneSound);
     inc.loop = true;
     incomingAudioRef.current = inc;
 
-    const out = new Audio(InviteSound);
+    const out = new Audio(RingtoneSound);
     out.loop = true;
     outgoingAudioRef.current = out;
 
@@ -58,9 +58,7 @@ export function useCallSignaling() {
   const playRinging = useCallback(
     (roomId: string) => {
       if (incomingAudioRef.current && ringingRoomIdRef.current !== roomId) {
-        incomingAudioRef.current.play().catch(() => {
-          /* ignore autoplay error */
-        });
+        incomingAudioRef.current.play().catch(() => {});
         ringingRoomIdRef.current = roomId;
         setIncomingCall(roomId);
       }
@@ -76,8 +74,8 @@ export function useCallSignaling() {
 
       const signal = [...mDirects].reduce<{ incoming: string | null; outgoing: string | null }>(
         (found, roomId) => {
-          if (found.incoming) return found;
-          if (mutedRoomId === roomId) return found;
+          if (found.incoming || mutedRoomId === roomId) return found;
+
           const room = mx.getRoom(roomId);
           if (!room) return found;
 
@@ -90,18 +88,11 @@ export function useCallSignaling() {
           const remoteMembers = memberships.filter((m: any) => (m.userId || m.sender) !== myUserId);
           const isSelfInCall = memberships.some((m: any) => (m.userId || m.sender) === myUserId);
 
-          if (remoteMembers.length > 0 && !isSelfInCall) {
-            return { ...found, incoming: roomId };
-          }
+          if (remoteMembers.length > 0 && !isSelfInCall) return { ...found, incoming: roomId };
+
           if (isSelfInCall && remoteMembers.length === 0) {
-            if (!outgoingStartRef.current) {
-              outgoingStartRef.current = now;
-            }
-            const elapsed = now - outgoingStartRef.current;
-            if (elapsed < 30000) {
-              return { ...found, outgoing: roomId };
-            }
-            // call timed out
+            if (!outgoingStartRef.current) outgoingStartRef.current = now;
+            if (now - outgoingStartRef.current < 30000) return { ...found, outgoing: roomId };
           }
 
           return found;
@@ -113,63 +104,36 @@ export function useCallSignaling() {
         playRinging(signal.incoming);
       } else if (signal.outgoing) {
         playOutgoingRinging(signal.outgoing);
-      } else if (ringingRoomIdRef.current) {
-        stopRinging();
+      } else {
+        if (ringingRoomIdRef.current) stopRinging();
+        outgoingStartRef.current = null;
       }
     };
 
-    const handleSessionStarted = (roomId: string) => {
-      if (mDirects.has(roomId)) {
-        checkDMsForActiveCalls();
-      }
-    };
+    const interval = setInterval(() => {
+      if (outgoingStartRef.current) checkDMsForActiveCalls();
+    }, 1000);
 
+    const handleUpdate = () => checkDMsForActiveCalls();
     const handleSessionEnded = (roomId: string) => {
-      if (mutedRoomId === roomId) {
-        setMutedRoomId(null);
-      }
+      if (mutedRoomId === roomId) setMutedRoomId(null);
       checkDMsForActiveCalls();
     };
 
-    const handleRoomState = (event: MatrixEvent) => {
-      const type = event.getType();
-
-      if (type === 'org.matrix.msc4075.rtc.notification') {
-        const content = event.getContent();
-        const sender = event.getSender();
-        const serverTs = event.getTs();
-        const senderTs = content.sender_ts || serverTs;
-        const lifetime = content.lifetime || 30000;
-
-        const now = Date.now();
-        const isExpired = now - senderTs > lifetime;
-
-        if (isExpired) {
-          return;
-        }
-
-        if (content.notification_type === 'ring' && sender !== mx.getUserId()) {
-          playRinging(event.getRoomId()!);
-          return;
-        }
-      }
-
-      checkDMsForActiveCalls();
-    };
-
-    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, handleSessionStarted);
+    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
     mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
-    mx.on('RoomState.events' as any, handleRoomState);
+    mx.on(RoomStateEvent.Events, handleUpdate);
 
     checkDMsForActiveCalls();
 
-    function cleanup() {
-      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, handleSessionStarted);
+    return () => {
+      clearInterval(interval);
+      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
-      mx.off('RoomState.events' as any, handleRoomState);
+      mx.off(RoomStateEvent.Events, handleUpdate);
       stopRinging();
-    }
+    };
+  }, [mx, mDirects, playRinging, stopRinging, mutedRoomId, setMutedRoomId, playOutgoingRinging]);
 
-    return cleanup;
-  }, [mx, mDirects, playRinging, stopRinging, mutedRoomId, setMutedRoomId]);
+  return null;
 }

@@ -1,0 +1,25 @@
+engineStrict: true
+minimumReleaseAge: 1440
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true
+
+overrides:
+  serialize-javascript: '>=7.0.3'
+  rollup: '>=4.59.0'
+  minimatch: '>=10.2.3'
+  lodash: '>=4.17.23'
+  esbuild: '>=0.25.0'
+  brace-expansion: '>=1.1.12'
+
+peerDependencyRules:
+  allowedVersions:
+    'folds>@vanilla-extract/css': '1.18.0'
+    'folds>@vanilla-extract/recipes': '0.5.7'
+    'folds>classnames': '2.5.1'
+    'folds>react': '18.3.1'
+    'folds>react-dom': '18.3.1'

@@ -39,10 +39,10 @@ Also, we use [ESLint](https://eslint.org/) for clean and stylistically consisten
 
 **Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, and `knip` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
 
-- `npm run fmt:check`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run knip`
+- `pnpm run fmt:check`
+- `pnpm run lint`
+- `pnpm run typecheck`
+- `pnpm run knip`
 
 ## Restrictions on Generative AI Usage
 
@@ -62,7 +62,7 @@ We use [Knope](https://knope.tech/) with the Knope GitHub Bot to manage change d
 
 If you have used [Changesets](https://github.com/changesets/changesets) before, Knope should feel very similar. The main difference is scope: Changesets is typically used for JavaScript repositories because it relies on `package.json`, while Knope is multi-language.
 
-If you prefer, you can install the Knope CLI yourself using the [official installation guide](https://knope.tech/installation/). This repo also exposes the CLI through npm scripts, so you can run `npm run knope -- <subcommand>` (for example: `npm run knope -- document-change`). Otherwise, this repo installs Knope for you via `postinstall`, so running `npm i` is enough.
+If you prefer, you can install the Knope CLI yourself using the [official installation guide](https://knope.tech/installation/). This repo also exposes the CLI through pnpm scripts, so you can run `pnpm run knope -- <subcommand>` (for example: `pnpm run knope -- document-change`). Otherwise, this repo installs Knope for you via `postinstall`, so running `pnpm i` is enough.
 
 ### Documenting a change
 
@@ -72,8 +72,8 @@ For user-facing pull requests, add one before requesting review.
 
 CLI paths:
 
-- `npm run document-change`
-- `npm run knope -- document-change`
+- `pnpm run document-change`
+- `pnpm run knope -- document-change`
 - `knope document-change` (if Knope is installed locally)
 
 All commands open an interactive prompt; fill in the package, change type, and short summary, then commit the generated change file in your PR.
@@ -112,11 +112,11 @@ Releases are driven by Knope Bot (`[bot.releases].enabled = true`):
 
 Maintainers can preview behavior without changing files:
 
-- `npm run knope -- release --dry-run`
+- `pnpm run knope -- release --dry-run`
 
 You can also validate the local Knope config with:
 
-- `npm run knope -- --validate`
+- `pnpm run knope -- --validate`
 
 **For any query or design discussion, join our [Matrix room](https://matrix.to/#/#sable:sable.moe).**
 

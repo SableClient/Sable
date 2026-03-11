@@ -28,6 +28,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl, roomHaveUnread } from '$utils/room';
 import { nameInitials } from '$utils/common';
+import { AvatarUnreadBadge } from '$components/avatar-unread-badge';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
@@ -60,18 +61,18 @@ import { useRoomName } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
-// Upstream Call Hooks
+// Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallStart } from '$hooks/useCallEmbed';
 import { callChatAtom } from '$state/callEmbed';
 import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
 import { CallControlState } from '$plugins/call/CallControlState';
+import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
+import { livekitSupport } from '$hooks/useLivekitSupport';
 import { RoomNavUser } from './RoomNavUser';
 
 /**
- * Reactively checks whether a room has unread messages, even if the
- * push-rule notification count is zero (e.g. mentions-only rooms with
- * new regular messages).
+ * Reactively checks whether a room has unread messages.
  */
 function useRoomHasUnread(room: Room): boolean {
   const mx = useMatrixClient();
@@ -278,25 +279,23 @@ export function RoomNavItem({
     (receipt) => receipt.userId !== mx.getUserId()
   );
 
-  // Name Resolution
   const nicknames = useAtomValue(nicknamesAtom);
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
 
-  // Navigation & Context
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
 
-  // Call Hooks (Merged from upstream)
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const startCall = useCallStart(direct);
   const callEmbed = useCallEmbed();
   const callPref = useAtomValue(useCallPreferencesAtom());
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
+  const autoDiscoveryInfo = useAutoDiscoveryInfo();
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
@@ -316,6 +315,10 @@ export function RoomNavItem({
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
     if (room.isCallRoom()) {
+      // Upstream safety checks: verify Livekit support or active participants
+      if (!livekitSupport(autoDiscoveryInfo) && callMembers.length === 0) return;
+      if (callEmbed && !isActiveCall) return;
+
       if (!isMobile) {
         if (!isActiveCall && !callEmbed) {
           startCall(
@@ -377,38 +380,44 @@ export function RoomNavItem({
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
             <Box as="span" grow="Yes" alignItems="Center" gap="200">
-              <Avatar size="200" radii="400">
-                {showAvatar ? (
-                  <RoomAvatar
-                    roomId={room.roomId}
-                    src={
-                      direct
-                        ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                        : getRoomAvatarUrl(mx, room, 96, useAuthentication)
-                    }
-                    uniformIcons
-                    alt={roomName}
-                    renderFallback={() => (
-                      <Text as="span" size="H6">
-                        {nameInitials(roomName)}
-                      </Text>
-                    )}
-                  />
-                ) : (
-                  <RoomIcon
-                    style={{
-                      opacity:
-                        unread || hasRoomUnread || isActiveCall
-                          ? config.opacity.P500
-                          : config.opacity.P300,
-                    }}
-                    filled={selected || isActiveCall}
-                    size="100"
-                    joinRule={room.getJoinRule()}
-                    roomType={room.getType()}
-                  />
-                )}
-              </Avatar>
+              <AvatarUnreadBadge
+                showBadge={direct && !!unread && !optionsVisible}
+                count={unreadCount}
+                highlight={!!unread && unread.highlight > 0}
+              >
+                <Avatar size="200" radii="400">
+                  {showAvatar ? (
+                    <RoomAvatar
+                      roomId={room.roomId}
+                      src={
+                        direct
+                          ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                          : getRoomAvatarUrl(mx, room, 96, useAuthentication)
+                      }
+                      uniformIcons
+                      alt={roomName}
+                      renderFallback={() => (
+                        <Text as="span" size="H6">
+                          {nameInitials(roomName)}
+                        </Text>
+                      )}
+                    />
+                  ) : (
+                    <RoomIcon
+                      style={{
+                        opacity:
+                          unread || hasRoomUnread || isActiveCall
+                            ? config.opacity.P500
+                            : config.opacity.P300,
+                      }}
+                      filled={selected || isActiveCall}
+                      size="100"
+                      joinRule={room.getJoinRule()}
+                      roomType={room.getType()}
+                    />
+                  )}
+                </Avatar>
+              </AvatarUnreadBadge>
               <Box as="span" grow="Yes">
                 <Text
                   priority={unread || hasRoomUnread || isActiveCall ? '500' : '300'}
@@ -424,7 +433,7 @@ export function RoomNavItem({
                   <TypingIndicator size="300" disableAnimation />
                 </Badge>
               )}
-              {!optionsVisible && (unread || hasRoomUnread) && (
+              {!optionsVisible && (unread || hasRoomUnread) && !direct && (
                 <UnreadBadgeCenter>
                   <UnreadBadge
                     highlight={!!unread && unread.highlight > 0}

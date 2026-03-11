@@ -1,5 +1,11 @@
+## Base
+FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
 ## Builder
-FROM --platform=$BUILDPLATFORM node:24.13.1-alpine AS builder
+FROM base AS builder
 
 WORKDIR /src
 
@@ -7,12 +13,12 @@ ARG VITE_BUILD_HASH
 ARG VITE_IS_RELEASE_TAG=false
 ENV VITE_BUILD_HASH=$VITE_BUILD_HASH
 ENV VITE_IS_RELEASE_TAG=$VITE_IS_RELEASE_TAG
-
-COPY .npmrc package.json package-lock.json /src/
-RUN npm ci --ignore-scripts
+COPY pnpm-lock.yaml /src/
+RUN pnpm fetch
 COPY . /src/
+RUN pnpm install --offline --frozen-lockfile --ignore-scripts
 ENV NODE_OPTIONS=--max_old_space_size=4096
-RUN npm run build
+RUN pnpm run build
 
 ## Dist
 FROM scratch AS site-dist

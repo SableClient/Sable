@@ -87,16 +87,16 @@ export const scaleYDimension = (x: number, scaledX: number, y: number): number =
 };
 
 export const parseGeoUri = (location: string) => {
-  if (!location) return null;
+  if (!location) return undefined;
 
   const [, data] = location.split(':');
-  if (!data) return null;
+  if (!data) return undefined;
 
   const [cords] = data.split(';');
-  if (!cords) return null;
+  if (!cords) return undefined;
 
   const [latitude, longitude] = cords.split(',');
-  if (!latitude || !longitude) return null;
+  if (!latitude || !longitude) return undefined;
 
   return {
     latitude,
@@ -112,8 +112,8 @@ export const trimTrailingSlash = (str: string): string => str.replace(END_SLASHE
 export const trimSlash = (str: string): string => trimLeadingSlash(trimTrailingSlash(str));
 
 export const nameInitials = (str: string | undefined | null, len = 1): string => {
-  if (!str) return '�';
-  return [...str].slice(0, len).join('') || '�';
+  if (!str) return '';
+  return [...str].slice(0, len).join('') || '';
 };
 
 export const randomStr = (len = 12): string => {

@@ -42,6 +42,7 @@ import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
 import { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hooks/types';
 import { FieldError } from '$pages/auth/FiledError';
+import { deviceDisplayName } from '$utils/user-agent';
 import { RegisterError, RegisterResult, register, useRegisterComplete } from './registerUtil';
 
 export const SUPPORTED_REGISTER_STAGES = [
@@ -109,7 +110,7 @@ function RegisterUIAFlow({
         auth: authDict,
         password,
         username,
-        initial_device_display_name: 'Sable Web',
+        initial_device_display_name: deviceDisplayName(),
       });
     },
     [onRegister, formData]
@@ -250,7 +251,7 @@ export function PasswordRegisterForm({
       auth: {
         session: authData.session,
       },
-      initial_device_display_name: 'Sable Web',
+      initial_device_display_name: deviceDisplayName(),
     });
   };
 

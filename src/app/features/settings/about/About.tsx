@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -7,7 +8,6 @@ import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
-import { useState } from 'react';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 
 export function HomeserverInfo() {
@@ -15,7 +15,6 @@ export function HomeserverInfo() {
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<any>(undefined);
 
-  // By default assume the federationUrl is the same as the baseUrl.
   if (!version)
     mx.http
       .request(Method.Get, '/version', undefined, undefined, {
@@ -25,7 +24,6 @@ export function HomeserverInfo() {
       .then((fetched_version) => setVersion(fetched_version))
       .catch((error) => {
         if (federationUrl === mx.baseUrl) {
-          // Maybe they are *not* the same actually.
           mx.http
             .request(Method.Get, '/server', undefined, undefined, {
               prefix: '/.well-known/matrix',

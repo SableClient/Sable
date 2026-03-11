@@ -5,10 +5,13 @@
     "interface": true,
     "type": true
   },
+  "ignoreFiles": ["crates/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@element-hq/element-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm"
+    "@matrix-org/matrix-sdk-crypto-wasm",
+    "workbox-precaching",
+    "tauri-plugin-splashscreen-api"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

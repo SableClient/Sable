@@ -28,6 +28,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl, roomHaveUnread } from '$utils/room';
 import { nameInitials } from '$utils/common';
+import { AvatarUnreadBadge } from '$components/avatar-unread-badge';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
@@ -379,38 +380,44 @@ export function RoomNavItem({
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
             <Box as="span" grow="Yes" alignItems="Center" gap="200">
-              <Avatar size="200" radii="400">
-                {showAvatar ? (
-                  <RoomAvatar
-                    roomId={room.roomId}
-                    src={
-                      direct
-                        ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                        : getRoomAvatarUrl(mx, room, 96, useAuthentication)
-                    }
-                    uniformIcons
-                    alt={roomName}
-                    renderFallback={() => (
-                      <Text as="span" size="H6">
-                        {nameInitials(roomName)}
-                      </Text>
-                    )}
-                  />
-                ) : (
-                  <RoomIcon
-                    style={{
-                      opacity:
-                        unread || hasRoomUnread || isActiveCall
-                          ? config.opacity.P500
-                          : config.opacity.P300,
-                    }}
-                    filled={selected || isActiveCall}
-                    size="100"
-                    joinRule={room.getJoinRule()}
-                    roomType={room.getType()}
-                  />
-                )}
-              </Avatar>
+              <AvatarUnreadBadge
+                showBadge={direct && !!unread && !optionsVisible}
+                count={unreadCount}
+                highlight={!!unread && unread.highlight > 0}
+              >
+                <Avatar size="200" radii="400">
+                  {showAvatar ? (
+                    <RoomAvatar
+                      roomId={room.roomId}
+                      src={
+                        direct
+                          ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                          : getRoomAvatarUrl(mx, room, 96, useAuthentication)
+                      }
+                      uniformIcons
+                      alt={roomName}
+                      renderFallback={() => (
+                        <Text as="span" size="H6">
+                          {nameInitials(roomName)}
+                        </Text>
+                      )}
+                    />
+                  ) : (
+                    <RoomIcon
+                      style={{
+                        opacity:
+                          unread || hasRoomUnread || isActiveCall
+                            ? config.opacity.P500
+                            : config.opacity.P300,
+                      }}
+                      filled={selected || isActiveCall}
+                      size="100"
+                      joinRule={room.getJoinRule()}
+                      roomType={room.getType()}
+                    />
+                  )}
+                </Avatar>
+              </AvatarUnreadBadge>
               <Box as="span" grow="Yes">
                 <Text
                   priority={unread || hasRoomUnread || isActiveCall ? '500' : '300'}
@@ -426,7 +433,7 @@ export function RoomNavItem({
                   <TypingIndicator size="300" disableAnimation />
                 </Badge>
               )}
-              {!optionsVisible && (unread || hasRoomUnread) && (
+              {!optionsVisible && (unread || hasRoomUnread) && !direct && (
                 <UnreadBadgeCenter>
                   <UnreadBadge
                     highlight={!!unread && unread.highlight > 0}

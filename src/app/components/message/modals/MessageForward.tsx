@@ -153,26 +153,52 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
     type SendEventContent = Parameters<typeof mx.sendEvent>[3];
 
     const eventType = mEvent.getType() as SendEventType;
+    const originalContent = mEvent.getContent();
+    const isTextMessage = originalContent.msgtype === 'm.text';
     // using reference relation to indicate that this is a forwarded message,
     // which allows clients to display it as such
 
-    const bodyModifText = `(Forwarded message from ${isPrivate ? 'a private room' : (getRoom(room.roomId)?.name ?? 'a room')})`;
+    const originalBody = typeof originalContent.body === 'string' ? originalContent.body : '';
+    const originalFormattedBody =
+      originalContent.format === 'org.matrix.custom.html' &&
+      typeof originalContent.formatted_body === 'string'
+        ? originalContent.formatted_body
+        : undefined;
+
+    const bodyModifText = `(Forwarded message from ${
+      isPrivate ? 'a private room' : (getRoom(room.roomId)?.name ?? 'a room')
+    })`;
+
     let newBodyPlain = '';
     let newBodyHtml = '';
     // transform if msgtype is m.text
-    if (mEvent.getContent().msgtype === 'm.text') {
-      const original = mEvent.getContent().body;
-      newBodyPlain = `${bodyModifText}\n\n${original
+    if (isTextMessage) {
+      const quotedBody = originalBody
         .split('\n')
-        .map((l: string) => `> ${l}`)
-        .join('\n')}`;
-      const safeHtml = sanitizeCustomHtml(original).replace(/\n/g, '<br>');
+        .map((line) => `> ${line}`)
+        .join('\n');
+
+      newBodyPlain = originalBody.length > 0 ? `${bodyModifText}\n\n${quotedBody}` : bodyModifText;
+
+      const safeHtml =
+        originalFormattedBody !== undefined
+          ? sanitizeCustomHtml(originalFormattedBody)
+          : sanitizeCustomHtml(originalBody).replace(/\n/g, '<br>');
+
       newBodyHtml =
-        `<div class="forwarded" data-forward-marker>` +
+        `<div data-forward-marker>` +
         `<p>${sanitizeCustomHtml(bodyModifText)}</p>` +
         `<blockquote>${safeHtml}</blockquote>` +
         `</div>`;
     }
+    // the quoted body
+    const forwardedTextContent = isTextMessage
+      ? {
+          body: newBodyPlain,
+          format: 'org.matrix.custom.html',
+          formatted_body: newBodyHtml,
+        }
+      : {};
     let content;
     // handle privacy stuff
     if (isPrivate) {
@@ -180,9 +206,7 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
       // we can still include the original message content in the body of the message, so we'll just use a fallback text/plain content with the original message body
       content = {
         ...mEvent.getContent(),
-        body: newBodyPlain,
-        format: 'org.matrix.custom.html',
-        formatted_body: newBodyHtml,
+        ...forwardedTextContent,
         'moe.sable.message.forward': {
           v: 1,
           is_forwarded: true,
@@ -193,9 +217,7 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
     } else {
       content = {
         ...mEvent.getContent(),
-        body: newBodyPlain,
-        format: 'org.matrix.custom.html',
-        formatted_body: newBodyHtml,
+        ...forwardedTextContent,
         'm.relates_to': {
           rel_type: 'm.reference',
           event_id: eventId,

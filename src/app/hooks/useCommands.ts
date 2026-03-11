@@ -241,6 +241,13 @@ export enum Command {
   SetExt = 'setext',
   DelExt = 'delext',
   DiscardSession = 'discardsession',
+  // Cute Events
+  Hug = 'hug',
+  Cuddle = 'cuddle',
+  // our own cute events, not part of FluffyChat or other clients
+  Wave = 'wave',
+  Poke = 'poke',
+  Headpat = 'headpat',
 }
 
 export type CommandContent = {
@@ -1293,6 +1300,83 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: any) {
             sendFeedback(`Failed to discard session: ${e.message}`);
           }
+        },
+      },
+      // Cute Events
+      [Command.Hug]: {
+        name: Command.Hug,
+        description: 'Send a hug to someone. Example: /hug [@user:example.org]',
+        exe: async (payload) => {
+          const target = payload.trim();
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'im.fluffychat.cute_event',
+            'm.mentions': {
+              user_ids: target ? [target] : [],
+            },
+            cute_type: 'hug',
+            body: `🤗`,
+          } as any);
+        },
+      },
+      [Command.Cuddle]: {
+        name: Command.Cuddle,
+        description: 'Send a cuddle to someone. Example: /cuddle [@user:example.org]',
+        exe: async (payload) => {
+          const target = payload.trim();
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'im.fluffychat.cute_event',
+            cute_type: 'cuddle',
+            'm.mentions': {
+              user_ids: target ? [target] : [],
+            },
+            body: `😊`,
+          } as any);
+        },
+      },
+      [Command.Wave]: {
+        name: Command.Wave,
+        description: 'Send a wave to someone. Example: /wave [@user:example.org]',
+        exe: async (payload) => {
+          const target = payload.trim();
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'im.fluffychat.cute_event',
+            cute_type: 'wave',
+            'm.mentions': {
+              user_ids: target ? [target] : [],
+            },
+            body: `👋`,
+          } as any);
+        },
+      },
+      [Command.Poke]: {
+        name: Command.Poke,
+        description: 'Send a poke to someone. Example: /poke [@user:example.org]',
+        exe: async (payload) => {
+          const target = payload.trim();
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'im.fluffychat.cute_event',
+            cute_type: 'poke',
+            'm.mentions': {
+              user_ids: target ? [target] : [],
+            },
+            body: `🫵`,
+          } as any);
+        },
+      },
+      [Command.Headpat]: {
+        name: Command.Headpat,
+        description: 'Send a headpat to someone. Example: /headpat [@user:example.org]',
+        // not really like any of the other cute events, but it was too good not to include
+        // using a custom msgtype to avoid confusion with the other existing cute events
+        exe: async (payload) => {
+          const target = payload.trim();
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'fyi.cisnt.headpat',
+            'm.mentions': {
+              user_ids: target ? [target] : [],
+            },
+            body: `*pat pat*`,
+          } as any);
         },
       },
     }),

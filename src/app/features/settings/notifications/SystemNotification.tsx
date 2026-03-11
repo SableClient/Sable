@@ -1,9 +1,8 @@
 /* eslint-disable no-nested-ternary */
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Text, Switch, Button, color, Spinner } from 'folds';
 import { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
-import { isTauri } from '@tauri-apps/api/core';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
@@ -22,8 +21,6 @@ import {
   disablePushNotifications,
 } from './PushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
-
-const LazyUnifiedPushNotificationSetting = lazy(() => import('./UnifiedPushNotificationSetting'));
 
 function EmailNotification() {
   const mx = useMatrixClient();
@@ -101,7 +98,6 @@ function EmailNotification() {
 function WebPushNotificationSetting() {
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
-  const isTauriApp = isTauri();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [usePushNotifications, setPushNotifications] = useSetting(
     settingsAtom,
@@ -113,16 +109,7 @@ function WebPushNotificationSetting() {
   useEffect(() => {
     setIsLoading(false);
   }, []);
-
-  useEffect(() => {
-    if (isTauriApp && usePushNotifications) {
-      setPushNotifications(false);
-    }
-  }, [isTauriApp, usePushNotifications, setPushNotifications]);
-
   const handleRequestPermissionAndEnable = async () => {
-    if (isTauriApp) return;
-
     setIsLoading(true);
     try {
       const permissionResult = await requestBrowserNotificationPermission();
@@ -136,8 +123,6 @@ function WebPushNotificationSetting() {
   };
 
   const handlePushSwitchChange = async (wantsPush: boolean) => {
-    if (isTauriApp && wantsPush) return;
-
     setIsLoading(true);
 
     try {
@@ -156,11 +141,7 @@ function WebPushNotificationSetting() {
     <SettingTile
       title="Background Push Notifications"
       description={
-        isTauriApp ? (
-          <Text as="span" style={{ color: color.Warning.Main }} size="T200">
-            Unavailable in Tauri runtime.
-          </Text>
-        ) : browserPermission === 'denied' ? (
+        browserPermission === 'denied' ? (
           <Text as="span" style={{ color: color.Critical.Main }} size="T200">
             Permission blocked. Please allow notifications in your browser settings.
           </Text>
@@ -172,20 +153,11 @@ function WebPushNotificationSetting() {
         isLoading ? (
           <Spinner variant="Secondary" />
         ) : browserPermission === 'prompt' ? (
-          <Button
-            size="300"
-            radii="300"
-            onClick={handleRequestPermissionAndEnable}
-            disabled={isTauriApp}
-          >
+          <Button size="300" radii="300" onClick={handleRequestPermissionAndEnable}>
             <Text size="B300">Enable</Text>
           </Button>
         ) : browserPermission === 'granted' ? (
-          <Switch
-            value={usePushNotifications}
-            onChange={handlePushSwitchChange}
-            disabled={isTauriApp && !usePushNotifications}
-          />
+          <Switch value={usePushNotifications} onChange={handlePushSwitchChange} />
         ) : null
       }
     />
@@ -193,7 +165,6 @@ function WebPushNotificationSetting() {
 }
 
 export function SystemNotification() {
-  const isTauriApp = isTauri();
   const [showInAppNotifs, setShowInAppNotifs] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifs, setShowSystemNotifs] = useSetting(
     settingsAtom,
@@ -215,10 +186,39 @@ export function SystemNotification() {
     settingsAtom,
     'clearNotificationsOnRead'
   );
+  const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
+  const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
+  const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+
+  // Describe what the current badge combo actually does so users aren't left guessing.
+  const badgeBehaviourSummary = (): string => {
+    if (!showUnreadCounts && !showPingCounts) {
+      return 'Badges show a plain dot for any unread activity — no numbers displayed.';
+    }
+    if (!showUnreadCounts && showPingCounts) {
+      return 'Badges show a number only when you are directly mentioned; all other unread activity shows a plain dot.';
+    }
+    if (showUnreadCounts && badgeCountDMsOnly) {
+      return 'Only Direct Message badges show a number count. Rooms and spaces show a plain dot instead.';
+    }
+    return 'All rooms and DMs show a number count for every unread message.';
+  };
 
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="In-App Notifications"
+          description="Show a notification banner inside the app when a message arrives."
+          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
+        />
+      </SequenceCard>
       {mobileOrTablet() && (
         <SequenceCard
           className={SequenceCardStyle}
@@ -226,33 +226,7 @@ export function SystemNotification() {
           direction="Column"
           gap="400"
         >
-          <SettingTile
-            title="Mobile In-App Notifications"
-            description="Show a notification banner inside the app when a message arrives."
-            after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-          />
-        </SequenceCard>
-      )}
-      {mobileOrTablet() && !isTauriApp && (
-        <SequenceCard
-          className={SequenceCardStyle}
-          variant="SurfaceVariant"
-          direction="Column"
-          gap="400"
-        >
           <WebPushNotificationSetting />
-        </SequenceCard>
-      )}
-      {isTauriApp && (
-        <SequenceCard
-          className={SequenceCardStyle}
-          variant="SurfaceVariant"
-          direction="Column"
-          gap="400"
-        >
-          <Suspense fallback={<Spinner variant="Secondary" />}>
-            <LazyUnifiedPushNotificationSetting />
-          </Suspense>
         </SequenceCard>
       )}
       {!mobileOrTablet() && (
@@ -264,11 +238,23 @@ export function SystemNotification() {
         >
           <SettingTile
             title="System Notifications"
-            description="Show an OS-level notification banner when a message arrives while the app is open. On mobile, the in-app banner is used instead."
+            description="Show an OS-level notification banner when a message arrives while the app is open."
             after={<Switch value={showSystemNotifs} onChange={setShowSystemNotifs} />}
           />
         </SequenceCard>
       )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="In-App Notification Sound"
+          description="Play a sound inside the app when a new message arrives."
+          after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
+        />
+      </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -317,18 +303,6 @@ export function SystemNotification() {
         direction="Column"
         gap="400"
       >
-        <SettingTile
-          title="Notification Sound"
-          description="Play sound when new message arrives and app is open."
-          after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
         <EmailNotification />
       </SequenceCard>
 
@@ -339,6 +313,56 @@ export function SystemNotification() {
         gap="400"
       >
         <DeregisterAllPushersSetting />
+      </SequenceCard>
+
+      <Text size="L400">Badges</Text>
+      <Text size="T300" style={{ opacity: 0.7 }}>
+        {badgeBehaviourSummary()}
+      </Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Show Message Counts"
+          description="Show a number on room, space, and DM badges for every unread message."
+          after={
+            <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Direct Messages Only"
+          description="Only DM badges display a count. Room and space badges show a plain dot instead."
+          after={
+            <Switch
+              variant="Primary"
+              value={badgeCountDMsOnly}
+              onChange={setBadgeCountDMsOnly}
+              disabled={!showUnreadCounts}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Always Count Mentions"
+          description="Show a number on any badge where you were directly mentioned, even if message counts are turned off."
+          after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
+        />
       </SequenceCard>
     </Box>
   );

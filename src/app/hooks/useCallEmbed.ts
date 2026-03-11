@@ -2,6 +2,8 @@ import { createContext, RefObject, useCallback, useContext, useEffect, useState 
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixClient, Room } from 'matrix-js-sdk';
 import { useSetAtom } from 'jotai';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 import {
   CallEmbed,
   ElementCallThemeKind,
@@ -13,6 +15,7 @@ import { ThemeKind, useTheme } from './useTheme';
 import { callEmbedAtom } from '../state/callEmbed';
 import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
+import { useCallMembersChange, useCallSession } from './useCall';
 
 const CallEmbedContext = createContext<CallEmbed | undefined>(undefined);
 
@@ -77,6 +80,19 @@ export const useCallStart = (dm = false) => {
 
 export const useCallJoined = (embed?: CallEmbed): boolean => {
   const [joined, setJoined] = useState(embed?.joined ?? false);
+  const [allowPip] = useSetting(settingsAtom, 'allowPipVideos');
+
+  if (embed && allowPip) {
+    const removeDisablePictureInPicture = (mutated: any) => {
+      mutated.forEach((event: any) => {
+        Array.from(event.target.getElementsByTagName('video')).forEach((video: any) => {
+          video.removeAttribute('disablepictureinpicture');
+        });
+      });
+    };
+    const pipObserver = new MutationObserver(removeDisablePictureInPicture);
+    pipObserver.observe(embed.iframe.contentDocument!, { subtree: true, childList: true });
+  }
 
   useClientWidgetApiEvent(
     embed?.call,
@@ -99,6 +115,14 @@ export const useCallHangupEvent = (embed: CallEmbed, callback: () => void) => {
   useClientWidgetApiEvent(embed.call, ElementWidgetActions.HangupCall, callback);
 };
 
+export const useCallMemberSoundSync = (embed: CallEmbed) => {
+  const callSession = useCallSession(embed.room);
+  useCallMembersChange(
+    callSession,
+    useCallback(() => embed.control.applySound(), [embed])
+  );
+};
+
 export const useCallThemeSync = (embed: CallEmbed) => {
   const theme = useTheme();
 
@@ -109,7 +133,7 @@ export const useCallThemeSync = (embed: CallEmbed) => {
   }, [theme.kind, embed]);
 };
 
-export const useSyncCallEmbedPlacement = (containerViewRef: RefObject<HTMLDivElement>): void => {
+export const useCallEmbedPlacementSync = (containerViewRef: RefObject<HTMLDivElement>): void => {
   const callEmbedRef = useCallEmbedRef();
 
   const syncCallEmbedPlacement = useCallback(() => {

@@ -15,6 +15,7 @@ import {
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { NotificationModeSwitcher } from './NotificationModeSwitcher';
+import { NotificationLevelsHint } from './NotificationLevelsHint';
 
 const NOTIFY_MODE_OPS: NotificationModeOptions = {
   highlight: true,
@@ -163,13 +164,17 @@ export function KeywordMessagesNotifications() {
     <Box direction="Column" gap="100">
       <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
         <Text size="L400">Keyword Messages</Text>
-        <Box gap="100">
+        <Box gap="100" alignItems="Center">
+          <NotificationLevelsHint />
           <Text size="T200">Badge: </Text>
           <Badge radii="300" variant="Success" fill="Solid">
             <Text size="L400">1</Text>
           </Badge>
         </Box>
       </Box>
+      <Text size="T300" priority="300">
+        Custom keywords that trigger notifications when matched in a message body.
+      </Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

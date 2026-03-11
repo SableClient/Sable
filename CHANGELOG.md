@@ -1,5 +1,28 @@
 # Sable Client Changelog
 
+## 1.5.3 (2026-03-08)
+
+### Fixes
+
+* Fix scroll clamping to bottom while scrolling up.
+* Fix message links sometimes scrolling to bottom of timeline instead of message + maybe other scroll bugs.
+* Merge upstream call fixes
+* Fix crash when invalid location events are sent.
+* Add rendering of per-message-profiles.
+* custom emojis are now also visible in forwards, instead of being reduced to it's shortcode
+
+* fix: default badge unread counts to off
+
+## 1.5.2 (2026-03-08)
+
+### Fixes
+
+* Add `/hug`, `/cuddle`, `/wave`, `/headpat`, and `/poke` slash commands.
+* Swap Caddy port to 8080 + fixes for MDAD setups.
+* Adjust media sizing and URL preview layout
+* Fix picture in picture setting not effecting element-call
+* Fixed an issue where the app would fail to load after completing SSO login (e.g., logging in with matrix.org). Users are now correctly redirected to the app after SSO authentication completes.
+
 ## 1.5.1 (2026-03-08)
 
 ### Fixes

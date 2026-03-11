@@ -5,7 +5,6 @@ export const UrlPreview = style([
   DefaultReset,
   {
     width: toRem(400),
-    minHeight: toRem(102),
     backgroundColor: color.SurfaceVariant.Container,
     color: color.SurfaceVariant.OnContainer,
     border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,

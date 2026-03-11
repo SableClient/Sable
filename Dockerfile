@@ -21,5 +21,11 @@ COPY --from=builder /src/dist /
 ## App
 FROM caddy:2-alpine
 
+# Strip the file capability set by the base image (cap_net_bind_service=+ep).
+# With --cap-drop=ALL the bounding set is empty, and the kernel refuses to exec
+# any binary that has file capabilities not present in the bounding set — even
+# if those capabilities aren't actually needed at runtime (we listen on :8080).
+RUN setcap -r /usr/bin/caddy
+
 COPY --from=site-dist / /app
 COPY Caddyfile /etc/caddy/Caddyfile

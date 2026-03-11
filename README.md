@@ -29,7 +29,7 @@ Prebuilt images are published to `ghcr.io/7w1/sable`.
 Run the latest image with:
 
 ```sh
-docker run --rm -p 8080:80 ghcr.io/7w1/sable:latest
+docker run --rm -p 8080:8080 ghcr.io/7w1/sable:latest
 ```
 
 Then open `http://localhost:8080`.
@@ -42,7 +42,7 @@ services:
   sable:
     image: ghcr.io/7w1/sable:latest
     ports:
-      - '8080:80'
+      - '8080:8080'
     volumes:
       - ./config.json:/app/config.json:ro
 ```

@@ -54,69 +54,14 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
       return (
         <Box
           grow="Yes"
-          direction={prev['og:video'] ? 'ColumnReverse' : 'Row'}
+          direction="Column"
           style={{
-            display: 'flex',
-            alignItems: 'center',
             overflow: 'hidden',
             width: '100%',
           }}
         >
-          {(prev['og:video'] && (
-            <VideoContent
-              style={{
-                aspectRatio:
-                  ((prev['og:video:width'] as number) ?? 1) /
-                  ((prev['og:video:height'] as number) ?? 1),
-              }}
-              body={prev['og:title']}
-              info={{}}
-              url={prev['og:video'] as string}
-              mimeType={(prev['og:video:type'] as string) ?? ''}
-              renderVideo={(vidProps) => <Video style={{ objectFit: 'contain' }} {...vidProps} />}
-              renderThumbnail={() => <Image src={imgUrl ?? undefined} />}
-            />
-          )) ||
-            (prev['og:image'] && (
-              <Box style={{ flexShrink: 0, height: '100px' }}>
-                {' '}
-                <ImageContent
-                  style={{
-                    height: '100%',
-                    aspectRatio: (prev['og:image:width'] ?? 1) / (prev['og:image:height'] ?? 1),
-                    position: 'relative',
-                    width: 'auto',
-                  }}
-                  autoPlay
-                  body={prev['og:title']}
-                  url={prev['og:image']}
-                  renderViewer={(p) => <ImageViewer {...p} />}
-                  renderImage={(p) => (
-                    <Image
-                      {...p}
-                      style={{
-                        height: '100%',
-                        width: 'auto',
-                        objectFit: 'contain',
-                      }}
-                    />
-                  )}
-                />
-              </Box>
-            )) ||
-            (prev['og:audio'] && (
-              <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
-                <AudioContent
-                  url={(prev['og:audio'] as string) ?? ''}
-                  mimeType={(prev['og:audio:type'] as string) ?? ''}
-                  info={{}}
-                  renderMediaControl={(p) => <MediaControl {...p} />}
-                />
-              </Box>
-            ))}
           <UrlPreviewContent
             style={{
-              flex: 1,
               minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
@@ -147,6 +92,70 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
               </Text>
             )}
           </UrlPreviewContent>
+          {prev['og:video'] && (
+            <VideoContent
+              style={{
+                width: '100%',
+                aspectRatio:
+                  ((prev['og:video:width'] as number) ?? 1) /
+                  ((prev['og:video:height'] as number) ?? 1),
+              }}
+              body={prev['og:title']}
+              info={{}}
+              url={prev['og:video'] as string}
+              mimeType={(prev['og:video:type'] as string) ?? ''}
+              renderVideo={(vidProps) => <Video style={{ objectFit: 'contain' }} {...vidProps} />}
+              renderThumbnail={() => <Image src={imgUrl ?? undefined} />}
+            />
+          )}
+          {!prev['og:video'] &&
+            prev['og:image'] &&
+            (() => {
+              const ogW = prev['og:image:width'];
+              const ogH = prev['og:image:height'];
+              const aspectRatio = ogW && ogH ? `${ogW} / ${ogH}` : undefined;
+              return (
+                <Box
+                  style={{
+                    width: '100%',
+                    maxHeight: '400px',
+                    aspectRatio: aspectRatio ?? '16 / 9',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                >
+                  <ImageContent
+                    style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+                    autoPlay
+                    body={prev['og:title']}
+                    url={prev['og:image']}
+                    renderViewer={(p) => <ImageViewer {...p} />}
+                    renderImage={(p) => (
+                      <Image
+                        {...p}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
+                        }}
+                      />
+                    )}
+                  />
+                </Box>
+              );
+            })()}
+          {!prev['og:video'] && !prev['og:image'] && prev['og:audio'] && (
+            <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
+              <AudioContent
+                url={(prev['og:audio'] as string) ?? ''}
+                mimeType={(prev['og:audio:type'] as string) ?? ''}
+                info={{}}
+                renderMediaControl={(p) => <MediaControl {...p} />}
+              />
+            </Box>
+          )}
         </Box>
       );
     };
@@ -197,9 +206,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
                 maxWidth: '100%',
                 margin: 0,
               }
-            : {
-                width: '600px',
-              }
+            : undefined
         }
       >
         {previewContent}

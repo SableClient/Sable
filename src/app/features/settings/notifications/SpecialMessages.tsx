@@ -17,6 +17,7 @@ import {
 } from '$hooks/useNotificationMode';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { NotificationModeSwitcher } from './NotificationModeSwitcher';
+import { NotificationLevelsHint } from './NotificationLevelsHint';
 
 const NOTIFY_MODE_OPS: NotificationModeOptions = {
   highlight: true,
@@ -120,18 +121,23 @@ export function SpecialMessagesNotifications() {
     () => pushRulesEvt?.getContent<IPushRules>() ?? { global: {} },
     [pushRulesEvt]
   );
+  const intentionalMentions = mx.supportsIntentionalMentions();
 
   return (
     <Box direction="Column" gap="100">
       <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
         <Text size="L400">Special Messages</Text>
-        <Box gap="100">
+        <Box gap="100" alignItems="Center">
+          <NotificationLevelsHint />
           <Text size="T200">Badge: </Text>
           <Badge radii="300" variant="Success" fill="Solid">
             <Text size="L400">1</Text>
           </Badge>
         </Box>
       </Box>
+      <Text size="T300" priority="300">
+        Overrides the All Messages level for messages that mention you or match a keyword.
+      </Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -191,29 +197,21 @@ export function SpecialMessagesNotifications() {
       >
         <SettingTile
           title="Mention @room"
+          description="Only triggers if the sender has permission to notify the whole room."
           after={
-            <MentionModeSwitcher
-              pushRules={pushRules}
-              ruleId={RuleId.IsRoomMention}
-              defaultPushRuleData={DefaultIsRoomMention}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="Contains @room"
-          after={
-            <MentionModeSwitcher
-              pushRules={pushRules}
-              ruleId={RuleId.AtRoomNotification}
-              defaultPushRuleData={DefaultAtRoomNotification}
-            />
+            intentionalMentions ? (
+              <MentionModeSwitcher
+                pushRules={pushRules}
+                ruleId={RuleId.IsRoomMention}
+                defaultPushRuleData={DefaultIsRoomMention}
+              />
+            ) : (
+              <MentionModeSwitcher
+                pushRules={pushRules}
+                ruleId={RuleId.AtRoomNotification}
+                defaultPushRuleData={DefaultAtRoomNotification}
+              />
+            )
           }
         />
       </SequenceCard>

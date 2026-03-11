@@ -52,18 +52,22 @@ export function RedactedContent({ reason }: RedactedContentProps) {
   );
 }
 
-export function UnsupportedContent() {
+type BrokenContentProps = {
+  body?: string;
+};
+
+export function UnsupportedContent({ body }: BrokenContentProps) {
   return (
     <Text>
-      <MessageUnsupportedContent />
+      <MessageUnsupportedContent body={body} />
     </Text>
   );
 }
 
-export function BrokenContent() {
+export function BrokenContent({ body }: BrokenContentProps) {
   return (
     <Text>
-      <MessageBrokenContent />
+      <MessageBrokenContent body={body} />
     </Text>
   );
 }
@@ -117,7 +121,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     return true;
   }, [trimmedBody, safeCustomBody]);
 
-  if (!body) return <BrokenContent />;
+  if (!body) return <BrokenContent body={customBody ?? body} />;
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
@@ -170,7 +174,9 @@ export function MEmote({
   const { body, formatted_body: customBody } = content;
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
-  if (typeof body !== 'string') return <BrokenContent />;
+  if (typeof body !== 'string') {
+    return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
+  }
   const trimmedBody = trimReplyFromBody(body);
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
@@ -205,7 +211,9 @@ export function MNotice({ edited, content, renderBody, renderUrlsPreview }: MNot
   const { body, formatted_body: customBody } = content;
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
-  if (typeof body !== 'string') return <BrokenContent />;
+  if (typeof body !== 'string') {
+    return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
+  }
   const trimmedBody = trimReplyFromBody(body);
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
@@ -248,21 +256,28 @@ export function MImage({ content, renderImageContent, outlined }: MImageProps) {
   const imgInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   if (typeof mxcUrl !== 'string') {
-    return <BrokenContent />;
+    return <BrokenContent body={content.body ?? content.filename} />;
   }
-  const height = scaleYDimension(imgInfo?.w || 400, 400, imgInfo?.h || 400);
+  const MAX_SIZE = 400;
+  const imgW = imgInfo?.w ?? MAX_SIZE;
+  const imgH = imgInfo?.h ?? MAX_SIZE;
+  const aspectRatio = imgInfo?.w && imgInfo?.h ? `${imgW} / ${imgH}` : undefined;
+  // this garbage is for portrait images, we cap the width so the card doesn't exceed the bounds of the image
+  const displayWidth = imgH > imgW ? Math.round(MAX_SIZE * (imgW / imgH)) : MAX_SIZE;
 
   return (
     <Attachment
       style={{
         flexGrow: 1,
         flexShrink: 0,
+        width: toRem(displayWidth),
       }}
       outlined={outlined}
     >
       <AttachmentBox
         style={{
-          height: toRem(height < 48 ? 48 : height),
+          aspectRatio,
+          maxHeight: toRem(MAX_SIZE),
         }}
       >
         {renderImageContent({
@@ -303,10 +318,10 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
     if (mxcUrl) {
       return renderAsFile();
     }
-    return <BrokenContent />;
+    return <BrokenContent body={content.body ?? content.filename} />;
   }
 
-  const height = scaleYDimension(videoInfo.w || 400, 400, videoInfo.h || 400);
+  const height = Math.min(scaleYDimension(videoInfo.w || 400, 400, videoInfo.h || 400), 400);
 
   const filename = content.filename ?? content.body ?? 'Video';
 
@@ -372,7 +387,7 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
     if (mxcUrl) {
       return renderAsFile();
     }
-    return <BrokenContent />;
+    return <BrokenContent body={content.body ?? content.filename} />;
   }
 
   const filename = content.filename ?? content.body ?? 'Audio';
@@ -423,7 +438,7 @@ export function MFile({ content, renderFileContent, outlined }: MFileProps) {
   const mxcUrl = content.file?.url ?? content.url;
 
   if (typeof mxcUrl !== 'string') {
-    return <BrokenContent />;
+    return <BrokenContent body={content.body ?? content.filename} />;
   }
 
   return (
@@ -454,8 +469,12 @@ type MLocationProps = {
 };
 export function MLocation({ content }: MLocationProps) {
   const geoUri = content.geo_uri;
-  if (typeof geoUri !== 'string') return <BrokenContent />;
+  if (typeof geoUri !== 'string') {
+    return <BrokenContent body={typeof content.body === 'string' ? content.body : undefined} />;
+  }
   const location = parseGeoUri(geoUri);
+  if (!location) return <BrokenContent />;
+
   return (
     <Box direction="Column" alignItems="Start" gap="100">
       <Text size="T400">{geoUri}</Text>
@@ -483,7 +502,7 @@ export function MSticker({ content, renderImageContent }: MStickerProps) {
   const imgInfo = content?.info;
   const mxcUrl = content.file?.url ?? content.url;
   if (typeof mxcUrl !== 'string') {
-    return <MessageBrokenContent />;
+    return <MessageBrokenContent body={content.body} />;
   }
   const height = scaleYDimension(imgInfo?.w || 152, 152, imgInfo?.h || 152);
 

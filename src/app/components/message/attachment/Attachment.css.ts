@@ -23,7 +23,7 @@ export const Attachment = recipe({
 export type AttachmentVariants = RecipeVariants<typeof Attachment>;
 
 export const AttachmentHeader = style({
-  padding: config.space.S300,
+  padding: config.space.S100,
 });
 
 export const AttachmentBox = style([

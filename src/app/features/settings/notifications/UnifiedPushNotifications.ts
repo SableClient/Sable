@@ -161,12 +161,19 @@ type RoomNotifCache = {
 
 const roomNotifCaches = new Map<string, RoomNotifCache>();
 
+/**
+ * Resolves a user avatar to an HTTP URL for notification display.
+ *
+ * Returns an authenticated media URL (/_matrix/client/v1/media/).
+ * The plugin's Kotlin layer downloads the image using the `authToken`
+ * supplied in `MessagingStyleConfig`, so authenticated endpoints work.
+ */
 function resolveAvatarUrl(mx: MatrixClient, roomId: string, userId: string): string | undefined {
   const room = mx.getRoom(roomId);
   if (!room) return undefined;
   const mxcUrl = getMemberAvatarMxc(room, userId);
   if (!mxcUrl) return undefined;
-  return mx.mxcUrlToHttp(mxcUrl, 96, 96, 'crop', undefined, false, true) ?? undefined;
+  return mx.mxcUrlToHttp(mxcUrl, 96, 96, 'crop', false, true, true) ?? undefined;
 }
 
 function getOrCreateRoomCache(roomId: string, roomName: string): RoomNotifCache {

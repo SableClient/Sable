@@ -94,7 +94,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
     "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
-    "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#fc33075e9967b62f0c7f569e9bbcaa7851d6df71",
+    "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#9f162c62f89f9f7e1e17c71893faa51d140f18fd",
     "ua-parser-js": "^1.0.41",
     "workbox-precaching": "^7.4.0"
   },

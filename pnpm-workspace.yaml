@@ -2,6 +2,7 @@ engineStrict: true
 minimumReleaseAge: 1440
 
 allowBuilds:
+  '@matrix-org/matrix-sdk-crypto-wasm': true
   '@swc/core': true
   esbuild: true
   sharp: true

@@ -186,7 +186,7 @@ export function About({ requestClose }: AboutProps) {
                       <Text size="H3">Sable</Text>
                       <Text size="T200">{`v${APP_VERSION}${devLabel}${buildLabel}`}</Text>
                     </Box>
-                    <Text>Yet another matrix client fork(ed from cinny).</Text>
+                    <Text>An almost stable Matrix client.</Text>
                   </Box>
 
                   <Box gap="200" wrap="Wrap">

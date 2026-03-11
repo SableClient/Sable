@@ -17,7 +17,7 @@ export function WelcomePage() {
             title="Welcome to Sable"
             subTitle={
               <span>
-                Yet another matrix client fork.{' '}
+                An almost stable Matrix client.{' '}
                 <a
                   href="https://github.com/SableClient/Sable"
                   target="_blank"

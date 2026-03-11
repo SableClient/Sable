@@ -1,7 +1,7 @@
 {
   "name": "sable",
   "version": "1.6.0",
-  "description": "Yet another matrix client fork",
+  "description": "An almost stable Matrix client",
   "type": "module",
   "packageManager": "npm@11.11.0",
   "engines": {
@@ -120,5 +120,13 @@
     "vite-plugin-svgr": "4.5.0",
     "vite-plugin-top-level-await": "^1.6.0",
     "wrangler": "^4.70.0"
+  },
+  "overrides": {
+    "serialize-javascript": ">=7.0.3",
+    "rollup": ">=4.59.0",
+    "minimatch": ">=10.2.3",
+    "lodash": ">=4.17.23",
+    "esbuild": ">=0.25.0",
+    "brace-expansion": ">=1.1.12"
   }
 }

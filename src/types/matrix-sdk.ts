@@ -51,3 +51,6 @@ export * from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 
 export * from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
+
+export { ThreadEvent } from 'matrix-js-sdk/lib/models/thread';
+export type { Thread } from 'matrix-js-sdk/lib/models/thread';

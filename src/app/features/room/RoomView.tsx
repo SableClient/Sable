@@ -135,7 +135,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const callMembers = useCallMembers(room, callSession);
   const callEmbed = useAtomValue(callEmbedAtom);
   const isJoinedInThisRoom = useCallJoined(callEmbed) && callEmbed?.roomId === room.roomId;
-  const showCallView = callMembers.length > 0 || isJoinedInThisRoom;
+  const showCallView = !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom);
 
   return (
     <BackRouteHandler>
@@ -151,7 +151,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
             <Box grow="Yes" direction="Column">
               {showCallView && (
-                <Box shrink="No">
+                <Box shrink="No" style={{ width: '100%', position: 'relative' }}>
                   <CallView resizable />
                 </Box>
               )}

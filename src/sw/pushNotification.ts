@@ -49,6 +49,29 @@ export const createPushNotifications = (
     await self.registration.showNotification(title, notifOptions as NotificationOptions);
   };
 
+  const handleCallNotification = async (pushData: any) => {
+    const content = pushData?.content;
+    if (content?.notification_type !== 'ring') return;
+
+    const senderDisplayName = pushData?.sender_display_name;
+    const roomName = pushData?.room_name;
+    const title = 'Incoming Call';
+    const body = senderDisplayName
+      ? `${senderDisplayName} is calling you ${roomName ? `in ${roomName}` : ''}`
+      : 'Incoming voice chat';
+
+    const data = {
+      type: pushData?.type,
+      room_id: pushData?.room_id,
+      user_id: pushData?.user_id,
+      timestamp: Date.now(),
+      isCall: true,
+      ...pushData.data,
+    };
+
+    await showNotificationWithData(title, body, data, resolveSilent(), pushData?.room_avatar_url);
+  };
+
   const handleRoomMessageNotification = async (pushData: any) => {
     const data = {
       type: pushData?.type,
@@ -157,6 +180,10 @@ export const createPushNotifications = (
       case EventType.RoomMember:
         if (!(pushData?.content?.membership === 'invite')) break;
         await handleInvitationNotification(pushData);
+        break;
+      case 'org.matrix.msc4075.call.notify':
+      case 'org.matrix.msc4075.rtc.notification':
+        await handleCallNotification(pushData);
         break;
       default:
         // no voip support in app anyway

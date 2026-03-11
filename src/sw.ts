@@ -358,6 +358,8 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     scope,
   });
 
+  const isCall = data?.isCall === true;
+
   // Build a canonical deep-link URL.
   //
   // Room messages: /to/:user_id/:room_id/:event_id?
@@ -373,9 +375,10 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     if (pushUserId) u.searchParams.set('uid', pushUserId);
     targetUrl = u.href;
   } else if (pushUserId && pushRoomId) {
+    const callParam = isCall ? '?joinCall=true' : '';
     const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/`;
+      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
+      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
     targetUrl = new URL(segments, scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.
@@ -410,6 +413,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             roomId: pushRoomId,
             eventId: pushEventId,
             isInvite,
+            isCall,
           });
           // eslint-disable-next-line no-await-in-loop
           await wc.focus();

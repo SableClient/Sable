@@ -49,7 +49,7 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getMemberAvatarMxc } from '$utils/room';
+import { canEditEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
@@ -75,12 +75,17 @@ import { useBlobCache } from '$hooks/useBlobCache';
 import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
 import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
+import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHistory';
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import {
+  addStickerToDefaultPack,
+  doesStickerExistInDefaultPack,
+} from '$utils/addStickerToDefaultStickerPack';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 
@@ -670,6 +675,14 @@ function MessageInternal(
   });
 
   const isThreadedMessage = mEvent.threadRootId !== undefined;
+  const isStickerMessage = mEvent.getType() === 'm.sticker';
+
+  const evtId = mEvent.getId()!;
+  const evtTimeline = room.getTimelineForEvent(evtId);
+  const edits =
+    evtTimeline &&
+    getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
+  const isEdited = edits !== undefined;
 
   return (
     <MessageBase
@@ -814,6 +827,33 @@ function MessageInternal(
                             </Text>
                           </MenuItem>
                         )}
+                        {isStickerMessage &&
+                          !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
+                            <MenuItem
+                              size="300"
+                              after={<Icon size="100" src={Icons.Star} />}
+                              radii="300"
+                              onClick={() => {
+                                addStickerToDefaultPack(
+                                  mx,
+                                  `sticker-${mEvent.getId()}`,
+                                  mEvent.getContent().url,
+                                  mEvent.getContent().body,
+                                  mEvent.getContent().info
+                                );
+                                closeMenu();
+                              }}
+                            >
+                              <Text
+                                className={css.MessageMenuItemText}
+                                as="span"
+                                size="T300"
+                                truncate
+                              >
+                                Add to User Sticker Pack
+                              </Text>
+                            </MenuItem>
+                          )}
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"
@@ -873,6 +913,13 @@ function MessageInternal(
                         )}
                         {!hideReadReceipts && (
                           <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
+                        )}
+                        {isEdited && (
+                          <MessageEditHistoryItem
+                            room={room}
+                            mEvent={mEvent}
+                            closeMenu={closeMenu}
+                          />
                         )}
                         {showDeveloperTools && (
                           <MessageSourceCodeItem room={room} mEvent={mEvent} />
@@ -1131,6 +1178,13 @@ export const Event = as<'div', EventProps>(
       setMobileOptionsOpen(true);
     });
 
+    const evtId = mEvent.getId()!;
+    const evtTimeline = room.getTimelineForEvent(evtId);
+    const edits =
+      evtTimeline &&
+      getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
+    const isEdited = edits !== undefined;
+
     return (
       <MessageBase
         className={classNames(css.MessageBase, className)}
@@ -1170,6 +1224,13 @@ export const Event = as<'div', EventProps>(
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                             {!hideReadReceipts && (
                               <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
+                            )}
+                            {isEdited && (
+                              <MessageEditHistoryItem
+                                room={room}
+                                mEvent={mEvent}
+                                closeMenu={closeMenu}
+                              />
                             )}
                             {showDeveloperTools && (
                               <MessageSourceCodeItem room={room} mEvent={mEvent} />

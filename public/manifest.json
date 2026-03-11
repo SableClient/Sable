@@ -1,7 +1,7 @@
 {
   "name": "Sable",
   "short_name": "Sable",
-  "description": "Yet another matrix client fork",
+  "description": "An almost stable Matrix client",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",

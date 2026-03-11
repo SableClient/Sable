@@ -9,6 +9,7 @@
   "ignoreDependencies": [
     "buffer",
     "@element-hq/element-call-embedded",
+    "@matrix-org/matrix-sdk-crypto-wasm",
     "workbox-precaching",
     "tauri-plugin-splashscreen-api"
   ],

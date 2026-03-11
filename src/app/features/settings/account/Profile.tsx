@@ -538,6 +538,8 @@ function ProfileExtended({ profile, userId }: ProfileProps) {
         gap="400"
       >
         <NameColorEditor
+          title="Global Name Color"
+          description="Custom name color everywhere names have color!"
           current={profile.nameColor || profile.extended?.['moe.sable.app.name_color']}
           onSave={(color) => handleSaveField('moe.sable.app.name_color', color)}
         />
@@ -549,6 +551,7 @@ function ProfileExtended({ profile, userId }: ProfileProps) {
         gap="400"
       >
         <PronounEditor
+          title="Pronouns"
           current={pronouns}
           onSave={(p) => handleSaveField('io.fsky.nyx.pronouns', p)}
         />

@@ -45,7 +45,7 @@ import {
   mxcUrlToHttp,
   removeRoomIdFromMDirect,
 } from '$utils/matrix';
-import { SearchPathSearchParams } from '$pages/paths';
+import { type SearchPathSearchParams } from '$pages/paths';
 import { useRoomUnread } from '$state/hooks/unread';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { markAsRead } from '$utils/notifications';
@@ -648,7 +648,11 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
               offset={4}
               tooltip={
                 <Tooltip>
-                  <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
+                  {callView ? (
+                    <Text>Members</Text>
+                  ) : (
+                    <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
+                  )}
                 </Tooltip>
               }
             >

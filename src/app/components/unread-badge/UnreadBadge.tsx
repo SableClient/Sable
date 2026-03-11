@@ -26,9 +26,15 @@ export function UnreadBadge({ highlight, count, dm }: UnreadBadgeProps) {
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
 
-  // Show count when: (showUnreadCounts OR highlight+showPingCounts) AND (not DM-only mode OR this is a DM)
+  /**
+   * Show a number if there is a count and:
+   * - Its a dm and dm counts are enabled
+   * - Its a normal room and unread counts are enabled
+   * - Its a ping and ping counts are enabled
+   */
   const showNumber =
-    count > 0 && (showUnreadCounts || (highlight && showPingCounts)) && (!badgeCountDMsOnly || dm);
+    count > 0 &&
+    ((dm && badgeCountDMsOnly) || (!dm && showUnreadCounts) || (highlight && showPingCounts));
 
   return (
     <Badge

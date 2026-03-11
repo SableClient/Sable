@@ -10,7 +10,7 @@ export function AuthFooter() {
       <Text
         as="a"
         size="T300"
-        href="https://github.com/7w1/sable/"
+        href="https://github.com/SableClient/Sable"
         target="_blank"
         rel="noreferrer"
       >

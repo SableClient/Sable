@@ -17,8 +17,12 @@ export function WelcomePage() {
             title="Welcome to Sable"
             subTitle={
               <span>
-                Yet another matrix client fork.{' '}
-                <a href="https://github.com/7w1/sable" target="_blank" rel="noreferrer noopener">
+                An almost stable Matrix client.{' '}
+                <a
+                  href="https://github.com/SableClient/Sable"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
                   {`v${APP_VERSION}${IS_RELEASE_TAG ? '' : `-dev${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`}`}
                 </a>
               </span>
@@ -28,7 +32,7 @@ export function WelcomePage() {
               <Box grow="Yes" style={{ maxWidth: toRem(300) }} direction="Column" gap="300">
                 <Button
                   as="a"
-                  href="https://github.com/7w1/sable"
+                  href="https://github.com/SableClient/Sable"
                   target="_blank"
                   rel="noreferrer noopener"
                   before={<Icon size="200" src={Icons.Code} />}
@@ -40,7 +44,7 @@ export function WelcomePage() {
                 {/*
                 <Button
                   as="a"
-                  href="https://github.com/7w1/sable"
+                  href="https://github.com/SableClient/Sable"
                   target="_blank"
                   rel="noreferrer noopener"
                   fill="Soft"
@@ -56,7 +60,7 @@ export function WelcomePage() {
             <Box direction="Column" gap="200" alignItems="Center">
               <Button
                 as="a"
-                href="https://github.com/7w1/sable/blob/dev/CHANGELOG.md"
+                href="https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md"
                 target="_blank"
                 rel="noreferrer noopener"
                 before={<Icon size="200" src={Icons.Code} />}

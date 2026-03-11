@@ -66,19 +66,17 @@ jobs:
         id: vars
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Set up Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - name: Setup app
+        uses: ./.github/actions/setup
         with:
-          node-version: '24'
-          cache: 'npm'
+          install-command: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build site
         env:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
         run: |
-          npm ci --ignore-scripts
-          NODE_OPTIONS=--max_old_space_size=4096 npm run build
+          NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
@@ -105,4 +103,4 @@ jobs:
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
+          push-to-registry: false

@@ -7,11 +7,12 @@ updates:
       default-days: 7
     directory: /
     schedule:
-      interval: weekly
-      day: 'tuesday'
-      time: '01:00'
-      timezone: 'Asia/Kolkata'
+      interval: daily
     open-pull-requests-limit: 5
+    labels:
+      - internal
+    commit-message:
+      prefix: chore
     groups:
       github-actions:
         patterns:
@@ -22,12 +23,32 @@ updates:
       default-days: 7
     directory: /
     schedule:
-      interval: weekly
-      day: 'tuesday'
-      time: '01:00'
-      timezone: 'Asia/Kolkata'
+      interval: daily
     open-pull-requests-limit: 5
+    labels:
+      - internal
+    commit-message:
+      prefix: chore
     groups:
       docker:
         patterns:
           - '*'
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 1
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    labels:
+      - internal
+    commit-message:
+      prefix: chore
+    groups:
+      # Group all non-major updates together to reduce noise
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+      # Major updates are ungrouped so they get individual review

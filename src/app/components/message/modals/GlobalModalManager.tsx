@@ -5,6 +5,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { modalAtom, ModalType } from '$state/modal';
 import { MessageReportInternal } from './MessageReport';
 import { MessageDeleteInternal } from './MessageDelete';
+import { MessageEditHistoryInternal } from './MessageEditHistory';
 import { MessageSourceInternal } from './MessageSource';
 import { MessageForwardInternal } from './MessageForward';
 import { MessageAllReactionInternal } from './MessageReactions';
@@ -58,6 +59,16 @@ export function GlobalModalManager() {
                 <MessageAllReactionInternal
                   room={modal.room}
                   relations={modal.relations}
+                  onClose={close}
+                />
+              </Modal>
+            )}
+
+            {modal.type === ModalType.EditHistory && (
+              <Modal variant="Surface" size="300">
+                <MessageEditHistoryInternal
+                  room={modal.room}
+                  mEvent={modal.mEvent}
                   onClose={close}
                 />
               </Modal>

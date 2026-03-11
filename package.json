@@ -1,12 +1,12 @@
 {
   "name": "sable",
-  "version": "1.5.3",
-  "description": "Yet another matrix client fork",
+  "version": "1.6.0",
+  "description": "An almost stable Matrix client",
   "type": "module",
-  "packageManager": "npm@11.11.0",
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
   "engines": {
     "node": "24.x",
-    "npm": "11.x"
+    "pnpm": ">=10"
   },
   "scripts": {
     "dev": "vite dev",
@@ -45,7 +45,7 @@
     "@use-gesture/react": "10.3.1",
     "@vanilla-extract/css": "^1.18.0",
     "@vanilla-extract/recipes": "^0.5.7",
-    "@vanilla-extract/vite-plugin": "^3.9.5",
+    "@vanilla-extract/vite-plugin": "^5.1.4",
     "await-to-js": "^3.0.0",
     "badwords-list": "^2.0.1-4",
     "blurhash": "^2.0.5",
@@ -57,9 +57,11 @@
     "emojibase": "^15.3.1",
     "emojibase-data": "^15.3.2",
     "eslint-plugin-react": "7.37.5",
+    "eventemitter3": "^5.0.4",
     "file-saver": "^2.0.5",
     "focus-trap-react": "^10.3.1",
-    "folds": "^2.6.1",
+    "folds": "^2.6.2",
+    "framer-motion": "12.34.3",
     "html-dom-parser": "^5.1.8",
     "html-react-parser": "^4.2.10",
     "i18next": "^25.8.13",
@@ -93,7 +95,8 @@
     "slate-react": "^0.123.0",
     "tauri-plugin-splashscreen-api": "file:./crates/tauri-plugin-splashscreen",
     "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#9f162c62f89f9f7e1e17c71893faa51d140f18fd",
-    "ua-parser-js": "^1.0.41"
+    "ua-parser-js": "^1.0.41",
+    "workbox-precaching": "^7.4.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",

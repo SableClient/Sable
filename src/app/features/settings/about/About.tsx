@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -7,14 +8,13 @@ import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
-import { useState } from 'react';
+import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<any>(undefined);
 
-  // By default assume the federationUrl is the same as the baseUrl.
   if (!version)
     mx.http
       .request(Method.Get, '/version', undefined, undefined, {
@@ -24,7 +24,6 @@ export function HomeserverInfo() {
       .then((fetched_version) => setVersion(fetched_version))
       .catch((error) => {
         if (federationUrl === mx.baseUrl) {
-          // Maybe they are *not* the same actually.
           mx.http
             .request(Method.Get, '/server', undefined, undefined, {
               prefix: '/.well-known/matrix',
@@ -149,6 +148,7 @@ export function About({ requestClose }: AboutProps) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
+  const openBugReport = useOpenBugReportModal();
 
   return (
     <Page>
@@ -184,13 +184,13 @@ export function About({ requestClose }: AboutProps) {
                       <Text size="H3">Sable</Text>
                       <Text size="T200">{`v${APP_VERSION}${devLabel}${buildLabel}`}</Text>
                     </Box>
-                    <Text>Yet another matrix client fork(ed from cinny).</Text>
+                    <Text>An almost stable Matrix client.</Text>
                   </Box>
 
                   <Box gap="200" wrap="Wrap">
                     <Button
                       as="a"
-                      href="https://github.com/7w1/sable"
+                      href="https://github.com/SableClient/Sable"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Secondary"
@@ -203,7 +203,7 @@ export function About({ requestClose }: AboutProps) {
                     </Button>
                     <Button
                       as="a"
-                      href="https://github.com/7w1/sable/pulls"
+                      href="https://github.com/SableClient/Sable/pulls"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Critical"
@@ -238,6 +238,29 @@ export function About({ requestClose }: AboutProps) {
                         outlined
                       >
                         <Text size="B300">Clear Cache</Text>
+                      </Button>
+                    }
+                  />
+                </SequenceCard>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                  gap="400"
+                >
+                  <SettingTile
+                    title="Report an Issue"
+                    description="Report a bug or request a feature on GitHub."
+                    after={
+                      <Button
+                        onClick={openBugReport}
+                        variant="Secondary"
+                        fill="Soft"
+                        size="300"
+                        radii="300"
+                        outlined
+                      >
+                        <Text size="B300">Report</Text>
                       </Button>
                     }
                   />

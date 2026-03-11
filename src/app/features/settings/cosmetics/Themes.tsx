@@ -305,7 +305,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Underline Links"
-          description="Always show underlines on links in chat."
+          description="Always show underlines on links in chat, bios and room descriptions."
           after={<Switch variant="Primary" value={underlineLinks} onChange={setUnderlineLinks} />}
         />
       </SequenceCard>

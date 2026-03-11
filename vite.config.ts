@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import type { ViteDevServer } from 'vite';
+import type { ViteDevServer, PluginOption } from 'vite';
 import { execSync } from 'child_process';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
@@ -15,6 +15,7 @@ import { constants as zlibConstants } from 'zlib';
 import fs from 'fs';
 import path from 'path';
 import { cloudflare } from '@cloudflare/vite-plugin';
+import { createRequire } from 'module';
 import buildConfig from './build.config';
 
 const packageJson = JSON.parse(
@@ -94,30 +95,25 @@ const copyFiles = {
   ],
 };
 
-function serverMatrixSdkCryptoWasm(wasmFilePath: string) {
+const require = createRequire(import.meta.url);
+
+function serverMatrixSdkCryptoWasm() {
+  const resolvedPath = path.join(
+    path.dirname(require.resolve('@matrix-org/matrix-sdk-crypto-wasm')),
+    'pkg/matrix_sdk_crypto_wasm_bg.wasm'
+  );
+
   return {
     name: 'vite-plugin-serve-matrix-sdk-crypto-wasm',
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, res, next) => {
-        if (req.url === wasmFilePath) {
-          const resolvedPath = path.join(
-            path.resolve(),
-            '/node_modules/@matrix-org/matrix-sdk-crypto-wasm/pkg/matrix_sdk_crypto_wasm_bg.wasm'
-          );
-
-          if (fs.existsSync(resolvedPath)) {
-            res.setHeader('Content-Type', 'application/wasm');
-            res.setHeader('Cache-Control', 'no-cache');
-
-            const fileStream = fs.createReadStream(resolvedPath);
-            fileStream.pipe(res);
-          } else {
-            res.writeHead(404);
-            res.end('File not found');
-          }
-        } else {
+        if (!req.url?.endsWith('matrix_sdk_crypto_wasm_bg.wasm')) {
           next();
+          return;
         }
+        res.setHeader('Content-Type', 'application/wasm');
+        res.setHeader('Cache-Control', 'no-cache');
+        fs.createReadStream(resolvedPath).pipe(res);
       });
     },
   };
@@ -170,7 +166,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    serverMatrixSdkCryptoWasm('/node_modules/.vite/deps/pkg/matrix_sdk_crypto_wasm_bg.wasm'),
+    serverMatrixSdkCryptoWasm(),
     topLevelAwait({
       // The export name of top-level await promise for each chunk module
       promiseExportName: '__tla',
@@ -179,7 +175,7 @@ export default defineConfig({
     }),
     viteStaticCopy(copyFiles),
     vanillaExtractPlugin({ identifiers: 'debug' }),
-    wasm(),
+    wasm() as PluginOption,
     react(),
     svgr(),
     VitePWA({
@@ -259,7 +255,7 @@ export default defineConfig({
     outDir: 'dist',
     copyPublicDir: false,
     rollupOptions: {
-      plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
+      plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
       output: {
         manualChunks: (id) => {
           if (id.includes('pdfjs-dist')) return 'pdf';

@@ -29,8 +29,7 @@ const slideOut = keyframes({
 export const BannerContainer = style({
   position: 'fixed',
   top: 0,
-  // 66px = sidebar icon strip width — overridden to 0 on mobile below
-  left: toRem(66),
+  left: 0,
   right: 0,
   zIndex: 9999,
   display: 'flex',
@@ -40,13 +39,6 @@ export const BannerContainer = style({
   paddingTop: `calc(${config.space.S400} + var(--sable-inset-top, env(safe-area-inset-top, 0px)))`,
   pointerEvents: 'none',
   alignItems: 'stretch',
-
-  '@media': {
-    // On narrow screens the sidebar collapses, so span the full width.
-    '(max-width: 768px)': {
-      left: 0,
-    },
-  },
 });
 
 export const Banner = style({

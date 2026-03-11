@@ -30,6 +30,7 @@ import { PasswordInput } from '$components/password-input';
 import { getResetPasswordPath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
 import { FieldError } from '$pages/auth/FiledError';
+import { deviceDisplayName } from '$utils/user-agent';
 import {
   CustomLoginResponse,
   LoginError,
@@ -133,7 +134,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
         user: username,
       },
       password,
-      initial_device_display_name: 'Sable Web',
+      initial_device_display_name: deviceDisplayName(),
     });
   };
 
@@ -151,7 +152,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
         user: mxIdUsername,
       },
       password,
-      initial_device_display_name: 'Sable Web',
+      initial_device_display_name: deviceDisplayName(),
     });
   };
   const handleEmailLogin = (email: string, password: string) => {
@@ -163,7 +164,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
         address: email,
       },
       password,
-      initial_device_display_name: 'Sable Web',
+      initial_device_display_name: deviceDisplayName(),
     });
   };
 

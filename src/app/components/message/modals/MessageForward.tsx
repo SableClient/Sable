@@ -92,6 +92,7 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
 
   const [isTargetSelected, setIsTargetSelected] = useState(false);
   const [isForwardSuccess, setIsForwardSuccess] = useState(false);
+  const [isForwarding, setIsForwarding] = useState(false);
   const [isForwardError, setIsForwardError] = useState(false);
   const [targetRoomId, setTargetRoomId] = useState<string | null>(null);
 
@@ -143,11 +144,18 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
 
   // actually forward the message to the selected room
   const handleForwardClick = () => {
-    if (!targetRoomId) return;
+    setIsForwarding(true);
+    if (!targetRoomId) {
+      setIsForwarding(false);
+      return;
+    }
 
     const targetRoom = getRoom(targetRoomId);
     const eventId = mEvent.getId();
-    if (!targetRoom || !eventId) return;
+    if (!targetRoom || !eventId) {
+      setIsForwarding(false);
+      return;
+    }
 
     type SendEventType = Parameters<typeof mx.sendEvent>[2];
     type SendEventContent = Parameters<typeof mx.sendEvent>[3];
@@ -234,10 +242,15 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
     }
 
     try {
-      mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent).then(
-        () => setIsForwardSuccess(true)
-      );
+      mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent)
+        .then(() => setIsForwardSuccess(true))
+        .catch(() => {
+          setIsForwarding(false);
+          setIsForwardSuccess(false);
+          setIsForwardError(true);
+        });
     } catch {
+      setIsForwarding(false);
       setIsForwardSuccess(false);
       setIsForwardError(true);
     }
@@ -286,7 +299,11 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
           </Box>
         </Scroll>
         {isTargetSelected && targetRoomId && (
-          <Button style={{ margin: config.space.S300 }} onClick={handleForwardClick}>
+          <Button
+            style={{ margin: config.space.S300 }}
+            onClick={handleForwardClick}
+            disabled={isForwarding}
+          >
             <Text>Forward to {getRoom(targetRoomId)?.name}</Text>
           </Button>
         )}

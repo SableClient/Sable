@@ -858,10 +858,33 @@ export function RoomTimeline({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
-      if (liveTimelineLinked || timeline.linkedTimelines.length === 0) {
-        setTimeline(getInitialTimeline(room));
-      }
-    }, [room, liveTimelineLinked, timeline.linkedTimelines.length])
+      // Always reinitialize on TimelineRefresh. With sliding sync, a limited
+      // response replaces the room's live EventTimeline with a brand-new object,
+      // firing TimelineRefresh. At that moment liveTimelineLinked is stale-false
+      // (the stored linkedTimelines still reference the old detached object),
+      // so the previous guard `if (liveTimelineLinked || ...)` would silently
+      // skip reinit. Back-pagination then calls paginateEventTimeline against
+      // the dead old timeline, which no-ops, and the IntersectionObserver never
+      // re-fires because intersection state didn't change — causing a permanent
+      // hang at the top of the timeline with no spinner and no history loaded.
+      // Unconditionally reinitializing is correct: TimelineRefresh signals that
+      // the SDK has replaced the timeline chain, so any stored range/indices
+      // against the old chain are invalid anyway.
+      //
+      // Also force atBottom=true and queue a scroll-to-bottom. The SDK fires
+      // TimelineRefresh before adding new events to the fresh live timeline, so
+      // getInitialTimeline captures range.end=0. Once events arrive the
+      // rangeAtEnd self-heal useEffect needs atBottom=true to run; the
+      // IntersectionObserver may have transiently fired isIntersecting=false
+      // during the render transition, leaving atBottom=false and causing the
+      // "Jump to Latest" button to stick permanently. Forcing atBottom here is
+      // correct: TimelineRefresh always reinits to the live end, so the user
+      // should be repositioned to the bottom regardless.
+      setTimeline(getInitialTimeline(room));
+      setAtBottom(true);
+      scrollToBottomRef.current.count += 1;
+      scrollToBottomRef.current.smooth = false;
+    }, [room, setAtBottom])
   );
 
   // Re-render when non-live Replace relations arrive (bundled/historical edits
@@ -881,6 +904,21 @@ export function RoomTimeline({
     if (getLiveTimeline(room).getEvents().length === 0) return;
     setTimeline(getInitialTimeline(room));
   }, [eventId, room, timeline.linkedTimelines.length]);
+
+  // Fix stale rangeAtEnd after a sliding sync TimelineRefresh. The SDK fires
+  // TimelineRefresh before adding new events to the freshly-created live
+  // EventTimeline, so getInitialTimeline captures range.end=0. New events then
+  // arrive via useLiveEventArrive, but its atLiveEndRef guard is stale-false
+  // (hasn't re-rendered yet), bypassing the range-advance path. The next render
+  // ends up with liveTimelineLinked=true but rangeAtEnd=false, making the
+  // "Jump to Latest" button appear while the user is already at the bottom.
+  // Re-running getInitialTimeline post-render (after events were added to the
+  // live EventTimeline object) snaps range.end to the correct event count.
+  useEffect(() => {
+    if (liveTimelineLinked && !rangeAtEnd && atBottom) {
+      setTimeline(getInitialTimeline(room));
+    }
+  }, [liveTimelineLinked, rangeAtEnd, atBottom, room]);
 
   // Stay at bottom when room editor resize
   useResizeObserver(
@@ -1857,7 +1895,13 @@ export function RoomTimeline({
         const senderId = mEvent.getSender() ?? '';
         const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
 
-        const callJoined = mEvent.getContent<SessionMembershipData>().application;
+        const content = mEvent.getContent<SessionMembershipData>();
+        const prevContent = mEvent.getPrevContent();
+
+        const callJoined = content.application;
+        if (callJoined && 'application' in prevContent) {
+          return null;
+        }
 
         const timeJSX = (
           <Time
@@ -2127,6 +2171,19 @@ export function RoomTimeline({
         </Box>
       );
     } else if (timelineItems.length === 0) {
+      // When eventsLength===0 AND liveTimelineLinked the live EventTimeline was
+      // just reset by a sliding sync TimelineRefresh and new events haven't
+      // arrived yet. Attaching the IntersectionObserver anchor here would
+      // immediately fire a server-side /messages request before current events
+      // land — potentially causing a "/messages hangs → spinner stuck" scenario.
+      // Suppressing the anchor for this transient state is safe: the rangeAtEnd
+      // self-heal useEffect will call getInitialTimeline once events arrive, and
+      // at that point the correct anchor (below) will be re-observed.
+      // eventsLength>0 covers the range={K,K} case from recalibratePagination
+      // where items=0 but events exist — that needs the anchor for local range
+      // extension (no server call since start>0).
+      const placeholderBackAnchor =
+        eventsLength > 0 || !liveTimelineLinked ? observeBackAnchor : undefined;
       backPaginationJSX =
         messageLayout === MessageLayout.Compact ? (
           <>
@@ -2142,7 +2199,7 @@ export function RoomTimeline({
             <MessageBase>
               <CompactPlaceholder />
             </MessageBase>
-            <MessageBase ref={observeBackAnchor}>
+            <MessageBase ref={placeholderBackAnchor}>
               <CompactPlaceholder />
             </MessageBase>
           </>
@@ -2154,7 +2211,7 @@ export function RoomTimeline({
             <MessageBase>
               <DefaultPlaceholder />
             </MessageBase>
-            <MessageBase ref={observeBackAnchor}>
+            <MessageBase ref={placeholderBackAnchor}>
               <DefaultPlaceholder />
             </MessageBase>
           </>

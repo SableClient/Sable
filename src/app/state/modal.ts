@@ -8,6 +8,7 @@ export enum ModalType {
   Report = 'report',
   Source = 'source',
   Reactions = 'reactions',
+  EditHistory = 'edit_history',
   ReadReceipts = 'read_receipts',
 }
 
@@ -16,6 +17,7 @@ export type ModalState =
   | { type: ModalType.Forward; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Report; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Source; room: Room; mEvent: MatrixEvent }
+  | { type: ModalType.EditHistory; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Reactions; room: Room; relations: Relations }
   | { type: ModalType.ReadReceipts; room: Room; eventId: string }
   | null;

@@ -410,6 +410,7 @@ function Editor({ isMobile }: { isMobile: boolean }) {
   const [isMarkdown, setIsMarkdown] = useSetting(settingsAtom, 'isMarkdown');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
+  const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
 
   return (
     <Box direction="Column" gap="100">
@@ -451,6 +452,13 @@ function Editor({ isMobile }: { isMobile: boolean }) {
           title="Hide Read Receipts"
           description="Turn off read receipts."
           after={<Switch variant="Primary" value={hideReads} onChange={setHideReads} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Presence Status"
+          description="Show and receive online status from other users."
+          after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
         />
       </SequenceCard>
     </Box>

@@ -8,7 +8,6 @@ import {
 } from '../app/utils/notificationStyle';
 
 type NotificationSettings = {
-  notificationSoundEnabled: boolean;
   showMessageContent: boolean;
   showEncryptedMessageContent: boolean;
 };
@@ -17,13 +16,10 @@ export const createPushNotifications = (
   self: ServiceWorkerGlobalScope,
   getNotificationSettings: () => NotificationSettings
 ) => {
-  const resolveSilent = (silent: unknown, tweakSound?: unknown): boolean => {
-    if (typeof silent === 'boolean') return silent;
-    // If the push rule doesn't request a sound tweak, the notification should be silent
-    // (no sound), regardless of the user's global sound preference.
-    if (!tweakSound) return true;
-    return !getNotificationSettings().notificationSoundEnabled;
-  };
+  // Push notification sound is always controlled by the OS/device settings.
+  // We never explicitly silence push notifications — the user's device notification
+  // preferences (volume, Do Not Disturb, per-app settings) handle that instead.
+  const resolveSilent = (): boolean => false;
 
   const showNotificationWithData = async (
     title: string,
@@ -74,7 +70,7 @@ export const createPushNotifications = (
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
       }),
-      silent: resolveSilent(pushData?.silent, pushData?.tweaks?.sound),
+      silent: resolveSilent(),
       eventId: pushData?.event_id,
       recipientId: typeof pushData?.user_id === 'string' ? pushData.user_id : undefined,
       data,
@@ -109,7 +105,7 @@ export const createPushNotifications = (
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
       }),
-      silent: resolveSilent(pushData?.silent, pushData?.tweaks?.sound),
+      silent: resolveSilent(),
       eventId: pushData?.event_id,
       recipientId: typeof pushData?.user_id === 'string' ? pushData.user_id : undefined,
       data,
@@ -142,7 +138,7 @@ export const createPushNotifications = (
       ...pushData.data,
     };
 
-    await showNotificationWithData('New Invitation', body, data, resolveSilent(pushData?.silent));
+    await showNotificationWithData('New Invitation', body, data, resolveSilent());
   };
 
   const handlePushNotificationPushData = async (pushData: any) => {

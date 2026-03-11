@@ -199,18 +199,9 @@ export function SyncDiagnostics() {
                 <Box direction="Column" gap="100">
                   <Text size="T300">Sliding proxy: {diagnostics.sliding.proxyBaseUrl}</Text>
                   <Text size="T300">
-                    Timeline limit: {diagnostics.sliding.timelineLimit} (page size:{' '}
-                    {diagnostics.sliding.listPageSize})
-                  </Text>
-                  <Text size="T300">
-                    Adaptive timeline: {diagnostics.sliding.adaptiveTimeline ? 'yes' : 'no'}
-                  </Text>
-                  <Text size="T300">
-                    Device/network: saveData {diagnostics.sliding.device.saveData ? 'on' : 'off'} |
-                    effectiveType {diagnostics.sliding.device.effectiveType ?? 'unknown'} | memory{' '}
-                    {diagnostics.sliding.device.deviceMemoryGb ?? 'unknown'} GB | mobile{' '}
-                    {diagnostics.sliding.device.mobile ? 'yes' : 'no'} | missing signals{' '}
-                    {diagnostics.sliding.device.missingSignals}
+                    Room timeline limit: {diagnostics.sliding.timelineLimit} (adaptive:{' '}
+                    {diagnostics.sliding.adaptiveTimeline ? 'yes' : 'no'}) | page size:{' '}
+                    {diagnostics.sliding.listPageSize}
                   </Text>
                   {diagnostics.sliding.lists.map((list) => (
                     <Text size="T300" key={list.key}>

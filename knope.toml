@@ -1,30 +1,52 @@
 
 [packages.sable]
-versioned_files = ["package.json", "package-lock.json", "src-tauri/tauri.conf.json"]
+versioned_files = ["package.json", "src-tauri/tauri.conf.json"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
     { name = "Documentation", types = ["docs"] },
     { name = "Notes", types = ["note"] },
 ]
-# assets = "marker for GitHub bot" // TODO: add this later once we have assets
+# assets = "marker" // TODO: add this later once we have assets
 
 [changes]
 ignore_conventional_commits = true
 
 [[workflows]]
-name = "release"
-help_text = "Prepare and create a new release (update changelog, bump version, create release)"
+name = "prepare-release"
+help_text = "Prepare a release PR"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch -c release"
 
 [[workflows.steps]]
 type = "PrepareRelease"
 
 [[workflows.steps]]
 type = "Command"
-command = 'git commit -m "chore: prepare release $version"'
+command = "git commit -m \"chore: prepare release $version\""
 
 [[workflows.steps]]
 type = "Command"
-command = "git push"
+command = "git push --force --set-upstream origin release"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "dev"
+
+[workflows.steps.title]
+template = "chore: prepare release $version"
+
+[workflows.steps.body]
+template = """
+> [!IMPORTANT]
+> Merging this PR will create a new release.
+
+$changelog"""
+
+[[workflows]]
+name = "release"
+help_text = "Create a GitHub release"
 
 [[workflows.steps]]
 type = "Release"
@@ -37,17 +59,12 @@ help_text = "Create a new change file to be included in the next release"
 type = "CreateChangeFile"
 
 [github]
-owner = "7w1"
-repo = "sable"
-
-[bot.releases]
-enabled = true
-pull_request.title = "$version changelog"
-
-[bot.checks]
-skip_labels = ["internal"]
+owner = "SableClient"
+repo = "Sable"
 
 [release_notes]
+# The <!-- commit:$commit_hash --> marker is used by prepare-release.yml
 change_templates = [
-    "* $summary",
+    "### $summary <!-- commit:$commit_hash -->\n\n$details",
+    "* $summary <!-- commit:$commit_hash -->",
 ]

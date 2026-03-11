@@ -238,6 +238,7 @@ export const EmoticonImg = style([
   {
     height: '1em',
     cursor: 'default',
+    maxWidth: '800px',
   },
 ]);
 

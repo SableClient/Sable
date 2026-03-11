@@ -1,7 +1,7 @@
 dist
 node_modules
 package.json
-package-lock.json
+pnpm-lock.yaml
 LICENSE
 README.md
 CHANGELOG.md

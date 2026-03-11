@@ -1,0 +1,90 @@
+name: Create Release PR
+
+on:
+  push:
+    branches: [dev]
+
+permissions: {}
+
+jobs:
+  prepare-release:
+    if: "!contains(github.event.head_commit.message, 'chore: prepare release')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
+
+      - uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
+        with:
+          version: 0.22.1
+
+      - name: Prepare Release
+        run: knope prepare-release --verbose
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enrich changelog with PR attribution
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const changelog = "CHANGELOG.md";
+
+            if (!fs.existsSync(changelog)) return;
+
+            let content = fs.readFileSync(changelog, "utf8");
+            const marker = /<!-- commit:([0-9a-f]+) -->/g;
+            const hashes = [...new Set([...content.matchAll(marker)].map(m => m[1]))];
+
+            if (hashes.length === 0) return;
+
+            const { owner, repo } = context.repo;
+
+            for (const hash of hashes) {
+              let replacement = "";
+              try {
+                // Find PRs associated with this commit. Knope uses the commit that
+                // first introduced the changeset file, so this reliably points to
+                // the original PR regardless of later edits on the branch.
+                const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner, repo, commit_sha: hash,
+                });
+                const pr = prs.data[0];
+                if (pr) {
+                  replacement = `([#${pr.number}](${pr.html_url}) by @${pr.user.login})`;
+                } else {
+                  // Commit exists but has no associated PR (e.g. direct push to dev)
+                  replacement = `(\`${hash}\`)`;
+                }
+              } catch {
+                replacement = `(\`${hash}\`)`;
+              }
+              content = content.replaceAll(`<!-- commit:${hash} -->`, replacement);
+            }
+
+            fs.writeFileSync(changelog, content);
+
+      - name: Amend release commit with enriched changelog
+        shell: bash
+        run: |
+          # Only amend if the changelog was actually staged by knope
+          if git diff --cached --name-only | grep -q "CHANGELOG.md"; then
+            git add CHANGELOG.md
+            git commit --amend --no-edit
+          elif git diff --name-only HEAD | grep -q "CHANGELOG.md"; then
+            git add CHANGELOG.md
+            git commit --amend --no-edit
+          fi
+
+      - name: Push release branch
+        shell: bash
+        run: git push --force --set-upstream origin release

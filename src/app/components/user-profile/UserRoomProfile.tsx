@@ -180,6 +180,7 @@ function UserExtendedSection({
 
       {bioContent && (
         <Scroll
+          data-profile-bio
           direction="Vertical"
           variant="SurfaceVariant"
           visibility="Always"

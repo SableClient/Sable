@@ -1,5 +1,26 @@
 # Sable Client Changelog
 
+## 1.6.0 (2026-03-10)
+
+### Features
+
+* GitHub repo moved to [SableClient/Sable](https://github.com/SableClient/Sable) go star it!
+* Added a pop-up for showing a message's edit history
+* In-app bug report and feature request modal.
+* Mentions now receive a full-width background highlight in the room timeline.
+
+* Adds a **Presence Status** toggle under Settings → General.
+
+* Rewrites the sliding sync implementation to match the Element Web approach (MSC4186).
+
+### Fixes
+
+* Enhance UnsupportedContent and BrokenContent to display message body.
+* Notification settings page improvements.
+* In-app notification banner placement fixes.
+* Notification delivery bug fixes.
+* Prevent multiple forwards of a message if sending is slow.
+
 ## 1.5.3 (2026-03-08)
 
 ### Fixes

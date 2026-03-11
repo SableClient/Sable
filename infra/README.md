@@ -6,7 +6,7 @@ production deployment, and the production custom domain.
 Prerequisites:
 
 - OpenTofu `1.11.x` installed locally
-- Node.js/npm installed locally so you can build `dist/` before Worker uploads
+- Node.js/pnpm installed locally so you can build `dist/` before Worker uploads
 - A Cloudflare account with the target zone already onboarded to Cloudflare
 - A GitLab project to store the OpenTofu state
 - A GitLab access token that can read and write that project's OpenTofu state
@@ -52,17 +52,17 @@ Local setup:
 1. Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in shared values.
 2. Copy `gitlab.http.tfbackend.example` to `gitlab.http.tfbackend` and fill in the
    GitLab project ID, state name, and username.
-3. Run `npm ci` from the repo root.
+3. Run `pnpm install` from the repo root.
 4. Export the GitLab access token as the backend password.
 5. Export the Cloudflare API token for OpenTofu.
-6. Run `npm run build` before `tofu plan` or `tofu apply`, because
+6. Run `pnpm run build` before `tofu plan` or `tofu apply`, because
    `cloudflare_worker_version` uploads the built `dist/` assets.
 7. Initialize the backend.
 
 Local OpenTofu production flow from the repo root:
 
 ```bash
-npm run build
+pnpm run build
 export TF_HTTP_PASSWORD="<your-gitlab-access-token>"
 export CLOUDFLARE_API_TOKEN="<your-cloudflare-api-token>"
 tofu -chdir=infra/web init -reconfigure -backend-config="../gitlab.http.tfbackend"

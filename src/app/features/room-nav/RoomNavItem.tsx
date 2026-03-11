@@ -60,18 +60,18 @@ import { useRoomName } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
-// Upstream Call Hooks
+// Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallStart } from '$hooks/useCallEmbed';
 import { callChatAtom } from '$state/callEmbed';
 import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
 import { CallControlState } from '$plugins/call/CallControlState';
+import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
+import { livekitSupport } from '$hooks/useLivekitSupport';
 import { RoomNavUser } from './RoomNavUser';
 
 /**
- * Reactively checks whether a room has unread messages, even if the
- * push-rule notification count is zero (e.g. mentions-only rooms with
- * new regular messages).
+ * Reactively checks whether a room has unread messages.
  */
 function useRoomHasUnread(room: Room): boolean {
   const mx = useMatrixClient();
@@ -278,25 +278,23 @@ export function RoomNavItem({
     (receipt) => receipt.userId !== mx.getUserId()
   );
 
-  // Name Resolution
   const nicknames = useAtomValue(nicknamesAtom);
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
 
-  // Navigation & Context
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
 
-  // Call Hooks (Merged from upstream)
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const startCall = useCallStart(direct);
   const callEmbed = useCallEmbed();
   const callPref = useAtomValue(useCallPreferencesAtom());
   const [isChatOpen, setChatOpen] = useAtom(callChatAtom);
+  const autoDiscoveryInfo = useAutoDiscoveryInfo();
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
 
@@ -316,6 +314,10 @@ export function RoomNavItem({
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
     if (room.isCallRoom()) {
+      // Upstream safety checks: verify Livekit support or active participants
+      if (!livekitSupport(autoDiscoveryInfo) && callMembers.length === 0) return;
+      if (callEmbed && !isActiveCall) return;
+
       if (!isMobile) {
         if (!isActiveCall && !callEmbed) {
           startCall(

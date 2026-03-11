@@ -116,13 +116,30 @@ type CallJoinedProps = {
   containerRef: RefObject<HTMLDivElement>;
   joined: boolean;
 };
+
 function CallJoined({ joined, containerRef }: CallJoinedProps) {
   const callEmbed = useCallEmbed();
 
   return (
-    <Box grow="Yes" direction="Column">
-      <Box grow="Yes" ref={containerRef} />
-      {callEmbed && joined && <CallControls callEmbed={callEmbed} />}
+    <Box grow="Yes" direction="Column" style={{ position: 'relative' }}>
+      <Box grow="Yes" ref={containerRef} style={{ height: '100%', width: '100%' }} />
+
+      {callEmbed && joined && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: toRem(16),
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'all',
+          }}
+        >
+          <CallControls callEmbed={callEmbed} />
+        </div>
+      )}
     </Box>
   );
 }

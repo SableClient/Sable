@@ -26,25 +26,20 @@ import {
   VideoButton,
 } from './Controls';
 import { CallEmbed, useCallControlState } from '../../plugins/call';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { stopPropagation } from '../../utils/keyboard';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
+import { useRoom } from '../../hooks/useRoom';
+import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 
 type CallControlsProps = {
   callEmbed: CallEmbed;
 };
 export function CallControls({ callEmbed }: CallControlsProps) {
+  const room = useRoom();
   const controlRef = useRef<HTMLDivElement>(null);
-  const [compact, setCompact] = useState(document.body.clientWidth < 500);
 
-  useResizeObserver(
-    useCallback(() => {
-      const element = controlRef.current;
-      if (!element) return;
-      setCompact(element.clientWidth < 500);
-    }, []),
-    useCallback(() => controlRef.current, [])
-  );
+  const screenSize = useScreenSizeContext();
+  const compact = screenSize === ScreenSize.Mobile;
 
   const { microphone, video, sound, screenshare, spotlight } = useCallControlState(
     callEmbed.control
@@ -83,6 +78,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
       className={css.CallControlContainer}
       justifyContent="Center"
       alignItems="Center"
+      style={{ maxWidth: '100%', overflowX: 'auto' }}
     >
       <SequenceCard
         className={css.ControlCard}
@@ -112,7 +108,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
         {!compact && <ControlDivider />}
         <Box alignItems="Center" gap="Inherit" grow="Yes" direction={compact ? 'Column' : 'Row'}>
           <Box shrink="No" alignItems="Inherit" justifyContent="Inherit" gap="200">
-            <ChatButton />
+            {room?.isCallRoom() && <ChatButton />}
             <PopOut
               anchor={cords}
               position="Top"

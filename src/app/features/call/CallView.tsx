@@ -135,10 +135,12 @@ function CallJoined({ joined, containerRef }: CallJoinedProps) {
             zIndex: 50,
             display: 'flex',
             justifyContent: 'center',
-            pointerEvents: 'all',
+            pointerEvents: 'none',
           }}
         >
-          <CallControls callEmbed={callEmbed} />
+          <div style={{ pointerEvents: 'all', maxWidth: '100%' }}>
+            <CallControls callEmbed={callEmbed} />
+          </div>
         </div>
       )}
     </Box>

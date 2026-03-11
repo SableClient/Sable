@@ -313,9 +313,7 @@ export function RoomNavItem({
   };
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
-    // Merge: Handle Call Rooms OR DMs with active calls
-    if (room.isCallRoom() || (direct && callMembers.length > 0)) {
-      // Upstream safety checks: verify Livekit support or active participants
+    if (room.isCallRoom()) {
       if (!livekitSupport(autoDiscoveryInfo) && callMembers.length === 0) return;
       if (callEmbed && !isActiveCall) return;
 

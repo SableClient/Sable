@@ -8,6 +8,13 @@ import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import RingtoneSound from '$public/sound/ringtone.webm';
 import { useMatrixClient } from './useMatrixClient';
 
+type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
+
+interface SignalState {
+  incoming: string | null;
+  outgoing: string | null;
+}
+
 export function useCallSignaling() {
   const mx = useMatrixClient();
   const setIncomingCall = useSetAtom(incomingCallRoomIdAtom);
@@ -17,6 +24,7 @@ export function useCallSignaling() {
   const outgoingAudioRef = useRef<HTMLAudioElement | null>(null);
   const ringingRoomIdRef = useRef<string | null>(null);
   const outgoingStartRef = useRef<number | null>(null);
+  const callPhaseRef = useRef<Record<string, CallPhase>>({});
 
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
@@ -33,8 +41,6 @@ export function useCallSignaling() {
     return () => {
       inc.pause();
       out.pause();
-      incomingAudioRef.current = null;
-      outgoingAudioRef.current = null;
     };
   }, []);
 
@@ -68,16 +74,17 @@ export function useCallSignaling() {
 
   useEffect(() => {
     if (!mx || !mx.matrixRTC) return undefined;
+
     const checkDMsForActiveCalls = () => {
       const myUserId = mx.getUserId();
       const now = Date.now();
 
-      const signal = [...mDirects].reduce<{ incoming: string | null; outgoing: string | null }>(
-        (found, roomId) => {
-          if (found.incoming || mutedRoomId === roomId) return found;
+      const signal = Array.from(mDirects).reduce<SignalState>(
+        (acc, roomId) => {
+          if (acc.incoming || mutedRoomId === roomId) return acc;
 
           const room = mx.getRoom(roomId);
-          if (!room) return found;
+          if (!room) return acc;
 
           const session = mx.matrixRTC.getRoomSession(room);
           const memberships = MatrixRTCSession.sessionMembershipsForRoom(
@@ -87,15 +94,48 @@ export function useCallSignaling() {
 
           const remoteMembers = memberships.filter((m: any) => (m.userId || m.sender) !== myUserId);
           const isSelfInCall = memberships.some((m: any) => (m.userId || m.sender) === myUserId);
+          const currentPhase = callPhaseRef.current[roomId] || 'IDLE';
 
-          if (remoteMembers.length > 0 && !isSelfInCall) return { ...found, incoming: roomId };
-
-          if (isSelfInCall && remoteMembers.length === 0) {
-            if (!outgoingStartRef.current) outgoingStartRef.current = now;
-            if (now - outgoingStartRef.current < 30000) return { ...found, outgoing: roomId };
+          // no one here
+          if (!isSelfInCall && remoteMembers.length === 0) {
+            callPhaseRef.current[roomId] = 'IDLE';
+            return acc;
           }
 
-          return found;
+          // being called
+          if (remoteMembers.length > 0 && !isSelfInCall) {
+            callPhaseRef.current[roomId] = 'RINGING_IN';
+            return { ...acc, incoming: roomId };
+          }
+
+          // multiple people no ringtone
+          if (isSelfInCall && remoteMembers.length > 0) {
+            callPhaseRef.current[roomId] = 'ACTIVE';
+            return acc;
+          }
+
+          // alone in call
+          if (isSelfInCall && remoteMembers.length === 0) {
+            // Check if post call
+            if (currentPhase === 'ACTIVE' || currentPhase === 'ENDED') {
+              callPhaseRef.current[roomId] = 'ENDED';
+              return acc;
+            }
+
+            // Check if new call
+            if (currentPhase === 'IDLE' || currentPhase === 'RINGING_OUT') {
+              if (!outgoingStartRef.current) outgoingStartRef.current = now;
+
+              if (now - outgoingStartRef.current < 30000) {
+                callPhaseRef.current[roomId] = 'RINGING_OUT';
+                return { ...acc, outgoing: roomId };
+              }
+
+              callPhaseRef.current[roomId] = 'ENDED';
+            }
+          }
+
+          return acc;
         },
         { incoming: null, outgoing: null }
       );
@@ -105,18 +145,18 @@ export function useCallSignaling() {
       } else if (signal.outgoing) {
         playOutgoingRinging(signal.outgoing);
       } else {
-        if (ringingRoomIdRef.current) stopRinging();
-        outgoingStartRef.current = null;
+        stopRinging();
+        if (!signal.outgoing) outgoingStartRef.current = null;
       }
     };
 
-    const interval = setInterval(() => {
-      if (outgoingStartRef.current) checkDMsForActiveCalls();
-    }, 1000);
+    const interval = setInterval(checkDMsForActiveCalls, 1000);
 
     const handleUpdate = () => checkDMsForActiveCalls();
+
     const handleSessionEnded = (roomId: string) => {
       if (mutedRoomId === roomId) setMutedRoomId(null);
+      callPhaseRef.current[roomId] = 'IDLE';
       checkDMsForActiveCalls();
     };
 

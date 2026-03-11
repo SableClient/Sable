@@ -1,5 +1,5 @@
 ---
-sable: patch
+default: patch
 ---
 
-chang to more standard compliant msgtype `m.emote` for `/headpat` event
+Change to more standard compliant msgtype `m.emote` for `/headpat` event.

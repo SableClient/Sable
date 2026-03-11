@@ -177,7 +177,9 @@ pre {
 
 /* Accessibility Overrides :D */
 
-.force-underline-links a {
+.force-underline-links [data-message-id] a:not([data-mention-id]),
+.force-underline-links [data-profile-bio] a,
+.force-underline-links [data-room-topic] a {
   text-decoration: underline !important;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;

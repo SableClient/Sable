@@ -152,9 +152,10 @@ export function AccountSwitcherTab() {
   const totalBackgroundUnread = Object.entries(backgroundUnreads)
     .filter(([uid]) => uid !== (activeSessionId ?? sessions[0]?.userId))
     .reduce((acc, [, u]) => acc + u.total, 0);
-  const anyBackgroundHighlight = Object.entries(backgroundUnreads)
+  const totalBackgroundHighlight = Object.entries(backgroundUnreads)
     .filter(([uid]) => uid !== (activeSessionId ?? sessions[0]?.userId))
-    .some(([, u]) => u.highlight > 0);
+    .reduce((acc, [, u]) => acc + u.highlight, 0);
+  const anyBackgroundHighlight = totalBackgroundHighlight > 0;
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [busyUserIds, setBusyUserIds] = useState<Set<string>>(new Set());
@@ -274,9 +275,12 @@ export function AccountSwitcherTab() {
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
-      {totalBackgroundUnread > 0 && (
+      {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (
         <SidebarItemBadge hasCount>
-          <UnreadBadge highlight={anyBackgroundHighlight} count={totalBackgroundUnread} />
+          <UnreadBadge
+            highlight={anyBackgroundHighlight}
+            count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}
+          />
         </SidebarItemBadge>
       )}
 

@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
+import { MouseEventHandler, forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   Avatar,
@@ -18,6 +18,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
+import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import {
@@ -183,6 +184,33 @@ export function Direct() {
   const noRoomToDisplay = directs.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
+  // Track timeline activity to trigger re-sorting when messages arrive.
+  // Without this, DMs only re-sort when you switch rooms because getLastActiveTimestamp()
+  // is internal SDK state not tracked by React dependencies.
+  const [activityCounter, setActivityCounter] = useState(0);
+  const directsSetRef = useRef(directs);
+  directsSetRef.current = directs;
+
+  useEffect(() => {
+    const handleTimeline = () => {
+      // Increment counter to trigger re-sort when any timeline event happens
+      setActivityCounter((prev) => prev + 1);
+    };
+
+    // Listen to timeline events only for direct message rooms
+    directsSetRef.current.forEach((roomId) => {
+      const room = mx.getRoom(roomId);
+      room?.on(RoomEvent.Timeline, handleTimeline);
+    });
+
+    return () => {
+      directsSetRef.current.forEach((roomId) => {
+        const room = mx.getRoom(roomId);
+        room?.off(RoomEvent.Timeline, handleTimeline);
+      });
+    };
+  }, [mx, directs]);
+
   const sortedDirects = useMemo(() => {
     const items = Array.from(directs).sort(factoryRoomIdByActivity(mx));
     const hasUnread = (roomId: string) => {
@@ -193,7 +221,8 @@ export function Direct() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, directs, closedCategories, roomToUnread, selectedRoomId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mx, directs, closedCategories, roomToUnread, selectedRoomId, activityCounter]);
 
   const virtualizer = useVirtualizer({
     count: sortedDirects.length,

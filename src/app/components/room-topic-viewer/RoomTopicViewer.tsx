@@ -29,7 +29,7 @@ export const RoomTopicViewer = as<
         <Icon src={Icons.Cross} />
       </IconButton>
     </Header>
-    <Scroll className={css.ModalScroll} size="300" hideTrack>
+    <Scroll data-room-topic className={css.ModalScroll} size="300" hideTrack>
       <Box className={css.ModalContent} direction="Column" gap="100">
         <Text size="T300" className={css.ModalTopic} priority="400">
           <Linkify options={LINKIFY_OPTS}>{scaleSystemEmoji(topic)}</Linkify>

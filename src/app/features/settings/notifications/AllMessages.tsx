@@ -108,7 +108,8 @@ export function AllMessagesNotifications() {
         gap="400"
       >
         <SettingTile
-          title="1-to-1 Chats"
+          title="Direct Messages"
+          description="Includes 1-to-1, group DMs, and bridged conversations."
           after={<AllMessagesModeSwitcher pushRules={pushRules} ruleId={RuleId.DM} oneToOne />}
         />
       </SequenceCard>
@@ -119,7 +120,8 @@ export function AllMessagesNotifications() {
         gap="400"
       >
         <SettingTile
-          title="1-to-1 Chats (Encrypted)"
+          title="Direct Messages (Encrypted)"
+          description="Includes 1-to-1, group DMs, and bridged conversations."
           after={
             <AllMessagesModeSwitcher
               pushRules={pushRules}

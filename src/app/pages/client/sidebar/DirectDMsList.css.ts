@@ -15,7 +15,7 @@ export const GroupAvatarRow = style({
 });
 
 export const GroupAvatar = style({
-  marginLeft: '-12px',
+  marginLeft: '-16px',
   border: `2px solid ${color.Surface.Container}`,
   selectors: {
     '&:first-child': {

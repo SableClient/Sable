@@ -25,9 +25,3 @@ export const GroupAvatar = style({
     },
   },
 });
-
-export const GroupAvatarBadge = style({
-  position: 'absolute',
-  top: '-2px',
-  left: '-2px',
-});

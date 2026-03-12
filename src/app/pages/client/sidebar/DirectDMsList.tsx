@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box, Badge } from 'folds';
+import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Room, SyncState } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
@@ -12,8 +12,10 @@ import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
+  SidebarItemBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
+import { UnreadBadge } from '$components/unread-badge';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl } from '$utils/room';
@@ -96,18 +98,6 @@ function DMItem({ room, selected }: DMItemProps) {
                     );
                   })}
                 </Box>
-                {unread && (unread.total > 0 || unread.highlight > 0) && (
-                  <Badge
-                    className={css.GroupAvatarBadge}
-                    size="300"
-                    variant={unread.highlight > 0 ? 'Primary' : 'Secondary'}
-                    fill="Solid"
-                    radii="Pill"
-                    outlined
-                  >
-                    <Text size="L400">{unread.total}</Text>
-                  </Badge>
-                )}
               </Box>
             ) : (
               <Avatar size="400" radii="400">
@@ -126,6 +116,11 @@ function DMItem({ room, selected }: DMItemProps) {
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
+      {unread && (unread.total > 0 || unread.highlight > 0) && (
+        <SidebarItemBadge hasCount={unread.total > 0}>
+          <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
+        </SidebarItemBadge>
+      )}
     </SidebarItem>
   );
 }

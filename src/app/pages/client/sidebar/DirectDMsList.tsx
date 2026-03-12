@@ -18,6 +18,7 @@ import {
 import { UnreadBadge } from '$components/unread-badge';
 import { useRoomUnread } from '$state/hooks/unread';
 import { RoomAvatar } from '$components/room-avatar';
+import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl, getMemberAvatarMxc } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
@@ -75,8 +76,8 @@ function DMItem({ room, selected }: DMItemProps) {
 
                   return (
                     <Avatar key={member.userId} size="200" radii="400" className={css.GroupAvatar}>
-                      <RoomAvatar
-                        roomId={room.roomId}
+                      <UserAvatar
+                        userId={member.userId}
                         src={avatarUrl}
                         alt={member.name}
                         renderFallback={() => (

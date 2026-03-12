@@ -19,11 +19,10 @@ devAssets
 !*.tfbackend.example
 crash.log
 
+# Tauri
 /build
 /target/
 /gen/schemas
-
-# Tauri
 dist-js
 
 # Gradle / Android build artifacts
@@ -31,6 +30,12 @@ dist-js
 **/android/.tauri/
 **/android/.gradle/
 **/.gradle/
+
+# Rust build artifacts
+src-tauri/target/
+# Tauri Android build outputs
+src-tauri/gen/android/app/build/
+
 
 # Rust build artifacts in subcrates
 crates/**/target/

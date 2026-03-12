@@ -18,8 +18,8 @@
   ],
   "scripts": {
     "build": "rollup -c",
-    "prepublishOnly": "npm build",
-    "pretest": "npm build"
+    "prepublishOnly": "pnpm build",
+    "pretest": "pnpm build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0"

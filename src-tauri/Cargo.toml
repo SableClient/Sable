@@ -54,4 +54,3 @@ tauri-plugin-window-state = "2.4.1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugin-notifications.git", rev = "9f162c62f89f9f7e1e17c71893faa51d140f18fd", features = ["unified-push"] }
-

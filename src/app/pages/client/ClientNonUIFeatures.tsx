@@ -1,7 +1,13 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PushProcessor, RoomEvent, RoomEventHandlerMap, SetPresence } from '$types/matrix-sdk';
+import {
+  MatrixEventEvent,
+  PushProcessor,
+  RoomEvent,
+  RoomEventHandlerMap,
+  SetPresence,
+} from '$types/matrix-sdk';
 import parse from 'html-react-parser';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { sanitizeCustomHtml } from '$utils/sanitize';
@@ -23,6 +29,7 @@ import {
   getMemberDisplayName,
   getNotificationType,
   getStateEvent,
+  isDMRoom,
   isNotificationEvent,
 } from '$utils/room';
 import { NotificationType, StateEvent } from '$types/matrix/room';
@@ -39,6 +46,7 @@ import {
 import { mobileOrTablet } from '$utils/user-agent';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
+import { NotificationBanner } from '$components/notification-banner';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -250,6 +258,11 @@ function MessageNotifications() {
 
   useEffect(() => {
     const pushProcessor = new PushProcessor(mx);
+    // Track encrypted events that should skip focus check when decrypted (because we
+    // already checked focus when the encrypted event arrived, and want to use that
+    // original state rather than re-checking after decryption completes).
+    const skipFocusCheckEvents = new Set<string>();
+
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
       room,
@@ -258,7 +271,13 @@ function MessageNotifications() {
       data
     ) => {
       if (mx.getSyncState() !== 'SYNCING') return;
-      if (document.hasFocus() && (selectedRoomId === room?.roomId || notificationSelected)) return;
+
+      const eventId = mEvent.getId();
+      const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
+      if (!shouldSkipFocusCheck) {
+        if (document.hasFocus() && (selectedRoomId === room?.roomId || notificationSelected))
+          return;
+      }
 
       // Older sliding sync proxies (e.g. matrix-sliding-sync) omit num_live,
       // which causes every event to arrive with fromCache=true and therefore
@@ -274,39 +293,60 @@ function MessageNotifications() {
         (mEvent.getTs() < clientStartTimeRef.current - 60 * 1000 ||
           (!!room && room.hasUserReadEvent(mx.getSafeUserId(), mEvent.getId()!)));
 
-      // m.room.encrypted events haven't been decrypted yet; the SDK will
-      // re-emit the event after decryption with the real type and content.
-      // Without this guard we'd add the eventId to notifiedEventsRef here,
-      // causing the decrypted re-emission to be deduped — showing
-      // "Encrypted Message" instead of the actual content.
-      if (mEvent.getType() === 'm.room.encrypted') return;
+      // For encrypted events that haven't been decrypted yet, wait for decryption
+      // before processing the notification. The SDK's Timeline re-emission after
+      // decryption comes with data.liveEvent=false which would wrongly block it.
+      if (mEvent.getType() === 'm.room.encrypted' && mEvent.isEncrypted()) {
+        if (eventId) {
+          // Mark this event to skip focus check when decrypted, so we use the focus
+          // state from when the encrypted event originally arrived, not when it decrypts.
+          skipFocusCheckEvents.add(eventId);
+        }
 
-      if (
-        !room ||
-        isHistoricalEvent ||
-        room.isSpaceRoom() ||
-        !isNotificationEvent(mEvent) ||
-        getNotificationType(mx, room.roomId) === NotificationType.Mute
-      ) {
+        const handleDecrypted = () => {
+          // After decryption, run the notification logic with the decrypted event
+          handleTimelineEvent(mEvent, room, undefined, removed, data);
+          // Clean up the skip-focus marker
+          if (eventId) {
+            skipFocusCheckEvents.delete(eventId);
+          }
+        };
+        mEvent.once(MatrixEventEvent.Decrypted, handleDecrypted);
+        return;
+      }
+
+      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent)) {
+        return;
+      }
+
+      const notificationType = getNotificationType(mx, room.roomId);
+      if (notificationType === NotificationType.Mute) {
         return;
       }
 
       const sender = mEvent.getSender();
-      const eventId = mEvent.getId();
       if (!sender || !eventId || mEvent.getSender() === mx.getUserId()) return;
 
       // Deduplicate: don't show a second banner if this event fires twice
       // (e.g., decrypted events re-emitted by the SDK).
       if (notifiedEventsRef.current.has(eventId)) return;
 
+      // Check if this is a DM using multiple signals for robustness
+      const isDM = isDMRoom(room, mDirectsRef.current);
       const pushActions = pushProcessor.actionsForEvent(mEvent);
-      if (!pushActions?.notify) return;
+
+      // For DMs with "All Messages" or "Default" notification settings:
+      // Always notify even if push rules fail to match due to sliding sync limitations.
+      // For "Mention & Keywords": respect the push rule (only notify if it matches).
+      const shouldForceDMNotification =
+        isDM && notificationType !== NotificationType.MentionsAndKeywords;
+      const shouldNotify = pushActions?.notify || shouldForceDMNotification;
+
+      // If we shouldn't notify based on rules/settings, skip everything
+      if (!shouldNotify) return;
+
       const loudByRule = Boolean(pushActions.tweaks?.sound);
       const isHighlightByRule = Boolean(pushActions.tweaks?.highlight);
-      const isDM = mDirectsRef.current.has(room.roomId);
-
-      // If neither a loud nor a highlight rule matches, and it's not a DM, nothing to show.
-      if (!isHighlightByRule && !loudByRule && !isDM) return;
 
       // With sliding sync we only load m.room.member/$ME in required_state, so
       // PushProcessor cannot evaluate the room_member_count == 2 condition on
@@ -371,7 +411,9 @@ function MessageNotifications() {
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      if (showNotifications && (isHighlightByRule || isLoud)) {
+      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
+      // For DMs, show banner for all messages.
+      if (showNotifications && (isHighlightByRule || isDM)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc
@@ -438,8 +480,8 @@ function MessageNotifications() {
         });
       }
 
-      // In-app audio: play whenever notification sounds are enabled.
-      if (notificationSound) {
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      if (notificationSound && isLoud) {
         playSound();
       }
     };
@@ -602,6 +644,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <NotificationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       {children}

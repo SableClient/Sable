@@ -23,10 +23,14 @@ const slideOut = keyframes({
   },
 });
 
-// Floats at the top of the viewport, spanning full width on all platforms.
+// Positions at the top of the viewport, spanning full width.
+// Uses fixed positioning with safe-area-inset to handle iOS keyboard correctly.
+// On iOS, the banner stays at the top of the visual viewport even when keyboard is open.
 export const BannerContainer = style({
   position: 'fixed',
-  top: 0,
+  // Use env(safe-area-inset-top) to respect device-specific safe areas (notches, etc)
+  // This also helps position correctly on iOS when the keyboard is open
+  top: 'env(safe-area-inset-top, 0)',
   left: 0,
   right: 0,
   zIndex: 9999,
@@ -36,6 +40,16 @@ export const BannerContainer = style({
   padding: config.space.S400,
   pointerEvents: 'none',
   alignItems: 'stretch',
+
+  // On iOS, when keyboard opens, ensure banner stays visible at top of visual viewport
+  '@supports': {
+    '(-webkit-touch-callout: none)': {
+      // iOS-specific: Position relative to the visible viewport when keyboard is open
+      position: 'fixed',
+      // Support both old and new safe area syntax
+      top: 'max(env(safe-area-inset-top, 0px), constant(safe-area-inset-top, 0px))',
+    },
+  },
 });
 
 export const Banner = style({

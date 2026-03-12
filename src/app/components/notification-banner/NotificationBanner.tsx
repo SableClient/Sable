@@ -1,9 +1,11 @@
 import { useAtom } from 'jotai';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { createLogger } from '$utils/debug';
 import { inAppBannerAtom, InAppBannerNotification } from '$state/sessions';
 import * as css from './NotificationBanner.css';
 
+const log = createLogger('NotificationBanner');
 const BANNER_DURATION_MS = 5000;
 
 // Renders body text capped at a max height with a gradient fade when it overflows.
@@ -173,15 +175,58 @@ export function NotificationBanner() {
   // We store an array locally so multiple rapid notifications stack briefly.
   const [banner, setBanner] = useAtom(inAppBannerAtom);
   const [queue, setQueue] = useState<InAppBannerNotification[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  log.log('[Banner] Component render, queue length:', queue.length, 'banner:', banner);
+
+  // Adjust banner position for iOS keyboard
+  useEffect(() => {
+    // Only apply on iOS/browsers that support visualViewport
+    if (!('visualViewport' in window)) return undefined;
+
+    const updatePosition = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const visualViewport = window.visualViewport!;
+      // Calculate how much of the screen is covered by the keyboard
+      // When keyboard opens, visualViewport.height shrinks
+      const keyboardHeight = window.innerHeight - visualViewport.height;
+
+      // Position the banner down by the keyboard height so it appears at the top of the visible area
+      // This puts it "halfway down the page" when keyboard covers half the screen
+      if (keyboardHeight > 0) {
+        container.style.top = `${keyboardHeight}px`;
+      } else {
+        // Reset to CSS default (env(safe-area-inset-top))
+        container.style.top = '';
+      }
+    };
+
+    const visualViewport = window.visualViewport!;
+    visualViewport.addEventListener('resize', updatePosition);
+    visualViewport.addEventListener('scroll', updatePosition);
+    updatePosition(); // Initial position
+
+    return () => {
+      visualViewport.removeEventListener('resize', updatePosition);
+      visualViewport.removeEventListener('scroll', updatePosition);
+    };
+  }, []);
 
   // Push new notifications into the local queue.
   useEffect(() => {
     if (!banner) return;
+    log.log('[Banner] New banner from atom:', banner.id, banner.title);
     setQueue((prev) => {
       // De-duplicate by id
-      if (prev.some((n) => n.id === banner.id)) return prev;
+      if (prev.some((n) => n.id === banner.id)) {
+        log.log('[Banner] Duplicate banner, skipping:', banner.id);
+        return prev;
+      }
       // Keep at most 3 visible at once — drop the oldest if over limit.
       const next = [...prev, banner];
+      log.log('[Banner] Adding to queue, new length:', next.length);
       return next.length > 3 ? next.slice(next.length - 3) : next;
     });
     // Clear the atom so the same notification doesn't re-enqueue on re-render.
@@ -189,13 +234,18 @@ export function NotificationBanner() {
   }, [banner, setBanner]);
 
   const handleDismiss = (id: string) => {
+    log.log('[Banner] Dismissing banner:', id);
     setQueue((prev) => prev.filter((n) => n.id !== id));
   };
 
-  if (queue.length === 0) return null;
+  if (queue.length === 0) {
+    log.log('[Banner] No banners in queue, returning null');
+    return null;
+  }
 
+  log.log('[Banner] Rendering', queue.length, 'banners');
   return (
-    <div className={css.BannerContainer} aria-live="polite" aria-atomic="false">
+    <div ref={containerRef} className={css.BannerContainer} aria-live="polite" aria-atomic="false">
       {queue.map((n) => (
         <BannerItem key={n.id} notification={n} onDismiss={handleDismiss} />
       ))}

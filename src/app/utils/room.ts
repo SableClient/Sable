@@ -94,6 +94,28 @@ export const isUnsupportedRoom = (room: Room | null): boolean => {
   return event.getContent().type !== undefined && event.getContent().type !== RoomType.Space;
 };
 
+/**
+ * Detects if a room is a direct message room using multiple signals for robustness:
+ * 1. Primary: checks if room is in mDirects set (from m.direct account data)
+ * 2. Fallback: checks if room has exactly 2 joined members (classic DM heuristic)
+ *
+ * The fallback handles cases where m.direct account data is incomplete or outdated.
+ */
+export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
+  // Primary signal: check m.direct account data
+  if (mDirects?.has(room.roomId)) {
+    return true;
+  }
+
+  // Fallback: use member count heuristic for untagged DMs
+  // Only applies to non-space rooms with exactly 2 members (you + them)
+  if (!room.isSpaceRoom() && room.getJoinedMemberCount() === 2) {
+    return true;
+  }
+
+  return false;
+};
+
 export function isValidChild(mEvent: MatrixEvent): boolean {
   return (
     mEvent.getType() === StateEvent.SpaceChild &&
@@ -190,6 +212,7 @@ const NOTIFICATION_EVENT_TYPES = [
   'm.room.encrypted',
   'm.room.member',
   'm.sticker',
+  'm.reaction',
 ];
 export const isNotificationEvent = (mEvent: MatrixEvent) => {
   const eType = mEvent.getType();
@@ -213,24 +236,34 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
   const userId = mx.getUserId();
   if (!userId) return false;
   const readUpToId = room.getEventReadUpTo(userId);
-  if (!readUpToId) return false;
   const liveEvents = room.getLiveTimeline().getEvents();
 
-  if (liveEvents[liveEvents.length - 1]?.getSender() === userId) {
+  if (!readUpToId) {
+    return false;
+  }
+
+  const latestEvent = liveEvents[liveEvents.length - 1];
+
+  if (latestEvent?.getSender() === userId) {
     return false;
   }
 
   for (let i = liveEvents.length - 1; i >= 0; i -= 1) {
     const event = liveEvents[i];
     if (!event) return false;
-    if (event.getId() === readUpToId) return false;
-    if (isNotificationEvent(event)) return true;
+    if (event.getId() === readUpToId) {
+      return false;
+    }
+    if (isNotificationEvent(event)) {
+      return true;
+    }
   }
   return false;
 };
 
 type UnreadInfoOptions = {
   applyFixup?: boolean;
+  mDirects?: Set<string>;
 };
 
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
@@ -242,6 +275,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
   const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
+
+  // Check if this is a DM and what notification type it has (using multiple signals for robustness)
+  const isDM = isDMRoom(room, options?.mDirects);
+  const notificationType = isDM ? getNotificationType(room.client, room.roomId) : undefined;
+  const shouldForceDMHighlight =
+    isDM &&
+    notificationType !== NotificationType.Mute &&
+    notificationType !== NotificationType.MentionsAndKeywords;
 
   // If our latest main-timeline notification event is confirmed read, clamp its stale count.
   // Only apply to the room (non-thread) portion so thread reply counts are preserved.
@@ -291,6 +332,43 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // Sliding sync limitation: unvisited rooms don't have read receipt data, but may have
+  // timeline activity. Check for notification events from others in the timeline to show a
+  // badge even when SDK counts are 0 (or unreliable without receipts).
+  if (userId) {
+    const readUpToId = room.getEventReadUpTo(userId);
+
+    // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
+    if (!readUpToId) {
+      const liveEvents = room.getLiveTimeline().getEvents();
+
+      const hasActivity = liveEvents.some(
+        (event) => event.getSender() !== userId && isNotificationEvent(event)
+      );
+
+      if (hasActivity) {
+        // If SDK already has counts, use those. Otherwise show dot badge (count=1).
+        if (total === 0 && highlight === 0) {
+          return { roomId: room.roomId, highlight: 0, total: 1 };
+        }
+        // SDK has counts but no receipt - trust the counts and show them
+        return { roomId: room.roomId, highlight, total };
+      }
+    }
+  }
+
+  // For DMs with Default or AllMessages notification type: if there are unread messages,
+  // ensure we show a notification badge (treat as highlight for badge color purposes).
+  // This handles cases where push rules don't properly match (e.g., classic sync with
+  // member_count condition failures, or sliding sync with limited required_state).
+  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
+    return {
+      roomId: room.roomId,
+      highlight: total, // Treat all unread messages as highlights for DMs
+      total,
+    };
+  }
+
   return {
     roomId: room.roomId,
     highlight,
@@ -298,21 +376,23 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   };
 };
 
-export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): UnreadInfo[] =>
-  mx.getRooms().reduce<UnreadInfo[]>((unread, room) => {
+export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): UnreadInfo[] => {
+  const unreadInfos = mx.getRooms().reduce<UnreadInfo[]>((unread, room) => {
     if (room.isSpaceRoom()) return unread;
     if (room.getMyMembership() !== 'join') return unread;
     if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return unread;
 
-    if (roomHaveNotification(room) || roomHaveUnread(mx, room)) {
-      const unreadInfo = getUnreadInfo(room, options);
-      if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
-        unread.push(unreadInfo);
-      }
+    // Always call getUnreadInfo - it has fallback logic for sliding sync rooms without receipts
+    const unreadInfo = getUnreadInfo(room, options);
+    if (unreadInfo.total > 0 || unreadInfo.highlight > 0) {
+      unread.push(unreadInfo);
     }
 
     return unread;
   }, []);
+
+  return unreadInfos;
+};
 
 export const getRoomIconSrc = (
   icons: Record<IconName, IconSrc>,

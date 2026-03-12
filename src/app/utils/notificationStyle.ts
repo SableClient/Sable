@@ -51,6 +51,18 @@ export const resolveNotificationPreviewText = ({
   showMessageContent,
   showEncryptedMessageContent,
 }: NotificationPreviewInput): string => {
+  // Handle reactions specially - show the reaction emoji
+  if (eventType === 'm.reaction' && content && typeof content === 'object') {
+    const relatesTo = (content as Record<string, unknown>)['m.relates_to'];
+    if (relatesTo && typeof relatesTo === 'object') {
+      const { key } = relatesTo as Record<string, unknown>;
+      if (typeof key === 'string') {
+        return `Reacted with ${key}`;
+      }
+    }
+    return 'Added a reaction';
+  }
+
   const encryptedContext = isEncryptedRoom || eventType === 'm.room.encrypted';
 
   if (!showMessageContent) {

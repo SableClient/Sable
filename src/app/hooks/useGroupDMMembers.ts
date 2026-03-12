@@ -30,20 +30,14 @@ export const useGroupDMMembers = (
         // Now get all members
         const allMembers = room.getMembers();
         
-        // Filter out bridge bots and current user
+        // Filter out bridge bots (not bridged users)
         const isBridgeBot = (userId: string): boolean => {
-          const lowerUserId = userId.toLowerCase();
-          // Check if domain contains 'bridge'
-          const domain = userId.split(':')[1];
-          if (domain && domain.includes('bridge')) return true;
-          
-          // Check for common bridge bot prefixes
           const localpart = userId.split(':')[0].substring(1); // Remove @ prefix
-          const bridgePrefixes = ['telegram_', 'discord_', 'slack_', 'whatsapp_', 'signal_', 'irc_', 'mattermost_'];
-          if (bridgePrefixes.some(prefix => localpart.startsWith(prefix))) return true;
+          const lowerLocalpart = localpart.toLowerCase();
           
-          // Check for bridge in username
-          if (lowerUserId.includes('bridge') || lowerUserId.includes('bot')) return true;
+          // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
+          // Don't filter bridge users with IDs like discord_378405164077547520
+          if (lowerLocalpart.endsWith('bot')) return true;
           
           return false;
         };

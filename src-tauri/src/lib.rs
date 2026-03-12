@@ -58,6 +58,9 @@ pub fn run() {
         let _ = desktop_tray::show_or_create_main_window(app);
     }));
 
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_notifications::init());
+
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())

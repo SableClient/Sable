@@ -52,6 +52,7 @@ export interface Settings {
   allowPipVideos: boolean;
 
   usePushNotifications: boolean;
+  useUnifiedPush: boolean;
   useInAppNotifications: boolean;
   useSystemNotifications: boolean;
   isNotificationSounds: boolean;
@@ -132,6 +133,7 @@ const defaultSettings: Settings = {
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
   // System (OS) notifications: desktop-only; hidden and disabled on mobile.
   usePushNotifications: mobileOrTablet(),
+  useUnifiedPush: false,
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,

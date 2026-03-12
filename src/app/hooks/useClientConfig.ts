@@ -18,6 +18,8 @@ export type ClientConfig = {
     pushNotifyUrl?: string;
     vapidPublicKey?: string;
     webPushAppID?: string;
+    unifiedPushAppID?: string;
+    unifiedPushGatewayUrl?: string;
   };
 
   slidingSync?: {

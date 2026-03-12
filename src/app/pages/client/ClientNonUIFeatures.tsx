@@ -1,7 +1,6 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isTauri } from '@tauri-apps/api/core';
 import {
   MatrixEventEvent,
   PushProcessor,
@@ -125,7 +124,7 @@ function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications && registration) {
+      if (usePushNotifications) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));
@@ -635,6 +634,50 @@ function PresenceFeature() {
   return null;
 }
 
+function UnifiedPushManager() {
+  const mx = useMatrixClient();
+  const [useUP] = useSetting(settingsAtom, 'useUnifiedPush');
+  const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
+  const [showEncryptedMessageContent] = useSetting(
+    settingsAtom,
+    'showMessageContentInEncryptedNotifications'
+  );
+  const [useInAppNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
+
+  useEffect(() => {
+    if (!isTauri() || !useUP) return undefined;
+
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      const { listenForUnifiedPushMessages } =
+        await import('$features/settings/notifications/UnifiedPushNotifications');
+      const listener = await listenForUnifiedPushMessages(() => ({
+        mx,
+        showMessageContent,
+        showEncryptedMessageContent,
+        notificationSoundEnabled: isNotificationSounds,
+        useInAppNotifications,
+      }));
+      cleanup = () => listener.unregister();
+    })();
+
+    return () => {
+      cleanup?.();
+    };
+  }, [
+    mx,
+    useUP,
+    isNotificationSounds,
+    showMessageContent,
+    showEncryptedMessageContent,
+    useInAppNotifications,
+  ]);
+
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
@@ -647,6 +690,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <UnifiedPushManager />
       <NotificationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />

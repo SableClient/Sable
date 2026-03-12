@@ -24,9 +24,16 @@ crash.log
 /gen/schemas
 
 # Tauri
-/src-tauri/target/
-/src-tauri/gen/
 dist-js
+
+# Gradle / Android build artifacts
+**/android/build/
+**/android/.tauri/
+**/android/.gradle/
+**/.gradle/
+
+# Rust build artifacts in subcrates
+crates/**/target/
 
 # Worktrees
 .worktrees

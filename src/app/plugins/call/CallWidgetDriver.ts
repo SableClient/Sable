@@ -26,6 +26,7 @@ import {
 } from 'matrix-js-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
+import { hasServiceWorker } from '../../utils/platform';
 
 export class CallWidgetDriver extends WidgetDriver {
   private allowedCapabilities: Set<Capability>;
@@ -326,7 +327,10 @@ export class CallWidgetDriver extends WidgetDriver {
     if (!httpUrl) {
       throw new Error('Call widget failed to download file! No http url!');
     }
-    const blob = await downloadMedia(httpUrl);
+    const blob = await downloadMedia(
+      httpUrl,
+      hasServiceWorker() ? undefined : this.mx.getAccessToken()
+    );
     return { file: blob };
   }
 

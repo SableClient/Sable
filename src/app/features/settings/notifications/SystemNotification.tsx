@@ -1,9 +1,8 @@
 /* eslint-disable no-nested-ternary */
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Box, Text, Switch, Button, color, Spinner, config } from 'folds';
 import { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
-import { isTauri } from '@tauri-apps/api/core';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
@@ -99,7 +98,6 @@ function EmailNotification() {
 function WebPushNotificationSetting() {
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
-  const isTauriApp = isTauri();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [usePushNotifications, setPushNotifications] = useSetting(
     settingsAtom,
@@ -111,16 +109,7 @@ function WebPushNotificationSetting() {
   useEffect(() => {
     setIsLoading(false);
   }, []);
-
-  useEffect(() => {
-    if (isTauriApp && usePushNotifications) {
-      setPushNotifications(false);
-    }
-  }, [isTauriApp, usePushNotifications, setPushNotifications]);
-
   const handleRequestPermissionAndEnable = async () => {
-    if (isTauriApp) return;
-
     setIsLoading(true);
     try {
       const permissionResult = await requestBrowserNotificationPermission();
@@ -134,8 +123,6 @@ function WebPushNotificationSetting() {
   };
 
   const handlePushSwitchChange = async (wantsPush: boolean) => {
-    if (isTauriApp && wantsPush) return;
-
     setIsLoading(true);
 
     try {
@@ -154,11 +141,7 @@ function WebPushNotificationSetting() {
     <SettingTile
       title="Background Push Notifications"
       description={
-        isTauriApp ? (
-          <Text as="span" style={{ color: color.Warning.Main }} size="T200">
-            Unavailable in Tauri runtime.
-          </Text>
-        ) : browserPermission === 'denied' ? (
+        browserPermission === 'denied' ? (
           <Text as="span" style={{ color: color.Critical.Main }} size="T200">
             Permission blocked. Please allow notifications in your browser settings.
           </Text>
@@ -170,20 +153,11 @@ function WebPushNotificationSetting() {
         isLoading ? (
           <Spinner variant="Secondary" />
         ) : browserPermission === 'prompt' ? (
-          <Button
-            size="300"
-            radii="300"
-            onClick={handleRequestPermissionAndEnable}
-            disabled={isTauriApp}
-          >
+          <Button size="300" radii="300" onClick={handleRequestPermissionAndEnable}>
             <Text size="B300">Enable</Text>
           </Button>
         ) : browserPermission === 'granted' ? (
-          <Switch
-            value={usePushNotifications}
-            onChange={handlePushSwitchChange}
-            disabled={isTauriApp && !usePushNotifications}
-          />
+          <Switch value={usePushNotifications} onChange={handlePushSwitchChange} />
         ) : null
       }
     />
@@ -250,18 +224,20 @@ export function SystemNotification() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="In-App Notifications"
-          description="Show a notification banner inside the app when a message arrives."
-          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-        />
-      </SequenceCard>
+      {mobileOrTablet() && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <SettingTile
+            title="Mobile In-App Notifications"
+            description="Show a notification banner inside the app when a message arrives."
+            after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
+          />
+        </SequenceCard>
+      )}
       {mobileOrTablet() && (
         <SequenceCard
           className={SequenceCardStyle}

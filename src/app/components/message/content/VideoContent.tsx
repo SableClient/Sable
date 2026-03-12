@@ -25,6 +25,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 
@@ -68,6 +69,7 @@ export const VideoContent = as<'div', VideoContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const mediaToken = useMediaDownloadToken();
     const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -81,20 +83,36 @@ export const VideoContent = as<'div', VideoContentProps>(
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         const fileContent = encInfo
-          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
+          ? await downloadEncryptedMedia(
+              mediaUrl,
+              (encBuf) => decryptFile(encBuf, mimeType, encInfo),
+              mediaToken
             )
-          : await downloadMedia(mediaUrl);
+          : await downloadMedia(mediaUrl, mediaToken);
         return URL.createObjectURL(fileContent);
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+      }, [mx, url, useAuthentication, mimeType, encInfo, mediaToken])
     );
+
+    // When the source download succeeds, reset video-element error state so the
+    // Retry button doesn't flash before the <video> has had a chance to load.
+    useEffect(() => {
+      if (srcState.status === AsyncStatus.Success) {
+        setError(false);
+      }
+    }, [srcState.status]);
 
     const handleLoad = () => {
       setLoad(true);
+      setError(false);
     };
     const handleError = () => {
-      setLoad(false);
-      setError(true);
+      // Only show the error if the source download already succeeded — if
+      // it's still loading the video element may fire a transient error
+      // before the blob URL is ready.
+      if (srcState.status === AsyncStatus.Success) {
+        setLoad(false);
+        setError(true);
+      }
     };
 
     const handleRetry = () => {
@@ -184,12 +202,13 @@ export const VideoContent = as<'div', VideoContentProps>(
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
+          !error &&
           !blurred && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!load && (error || srcState.status === AsyncStatus.Error) && (
           <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
             <TooltipProvider
               tooltip={

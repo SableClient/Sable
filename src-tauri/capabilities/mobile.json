@@ -7,6 +7,12 @@
     "core:default",
     "deep-link:default",
     "splashscreen:allow-ping",
-    "splashscreen:allow-close"
+    "splashscreen:allow-close",
+    "notifications:default",
+    "notifications:allow-register-for-unified-push",
+    "notifications:allow-unregister-from-unified-push",
+    "notifications:allow-get-unified-push-distributors",
+    "notifications:allow-save-unified-push-distributor",
+    "notifications:allow-get-unified-push-distributor"
   ]
 }

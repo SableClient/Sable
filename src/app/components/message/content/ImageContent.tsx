@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -28,6 +28,7 @@ import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useMediaSrc, useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -78,6 +79,7 @@ export const ImageContent = as<'div', ImageContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const mediaToken = useMediaDownloadToken();
     const blurHash = validBlurHash(info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -85,28 +87,48 @@ export const ImageContent = as<'div', ImageContentProps>(
     const [viewer, setViewer] = useState(false);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
 
+    const rawMediaUrl = useMemo(() => {
+      if (url.startsWith('http')) return url;
+      return mxcUrlToHttp(mx, url, useAuthentication) ?? undefined;
+    }, [mx, url, useAuthentication]);
+
+    const resolvedMediaUrl = useMediaSrc(encInfo ? undefined : rawMediaUrl);
+
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
-        if (url.startsWith('http')) return url;
-
-        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-        if (!mediaUrl) throw new Error('Invalid media URL');
         if (encInfo) {
-          const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
+          if (!rawMediaUrl) throw new Error('Invalid media URL');
+          const fileContent = await downloadEncryptedMedia(
+            rawMediaUrl,
+            (encBuf) => decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo),
+            mediaToken
           );
           return URL.createObjectURL(fileContent);
         }
-        return mediaUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+        return resolvedMediaUrl ?? rawMediaUrl ?? url;
+      }, [rawMediaUrl, resolvedMediaUrl, url, mimeType, encInfo, mediaToken])
     );
+
+    // When the source download succeeds, reset image-element error state so the
+    // Retry button doesn't flash before the <img> has had a chance to load.
+    useEffect(() => {
+      if (srcState.status === AsyncStatus.Success) {
+        setError(false);
+      }
+    }, [srcState.status]);
 
     const handleLoad = () => {
       setLoad(true);
+      setError(false);
     };
     const handleError = () => {
-      setLoad(false);
-      setError(true);
+      // Only show the error if the source download already succeeded — if
+      // it's still loading the image element may fire a transient error
+      // before the blob URL is ready.
+      if (srcState.status === AsyncStatus.Success) {
+        setLoad(false);
+        setError(true);
+      }
     };
 
     const handleRetry = () => {
@@ -217,12 +239,13 @@ export const ImageContent = as<'div', ImageContentProps>(
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
+          !error &&
           !blurred && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!load && (error || srcState.status === AsyncStatus.Error) && (
           <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
             <TooltipProvider
               tooltip={

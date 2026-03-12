@@ -7,6 +7,7 @@ import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './Reaction.css';
 
 export const Reaction = as<
@@ -43,7 +44,7 @@ export const Reaction = as<
                 </span>
               );
             return (
-              <img
+              <AuthenticatedImg
                 className={css.ReactionImg}
                 src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction}
                 alt={reaction}

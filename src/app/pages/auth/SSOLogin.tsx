@@ -4,6 +4,7 @@ import { MouseEvent, useMemo } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
+import { type as osType } from '@tauri-apps/plugin-os';
 
 type SSOLoginProps = {
   providers?: IIdentityProvider[];
@@ -30,7 +31,9 @@ export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SS
   const openSso = async (event: MouseEvent, url: string) => {
     if (!isTauri()) return;
     event.preventDefault();
-    await openUrl(url);
+    const os = osType();
+    const urlProgram = os === 'ios' || os === 'android' ? 'inAppBrowser' : undefined;
+    await openUrl(url, urlProgram);
   };
 
   return (

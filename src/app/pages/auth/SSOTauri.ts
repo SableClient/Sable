@@ -1,12 +1,21 @@
 import { SSO_CALLBACK_PATH } from '$pages/paths';
+import { type as osType } from '@tauri-apps/plugin-os';
 
 const TAURI_SSO_PROTOCOL = 'sable:';
 const TAURI_SSO_HOST = 'login';
 
-const getAppBaseUrl = (): string =>
-  import.meta.env.DEV
-    ? 'https://feat-tauri-integration-sable.raspy-dream-bb1d.workers.dev'
-    : 'https://app.sable.moe';
+const getAppBaseUrl = (): string => {
+  const os = osType();
+  if (os === 'ios' || os === 'android') {
+    return `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
+  }
+
+  if (import.meta.env.DEV) {
+    return window.location.origin;
+  }
+
+  return 'https://app.sable.moe';
+};
 
 type TauriSsoCallback = {
   loginToken: string;

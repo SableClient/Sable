@@ -226,7 +226,11 @@ export default defineConfig({
     force: true,
     // Keep matrix-widget-api prebundled so matrix-js-sdk can import its named exports in dev.
     // Force CJS interop for stability across optimizer cache rebuilds.
-    include: ['matrix-widget-api'],
+    include: [
+      'matrix-widget-api',
+      'workbox-precaching',
+      '@vanilla-extract/recipes/createRuntimeFn',
+    ],
     needsInterop: ['matrix-widget-api'],
     esbuildOptions: {
       define: {

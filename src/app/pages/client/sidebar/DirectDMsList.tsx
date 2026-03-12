@@ -64,14 +64,23 @@ function DMItem({ room, selected }: DMItemProps) {
           <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick}>
             {isGroupDM ? (
               <Box className={css.GroupAvatarGrid}>
-                {groupMembers.map((member) => {
+                {groupMembers.map((member, index) => {
                   const avatarMxc = getMemberAvatarMxc(room, member.userId);
                   const avatarUrl = avatarMxc
-                    ? mxcUrlToHttp(mx, avatarMxc, 64, 64, 'crop', useAuthentication)
+                    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 64, 64, 'crop') ?? undefined)
                     : undefined;
 
                   return (
-                    <Avatar key={member.userId} size="300" radii="400" className={css.GroupAvatar}>
+                    <Avatar 
+                      key={member.userId} 
+                      size="400" 
+                      radii="400" 
+                      className={css.GroupAvatar}
+                      style={{
+                        gridColumn: index % 2 === 0 ? 1 : 2,
+                        gridRow: Math.floor(index / 2) + 1,
+                      }}
+                    >
                       <UserAvatar
                         userId={member.userId}
                         src={avatarUrl}

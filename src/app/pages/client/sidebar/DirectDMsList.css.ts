@@ -15,8 +15,10 @@ export const GroupAvatarRow = style({
 });
 
 export const GroupAvatar = style({
-  marginLeft: '-16px',
+  marginLeft: '-10px',
   border: `2px solid ${color.Surface.Container}`,
+  borderRadius: '50%',
+  overflow: 'hidden',
   selectors: {
     '&:first-child': {
       marginLeft: '0',
@@ -26,6 +28,6 @@ export const GroupAvatar = style({
 
 export const GroupAvatarBadge = style({
   position: 'absolute',
-  bottom: '-4px',
-  right: '-4px',
+  top: '-6px',
+  left: '-6px',
 });

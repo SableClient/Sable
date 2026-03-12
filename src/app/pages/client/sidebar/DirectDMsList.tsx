@@ -80,9 +80,6 @@ function DMItem({ room, selected }: DMItemProps) {
                         size="200" 
                         radii="300" 
                         className={css.GroupAvatar}
-                        style={{
-                          zIndex: 3 - index,
-                        }}
                       >
                         <UserAvatar
                           userId={member.userId}

@@ -6,22 +6,41 @@ export const GroupAvatarContainer = style({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  width: '40px',
+  height: '40px',
 });
 
 export const GroupAvatarRow = style({
-  display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'center',
+  position: 'relative',
+  width: '100%',
+  height: '100%',
 });
 
 export const GroupAvatar = style({
-  marginLeft: '-8px',
+  position: 'absolute',
   border: `2px solid ${color.Surface.Container}`,
   borderRadius: '50%',
   overflow: 'hidden',
+  width: '24px',
+  height: '24px',
   selectors: {
-    '&:first-child': {
-      marginLeft: '0',
+    // First avatar (most recent) - top left
+    '&:nth-child(1)': {
+      top: '0',
+      left: '0',
+      zIndex: '3',
+    },
+    // Second avatar - bottom left
+    '&:nth-child(2)': {
+      bottom: '0',
+      left: '0',
+      zIndex: '2',
+    },
+    // Third avatar - bottom right
+    '&:nth-child(3)': {
+      bottom: '0',
+      right: '0',
+      zIndex: '1',
     },
   },
 });

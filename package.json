@@ -59,7 +59,7 @@
     "i18next": "^25.8.13",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^2.7.3",
-    "immer": "^9.0.21",
+    "immer": "^11.1.4",
     "is-hotkey": "^0.2.0",
     "jotai": "^2.18.0",
     "linkify-react": "^4.3.2",

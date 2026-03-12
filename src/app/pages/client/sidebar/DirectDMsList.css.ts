@@ -24,10 +24,11 @@ export const GroupAvatar = style({
   width: '24px',
   height: '24px',
   selectors: {
-    // First avatar (most recent) - top left
+    // First avatar (most recent) - top center
     '&:nth-child(1)': {
       top: '0',
-      left: '0',
+      left: '50%',
+      transform: 'translateX(-50%)',
       zIndex: '3',
     },
     // Second avatar - bottom left

@@ -58,7 +58,7 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick}>
+          <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick} size="400" style={{ width: '56px', height: '56px' }}>
             {isGroupDM ? (
               <Box className={css.GroupAvatarContainer}>
                 <Box className={css.GroupAvatarRow}>

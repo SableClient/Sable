@@ -6,6 +6,9 @@ export const GroupAvatarContainer = style({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  width: '56px',
+  height: '56px',
+  padding: '6px',
 });
 
 export const GroupAvatarRow = style({

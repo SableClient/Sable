@@ -15,7 +15,7 @@ export const GroupAvatarRow = style({
 });
 
 export const GroupAvatar = style({
-  marginLeft: '-10px',
+  marginLeft: '-18px',
   border: `2px solid ${color.Surface.Container}`,
   borderRadius: '50%',
   overflow: 'hidden',

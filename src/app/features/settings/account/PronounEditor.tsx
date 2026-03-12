@@ -17,9 +17,9 @@ type PronounEditorProps = {
 };
 
 export function PronounEditor({ title, current, onSave, disabled }: PronounEditorProps) {
-  const initialString = current
-    .map((p) => `${p.language ? `${p.language}:` : ''}${p.summary}`)
-    .join(', ');
+  const initialString = Array.isArray(current)
+    ? current.map((p) => `${p.language ? `${p.language}:` : ''}${p.summary}`).join(', ')
+    : '';
   const [val, setVal] = useState(initialString);
 
   useEffect(() => setVal(initialString), [initialString]);

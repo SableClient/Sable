@@ -4,10 +4,9 @@ import { config } from 'folds';
 export const GroupAvatarGrid = style({
   display: 'grid',
   gridTemplateColumns: 'repeat(2, 1fr)',
-  gap: config.space.S50,
+  gap: 2,
   width: config.space.S400,
   height: config.space.S400,
-  padding: config.space.S50,
 });
 
 export const GroupAvatar = style({

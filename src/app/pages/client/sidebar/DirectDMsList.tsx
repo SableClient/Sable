@@ -12,11 +12,8 @@ import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { UnreadBadge } from '$components/unread-badge';
-import { useRoomUnread } from '$state/hooks/unread';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl, getMemberAvatarMxc } from '$utils/room';
@@ -39,7 +36,6 @@ function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
 
   const handleClick = () => {
     navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, room.roomId)));
@@ -107,15 +103,6 @@ function DMItem({ room, selected }: DMItemProps) {
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
-      {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge hasCount={unread.total > 0}>
-          <UnreadBadge
-            highlight={unread.highlight > 0}
-            count={unread.highlight > 0 ? unread.highlight : unread.total}
-            dm
-          />
-        </SidebarItemBadge>
-      )}
     </SidebarItem>
   );
 }

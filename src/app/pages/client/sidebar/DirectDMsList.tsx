@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Text, Box, Badge } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { Room, SyncState } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
@@ -23,6 +23,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
+import { useSyncState } from '$hooks/useSyncState';
 import * as css from './DirectDMsList.css';
 
 const MAX_DM_AVATARS = 3;
@@ -131,8 +132,31 @@ export function DirectDMsList() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const selectedRoomId = useSelectedRoom();
 
+  // Track sync state to wait for initial sync completion
+  const [syncReady, setSyncReady] = useState(false);
+
+  useSyncState(
+    mx,
+    useCallback((state, prevState) => {
+      // Consider ready after initial sync reaches Syncing state
+      // This ensures m.direct and unread counts are populated
+      if (state === SyncState.Syncing && prevState !== SyncState.Syncing) {
+        setSyncReady(true);
+      }
+      // Also set ready if we're already syncing (e.g., after a refresh while still online)
+      if (state === SyncState.Syncing || state === SyncState.Catchup) {
+        setSyncReady(true);
+      }
+    }, [])
+  );
+
   // Get up to MAX_DM_AVATARS recent DMs that have unread messages
   const recentDMs = useMemo(() => {
+    // Don't show DMs until initial sync completes
+    if (!syncReady) {
+      return [];
+    }
+
     // Filter to only DMs with unread messages
     const withUnread = directs.filter((roomId) => {
       const unread = roomToUnread.get(roomId);
@@ -146,7 +170,7 @@ export function DirectDMsList() {
       .slice(0, MAX_DM_AVATARS)
       .map((roomId) => mx.getRoom(roomId))
       .filter((room): room is Room => room !== null);
-  }, [directs, mx, roomToUnread]);
+  }, [directs, mx, roomToUnread, syncReady]);
 
   if (recentDMs.length === 0) {
     return null;

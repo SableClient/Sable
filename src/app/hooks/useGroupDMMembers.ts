@@ -9,8 +9,8 @@ export type GroupMemberInfo = {
 
 /**
  * Fetches member information for a group DM.
- * Gets member user IDs from timeline message senders and fetches their profiles.
- * Returns members sorted by who last sent messages (most recent first).
+ * Gets all joined members from room state and fetches their profiles.
+ * Sorts members by who last sent messages (most recent first), with members who haven't sent messages last.
  */
 export const useGroupDMMembers = (
   mx: MatrixClient,
@@ -24,20 +24,20 @@ export const useGroupDMMembers = (
       try {
         const currentUserId = mx.getUserId();
 
-        // Get last message senders from timeline to find member IDs
+        // Load members from server if needed (handles lazy-loading)
+        await room.loadMembersIfNeeded();
+
+        // Now get all members
+        const allMembers = room.getMembers();
+        const allUserIds = allMembers
+          .filter(m => m.membership === 'join' && m.userId !== currentUserId)
+          .map(m => m.userId);
+
+        // Get last message senders from timeline for sorting
         const timeline = room.getLiveTimeline();
         const events = timeline.getEvents();
 
-        // Extract unique senders excluding current user
-        const senders = new Set<string>();
-        for (let i = events.length - 1; i >= 0; i -= 1) {
-          const sender = events[i].getSender();
-          if (sender && sender !== currentUserId) {
-            senders.add(sender);
-          }
-        }
-
-        // Convert to array and sort by recency (most recent first)
+        // Extract senders in reverse chronological order (most recent first)
         const recentSenders: string[] = [];
         for (let i = events.length - 1; i >= 0; i -= 1) {
           const sender = events[i].getSender();
@@ -46,8 +46,23 @@ export const useGroupDMMembers = (
           }
         }
 
+        // Sort allUserIds by who appears first in recentSenders
+        const sortedUserIds = allUserIds.sort((a, b) => {
+          const aIndex = recentSenders.indexOf(a);
+          const bIndex = recentSenders.indexOf(b);
+
+          // If both are in recent senders, sort by recency
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          // If only a is in recent senders, it comes first
+          if (aIndex !== -1) return -1;
+          // If only b is in recent senders, it comes first
+          if (bIndex !== -1) return 1;
+          // Neither in recent senders, maintain original order
+          return 0;
+        });
+
         // Slice to max members
-        const limitedUserIds = recentSenders.slice(0, maxMembers);
+        const limitedUserIds = sortedUserIds.slice(0, maxMembers);
 
         // Fetch profiles for each user
         const memberPromises = limitedUserIds.map(async (userId) => {

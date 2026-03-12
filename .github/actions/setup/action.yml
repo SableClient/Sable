@@ -5,7 +5,7 @@ inputs:
   install-command:
     description: Command used to install dependencies.
     required: false
-    default: pnpm install --frozen-lockfile --ignore-scripts
+    default: pnpm install --frozen-lockfile
   build:
     description: Whether to build the app after installing dependencies.
     required: false

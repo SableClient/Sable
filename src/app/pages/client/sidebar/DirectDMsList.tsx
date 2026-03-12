@@ -67,11 +67,11 @@ function DMItem({ room, selected }: DMItemProps) {
                 {groupMembers.map((member) => {
                   const avatarMxc = getMemberAvatarMxc(room, member.userId);
                   const avatarUrl = avatarMxc
-                    ? mxcUrlToHttp(mx, avatarMxc, 48, 48, 'crop', useAuthentication)
+                    ? mxcUrlToHttp(mx, avatarMxc, 64, 64, 'crop', useAuthentication)
                     : undefined;
 
                   return (
-                    <Avatar key={member.userId} size="200" radii="400" className={css.GroupAvatar}>
+                    <Avatar key={member.userId} size="300" radii="400" className={css.GroupAvatar}>
                       <UserAvatar
                         userId={member.userId}
                         src={avatarUrl}

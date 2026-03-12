@@ -8,7 +8,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { getDirectRoomPath, joinPathComponent } from '$pages/pathUtils';
+import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
@@ -16,8 +16,6 @@ import {
   SidebarItemTooltip,
 } from '$components/sidebar';
 import { UnreadBadge } from '$components/unread-badge';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useRoomUnread } from '$state/hooks/unread';
 import { RoomAvatar } from '$components/room-avatar';
 import { getDirectRoomAvatarUrl, getMemberAvatarMxc } from '$utils/room';
@@ -40,18 +38,9 @@ function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
-  const screenSize = useScreenSizeContext();
-  const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
 
   const handleClick = () => {
-    if (screenSize === ScreenSize.Mobile) {
-      const activePath = navToActivePath.get('direct');
-      if (activePath) {
-        navigate(joinPathComponent(activePath));
-        return;
-      }
-    }
     navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, room.roomId)));
   };
 

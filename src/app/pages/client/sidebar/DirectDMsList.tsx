@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room, RoomMember } from '$types/matrix-sdk';
+import { Room } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
@@ -16,12 +16,13 @@ import {
 } from '$components/sidebar';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
-import { getDirectRoomAvatarUrl, getMemberAvatarMxc } from '$utils/room';
+import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import * as css from './DirectDMsList.css';
 
 const MAX_DM_AVATARS = 3;
@@ -44,18 +45,8 @@ function DMItem({ room, selected }: DMItemProps) {
   // Check if this is a group DM (more than 2 members)
   const isGroupDM = room.getJoinedMemberCount() > 2;
 
-  // Get active members for group DMs
-  const groupMembers = useMemo(() => {
-    if (!isGroupDM) return [];
-
-    const members = room.getJoinedMembers();
-    // Filter out the current user
-    const otherMembers = members.filter((member) => member.userId !== mx.getUserId());
-
-    // Sort by most recent activity (could be enhanced with actual activity tracking)
-    // For now, just return first 2-4 members
-    return otherMembers.slice(0, MAX_GROUP_MEMBERS);
-  }, [isGroupDM, room, mx]);
+  // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
+  const groupMembers = useGroupDMMembers(mx, room.roomId, MAX_GROUP_MEMBERS);
 
   return (
     <SidebarItem active={selected}>
@@ -65,9 +56,8 @@ function DMItem({ room, selected }: DMItemProps) {
             {isGroupDM ? (
               <Box className={css.GroupAvatarGrid}>
                 {groupMembers.map((member, index) => {
-                  const avatarMxc = getMemberAvatarMxc(room, member.userId);
-                  const avatarUrl = avatarMxc
-                    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+                  const avatarUrl = member.avatarUrl
+                    ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
                     : undefined;
 
                   return (
@@ -84,10 +74,10 @@ function DMItem({ room, selected }: DMItemProps) {
                       <UserAvatar
                         userId={member.userId}
                         src={avatarUrl}
-                        alt={member.name}
+                        alt={member.displayName || member.userId}
                         renderFallback={() => (
                           <Text as="span" size="T200">
-                            {nameInitials(member.name)}
+                            {nameInitials(member.displayName || member.userId)}
                           </Text>
                         )}
                       />

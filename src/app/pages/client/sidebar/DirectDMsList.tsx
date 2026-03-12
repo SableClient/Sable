@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box } from 'folds';
+import { Avatar, Text, Box, Badge } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room, RoomMember } from '$types/matrix-sdk';
+import { Room } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
@@ -12,22 +12,21 @@ import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { UnreadBadge } from '$components/unread-badge';
-import { useRoomUnread } from '$state/hooks/unread';
 import { RoomAvatar } from '$components/room-avatar';
-import { getDirectRoomAvatarUrl, getMemberAvatarMxc } from '$utils/room';
+import { UserAvatar } from '$components/user-avatar';
+import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
+import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import * as css from './DirectDMsList.css';
 
 const MAX_DM_AVATARS = 3;
-const MAX_GROUP_MEMBERS = 4;
+const MAX_GROUP_MEMBERS = 3;
 
 type DMItemProps = {
   room: Room;
@@ -38,7 +37,7 @@ function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
 
   const handleClick = () => {
     navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, room.roomId)));
@@ -47,18 +46,12 @@ function DMItem({ room, selected }: DMItemProps) {
   // Check if this is a group DM (more than 2 members)
   const isGroupDM = room.getJoinedMemberCount() > 2;
 
-  // Get active members for group DMs
-  const groupMembers = useMemo(() => {
-    if (!isGroupDM) return [];
+  // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
+  // Members are sorted by who last sent messages (most recent first)
+  const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS);
 
-    const members = room.getJoinedMembers();
-    // Filter out the current user
-    const otherMembers = members.filter((member) => member.userId !== mx.getUserId());
-
-    // Sort by most recent activity (could be enhanced with actual activity tracking)
-    // For now, just return first 2-4 members
-    return otherMembers.slice(0, MAX_GROUP_MEMBERS);
-  }, [isGroupDM, room, mx]);
+  // Get unread info for badge
+  const unread = roomToUnread.get(room.roomId);
 
   return (
     <SidebarItem active={selected}>
@@ -66,28 +59,49 @@ function DMItem({ room, selected }: DMItemProps) {
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick}>
             {isGroupDM ? (
-              <Box className={css.GroupAvatarGrid}>
-                {groupMembers.map((member) => {
-                  const avatarMxc = getMemberAvatarMxc(room, member.userId);
-                  const avatarUrl = avatarMxc
-                    ? mxcUrlToHttp(mx, avatarMxc, 48, 48, 'crop', useAuthentication)
-                    : undefined;
+              <Box className={css.GroupAvatarContainer}>
+                <Box className={css.GroupAvatarRow}>
+                  {groupMembers.map((member, index) => {
+                    const avatarUrl = member.avatarUrl
+                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
+                      : undefined;
 
-                  return (
-                    <Avatar key={member.userId} size="200" radii="400" className={css.GroupAvatar}>
-                      <RoomAvatar
-                        roomId={room.roomId}
-                        src={avatarUrl}
-                        alt={member.name}
-                        renderFallback={() => (
-                          <Text as="span" size="T200">
-                            {nameInitials(member.name)}
-                          </Text>
-                        )}
-                      />
-                    </Avatar>
-                  );
-                })}
+                    return (
+                      <Avatar 
+                        key={member.userId} 
+                        size="400" 
+                        radii="400" 
+                        className={css.GroupAvatar}
+                        style={{
+                          zIndex: 3 - index,
+                        }}
+                      >
+                        <UserAvatar
+                          userId={member.userId}
+                          src={avatarUrl}
+                          alt={member.displayName || member.userId}
+                          renderFallback={() => (
+                            <Text as="span" size="T200">
+                              {nameInitials(member.displayName || member.userId)}
+                            </Text>
+                          )}
+                        />
+                      </Avatar>
+                    );
+                  })}
+                </Box>
+                {unread && (unread.total > 0 || unread.highlight > 0) && (
+                  <Badge
+                    className={css.GroupAvatarBadge}
+                    size="300"
+                    variant={unread.highlight > 0 ? 'Primary' : 'Secondary'}
+                    fill="Solid"
+                    radii="Pill"
+                    outlined
+                  >
+                    <Text size="L400">{unread.total}</Text>
+                  </Badge>
+                )}
               </Box>
             ) : (
               <Avatar size="400" radii="400">
@@ -106,15 +120,6 @@ function DMItem({ room, selected }: DMItemProps) {
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
-      {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge hasCount={unread.total > 0}>
-          <UnreadBadge
-            highlight={unread.highlight > 0}
-            count={unread.highlight > 0 ? unread.highlight : unread.total}
-            dm
-          />
-        </SidebarItemBadge>
-      )}
     </SidebarItem>
   );
 }

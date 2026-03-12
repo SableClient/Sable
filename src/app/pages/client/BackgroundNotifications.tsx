@@ -326,10 +326,18 @@ export function BackgroundNotifications() {
             // For "Mention & Keywords": respect the push rule (only notify if it matches).
             const shouldForceDMNotification =
               isDM && notificationType !== NotificationType.MentionsAndKeywords;
-            // For reactions: Always notify regardless of push rules since the room is not muted
-            // (muted rooms are filtered out earlier). Reactions are part of room activity
-            // and users expect to see them.
-            const shouldForceReactionNotification = eventType === 'm.reaction';
+            // For reactions: Only notify if someone reacted to your own message
+            let shouldForceReactionNotification = false;
+            if (eventType === 'm.reaction') {
+              const relatesTo = mEvent.getContent()['m.relates_to'];
+              const reactedToEventId = relatesTo?.event_id;
+              if (reactedToEventId) {
+                const reactedToEvent = room.findEventById(reactedToEventId);
+                if (reactedToEvent && reactedToEvent.getSender() === mx.getUserId()) {
+                  shouldForceReactionNotification = true;
+                }
+              }
+            }
             const shouldNotify =
               pushActions?.notify || shouldForceDMNotification || shouldForceReactionNotification;
 

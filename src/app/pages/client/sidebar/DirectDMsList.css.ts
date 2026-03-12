@@ -10,6 +10,6 @@ export const GroupAvatarGrid = style({
 });
 
 export const GroupAvatar = style({
-  width: config.space.S500,
-  height: config.space.S500,
+  width: config.space.S600,
+  height: config.space.S600,
 });

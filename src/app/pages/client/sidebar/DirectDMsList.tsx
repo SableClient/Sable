@@ -73,7 +73,7 @@ function DMItem({ room, selected }: DMItemProps) {
                   return (
                     <Avatar 
                       key={member.userId} 
-                      size="500" 
+                      size="600" 
                       radii="400" 
                       className={css.GroupAvatar}
                       style={{

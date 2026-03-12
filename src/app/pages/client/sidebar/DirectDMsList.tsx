@@ -115,7 +115,7 @@ function DMItem({ room, selected }: DMItemProps) {
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
         <SidebarItemBadge hasCount={unread.total > 0}>
-          <UnreadBadge highlight={unread.highlight > 0} count={unread.total} />
+          <UnreadBadge highlight={unread.highlight > 0} count={unread.total} dm />
         </SidebarItemBadge>
       )}
     </SidebarItem>

@@ -9,12 +9,14 @@ export const GroupAvatarContainer = style({
   width: '56px',
   height: '56px',
   padding: '6px',
+  overflow: 'visible',
 });
 
 export const GroupAvatarRow = style({
   display: 'flex',
   flexDirection: 'row',
   alignItems: 'center',
+  overflow: 'visible',
 });
 
 export const GroupAvatar = style({

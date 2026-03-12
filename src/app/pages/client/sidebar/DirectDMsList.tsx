@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box } from 'folds';
+import { Avatar, Text, Box, Badge } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
@@ -26,7 +26,7 @@ import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import * as css from './DirectDMsList.css';
 
 const MAX_DM_AVATARS = 3;
-const MAX_GROUP_MEMBERS = 4;
+const MAX_GROUP_MEMBERS = 3;
 
 type DMItemProps = {
   room: Room;
@@ -37,6 +37,7 @@ function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
 
   const handleClick = () => {
     navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, room.roomId)));
@@ -46,7 +47,11 @@ function DMItem({ room, selected }: DMItemProps) {
   const isGroupDM = room.getJoinedMemberCount() > 2;
 
   // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
-  const groupMembers = useGroupDMMembers(mx, room.roomId, MAX_GROUP_MEMBERS);
+  // Members are sorted by who last sent messages (most recent first)
+  const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS);
+
+  // Get unread info for badge
+  const unread = roomToUnread.get(room.roomId);
 
   return (
     <SidebarItem active={selected}>
@@ -54,36 +59,49 @@ function DMItem({ room, selected }: DMItemProps) {
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick}>
             {isGroupDM ? (
-              <Box className={css.GroupAvatarGrid}>
-                {groupMembers.map((member, index) => {
-                  const avatarUrl = member.avatarUrl
-                    ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
-                    : undefined;
+              <Box className={css.GroupAvatarContainer}>
+                <Box className={css.GroupAvatarRow}>
+                  {groupMembers.map((member, index) => {
+                    const avatarUrl = member.avatarUrl
+                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
+                      : undefined;
 
-                  return (
-                    <Avatar 
-                      key={member.userId} 
-                      size="600" 
-                      radii="400" 
-                      className={css.GroupAvatar}
-                      style={{
-                        gridColumn: index % 2 === 0 ? 1 : 2,
-                        gridRow: Math.floor(index / 2) + 1,
-                      }}
-                    >
-                      <UserAvatar
-                        userId={member.userId}
-                        src={avatarUrl}
-                        alt={member.displayName || member.userId}
-                        renderFallback={() => (
-                          <Text as="span" size="T200">
-                            {nameInitials(member.displayName || member.userId)}
-                          </Text>
-                        )}
-                      />
-                    </Avatar>
-                  );
-                })}
+                    return (
+                      <Avatar 
+                        key={member.userId} 
+                        size="400" 
+                        radii="400" 
+                        className={css.GroupAvatar}
+                        style={{
+                          zIndex: 3 - index,
+                        }}
+                      >
+                        <UserAvatar
+                          userId={member.userId}
+                          src={avatarUrl}
+                          alt={member.displayName || member.userId}
+                          renderFallback={() => (
+                            <Text as="span" size="T200">
+                              {nameInitials(member.displayName || member.userId)}
+                            </Text>
+                          )}
+                        />
+                      </Avatar>
+                    );
+                  })}
+                </Box>
+                {unread && (unread.total > 0 || unread.highlight > 0) && (
+                  <Badge
+                    className={css.GroupAvatarBadge}
+                    size="300"
+                    variant={unread.highlight > 0 ? 'Primary' : 'Secondary'}
+                    fill="Solid"
+                    radii="Pill"
+                    outlined
+                  >
+                    <Text size="L400">{unread.total}</Text>
+                  </Badge>
+                )}
               </Box>
             ) : (
               <Avatar size="400" radii="400">

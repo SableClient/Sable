@@ -67,13 +67,13 @@ function DMItem({ room, selected }: DMItemProps) {
                 {groupMembers.map((member, index) => {
                   const avatarMxc = getMemberAvatarMxc(room, member.userId);
                   const avatarUrl = avatarMxc
-                    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 64, 64, 'crop') ?? undefined)
+                    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
                     : undefined;
 
                   return (
                     <Avatar 
                       key={member.userId} 
-                      size="400" 
+                      size="500" 
                       radii="400" 
                       className={css.GroupAvatar}
                       style={{

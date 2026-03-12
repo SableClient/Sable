@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Text, Switch, Button, color, Spinner, config } from 'folds';
 import { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';

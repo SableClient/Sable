@@ -78,7 +78,7 @@
     "react-google-recaptcha": "^2.1.0",
     "react-i18next": "^16.5.4",
     "react-range": "^1.10.0",
-    "react-router-dom": "^6.30.3",
+    "react-router-dom": "^7.13.1",
     "sanitize-html": "^2.17.1",
     "slate": "^0.123.0",
     "slate-dom": "^0.123.0",

@@ -54,17 +54,7 @@ function DMItem({ room, selected }: DMItemProps) {
 
     // Sort by most recent activity (could be enhanced with actual activity tracking)
     // For now, just return first 2-4 members
-    const result = otherMembers.slice(0, MAX_GROUP_MEMBERS);
-    
-    // Debug logging
-    console.log('DMItem - Room:', room.name);
-    console.log('  isGroupDM:', isGroupDM);
-    console.log('  Total members:', members.length);
-    console.log('  Other members:', otherMembers.length);
-    console.log('  Showing members:', result.length);
-    result.forEach((m) => console.log('    Member:', m.name, m.userId));
-    
-    return result;
+    return otherMembers.slice(0, MAX_GROUP_MEMBERS);
   }, [isGroupDM, room, mx]);
 
   return (
@@ -135,20 +125,10 @@ export function DirectDMsList() {
     // Sort by activity
     const sorted = withUnread.sort(factoryRoomIdByActivity(mx));
 
-    const result = sorted
+    return sorted
       .slice(0, MAX_DM_AVATARS)
       .map((roomId) => mx.getRoom(roomId))
       .filter((room): room is Room => room !== null);
-    
-    // Debug logging
-    console.log('DirectDMsList - Total directs:', directs.length);
-    console.log('DirectDMsList - With unread:', withUnread.length);
-    console.log('DirectDMsList - Showing:', result.length);
-    result.forEach((room) => {
-      console.log('  Room:', room.name, 'Members:', room.getJoinedMemberCount());
-    });
-
-    return result;
   }, [directs, mx, roomToUnread]);
 
   if (recentDMs.length === 0) {

@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { config } from 'folds';
+import { color, config } from 'folds';
 
 export const GroupAvatarContainer = style({
   position: 'relative',
@@ -16,7 +16,7 @@ export const GroupAvatarRow = style({
 
 export const GroupAvatar = style({
   marginLeft: '-12px',
-  border: `2px solid ${config.color.Surface.Container}`,
+  border: `2px solid ${color.Surface.Container}`,
   selectors: {
     '&:first-child': {
       marginLeft: '0',

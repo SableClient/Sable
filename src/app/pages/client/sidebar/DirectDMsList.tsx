@@ -63,20 +63,20 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined={false} onClick={handleClick} size="400" style={{ width: '56px', height: '56px', overflow: 'visible' }}>
+          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
             {isGroupDM ? (
               <Box className={css.GroupAvatarContainer}>
                 <Box className={css.GroupAvatarRow}>
                   {groupMembers.map((member, index) => {
                     const avatarUrl = member.avatarUrl
-                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 100, 100, 'crop') ?? undefined)
+                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
                       : undefined;
 
                     return (
                       <Avatar 
                         key={member.userId} 
-                        size="500" 
-                        radii="400" 
+                        size="200" 
+                        radii="300" 
                         className={css.GroupAvatar}
                         style={{
                           zIndex: 3 - index,

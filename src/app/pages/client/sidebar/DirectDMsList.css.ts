@@ -6,21 +6,16 @@ export const GroupAvatarContainer = style({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: '56px',
-  height: '56px',
-  padding: '6px',
-  overflow: 'visible',
 });
 
 export const GroupAvatarRow = style({
   display: 'flex',
   flexDirection: 'row',
   alignItems: 'center',
-  overflow: 'visible',
 });
 
 export const GroupAvatar = style({
-  marginLeft: '-18px',
+  marginLeft: '-8px',
   border: `2px solid ${color.Surface.Container}`,
   borderRadius: '50%',
   overflow: 'hidden',
@@ -33,6 +28,6 @@ export const GroupAvatar = style({
 
 export const GroupAvatarBadge = style({
   position: 'absolute',
-  top: '-4px',
-  left: '-4px',
+  top: '-2px',
+  left: '-2px',
 });

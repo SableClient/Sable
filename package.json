@@ -47,7 +47,7 @@
     "dayjs": "^1.11.19",
     "domhandler": "^5.0.3",
     "emojibase": "^15.3.1",
-    "emojibase-data": "^15.3.2",
+    "emojibase-data": "^17.0.0",
     "eslint-plugin-react": "7.37.5",
     "eventemitter3": "^5.0.4",
     "file-saver": "^2.0.5",

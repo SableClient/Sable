@@ -71,13 +71,13 @@ function DMItem({ room, selected }: DMItemProps) {
                 <Box className={css.GroupAvatarRow}>
                   {groupMembers.map((member, index) => {
                     const avatarUrl = member.avatarUrl
-                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
+                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 56, 56, 'crop') ?? undefined)
                       : undefined;
 
                     return (
                       <Avatar 
                         key={member.userId} 
-                        size="200" 
+                        size="300" 
                         radii="300" 
                         className={css.GroupAvatar}
                       >
@@ -86,7 +86,7 @@ function DMItem({ room, selected }: DMItemProps) {
                           src={avatarUrl}
                           alt={member.displayName || member.userId}
                           renderFallback={() => (
-                            <Text as="span" size="T300">
+                            <Text as="span" size="T400">
                               {nameInitials(member.displayName || member.userId)}
                             </Text>
                           )}

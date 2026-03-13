@@ -67,8 +67,9 @@ if (dsn && sentryEnabled) {
     ],
 
     // Session Replay sampling
-    // Record 10% of all sessions, 100% of sessions with errors
-    replaysSessionSampleRate: 0.1,
+    // Record 100% in development for testing, 10% in production
+    // Always record 100% of sessions with errors
+    replaysSessionSampleRate: environment === 'development' ? 1.0 : 0.1,
     replaysOnErrorSampleRate: 1.0,
 
     // Enable structured logging to Sentry

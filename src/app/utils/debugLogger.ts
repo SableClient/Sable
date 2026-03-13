@@ -252,17 +252,31 @@ class DebugLoggerService {
    */
   public attachLogsToSentry(limit = 100): void {
     const recentLogs = this.logs.slice(-limit);
+    const logsData = recentLogs.map((log) => ({
+      time: new Date(log.timestamp).toISOString(),
+      level: log.level,
+      category: log.category,
+      namespace: log.namespace,
+      message: log.message,
+      // Only include data for errors/warnings to avoid excessive payload
+      ...(log.level === 'error' || log.level === 'warn' ? { data: log.data } : {}),
+    }));
+
+    // Add to context
     Sentry.setContext('recentLogs', {
       count: recentLogs.length,
-      logs: recentLogs.map((log) => ({
-        time: new Date(log.timestamp).toISOString(),
-        level: log.level,
-        category: log.category,
-        namespace: log.namespace,
-        message: log.message,
-        // Only include data for errors/warnings to avoid excessive payload
-        ...(log.level === 'error' || log.level === 'warn' ? { data: log.data } : {}),
-      })),
+      logs: logsData,
+    });
+
+    // Also add as extra data for better visibility in Sentry UI
+    Sentry.getCurrentScope().setExtra('debugLogs', logsData);
+
+    // Add as attachment for download
+    const logsText = JSON.stringify(logsData, null, 2);
+    Sentry.getCurrentScope().addAttachment({
+      filename: 'debug-logs.json',
+      data: logsText,
+      contentType: 'application/json',
     });
   }
 }

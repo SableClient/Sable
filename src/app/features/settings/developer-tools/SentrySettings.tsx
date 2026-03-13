@@ -37,7 +37,10 @@ export function SentrySettings() {
 
   const handleTestError = () => {
     // eslint-disable-next-line no-console
-    console.log('[Sentry Test] Sending test error...');
+    console.log('[Sentry Test] Attaching logs and sending test error...');
+    const debugLogger = getDebugLogger();
+    debugLogger.attachLogsToSentry(50);
+
     try {
       throw new Error('Test error from Sentry Settings');
     } catch (error) {
@@ -45,11 +48,15 @@ export function SentrySettings() {
         tags: {
           source: 'sentry-settings-test',
         },
+        extra: {
+          testInfo: 'This is a test error with attached debug logs',
+          timestamp: new Date().toISOString(),
+        },
       });
       // eslint-disable-next-line no-console
       console.log('[Sentry Test] Error captured with eventId:', eventId);
       // eslint-disable-next-line no-alert
-      window.alert(`Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}`);
+      window.alert(`Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`);
     }
   };
 
@@ -63,6 +70,10 @@ export function SentrySettings() {
       level: 'info',
       tags: {
         source: 'sentry-settings-test',
+      },
+      extra: {
+        testInfo: 'This is a test feedback with attached debug logs',
+        timestamp: new Date().toISOString(),
       },
     });
 
@@ -79,7 +90,7 @@ export function SentrySettings() {
       // eslint-disable-next-line no-console
       console.log('[Sentry Test] Feedback captured with ID:', feedbackId);
       // eslint-disable-next-line no-alert
-      window.alert(`Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}`);
+      window.alert(`Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`);
     } else {
       // eslint-disable-next-line no-alert
       window.alert('Failed to send test feedback - no event ID returned');
@@ -88,10 +99,13 @@ export function SentrySettings() {
 
   const handleAttachLogs = () => {
     const debugLogger = getDebugLogger();
+    const logCount = debugLogger.getLogs().length;
     debugLogger.attachLogsToSentry(100);
+    // eslint-disable-next-line no-console
+    console.log('[Sentry] Attached', Math.min(100, logCount), 'debug logs to Sentry scope');
     // eslint-disable-next-line no-alert
     window.alert(
-      'Recent logs attached to Sentry context. They will be included in the next error report.'
+      `Attached ${Math.min(100, logCount)} recent logs to Sentry scope.\n\nThey will be included in the next error report as:\n- Context data\n- Extra data\n- Attachment (debug-logs.json)`
     );
   };
 
@@ -108,6 +122,12 @@ export function SentrySettings() {
       `Session Replay Enabled: ${sessionReplayEnabled}`,
       `Sentry SDK Available: ${typeof Sentry !== 'undefined'}`,
       ``,
+      `Session Replay Masking:`,
+      `- Text: ALL MASKED`,
+      `- Media: ALL BLOCKED`, 
+      `- Inputs: ALL MASKED`,
+      `- Sample Rate: ${environment === 'development' ? '100%' : '10%'}`,
+      ``,
       `To test from console, run:`,
       `Sentry.captureMessage('Test message', 'info')`,
     ].join('\n');
@@ -119,6 +139,7 @@ export function SentrySettings() {
   };
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
+  const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
 
   return (
     <Box direction="Column" gap="100">
@@ -175,7 +196,7 @@ export function SentrySettings() {
           <>
             <SettingTile
               title="Enable Session Replay"
-              description="Record sessions for debugging errors. All text, media, and inputs are masked for privacy."
+              description={`Record sessions for debugging errors. All text, media, and inputs are FULLY MASKED for privacy. ${environment === 'development' ? 'Records 100% of sessions in development.' : 'Records 10% of sessions in production, 100% on errors.'}`}
               after={
                 <Switch
                   variant="Primary"
@@ -252,10 +273,16 @@ export function SentrySettings() {
         )}
       </SequenceCard>
       {isSentryConfigured && (
-        <Text size="T200" style={{ opacity: 0.7 }}>
-          All data sent to Sentry is filtered for sensitive information like passwords and access
-          tokens. You can opt out at any time.
-        </Text>
+        <Box direction="Column" gap="100">
+          <Text size="T200" style={{ opacity: 0.7 }}>
+            All data sent to Sentry is filtered for sensitive information like passwords and access
+            tokens. You can opt out at any time.
+          </Text>
+          <Text size="T200" style={{ opacity: 0.7 }}>
+            <strong>Session Replay Privacy:</strong> When enabled, all text content, media (images/video/audio),
+            and form inputs are completely masked or blocked. Only UI structure and interactions are recorded.
+          </Text>
+        </Box>
       )}
     </Box>
   );

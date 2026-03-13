@@ -126,7 +126,7 @@ export function SentrySettings() {
       `- Text: ALL MASKED`,
       `- Media: ALL BLOCKED`, 
       `- Inputs: ALL MASKED`,
-      `- Sample Rate: ${environment === 'development' ? '100%' : '10%'}`,
+      `- Sample Rate: ${environment === 'development' || environment === 'preview' ? '100%' : '10%'}`,
       ``,
       `To test from console, run:`,
       `Sentry.captureMessage('Test message', 'info')`,
@@ -196,7 +196,7 @@ export function SentrySettings() {
           <>
             <SettingTile
               title="Enable Session Replay"
-              description={`Record sessions for debugging errors. All text, media, and inputs are FULLY MASKED for privacy. ${environment === 'development' ? 'Records 100% of sessions in development.' : 'Records 10% of sessions in production, 100% on errors.'}`}
+              description={`Record sessions for debugging errors. All text, media, and inputs are FULLY MASKED for privacy. ${environment === 'development' || environment === 'preview' ? 'Records 100% of sessions in dev/preview.' : 'Records 10% of sessions in production, 100% on errors.'}`}
               after={
                 <Switch
                   variant="Primary"

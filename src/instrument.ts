@@ -56,8 +56,8 @@ if (dsn && sentryEnabled) {
     ],
 
     // Performance Monitoring - Tracing
-    // 100% in development, lower in production for cost control
-    tracesSampleRate: environment === 'development' ? 1.0 : 0.1,
+    // 100% in development and preview, lower in production for cost control
+    tracesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
 
     // Control which URLs get distributed tracing headers
     tracePropagationTargets: [
@@ -67,9 +67,9 @@ if (dsn && sentryEnabled) {
     ],
 
     // Session Replay sampling
-    // Record 100% in development for testing, 10% in production
+    // Record 100% in development and preview for testing, 10% in production
     // Always record 100% of sessions with errors
-    replaysSessionSampleRate: environment === 'development' ? 1.0 : 0.1,
+    replaysSessionSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
     replaysOnErrorSampleRate: 1.0,
 
     // Enable structured logging to Sentry

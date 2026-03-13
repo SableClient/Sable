@@ -171,6 +171,10 @@ if (dsn && sentryEnabled) {
     },
   });
 
+  // Expose Sentry globally for debugging and console testing
+  // @ts-expect-error - Adding to window for debugging
+  window.Sentry = Sentry;
+
   // eslint-disable-next-line no-console
   console.info(
     `[Sentry] Initialized for ${environment} environment${replayEnabled ? ' with Session Replay' : ''}`
@@ -182,3 +186,6 @@ if (dsn && sentryEnabled) {
   // eslint-disable-next-line no-console
   console.info('[Sentry] Disabled - no DSN provided');
 }
+
+// Export Sentry for use in other parts of the application
+export { Sentry };

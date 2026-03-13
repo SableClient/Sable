@@ -87,11 +87,47 @@ Configure Sentry via environment variables:
 # Required: Your Sentry DSN (if not set, Sentry is disabled)
 VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
 
-# Optional: Environment name (defaults to MODE: development/production)
+# Required: Environment name - controls sampling rates
+# - "production" = 10% trace/replay sampling (cost-effective for production)
+# - "preview" = 100% trace/replay sampling (full debugging for PR previews)
+# - "development" = 100% trace/replay sampling (full debugging for local dev)
 VITE_SENTRY_ENVIRONMENT=production
 
 # Optional: Release version for tracking (defaults to VITE_APP_VERSION)
 VITE_SENTRY_RELEASE=1.7.0
+
+# Optional: For uploading source maps to Sentry (CI/CD only)
+SENTRY_AUTH_TOKEN=your-sentry-auth-token
+SENTRY_ORG=your-org-slug
+SENTRY_PROJECT=your-project-slug
+```
+
+### Deployment Configuration
+
+**Production deployment (from `dev` branch):**
+- Set `VITE_SENTRY_ENVIRONMENT=production`
+- Gets 10% sampling for traces and session replay
+- Cost-effective for production usage
+- Configured in `.github/workflows/cloudflare-web-deploy.yml`
+
+**Preview deployments (PR previews, Cloudflare Pages):**
+- Set `VITE_SENTRY_ENVIRONMENT=preview`
+- Gets 100% sampling for traces and session replay
+- Full debugging capabilities for testing
+- Configured in `.github/workflows/cloudflare-web-preview.yml`
+
+**Local development:**
+- `VITE_SENTRY_ENVIRONMENT` not set (defaults to `development` via Vite MODE)
+- Gets 100% sampling for traces and session replay
+- Full debugging capabilities
+
+**Sampling rates by environment:**
+```
+Environment    | Traces | Session Replay | Error Replay
+---------------|--------|----------------|-------------
+production     | 10%    | 10%            | 100%
+preview        | 100%   | 100%           | 100%
+development    | 100%   | 100%           | 100%
 ```
 
 ### User Preferences

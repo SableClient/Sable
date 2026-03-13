@@ -4,11 +4,13 @@ on:
   pull_request:
   push:
     branches: [dev]
+  merge_group:
 
 jobs:
   format:
     name: Format check
     runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
     permissions:
       contents: read
     steps:
@@ -26,6 +28,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
     permissions:
       contents: read
     steps:
@@ -43,6 +46,7 @@ jobs:
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
     permissions:
       contents: read
     steps:
@@ -60,6 +64,7 @@ jobs:
   knip:
     name: Knip
     runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
     permissions:
       contents: read
     steps:
@@ -73,3 +78,20 @@ jobs:
 
       - name: Run Knip
         run: pnpm run knip
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup app and build
+        uses: ./.github/actions/setup
+        with:
+          build: 'true'

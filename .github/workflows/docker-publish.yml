@@ -4,7 +4,7 @@ on:
   push:
     branches: [dev]
     tags:
-      - 'sable/v*'
+      - 'v*'
   pull_request:
     paths:
       - 'Dockerfile'

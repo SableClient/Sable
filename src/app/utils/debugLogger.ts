@@ -5,6 +5,8 @@
  *   localStorage.setItem('sable_internal_debug', '1'); location.reload();
  */
 
+import * as Sentry from '@sentry/react';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export type LogCategory =
@@ -99,11 +101,88 @@ class DebugLoggerService {
     // Notify listeners
     this.notifyListeners(entry);
 
+    // Send to Sentry
+    this.sendToSentry(entry);
+
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
     const consoleLevel = level === 'debug' ? 'log' : level;
     // eslint-disable-next-line no-console
     console[consoleLevel](prefix, message, data !== undefined ? data : '');
+  }
+
+  /**
+   * Send log entries to Sentry for error tracking and breadcrumbs
+   */
+  private sendToSentry(entry: LogEntry): void {
+    // Map log levels to Sentry severity
+    const sentryLevel =
+      entry.level === 'debug'
+        ? 'debug'
+        : entry.level === 'info'
+          ? 'info'
+          : entry.level === 'warn'
+            ? 'warning'
+            : 'error';
+
+    // Add breadcrumb for all logs (helps with debugging in Sentry)
+    Sentry.addBreadcrumb({
+      category: `${entry.category}.${entry.namespace}`,
+      message: entry.message,
+      level: sentryLevel,
+      data: entry.data ? { data: entry.data } : undefined,
+      timestamp: entry.timestamp / 1000, // Sentry expects seconds
+    });
+
+    // Capture errors and warnings as Sentry events
+    if (entry.level === 'error') {
+      // If data is an Error object, capture it as an exception
+      if (entry.data instanceof Error) {
+        Sentry.captureException(entry.data, {
+          level: 'error',
+          tags: {
+            category: entry.category,
+            namespace: entry.namespace,
+          },
+          contexts: {
+            debugLog: {
+              message: entry.message,
+              timestamp: new Date(entry.timestamp).toISOString(),
+            },
+          },
+        });
+      } else {
+        // Otherwise capture as a message
+        Sentry.captureMessage(`[${entry.category}:${entry.namespace}] ${entry.message}`, {
+          level: 'error',
+          tags: {
+            category: entry.category,
+            namespace: entry.namespace,
+          },
+          contexts: {
+            debugLog: {
+              data: entry.data,
+              timestamp: new Date(entry.timestamp).toISOString(),
+            },
+          },
+        });
+      }
+    } else if (entry.level === 'warn' && Math.random() < 0.1) {
+      // Capture 10% of warnings to avoid overwhelming Sentry
+      Sentry.captureMessage(`[${entry.category}:${entry.namespace}] ${entry.message}`, {
+        level: 'warning',
+        tags: {
+          category: entry.category,
+          namespace: entry.namespace,
+        },
+        contexts: {
+          debugLog: {
+            data: entry.data,
+            timestamp: new Date(entry.timestamp).toISOString(),
+          },
+        },
+      });
+    }
   }
 
   public getLogs(): LogEntry[] {
@@ -151,6 +230,40 @@ class DebugLoggerService {
       null,
       2
     );
+  }
+
+  /**
+   * Export logs in a format suitable for attaching to Sentry reports
+   */
+  public exportLogsForSentry(): Record<string, unknown>[] {
+    return this.logs.map((log) => ({
+      timestamp: new Date(log.timestamp).toISOString(),
+      level: log.level,
+      category: log.category,
+      namespace: log.namespace,
+      message: log.message,
+      data: log.data,
+    }));
+  }
+
+  /**
+   * Attach recent logs to the next Sentry event
+   * Useful for bug reports to include context
+   */
+  public attachLogsToSentry(limit = 100): void {
+    const recentLogs = this.logs.slice(-limit);
+    Sentry.setContext('recentLogs', {
+      count: recentLogs.length,
+      logs: recentLogs.map((log) => ({
+        time: new Date(log.timestamp).toISOString(),
+        level: log.level,
+        category: log.category,
+        namespace: log.namespace,
+        message: log.message,
+        // Only include data for errors/warnings to avoid excessive payload
+        ...(log.level === 'error' || log.level === 'warn' ? { data: log.data } : {}),
+      })),
+    });
   }
 }
 

@@ -18,9 +18,13 @@ import {
   Spinner,
   Text,
   TextArea,
+  Checkbox,
+  as,
 } from 'folds';
+import * as Sentry from '@sentry/react';
 import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
 import { stopPropagation } from '$utils/keyboard';
+import { getDebugLogger } from '$utils/debugLogger';
 
 type ReportType = 'bug' | 'feature';
 
@@ -100,6 +104,10 @@ function BugReportModal() {
   // Shared optional field
   const [context, setContext] = useState('');
 
+  // Sentry integration options
+  const [sendToSentry, setSendToSentry] = useState(true);
+  const [includeDebugLogs, setIncludeDebugLogs] = useState(true);
+
   const [similarIssues, setSimilarIssues] = useState<SimilarIssue[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -141,10 +149,53 @@ function BugReportModal() {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+
     const fields: Record<string, string> =
       type === 'bug'
         ? { description, reproduction, 'expected-behavior': expectedBehavior, context }
         : { problem, solution, alternatives, context };
+
+    // Send to Sentry if bug report and option is enabled
+    if (sendToSentry && type === 'bug') {
+      const debugLogger = getDebugLogger();
+
+      // Attach recent logs if user opted in
+      if (includeDebugLogs) {
+        debugLogger.attachLogsToSentry(100);
+      }
+
+      // Capture as Sentry user feedback
+      const eventId = Sentry.captureMessage(`User Bug Report: ${title.trim()}`, {
+        level: 'info',
+        tags: {
+          source: 'bug-report-modal',
+          reportType: type,
+        },
+        contexts: {
+          bugReport: {
+            title: title.trim(),
+            description,
+            reproduction,
+            expectedBehavior,
+            context,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            version: `v${APP_VERSION}${IS_RELEASE_TAG ? '' : '-dev'}${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`,
+          },
+        },
+      });
+
+      // Also send as user feedback for better visibility in Sentry
+      if (eventId) {
+        Sentry.captureFeedback({
+          message: `${description}\n\n${reproduction ? `**Reproduction:**\n${reproduction}\n\n` : ''}${expectedBehavior ? `**Expected:**\n${expectedBehavior}\n\n` : ''}${context ? `**Context:**\n${context}` : ''}`,
+          name: 'User Bug Report',
+          email: 'bug-report@sable.chat',
+          associatedEventId: eventId,
+        });
+      }
+    }
+
     const url = buildGitHubUrl(type, title.trim(), fields);
     window.open(url, '_blank', 'noopener,noreferrer');
     close();
@@ -351,6 +402,48 @@ function BugReportModal() {
                       onChange={(e) => setContext((e.target as HTMLTextAreaElement).value)}
                     />
                   </Box>
+
+                  {/* Sentry integration options (only for bug reports) */}
+                  {type === 'bug' && (
+                    <Box direction="Column" gap="200">
+                      <Text size="L400">Error Tracking</Text>
+                      <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
+                        <Checkbox
+                          variant="Primary"
+                          checked={sendToSentry}
+                          onCheckedChange={setSendToSentry}
+                        />
+                        <Box direction="Column" gap="100" grow="Yes">
+                          <Text size="T300">Send anonymous report to Sentry for error tracking</Text>
+                          <Text size="T200" style={{ opacity: 0.7 }}>
+                            Helps developers identify and fix issues faster. No personal data is
+                            sent.
+                          </Text>
+                        </Box>
+                      </Box>
+                      {sendToSentry && (
+                        <Box
+                          as="label"
+                          gap="200"
+                          alignItems="Center"
+                          style={{ cursor: 'pointer', paddingLeft: config.space.S400 }}
+                        >
+                          <Checkbox
+                            variant="Primary"
+                            checked={includeDebugLogs}
+                            onCheckedChange={setIncludeDebugLogs}
+                          />
+                          <Box direction="Column" gap="100" grow="Yes">
+                            <Text size="T300">Include recent debug logs (last 100 entries)</Text>
+                            <Text size="T200" style={{ opacity: 0.7 }}>
+                              Provides additional context to help diagnose the issue. Logs are
+                              filtered for sensitive data.
+                            </Text>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
 
                   {/* Actions */}
                   <Box gap="300" justifyContent="End">

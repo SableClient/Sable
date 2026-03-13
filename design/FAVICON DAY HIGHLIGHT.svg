@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="100%" height="100%" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
-    <g transform="matrix(1,0,0,1,-2148,-1074)">
+    <g transform="matrix(1,0,0,1,-1074,0)">
         <use id="BASE" xlink:href="#_Image1" x="0" y="2148" width="1024px" height="1024px"/>
-        <rect id="FAVICON-NIGHT-UNREAD" serif:id="FAVICON NIGHT UNREAD" x="2148" y="1074" width="1024" height="1024" style="fill:none;"/>
-        <g id="FAVICON-NIGHT-UNREAD1" serif:id="FAVICON NIGHT UNREAD">
-            <g transform="matrix(1,0,0,1,1074,1074)">
-                <circle cx="1586" cy="512" r="512" style="fill:rgb(32,32,47);"/>
+        <g id="FAVICON-DAY-HIGHLIGHT" serif:id="FAVICON DAY HIGHLIGHT" transform="matrix(1,0,0,1,0,1074)">
+            <rect x="1074" y="-1074" width="1024" height="1024" style="fill:none;"/>
+            <g transform="matrix(1,0,0,1,0,-1074)">
+                <circle cx="1586" cy="512" r="512" style="fill:rgb(229,255,255);"/>
                 <g transform="matrix(0.804035,0,0,0.804035,1148.346192,78.081547)">
                     <g transform="matrix(1.665977,0,0,1.463358,-208.700187,-241.149757)">
                         <path d="M229.465,577.989L226,581C226,581 118.263,429.695 187,332C243.325,251.946 353,394 353,394C353,394 365.19,388.547 405.491,385.941L392,309.499L452,270.031L512,309.499L498.509,385.941C538.81,388.547 551,394 551,394C551,394 660.675,251.946 717,332C785.737,429.695 678,581 678,581L674.499,577.958C676.838,594.084 677.214,608.55 675,619.215C654.3,718.905 554.9,727.286 520.9,765.119C492.058,796.861 472.325,796.097 452,796.215L452,796C431.675,795.882 411.942,796.646 383.1,764.905C349.1,727.071 249.7,718.69 229,619C226.797,608.39 227.158,594.016 229.465,577.989Z" style="fill:rgb(174,158,255);"/>
@@ -46,10 +46,10 @@
                     </g>
                     <g transform="matrix(1.111194,0,0,1.111194,-24.609688,-29.931268)">
                         <g transform="matrix(1.499268,0,0,0.999561,-165.669107,-36.883561)">
-                            <path d="M452,478L417.22,444.268L392,256L452,204L512,256L486.78,444.268L452,478Z" style="fill:rgb(13,255,255);"/>
+                            <path d="M452,478L417.22,444.268L392,256L452,204L512,256L486.78,444.268L452,478Z" style="fill:rgb(255,173,13);"/>
                         </g>
                         <g transform="matrix(2.076273,0,0,2.076273,-422.322836,-600.151156)">
-                            <path d="M450,515L475.115,529.5L475.115,558.5L450,573L424.885,558.5L424.885,529.5L450,515Z" style="fill:rgb(13,255,255);"/>
+                            <path d="M450,515L475.115,529.5L475.115,558.5L450,573L424.885,558.5L424.885,529.5L450,515Z" style="fill:rgb(255,173,13);"/>
                         </g>
                     </g>
                     <g transform="matrix(2.307142,0,0,2.307142,-493.892241,-696.815562)">
@@ -61,6 +61,7 @@
                 </g>
             </g>
         </g>
+        <use id="FAVICON-NIGHT-UNREAD" serif:id="FAVICON NIGHT UNREAD" xlink:href="#_Image1" x="2148" y="1074" width="1024px" height="1024px"/>
         <use id="PWA-DAY" serif:id="PWA DAY" xlink:href="#_Image1" x="1074" y="3222" width="1024px" height="1024px"/>
         <use id="PWA-NIGHT" serif:id="PWA NIGHT" xlink:href="#_Image1" x="2148" y="3222" width="1024px" height="1024px"/>
     </g>

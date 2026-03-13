@@ -2,6 +2,7 @@ experiment
 dist
 node_modules
 devAssets
+design/*.af~lock~
 
 .DS_Store
 .idea

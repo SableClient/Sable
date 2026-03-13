@@ -36,20 +36,26 @@ export function SentrySettings() {
   };
 
   const handleTestError = () => {
+    // eslint-disable-next-line no-console
+    console.log('[Sentry Test] Sending test error...');
     try {
       throw new Error('Test error from Sentry Settings');
     } catch (error) {
-      Sentry.captureException(error, {
+      const eventId = Sentry.captureException(error, {
         tags: {
           source: 'sentry-settings-test',
         },
       });
+      // eslint-disable-next-line no-console
+      console.log('[Sentry Test] Error captured with eventId:', eventId);
       // eslint-disable-next-line no-alert
-      window.alert('Test error sent to Sentry!');
+      window.alert(`Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}`);
     }
   };
 
   const handleSendFeedback = () => {
+    // eslint-disable-next-line no-console
+    console.log('[Sentry Test] Attaching logs and sending feedback...');
     const debugLogger = getDebugLogger();
     debugLogger.attachLogsToSentry(50);
 
@@ -60,15 +66,23 @@ export function SentrySettings() {
       },
     });
 
+    // eslint-disable-next-line no-console
+    console.log('[Sentry Test] Message captured with eventId:', eventId);
+
     if (eventId) {
-      Sentry.captureFeedback({
+      const feedbackId = Sentry.captureFeedback({
         message: 'This is a test feedback message from the Sentry Settings panel.',
         name: 'Test User',
         email: 'test@sable.chat',
         associatedEventId: eventId,
       });
+      // eslint-disable-next-line no-console
+      console.log('[Sentry Test] Feedback captured with ID:', feedbackId);
       // eslint-disable-next-line no-alert
-      window.alert('Test feedback sent to Sentry!');
+      window.alert(`Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}`);
+    } else {
+      // eslint-disable-next-line no-alert
+      window.alert('Failed to send test feedback - no event ID returned');
     }
   };
 
@@ -79,6 +93,29 @@ export function SentrySettings() {
     window.alert(
       'Recent logs attached to Sentry context. They will be included in the next error report.'
     );
+  };
+
+  const handleShowDiagnostics = () => {
+    const dsn = import.meta.env.VITE_SENTRY_DSN;
+    const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
+    const release = import.meta.env.VITE_APP_VERSION;
+    
+    const info = [
+      `DSN: ${dsn ? `${dsn.substring(0, 30)}...` : 'NOT SET'}`,
+      `Environment: ${environment}`,
+      `Release: ${release || 'not set'}`,
+      `Sentry Enabled (localStorage): ${sentryEnabled}`,
+      `Session Replay Enabled: ${sessionReplayEnabled}`,
+      `Sentry SDK Available: ${typeof Sentry !== 'undefined'}`,
+      ``,
+      `To test from console, run:`,
+      `Sentry.captureMessage('Test message', 'info')`,
+    ].join('\n');
+
+    // eslint-disable-next-line no-console
+    console.log('[Sentry Diagnostics]\n' + info);
+    // eslint-disable-next-line no-alert
+    window.alert(info);
   };
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
@@ -192,6 +229,22 @@ export function SentrySettings() {
                   outlined
                 >
                   <Text size="B300">Attach Logs</Text>
+                </Button>
+              }
+            />
+            <SettingTile
+              title="Show Diagnostics"
+              description="Display current Sentry configuration and debug information."
+              after={
+                <Button
+                  onClick={handleShowDiagnostics}
+                  variant="Secondary"
+                  fill="Soft"
+                  size="300"
+                  radii="300"
+                  outlined
+                >
+                  <Text size="B300">Show Config</Text>
                 </Button>
               }
             />

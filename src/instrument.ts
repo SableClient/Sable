@@ -179,6 +179,14 @@ if (dsn && sentryEnabled) {
   console.info(
     `[Sentry] Initialized for ${environment} environment${replayEnabled ? ' with Session Replay' : ''}`
   );
+  // eslint-disable-next-line no-console
+  console.info(
+    `[Sentry] DSN configured: ${dsn?.substring(0, 30)}...`
+  );
+  // eslint-disable-next-line no-console
+  console.info(
+    `[Sentry] Release: ${release || 'not set'}`
+  );
 } else if (!sentryEnabled) {
   // eslint-disable-next-line no-console
   console.info('[Sentry] Disabled by user preference');

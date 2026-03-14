@@ -19,8 +19,23 @@ export const useSlidingSyncActiveRoom = (): void => {
     const manager = getSlidingSyncManager(mx);
     if (!manager) return undefined;
 
-    manager.subscribeToRoom(roomId);
+    // Wait for the room to be initialized from list sync before subscribing
+    // with high timeline limit. This prevents timeline ordering issues where
+    // the room might be receiving events from list expansion while we're also
+    // trying to load a large timeline, causing events to be added out of order.
+    const timeoutId = setTimeout(() => {
+      const room = mx.getRoom(roomId);
+      if (room) {
+        // Room exists and has been initialized from list sync
+        manager.subscribeToRoom(roomId);
+      } else {
+        // Room not in cache yet - subscribe anyway (will use default encrypted subscription)
+        manager.subscribeToRoom(roomId);
+      }
+    }, 100);
+
     return () => {
+      clearTimeout(timeoutId);
       manager.unsubscribeFromRoom(roomId);
     };
   }, [mx, roomId]);

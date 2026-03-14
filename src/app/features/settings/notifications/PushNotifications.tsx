@@ -1,6 +1,9 @@
 import { MatrixClient } from '$types/matrix-sdk';
+import { createDebugLogger } from '$utils/debugLogger';
 import { isTauri } from '@tauri-apps/api/core';
 import { ClientConfig } from '../../../hooks/useClientConfig';
+
+const debugLog = createDebugLogger('PushNotifications');
 
 type PushSubscriptionState = [
   PushSubscriptionJSON | null,
@@ -9,12 +12,18 @@ type PushSubscriptionState = [
 
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
+    debugLog.warn('notification', 'Notification API not available in this browser');
     return 'denied';
   }
   try {
+    debugLog.info('notification', 'Requesting browser notification permission');
     const permission: NotificationPermission = await Notification.requestPermission();
+    debugLog.info('notification', 'Notification permission result', { permission });
     return permission;
-  } catch {
+  } catch (error) {
+    debugLog.error('notification', 'Failed to request notification permission', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return 'denied';
   }
 }
@@ -28,8 +37,13 @@ export async function enablePushNotifications(
     throw new Error('Push notifications are disabled in Tauri runtime.');
   }
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    debugLog.error(
+      'notification',
+      'Push messaging not supported - missing serviceWorker or PushManager'
+    );
     throw new Error('Push messaging is not supported in this browser.');
   }
+  debugLog.info('notification', 'Enabling push notifications');
   const [pushSubAtom, setPushSubscription] = pushSubscriptionAtom;
   const registration = await navigator.serviceWorker.ready;
   const currentBrowserSub = await registration.pushManager.getSubscription();
@@ -38,6 +52,9 @@ export async function enablePushNotifications(
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
   if (currentBrowserSub && pushSubAtom && currentBrowserSub.endpoint === pushSubAtom.endpoint) {
+    debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
+      endpoint: pushSubAtom.endpoint,
+    });
     const { keys } = pushSubAtom;
     if (!keys?.p256dh || !keys.auth) return;
     const pusherData = {
@@ -67,19 +84,25 @@ export async function enablePushNotifications(
   }
 
   if (currentBrowserSub) {
+    debugLog.info('notification', 'Unsubscribing old push subscription');
     await currentBrowserSub.unsubscribe();
   }
 
+  debugLog.info('notification', 'Creating new push subscription');
   const newSubscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: clientConfig.pushNotificationDetails?.vapidPublicKey,
   });
 
+  debugLog.info('notification', 'Push subscription created successfully', {
+    endpoint: newSubscription.endpoint,
+  });
   setPushSubscription(newSubscription);
 
   const subJson = newSubscription.toJSON();
   const { keys } = subJson;
   if (!keys?.p256dh || !keys.auth) {
+    debugLog.error('notification', 'Push subscription missing required keys');
     throw new Error('Push subscription keys missing.');
   }
   const pusherData = {
@@ -119,6 +142,7 @@ export async function disablePushNotifications(
 ): Promise<void> {
   if (isTauri()) return;
 
+  debugLog.info('notification', 'Disabling push notifications');
   const [pushSubAtom] = pushSubscriptionAtom;
 
   const pusherData = {

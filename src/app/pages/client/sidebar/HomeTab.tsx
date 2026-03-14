@@ -109,7 +109,13 @@ export function HomeTab() {
         )}
       </SidebarItemTooltip>
       {homeUnread && (
-        <SidebarItemBadge hasCount={homeUnread.total > 0}>
+        <SidebarItemBadge
+          hasCount={homeUnread.total > 0}
+          style={{
+            left: homeUnread.total > 0 ? toRem(-6) : toRem(-2),
+            right: 'auto',
+          }}
+        >
           <UnreadBadge
             highlight={homeUnread.highlight > 0}
             count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}

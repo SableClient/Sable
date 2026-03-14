@@ -128,6 +128,7 @@ import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useComposingCheck } from '$hooks/useComposingCheck';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { createLogger } from '$utils/debug';
+import { createDebugLogger } from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -163,19 +164,35 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation =>
 
   const relatesTo: IEventRelation = {};
 
-  relatesTo['m.in_reply_to'] = {
-    event_id: replyDraft.eventId,
-  };
-
+  // If this is a thread relation
   if (replyDraft.relation?.rel_type === RelationType.Thread) {
     relatesTo.event_id = replyDraft.relation.event_id;
     relatesTo.rel_type = RelationType.Thread;
-    relatesTo.is_falling_back = false;
+
+    // Check if this is a reply to a specific message in the thread
+    // (replyDraft.body being empty means it's just a seeded thread draft)
+    if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
+      // This is a reply to a message within the thread
+      relatesTo['m.in_reply_to'] = {
+        event_id: replyDraft.eventId,
+      };
+      relatesTo.is_falling_back = false;
+    } else {
+      // This is just a regular thread message
+      relatesTo.is_falling_back = true;
+    }
+  } else {
+    // Regular reply (not in a thread)
+    relatesTo['m.in_reply_to'] = {
+      event_id: replyDraft.eventId,
+    };
   }
+
   return relatesTo;
 };
 
 const log = createLogger('RoomInput');
+const debugLog = createDebugLogger('RoomInput');
 interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
@@ -185,9 +202,13 @@ interface RoomInputProps {
   fileDropContainerRef: RefObject<HTMLElement>;
   roomId: string;
   room: Room;
+  threadRootId?: string;
 }
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room }, ref) => {
+  ({ editor, fileDropContainerRef, roomId, room, threadRootId }, ref) => {
+    // When in thread mode, isolate drafts by thread root ID so thread replies
+    // don't clobber the main room draft (and vice versa).
+    const draftKey = threadRootId ?? roomId;
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
@@ -203,8 +224,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const permissions = useRoomPermissions(creators, powerLevels);
     const canSendReaction = permissions.event(MessageEvent.Reaction, mx.getSafeUserId());
 
-    const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(roomId));
-    const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(roomId));
+    const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
+    const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
     const replyUserID = replyDraft?.userId;
 
     const { color: replyUsernameColor, font: replyUsernameFont } = useSableCosmetics(
@@ -213,7 +234,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const [uploadBoard, setUploadBoard] = useState(true);
-    const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(roomId));
+    const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
     const uploadFamilyObserverAtom = createUploadFamilyObserverAtom(
       roomUploadAtomFamily,
       selectedFiles.map((f) => f.file)
@@ -312,10 +333,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     if (htmlBody) {
       const strippedHtml = trimReplyFromFormattedBody(htmlBody)
-        .replace(/<br\s*\/?>/gi, ' ')
-        .replace(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replace(/<\/?p[^>]*>/gi, '')
-        .replace(/(?:\r\n|\r|\n)/g, ' ');
+        .replaceAll(/<br\s*\/?>/gi, ' ')
+        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
+        .replaceAll(/<\/?p[^>]*>/gi, '')
+        .replaceAll(/(?:\r\n|\r|\n)/g, ' ')
+        .trim();
       const parserOpts = getReactCustomHtmlParser(mx, roomId, {
         linkifyOpts: LINKIFY_OPTS,
         useAuthentication,
@@ -323,9 +345,29 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
       replyBodyJSX = parse(strippedHtml, parserOpts);
     } else if (plainBody) {
-      const strippedBody = trimReplyFromBody(plainBody).replace(/(?:\r\n|\r|\n)/g, ' ');
+      const strippedBody = trimReplyFromBody(plainBody).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       replyBodyJSX = scaleSystemEmoji(strippedBody);
     }
+
+    // Seed the reply draft with the thread relation whenever we're in thread
+    // mode (e.g. on first render or when the thread root changes). We use the
+    // current user's ID as userId so that the mention logic skips it.
+    useEffect(() => {
+      if (!threadRootId) return;
+      setReplyDraft((prev) => {
+        if (
+          prev?.relation?.rel_type === RelationType.Thread &&
+          prev.relation.event_id === threadRootId
+        )
+          return prev;
+        return {
+          userId: mx.getUserId() ?? '',
+          eventId: threadRootId,
+          body: '',
+          relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+        };
+      });
+    }, [threadRootId, setReplyDraft, mx]);
 
     useEffect(() => {
       Transforms.insertFragment(editor, msgDraft);
@@ -333,16 +375,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     useEffect(
       () => () => {
-        if (!isEmptyEditor(editor)) {
-          const parsedDraft = JSON.parse(JSON.stringify(editor.children));
-          setMsgDraft(parsedDraft);
-        } else {
+        if (isEmptyEditor(editor)) {
           setMsgDraft([]);
+        } else {
+          const parsedDraft = structuredClone(editor.children);
+          setMsgDraft(parsedDraft);
         }
         resetEditor(editor);
         resetEditorHistory(editor);
       },
-      [roomId, editor, setMsgDraft]
+      [draftKey, editor, setMsgDraft]
     );
 
     useEffect(() => {
@@ -416,15 +458,38 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent = plainText?.length === 0 ? getReplyContent(replyDraft) : undefined;
         if (replyContent) contents[0]['m.relates_to'] = replyContent;
-        setReplyDraft(undefined);
+        if (threadRootId) {
+          setReplyDraft({
+            userId: mx.getUserId() ?? '',
+            eventId: threadRootId,
+            body: '',
+            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+          });
+        } else {
+          setReplyDraft(undefined);
+        }
       }
 
       await Promise.all(
         contents.map((content) =>
-          mx.sendMessage(roomId, content as any).catch((error: unknown) => {
-            log.error('failed to send uploaded message', { roomId }, error);
-            throw error;
-          })
+          mx
+            .sendMessage(roomId, threadRootId ?? null, content as any)
+            .then((res) => {
+              debugLog.info('message', 'Uploaded file message sent', {
+                roomId,
+                eventId: res.event_id,
+                msgtype: content.msgtype,
+              });
+              return res;
+            })
+            .catch((error: unknown) => {
+              debugLog.error('message', 'Failed to send uploaded file message', {
+                roomId,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              log.error('failed to send uploaded message', { roomId }, error);
+              throw error;
+            })
         )
       );
     };
@@ -544,7 +609,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
-        setReplyDraft(undefined);
+        if (threadRootId) {
+          // Re-seed the thread reply draft so the next message also goes to the thread.
+          setReplyDraft({
+            userId: mx.getUserId() ?? '',
+            eventId: threadRootId,
+            body: '',
+            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+          });
+        } else {
+          setReplyDraft(undefined);
+        }
         sendTypingStatus(false);
       };
       if (scheduledTime) {
@@ -568,18 +643,39 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (editingScheduledDelayId) {
         try {
           await cancelDelayedEvent(mx, editingScheduledDelayId);
-          mx.sendMessage(roomId, content as any);
+          debugLog.info('message', 'Sending message after cancelling scheduled event', {
+            roomId,
+            scheduledDelayId: editingScheduledDelayId,
+          });
+          const res = await mx.sendMessage(roomId, threadRootId ?? null, content as any);
+          debugLog.info('message', 'Message sent successfully', { roomId, eventId: res.event_id });
           invalidate();
           setEditingScheduledDelayId(null);
           resetInput();
-        } catch {
+        } catch (error) {
+          debugLog.error('message', 'Failed to send message after cancelling scheduled event', {
+            roomId,
+            error: error instanceof Error ? error.message : String(error),
+          });
           // Cancel failed — leave state intact for retry
         }
       } else {
         resetInput();
-        mx.sendMessage(roomId, content as any).catch((error: unknown) => {
-          log.error('failed to send message', { roomId }, error);
-        });
+        debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
+        mx.sendMessage(roomId, threadRootId ?? null, content as any)
+          .then((res) => {
+            debugLog.info('message', 'Message sent successfully', {
+              roomId,
+              eventId: res.event_id,
+            });
+          })
+          .catch((error: unknown) => {
+            debugLog.error('message', 'Failed to send message', {
+              roomId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            log.error('failed to send message', { roomId }, error);
+          });
       }
     }, [
       editor,
@@ -587,6 +683,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       canSendReaction,
       mx,
       roomId,
+      threadRootId,
       replyDraft,
       silentReply,
       scheduledTime,
@@ -691,7 +788,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       };
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft);
-        setReplyDraft(undefined);
+        if (threadRootId) {
+          setReplyDraft({
+            userId: mx.getUserId() ?? '',
+            eventId: threadRootId,
+            body: '',
+            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+          });
+        } else {
+          setReplyDraft(undefined);
+        }
       }
       mx.sendEvent(roomId, EventType.Sticker, content);
     };
@@ -850,7 +956,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   </Box>
                 </div>
               )}
-              {replyDraft && (
+              {replyDraft && (!threadRootId || replyDraft.body) && (
                 <div>
                   <Box
                     alignItems="Center"
@@ -858,7 +964,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
                   >
                     <IconButton
-                      onClick={() => setReplyDraft(undefined)}
+                      onClick={() => {
+                        if (threadRootId) {
+                          setReplyDraft({
+                            userId: mx.getUserId() ?? '',
+                            eventId: threadRootId,
+                            body: '',
+                            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+                          });
+                        } else {
+                          setReplyDraft(undefined);
+                        }
+                      }}
                       variant="SurfaceVariant"
                       size="300"
                       radii="300"

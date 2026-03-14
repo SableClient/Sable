@@ -20,9 +20,9 @@ export function RenderBody({
   htmlReactParserOptions,
   linkifyOpts,
 }: RenderBodyProps) {
-  if (body === '') <MessageEmptyContent />;
+  if (body === '') return <MessageEmptyContent />;
   if (customBody) {
-    if (customBody === '') <MessageEmptyContent />;
+    if (customBody === '') return <MessageEmptyContent />;
     return parse(sanitizeCustomHtml(customBody), htmlReactParserOptions);
   }
   return (

@@ -87,7 +87,19 @@ type ForwardMeta = {
   original_event_private: boolean;
 };
 
-export function MessageForwardInternal({ room, mEvent, onClose }: MessageForwardInternalProps) {
+// see https://github.com/hummlbach/matrix-doc/blob/acea0854a1c9489599295a858b068ce02a6b2b20/proposals/2723-add-forward-info.md
+type MSC2723ForwardMeta = {
+  event_id: string;
+  room_id: string;
+  sender: string | null; // we won't set this field
+  origin_server_ts: number;
+};
+
+export function MessageForwardInternal({
+  room,
+  mEvent,
+  onClose,
+}: Readonly<MessageForwardInternalProps>) {
   const mx = useMatrixClient();
 
   const [isTargetSelected, setIsTargetSelected] = useState(false);
@@ -191,7 +203,7 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
       const safeHtml =
         originalFormattedBody !== undefined
           ? sanitizeCustomHtml(originalFormattedBody)
-          : sanitizeCustomHtml(originalBody).replace(/\n/g, '<br>');
+          : sanitizeCustomHtml(originalBody).replaceAll('\n', '<br>');
 
       newBodyHtml =
         `<div data-forward-marker>` +
@@ -207,13 +219,15 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
           formatted_body: newBodyHtml,
         }
       : {};
+    const baseContent = { ...mEvent.getContent() };
+    delete baseContent['com.beeper.per_message_profile']; // remove per-message profile as that could confuse clients in the target room
     let content;
     // handle privacy stuff
     if (isPrivate) {
       // if the message is from a private room, we should strip any media or mentions to avoid leaking information to the target room
       // we can still include the original message content in the body of the message, so we'll just use a fallback text/plain content with the original message body
       content = {
-        ...mEvent.getContent(),
+        ...baseContent,
         'm.relates_to': null, // remove any relations to avoid confusion in the target room
         'm.mentions': null, // remove mentions to avoid leaking information about users in the original room
         ...forwardedTextContent,
@@ -226,7 +240,7 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
       };
     } else {
       content = {
-        ...mEvent.getContent(),
+        ...baseContent,
         ...forwardedTextContent,
         'm.relates_to': {
           rel_type: 'm.reference',
@@ -240,22 +254,22 @@ export function MessageForwardInternal({ room, mEvent, onClose }: MessageForward
           original_event_id: eventId,
           original_event_private: false,
         } satisfies ForwardMeta,
+        'com.famedly.app.forwarded': {
+          event_id: eventId,
+          room_id: room.roomId,
+          sender: null, // we won't set this field, as a design decision to avoid potential privacy issues and since the sender can be inferred from the event_id and room_id if needed
+          origin_server_ts: mEvent.getTs(),
+        } satisfies MSC2723ForwardMeta,
       };
     }
 
-    try {
-      mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent)
-        .then(() => setIsForwardSuccess(true))
-        .catch(() => {
-          setIsForwarding(false);
-          setIsForwardSuccess(false);
-          setIsForwardError(true);
-        });
-    } catch {
-      setIsForwarding(false);
-      setIsForwardSuccess(false);
-      setIsForwardError(true);
-    }
+    mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent)
+      .then(() => setIsForwardSuccess(true))
+      .catch(() => {
+        setIsForwarding(false);
+        setIsForwardSuccess(false);
+        setIsForwardError(true);
+      });
   };
 
   return (

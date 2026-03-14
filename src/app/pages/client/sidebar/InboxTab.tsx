@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons } from 'folds';
+import { Icon, Icons, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
@@ -52,7 +52,7 @@ export function InboxTab() {
         )}
       </SidebarItemTooltip>
       {inviteCount > 0 && (
-        <SidebarItemBadge hasCount>
+        <SidebarItemBadge hasCount style={{ left: toRem(-6), right: 'auto' }}>
           <UnreadBadge highlight count={inviteCount} />
         </SidebarItemBadge>
       )}

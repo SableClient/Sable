@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useRef, useState } from 'react';
+import { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -15,7 +15,13 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { SequenceCard } from '../../components/sequence-card';
+import { SequenceCard } from '$components/sequence-card';
+import { CallEmbed, useCallControlState } from '$plugins/call';
+import { stopPropagation } from '$utils/keyboard';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { useRoom } from '$hooks/useRoom';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { useCallPreferences } from '$state/hooks/callPreferences';
 import * as css from './styles.css';
 import {
   ChatButton,
@@ -25,11 +31,6 @@ import {
   SoundButton,
   VideoButton,
 } from './Controls';
-import { CallEmbed, useCallControlState } from '../../plugins/call';
-import { stopPropagation } from '../../utils/keyboard';
-import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
-import { useRoom } from '../../hooks/useRoom';
-import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 
 type CallControlsProps = {
   callEmbed: CallEmbed;
@@ -44,6 +45,12 @@ export function CallControls({ callEmbed }: CallControlsProps) {
   const { microphone, video, sound, screenshare, spotlight } = useCallControlState(
     callEmbed.control
   );
+
+  const { setPreferences } = useCallPreferences();
+
+  useEffect(() => {
+    setPreferences({ microphone, video, sound });
+  }, [microphone, video, sound, setPreferences]);
 
   const [cords, setCords] = useState<RectCords>();
 

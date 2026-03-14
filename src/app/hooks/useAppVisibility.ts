@@ -8,6 +8,9 @@ import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
 import { mobileOrTablet } from '../utils/user-agent';
+import { createDebugLogger } from '../utils/debugLogger';
+
+const debugLog = createDebugLogger('AppVisibility');
 
 export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
@@ -18,6 +21,11 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
+      debugLog.info(
+        'general',
+        `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
+        { visibilityState: document.visibilityState }
+      );
       appEvents.onVisibilityChange?.(isVisible);
       if (!isVisible) {
         appEvents.onVisibilityHidden?.();

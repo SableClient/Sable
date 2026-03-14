@@ -9,7 +9,7 @@ on:
       - '.github/actions/setup/**'
   push:
     tags:
-      - 'sable/v*'
+      - 'v*'
   workflow_dispatch:
 
 env:

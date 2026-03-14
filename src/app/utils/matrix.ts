@@ -5,6 +5,7 @@ import {
 } from 'browser-encrypt-attachment';
 import {
   EventTimeline,
+  EventTimelineSet,
   MatrixClient,
   MatrixError,
   MatrixEvent,
@@ -395,9 +396,13 @@ export const toggleReaction = (
   room: Room,
   targetEventId: string,
   key: string,
-  shortcode?: string
+  shortcode?: string,
+  timelineSet?: EventTimelineSet
 ) => {
-  const relations = getEventReactions(room.getUnfilteredTimelineSet(), targetEventId);
+  const relations = getEventReactions(
+    timelineSet ?? room.getUnfilteredTimelineSet(),
+    targetEventId
+  );
   const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
   const [, reactionsSet] = allReactions.find(([k]: [string, any]) => k === key) ?? [];
   const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];

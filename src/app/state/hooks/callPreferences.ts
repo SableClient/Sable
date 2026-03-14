@@ -18,6 +18,7 @@ export const useCallPreferences = (): CallPreferences & {
   toggleMicrophone: () => void;
   toggleVideo: () => void;
   toggleSound: () => void;
+  setPreferences: (prefs: CallPreferences) => void;
 } => {
   const callPrefAtom = useCallPreferencesAtom();
   const [pref, setPref] = useAtom(callPrefAtom);
@@ -57,5 +58,6 @@ export const useCallPreferences = (): CallPreferences & {
     toggleMicrophone,
     toggleVideo,
     toggleSound,
+    setPreferences: setPref,
   };
 };

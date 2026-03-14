@@ -66,7 +66,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "alias=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           else
-            branch="${{ github.ref_name }}"
+            branch="${GITHUB_REF_NAME}"
             alias="$(echo "$branch" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g')"
             echo "alias=${alias}" >> "$GITHUB_OUTPUT"
           fi

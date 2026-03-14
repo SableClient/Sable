@@ -70,7 +70,7 @@ export const BubbleLayout = as<'div', BubbleLayoutProps>(
           {hideBubble ? (
             children
           ) : (
-            <Box>
+            <Box className={css.BubbleWrapper}>
               <Box
                 className={
                   hideBubble

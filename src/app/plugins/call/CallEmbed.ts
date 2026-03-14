@@ -25,6 +25,9 @@ import {
 } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
+import { createDebugLogger } from '../../utils/debugLogger';
+
+const debugLog = createDebugLogger('CallEmbed');
 
 export class CallEmbed {
   private mx: MatrixClient;
@@ -127,6 +130,8 @@ export class CallEmbed {
     container: HTMLElement,
     initialControlState?: CallControlState
   ) {
+    debugLog.info('call', 'Initializing call embed', { roomId: room.roomId });
+
     const iframe = CallEmbed.getIframe(
       widget.getCompleteUrl({ currentUserId: mx.getSafeUserId() })
     );
@@ -174,6 +179,7 @@ export class CallEmbed {
   }
 
   public hangup() {
+    debugLog.info('call', 'Hanging up call', { roomId: this.roomId });
     return this.call.transport.send(ElementWidgetActions.HangupCall, {});
   }
 
@@ -194,6 +200,7 @@ export class CallEmbed {
   }
 
   private start() {
+    debugLog.info('call', 'Starting call widget', { roomId: this.roomId });
     // Room widgets get locked to the room they were added in
     this.call.setViewedRoomId(this.roomId);
     this.disposables.push(
@@ -224,6 +231,7 @@ export class CallEmbed {
    * @param opts
    */
   public dispose(): void {
+    debugLog.info('call', 'Disposing call widget', { roomId: this.roomId });
     this.disposables.forEach((disposable) => {
       disposable();
     });
@@ -242,6 +250,7 @@ export class CallEmbed {
   }
 
   private onCallJoined(): void {
+    debugLog.info('call', 'Call joined', { roomId: this.roomId });
     this.joined = true;
     this.applyStyles();
     this.control.startObserving();

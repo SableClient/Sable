@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box } from 'folds';
+import { Avatar, Text, Box, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Room, SyncState } from '$types/matrix-sdk';
 import { useDirects } from '$state/hooks/roomList';
@@ -56,62 +56,105 @@ function DMItem({ room, selected }: DMItemProps) {
   // Get unread info for badge
   const unread = roomToUnread.get(room.roomId);
 
+  // Determine avatar src for single group DM member to avoid nested ternary
+  const getSingleMemberAvatarSrc = () => {
+    if (groupMembers.length !== 1 || !groupMembers[0].avatarUrl) {
+      return undefined;
+    }
+    return (
+      mxcUrlToHttp(mx, groupMembers[0].avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined
+    );
+  };
+
+  // Render appropriate avatar based on DM type
+  const renderAvatar = () => {
+    if (!isGroupDM) {
+      // Regular DM
+      return (
+        <Avatar size="400" radii="400">
+          <RoomAvatar
+            roomId={room.roomId}
+            src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)}
+            alt={room.name}
+            renderFallback={() => (
+              <Text as="span" size="H6">
+                {nameInitials(room.name)}
+              </Text>
+            )}
+          />
+        </Avatar>
+      );
+    }
+
+    if (groupMembers.length === 1) {
+      // Single member in group DM - fill the space like a normal DM
+      return (
+        <Avatar size="400" radii="400">
+          <UserAvatar
+            userId={groupMembers[0].userId}
+            src={getSingleMemberAvatarSrc()}
+            alt={groupMembers[0].displayName || groupMembers[0].userId}
+            renderFallback={() => (
+              <Text as="span" size="H6">
+                {nameInitials(groupMembers[0].displayName || groupMembers[0].userId)}
+              </Text>
+            )}
+          />
+        </Avatar>
+      );
+    }
+
+    // Multiple members in group DM - triangle layout
+    return (
+      <Box className={css.GroupAvatarContainer}>
+        <Box className={css.GroupAvatarRow}>
+          {groupMembers.map((member) => {
+            const avatarUrl = member.avatarUrl
+              ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
+              : undefined;
+
+            return (
+              <Avatar key={member.userId} size="200" radii="300" className={css.GroupAvatar}>
+                <UserAvatar
+                  userId={member.userId}
+                  src={avatarUrl}
+                  alt={member.displayName || member.userId}
+                  renderFallback={() => (
+                    <Text as="span" size="T300">
+                      {nameInitials(member.displayName || member.userId)}
+                    </Text>
+                  )}
+                />
+              </Avatar>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
-            {isGroupDM ? (
-              <Box className={css.GroupAvatarContainer}>
-                <Box className={css.GroupAvatarRow}>
-                  {groupMembers.map((member) => {
-                    const avatarUrl = member.avatarUrl
-                      ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ??
-                        undefined)
-                      : undefined;
-
-                    return (
-                      <Avatar
-                        key={member.userId}
-                        size="200"
-                        radii="300"
-                        className={css.GroupAvatar}
-                      >
-                        <UserAvatar
-                          userId={member.userId}
-                          src={avatarUrl}
-                          alt={member.displayName || member.userId}
-                          renderFallback={() => (
-                            <Text as="span" size="T300">
-                              {nameInitials(member.displayName || member.userId)}
-                            </Text>
-                          )}
-                        />
-                      </Avatar>
-                    );
-                  })}
-                </Box>
-              </Box>
-            ) : (
-              <Avatar size="400" radii="400">
-                <RoomAvatar
-                  roomId={room.roomId}
-                  src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)}
-                  alt={room.name}
-                  renderFallback={() => (
-                    <Text as="span" size="H6">
-                      {nameInitials(room.name)}
-                    </Text>
-                  )}
-                />
-              </Avatar>
-            )}
+            {renderAvatar()}
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge hasCount={unread.total > 0}>
-          <UnreadBadge highlight={unread.highlight > 0} count={unread.total} dm />
+        <SidebarItemBadge
+          hasCount={unread.total > 0}
+          style={{
+            left: unread.total > 0 ? toRem(-6) : toRem(-2),
+            right: 'auto',
+          }}
+        >
+          <UnreadBadge
+            highlight={unread.highlight > 0}
+            count={unread.highlight > 0 ? unread.highlight : unread.total}
+            dm
+          />
         </SidebarItemBadge>
       )}
     </SidebarItem>

@@ -465,7 +465,13 @@ function SpaceTab({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge hasCount={unread.total > 0}>
+            <SidebarItemBadge
+              hasCount={unread.total > 0}
+              style={{
+                left: unread.total > 0 ? toRem(-6) : toRem(-2),
+                right: 'auto',
+              }}
+            >
               <UnreadBadge
                 highlight={unread.highlight > 0}
                 count={unread.highlight > 0 ? unread.highlight : unread.total}
@@ -600,7 +606,13 @@ function ClosedSpaceFolder({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge hasCount={unread.total > 0}>
+            <SidebarItemBadge
+              hasCount={unread.total > 0}
+              style={{
+                left: unread.total > 0 ? toRem(-6) : toRem(-2),
+                right: 'auto',
+              }}
+            >
               <UnreadBadge
                 highlight={unread.highlight > 0}
                 count={unread.highlight > 0 ? unread.highlight : unread.total}

@@ -42,10 +42,12 @@ import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { Settings } from '$features/settings';
 import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
+import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 
 const log = createLogger('AccountSwitcherTab');
+const debugLog = createDebugLogger('AccountSwitcherTab');
 
 function AccountRow({
   session,
@@ -246,6 +248,9 @@ export function AccountSwitcherTab() {
   };
 
   const handleOpenSettings = () => {
+    debugLog.info('ui', 'Settings button clicked', {
+      userId: activeSession?.userId,
+    });
     setMenuAnchor(undefined);
     setSettingsOpen(true);
   };
@@ -276,7 +281,7 @@ export function AccountSwitcherTab() {
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (
-        <SidebarItemBadge hasCount>
+        <SidebarItemBadge hasCount style={{ left: toRem(-6), right: 'auto' }}>
           <UnreadBadge
             highlight={anyBackgroundHighlight}
             count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}

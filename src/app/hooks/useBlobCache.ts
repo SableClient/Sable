@@ -25,8 +25,12 @@ export function useBlobCache(url?: string, accessToken?: string | null): string 
 
     const fetchBlob = async () => {
       if (inflightRequests.has(url)) {
-        const existingBlobUrl = await inflightRequests.get(url);
-        if (isMounted) setCacheState({ sourceUrl: url, blobUrl: existingBlobUrl });
+        try {
+          const existingBlobUrl = await inflightRequests.get(url);
+          if (isMounted) setCacheState({ sourceUrl: url, blobUrl: existingBlobUrl });
+        } catch {
+          // Inflight request failed, silently ignore (consistent with fetchBlob behavior)
+        }
         return;
       }
 
@@ -39,7 +43,9 @@ export function useBlobCache(url?: string, accessToken?: string | null): string 
         }
 
         const res = await authenticatedMediaFetch(url, accessToken);
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
+        }
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
 

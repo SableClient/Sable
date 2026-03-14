@@ -32,22 +32,26 @@ export function RoomViewFollowingPlaceholder() {
 
 export type RoomViewFollowingProps = {
   room: Room;
+  threadEventId?: string;
+  participantIds?: Set<string>;
 };
 export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
-  ({ className, room, ...props }, ref) => {
+  ({ className, room, threadEventId, participantIds, ...props }, ref) => {
     const mx = useMatrixClient();
     const [open, setOpen] = useState(false);
     const latestEvent = useRoomLatestRenderedEvent(room);
-    const latestEventReaders = useRoomEventReaders(room, latestEvent?.getId());
+    const resolvedEventId = threadEventId ?? latestEvent?.getId();
+    const latestEventReaders = useRoomEventReaders(room, resolvedEventId);
     const nicknames = useAtomValue(nicknamesAtom);
     const names = latestEventReaders
       .filter((readerId) => readerId !== mx.getUserId())
+      .filter((readerId) => !participantIds || participantIds.has(readerId))
       .map(
         (readerId) =>
           getMemberDisplayName(room, readerId, nicknames) ?? getMxIdLocalPart(readerId) ?? readerId
       );
 
-    const eventId = latestEvent?.getId();
+    const eventId = resolvedEventId;
 
     return (
       <>

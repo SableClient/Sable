@@ -4,6 +4,7 @@ import { IImageInfo } from '$types/matrix/common';
 import { MatrixClient } from 'matrix-js-sdk';
 
 // Utility function to add a sticker to the default sticker pack
+// For now this only works for unencrypted stickers
 export async function addStickerToDefaultPack(
   mx: MatrixClient,
   shortcode: string,

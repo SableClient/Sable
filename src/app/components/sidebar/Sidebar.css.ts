@@ -142,6 +142,39 @@ export const SidebarItemBadge = recipe({
   defaultVariants: {
     hasCount: false,
   },
+  // Adjust positioning when badge is on a folder (closed folder button)
+  compoundVariants: [
+    {
+      variants: {
+        hasCount: true,
+      },
+      style: {
+        selectors: {
+          // When the badge is within an item containing a closed folder, adjust position
+          // to align with the folder's square border
+          'div:has(> button[data-id])  &': {
+            top: toRem(0),
+            left: 'auto',
+            right: toRem(0),
+          },
+        },
+      },
+    },
+    {
+      variants: {
+        hasCount: false,
+      },
+      style: {
+        selectors: {
+          'div:has(> button[data-id]) &': {
+            top: toRem(2),
+            left: 'auto',
+            right: toRem(2),
+          },
+        },
+      },
+    },
+  ],
 });
 export type SidebarItemBadgeVariants = RecipeVariants<typeof SidebarItemBadge>;
 

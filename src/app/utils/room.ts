@@ -214,7 +214,7 @@ const NOTIFICATION_EVENT_TYPES = [
   'm.sticker',
   'm.reaction',
 ];
-export const isNotificationEvent = (mEvent: MatrixEvent) => {
+export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
   if (!NOTIFICATION_EVENT_TYPES.includes(eType)) {
     return false;
@@ -222,7 +222,28 @@ export const isNotificationEvent = (mEvent: MatrixEvent) => {
   if (eType === 'm.room.member') return false;
 
   if (mEvent.isRedacted()) return false;
-  return mEvent.getRelation()?.rel_type !== 'm.replace';
+  const relation = mEvent.getRelation();
+  const relationType = relation?.rel_type;
+
+  // Filter out edits - they shouldn't count as new notifications
+  if (relationType === 'm.replace') return false;
+
+  // For reactions: only count them if they're reactions to the current user's messages
+  if (relationType === 'm.annotation') {
+    if (!room || !userId || !relation) {
+      // If we don't have room/userId/relation context, filter out all reactions (safe default)
+      return false;
+    }
+    // Get the event being reacted to
+    const reactedToEventId = relation.event_id;
+    if (!reactedToEventId) return false;
+
+    const reactedToEvent = room.findEventById(reactedToEventId);
+    // Only count as notification if the reacted-to message was sent by current user
+    return reactedToEvent?.getSender() === userId;
+  }
+
+  return true;
 };
 
 export const roomHaveNotification = (room: Room): boolean => {
@@ -254,7 +275,7 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
     if (event.getId() === readUpToId) {
       return false;
     }
-    if (isNotificationEvent(event)) {
+    if (isNotificationEvent(event, room, userId)) {
       return true;
     }
   }
@@ -298,7 +319,9 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
         .reverse()
         .find(
           (event) =>
-            !event.isSending() && event.getSender() !== userId && isNotificationEvent(event)
+            !event.isSending() &&
+            event.getSender() !== userId &&
+            isNotificationEvent(event, room, userId)
         );
       const latestNotificationId = latestNotification?.getId();
       if (latestNotificationId && room.hasUserReadEvent(userId, latestNotificationId)) {
@@ -321,7 +344,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       const event = liveEvents[i];
       if (!event) break;
       if (event.getId() === readUpToId) break;
-      if (isNotificationEvent(event) && event.getSender() !== userId) {
+      if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
         fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
         if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
@@ -343,7 +366,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       const liveEvents = room.getLiveTimeline().getEvents();
 
       const hasActivity = liveEvents.some(
-        (event) => event.getSender() !== userId && isNotificationEvent(event)
+        (event) => event.getSender() !== userId && isNotificationEvent(event, room, userId)
       );
 
       if (hasActivity) {

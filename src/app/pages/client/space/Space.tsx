@@ -72,6 +72,9 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('Space');
 
 type SpaceMenuProps = {
   room: Room;
@@ -122,6 +125,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   };
 
   const handleOpenTimeline = () => {
+    debugLog.info('ui', 'Space timeline opened', { roomId: room.roomId });
     navigateRoom(room.roomId);
     requestClose();
   };

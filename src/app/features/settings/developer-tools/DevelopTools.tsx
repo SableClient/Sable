@@ -11,6 +11,7 @@ import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
+import { DebugLogViewer } from './DebugLogViewer';
 
 type DeveloperToolsProps = {
   requestClose: () => void;
@@ -119,6 +120,11 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                   onExpandToggle={setExpend}
                   onSelect={setAccountDataType}
                 />
+              )}
+              {developerTools && (
+                <Box direction="Column" gap="100">
+                  <DebugLogViewer />
+                </Box>
               )}
             </Box>
           </PageContent>

@@ -52,7 +52,11 @@ async function searchSimilarIssues(query: string, signal: AbortSignal): Promise<
 
 // Field IDs match the ids defined in .github/ISSUE_TEMPLATE/bug_report.yml
 // and feature_request.yml so GitHub pre-fills each form field directly.
-function buildGitHubUrl(type: ReportType, title: string, fields: Record<string, string>): string {
+export function buildGitHubUrl(
+  type: ReportType,
+  title: string,
+  fields: Record<string, string>
+): string {
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const version = `v${APP_VERSION}${devLabel}${buildLabel}`;

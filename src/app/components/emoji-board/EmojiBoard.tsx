@@ -30,6 +30,8 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ImagePack, ImageUsage, PackImageReader } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
 import { VirtualTile } from '$components/virtualizer';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { useEmojiGroupIcons } from './useEmojiGroupIcons';
 import { useEmojiGroupLabels } from './useEmojiGroupLabels';
 import {
@@ -133,7 +135,7 @@ const useGroups = (
   return [emojiGroupItems, stickerGroupItems];
 };
 
-const useItemRenderer = (tab: EmojiBoardTab) => {
+const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -148,6 +150,7 @@ const useItemRenderer = (tab: EmojiBoardTab) => {
           mx={mx}
           useAuthentication={useAuthentication}
           image={emoji}
+          saveStickerEmojiBandwidth={saveStickerEmojiBandwidth}
         />
       );
     }
@@ -157,6 +160,7 @@ const useItemRenderer = (tab: EmojiBoardTab) => {
         mx={mx}
         useAuthentication={useAuthentication}
         image={emoji}
+        saveStickerEmojiBandwidth={saveStickerEmojiBandwidth}
       />
     );
   };
@@ -167,9 +171,15 @@ const useItemRenderer = (tab: EmojiBoardTab) => {
 type EmojiSidebarProps = {
   activeGroupAtom: PrimitiveAtom<string | undefined>;
   packs: ImagePack[];
+  saveStickerEmojiBandwidth: boolean;
   onScrollToGroup: (groupId: string) => void;
 };
-function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarProps) {
+function EmojiSidebar({
+  activeGroupAtom,
+  packs,
+  saveStickerEmojiBandwidth,
+  onScrollToGroup,
+}: EmojiSidebarProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -201,8 +211,11 @@ function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarP
             let label = pack.meta.name;
             if (!label) label = isUserId(pack.id) ? 'Personal Pack' : mx.getRoom(pack.id)?.name;
 
-            const url =
-              mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication) ?? undefined;
+            // limit width and height to 36 to prevent very large icons from breaking the layout, since custom emoji pack icons can be of any size
+            // trying to get close to the render target size of the icons in the sidebar, which is around 24px
+            const url = saveStickerEmojiBandwidth
+              ? mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication, 36, 36)
+              : mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication);
 
             return (
               <ImageGroupIcon
@@ -210,7 +223,7 @@ function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarP
                 active={activeGroupId === pack.id}
                 id={pack.id}
                 label={label ?? 'Unknown Pack'}
-                url={url}
+                url={url ?? undefined}
                 onClick={handleScrollToGroup}
               />
             );
@@ -243,9 +256,15 @@ function EmojiSidebar({ activeGroupAtom, packs, onScrollToGroup }: EmojiSidebarP
 type StickerSidebarProps = {
   activeGroupAtom: PrimitiveAtom<string | undefined>;
   packs: ImagePack[];
+  saveStickerEmojiBandwidth: boolean;
   onScrollToGroup: (groupId: string) => void;
 };
-function StickerSidebar({ activeGroupAtom, packs, onScrollToGroup }: StickerSidebarProps) {
+function StickerSidebar({
+  activeGroupAtom,
+  packs,
+  saveStickerEmojiBandwidth,
+  onScrollToGroup,
+}: StickerSidebarProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -264,8 +283,11 @@ function StickerSidebar({ activeGroupAtom, packs, onScrollToGroup }: StickerSide
           let label = pack.meta.name;
           if (!label) label = isUserId(pack.id) ? 'Personal Pack' : mx.getRoom(pack.id)?.name;
 
-          const url =
-            mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication) ?? undefined;
+          // limit width and height to 36 to prevent very large icons from breaking the layout, since custom emoji pack icons can be of any size
+          // trying to get close to the render target size of the icons in the sidebar, which is around 24px
+          const url = saveStickerEmojiBandwidth
+            ? mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication, 36, 36)
+            : mxcUrlToHttp(mx, pack.getAvatarUrl(usage) ?? '', useAuthentication);
 
           return (
             <ImageGroupIcon
@@ -273,7 +295,7 @@ function StickerSidebar({ activeGroupAtom, packs, onScrollToGroup }: StickerSide
               active={activeGroupId === pack.id}
               id={pack.id}
               label={label ?? 'Unknown Pack'}
-              url={url}
+              url={url ?? undefined}
               onClick={handleScrollToGroup}
             />
           );
@@ -377,6 +399,7 @@ export function EmojiBoard({
   addToRecentEmoji = true,
 }: EmojiBoardProps) {
   const mx = useMatrixClient();
+  const [saveStickerEmojiBandwidth] = useSetting(settingsAtom, 'saveStickerEmojiBandwidth');
 
   const emojiTab = tab === EmojiBoardTab.Emoji;
   const usage = emojiTab ? ImageUsage.Emoticon : ImageUsage.Sticker;
@@ -390,7 +413,7 @@ export function EmojiBoard({
   const imagePacks = useRelevantImagePacks(usage, imagePackRooms);
   const [emojiGroupItems, stickerGroupItems] = useGroups(tab, imagePacks);
   const groups = emojiTab ? emojiGroupItems : stickerGroupItems;
-  const renderItem = useItemRenderer(tab);
+  const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth);
 
   const searchList = useMemo(() => {
     let list: Array<PackImageReader | IEmoji> = [];
@@ -424,7 +447,28 @@ export function EmojiBoard({
   const virtualizer = useVirtualizer({
     count: groups.length,
     getScrollElement: () => contentScrollRef.current,
-    estimateSize: () => 40,
+    estimateSize: (index: number) => {
+      const group = groups[index];
+      if (!group) return emojiTab ? 320 : 420;
+
+      /**
+       * estimate tile size: stickers are generally larger than emojis, and custom emojis can vary in size but are often larger than standard emojis, so we use a larger estimate for them.
+       * This is a rough estimate to help the virtualizer calculate the total height and which items are in view.
+       * The actual rendered size may vary, but this should provide a reasonable approximation for most cases.
+       */
+      const tile = emojiTab ? 48 : 112;
+      /**
+       * estimate number of columns that can fit in the view, with a min of 1 to avoid division by zero
+       */
+      const cols = Math.max(1, Math.floor(280 / tile));
+      /**
+       * estimate number of rows based on the number of items and columns
+       */
+      const rows = Math.ceil(group.items.length / cols);
+
+      // calculate total height based on rows, with some padding and a safety margin
+      return Math.ceil((28 + 24 + rows * tile) * 1.05); // small safety margin
+    },
     overscan: VIRTUAL_OVER_SCAN,
   });
   const vItems = virtualizer.getVirtualItems();
@@ -520,12 +564,14 @@ export function EmojiBoard({
             <EmojiSidebar
               activeGroupAtom={activeGroupIdAtom}
               packs={imagePacks}
+              saveStickerEmojiBandwidth={saveStickerEmojiBandwidth}
               onScrollToGroup={handleScrollToGroup}
             />
           ) : (
             <StickerSidebar
               activeGroupAtom={activeGroupIdAtom}
               packs={imagePacks}
+              saveStickerEmojiBandwidth={saveStickerEmojiBandwidth}
               onScrollToGroup={handleScrollToGroup}
             />
           )

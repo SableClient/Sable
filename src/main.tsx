@@ -116,6 +116,41 @@ const injectIOSMetaTags = () => {
   });
 };
 
+// Handle chunk loading failures with automatic retry
+const CHUNK_RETRY_KEY = 'cinny_chunk_retry_count';
+const MAX_CHUNK_RETRIES = 2;
+
+window.addEventListener('error', (event) => {
+  // Check if this is a chunk loading error
+  const isChunkLoadError =
+    event.message?.includes('dynamically imported module') ||
+    event.message?.includes('Failed to fetch') ||
+    event.error?.name === 'ChunkLoadError';
+
+  if (isChunkLoadError) {
+    const retryCount = parseInt(sessionStorage.getItem(CHUNK_RETRY_KEY) ?? '0', 10);
+
+    if (retryCount < MAX_CHUNK_RETRIES) {
+      // Increment retry count and reload
+      sessionStorage.setItem(CHUNK_RETRY_KEY, String(retryCount + 1));
+      log.warn(`Chunk load failed, reloading (attempt ${retryCount + 1}/${MAX_CHUNK_RETRIES})`);
+      window.location.reload();
+
+      // Prevent default error handling since we're reloading
+      event.preventDefault();
+    } else {
+      // Max retries exceeded, clear counter and let error bubble up
+      sessionStorage.removeItem(CHUNK_RETRY_KEY);
+      log.error('Chunk load failed after max retries, showing error');
+    }
+  }
+});
+
+// Clear chunk retry counter on successful page load
+window.addEventListener('load', () => {
+  sessionStorage.removeItem(CHUNK_RETRY_KEY);
+});
+
 export const mountApp = (root: Root) => {
   initServiceWorker();
   injectIOSMetaTags();

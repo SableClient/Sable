@@ -20,6 +20,9 @@ import { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const debugLog = createDebugLogger('LeaveRoomPrompt');
 
 type LeaveRoomPromptProps = {
   roomId: string;
@@ -31,6 +34,7 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
 
   const [leaveState, leaveRoom] = useAsyncCallback<undefined, MatrixError, []>(
     useCallback(async () => {
+      debugLog.info('ui', 'Leave room button clicked', { roomId });
       mx.leave(roomId);
     }, [mx, roomId])
   );
@@ -41,9 +45,10 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
 
   useEffect(() => {
     if (leaveState.status === AsyncStatus.Success) {
+      debugLog.info('ui', 'Successfully left room', { roomId });
       onDone();
     }
-  }, [leaveState, onDone]);
+  }, [leaveState, onDone, roomId]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>

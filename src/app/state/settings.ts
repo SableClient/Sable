@@ -48,6 +48,7 @@ export interface Settings {
   urlPreview: boolean;
   encUrlPreview: boolean;
   showHiddenEvents: boolean;
+  showTombstoneEvents: boolean;
   legacyUsernameColor: boolean;
   allowPipVideos: boolean;
 
@@ -94,6 +95,7 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  saveStickerEmojiBandwidth: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -126,6 +128,7 @@ const defaultSettings: Settings = {
   urlPreview: true,
   encUrlPreview: false,
   showHiddenEvents: false,
+  showTombstoneEvents: false,
   legacyUsernameColor: false,
   allowPipVideos: false,
 
@@ -173,6 +176,7 @@ const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  saveStickerEmojiBandwidth: false,
 
   // furry stuff
   renderAnimals: true,

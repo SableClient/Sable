@@ -3,6 +3,7 @@ import { Page, PageContent, PageHeader } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { LanguageSpecificPronouns } from '../cosmetics/LanguageSpecificPronouns';
 import { Sync } from '../general';
+import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 
 type ExperimentalProps = {
   requestClose: () => void;
@@ -43,6 +44,7 @@ export function Experimental({ requestClose }: ExperimentalProps) {
             <Box direction="Column" gap="700">
               <Sync />
               <LanguageSpecificPronouns />
+              <BandwidthSavingEmojis />
             </Box>
           </PageContent>
         </Scroll>

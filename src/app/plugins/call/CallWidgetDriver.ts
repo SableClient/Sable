@@ -27,6 +27,9 @@ import {
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
 import { hasServiceWorker } from '../../utils/platform';
+import { createDebugLogger } from '../../utils/debugLogger';
+
+const debugLog = createDebugLogger('CallWidgetDriver');
 
 export class CallWidgetDriver extends WidgetDriver {
   private allowedCapabilities: Set<Capability>;
@@ -41,8 +44,12 @@ export class CallWidgetDriver extends WidgetDriver {
     this.mx = mx;
 
     const deviceId = mx.getDeviceId();
-    if (!deviceId) throw new Error('Failed to initialize CallWidgetDriver! Device ID not found.');
+    if (!deviceId) {
+      debugLog.error('call', 'Failed to initialize CallWidgetDriver - no device ID');
+      throw new Error('Failed to initialize CallWidgetDriver! Device ID not found.');
+    }
 
+    debugLog.info('call', 'Initializing CallWidgetDriver', { roomId: inRoomId, deviceId });
     this.allowedCapabilities = getCallCapabilities(inRoomId, mx.getSafeUserId(), deviceId);
   }
 
@@ -60,7 +67,16 @@ export class CallWidgetDriver extends WidgetDriver {
     const client = this.mx;
     const roomId = targetRoomId || this.inRoomId;
 
-    if (!client || !roomId) throw new Error('Not in a room or not attached to a client');
+    if (!client || !roomId) {
+      debugLog.error('call', 'Cannot send event - no client or room', { eventType, roomId });
+      throw new Error('Not in a room or not attached to a client');
+    }
+
+    debugLog.info('call', 'Sending call event', {
+      eventType,
+      roomId,
+      hasStateKey: stateKey !== null,
+    });
 
     let r: { event_id: string } | null;
     if (typeof stateKey === 'string') {
@@ -81,6 +97,7 @@ export class CallWidgetDriver extends WidgetDriver {
       );
     }
 
+    debugLog.info('call', 'Call event sent successfully', { eventId: r.event_id, eventType });
     return { roomId, eventId: r.event_id };
   }
 

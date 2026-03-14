@@ -75,7 +75,9 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
                   </Button>
                   <Button
                     variant="Secondary"
-                    onClick={() => window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')}
+                    onClick={() =>
+                      window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')
+                    }
                     fill="None"
                     title="Opens a pre-filled GitHub issue as an alternative reporting method."
                   >
@@ -87,7 +89,9 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
               ) : (
                 <Button
                   variant="Secondary"
-                  onClick={() => window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')}
+                  onClick={() =>
+                    window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')
+                  }
                   fill="Solid"
                   title="Clicking this button will open a new issue on our GitHub repository with the error details pre-filled. Please review the information before submitting."
                 >

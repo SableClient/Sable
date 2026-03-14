@@ -291,8 +291,8 @@ const useEventTimelineLoader = (
   onError: (err: Error | null) => void
 ) =>
   useCallback(
-    async (eventId: string) => {
-      return Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
+    async (eventId: string) =>
+      Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
         const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
           new Promise<T>((resolve, reject) => {
@@ -344,8 +344,7 @@ const useEventTimelineLoader = (
           performance.now() - jumpLoadStart
         );
         onLoad(eventId, linkedTimelines, absIndex);
-      }); // end startSpan
-    },
+      }), // end startSpan
     [mx, room, onLoad, onError]
   );
 

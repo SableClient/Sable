@@ -19,7 +19,6 @@ import {
   Text,
   TextArea,
   Checkbox,
-  as,
 } from 'folds';
 import * as Sentry from '@sentry/react';
 import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
@@ -414,7 +413,9 @@ function BugReportModal() {
                           onCheckedChange={setSendToSentry}
                         />
                         <Box direction="Column" gap="100" grow="Yes">
-                          <Text size="T300">Send anonymous report to Sentry for error tracking</Text>
+                          <Text size="T300">
+                            Send anonymous report to Sentry for error tracking
+                          </Text>
                           <Text size="T200" style={{ opacity: 0.7 }}>
                             Helps developers identify and fix issues faster. No personal data is
                             sent.

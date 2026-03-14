@@ -69,7 +69,8 @@ if (dsn && sentryEnabled) {
     // Session Replay sampling
     // Record 100% in development and preview for testing, 10% in production
     // Always record 100% of sessions with errors
-    replaysSessionSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
+    replaysSessionSampleRate:
+      environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
     replaysOnErrorSampleRate: 1.0,
 
     // Enable structured logging to Sentry
@@ -95,7 +96,9 @@ if (dsn && sentryEnabled) {
           '!',
           '$',
         ];
-        if (sensitivePatterns.some((pattern) => breadcrumb.message?.toLowerCase().includes(pattern))) {
+        if (
+          sensitivePatterns.some((pattern) => breadcrumb.message?.toLowerCase().includes(pattern))
+        ) {
           // Don't drop entirely, but sanitize
           return {
             ...breadcrumb,
@@ -181,13 +184,9 @@ if (dsn && sentryEnabled) {
     `[Sentry] Initialized for ${environment} environment${replayEnabled ? ' with Session Replay' : ''}`
   );
   // eslint-disable-next-line no-console
-  console.info(
-    `[Sentry] DSN configured: ${dsn?.substring(0, 30)}...`
-  );
+  console.info(`[Sentry] DSN configured: ${dsn?.substring(0, 30)}...`);
   // eslint-disable-next-line no-console
-  console.info(
-    `[Sentry] Release: ${release || 'not set'}`
-  );
+  console.info(`[Sentry] Release: ${release || 'not set'}`);
 } else if (!sentryEnabled) {
   // eslint-disable-next-line no-console
   console.info('[Sentry] Disabled by user preference');

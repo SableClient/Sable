@@ -102,7 +102,7 @@ class DebugLoggerService {
     this.notifyListeners(entry);
 
     // Send to Sentry
-    this.sendToSentry(entry);
+    DebugLoggerService.sendToSentry(entry);
 
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
@@ -114,16 +114,15 @@ class DebugLoggerService {
   /**
    * Send log entries to Sentry for error tracking and breadcrumbs
    */
-  private sendToSentry(entry: LogEntry): void {
+  private static sendToSentry(entry: LogEntry): void {
     // Map log levels to Sentry severity
-    const sentryLevel =
-      entry.level === 'debug'
-        ? 'debug'
-        : entry.level === 'info'
-          ? 'info'
-          : entry.level === 'warn'
-            ? 'warning'
-            : 'error';
+    const sentryLevelMap: Record<string, Sentry.SeverityLevel> = {
+      debug: 'debug',
+      info: 'info',
+      warn: 'warning',
+      error: 'error',
+    };
+    const sentryLevel: Sentry.SeverityLevel = sentryLevelMap[entry.level] ?? 'error';
 
     // Add breadcrumb for all logs (helps with debugging in Sentry)
     Sentry.addBreadcrumb({

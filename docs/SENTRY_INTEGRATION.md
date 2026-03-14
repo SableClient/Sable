@@ -5,6 +5,7 @@ This document describes the Sentry error tracking and monitoring integration add
 ## Overview
 
 Sentry is integrated with Sable to provide:
+
 - **Error tracking**: Automatic capture and reporting of errors and exceptions
 - **Performance monitoring**: Track application performance and identify bottlenecks
 - **User feedback**: Collect bug reports with context from users
@@ -17,6 +18,7 @@ Sentry is integrated with Sable to provide:
 ### 1. Automatic Error Tracking
 
 All errors are automatically captured and sent to Sentry with:
+
 - Stack traces
 - User context (anonymized)
 - Device and browser information
@@ -26,12 +28,14 @@ All errors are automatically captured and sent to Sentry with:
 ### 2. Debug Logger Integration
 
 The internal debug logger now integrates with Sentry:
+
 - **Breadcrumbs**: All debug logs are added as breadcrumbs for context
 - **Error capture**: Errors logged to the debug logger are automatically sent to Sentry
 - **Warning sampling**: 10% of warnings are sent to Sentry to avoid overwhelming the system
 - **Log attachment**: Recent logs can be attached to bug reports for additional context
 
 Key integration points:
+
 - `src/app/utils/debugLogger.ts` - Enhanced with Sentry breadcrumb and error capture
 - Automatic breadcrumb creation for all log entries
 - Error objects in log data are captured as exceptions
@@ -40,12 +44,14 @@ Key integration points:
 ### 3. Bug Report Modal Integration
 
 The bug report modal (`/bugreport` command or "Bug Report" button) now includes:
+
 - **Optional Sentry reporting**: Checkbox to send anonymous reports to Sentry
 - **Debug log attachment**: Option to include recent debug logs (last 100 entries)
 - **User feedback API**: Bug reports are sent as Sentry user feedback for better visibility
 - **Privacy controls**: Users can opt-out of Sentry reporting
 
 Integration points:
+
 - `src/app/features/bug-report/BugReportModal.tsx` - Added Sentry options and submission logic
 - Automatically attaches platform info, version, and user agent
 - Links bug reports to Sentry events for tracking
@@ -53,6 +59,7 @@ Integration points:
 ### 4. Privacy & Security
 
 Comprehensive data scrubbing:
+
 - **Token masking**: All access tokens, passwords, and authentication data are redacted
 - **Matrix ID anonymization**: User IDs, room IDs, and event IDs are masked
 - **Session replay privacy**: All text, media, and form inputs are masked when replay is enabled
@@ -60,6 +67,7 @@ Comprehensive data scrubbing:
 - **User opt-out**: Users can disable Sentry entirely via settings
 
 Sensitive patterns automatically redacted:
+
 - `access_token`, `password`, `token`, `refresh_token`
 - `session_id`, `sync_token`, `next_batch`
 - Matrix user IDs (`@user:server`)
@@ -69,6 +77,7 @@ Sensitive patterns automatically redacted:
 ### 5. Settings UI
 
 New Sentry settings panel in Developer Tools:
+
 - **Enable/disable Sentry**: Toggle error tracking on/off
 - **Session replay control**: Enable/disable session recording
 - **Test error reporting**: Send test errors to verify configuration
@@ -105,23 +114,27 @@ SENTRY_PROJECT=your-project-slug
 ### Deployment Configuration
 
 **Production deployment (from `dev` branch):**
+
 - Set `VITE_SENTRY_ENVIRONMENT=production`
 - Gets 10% sampling for traces and session replay
 - Cost-effective for production usage
 - Configured in `.github/workflows/cloudflare-web-deploy.yml`
 
 **Preview deployments (PR previews, Cloudflare Pages):**
+
 - Set `VITE_SENTRY_ENVIRONMENT=preview`
 - Gets 100% sampling for traces and session replay
 - Full debugging capabilities for testing
 - Configured in `.github/workflows/cloudflare-web-preview.yml`
 
 **Local development:**
+
 - `VITE_SENTRY_ENVIRONMENT` not set (defaults to `development` via Vite MODE)
 - Gets 100% sampling for traces and session replay
 - Full debugging capabilities
 
 **Sampling rates by environment:**
+
 ```
 Environment    | Traces | Session Replay | Error Replay
 ---------------|--------|----------------|-------------
@@ -228,11 +241,13 @@ Sentry.captureException(error);
 ## Benefits
 
 ### For Users
+
 - Better bug tracking and faster fixes
 - Optional participation with privacy controls
 - Transparent data usage
 
 ### For Developers
+
 - Real-time error notifications
 - Rich context with breadcrumbs and logs
 - Performance monitoring
@@ -242,6 +257,7 @@ Sentry.captureException(error);
 ## Privacy Commitment
 
 All data sent to Sentry is:
+
 - **Opt-in by default** but can be disabled
 - **Anonymized**: No personal data or message content
 - **Filtered**: Tokens, passwords, and IDs are redacted
@@ -253,6 +269,7 @@ No message content, room conversations, or personal information is ever sent to 
 ## Future Enhancements
 
 Potential improvements:
+
 - [ ] Add performance metrics to Sentry settings
 - [ ] More granular control over breadcrumb categories
 - [ ] Export Sentry reports as JSON for offline analysis

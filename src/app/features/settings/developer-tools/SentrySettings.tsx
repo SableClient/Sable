@@ -56,7 +56,9 @@ export function SentrySettings() {
       // eslint-disable-next-line no-console
       console.log('[Sentry Test] Error captured with eventId:', eventId);
       // eslint-disable-next-line no-alert
-      window.alert(`Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`);
+      window.alert(
+        `Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`
+      );
     }
   };
 
@@ -90,7 +92,9 @@ export function SentrySettings() {
       // eslint-disable-next-line no-console
       console.log('[Sentry Test] Feedback captured with ID:', feedbackId);
       // eslint-disable-next-line no-alert
-      window.alert(`Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`);
+      window.alert(
+        `Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`
+      );
     } else {
       // eslint-disable-next-line no-alert
       window.alert('Failed to send test feedback - no event ID returned');
@@ -113,7 +117,7 @@ export function SentrySettings() {
     const dsn = import.meta.env.VITE_SENTRY_DSN;
     const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
     const release = import.meta.env.VITE_APP_VERSION;
-    
+
     const info = [
       `DSN: ${dsn ? `${dsn.substring(0, 30)}...` : 'NOT SET'}`,
       `Environment: ${environment}`,
@@ -124,7 +128,7 @@ export function SentrySettings() {
       ``,
       `Session Replay Masking:`,
       `- Text: ALL MASKED`,
-      `- Media: ALL BLOCKED`, 
+      `- Media: ALL BLOCKED`,
       `- Inputs: ALL MASKED`,
       `- Sample Rate: ${environment === 'development' || environment === 'preview' ? '100%' : '10%'}`,
       ``,
@@ -133,7 +137,7 @@ export function SentrySettings() {
     ].join('\n');
 
     // eslint-disable-next-line no-console
-    console.log('[Sentry Diagnostics]\n' + info);
+    console.log(`[Sentry Diagnostics]\n${info}`);
     // eslint-disable-next-line no-alert
     window.alert(info);
   };
@@ -279,8 +283,9 @@ export function SentrySettings() {
             tokens. You can opt out at any time.
           </Text>
           <Text size="T200" style={{ opacity: 0.7 }}>
-            <strong>Session Replay Privacy:</strong> When enabled, all text content, media (images/video/audio),
-            and form inputs are completely masked or blocked. Only UI structure and interactions are recorded.
+            <strong>Session Replay Privacy:</strong> When enabled, all text content, media
+            (images/video/audio), and form inputs are completely masked or blocked. Only UI
+            structure and interactions are recorded.
           </Text>
         </Box>
       )}

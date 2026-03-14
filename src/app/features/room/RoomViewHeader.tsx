@@ -24,7 +24,14 @@ import {
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
-import { EventTimeline, Room } from '$types/matrix-sdk';
+import {
+  EventTimeline,
+  Room,
+  ThreadEvent,
+  RoomEvent,
+  MatrixEvent,
+  NotificationCountType,
+} from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
 import { PageHeader } from '$components/page';
@@ -79,6 +86,8 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mDirectAtom } from '$state/mDirectList';
 import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
+import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
+import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
@@ -343,6 +352,10 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const direct = useIsDirectRoom();
 
   const [chat, setChat] = useAtom(callChatAtom);
+  const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
+    roomIdToThreadBrowserAtomFamily(room.roomId)
+  );
+  const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
 
   const canUseCalls = room
     .getLiveTimeline()
@@ -367,6 +380,8 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
     .getAccountData(AccountDataEvent.SablePinStatus)
     ?.getContent() as PinReadMarker;
   const [unreadPinsCount, setUnreadPinsCount] = useState(0);
+  const [unreadThreadsCount, setUnreadThreadsCount] = useState(0);
+  const [hasThreadHighlights, setHasThreadHighlights] = useState(false);
 
   const [currentHash, setCurrentHash] = useState<string>('');
 
@@ -407,6 +422,116 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       log.warn('Failed to check unread pins:', err);
     });
   }, [pinnedIds, pinMarker]);
+
+  // Initialize Thread objects from room history on mount and create them for new timeline events
+  useEffect(() => {
+    const scanTimelineForThreads = (timeline: any) => {
+      const events = timeline.getEvents();
+      const threadRoots = new Set<string>();
+
+      // Scan for both:
+      // 1. Events that ARE thread roots (have isThreadRoot = true or have replies)
+      // 2. Events that are IN threads (have threadRootId)
+      events.forEach((event: MatrixEvent) => {
+        // Check if this event is a thread root
+        if (event.isThreadRoot) {
+          const rootId = event.getId();
+          if (rootId && !room.getThread(rootId)) {
+            threadRoots.add(rootId);
+          }
+        }
+
+        // Check if this event is a reply in a thread
+        const { threadRootId } = event;
+        if (threadRootId && !room.getThread(threadRootId)) {
+          threadRoots.add(threadRootId);
+        }
+      });
+
+      // Create Thread objects for discovered thread roots
+      threadRoots.forEach((rootId) => {
+        const rootEvent = room.findEventById(rootId);
+        if (rootEvent) {
+          room.createThread(rootId, rootEvent, [], false);
+        }
+      });
+    };
+
+    // Scan all existing timelines on mount
+    const liveTimeline = room.getLiveTimeline();
+    scanTimelineForThreads(liveTimeline);
+
+    // Also scan backward timelines (historical messages already loaded)
+    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as any);
+    while (backwardTimeline) {
+      scanTimelineForThreads(backwardTimeline);
+      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as any);
+    }
+
+    // Listen for new timeline events (including pagination)
+    const handleTimelineEvent = (mEvent: MatrixEvent) => {
+      // Check if this event is a thread root
+      if (mEvent.isThreadRoot) {
+        const rootId = mEvent.getId();
+        if (rootId && !room.getThread(rootId)) {
+          const rootEvent = room.findEventById(rootId);
+          if (rootEvent) {
+            room.createThread(rootId, rootEvent, [], false);
+          }
+        }
+      }
+
+      // Check if this is a reply in a thread
+      const { threadRootId } = mEvent;
+      if (threadRootId && !room.getThread(threadRootId)) {
+        const rootEvent = room.findEventById(threadRootId);
+        if (rootEvent) {
+          room.createThread(threadRootId, rootEvent, [], false);
+        }
+      }
+    };
+
+    mx.on(RoomEvent.Timeline as any, handleTimelineEvent);
+    return () => {
+      mx.off(RoomEvent.Timeline as any, handleTimelineEvent);
+    };
+  }, [room, mx]);
+
+  // Count unread threads where user has participated
+  useEffect(() => {
+    const checkThreadUnreads = () => {
+      // Use SDK's thread notification counting which respects user notification preferences,
+      // properly distinguishes highlights (mentions) from regular messages, and handles muted threads
+      const threads = room.getThreads();
+      let totalCount = 0;
+
+      // Sum up notification counts across all threads
+      threads.forEach((thread) => {
+        totalCount += room.getThreadUnreadNotificationCount(thread.id, NotificationCountType.Total);
+      });
+
+      // Use SDK's aggregate type to determine if any thread has highlights
+      const aggregateType = room.threadsAggregateNotificationType;
+      const hasHighlights = aggregateType === NotificationCountType.Highlight;
+
+      setUnreadThreadsCount(totalCount);
+      setHasThreadHighlights(hasHighlights);
+    };
+
+    checkThreadUnreads();
+
+    // Listen for thread updates
+    const onThreadUpdate = () => checkThreadUnreads();
+    room.on(ThreadEvent.New as any, onThreadUpdate);
+    room.on(ThreadEvent.Update as any, onThreadUpdate);
+    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
+
+    return () => {
+      room.off(ThreadEvent.New as any, onThreadUpdate);
+      room.off(ThreadEvent.Update as any, onThreadUpdate);
+      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
+    };
+  }, [room, mx]);
 
   const handleSearchClick = () => {
     const searchParams: SearchPathSearchParams = {
@@ -607,6 +732,53 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                   </FocusTrap>
                 }
               />
+              <TooltipProvider
+                position="Bottom"
+                offset={4}
+                tooltip={
+                  <Tooltip>
+                    <Text>Threads</Text>
+                  </Tooltip>
+                }
+              >
+                {(triggerRef) => (
+                  <IconButton
+                    fill="None"
+                    ref={triggerRef}
+                    onClick={() => {
+                      // If a thread is open, close it and open thread browser
+                      if (openThreadId) {
+                        setOpenThread(undefined);
+                        setThreadBrowserOpen(true);
+                      } else {
+                        // Otherwise, toggle the thread browser
+                        setThreadBrowserOpen(!threadBrowserOpen);
+                      }
+                    }}
+                    aria-pressed={threadBrowserOpen || !!openThreadId}
+                    style={{ position: 'relative' }}
+                  >
+                    {unreadThreadsCount > 0 && (
+                      <Badge
+                        style={{
+                          position: 'absolute',
+                          left: toRem(3),
+                          top: toRem(3),
+                        }}
+                        variant={hasThreadHighlights ? 'Critical' : 'Secondary'}
+                        size="400"
+                        fill="Solid"
+                        radii="Pill"
+                      >
+                        <Text as="span" size="L400">
+                          {unreadThreadsCount}
+                        </Text>
+                      </Badge>
+                    )}
+                    <Icon size="400" src={Icons.Thread} filled={threadBrowserOpen} />
+                  </IconButton>
+                )}
+              </TooltipProvider>
             </>
           )}
 

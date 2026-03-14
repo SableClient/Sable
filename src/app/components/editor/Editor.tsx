@@ -26,13 +26,6 @@ import { CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
 
-const initialValue: CustomElement[] = [
-  {
-    type: BlockType.Paragraph,
-    children: [{ text: '' }],
-  },
-];
-
 const withInline = (editor: Editor): Editor => {
   const { isInline } = editor;
 
@@ -96,6 +89,15 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     },
     ref
   ) => {
+    // Each <Slate> instance must receive its own fresh node objects.
+    // Sharing a module-level constant causes Slate's global NODE_TO_ELEMENT
+    // WeakMap to be overwritten when multiple editors are mounted at the same
+    // time (e.g. RoomInput + MessageEditor in the thread drawer), leading to
+    // "Unable to find the path for Slate node" crashes.
+    const [slateInitialValue] = useState<CustomElement[]>(() => [
+      { type: BlockType.Paragraph, children: [{ text: '' }] },
+    ]);
+
     const renderElement = useCallback(
       (props: RenderElementProps) => <RenderElement {...props} />,
       []
@@ -132,7 +134,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
 
     return (
       <div className={`${css.Editor} ${className || ''}`} ref={ref}>
-        <Slate editor={editor} initialValue={initialValue} onChange={onChange}>
+        <Slate editor={editor} initialValue={slateInitialValue} onChange={onChange}>
           {top}
           <Box alignItems="Start">
             {before && (

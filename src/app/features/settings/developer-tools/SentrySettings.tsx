@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/react';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { getDebugLogger } from '$utils/debugLogger';
 
 export function SentrySettings() {
   const [sentryEnabled, setSentryEnabled] = useState(
@@ -33,84 +32,6 @@ export function SentrySettings() {
       localStorage.setItem('sable_sentry_replay_enabled', 'false');
     }
     setNeedsRefresh(true);
-  };
-
-  const handleTestError = () => {
-    // eslint-disable-next-line no-console
-    console.log('[Sentry Test] Attaching logs and sending test error...');
-    const debugLogger = getDebugLogger();
-    debugLogger.attachLogsToSentry(50);
-
-    try {
-      throw new Error('Test error from Sentry Settings');
-    } catch (error) {
-      const eventId = Sentry.captureException(error, {
-        tags: {
-          source: 'sentry-settings-test',
-        },
-        extra: {
-          testInfo: 'This is a test error with attached debug logs',
-          timestamp: new Date().toISOString(),
-        },
-      });
-      // eslint-disable-next-line no-console
-      console.log('[Sentry Test] Error captured with eventId:', eventId);
-      // eslint-disable-next-line no-alert
-      window.alert(
-        `Test error sent to Sentry!\nEvent ID: ${eventId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`
-      );
-    }
-  };
-
-  const handleSendFeedback = () => {
-    // eslint-disable-next-line no-console
-    console.log('[Sentry Test] Attaching logs and sending feedback...');
-    const debugLogger = getDebugLogger();
-    debugLogger.attachLogsToSentry(50);
-
-    const eventId = Sentry.captureMessage('Test feedback from settings', {
-      level: 'info',
-      tags: {
-        source: 'sentry-settings-test',
-      },
-      extra: {
-        testInfo: 'This is a test feedback with attached debug logs',
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // eslint-disable-next-line no-console
-    console.log('[Sentry Test] Message captured with eventId:', eventId);
-
-    if (eventId) {
-      const feedbackId = Sentry.captureFeedback({
-        message: 'This is a test feedback message from the Sentry Settings panel.',
-        name: 'Test User',
-        email: 'test@sable.chat',
-        associatedEventId: eventId,
-      });
-      // eslint-disable-next-line no-console
-      console.log('[Sentry Test] Feedback captured with ID:', feedbackId);
-      // eslint-disable-next-line no-alert
-      window.alert(
-        `Test feedback sent to Sentry!\nEvent ID: ${eventId}\nFeedback ID: ${feedbackId || 'none'}\n\nCheck the event details in Sentry for attached debug logs.`
-      );
-    } else {
-      // eslint-disable-next-line no-alert
-      window.alert('Failed to send test feedback - no event ID returned');
-    }
-  };
-
-  const handleAttachLogs = () => {
-    const debugLogger = getDebugLogger();
-    const logCount = debugLogger.getLogs().length;
-    debugLogger.attachLogsToSentry(100);
-    // eslint-disable-next-line no-console
-    console.log('[Sentry] Attached', Math.min(100, logCount), 'debug logs to Sentry scope');
-    // eslint-disable-next-line no-alert
-    window.alert(
-      `Attached ${Math.min(100, logCount)} recent logs to Sentry scope.\n\nThey will be included in the next error report as:\n- Context data\n- Extra data\n- Attachment (debug-logs.json)`
-    );
   };
 
   const handleShowDiagnostics = () => {
@@ -207,54 +128,6 @@ export function SentrySettings() {
                   value={sessionReplayEnabled}
                   onChange={handleReplayToggle}
                 />
-              }
-            />
-            <SettingTile
-              title="Test Error Reporting"
-              description="Send a test error to Sentry to verify configuration."
-              after={
-                <Button
-                  onClick={handleTestError}
-                  variant="Secondary"
-                  fill="Soft"
-                  size="300"
-                  radii="300"
-                  outlined
-                >
-                  <Text size="B300">Send Test Error</Text>
-                </Button>
-              }
-            />
-            <SettingTile
-              title="Test Feedback"
-              description="Send a test feedback message with recent logs."
-              after={
-                <Button
-                  onClick={handleSendFeedback}
-                  variant="Secondary"
-                  fill="Soft"
-                  size="300"
-                  radii="300"
-                  outlined
-                >
-                  <Text size="B300">Send Test Feedback</Text>
-                </Button>
-              }
-            />
-            <SettingTile
-              title="Attach Debug Logs"
-              description="Attach recent debug logs to next error report for more context."
-              after={
-                <Button
-                  onClick={handleAttachLogs}
-                  variant="Secondary"
-                  fill="Soft"
-                  size="300"
-                  radii="300"
-                  outlined
-                >
-                  <Text size="B300">Attach Logs</Text>
-                </Button>
               }
             />
             <SettingTile

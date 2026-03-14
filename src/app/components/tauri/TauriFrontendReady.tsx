@@ -6,7 +6,7 @@ import splashscreen from 'tauri-plugin-splashscreen-api';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { createLogger } from '$utils/debug';
-import { commands } from '$generated/tauri';
+import { setCloseToTrayEnabled } from '$generated/tauri/commands';
 
 const log = createLogger('TauriFrontendReady');
 
@@ -50,7 +50,7 @@ export function TauriFrontendReady() {
     const os = osType();
     if (os !== 'windows' && os !== 'linux' && os !== 'macos') return undefined;
 
-    commands.setCloseToTrayEnabled(closeToTray).catch((error) => {
+    setCloseToTrayEnabled({ enabled: closeToTray }).catch((error) => {
       log.warn('Failed to sync desktop close behavior:', error);
     });
     return undefined;

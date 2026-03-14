@@ -4,7 +4,6 @@ use enigo::{
 };
 
 #[tauri::command]
-#[specta::specta]
 pub async fn show_snap_overlay() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
@@ -19,7 +18,6 @@ pub async fn show_snap_overlay() {
 
 
 #[tauri::command]
-#[specta::specta]
 pub async fn hide_snap_overlay() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
     enigo.key(Key::Escape, Click).unwrap();

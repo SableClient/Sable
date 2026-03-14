@@ -9,7 +9,6 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
 use tauri::{AppHandle, Emitter, State};
 use windows::Win32::{
     Foundation::{CloseHandle, HWND, POINT},
@@ -22,7 +21,7 @@ use windows::Win32::{
     },
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct WindowInfo {
     pub mouse_x: i32,
     pub mouse_y: i32,
@@ -30,7 +29,7 @@ pub struct WindowInfo {
     pub exe_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct WindowTarget {
     pub window_class: Option<String>,
     pub exe_name: Option<String>,
@@ -73,7 +72,7 @@ impl WindowInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum EventType {
     Started,
     TargetLost,
@@ -81,7 +80,7 @@ pub enum EventType {
     Stopped,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct TrackingEvent {
     pub event_type: EventType,
     pub window_info: Option<WindowInfo>,
@@ -183,7 +182,7 @@ fn get_window_info() -> Result<WindowInfo, Box<dyn std::error::Error>> {
 }
 
 async fn track_window_hover_with_target(
-    app_handle: AppHandle,
+    app_handle: AppHandle<crate::BrowserEngine>,
     target: WindowTarget,
     tracking_state: Arc<TrackingState>,
 ) {
@@ -230,9 +229,8 @@ async fn track_window_hover_with_target(
 }
 
 #[tauri::command]
-#[specta::specta]
 pub async fn start_window_tracking_with_target(
-    app_handle: AppHandle,
+    app_handle: AppHandle<crate::BrowserEngine>,
     target: WindowTarget,
     tracking_state: State<'_, Arc<TrackingState>>,
 ) -> Result<(), String> {
@@ -264,9 +262,8 @@ pub async fn start_window_tracking_with_target(
 }
 
 #[tauri::command]
-#[specta::specta]
 pub async fn stop_window_tracking(
-    app_handle: AppHandle,
+    app_handle: AppHandle<crate::BrowserEngine>,
     tracking_state: State<'_, Arc<TrackingState>>,
 ) -> Result<(), String> {
     if !tracking_state.is_active() {
@@ -290,7 +287,6 @@ pub async fn stop_window_tracking(
 }
 
 #[tauri::command]
-#[specta::specta]
 pub async fn is_window_tracking_active(
     tracking_state: State<'_, Arc<TrackingState>>,
 ) -> Result<bool, String> {

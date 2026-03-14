@@ -5,7 +5,7 @@
     "interface": true,
     "type": true
   },
-  "ignoreFiles": ["crates/**/*"],
+  "ignoreFiles": ["crates/**/*", "src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@element-hq/element-call-embedded",

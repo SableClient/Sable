@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{
-    menu::{Menu, MenuItem, MenuEvent},
+    menu::{Menu, MenuEvent, MenuItem},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
@@ -60,37 +60,36 @@ fn exit_request_action(close_to_tray: bool, code: Option<i32>) -> ExitRequestAct
 }
 
 #[tauri::command]
-#[specta::specta]
-pub fn set_close_to_tray_enabled(app: AppHandle, enabled: bool) {
+pub fn set_close_to_tray_enabled(app: AppHandle<crate::BrowserEngine>, enabled: bool) {
     app.state::<DesktopSettingsState>()
         .close_to_tray
         .store(enabled, Ordering::Relaxed);
 }
 
-fn close_to_tray_enabled<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+fn close_to_tray_enabled(app: &AppHandle<crate::BrowserEngine>) -> bool {
     app.state::<DesktopSettingsState>()
         .close_to_tray
         .load(Ordering::Relaxed)
 }
 
-fn main_window_exists<R: tauri::Runtime>(app: &AppHandle<R>) -> bool {
+fn main_window_exists(app: &AppHandle<crate::BrowserEngine>) -> bool {
     app.get_webview_window(MAIN_WINDOW_LABEL).is_some()
 }
 
-fn close_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+fn close_main_window(app: &AppHandle<crate::BrowserEngine>) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.close();
     }
 }
 
-fn close_all_windows<R: tauri::Runtime>(app: &AppHandle<R>) {
+fn close_all_windows(app: &AppHandle<crate::BrowserEngine>) {
     for (_label, window) in app.webview_windows() {
         let _ = window.close();
     }
 }
 
-fn handle_exit_request<R: tauri::Runtime>(
-    app: &AppHandle<R>,
+fn handle_exit_request(
+    app: &AppHandle<crate::BrowserEngine>,
     code: Option<i32>,
     api: &tauri::ExitRequestApi,
 ) {
@@ -102,7 +101,7 @@ fn handle_exit_request<R: tauri::Runtime>(
     }
 }
 
-fn handle_tray_double_click<R: tauri::Runtime>(app: &AppHandle<R>, event: &TrayIconEvent) {
+fn handle_tray_double_click(app: &AppHandle<crate::BrowserEngine>, event: &TrayIconEvent) {
     match tray_double_click_action(main_window_exists(app), event) {
         TrayDoubleClickAction::ShowOrCreateMainWindow => {
             let _ = show_or_create_main_window(app);
@@ -114,20 +113,20 @@ fn handle_tray_double_click<R: tauri::Runtime>(app: &AppHandle<R>, event: &TrayI
     }
 }
 
-pub fn configure_main_window<R: tauri::Runtime>(_window: &WebviewWindow<R>) {
+pub fn configure_main_window(_window: &WebviewWindow<crate::BrowserEngine>) {
     #[cfg(target_os = "windows")]
     {
         let _ = _window.set_decorations(false);
     }
 }
 
-pub fn handle_run_event<R: tauri::Runtime>(app: &AppHandle<R>, event: RunEvent) {
+pub fn handle_run_event(app: &AppHandle<crate::BrowserEngine>, event: RunEvent) {
     if let RunEvent::ExitRequested { code, api, .. } = event {
         handle_exit_request(app, code, &api);
     }
 }
 
-pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -148,14 +147,14 @@ pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> taur
         return Ok(());
     }
 
-    let window = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default())
-        .build()?;
+    let window =
+        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default()).build()?;
     configure_main_window(&window);
 
     Ok(())
 }
 
-pub fn create_system_tray(app: &AppHandle) -> tauri::Result<()> {
+pub fn create_system_tray(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, "Show", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, TRAY_MENU_QUIT_ID, "Quit", true, None::<&str>)?;
     let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
@@ -172,7 +171,7 @@ pub fn create_system_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             _ => {}
         })
-        .on_tray_icon_event(|tray: &TrayIcon<tauri::Wry>, event| {
+        .on_tray_icon_event(|tray: &TrayIcon<super::BrowserEngine>, event| {
             let app = tray.app_handle();
             handle_tray_double_click(app, &event);
         });

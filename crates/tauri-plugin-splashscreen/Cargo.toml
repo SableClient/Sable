@@ -9,7 +9,8 @@ exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 links = "tauri-plugin-splashscreen"
 
 [dependencies]
-tauri = { version = "2.10.3" }
+tauri = { version = "2", default-features = false }
+
 serde = "1.0"
 thiserror = "2"
 

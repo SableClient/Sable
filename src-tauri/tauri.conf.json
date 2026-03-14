@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "sable",
   "version": "0.1.0",
-  "identifier": "moe.sable.app",
+  "identifier": "moe.sable.client",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:8080",
@@ -36,6 +36,12 @@
     ]
   },
   "plugins": {
+    "typegen": {
+      "projectPath": ".",
+      "outputPath": "../src/app/generated/tauri",
+      "validationLibrary": "none",
+      "verbose": false
+    },
     "deep-link": {
       "desktop": {
         "schemes": ["sable"]

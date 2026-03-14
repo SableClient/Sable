@@ -3,41 +3,21 @@ mod windows;
 #[cfg(desktop)]
 mod desktop_tray;
 
-#[cfg(debug_assertions)]
-use specta_typescript::Typescript;
-
 #[cfg(desktop)]
 use tauri::Manager;
-
-use sable_macros::collect_commands;
-use tauri_specta::Builder;
 
 #[cfg(desktop)]
 use tauri_plugin_window_state::StateFlags;
 
+// Runtime selection: CEF or Wry
+#[cfg(feature = "cef")]
+use tauri::Cef as BrowserEngine;
+#[cfg(all(not(feature = "cef"), feature = "wry"))]
+use tauri::Wry as BrowserEngine;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let specta_builder = Builder::<tauri::Wry>::new().commands(collect_commands![
-        #[cfg(desktop)]
-        desktop_tray::set_close_to_tray_enabled,
-        windows::snap_overlay::show_snap_overlay,
-        windows::snap_overlay::hide_snap_overlay,
-        windows::window_tracking::start_window_tracking_with_target,
-        windows::window_tracking::stop_window_tracking,
-        windows::window_tracking::is_window_tracking_active,
-    ]);
-
-    #[cfg(debug_assertions)]
-    specta_builder
-        .export(
-            Typescript::default().header("/* eslint-disable */"),
-            "../src/app/generated/tauri.ts",
-        )
-        .unwrap_or_else(|e| eprintln!("Warning: Failed to export tauri-specta bindings: {e}"));
-
-    let invoke_handler = specta_builder.invoke_handler();
-
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::<BrowserEngine>::new();
 
     #[cfg(desktop)]
     let builder = builder.plugin(
@@ -49,6 +29,7 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.manage(desktop_tray::DesktopSettingsState::new(true));
 
+    #[cfg(windows)]
     let builder = builder.manage(std::sync::Arc::new(
         windows::window_tracking::TrackingState::new(),
     ));
@@ -90,7 +71,20 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(invoke_handler)
+        .invoke_handler(tauri::generate_handler![
+            #[cfg(desktop)]
+            desktop_tray::set_close_to_tray_enabled,
+            #[cfg(windows)]
+            windows::snap_overlay::show_snap_overlay,
+            #[cfg(windows)]
+            windows::snap_overlay::hide_snap_overlay,
+            #[cfg(windows)]
+            windows::window_tracking::start_window_tracking_with_target,
+            #[cfg(windows)]
+            windows::window_tracking::stop_window_tracking,
+            #[cfg(windows)]
+            windows::window_tracking::is_window_tracking_active,
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

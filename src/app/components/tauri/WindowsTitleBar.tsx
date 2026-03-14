@@ -7,7 +7,12 @@ import { useAtomValue } from 'jotai';
 import { createLogger } from '$utils/debug';
 import { titlebarStatusAtom } from '$state/titlebarStatus';
 import { SyncConnectionStatusTitlebar } from '$components/SyncConnectionStatus';
-import { commands } from '$generated/tauri';
+import {
+  hideSnapOverlay as hideSnapOverlayCommand,
+  showSnapOverlay as showSnapOverlayCommand,
+  startWindowTrackingWithTarget,
+  stopWindowTracking,
+} from '$generated/tauri/commands';
 
 const log = createLogger('WindowsTitleBar');
 const SNAP_OVERLAY_DELAY_MS = 620;
@@ -93,7 +98,7 @@ export function WindowsTitleBar() {
 
   const hideSnapOverlay = async () => {
     try {
-      await commands.hideSnapOverlay();
+      await hideSnapOverlayCommand();
     } catch (error) {
       log.warn('Failed to hide snap overlay:', error);
     }
@@ -152,7 +157,7 @@ export function WindowsTitleBar() {
       if (snapTimerRef.current !== undefined) {
         window.clearTimeout(snapTimerRef.current);
       }
-      commands.stopWindowTracking().catch(() => {});
+      stopWindowTracking().catch(() => {});
       hideSnapOverlay();
       unlistenResize?.();
       unlistenTracking?.();
@@ -164,7 +169,7 @@ export function WindowsTitleBar() {
   const minimize = () => {
     if (!isWindowsDesktopTauri) return;
 
-    commands.stopWindowTracking().catch(() => {});
+    stopWindowTracking().catch(() => {});
     hideSnapOverlay();
     appWindowRef.current?.minimize().catch((error) => {
       log.warn('Failed to minimize window:', error);
@@ -179,7 +184,7 @@ export function WindowsTitleBar() {
       snapTimerRef.current = undefined;
     }
 
-    commands.stopWindowTracking().catch(() => {});
+    stopWindowTracking().catch(() => {});
     hideSnapOverlay();
     appWindowRef.current?.toggleMaximize().catch((error) => {
       log.warn('Failed to toggle maximize:', error);
@@ -189,7 +194,7 @@ export function WindowsTitleBar() {
   const close = () => {
     if (!isWindowsDesktopTauri) return;
 
-    commands.stopWindowTracking().catch(() => {});
+    stopWindowTracking().catch(() => {});
     hideSnapOverlay();
     appWindowRef.current?.close().catch((error) => {
       log.warn('Failed to close window:', error);
@@ -202,12 +207,12 @@ export function WindowsTitleBar() {
     if (snapTimerRef.current !== undefined) {
       window.clearTimeout(snapTimerRef.current);
     }
-    commands.stopWindowTracking().catch(() => {});
+    stopWindowTracking().catch(() => {});
 
     snapTimerRef.current = window.setTimeout(() => {
       appWindowRef.current
         ?.setFocus()
-        .then(() => commands.showSnapOverlay())
+        .then(() => showSnapOverlayCommand())
         .catch((error) => {
           log.warn('Failed to show snap overlay:', error);
         });
@@ -222,12 +227,13 @@ export function WindowsTitleBar() {
       snapTimerRef.current = undefined;
     }
 
-    commands
-      .stopWindowTracking()
+    stopWindowTracking()
       .then(() =>
-        commands.startWindowTrackingWithTarget({
-          window_class: SNAP_POPUP_WINDOW_CLASS,
-          exe_name: SNAP_POPUP_EXE,
+        startWindowTrackingWithTarget({
+          target: {
+            window_class: SNAP_POPUP_WINDOW_CLASS,
+            exe_name: SNAP_POPUP_EXE,
+          },
         })
       )
       .catch((error) => {

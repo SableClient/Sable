@@ -18,6 +18,8 @@
     "fmt:check": "prettier --check .",
     "typecheck": "tsc",
     "tauri": "tauri",
+    "tauri:cef": "node scripts/tauri.js cef",
+    "tauri:wry": "node scripts/tauri.js wry",
     "knip": "knip",
     "knope": "knope",
     "document-change": "knope document-change",

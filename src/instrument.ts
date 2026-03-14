@@ -74,8 +74,10 @@ if (dsn && sentryEnabled) {
     // Production rate is set by VITE_SENTRY_SAMPLE_RATE (default 0.1)
     tracesSampleRate: sampleRate,
 
-    // Profiling sample rate must be <= tracesSampleRate
-    profilesSampleRate: sampleRate,
+    // Profiling sample rate — decision made once per session
+    // Production rate is set by VITE_SENTRY_SAMPLE_RATE (default 0.1)
+    // Requires Document-Policy: js-profiling response header
+    profileSessionSampleRate: sampleRate,
 
     // Control which URLs get distributed tracing headers
     tracePropagationTargets: [

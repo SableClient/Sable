@@ -67,6 +67,7 @@ if (dsn && sentryEnabled) {
       Sentry.consoleLoggingIntegration({ levels: ['error', 'warn'] }),
       // Browser profiling — captures JS call stacks during Sentry transactions
       Sentry.browserProfilingIntegration(),
+      Sentry.browserTracingIntegration(),
     ],
 
     // Performance Monitoring - Tracing
@@ -82,7 +83,7 @@ if (dsn && sentryEnabled) {
     // Control which URLs get distributed tracing headers
     tracePropagationTargets: [
       'localhost',
-      /^https:\/\/[^/]*\.sable\.chat/,
+      /^https:\/\/[^/]*\.cloudhub\.social/,
       // Add your Matrix homeserver domains here if needed
     ],
 

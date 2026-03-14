@@ -5,6 +5,9 @@
  * - VITE_SENTRY_DSN: Your Sentry DSN (required to enable Sentry)
  * - VITE_SENTRY_ENVIRONMENT: Environment name (defaults to MODE)
  * - VITE_APP_VERSION: Release version for tracking
+ * - VITE_SENTRY_SAMPLE_RATE: Production sample rate for traces, profiles, and
+ *   session replays (0.0–1.0, default 0.1). Ignored in development/preview,
+ *   which always sample at 100%.
  */
 import * as Sentry from '@sentry/react';
 import React from 'react';
@@ -18,6 +21,14 @@ import {
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
 const release = import.meta.env.VITE_APP_VERSION;
+
+// Production sample rate — overrideable via VITE_SENTRY_SAMPLE_RATE (0.0–1.0)
+const isDevOrPreview = environment === 'development' || environment === 'preview';
+const rawSampleRate = parseFloat(import.meta.env.VITE_SENTRY_SAMPLE_RATE ?? '');
+const productionSampleRate = Number.isFinite(rawSampleRate)
+  ? Math.min(1, Math.max(0, rawSampleRate))
+  : 0.1;
+const sampleRate = isDevOrPreview ? 1.0 : productionSampleRate;
 
 // Check user preferences
 const sentryEnabled = localStorage.getItem('sable_sentry_enabled') !== 'false';
@@ -60,10 +71,11 @@ if (dsn && sentryEnabled) {
 
     // Performance Monitoring - Tracing
     // 100% in development and preview, lower in production for cost control
-    tracesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
+    // Production rate is set by VITE_SENTRY_SAMPLE_RATE (default 0.1)
+    tracesSampleRate: sampleRate,
 
     // Profiling sample rate must be <= tracesSampleRate
-    profilesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
+    profilesSampleRate: sampleRate,
 
     // Control which URLs get distributed tracing headers
     tracePropagationTargets: [
@@ -73,10 +85,9 @@ if (dsn && sentryEnabled) {
     ],
 
     // Session Replay sampling
-    // Record 100% in development and preview for testing, 10% in production
+    // Record 100% in development and preview for testing, otherwise use VITE_SENTRY_SAMPLE_RATE
     // Always record 100% of sessions with errors
-    replaysSessionSampleRate:
-      environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
+    replaysSessionSampleRate: sampleRate,
     replaysOnErrorSampleRate: 1.0,
 
     // Enable structured logging to Sentry

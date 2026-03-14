@@ -52,6 +52,7 @@ jobs:
         env:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: production
+          VITE_SENTRY_SAMPLE_RATE: ${{ vars.VITE_SENTRY_SAMPLE_RATE || '0.1' }}
           VITE_APP_VERSION: ${{ github.ref_name }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -82,6 +83,7 @@ jobs:
         env:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: production
+          VITE_SENTRY_SAMPLE_RATE: ${{ vars.VITE_SENTRY_SAMPLE_RATE || '0.1' }}
           VITE_APP_VERSION: ${{ github.ref_name }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}

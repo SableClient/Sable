@@ -58,6 +58,9 @@ jobs:
         uses: ./.github/actions/setup
         with:
           build: 'true'
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: preview
 
       - name: Set deploy alias
         id: alias

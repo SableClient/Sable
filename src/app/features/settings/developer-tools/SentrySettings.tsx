@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Text, Button, Switch } from 'folds';
+import { Box, Text, Switch } from 'folds';
 import * as Sentry from '@sentry/react';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -34,36 +34,7 @@ export function SentrySettings() {
     setNeedsRefresh(true);
   };
 
-  const handleShowDiagnostics = () => {
-    const dsn = import.meta.env.VITE_SENTRY_DSN;
-    const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
-    const release = import.meta.env.VITE_APP_VERSION;
-
-    const info = [
-      `DSN: ${dsn ? `${dsn.substring(0, 30)}...` : 'NOT SET'}`,
-      `Environment: ${environment}`,
-      `Release: ${release || 'not set'}`,
-      `Sentry Enabled (localStorage): ${sentryEnabled}`,
-      `Session Replay Enabled: ${sessionReplayEnabled}`,
-      `Sentry SDK Available: ${typeof Sentry !== 'undefined'}`,
-      ``,
-      `Session Replay Masking:`,
-      `- Text: ALL MASKED`,
-      `- Media: ALL BLOCKED`,
-      `- Inputs: ALL MASKED`,
-      `- Sample Rate: ${environment === 'development' || environment === 'preview' ? '100%' : '10%'}`,
-      ``,
-      `To test from console, run:`,
-      `Sentry.captureMessage('Test message', 'info')`,
-    ].join('\n');
-
-    // eslint-disable-next-line no-console
-    console.log(`[Sentry Diagnostics]\n${info}`);
-    // eslint-disable-next-line no-alert
-    window.alert(info);
-  };
-
-  const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
+  const isSentryConfigured = Sentry.isInitialized();
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
 
   return (
@@ -128,22 +99,6 @@ export function SentrySettings() {
                   value={sessionReplayEnabled}
                   onChange={handleReplayToggle}
                 />
-              }
-            />
-            <SettingTile
-              title="Show Diagnostics"
-              description="Display current Sentry configuration and debug information."
-              after={
-                <Button
-                  onClick={handleShowDiagnostics}
-                  variant="Secondary"
-                  fill="Soft"
-                  size="300"
-                  radii="300"
-                  outlined
-                >
-                  <Text size="B300">Show Config</Text>
-                </Button>
               }
             />
           </>

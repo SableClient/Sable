@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     menu::{Menu, MenuEvent, MenuItem},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
 };
 
 pub const MAIN_WINDOW_LABEL: &str = "main";
@@ -113,20 +113,13 @@ fn handle_tray_double_click(app: &AppHandle<crate::BrowserEngine>, event: &TrayI
     }
 }
 
-pub fn configure_main_window(_window: &WebviewWindow<crate::BrowserEngine>) {
-    #[cfg(target_os = "windows")]
-    {
-        let _ = _window.set_decorations(false);
-    }
-}
-
 pub fn handle_run_event(app: &AppHandle<crate::BrowserEngine>, event: RunEvent) {
     if let RunEvent::ExitRequested { code, api, .. } = event {
         handle_exit_request(app, code, &api);
     }
 }
 
-pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {
+pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -134,22 +127,19 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
         return Ok(());
     }
 
-    if let Some(window_config) = app
-        .config()
-        .app
-        .windows
-        .iter()
-        .find(|window| window.label == MAIN_WINDOW_LABEL)
-        .or_else(|| app.config().app.windows.first())
-    {
-        let window = WebviewWindowBuilder::from_config(app, window_config)?.build()?;
-        configure_main_window(&window);
-        return Ok(());
-    }
+    log::info!("Main window not found, creating a new one.");
 
-    let window =
-        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default()).build()?;
-    configure_main_window(&window);
+    let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default())
+        .title(app.package_info().name.clone())
+        .resizable(true)
+        .fullscreen(false)
+        .inner_size(1280.0, 720.0)
+        .visible(false);
+
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
+
+    builder.build()?;
 
     Ok(())
 }

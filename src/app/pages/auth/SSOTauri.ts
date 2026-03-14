@@ -11,7 +11,9 @@ const getAppBaseUrl = (): string => {
   }
 
   if (import.meta.env.DEV) {
-    return window.location.origin;
+    // TODO: disabled for now since it causes issues with the SSO flow. We should find a better solution for this in the future.
+    // return window.location.origin;
+    return `${TAURI_SSO_PROTOCOL}//${TAURI_SSO_HOST}`;
   }
 
   return 'https://app.sable.moe';

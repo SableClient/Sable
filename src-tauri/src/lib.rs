@@ -4,9 +4,6 @@ mod windows;
 mod desktop_tray;
 
 #[cfg(desktop)]
-use tauri::Manager;
-
-#[cfg(desktop)]
 use tauri_plugin_window_state::StateFlags;
 
 // Runtime selection: CEF or Wry
@@ -56,9 +53,7 @@ pub fn run() {
 
             #[cfg(desktop)]
             {
-                if let Some(window) = app.get_webview_window(desktop_tray::MAIN_WINDOW_LABEL) {
-                    desktop_tray::configure_main_window(&window);
-                }
+                desktop_tray::show_or_create_main_window(app.handle())?;
                 desktop_tray::create_system_tray(app.handle())?;
             }
 

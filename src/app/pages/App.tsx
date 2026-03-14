@@ -3,7 +3,7 @@ import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProv
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ErrorBoundary } from 'react-error-boundary';
+import * as Sentry from '@sentry/react';
 
 import { ClientConfigLoader } from '$components/ClientConfigLoader';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
@@ -23,7 +23,14 @@ function App() {
   const portalContainer = document.getElementById('portalContainer') ?? undefined;
 
   return (
-    <ErrorBoundary FallbackComponent={ErrorPage}>
+    <Sentry.ErrorBoundary
+      fallback={({ error, eventId }) => (
+        <ErrorPage
+          error={error instanceof Error ? error : new Error(String(error))}
+          eventId={eventId || undefined}
+        />
+      )}
+    >
       <TooltipContainerProvider value={portalContainer}>
         <PopOutContainerProvider value={portalContainer}>
           <OverlayContainerProvider value={portalContainer}>
@@ -51,7 +58,7 @@ function App() {
           </OverlayContainerProvider>
         </PopOutContainerProvider>
       </TooltipContainerProvider>
-    </ErrorBoundary>
+    </Sentry.ErrorBoundary>
   );
 }
 

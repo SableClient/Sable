@@ -87,6 +87,7 @@ export function buildGitHubUrl(
 
 function BugReportModal() {
   const close = useCloseBugReportModal();
+  const sentryEnabled = Sentry.isInitialized();
   const [type, setType] = useState<ReportType>('bug');
   const [title, setTitle] = useState('');
 
@@ -106,6 +107,8 @@ function BugReportModal() {
   // Sentry integration options
   const [sendToSentry, setSendToSentry] = useState(true);
   const [includeDebugLogs, setIncludeDebugLogs] = useState(true);
+  // When Sentry is enabled, GitHub is opt-in; when disabled, GitHub is always used
+  const [openOnGitHub, setOpenOnGitHub] = useState(!sentryEnabled);
 
   const [similarIssues, setSimilarIssues] = useState<SimilarIssue[]>([]);
   const [searching, setSearching] = useState(false);
@@ -195,8 +198,13 @@ function BugReportModal() {
       }
     }
 
-    const url = buildGitHubUrl(type, title.trim(), fields);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    // Feature requests always go to GitHub; bugs go to GitHub only when Sentry
+    // is unavailable or the user explicitly opts in.
+    const shouldOpenGitHub = type === 'feature' || !sentryEnabled || openOnGitHub;
+    if (shouldOpenGitHub) {
+      const url = buildGitHubUrl(type, title.trim(), fields);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
     close();
   };
 
@@ -402,8 +410,8 @@ function BugReportModal() {
                     />
                   </Box>
 
-                  {/* Sentry integration options (only for bug reports) */}
-                  {type === 'bug' && (
+                  {/* Sentry integration options (only for bug reports when Sentry is configured) */}
+                  {type === 'bug' && sentryEnabled && (
                     <Box direction="Column" gap="200">
                       <Text size="L400">Error Tracking</Text>
                       <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
@@ -443,6 +451,19 @@ function BugReportModal() {
                           </Box>
                         </Box>
                       )}
+                      <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
+                        <Checkbox
+                          variant="Primary"
+                          checked={openOnGitHub}
+                          onClick={() => setOpenOnGitHub((v) => !v)}
+                        />
+                        <Box direction="Column" gap="100" grow="Yes">
+                          <Text size="T300">Also create a GitHub issue</Text>
+                          <Text size="T200" style={{ opacity: 0.7 }}>
+                            Opens a pre-filled GitHub issue in addition to the Sentry report.
+                          </Text>
+                        </Box>
+                      </Box>
                     </Box>
                   )}
 
@@ -459,7 +480,9 @@ function BugReportModal() {
                       onClick={handleSubmit}
                       after={<Icon src={Icons.ArrowRight} size="100" />}
                     >
-                      <Text size="B400">Open on GitHub</Text>
+                      <Text size="B400">
+                        {sentryEnabled && type === 'bug' ? 'Submit Report' : 'Open on GitHub'}
+                      </Text>
                     </Button>
                   </Box>
                 </Box>

@@ -1,4 +1,5 @@
 import { useAtomValue, useSetAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -263,6 +264,8 @@ function MessageNotifications() {
     // already checked focus when the encrypted event arrived, and want to use that
     // original state rather than re-checking after decryption completes).
     const skipFocusCheckEvents = new Set<string>();
+    // Tracks when each event first arrived so we can measure notification delivery latency
+    const notifyTimerMap = new Map<string, number>();
 
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
@@ -274,6 +277,10 @@ function MessageNotifications() {
       if (mx.getSyncState() !== 'SYNCING') return;
 
       const eventId = mEvent.getId();
+      // Record event arrival time once per eventId (re-entry via handleDecrypted must not reset it)
+      if (eventId && !notifyTimerMap.has(eventId)) {
+        notifyTimerMap.set(eventId, performance.now());
+      }
       const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
       if (!shouldSkipFocusCheck) {
         if (document.hasFocus() && (selectedRoomId === room?.roomId || notificationSelected))
@@ -334,6 +341,17 @@ function MessageNotifications() {
 
       // Check if this is a DM using multiple signals for robustness
       const isDM = isDMRoom(room, mDirectsRef.current);
+
+      // Measure total notification delivery latency (includes decryption wait for E2EE events)
+      const arrivalMs = notifyTimerMap.get(eventId);
+      if (arrivalMs !== undefined) {
+        Sentry.metrics.distribution(
+          'sable.notification.delivery_ms',
+          performance.now() - arrivalMs,
+          { attributes: { encrypted: String(mEvent.isEncrypted()), dm: String(isDM) } }
+        );
+        notifyTimerMap.delete(eventId);
+      }
       const pushActions = pushProcessor.actionsForEvent(mEvent);
 
       // For DMs with "All Messages" or "Default" notification settings:

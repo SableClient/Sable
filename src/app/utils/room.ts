@@ -30,6 +30,7 @@ import {
   StateEvent,
   UnreadInfo,
 } from '$types/matrix/room';
+import * as Sentry from '@sentry/react';
 
 export const getStateEvent = (
   room: Room,
@@ -557,7 +558,22 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
     .filter((event) => event.isEncrypted())
     .reverse()
     .map((event) => event.attemptDecryption(crypto as CryptoBackend, { isRetry: true }));
-  await Promise.allSettled(decryptionPromises);
+  const decryptStart = performance.now();
+  await Sentry.startSpan(
+    {
+      name: 'decrypt.bulk',
+      op: 'matrix.crypto',
+      attributes: { event_count: decryptionPromises.length },
+    },
+    () => Promise.allSettled(decryptionPromises)
+  );
+  if (decryptionPromises.length > 0) {
+    Sentry.metrics.distribution(
+      'sable.decryption.bulk_latency_ms',
+      performance.now() - decryptStart,
+      { attributes: { event_count: String(decryptionPromises.length) } }
+    );
+  }
 };
 
 export const getReactionContent = (eventId: string, key: string, shortcode?: string) => ({

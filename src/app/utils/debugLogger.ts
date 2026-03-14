@@ -133,6 +133,21 @@ class DebugLoggerService {
       timestamp: entry.timestamp / 1000, // Sentry expects seconds
     });
 
+    // Send as structured log to the Sentry Logs product (requires enableLogs: true)
+    const logMsg = `[${entry.category}:${entry.namespace}] ${entry.message}`;
+    const logAttrs = { category: entry.category, namespace: entry.namespace };
+    if (entry.level === 'debug') Sentry.logger.debug(logMsg, logAttrs);
+    else if (entry.level === 'info') Sentry.logger.info(logMsg, logAttrs);
+    else if (entry.level === 'warn') Sentry.logger.warn(logMsg, logAttrs);
+    else Sentry.logger.error(logMsg, logAttrs);
+
+    // Track error/warn rates as metrics, tagged by category for filtering in Sentry dashboards
+    if (entry.level === 'error' || entry.level === 'warn') {
+      Sentry.metrics.count(`sable.${entry.level}s`, 1, {
+        attributes: { category: entry.category, namespace: entry.namespace },
+      });
+    }
+
     // Capture errors and warnings as Sentry events
     if (entry.level === 'error') {
       // If data is an Error object, capture it as an exception

@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Text, Box, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
@@ -170,6 +171,8 @@ export function DirectDMsList() {
 
   // Track sync state to wait for initial sync completion
   const [syncReady, setSyncReady] = useState(false);
+  const mountTimeRef = useRef(performance.now());
+  const firstReadyRef = useRef(false);
 
   useSyncState(
     mx,
@@ -185,6 +188,16 @@ export function DirectDMsList() {
       }
     }, [])
   );
+
+  useEffect(() => {
+    if (syncReady && !firstReadyRef.current) {
+      firstReadyRef.current = true;
+      Sentry.metrics.distribution(
+        'sable.roomlist.time_to_ready_ms',
+        performance.now() - mountTimeRef.current
+      );
+    }
+  }, [syncReady]);
 
   // Get up to MAX_DM_AVATARS recent DMs that have unread messages
   const recentDMs = useMemo(() => {

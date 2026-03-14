@@ -30,9 +30,8 @@ if (dsn && sentryEnabled) {
     environment,
     release,
 
-    // Send default PII (IP addresses) for user context
-    // Set to false if more privacy is required
-    sendDefaultPii: true,
+    // Do not send PII (IP addresses, user identifiers) to protect privacy
+    sendDefaultPii: false,
 
     integrations: [
       // React Router v6 browser tracing integration
@@ -53,11 +52,18 @@ if (dsn && sentryEnabled) {
             }),
           ]
         : []),
+      // Capture console.error/warn as structured logs in the Sentry Logs product
+      Sentry.consoleLoggingIntegration({ levels: ['error', 'warn'] }),
+      // Browser profiling — captures JS call stacks during Sentry transactions
+      Sentry.browserProfilingIntegration(),
     ],
 
     // Performance Monitoring - Tracing
     // 100% in development and preview, lower in production for cost control
     tracesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
+
+    // Profiling sample rate must be <= tracesSampleRate
+    profilesSampleRate: environment === 'development' || environment === 'preview' ? 1.0 : 0.1,
 
     // Control which URLs get distributed tracing headers
     tracePropagationTargets: [

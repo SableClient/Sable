@@ -151,6 +151,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
+import * as Sentry from '@sentry/react';
 import {
   getAudioMsgContent,
   getFileMsgContent,
@@ -602,19 +603,31 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // Cancel failed — leave state intact for retry
         }
       } else {
+        const msgSendStart = performance.now();
         resetInput();
         debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
-        mx.sendMessage(roomId, content as any)
+        Sentry.startSpan(
+          { name: 'message.send', op: 'matrix.message', attributes: { encrypted: String(isEncrypted) } },
+          () => mx.sendMessage(roomId, content as any)
+        )
           .then((res) => {
             debugLog.info('message', 'Message sent successfully', {
               roomId,
               eventId: res.event_id,
             });
+            Sentry.metrics.distribution(
+              'sable.message.send_latency_ms',
+              performance.now() - msgSendStart,
+              { attributes: { encrypted: String(isEncrypted) } }
+            );
           })
           .catch((error: unknown) => {
             debugLog.error('message', 'Failed to send message', {
               roomId,
               error: error instanceof Error ? error.message : String(error),
+            });
+            Sentry.metrics.count('sable.message.send_error', 1, {
+              attributes: { encrypted: String(isEncrypted) },
             });
             log.error('failed to send message', { roomId }, error);
           });

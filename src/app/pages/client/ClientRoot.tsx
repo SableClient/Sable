@@ -16,6 +16,7 @@ import {
 import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
@@ -180,6 +181,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   const { baseUrl, userId } = activeSession ?? {};
 
   const loadedUserIdRef = useRef<string | undefined>(undefined);
+  const syncStartTimeRef = useRef(performance.now());
+  const firstSyncReadyRef = useRef(false);
 
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(async () => {
@@ -279,12 +282,43 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useSyncState(
     mx,
-    useCallback((state: string) => {
-      if (isClientReady(state)) {
-        setLoading(false);
-      }
-    }, [])
+    useCallback(
+      (state: string) => {
+        if (isClientReady(state)) {
+          if (!firstSyncReadyRef.current) {
+            firstSyncReadyRef.current = true;
+            Sentry.metrics.distribution(
+              'sable.sync.time_to_ready_ms',
+              performance.now() - syncStartTimeRef.current
+            );
+          }
+          setLoading(false);
+        }
+      },
+      []
+    )
   );
+
+  // Set a pseudonymous hashed user ID for error grouping — never sends raw Matrix ID
+  useEffect(() => {
+    if (!mx) return;
+    const userId = mx.getUserId();
+    if (!userId) return;
+    (async () => {
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(userId)
+      );
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+        .slice(0, 16);
+      Sentry.setUser({ id: hashHex });
+    })();
+    return () => {
+      Sentry.setUser(null);
+    };
+  }, [mx]);
 
   return (
     <AutoDiscovery userId={userId} baseUrl={baseUrl}>

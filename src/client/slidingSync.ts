@@ -17,6 +17,7 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
 
 const log = createLogger('slidingSync');
 const debugLog = createDebugLogger('slidingSync');
@@ -369,6 +370,9 @@ export class SlidingSyncManager {
     this.onLifecycle = (state, resp, err) => {
       const syncStartTime = performance.now();
       this.syncCount += 1;
+      Sentry.metrics.count('sable.sync.cycle', 1, {
+        attributes: { transport: 'sliding', state },
+      });
 
       debugLog.info('sync', `Sliding sync lifecycle: ${state} (cycle #${this.syncCount})`, {
         state,
@@ -383,6 +387,9 @@ export class SlidingSyncManager {
           errorMessage: err.message,
           syncNumber: this.syncCount,
           state,
+        });
+        Sentry.metrics.count('sable.sync.error', 1, {
+          attributes: { transport: 'sliding', state },
         });
       }
 
@@ -428,19 +435,26 @@ export class SlidingSyncManager {
       // Mark initial sync as complete after first successful cycle
       if (!this.initialSyncCompleted) {
         this.initialSyncCompleted = true;
+        const initialElapsed = performance.now() - syncStartTime;
         debugLog.info('sync', 'Initial sync completed', {
           syncNumber: this.syncCount,
           totalRoomCount,
           listCounts: Object.fromEntries(
             this.listKeys.map((key) => [key, this.slidingSync.getListData(key)?.joinedCount ?? 0])
           ),
-          timeElapsed: `${(performance.now() - syncStartTime).toFixed(2)}ms`,
+          timeElapsed: `${initialElapsed.toFixed(2)}ms`,
+        });
+        Sentry.metrics.distribution('sable.sync.initial_ms', initialElapsed, {
+          attributes: { transport: 'sliding' },
         });
       }
 
       this.expandListsToKnownCount();
 
       const syncDuration = performance.now() - syncStartTime;
+      Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
+        attributes: { transport: 'sliding' },
+      });
       if (syncDuration > 1000) {
         debugLog.warn('sync', 'Slow sync cycle detected', {
           syncNumber: this.syncCount,

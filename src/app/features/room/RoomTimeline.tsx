@@ -35,6 +35,7 @@ import { ReactEditor } from 'slate-react';
 import { Editor } from 'slate';
 import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import to from 'await-to-js';
+import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
   as,
@@ -286,6 +287,8 @@ const useEventTimelineLoader = (
 ) =>
   useCallback(
     async (eventId: string) => {
+      return Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
+      const jumpLoadStart = performance.now();
       const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
         new Promise<T>((resolve, reject) => {
           const timeoutId = globalThis.setTimeout(() => {
@@ -331,7 +334,12 @@ const useEventTimelineLoader = (
         return;
       }
 
+      Sentry.metrics.distribution(
+        'sable.timeline.jump_load_ms',
+        performance.now() - jumpLoadStart
+      );
       onLoad(eventId, linkedTimelines, absIndex);
+      }); // end startSpan
     },
     [mx, room, onLoad, onError]
   );
@@ -409,6 +417,7 @@ const useTimelinePagination = (
         });
       }
       try {
+        const paginateStart = performance.now();
         const [err] = await to(
           mx.paginateEventTimeline(timelineToPaginate, {
             backwards,
@@ -418,6 +427,9 @@ const useTimelinePagination = (
         if (err) {
           if (alive()) {
             (backwards ? setBackwardStatus : setForwardStatus)('error');
+            Sentry.metrics.count('sable.pagination.error', 1, {
+              attributes: { direction: backwards ? 'backward' : 'forward' },
+            });
             debugLog.error('timeline', 'Timeline pagination failed', {
               direction: backwards ? 'backward' : 'forward',
               error: err instanceof Error ? err.message : String(err),
@@ -440,6 +452,16 @@ const useTimelinePagination = (
         if (alive()) {
           recalibratePagination(lTimelines, timelinesEventsCount, backwards);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
+          Sentry.metrics.distribution(
+            'sable.pagination.latency_ms',
+            performance.now() - paginateStart,
+            {
+              attributes: {
+                direction: backwards ? 'backward' : 'forward',
+                encrypted: String(!!room?.hasEncryptionStateEvent()),
+              },
+            }
+          );
           debugLog.info('timeline', 'Timeline pagination completed', {
             direction: backwards ? 'backward' : 'forward',
             totalEventsNow: getTimelinesEventsCount(lTimelines),
@@ -708,6 +730,14 @@ export function RoomTimeline({
 
   // Log timeline component mount/unmount
   useEffect(() => {
+    const mode = eventId ? 'jump' : 'live';
+    Sentry.metrics.count('sable.timeline.open', 1, { attributes: { mode } });
+    const initialWindowSize = timeline.range.end - timeline.range.start;
+    if (initialWindowSize > 0) {
+      Sentry.metrics.distribution('sable.timeline.render_window', initialWindowSize, {
+        attributes: { encrypted: String(room.hasEncryptionStateEvent()), mode },
+      });
+    }
     debugLog.info('timeline', 'Timeline mounted', {
       roomId: room.roomId,
       eventId,
@@ -942,6 +972,7 @@ export function RoomTimeline({
       // "Jump to Latest" button to stick permanently. Forcing atBottom here is
       // correct: TimelineRefresh always reinits to the live end, so the user
       // should be repositioned to the bottom regardless.
+      Sentry.metrics.count('sable.timeline.reinit', 1);
       debugLog.info('timeline', 'Live timeline refresh triggered', { roomId: room.roomId });
       setTimeline(getInitialTimeline(room));
       setAtBottom(true);

@@ -202,22 +202,26 @@ export default defineConfig({
         ],
       },
     }),
-    cloudflare({
-      config: {
-        compatibility_date: '2026-03-03',
-        assets: {
-          not_found_handling: 'single-page-application',
-        },
-      },
-    }),
-    compression({
-      algorithms: [
-        defineAlgorithm('brotliCompress', {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
-        }),
-      ],
-      include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,
-    }),
+    ...(!isTauriBuild
+      ? [
+          cloudflare({
+            config: {
+              compatibility_date: '2026-03-03',
+              assets: {
+                not_found_handling: 'single-page-application',
+              },
+            },
+          }),
+          compression({
+            algorithms: [
+              defineAlgorithm('brotliCompress', {
+                params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
+              }),
+            ],
+            include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,
+          }),
+        ]
+      : []),
   ],
   optimizeDeps: {
     // Include service worker entry so worker-only imports are discovered during startup.

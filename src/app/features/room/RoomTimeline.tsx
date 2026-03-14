@@ -293,57 +293,57 @@ const useEventTimelineLoader = (
   useCallback(
     async (eventId: string) => {
       return Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
-      const jumpLoadStart = performance.now();
-      const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
-        new Promise<T>((resolve, reject) => {
-          const timeoutId = globalThis.setTimeout(() => {
-            reject(new Error('Timed out loading event timeline'));
-          }, timeoutMs);
+        const jumpLoadStart = performance.now();
+        const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+          new Promise<T>((resolve, reject) => {
+            const timeoutId = globalThis.setTimeout(() => {
+              reject(new Error('Timed out loading event timeline'));
+            }, timeoutMs);
 
-          promise
-            .then((value) => {
-              globalThis.clearTimeout(timeoutId);
-              resolve(value);
-            })
-            .catch((error) => {
-              globalThis.clearTimeout(timeoutId);
-              reject(error);
-            });
-        });
+            promise
+              .then((value) => {
+                globalThis.clearTimeout(timeoutId);
+                resolve(value);
+              })
+              .catch((error) => {
+                globalThis.clearTimeout(timeoutId);
+                reject(error);
+              });
+          });
 
-      if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
-        await withTimeout(
-          mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
-          EVENT_TIMELINE_LOAD_TIMEOUT_MS
+        if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
+          await withTimeout(
+            mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
+            EVENT_TIMELINE_LOAD_TIMEOUT_MS
+          );
+          await withTimeout(
+            mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
+            EVENT_TIMELINE_LOAD_TIMEOUT_MS
+          );
+        }
+        const [err, replyEvtTimeline] = await to(
+          withTimeout(
+            mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
+            EVENT_TIMELINE_LOAD_TIMEOUT_MS
+          )
         );
-        await withTimeout(
-          mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
-          EVENT_TIMELINE_LOAD_TIMEOUT_MS
+        if (!replyEvtTimeline) {
+          onError(err ?? null);
+          return;
+        }
+        const linkedTimelines = getLinkedTimelines(replyEvtTimeline);
+        const absIndex = getEventIdAbsoluteIndex(linkedTimelines, replyEvtTimeline, eventId);
+
+        if (absIndex === undefined) {
+          onError(err ?? null);
+          return;
+        }
+
+        Sentry.metrics.distribution(
+          'sable.timeline.jump_load_ms',
+          performance.now() - jumpLoadStart
         );
-      }
-      const [err, replyEvtTimeline] = await to(
-        withTimeout(
-          mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
-          EVENT_TIMELINE_LOAD_TIMEOUT_MS
-        )
-      );
-      if (!replyEvtTimeline) {
-        onError(err ?? null);
-        return;
-      }
-      const linkedTimelines = getLinkedTimelines(replyEvtTimeline);
-      const absIndex = getEventIdAbsoluteIndex(linkedTimelines, replyEvtTimeline, eventId);
-
-      if (absIndex === undefined) {
-        onError(err ?? null);
-        return;
-      }
-
-      Sentry.metrics.distribution(
-        'sable.timeline.jump_load_ms',
-        performance.now() - jumpLoadStart
-      );
-      onLoad(eventId, linkedTimelines, absIndex);
+        onLoad(eventId, linkedTimelines, absIndex);
       }); // end startSpan
     },
     [mx, room, onLoad, onError]

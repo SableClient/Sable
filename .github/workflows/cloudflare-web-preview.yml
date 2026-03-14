@@ -88,6 +88,14 @@ jobs:
             --preview-alias ${{ steps.alias.outputs.alias }}
             --message "$PREVIEW_MESSAGE"
 
+      - name: Deploy to production (dev branch only)
+        if: github.event_name == 'push' && github.ref_name == 'dev'
+        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
+        with:
+          apiToken: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
+          command: versions deploy -c dist/wrangler.json --yes
+
       - name: Resolve preview URL
         id: preview
         env:

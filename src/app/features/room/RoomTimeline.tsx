@@ -460,6 +460,12 @@ const useTimelinePagination = (
 };
 
 const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void) => {
+  // Stable ref so the effect dep array only contains `room`. The listener is
+  // registered once per room mount; onArrive can change freely without causing
+  // listener churn during rapid re-renders (e.g. sync error/retry cycles).
+  const onArriveRef = useRef(onArrive);
+  onArriveRef.current = onArrive;
+
   useEffect(() => {
     // Capture the live timeline and registration time. Events appended to the
     // live timeline AFTER this point can be genuinely new even when
@@ -486,14 +492,14 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
           data.timeline === liveTimeline &&
           mEvent.getTs() >= registeredAt - 60_000);
       if (!isLive) return;
-      onArrive(mEvent);
+      onArriveRef.current(mEvent);
     };
     const handleRedaction: RoomEventHandlerMap[RoomEvent.Redaction] = (
       mEvent: MatrixEvent,
       eventRoom: Room | undefined
     ) => {
       if (eventRoom?.roomId !== room.roomId) return;
-      onArrive(mEvent);
+      onArriveRef.current(mEvent);
     };
 
     room.on(RoomEvent.Timeline, handleTimelineEvent);
@@ -502,10 +508,13 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
       room.removeListener(RoomEvent.Timeline, handleTimelineEvent);
       room.removeListener(RoomEvent.Redaction, handleRedaction);
     };
-  }, [room, onArrive]);
+  }, [room]); // stable: re-register only when room changes, not on callback identity changes
 };
 
 const useRelationUpdate = (room: Room, onRelation: () => void) => {
+  const onRelationRef = useRef(onRelation);
+  onRelationRef.current = onRelation;
+
   useEffect(() => {
     const handleTimelineEvent: EventTimelineSetHandlerMap[RoomEvent.Timeline] = (
       mEvent: MatrixEvent,
@@ -519,28 +528,31 @@ const useRelationUpdate = (room: Room, onRelation: () => void) => {
       // also need to trigger a re-render so makeReplaced state is reflected.
       if (eventRoom?.roomId !== room.roomId || data.liveEvent) return;
       if (mEvent.getRelation()?.rel_type === RelationType.Replace) {
-        onRelation();
+        onRelationRef.current();
       }
     };
     room.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
       room.removeListener(RoomEvent.Timeline, handleTimelineEvent);
     };
-  }, [room, onRelation]);
+  }, [room]);
 };
 
 const useLiveTimelineRefresh = (room: Room, onRefresh: () => void) => {
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+
   useEffect(() => {
     const handleTimelineRefresh: RoomEventHandlerMap[RoomEvent.TimelineRefresh] = (r: Room) => {
       if (r.roomId !== room.roomId) return;
-      onRefresh();
+      onRefreshRef.current();
     };
     // The SDK fires RoomEvent.TimelineReset on the EventTimelineSet (not the Room)
     // when a limited sliding-sync response replaces the live EventTimeline with a
     // fresh one. Without this handler, the stored linkedTimelines reference the old
     // detached chain and back-pagination silently no-ops, freezing the room.
     const handleTimelineReset: EventTimelineSetHandlerMap[RoomEvent.TimelineReset] = () => {
-      onRefresh();
+      onRefreshRef.current();
     };
     const unfilteredTimelineSet = room.getUnfilteredTimelineSet();
 
@@ -550,21 +562,27 @@ const useLiveTimelineRefresh = (room: Room, onRefresh: () => void) => {
       room.removeListener(RoomEvent.TimelineRefresh, handleTimelineRefresh);
       unfilteredTimelineSet.removeListener(RoomEvent.TimelineReset, handleTimelineReset);
     };
-  }, [room, onRefresh]);
+  }, [room]);
 };
 
 // Trigger re-render when thread reply counts change so the thread chip updates.
 const useThreadUpdate = (room: Room, onUpdate: () => void) => {
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
   useEffect(() => {
-    room.on(ThreadEvent.New, onUpdate);
-    room.on(ThreadEvent.Update, onUpdate);
-    room.on(ThreadEvent.NewReply, onUpdate);
+    // Stable wrapper: the same function identity is kept for the lifetime of
+    // the room so add/removeListener calls always match.
+    const handler = () => onUpdateRef.current();
+    room.on(ThreadEvent.New, handler);
+    room.on(ThreadEvent.Update, handler);
+    room.on(ThreadEvent.NewReply, handler);
     return () => {
-      room.removeListener(ThreadEvent.New, onUpdate);
-      room.removeListener(ThreadEvent.Update, onUpdate);
-      room.removeListener(ThreadEvent.NewReply, onUpdate);
+      room.removeListener(ThreadEvent.New, handler);
+      room.removeListener(ThreadEvent.Update, handler);
+      room.removeListener(ThreadEvent.NewReply, handler);
     };
-  }, [room, onUpdate]);
+  }, [room]);
 };
 
 // Returns the number of replies in a thread, counting actual reply events

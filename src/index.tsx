@@ -1,3 +1,4 @@
+import './instrument';
 import { createRoot } from 'react-dom/client';
 import { enableMapSet } from 'immer';
 import '@fontsource-variable/nunito';

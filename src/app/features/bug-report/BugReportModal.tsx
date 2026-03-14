@@ -410,7 +410,7 @@ function BugReportModal() {
                         <Checkbox
                           variant="Primary"
                           checked={sendToSentry}
-                          onCheckedChange={setSendToSentry}
+                          onClick={() => setSendToSentry((v) => !v)}
                         />
                         <Box direction="Column" gap="100" grow="Yes">
                           <Text size="T300">
@@ -432,7 +432,7 @@ function BugReportModal() {
                           <Checkbox
                             variant="Primary"
                             checked={includeDebugLogs}
-                            onCheckedChange={setIncludeDebugLogs}
+                            onClick={() => setIncludeDebugLogs((v) => !v)}
                           />
                           <Box direction="Column" gap="100" grow="Yes">
                             <Text size="T300">Include recent debug logs (last 100 entries)</Text>

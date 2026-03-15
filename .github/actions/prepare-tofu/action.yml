@@ -6,12 +6,18 @@ inputs:
     description: The OpenTofu version to install.
     required: false
     default: '1.11.5'
+  is_release_tag:
+    description: Whether the build is for a release tag. Passed through to VITE_IS_RELEASE_TAG.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
     - name: Setup app and build
       uses: ./.github/actions/setup
+      env:
+        VITE_IS_RELEASE_TAG: ${{ inputs.is_release_tag }}
       with:
         build: 'true'
       env:

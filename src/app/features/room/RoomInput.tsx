@@ -159,6 +159,7 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
+import { AudioMessageRecorder } from './AudioMessageRecorder';
 
 const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation => {
   if (!replyDraft) return {};
@@ -217,6 +218,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const commands = useCommands(mx, room);
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
+    const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
     const nicknames = useAtomValue(nicknamesAtom);
 
@@ -247,6 +249,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
     const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
+    const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+    const [audioMsgWaveform, setAudioMsgWaveform] = useState<number[] | undefined>(undefined);
+    const [audioMsgLength, setAudioMsgLength] = useState<number | undefined>(undefined);
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
@@ -449,7 +454,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           return getVideoMsgContent(mx, fileItem, upload.mxc);
         }
         if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc);
+          return getAudioMsgContent(fileItem, upload.mxc, audioMsgWaveform, audioMsgLength);
         }
         return getFileMsgContent(fileItem, upload.mxc);
       });
@@ -1082,6 +1087,47 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               >
                 <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
               </IconButton>
+              <IconButton
+                ref={micBtnRef}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="record audio message"
+                aria-pressed={showAudioRecorder}
+                onClick={() => setShowAudioRecorder(!showAudioRecorder)}
+              >
+                <Icon src={Icons.Mic} />
+              </IconButton>
+              {showAudioRecorder && (
+                <PopOut
+                  anchor={micBtnRef.current?.getBoundingClientRect() ?? undefined}
+                  offset={8}
+                  position="Top"
+                  align="End"
+                  alignOffset={-44}
+                  content={
+                    <AudioMessageRecorder
+                      onRequestClose={() => {
+                        setShowAudioRecorder(false);
+                      }}
+                      onRecordingComplete={(audioBlob) => {
+                        const file = new File(
+                          [audioBlob],
+                          `sable-audio-message-${Date.now()}.ogg`,
+                          {
+                            type: audioBlob.type,
+                          }
+                        );
+                        handleFiles([file]);
+                        // Close the recorder after handling the file, to give some feedback that the recording was successful
+                        setShowAudioRecorder(false);
+                      }}
+                      onAudioLengthUpdate={(len) => setAudioMsgLength(len)}
+                      onWaveformUpdate={(w) => setAudioMsgWaveform(w)}
+                    />
+                  }
+                />
+              )}
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut

@@ -5,12 +5,12 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  serialize-javascript: '>=7.0.3'
-  rollup: '>=4.59.0'
-  minimatch: '>=10.2.3'
-  lodash: '>=4.17.23'
-  esbuild: '>=0.25.0'
   brace-expansion: '>=1.1.12'
+  esbuild: '>=0.25.0'
+  lodash: '>=4.17.23'
+  minimatch: '>=10.2.3'
+  rollup: '>=4.59.0'
+  serialize-javascript: '>=7.0.3'
 
 importers:
 

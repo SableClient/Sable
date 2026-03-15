@@ -6,6 +6,31 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { EmojiItemInfo, EmojiType } from '$components/emoji-board/types';
 import * as css from './styles.css';
 
+const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
+
+const isAnimatedPackImage = (image: PackImageReader): boolean => {
+  const mimetype = image.info?.mimetype?.toLowerCase();
+  if (mimetype && ANIMATED_MIME_TYPES.has(mimetype)) return true;
+
+  const body = image.body?.toLowerCase();
+  return !!body && (body.endsWith('.gif') || body.endsWith('.webp') || body.endsWith('.apng'));
+};
+
+const getPackImageSrc = (
+  mx: MatrixClient,
+  image: PackImageReader,
+  useAuthentication: boolean | undefined,
+  saveStickerEmojiBandwidth: boolean,
+  width: number,
+  height: number
+): string => {
+  const preserveAnimation = isAnimatedPackImage(image);
+
+  return preserveAnimation || !saveStickerEmojiBandwidth
+    ? (mxcUrlToHttp(mx, image.url, useAuthentication) ?? '')
+    : (mxcUrlToHttp(mx, image.url, useAuthentication, width, height) ?? '');
+};
+
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {
   const label = element.getAttribute('title');
   const type = element.getAttribute('data-emoji-type') as EmojiType | undefined;
@@ -48,8 +73,14 @@ type CustomEmojiItemProps = {
   mx: MatrixClient;
   useAuthentication?: boolean;
   image: PackImageReader;
+  saveStickerEmojiBandwidth: boolean;
 };
-export function CustomEmojiItem({ mx, useAuthentication, image }: CustomEmojiItemProps) {
+export function CustomEmojiItem({
+  mx,
+  useAuthentication,
+  image,
+  saveStickerEmojiBandwidth,
+}: CustomEmojiItemProps) {
   return (
     <Box
       as="button"
@@ -67,7 +98,7 @@ export function CustomEmojiItem({ mx, useAuthentication, image }: CustomEmojiIte
         loading="lazy"
         className={css.CustomEmojiImg}
         alt={image.body || image.shortcode}
-        src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+        src={getPackImageSrc(mx, image, useAuthentication, saveStickerEmojiBandwidth, 32, 32)}
       />
     </Box>
   );
@@ -77,9 +108,15 @@ type StickerItemProps = {
   mx: MatrixClient;
   useAuthentication?: boolean;
   image: PackImageReader;
+  saveStickerEmojiBandwidth: boolean;
 };
 
-export function StickerItem({ mx, useAuthentication, image }: StickerItemProps) {
+export function StickerItem({
+  mx,
+  useAuthentication,
+  image,
+  saveStickerEmojiBandwidth,
+}: StickerItemProps) {
   return (
     <Box
       as="button"
@@ -97,7 +134,7 @@ export function StickerItem({ mx, useAuthentication, image }: StickerItemProps) 
         loading="lazy"
         className={css.StickerImg}
         alt={image.body || image.shortcode}
-        src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+        src={getPackImageSrc(mx, image, useAuthentication, saveStickerEmojiBandwidth, 125, 125)}
       />
     </Box>
   );

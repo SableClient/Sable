@@ -54,7 +54,7 @@ const isReleaseTag = (() => {
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
   try {
     const tag = execSync('git describe --exact-match --tags HEAD 2>/dev/null').toString().trim();
-    return tag.startsWith('sable/v');
+    return tag.startsWith('v');
   } catch {
     return false;
   }

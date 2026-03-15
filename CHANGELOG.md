@@ -1,28 +1,56 @@
 # Sable Client Changelog
 
+## 1.8.0 (2026-03-14)
+
+### Features
+
+* add voice message composing ([#176](https://github.com/SableClient/Sable/pull/176) by @dozro)
+* added error page making it easier to report errors when they occur in the field ([#240](https://github.com/SableClient/Sable/pull/240) by @dozro)
+* Show group DM participants with triangle avatar layout. Group DMs now display up to 3 member avatars in a triangle formation (most recent sender on top), with bot filtering and DM count badge support. ([#212](https://github.com/SableClient/Sable/pull/212) by @Just-Insane)
+* Add internal debug logging system with viewer UI, realtime updates, and instrumentation across sync, timeline, and messaging ([#245](https://github.com/SableClient/Sable/pull/245) by @Just-Insane)
+* Add thread support with side panel, browser, unread badges, and cross-device sync ([#123](https://github.com/SableClient/Sable/pull/123) by @Just-Insane)
+* Optimize sliding sync with progressive loading and improved timeline management ([#232](https://github.com/SableClient/Sable/pull/232) by @Just-Insane)
+
+### Fixes
+
+* added settings toggle in (General>Messages) to enable showing a tombstone for deleted messages without having to set all hidden events to visible ([#238](https://github.com/SableClient/Sable/pull/238) by @dozro)
+* added for compatibility sake the forward meta data as defined in MSC2723 ([#257](https://github.com/SableClient/Sable/pull/257) by @dozro)
+* disabling quick add for encrypted sticker, this mitigates the issue of being unable to use quick to add encrypted sticker ([#236](https://github.com/SableClient/Sable/pull/236) by @dozro)
+* Fix badge positioning and alignment across all sidebar components ([#231](https://github.com/SableClient/Sable/pull/231) by @Just-Insane)
+* Fix bubble layout messages overflowing off the screen with embeds/images. ([#237](https://github.com/SableClient/Sable/pull/237) by @7w1)
+* Fixed unhandled promise rejections in media blob cache and added automatic retry for chunk loading failures after deployments. ([#255](https://github.com/SableClient/Sable/pull/255) by @Just-Insane)
+* Fix notification handling with null safety and improved logic ([#233](https://github.com/SableClient/Sable/pull/233) by @Just-Insane)
+* Fix cosmetics tab crashing if global/room/space pronouns weren't already set. ([#229](https://github.com/SableClient/Sable/pull/229) by @7w1)
+* Fix reaction clicks, zoom persistence, and empty message rendering ([#234](https://github.com/SableClient/Sable/pull/234) by @Just-Insane)
+* Fix call preferences not persisting. ([#273](https://github.com/SableClient/Sable/pull/273) by @7w1)
+* Add width limit to notification banners ([#253](https://github.com/SableClient/Sable/pull/253) by @Vespe-r)
+* removed forwarding of beeper's per message profile, as this might confuse clients ([#256](https://github.com/SableClient/Sable/pull/256) by @dozro)
+* tweak emoji board for speed optimization (opt-in because of computational load increase on homeserver for thubmnail generation) ([#262](https://github.com/SableClient/Sable/pull/262) by @dozro)
+* Handles a middle-click on the url preview card thumbnail image by downloading the full image from the homeserver proxy through a fetch request and opening received blob in the new tab ([#264](https://github.com/SableClient/Sable/pull/264) by @piko-piko)
+
 ## 1.7.0 (2026-03-12)
 
 ### Features
 
-* Added ability to start calls in DMs and rooms. DM calls will trigger a notification popup & ringtone (for other sable users/compatible clients, probably). <!-- commit:0110522 -->
-* Merge in upstream call things and remove the duplicate new voice room button. <!-- commit:49af037 -->
-* Add button to save a sticker you see in the message timeline to your personal account sticker pack. <!-- commit:e4fb834 -->
-* Added config option `hideUsernamePasswordFields` for hosts to hide username and password fields from login page. <!-- commit:7a700ab -->
-* Add silent replies when clicking the bell icon during composing a reply. <!-- commit:1647586 -->
-* Device names are now dynamic, showing your browser and OS (e.g., "Sable on Firefox for Windows") instead of just "Sable Web". <!-- commit:b71320e -->
-* Implement an interface to allow room/space profile customization without needing to call the relating commands directly. <!-- commit:4839466 -->
-* Added hover menu inside Message Version Pop-out. <!-- commit:9562aa8 -->
+* Added ability to start calls in DMs and rooms. DM calls will trigger a notification popup & ringtone (for other sable users/compatible clients, probably). ([#165](https://github.com/SableClient/Sable/pull/165) by @7w1)
+* Merge in upstream call things and remove the duplicate new voice room button. ([#184](https://github.com/SableClient/Sable/pull/184) by @7w1)
+* Add button to save a sticker you see in the message timeline to your personal account sticker pack. ([#107](https://github.com/SableClient/Sable/pull/107) by @dozro)
+* Added config option `hideUsernamePasswordFields` for hosts to hide username and password fields from login page. ([#146](https://github.com/SableClient/Sable/pull/146) by @7w1)
+* Add silent replies when clicking the bell icon during composing a reply. ([#153](https://github.com/SableClient/Sable/pull/153) by @dozro)
+* Device names are now dynamic, showing your browser and OS (e.g., "Sable on Firefox for Windows") instead of just "Sable Web". ([#187](https://github.com/SableClient/Sable/pull/187) by @hazre)
+* Implement an interface to allow room/space profile customization without needing to call the relating commands directly. ([#129](https://github.com/SableClient/Sable/pull/129) by @Rosy-iso)
+* Added hover menu inside Message Version Pop-out. ([#170](https://github.com/SableClient/Sable/pull/170) by @nushea)
 
 ### Fixes
 
-* Added a few accessibility tags to the elements involved in message composing. <!-- commit:485834b -->
-* Clarify notification settings and functionality once and for all. <!-- commit:8053c45 -->
-* Fix DM notifications, encrypted event notifications, and enable reaction notifications <!-- commit:976d2e8 -->
-* Fix images without an empty body display as "Broken Message" <!-- commit:b66f53a -->
-* Prevent overly wide emotes from taking up the entire screen width. <!-- commit:bee0356 -->
-* Change to more standard compliant msgtype `m.emote` for `/headpat` event. <!-- commit:399915d -->
-* fix message forwarding metadata leak when forwarding from private rooms [see issue 190](https://github.com/SableClient/Sable/issues/190) <!-- commit:6ec4f99 -->
-* "Underline Links" setting no longer affects the entire app, only links in chat, bios, and room descriptions. <!-- commit:c51e895 -->
+* Added a few accessibility tags to the elements involved in message composing. ([#163](https://github.com/SableClient/Sable/pull/163) by @dozro)
+* Clarify notification settings and functionality once and for all. ([#148](https://github.com/SableClient/Sable/pull/148) by @7w1)
+* Fix DM notifications, encrypted event notifications, and enable reaction notifications ([#178](https://github.com/SableClient/Sable/pull/178) by @Just-Insane)
+* Fix images without an empty body display as "Broken Message" ([#143](https://github.com/SableClient/Sable/pull/143) by @7w1)
+* Prevent overly wide emotes from taking up the entire screen width. ([#164](https://github.com/SableClient/Sable/pull/164) by @Sugaryyyy)
+* Change to more standard compliant msgtype `m.emote` for `/headpat` event. ([#145](https://github.com/SableClient/Sable/pull/145) by @dozro)
+* fix message forwarding metadata leak when forwarding from private rooms [see issue 190](https://github.com/SableClient/Sable/issues/190) ([#191](https://github.com/SableClient/Sable/pull/191) by @dozro)
+* "Underline Links" setting no longer affects the entire app, only links in chat, bios, and room descriptions. ([#157](https://github.com/SableClient/Sable/pull/157) by @hazre)
 
 ## 1.6.0 (2026-03-10)
 

@@ -143,7 +143,17 @@ export const getVideoMsgContent = async (
   return content;
 };
 
-export const getAudioMsgContent = (item: TUploadItem, mxc: string): IContent => {
+export type AudioMsgContent = IContent & {
+  waveform?: number[];
+  audioLength?: number;
+};
+
+export const getAudioMsgContent = (
+  item: TUploadItem,
+  mxc: string,
+  waveform?: number[],
+  audioLength?: number
+): AudioMsgContent => {
   const { file, encInfo } = item;
   const content: IContent = {
     msgtype: MsgType.Audio,
@@ -154,6 +164,10 @@ export const getAudioMsgContent = (item: TUploadItem, mxc: string): IContent => 
     info: {
       mimetype: file.type,
       size: file.size,
+    },
+    'org.matrix.msc1767.audio': {
+      waveform: waveform?.map((v) => Math.round(v * 1024)), // scale waveform values to fit in 10 bits (0-1024) for more efficient storage, as per MSC1767 spec
+      duration: item.metadata.markedAsSpoiler || !audioLength ? 0 : audioLength * 1000, // if marked as spoiler, set duration to 0 to hide it in clients that support msc1767
     },
   };
   if (encInfo) {

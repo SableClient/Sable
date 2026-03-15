@@ -9,11 +9,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
 import {
   EventType,
   IContent,
+  MatrixError,
   MsgType,
   RelationType,
   Room,
@@ -24,6 +25,7 @@ import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
 import {
   Box,
+  color,
   config,
   Dialog,
   Icon,
@@ -135,6 +137,7 @@ import {
   delayedEventsSupportedAtom,
   roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
 import {
   sendDelayedMessage,
@@ -149,6 +152,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import { ErrorCode } from '../../cs-errorcode';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -313,6 +317,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(false);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+    const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
+    const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
     useElementSizeObserver(
@@ -638,12 +644,21 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             await sendDelayedMessage(mx, roomId, content, delayMs);
           }
+          setSendError(undefined);
           invalidate();
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
           resetInput();
-        } catch {
-          // Network/server error — leave editor and scheduled state intact for retry
+        } catch (e: unknown) {
+          if (e instanceof MatrixError && e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED) {
+            const maxDelay = (e.data as { max_delay?: number })?.max_delay;
+            if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+            setSendError(
+              'Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time.'
+            );
+          } else {
+            setSendError('Failed to schedule message. Please try again.');
+          }
         }
       } else if (editingScheduledDelayId) {
         try {
@@ -702,6 +717,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setEditingScheduledDelayId,
       setScheduledTime,
       room,
+      setServerMaxDelayMs,
+      setSendError,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -943,6 +960,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       onClick={() => {
                         setScheduledTime(null);
                         setEditingScheduledDelayId(null);
+                        setSendError(undefined);
                       }}
                       variant="SurfaceVariant"
                       size="300"
@@ -958,6 +976,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
                     </Box>
+                  </Box>
+                </div>
+              )}
+              {sendError && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                  >
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      {sendError}
+                    </Text>
                   </Box>
                 </div>
               )}
@@ -1300,6 +1331,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             onSubmit={(date) => {
               setScheduledTime(date);
               setShowSchedulePicker(false);
+              setSendError(undefined);
             }}
           />
         )}

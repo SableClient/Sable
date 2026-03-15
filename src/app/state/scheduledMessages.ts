@@ -14,3 +14,5 @@ export const roomIdToEditingScheduledDelayIdAtomFamily = atomFamily<
   string,
   ReturnType<typeof atom<string | null>>
 >(() => atom<string | null>(null));
+
+export const serverMaxDelayMsAtom = atom<number | null>(null);

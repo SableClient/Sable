@@ -31,6 +31,13 @@ env:
   TF_HTTP_LOCK_METHOD: 'POST'
   TF_HTTP_UNLOCK_METHOD: 'DELETE'
   TF_HTTP_RETRY_WAIT_MIN: '5'
+  VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+  VITE_SENTRY_ENVIRONMENT: production
+  VITE_SENTRY_SAMPLE_RATE: ${{ vars.VITE_SENTRY_SAMPLE_RATE || '0.1' }}
+  VITE_APP_VERSION: ${{ github.ref_name }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+  SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
 concurrency:
   group: cloudflare-infra
@@ -56,14 +63,6 @@ jobs:
         uses: ./.github/actions/prepare-tofu
         with:
           is_release_tag: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.git_tag != '') }}
-        env:
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_SENTRY_ENVIRONMENT: production
-          VITE_SENTRY_SAMPLE_RATE: ${{ vars.VITE_SENTRY_SAMPLE_RATE || '0.1' }}
-          VITE_APP_VERSION: ${{ github.ref_name }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Comment PR plan
         uses: dflook/tofu-plan@3f5dc358343fb58cd60f83b019e810315aa8258f # v2.2.3

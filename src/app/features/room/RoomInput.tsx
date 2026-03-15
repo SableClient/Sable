@@ -149,9 +149,9 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import * as Sentry from '@sentry/react';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
-import * as Sentry from '@sentry/react';
 import {
   getAudioMsgContent,
   getFileMsgContent,
@@ -665,7 +665,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetInput();
         debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
         Sentry.startSpan(
-          { name: 'message.send', op: 'matrix.message', attributes: { encrypted: String(isEncrypted) } },
+          {
+            name: 'message.send',
+            op: 'matrix.message',
+            attributes: { encrypted: String(isEncrypted) },
+          },
           () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
         )
           .then((res) => {

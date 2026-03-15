@@ -282,32 +282,29 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useSyncState(
     mx,
-    useCallback(
-      (state: string) => {
-        if (isClientReady(state)) {
-          if (!firstSyncReadyRef.current) {
-            firstSyncReadyRef.current = true;
-            Sentry.metrics.distribution(
-              'sable.sync.time_to_ready_ms',
-              performance.now() - syncStartTimeRef.current
-            );
-          }
-          setLoading(false);
+    useCallback((state: string) => {
+      if (isClientReady(state)) {
+        if (!firstSyncReadyRef.current) {
+          firstSyncReadyRef.current = true;
+          Sentry.metrics.distribution(
+            'sable.sync.time_to_ready_ms',
+            performance.now() - syncStartTimeRef.current
+          );
         }
-      },
-      []
-    )
+        setLoading(false);
+      }
+    }, [])
   );
 
   // Set a pseudonymous hashed user ID for error grouping — never sends raw Matrix ID
   useEffect(() => {
-    if (!mx) return;
-    const userId = mx.getUserId();
-    if (!userId) return;
+    if (!mx) return undefined;
+    const matrixUserId = mx.getUserId();
+    if (!matrixUserId) return undefined;
     (async () => {
       const hashBuffer = await crypto.subtle.digest(
         'SHA-256',
-        new TextEncoder().encode(userId)
+        new TextEncoder().encode(matrixUserId)
       );
       const hashHex = Array.from(new Uint8Array(hashBuffer))
         .map((b) => b.toString(16).padStart(2, '0'))

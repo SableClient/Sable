@@ -18,8 +18,8 @@ import to from 'await-to-js';
 import { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
-import { getEventReactions, getReactionContent, getStateEvent } from './room';
 import * as Sentry from '@sentry/react';
+import { getEventReactions, getReactionContent, getStateEvent } from './room';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -177,9 +177,13 @@ export const uploadContent = async (
     const mxc = data.content_uri;
     if (mxc) {
       const mediaType = file.type.split('/')[0] || 'unknown';
-      Sentry.metrics.distribution('sable.media.upload_latency_ms', performance.now() - uploadStart, {
-        attributes: { type: mediaType },
-      });
+      Sentry.metrics.distribution(
+        'sable.media.upload_latency_ms',
+        performance.now() - uploadStart,
+        {
+          attributes: { type: mediaType },
+        }
+      );
       Sentry.metrics.distribution('sable.media.upload_bytes', file.size, {
         attributes: { type: mediaType },
       });

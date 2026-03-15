@@ -39,7 +39,7 @@ export const BannerContainer = style({
   gap: config.space.S200,
   padding: config.space.S400,
   pointerEvents: 'none',
-  alignItems: 'stretch',
+  alignItems: 'flex-end',
 
   // On iOS, when keyboard opens, ensure banner stays visible at top of visual viewport
   '@supports': {
@@ -67,6 +67,7 @@ export const Banner = style({
   boxShadow: `0 ${toRem(8)} ${toRem(32)} rgba(0, 0, 0, 0.45), 0 ${toRem(2)} ${toRem(8)} rgba(0, 0, 0, 0.3)`,
   cursor: 'pointer',
   width: '100%',
+  maxWidth: '50em',
   animationName: slideIn,
   animationDuration: '260ms',
   animationTimingFunction: 'cubic-bezier(0.22, 0.8, 0.6, 1)',

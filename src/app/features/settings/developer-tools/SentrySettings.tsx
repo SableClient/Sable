@@ -89,19 +89,17 @@ export function SentrySettings() {
           }
         />
         {sentryEnabled && isSentryConfigured && (
-          <>
-            <SettingTile
-              title="Enable Session Replay"
-              description={`Record sessions for debugging errors. All text, media, and inputs are FULLY MASKED for privacy. ${environment === 'development' || environment === 'preview' ? 'Records 100% of sessions in dev/preview.' : 'Records 10% of sessions in production, 100% on errors.'}`}
-              after={
-                <Switch
-                  variant="Primary"
-                  value={sessionReplayEnabled}
-                  onChange={handleReplayToggle}
-                />
-              }
-            />
-          </>
+          <SettingTile
+            title="Enable Session Replay"
+            description={`Record sessions for debugging errors. All text, media, and inputs are FULLY MASKED for privacy. ${environment === 'development' || environment === 'preview' ? 'Records 100% of sessions in dev/preview.' : 'Records 10% of sessions in production, 100% on errors.'}`}
+            after={
+              <Switch
+                variant="Primary"
+                value={sessionReplayEnabled}
+                onChange={handleReplayToggle}
+              />
+            }
+          />
         )}
       </SequenceCard>
       {isSentryConfigured && (

@@ -1,5 +1,6 @@
 experiment
 dist
+coverage
 node_modules
 devAssets
 

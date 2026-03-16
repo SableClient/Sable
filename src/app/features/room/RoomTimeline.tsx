@@ -460,6 +460,12 @@ const useTimelinePagination = (
 };
 
 const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void) => {
+  // Stable ref so the effect dep array only contains `room`. The listener is
+  // registered once per room mount; onArrive can change freely without causing
+  // listener churn during rapid re-renders (e.g. sync error/retry cycles).
+  const onArriveRef = useRef(onArrive);
+  onArriveRef.current = onArrive;
+
   useEffect(() => {
     // Capture the live timeline and registration time. Events appended to the
     // live timeline AFTER this point can be genuinely new even when
@@ -486,14 +492,14 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
           data.timeline === liveTimeline &&
           mEvent.getTs() >= registeredAt - 60_000);
       if (!isLive) return;
-      onArrive(mEvent);
+      onArriveRef.current(mEvent);
     };
     const handleRedaction: RoomEventHandlerMap[RoomEvent.Redaction] = (
       mEvent: MatrixEvent,
       eventRoom: Room | undefined
     ) => {
       if (eventRoom?.roomId !== room.roomId) return;
-      onArrive(mEvent);
+      onArriveRef.current(mEvent);
     };
 
     room.on(RoomEvent.Timeline, handleTimelineEvent);
@@ -502,10 +508,13 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
       room.removeListener(RoomEvent.Timeline, handleTimelineEvent);
       room.removeListener(RoomEvent.Redaction, handleRedaction);
     };
-  }, [room, onArrive]);
+  }, [room]); // stable: re-register only when room changes, not on callback identity changes
 };
 
 const useRelationUpdate = (room: Room, onRelation: () => void) => {
+  const onRelationRef = useRef(onRelation);
+  onRelationRef.current = onRelation;
+
   useEffect(() => {
     const handleTimelineEvent: EventTimelineSetHandlerMap[RoomEvent.Timeline] = (
       mEvent: MatrixEvent,
@@ -519,42 +528,61 @@ const useRelationUpdate = (room: Room, onRelation: () => void) => {
       // also need to trigger a re-render so makeReplaced state is reflected.
       if (eventRoom?.roomId !== room.roomId || data.liveEvent) return;
       if (mEvent.getRelation()?.rel_type === RelationType.Replace) {
-        onRelation();
+        onRelationRef.current();
       }
     };
     room.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
       room.removeListener(RoomEvent.Timeline, handleTimelineEvent);
     };
-  }, [room, onRelation]);
+  }, [room]);
 };
 
 const useLiveTimelineRefresh = (room: Room, onRefresh: () => void) => {
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+
   useEffect(() => {
     const handleTimelineRefresh: RoomEventHandlerMap[RoomEvent.TimelineRefresh] = (r: Room) => {
       if (r.roomId !== room.roomId) return;
-      onRefresh();
+      onRefreshRef.current();
     };
+    // The SDK fires RoomEvent.TimelineReset on the EventTimelineSet (not the Room)
+    // when a limited sliding-sync response replaces the live EventTimeline with a
+    // fresh one. Without this handler, the stored linkedTimelines reference the old
+    // detached chain and back-pagination silently no-ops, freezing the room.
+    const handleTimelineReset: EventTimelineSetHandlerMap[RoomEvent.TimelineReset] = () => {
+      onRefreshRef.current();
+    };
+    const unfilteredTimelineSet = room.getUnfilteredTimelineSet();
 
     room.on(RoomEvent.TimelineRefresh, handleTimelineRefresh);
+    unfilteredTimelineSet.on(RoomEvent.TimelineReset, handleTimelineReset);
     return () => {
       room.removeListener(RoomEvent.TimelineRefresh, handleTimelineRefresh);
+      unfilteredTimelineSet.removeListener(RoomEvent.TimelineReset, handleTimelineReset);
     };
-  }, [room, onRefresh]);
+  }, [room]);
 };
 
 // Trigger re-render when thread reply counts change so the thread chip updates.
 const useThreadUpdate = (room: Room, onUpdate: () => void) => {
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
+
   useEffect(() => {
-    room.on(ThreadEvent.New, onUpdate);
-    room.on(ThreadEvent.Update, onUpdate);
-    room.on(ThreadEvent.NewReply, onUpdate);
+    // Stable wrapper: the same function identity is kept for the lifetime of
+    // the room so add/removeListener calls always match.
+    const handler = () => onUpdateRef.current();
+    room.on(ThreadEvent.New, handler);
+    room.on(ThreadEvent.Update, handler);
+    room.on(ThreadEvent.NewReply, handler);
     return () => {
-      room.removeListener(ThreadEvent.New, onUpdate);
-      room.removeListener(ThreadEvent.Update, onUpdate);
-      room.removeListener(ThreadEvent.NewReply, onUpdate);
+      room.removeListener(ThreadEvent.New, handler);
+      room.removeListener(ThreadEvent.Update, handler);
+      room.removeListener(ThreadEvent.NewReply, handler);
     };
-  }, [room, onUpdate]);
+  }, [room]);
 };
 
 // Returns the number of replies in a thread, counting actual reply events
@@ -765,6 +793,10 @@ export function RoomTimeline({
   const imagePackRooms: Room[] = useImagePackRooms(room.roomId, roomToParents);
 
   const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
+  // Stable ref so listeners that only need to *read* unreadInfo don't force
+  // effect re-registration (and listener churn) every time a new message arrives.
+  const unreadInfoRef = useRef(unreadInfo);
+  unreadInfoRef.current = unreadInfo;
   const readUptoEventIdRef = useRef<string>();
   if (unreadInfo) {
     readUptoEventIdRef.current = unreadInfo.readUptoEventId;
@@ -778,6 +810,12 @@ export function RoomTimeline({
     setAtBottomState(val);
     atBottomRef.current = val;
   }, []);
+
+  // Set to true by the useLiveTimelineRefresh callback when the timeline is
+  // re-initialised (TimelineRefresh or TimelineReset). Allows the range self-heal
+  // effect below to run even when atBottom=false, so the virtual paginator window
+  // is restored to the live end without forcing a viewport scroll.
+  const timelineJustResetRef = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollToBottomRef = useRef({
@@ -957,14 +995,17 @@ export function RoomTimeline({
         // otherwise we update timeline without paginating
         // so timeline can be updated with evt like: edits, reactions etc
         if (atBottomRef.current && atLiveEndRef.current) {
-          if (document.hasFocus() && (!unreadInfo || mEvt.getSender() === mx.getUserId())) {
+          if (
+            document.hasFocus() &&
+            (!unreadInfoRef.current || mEvt.getSender() === mx.getUserId())
+          ) {
             // Check if the document is in focus (user is actively viewing the app),
             // and either there are no unread messages or the latest message is from the current user.
             // If either condition is met, trigger the markAsRead function to send a read receipt.
             requestAnimationFrame(() => markAsRead(mx, mEvt.getRoomId()!, hideReads));
           }
 
-          if (!document.hasFocus() && !unreadInfo) {
+          if (!document.hasFocus() && !unreadInfoRef.current) {
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
@@ -983,11 +1024,11 @@ export function RoomTimeline({
           return;
         }
         setTimeline((ct) => ({ ...ct }));
-        if (!unreadInfo) {
+        if (!unreadInfoRef.current) {
           setUnreadInfo(getRoomUnreadInfo(room));
         }
       },
-      [mx, room, unreadInfo, hideReads]
+      [mx, room, hideReads]
     )
   );
 
@@ -998,7 +1039,7 @@ export function RoomTimeline({
     ) => {
       if (eventRoom?.roomId !== room.roomId) return;
       setTimeline((ct) => ({ ...ct }));
-      if (!unreadInfo) {
+      if (!unreadInfoRef.current) {
         setUnreadInfo(getRoomUnreadInfo(room));
       }
     };
@@ -1007,7 +1048,7 @@ export function RoomTimeline({
     return () => {
       room.removeListener(RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
     };
-  }, [room, unreadInfo, setTimeline, setUnreadInfo]);
+  }, [room, setTimeline, setUnreadInfo]);
 
   const handleOpenEvent = useCallback(
     async (
@@ -1058,33 +1099,33 @@ export function RoomTimeline({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
-      // Always reinitialize on TimelineRefresh. With sliding sync, a limited
-      // response replaces the room's live EventTimeline with a brand-new object,
-      // firing TimelineRefresh. At that moment liveTimelineLinked is stale-false
-      // (the stored linkedTimelines still reference the old detached object),
-      // so the previous guard `if (liveTimelineLinked || ...)` would silently
-      // skip reinit. Back-pagination then calls paginateEventTimeline against
-      // the dead old timeline, which no-ops, and the IntersectionObserver never
-      // re-fires because intersection state didn't change — causing a permanent
-      // hang at the top of the timeline with no spinner and no history loaded.
-      // Unconditionally reinitializing is correct: TimelineRefresh signals that
-      // the SDK has replaced the timeline chain, so any stored range/indices
-      // against the old chain are invalid anyway.
+      // Always reinitialize on TimelineRefresh/TimelineReset. With sliding sync,
+      // a limited response replaces the room's live EventTimeline with a brand-new
+      // object. At that moment liveTimelineLinked is stale-false (stored
+      // linkedTimelines reference the old detached chain), so any guard on that
+      // flag would skip reinit, causing back-pagination to no-op silently and the
+      // room to appear frozen. Unconditional reinit is correct: both events signal
+      // that stored range/indices against the old chain are invalid.
       //
-      // Also force atBottom=true and queue a scroll-to-bottom. The SDK fires
-      // TimelineRefresh before adding new events to the fresh live timeline, so
-      // getInitialTimeline captures range.end=0. Once events arrive the
-      // rangeAtEnd self-heal useEffect needs atBottom=true to run; the
-      // IntersectionObserver may have transiently fired isIntersecting=false
-      // during the render transition, leaving atBottom=false and causing the
-      // "Jump to Latest" button to stick permanently. Forcing atBottom here is
-      // correct: TimelineRefresh always reinits to the live end, so the user
-      // should be repositioned to the bottom regardless.
+      // Only force the viewport to the bottom if the user was already there.
+      // When the user has scrolled up to read history and a sync gap fires, we
+      // must still reinit (the old timeline is gone), but scrolling them back to
+      // the bottom is jarring. Instead we set timelineJustResetRef=true so the
+      // self-heal effect below can advance the range as events arrive on the fresh
+      // timeline, without atBottom=true being required.
+      //
+      // When the user WAS at the bottom we still call setAtBottom(true) so a
+      // transient isIntersecting=false from the IntersectionObserver during the
+      // DOM transition cannot stick the "Jump to Latest" button on-screen.
       debugLog.info('timeline', 'Live timeline refresh triggered', { roomId: room.roomId });
+      const wasAtBottom = atBottomRef.current;
+      timelineJustResetRef.current = true;
       setTimeline(getInitialTimeline(room));
-      setAtBottom(true);
-      scrollToBottomRef.current.count += 1;
-      scrollToBottomRef.current.smooth = false;
+      if (wasAtBottom) {
+        setAtBottom(true);
+        scrollToBottomRef.current.count += 1;
+        scrollToBottomRef.current.smooth = false;
+      }
     }, [room, setAtBottom])
   );
 
@@ -1111,9 +1152,17 @@ export function RoomTimeline({
   // position we want to display. Without this, loading more history makes it look
   // like we've scrolled up because the range (0, 10) is now showing the old events
   // instead of the latest ones.
+  //
+  // Also runs after a timeline reset (timelineJustResetRef=true) even when
+  // atBottom=false. After TimelineReset the SDK fires the event before populating
+  // the fresh timeline, so getInitialTimeline sees range.end=0. When events
+  // arrive eventsLength grows and we need to heal the range back to the live end
+  // regardless of the user's scroll position.
   useEffect(() => {
-    if (atBottom && liveTimelineLinked && eventsLength > timeline.range.end) {
-      // More events exist than our current range shows. Adjust to stay at bottom.
+    const resetPending = timelineJustResetRef.current;
+    if ((atBottom || resetPending) && liveTimelineLinked && eventsLength > timeline.range.end) {
+      if (resetPending) timelineJustResetRef.current = false;
+      // More events exist than our current range shows. Adjust to the live end.
       setTimeline((ct) => ({
         ...ct,
         range: {

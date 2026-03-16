@@ -37,12 +37,15 @@ It is not always possible to phrase every change in such a manner, but it is des
 
 Also, we use [ESLint](https://eslint.org/) for clean and stylistically consistent code syntax, so make sure your pull request follow it.
 
-**Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, and `knip` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
+**Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, `knip`, and `tests` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
 
 - `pnpm run fmt:check`
 - `pnpm run lint`
 - `pnpm run typecheck`
 - `pnpm run knip`
+- `pnpm run test:run`
+
+If your change touches logic with testable behaviour, please include tests. See [docs/TESTING.md](./docs/TESTING.md) for a guide on how to write them.
 
 ## Restrictions on Generative AI Usage
 

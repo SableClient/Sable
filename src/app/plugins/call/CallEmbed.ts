@@ -218,11 +218,24 @@ export class CallEmbed {
       this.readUpToMap[room.roomId] = roomEvent.getId()!;
     });
 
-    // Attach listeners for feeding events - the underlying widget classes handle permissions for us
-    this.mx.on(ClientEvent.Event, this.onEvent.bind(this));
-    this.mx.on(MatrixEventEvent.Decrypted, this.onEventDecrypted.bind(this));
-    this.mx.on(RoomStateEvent.Events, this.onStateUpdate.bind(this));
-    this.mx.on(ClientEvent.ToDeviceEvent, this.onToDeviceEvent.bind(this));
+    // Attach listeners for feeding events - the underlying widget classes handle permissions for us.
+    // Bind once and store via disposables so the same function reference is used for removal.
+    // Using .bind(this) at call-site would create a new function every time, making .off() a no-op
+    // and causing MaxListeners warnings when the embed is recreated during sync retries.
+    const boundOnEvent = this.onEvent.bind(this);
+    const boundOnEventDecrypted = this.onEventDecrypted.bind(this);
+    const boundOnStateUpdate = this.onStateUpdate.bind(this);
+    const boundOnToDeviceEvent = this.onToDeviceEvent.bind(this);
+    this.mx.on(ClientEvent.Event, boundOnEvent);
+    this.mx.on(MatrixEventEvent.Decrypted, boundOnEventDecrypted);
+    this.mx.on(RoomStateEvent.Events, boundOnStateUpdate);
+    this.mx.on(ClientEvent.ToDeviceEvent, boundOnToDeviceEvent);
+    this.disposables.push(() => {
+      this.mx.off(ClientEvent.Event, boundOnEvent);
+      this.mx.off(MatrixEventEvent.Decrypted, boundOnEventDecrypted);
+      this.mx.off(RoomStateEvent.Events, boundOnStateUpdate);
+      this.mx.off(ClientEvent.ToDeviceEvent, boundOnToDeviceEvent);
+    });
   }
 
   /**
@@ -239,11 +252,7 @@ export class CallEmbed {
     this.container.removeChild(this.iframe);
     this.control.dispose();
 
-    this.mx.off(ClientEvent.Event, this.onEvent.bind(this));
-    this.mx.off(MatrixEventEvent.Decrypted, this.onEventDecrypted.bind(this));
-    this.mx.off(RoomStateEvent.Events, this.onStateUpdate.bind(this));
-    this.mx.off(ClientEvent.ToDeviceEvent, this.onToDeviceEvent.bind(this));
-
+    // Listener removal is handled by the disposables pushed in start().
     // Clear internal state
     this.readUpToMap = {};
     this.eventsToFeed = new WeakSet<MatrixEvent>();

@@ -6,6 +6,8 @@ import {
   Chip,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -15,6 +17,7 @@ import {
   Tooltip,
   TooltipProvider,
   as,
+  config,
 } from 'folds';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
@@ -84,6 +87,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     const [error, setError] = useState(false);
     const [viewer, setViewer] = useState(false);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
+    const [isHovered, setIsHovered] = useState(false);
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
@@ -119,7 +123,13 @@ export const ImageContent = as<'div', ImageContentProps>(
     }, [autoPlay, loadSrc]);
 
     return (
-      <Box className={classNames(css.RelativeBase, className)} {...props} ref={ref}>
+      <Box
+        className={classNames(css.RelativeBase, className)}
+        {...props}
+        ref={ref}
+        onPointerEnter={() => setIsHovered(true)}
+        onPointerLeave={() => setIsHovered(false)}
+      >
         {srcState.status === AsyncStatus.Success && (
           <Overlay open={viewer} backdrop={<OverlayBackdrop />}>
             <OverlayCenter>
@@ -156,7 +166,12 @@ export const ImageContent = as<'div', ImageContentProps>(
           />
         )}
         {!autoPlay && !markedAsSpoiler && srcState.status === AsyncStatus.Idle && (
-          <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
+          <Box
+            className={css.AbsoluteContainer}
+            alignItems="Center"
+            justifyContent="Center"
+            onClick={loadSrc}
+          >
             <Button
               variant="Secondary"
               fill="Solid"
@@ -183,36 +198,35 @@ export const ImageContent = as<'div', ImageContentProps>(
           </Box>
         )}
         {blurred && !error && srcState.status !== AsyncStatus.Error && (
-          <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
-            <TooltipProvider
-              tooltip={
-                typeof spoilerReason === 'string' && (
-                  <Tooltip variant="Secondary">
-                    <Text>{spoilerReason}</Text>
-                  </Tooltip>
-                )
+          <Box
+            className={css.AbsoluteContainer}
+            alignItems="Center"
+            justifyContent="Center"
+            onClick={() => {
+              setBlurred(false);
+              if (srcState.status === AsyncStatus.Idle) {
+                loadSrc();
               }
-              position="Top"
-              align="Center"
+            }}
+          >
+            <Chip
+              variant="Secondary"
+              radii="Pill"
+              size="500"
+              outlined
+              onClick={() => {
+                setBlurred(false);
+                if (srcState.status === AsyncStatus.Idle) {
+                  loadSrc();
+                }
+              }}
             >
-              {(triggerRef) => (
-                <Chip
-                  ref={triggerRef}
-                  variant="Secondary"
-                  radii="Pill"
-                  size="500"
-                  outlined
-                  onClick={() => {
-                    setBlurred(false);
-                    if (srcState.status === AsyncStatus.Idle) {
-                      loadSrc();
-                    }
-                  }}
-                >
-                  <Text size="B300">Spoiler</Text>
-                </Chip>
-              )}
-            </TooltipProvider>
+              <Text size="B300">
+                {typeof spoilerReason === 'string' && spoilerReason.length > 0
+                  ? `Spoiler reason: ${spoilerReason}`
+                  : `Spoilered`}
+              </Text>
+            </Chip>
           </Box>
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
@@ -223,7 +237,12 @@ export const ImageContent = as<'div', ImageContentProps>(
             </Box>
           )}
         {(error || srcState.status === AsyncStatus.Error) && (
-          <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
+          <Box
+            className={css.AbsoluteContainer}
+            alignItems="Center"
+            justifyContent="Center"
+            onClick={handleRetry}
+          >
             <TooltipProvider
               tooltip={
                 <Tooltip variant="Critical">
@@ -248,6 +267,27 @@ export const ImageContent = as<'div', ImageContentProps>(
                 </Button>
               )}
             </TooltipProvider>
+          </Box>
+        )}
+        {isHovered && (
+          <Box style={{ padding: config.space.S200, right: 0, position: 'absolute' }}>
+            <Menu style={{ padding: config.space.S0 }}>
+              <MenuItem
+                size="300"
+                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
+                radii="300"
+                fill="Soft"
+                variant="Secondary"
+                title={blurred ? 'Reveal Image' : 'Hide Image'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (srcState.status === AsyncStatus.Idle) {
+                    loadSrc();
+                    setBlurred(false);
+                  } else setBlurred(!blurred);
+                }}
+              />
+            </Menu>
           </Box>
         )}
         {!load && typeof info?.size === 'number' && (

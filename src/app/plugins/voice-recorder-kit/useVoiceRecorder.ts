@@ -5,6 +5,7 @@ import type {
   RecorderState,
   VoiceRecorderStopPayload,
 } from './types';
+import { getSupportedAudioCodec, getSupportedAudioExtension } from './supportedCodec';
 
 const BAR_COUNT = 40;
 const WAVEFORM_POINT_COUNT = 100;
@@ -31,8 +32,20 @@ function downsampleWaveform(samples: number[], targetCount: number): number[] {
   return result;
 }
 
+/**
+ * Custom React hook for recording voice messages using the MediaRecorder API.
+ * It manages the recording state, audio data, and provides functions to control the recording process (start, pause, stop, resume, play, etc.).
+ * It also handles audio visualization by analyzing the audio stream and generating levels for a visualizer.
+ * The hook supports multiple audio codecs and generates appropriate file extensions based on the supported codec.
+ */
 export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoiceRecorderReturn {
   const { autoStart = true, onStop, onDelete } = options;
+
+  /**
+   * The audio codec we will use
+   * we will choose depending on the browser support
+   */
+  const audioCodec = getSupportedAudioCodec();
 
   const [isRecording, setIsRecording] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
@@ -67,9 +80,17 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   const isRestartingRef = useRef(false);
   const isTemporaryStopRef = useRef(false);
   const temporaryPreviewUrlRef = useRef<string | null>(null);
-  // waveform samples collected during recording, used to generate waveform on stop. We collect all samples and downsample at the end to get a more accurate waveform, especially for short recordings. We use a ref to avoid causing re-renders on every sample.
+  /**
+   * waveform samples collected during recording, used to generate waveform on stop.
+   * We collect all samples and downsample at the end to get a more accurate waveform, especially for short recordings.
+   * We use a ref to avoid causing re-renders on every sample.
+   */
   const waveformSamplesRef = useRef<number[]>([]);
-  // Flag to indicate whether we should be collecting waveform samples. We need this because there can be a short delay between starting recording and the audio graph being set up, during which we might get some samples that we don't want to include in the waveform.
+  /**
+   * Flag to indicate whether we should be collecting waveform samples.
+   * We need this because there can be a short delay between starting recording
+   * and the audio graph being set up, during which we might get some samples that we don't want to include in the waveform.
+   */
   const isCollectingWaveformRef = useRef(false);
 
   const cleanupStream = useCallback(() => {
@@ -142,6 +163,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         audioUrl: url,
         waveform: waveformData,
         audioLength,
+        audioCodec: file.type,
       };
       onStop(payload);
     },
@@ -187,7 +209,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   }, []);
 
   const setupAudioGraph = useCallback(
-    (stream: MediaStream) => {
+    (stream: MediaStream): MediaStream => {
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
@@ -198,9 +220,17 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const dataArray = new Uint8Array(bufferLength);
       analyserRef.current = analyser;
       dataArrayRef.current = dataArray;
+
+      // Fix for iOS Safari: routing the stream through a MediaStreamDestination
+      // prevents the AudioContext from "stealing" the track from the MediaRecorder
+      const destination = audioContext.createMediaStreamDestination();
       source.connect(analyser);
+      analyser.connect(destination);
+
       audioContext.resume().catch(() => {});
       animateLevels();
+
+      return destination.stream;
     },
     [animateLevels]
   );
@@ -237,15 +267,21 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const codec = getSupportedAudioCodec();
+      if (!codec) {
+        setError('No supported audio codec found for recording.');
+        cleanupStream();
+        return;
+      }
       streamRef.current = stream;
       chunksRef.current = [];
       previousChunksRef.current = [];
       waveformSamplesRef.current = [];
       isCollectingWaveformRef.current = true;
-      setupAudioGraph(stream);
+      const recordedStream = setupAudioGraph(stream);
       startRecordingTimer();
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(recordedStream, { mimeType: codec });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event: BlobEvent) => {
@@ -276,9 +312,20 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
           return;
         }
 
-        if (chunksRef.current.length === 0) return;
+        if (chunksRef.current.length === 0) {
+          if (isTemporaryStopRef.current) {
+            setIsTemporaryStopped(true);
+            setIsStopped(true);
+            isTemporaryStopRef.current = false;
+          } else {
+            setIsStopped(true);
+            setIsTemporaryStopped(false);
+          }
+          return;
+        }
 
-        const blob = new Blob(chunksRef.current, { type: 'audio/ogg' });
+        const actualType = chunksRef.current[0]?.type || codec || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: actualType });
         if (lastUrlRef.current) {
           URL.revokeObjectURL(lastUrlRef.current);
         }
@@ -286,7 +333,13 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         lastUrlRef.current = url;
         setAudioUrl(url);
 
-        const file = new File([blob], `voice-${Date.now()}.ogg`, { type: 'audio/ogg' });
+        const file = new File(
+          [blob],
+          `voice-${Date.now()}.${getSupportedAudioExtension(actualType)}`,
+          {
+            type: actualType,
+          }
+        );
         setAudioFile(file);
 
         const waveformData = downsampleWaveform(waveformSamplesRef.current, WAVEFORM_POINT_COUNT);
@@ -303,7 +356,9 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         }
       };
 
-      mediaRecorder.start();
+      // Pass a timeslice to ensure Safari iOS periodically flushes chunks
+      // Otherwise Safari might fail to emit any chunks when stopped abruptly
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setIsPaused(false);
       setIsStopped(false);
@@ -363,10 +418,21 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       isTemporaryStopRef.current = false;
 
       if (mediaRecorder.state === 'recording') {
-        mediaRecorder.requestData();
+        try {
+          mediaRecorder.requestData();
+        } catch {
+          // ignore
+        }
       }
-      mediaRecorder.stop();
 
+      try {
+        mediaRecorder.stop();
+      } catch {
+        // ignore
+      }
+
+      // Let cleanupStream() be handled by mediaRecorder.onstop
+      // Calling it synchronously here can kill the stream before Safari finishes emitting data
       setIsStopped(true);
       setIsTemporaryStopped(false);
       setIsPaused(false);
@@ -403,7 +469,23 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       previousChunksRef.current = [...chunksRef.current];
       isTemporaryStopRef.current = false;
-      mediaRecorder.stop();
+
+      if (mediaRecorder.state === 'recording') {
+        try {
+          mediaRecorder.requestData();
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        mediaRecorder.stop();
+      } catch {
+        // ignore
+      }
+
+      // Let cleanupStream() be handled by mediaRecorder.onstop
+      // Calling it synchronously here can kill the stream before Safari finishes emitting data
       setIsStopped(true);
       setIsTemporaryStopped(false);
       setIsPaused(false);
@@ -446,7 +528,8 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         chunksRef.current.length > 0 ? chunksRef.current : previousChunksRef.current;
 
       if (allChunks.length > 0) {
-        const blob = new Blob(allChunks, { type: 'audio/ogg' });
+        const actualType = allChunks[0]?.type || audioCodec || 'audio/webm';
+        const blob = new Blob(allChunks, { type: actualType });
         urlToPlay = URL.createObjectURL(blob);
         temporaryPreviewUrlRef.current = urlToPlay;
       }
@@ -501,12 +584,13 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     }
   }, [
     audioUrl,
-    cleanupAudioContext,
-    isPlaying,
     isPaused,
+    isPlaying,
+    audioCodec,
+    stopTimer,
+    cleanupAudioContext,
     setupPlaybackGraph,
     startPlaybackTimer,
-    stopTimer,
   ]);
 
   const handlePlay = useCallback(() => {
@@ -563,13 +647,16 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      setupAudioGraph(stream);
+      const recordedStream = setupAudioGraph(stream);
 
       // Force update seconds to the correct total time before starting timer
       setSeconds(pausedTimeRef.current);
       startRecordingTimer();
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const codec = getSupportedAudioCodec() || audioCodec;
+      const mediaRecorder = codec
+        ? new MediaRecorder(recordedStream, { mimeType: codec })
+        : new MediaRecorder(recordedStream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event: BlobEvent) => {
@@ -590,9 +677,13 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
         isCollectingWaveformRef.current = false;
 
-        if (chunksRef.current.length === 0) return;
+        if (chunksRef.current.length === 0) {
+          setIsStopped(true);
+          return;
+        }
 
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const actualType = chunksRef.current[0]?.type || audioCodec || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: actualType });
         if (lastUrlRef.current) {
           URL.revokeObjectURL(lastUrlRef.current);
         }
@@ -600,7 +691,11 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         lastUrlRef.current = url;
         setAudioUrl(url);
 
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+        const file = new File(
+          [blob],
+          `voice-${Date.now()}.${getSupportedAudioExtension(blob.type)}`,
+          { type: blob.type }
+        );
         setAudioFile(file);
 
         const waveformData = downsampleWaveform(waveformSamplesRef.current, WAVEFORM_POINT_COUNT);
@@ -609,7 +704,9 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         emitStopPayload(file, url, waveformData, audioLength);
       };
 
-      mediaRecorder.start();
+      // Pass a timeslice to ensure Safari iOS periodically flushes chunks
+      // Otherwise Safari might fail to emit any chunks when stopped abruptly
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setIsPaused(false);
       setIsStopped(false);
@@ -639,6 +736,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       isResumingRef.current = false;
     }
   }, [
+    audioCodec,
     cleanupAudioContext,
     cleanupStream,
     emitStopPayload,

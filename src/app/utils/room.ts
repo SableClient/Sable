@@ -11,22 +11,22 @@ import {
   JoinRule,
   MatrixClient,
   MatrixEvent,
-  MsgType,
   NotificationCountType,
   PushProcessor,
   RelationType,
   Room,
   RoomMember,
   CryptoBackend,
+  MsgType,
 } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import {
   IRoomCreateContent,
   Membership,
-  MessageEvent,
   NotificationType,
   RoomToParents,
   RoomType,
+  MessageEvent,
   StateEvent,
   UnreadInfo,
 } from '$types/matrix/room';
@@ -602,11 +602,15 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
   const relationType = content['m.relates_to']?.rel_type;
   return (
     mEvent.getSender() === mx.getUserId() &&
-    (!relationType || relationType === RelationType.Thread) &&
     mEvent.getType() === MessageEvent.RoomMessage &&
+    (!relationType || relationType === RelationType.Thread) &&
     (content.msgtype === MsgType.Text ||
       content.msgtype === MsgType.Emote ||
-      content.msgtype === MsgType.Notice)
+      content.msgtype === MsgType.Notice ||
+      content.msgtype === MsgType.Image ||
+      content.msgtype === MsgType.Video ||
+      content.msgtype === MsgType.Audio ||
+      content.msgtype === MsgType.File)
   );
 };
 

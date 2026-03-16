@@ -15,6 +15,7 @@ import {
   EventType,
   IContent,
   MatrixError,
+  MatrixEvent,
   MsgType,
   RelationType,
   Room,
@@ -116,6 +117,7 @@ import { settingsAtom } from '$state/settings';
 import {
   getMemberDisplayName,
   getMentionContent,
+  reactionOrEditEvent,
   trimReplyFromBody,
   trimReplyFromFormattedBody,
 } from '$utils/room';
@@ -153,6 +155,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
 import { ErrorCode } from '../../cs-errorcode';
+import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -164,7 +167,33 @@ import {
 import { CommandAutocomplete } from './CommandAutocomplete';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 
-const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation => {
+// Returns the event ID of the most recent non-reaction/non-edit event in a thread,
+// falling back to the thread root if no replies exist yet.
+const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+  const thread = room.getThread(threadRootId);
+  const threadEvents: MatrixEvent[] = thread?.events ?? [];
+  const filtered = threadEvents.filter(
+    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+  );
+  if (filtered.length > 0) {
+    return filtered[filtered.length - 1].getId() ?? threadRootId;
+  }
+  // Fall back to the live timeline if the Thread object hasn't been registered yet
+  const liveEvents = room
+    .getUnfilteredTimelineSet()
+    .getLiveTimeline()
+    .getEvents()
+    .filter(
+      (ev) =>
+        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    );
+  if (liveEvents.length > 0) {
+    return liveEvents[liveEvents.length - 1].getId() ?? threadRootId;
+  }
+  return threadRootId;
+};
+
+const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEventRelation => {
   if (!replyDraft) return {};
 
   const relatesTo: IEventRelation = {};
@@ -177,13 +206,19 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation =>
     // Check if this is a reply to a specific message in the thread
     // (replyDraft.body being empty means it's just a seeded thread draft)
     if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
-      // This is a reply to a message within the thread
+      // Explicit reply to a specific message — per spec, is_falling_back must be false
       relatesTo['m.in_reply_to'] = {
         event_id: replyDraft.eventId,
       };
       relatesTo.is_falling_back = false;
     } else {
-      // This is just a regular thread message
+      // Regular thread message — per spec, include fallback m.in_reply_to pointing to the
+      // most recent thread message so unthreaded clients can display it as a reply chain
+      const threadRootId = replyDraft.relation.event_id ?? replyDraft.eventId;
+      const latestEventId = room ? getLatestThreadEventId(room, threadRootId) : threadRootId;
+      relatesTo['m.in_reply_to'] = {
+        event_id: latestEventId,
+      };
       relatesTo.is_falling_back = true;
     }
   } else {
@@ -467,7 +502,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
       if (contents.length > 0) {
-        const replyContent = plainText?.length === 0 ? getReplyContent(replyDraft) : undefined;
+        const replyContent =
+          plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
         if (replyContent) contents[0]['m.relates_to'] = replyContent;
         if (threadRootId) {
           setReplyDraft({
@@ -611,7 +647,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         content.formatted_body = formattedBody;
       }
       if (replyDraft) {
-        content['m.relates_to'] = getReplyContent(replyDraft);
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
       }
       const invalidate = () =>
         queryClient.invalidateQueries({ queryKey: ['delayedEvents', roomId] });
@@ -809,7 +845,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         info,
       };
       if (replyDraft) {
-        content['m.relates_to'] = getReplyContent(replyDraft);
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
         if (threadRootId) {
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -1127,7 +1163,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       onRecordingComplete={(audioBlob) => {
                         const file = new File(
                           [audioBlob],
-                          `sable-audio-message-${Date.now()}.ogg`,
+                          `sable-audio-message-${Date.now()}.${getSupportedAudioExtension(audioBlob.type)}`,
                           {
                             type: audioBlob.type,
                           }

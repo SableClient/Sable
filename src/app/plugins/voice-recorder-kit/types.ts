@@ -7,6 +7,7 @@ export type VoiceRecorderStopPayload = {
   audioUrl: string;
   waveform: number[];
   audioLength: number;
+  audioCodec: string;
 };
 
 export type UseVoiceRecorderOptions = {

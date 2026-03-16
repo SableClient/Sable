@@ -8,6 +8,7 @@ type AudioMessageRecorderProps = {
   onRequestClose: () => void;
   onWaveformUpdate: (waveform: number[]) => void;
   onAudioLengthUpdate: (length: number) => void;
+  onAudioCodecUpdate?: (codec: string) => void;
 };
 
 // We use a react voice recorder library to handle the recording of audio messages, as it provides a simple API and handles the complexities of recording audio in the browser.
@@ -19,6 +20,7 @@ export function AudioMessageRecorder({
   onRequestClose,
   onWaveformUpdate,
   onAudioLengthUpdate,
+  onAudioCodecUpdate,
 }: AudioMessageRecorderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDismissedRef = useRef(false);
@@ -50,7 +52,7 @@ export function AudioMessageRecorder({
             borderRadius: config.radii.R400,
             boxShadow: config.shadow.E200,
             padding: config.space.S400,
-            minWidth: 300,
+            width: 300,
           }}
         >
           <Text size="H4">Audio Message Recorder</Text>
@@ -60,16 +62,20 @@ export function AudioMessageRecorder({
               audioFile,
               waveform,
               audioLength,
+              audioCodec,
             }: {
               audioFile: Blob;
               waveform: number[];
               audioLength: number;
+              audioCodec: string;
             }) => {
               if (isDismissedRef.current) return;
               // closes the recorder and sends the audio file back to the parent component to be uploaded and sent as a message
               onRecordingComplete(audioFile);
               onWaveformUpdate(waveform);
               onAudioLengthUpdate(audioLength);
+              // Pass the audio codec to the parent component
+              if (onAudioCodecUpdate) onAudioCodecUpdate(audioCodec);
             }}
             buttonBackgroundColor={color.SurfaceVariant.Container}
             buttonHoverBackgroundColor={color.SurfaceVariant.ContainerHover}

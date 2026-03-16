@@ -155,28 +155,60 @@ export const getAudioMsgContent = (
   audioLength?: number
 ): AudioMsgContent => {
   const { file, encInfo } = item;
-  const content: IContent = {
+  let content: IContent = {
     msgtype: MsgType.Audio,
     filename: file.name,
-    body: file.name,
+    body: item.body && item.body.length > 0 ? item.body : 'a voice message',
     format: 'org.matrix.custom.html',
-    formatted_body: file.name,
+    formatted_body: item.body && item.body.length > 0 ? item.body : '<em>a voice message</em>',
     info: {
       mimetype: file.type,
       size: file.size,
+      duration: item.metadata.markedAsSpoiler || !audioLength ? 0 : audioLength * 1000,
     },
+
+    // Element-compatible unstable extensible-event keys
     'org.matrix.msc1767.audio': {
       waveform: waveform?.map((v) => Math.round(v * 1024)), // scale waveform values to fit in 10 bits (0-1024) for more efficient storage, as per MSC1767 spec
       duration: item.metadata.markedAsSpoiler || !audioLength ? 0 : audioLength * 1000, // if marked as spoiler, set duration to 0 to hide it in clients that support msc1767
     },
+    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : 'a voice message',
+    'org.matrix.msc3245.voice.v2': {
+      duration: !audioLength ? 0 : audioLength,
+      waveform: waveform?.map((v) => Math.round(v * 1024)),
+    },
+    // for element compat
+    'org.matrix.msc3245.voice': {},
   };
   if (encInfo) {
     content.file = {
       ...encInfo,
       url: mxc,
     };
+    content = {
+      ...content,
+
+      // Element-compatible unstable extensible-event keys
+      'org.matrix.msc1767.file': {
+        name: file.name,
+        mimetype: file.type,
+        size: file.size,
+        file: content.file,
+      },
+    };
   } else {
     content.url = mxc;
+    content = {
+      ...content,
+
+      // Element-compatible unstable extensible-event keys
+      'org.matrix.msc1767.file': {
+        name: file.name,
+        mimetype: file.type,
+        size: file.size,
+        url: content.url,
+      },
+    };
   }
   if (item.body && item.body.length > 0) content.body = item.body;
   if (item.formatted_body && item.formatted_body.length > 0) {

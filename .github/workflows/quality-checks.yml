@@ -79,6 +79,24 @@ jobs:
       - name: Run Knip
         run: pnpm run knip
 
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+
+      - name: Run tests
+        run: pnpm run test:run
+
   build:
     name: Build
     runs-on: ubuntu-latest

@@ -55,7 +55,7 @@
     "eslint-plugin-react": "7.37.5",
     "eventemitter3": "^5.0.4",
     "file-saver": "^2.0.5",
-    "focus-trap-react": "^10.3.1",
+    "focus-trap-react": "^12.0.0",
     "folds": "^2.6.2",
     "framer-motion": "12.34.3",
     "html-dom-parser": "^5.1.8",

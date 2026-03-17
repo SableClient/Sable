@@ -1,6 +1,9 @@
-import { type BaseEditor } from 'slate';
-import { type ReactEditor } from 'slate-react';
-import { type HistoryEditor } from 'slate-history';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- required for declare module augmentation
+import { BaseEditor } from 'slate';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- required for declare module augmentation
+import { ReactEditor } from 'slate-react';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- required for declare module augmentation
+import { HistoryEditor } from 'slate-history';
 import { type BlockType } from './types';
 
 export type HeadingLevel = 1 | 2 | 3;
@@ -115,9 +118,10 @@ export type CustomElement =
   | HorizontalRuleElement;
 
 declare module 'slate' {
-  type CustomTypes = {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- interface required for declaration merging in module augmentation
+  interface CustomTypes {
     Editor: Editor;
     Element: CustomElement;
     Text: FormattedText & Text;
-  };
+  }
 }

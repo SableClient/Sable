@@ -4,11 +4,14 @@ This document describes the coding conventions and standards used throughout Sab
 
 ## Enforcement layers
 
-| Layer                                         | When it runs                  | What it checks                                                         |
-| --------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
-| **Pre-commit hook** (`husky` + `lint-staged`) | On every `git commit`         | ESLint (with auto-fix) + Prettier (with auto-fix) on staged files only |
-| **CI quality checks**                         | On every PR and push to `dev` | Format, lint, typecheck, knip, tests, build                            |
-| **Editor**                                    | As you type                   | ESLint + Prettier via VS Code extensions                               |
+| Layer                                         | When it runs                        | What it checks                                                                  |
+| --------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------- |
+| **Pre-commit hook** (`husky` + `lint-staged`) | On every `git commit`               | ESLint (with auto-fix) + Prettier (with auto-fix) on staged files only          |
+| **CI — format / lint / typecheck / knip**     | On every PR and push to `dev`       | Prettier format, ESLint, TypeScript (`tsc --noEmit`), Knip dead-code analysis   |
+| **CI — tests**                                | On every PR and push to `dev`       | Runs the full vitest suite; fails if any test fails                             |
+| **CI — coverage thresholds**                  | On every PR and push to `dev`       | `pnpm test:coverage`; fails if overall coverage drops below the locked baseline |
+| **CI — missing tests warning**                | On PRs only (advisory, not failing) | Comments listing changed logic files that have no `.test.` counterpart          |
+| **Editor**                                    | As you type                         | ESLint + Prettier via VS Code extensions                                        |
 
 PRs are **not merged** unless all CI quality checks are green. The pre-commit hook auto-fixes formatting and many lint issues for you; if it cannot, the commit is blocked with a clear error message.
 
@@ -253,21 +256,31 @@ See [TESTING.md](./TESTING.md) for full details. Key conventions:
 - Use `@testing-library/react` for component tests — test behaviour, not implementation details
 - If your change touches logic with a clear input/output, add or update a test
 
+### Coverage thresholds
+
+Coverage thresholds are locked in `vitest.config.ts` and enforced by CI (`pnpm test:coverage`). The numbers reflect the current baseline — **they should only ever be raised, never lowered**. If your PR causes the coverage job to fail, you either need to add tests or check that you haven't deleted an existing test.
+
+### Missing-tests advisory
+
+On every PR, CI checks whether any changed logic files lack a corresponding `.test.*` file and posts a comment listing them. This is **advisory only** — the job does not fail and does not block merging. If your changes don't warrant tests (e.g. a config tweak or a pure UI restyle), just note that in the PR description.
+
 ---
 
 ## What the linter enforces automatically
 
 These rules run in CI and on every commit (and are auto-fixed when possible):
 
-| Rule                                                     | Enforced as                  |
-| -------------------------------------------------------- | ---------------------------- |
-| `@typescript-eslint/consistent-type-definitions`         | error (auto-fix)             |
-| `@typescript-eslint/consistent-type-imports`             | error (auto-fix)             |
-| `@typescript-eslint/no-unused-vars`                      | error (auto-fix for imports) |
-| `@typescript-eslint/no-shadow`                           | error                        |
-| `react-hooks/rules-of-hooks`                             | error                        |
-| `react-hooks/exhaustive-deps`                            | error                        |
-| `react/no-unstable-nested-components`                    | error                        |
-| No direct `localStorage` in `components/` or `features/` | error                        |
-| Prettier formatting                                      | error (auto-fix)             |
-| Knip (dead exports / unused files)                       | error                        |
+| Rule                                                                   | Enforced as                   |
+| ---------------------------------------------------------------------- | ----------------------------- |
+| `@typescript-eslint/consistent-type-definitions`                       | error (auto-fix)              |
+| `@typescript-eslint/consistent-type-imports`                           | error (auto-fix)              |
+| `@typescript-eslint/no-unused-vars`                                    | error (auto-fix for imports)  |
+| `@typescript-eslint/no-shadow`                                         | error                         |
+| `react-hooks/rules-of-hooks`                                           | error                         |
+| `react-hooks/exhaustive-deps`                                          | error                         |
+| `react/no-unstable-nested-components`                                  | error                         |
+| No direct `localStorage` in `components/` or `features/`               | error                         |
+| Prettier formatting                                                    | error (auto-fix)              |
+| Knip (dead exports / unused files)                                     | error                         |
+| Coverage thresholds (statements/functions/lines ≥ 1.5%, branches ≥ 1%) | CI error (raise, never lower) |
+| Logic files without a `.test.` counterpart                             | CI advisory comment on PR     |

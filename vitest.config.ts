@@ -45,7 +45,14 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.test.{ts,tsx}',
         'src/**/*.spec.{ts,tsx}',
-      ],
+      ], // Baseline locked at current coverage. Raise these thresholds as test
+      // coverage improves — never lower them.
+      thresholds: {
+        statements: 1.5,
+        branches: 1,
+        functions: 1.5,
+        lines: 1.5,
+      },
     },
   },
 });

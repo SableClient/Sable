@@ -9,6 +9,8 @@ import { createListAtom } from '$state/list';
 
 export type TUploadMetadata = {
   markedAsSpoiler: boolean;
+  waveform?: number[];
+  audioDuration?: number;
 };
 
 export type TUploadItem = {

@@ -45,6 +45,7 @@
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@fontsource-variable/nunito": "5.2.7",
     "@fontsource/space-mono": "5.2.9",
+    "@phosphor-icons/react": "^2.1.10",
     "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",

@@ -20,11 +20,12 @@ export function RenderBody({
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<RenderBodyProps>) {
-  if (body === '') return <MessageEmptyContent />;
   if (customBody) {
     if (customBody === '') return <MessageEmptyContent />;
     return parse(sanitizeCustomHtml(customBody), htmlReactParserOptions);
   }
+  if (body === '') return <MessageEmptyContent />;
+
   return (
     <Linkify options={linkifyOpts}>
       {highlightRegex

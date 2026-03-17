@@ -1,7 +1,7 @@
 import {
-  ChangeEvent,
-  ChangeEventHandler,
-  FormEventHandler,
+  type ChangeEvent,
+  type ChangeEventHandler,
+  type FormEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -41,14 +41,14 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import { type UserProfile, useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { Room, RoomMember } from '$types/matrix-sdk';
+import { type Room, type RoomMember } from '$types/matrix-sdk';
 import { Command, useCommands } from '$hooks/useCommands';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import { createUploadAtom, type UploadSuccess } from '$state/upload';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import FocusTrap from 'focus-trap-react';
@@ -56,7 +56,7 @@ import { ImageEditor } from '$components/image-editor';
 import { stopPropagation } from '$utils/keyboard';
 import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
-import { PronounEditor, PronounSet } from '$features/settings/account/PronounEditor';
+import { PronounEditor, type PronounSet } from '$features/settings/account/PronounEditor';
 
 const log = createLogger('Cosmetics');
 

@@ -1,5 +1,5 @@
-import { ReactNode, useCallback, useRef, useState } from 'react';
-import { MatrixError, Room } from '$types/matrix-sdk';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { type MatrixError, type Room } from '$types/matrix-sdk';
 import {
   Avatar,
   Badge,

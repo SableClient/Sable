@@ -9,7 +9,7 @@ function hashCode(str?: string): number {
     const chr = str.codePointAt(i) ?? 0;
     // eslint-disable-next-line no-bitwise
     hash = (hash << 5) - hash + chr;
-    // eslint-disable-next-line no-bitwise
+
     hash = Math.trunc(hash);
   }
   return Math.abs(hash);

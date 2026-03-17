@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
-import { ImagePack } from '$plugins/custom-emoji';
+import { type ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
 import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';

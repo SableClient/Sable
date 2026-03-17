@@ -29,11 +29,11 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { isNotificationEvent } from '$utils/room';
 import { CutoutCard } from '$components/cutout-card';
-import { AccountDataEditor, AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import { AccountDataEditor, type AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
-import { StateEventEditor, StateEventInfo } from './StateEventEditor';
+import { StateEventEditor, type StateEventInfo } from './StateEventEditor';
 
 const formatSyncReason = (reason: string): string => {
   if (reason === 'sliding_active') return 'Sliding Sync active';

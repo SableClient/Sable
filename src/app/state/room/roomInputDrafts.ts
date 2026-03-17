@@ -1,9 +1,9 @@
 import { atom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
-import { Descendant } from 'slate';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import { IEventRelation } from '$types/matrix-sdk';
-import { TUploadContent } from '$utils/matrix';
+import { type Descendant } from 'slate';
+import { type EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import { type IEventRelation } from '$types/matrix-sdk';
+import { type TUploadContent } from '$utils/matrix';
 import { createUploadAtomFamily } from '$state/upload';
 import { createListAtom } from '$state/list';
 

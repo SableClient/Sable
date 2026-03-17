@@ -3,7 +3,8 @@ import { Box, Text, Switch, Button } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { getDebugLogger, LogCategory } from '$utils/debugLogger';
+import { getDebugLogger, type LogCategory } from '$utils/debugLogger';
+import { getSentryEnabled } from '$state/sentryStorage';
 
 const ALL_CATEGORIES: LogCategory[] = [
   'sync',
@@ -50,7 +51,7 @@ export function SentrySettings() {
   };
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
-  const sentryEnabled = localStorage.getItem('sable_sentry_enabled') === 'true';
+  const sentryEnabled = getSentryEnabled();
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
   const isProd = environment === 'production';
   const traceSampleRate = isProd ? '10%' : '100%';

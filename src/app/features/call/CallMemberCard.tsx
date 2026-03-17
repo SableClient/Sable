@@ -1,4 +1,7 @@
-import { CallMembership, SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import {
+  type CallMembership,
+  type SessionMembershipData,
+} from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { useState } from 'react';
 import { Avatar, Box, Icon, Icons, Text } from 'folds';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
@@ -12,11 +15,11 @@ import { UserAvatar } from '../../components/user-avatar';
 import { getMouseEventCords } from '../../utils/dom';
 import * as css from './styles.css';
 
-interface MemberWithMembershipData {
+type MemberWithMembershipData = {
   membershipData?: SessionMembershipData & {
     'm.call.intent': 'video' | 'audio';
   };
-}
+};
 
 type CallMemberCardProps = {
   member: CallMembership;

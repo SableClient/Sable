@@ -1,4 +1,4 @@
-import { MatrixClient, ReceiptType } from '$types/matrix-sdk';
+import { type MatrixClient, ReceiptType } from '$types/matrix-sdk';
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
   const room = mx.getRoom(roomId);

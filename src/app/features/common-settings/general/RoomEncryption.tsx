@@ -16,7 +16,7 @@ import {
   Text,
 } from 'folds';
 import { useCallback, useState } from 'react';
-import { MatrixError } from '$types/matrix-sdk';
+import { type MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
@@ -27,7 +27,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 

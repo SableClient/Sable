@@ -1,4 +1,4 @@
-import { FormEventHandler, MouseEventHandler, useCallback, useState } from 'react';
+import { type FormEventHandler, type MouseEventHandler, useCallback, useState } from 'react';
 import {
   Box,
   Button,
@@ -12,14 +12,14 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   config,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
-import { MatrixError } from '$types/matrix-sdk';
+import { type MatrixError } from '$types/matrix-sdk';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { EMAIL_REGEX } from '$utils/regex';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
@@ -32,7 +32,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
 import {
-  CustomLoginResponse,
+  type CustomLoginResponse,
   LoginError,
   factoryGetBaseUrl,
   login,

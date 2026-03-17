@@ -6,14 +6,14 @@ import {
   type IRoomEvent,
   type Widget,
   WidgetDriver,
-  WidgetKind,
+  type WidgetKind,
   type IWidgetApiErrorResponseDataDetails,
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
   OpenIDRequestState,
-  SimpleObservable,
-  IOpenIDUpdate,
+  type SimpleObservable,
+  type IOpenIDUpdate,
 } from 'matrix-widget-api';
 import {
   EventType,
@@ -24,8 +24,8 @@ import {
   type SendDelayedEventResponse,
   type StateEvents,
   type TimelineEvents,
-  MatrixClient,
-  Room,
+  type MatrixClient,
+  type Room,
 } from '$types/matrix-sdk';
 
 export type CapabilityApprovalCallback = (requested: Set<Capability>) => Promise<Set<Capability>>;

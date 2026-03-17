@@ -2,13 +2,13 @@ import { useCallback, useMemo } from 'react';
 import { color, Text } from 'folds';
 import {
   JoinRule,
-  MatrixError,
+  type MatrixError,
   RestrictedAllowType,
-  RoomJoinRulesEventContent,
+  type RoomJoinRulesEventContent,
 } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import {
-  ExtendedJoinRules,
+  type ExtendedJoinRules,
   JoinRulesSwitcher,
   useJoinRuleIcons,
   useRoomJoinRuleLabel,
@@ -27,7 +27,7 @@ import { useRecursiveChildSpaceScopeFactory, useSpaceChildren } from '$state/hoo
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { knockRestrictedSupported, knockSupported, restrictedSupported } from '$utils/matrix';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 type RestrictedRoomAllowContent = {
   room_id: string;

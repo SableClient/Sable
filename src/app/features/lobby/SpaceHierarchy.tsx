@@ -1,20 +1,20 @@
-import { forwardRef, MouseEventHandler, useEffect, useMemo } from 'react';
-import { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
+import { forwardRef, type MouseEventHandler, useEffect, useMemo } from 'react';
+import { MatrixError, type Room, type IHierarchyRoom } from '$types/matrix-sdk';
 import { Box, config, Text } from 'folds';
 import {
-  HierarchyItem,
-  HierarchyItemRoom,
-  HierarchyItemSpace,
+  type HierarchyItem,
+  type HierarchyItemRoom,
+  type HierarchyItemSpace,
   useFetchSpaceHierarchyLevel,
 } from '$hooks/useSpaceHierarchy';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import { type IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomType, StateEvent } from '$types/matrix/room';
 import { SequenceCard } from '$components/sequence-card';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { SpaceItemCard } from './SpaceItem';
-import { AfterItemDropTarget, CanDropCallback } from './DnD';
+import { AfterItemDropTarget, type CanDropCallback } from './DnD';
 import { HierarchyItemMenu } from './HierarchyItemMenu';
 import { RoomItemCard } from './RoomItem';
 

@@ -1,5 +1,5 @@
-import { MouseEvent } from 'react';
-import { Room } from '$types/matrix-sdk';
+import { type MouseEvent } from 'react';
+import { type Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Icon, Icons, Text } from 'folds';
 import { modalAtom, ModalType } from '$state/modal';

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useBindAtoms } from '$state/hooks/useBindAtoms';

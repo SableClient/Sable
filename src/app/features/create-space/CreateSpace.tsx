@@ -1,5 +1,5 @@
-import { FormEventHandler, useCallback, useEffect, useState } from 'react';
-import { MatrixError, Room } from '$types/matrix-sdk';
+import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { MatrixError, type Room } from '$types/matrix-sdk';
 import {
   Box,
   Button,
@@ -31,7 +31,7 @@ import {
   AdditionalCreatorInput,
   createRoom,
   CreateRoomAliasInput,
-  CreateRoomData,
+  type CreateRoomData,
   CreateRoomAccess,
   CreateRoomAccessSelector,
   RoomVersionSelector,

@@ -1,8 +1,8 @@
 import {
-  ChangeEventHandler,
-  FormEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type FormEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useEffect,
   useState,
 } from 'react';
@@ -19,7 +19,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Switch,
   Text,
@@ -31,11 +31,11 @@ import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import {
-  DateFormat,
+  type DateFormat,
   MessageLayout,
-  MessageSpacing,
+  type MessageSpacing,
   RightSwipeAction,
-  CaptionPosition,
+  type CaptionPosition,
   settingsAtom,
 } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
@@ -51,6 +51,12 @@ import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
+import {
+  getSentryEnabled,
+  getSentryReplayEnabled,
+  setSentryEnabled as persistSentryEnabled,
+  setSentryReplayEnabled as persistSentryReplayEnabled,
+} from '$state/sentryStorage';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -1080,33 +1086,21 @@ type GeneralProps = {
 };
 
 function DiagnosticsAndPrivacy() {
-  const [sentryEnabled, setSentryEnabled] = useState(
-    localStorage.getItem('sable_sentry_enabled') === 'true'
-  );
-  const [sessionReplayEnabled, setSessionReplayEnabled] = useState(
-    localStorage.getItem('sable_sentry_replay_enabled') === 'true'
-  );
+  const [sentryEnabled, setSentryEnabledState] = useState(getSentryEnabled);
+  const [sessionReplayEnabled, setSessionReplayEnabledState] = useState(getSentryReplayEnabled);
   const [needsRefresh, setNeedsRefresh] = useState(false);
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
 
   const handleSentryToggle = (enabled: boolean) => {
-    setSentryEnabled(enabled);
-    if (enabled) {
-      localStorage.setItem('sable_sentry_enabled', 'true');
-    } else {
-      localStorage.setItem('sable_sentry_enabled', 'false');
-    }
+    setSentryEnabledState(enabled);
+    persistSentryEnabled(enabled);
     setNeedsRefresh(true);
   };
 
   const handleReplayToggle = (enabled: boolean) => {
-    setSessionReplayEnabled(enabled);
-    if (enabled) {
-      localStorage.setItem('sable_sentry_replay_enabled', 'true');
-    } else {
-      localStorage.removeItem('sable_sentry_replay_enabled');
-    }
+    setSessionReplayEnabledState(enabled);
+    persistSentryReplayEnabled(enabled);
     setNeedsRefresh(true);
   };
 

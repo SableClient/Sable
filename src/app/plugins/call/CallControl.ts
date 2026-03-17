@@ -1,7 +1,11 @@
-import { ClientWidgetApi } from 'matrix-widget-api';
+import { type ClientWidgetApi } from 'matrix-widget-api';
 import EventEmitter from 'eventemitter3';
 import { CallControlState } from './CallControlState';
-import { ElementMediaStateDetail, ElementMediaStatePayload, ElementWidgetActions } from './types';
+import {
+  type ElementMediaStateDetail,
+  type ElementMediaStatePayload,
+  ElementWidgetActions,
+} from './types';
 
 export enum CallControlEvent {
   StateUpdate = 'state_update',

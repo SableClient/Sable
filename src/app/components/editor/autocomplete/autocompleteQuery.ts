@@ -1,4 +1,4 @@
-import { BaseRange, Editor } from 'slate';
+import { type BaseRange, Editor } from 'slate';
 
 export enum AutocompletePrefix {
   RoomMention = '#',

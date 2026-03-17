@@ -1,4 +1,4 @@
-import { WritableAtom, atom } from 'jotai';
+import { type WritableAtom, atom } from 'jotai';
 import { produce } from 'immer';
 import {
   atomWithLocalStorage,

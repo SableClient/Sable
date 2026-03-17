@@ -10,14 +10,14 @@ import {
   Text,
   color,
 } from 'folds';
-import { ChangeEventHandler, useCallback, useMemo, useState } from 'react';
+import { type ChangeEventHandler, useCallback, useMemo, useState } from 'react';
 import {
-  AuthDict,
+  type AuthDict,
   AuthType,
-  IAuthData,
-  MatrixError,
-  RegisterRequest,
-  UIAFlow,
+  type IAuthData,
+  type MatrixError,
+  type RegisterRequest,
+  type UIAFlow,
   createClient,
 } from '$types/matrix-sdk';
 import { PasswordInput } from '$components/password-input';
@@ -28,7 +28,7 @@ import {
   requiredStageInFlows,
 } from '$utils/matrix-uia';
 import { useUIACompleted, useUIAFlow, useUIAParams } from '$hooks/useUIAFlows';
-import { AsyncState, AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { type AsyncState, AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import {
   AutoDummyStageDialog,
@@ -40,10 +40,10 @@ import {
 import { useRegisterEmail } from '$hooks/useRegisterEmail';
 import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
-import { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hooks/types';
+import { type RequestEmailTokenCallback, type RequestEmailTokenResponse } from '$hooks/types';
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
-import { RegisterError, RegisterResult, register, useRegisterComplete } from './registerUtil';
+import { RegisterError, type RegisterResult, register, useRegisterComplete } from './registerUtil';
 
 export const SUPPORTED_REGISTER_STAGES = [
   AuthType.RegistrationToken,

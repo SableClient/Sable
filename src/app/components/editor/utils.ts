@@ -1,12 +1,21 @@
-import { BasePoint, BaseRange, Editor, Element, Point, Range, Text, Transforms } from 'slate';
+import {
+  type BasePoint,
+  type BaseRange,
+  Editor,
+  Element,
+  Point,
+  Range,
+  Text,
+  Transforms,
+} from 'slate';
 import { BlockType, MarkType } from './types';
 import {
-  CommandElement,
-  EmoticonElement,
-  FormattedText,
-  HeadingLevel,
-  LinkElement,
-  MentionElement,
+  type CommandElement,
+  type EmoticonElement,
+  type FormattedText,
+  type HeadingLevel,
+  type LinkElement,
+  type MentionElement,
 } from './slate';
 
 const ALL_MARK_TYPE: MarkType[] = [
@@ -220,10 +229,10 @@ export const moveCursor = (editor: Editor, withSpace?: boolean) => {
   Transforms.collapse(editor, { edge: 'end' });
 };
 
-interface PointUntilCharOptions {
+type PointUntilCharOptions = {
   match: (char: string) => boolean;
   reverse?: boolean;
-}
+};
 export const getPointUntilChar = (
   editor: Editor,
   cursorPoint: BasePoint,

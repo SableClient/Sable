@@ -111,8 +111,11 @@ const projectOverrides = defineConfig([
     name: 'project/typescript-rule-overrides',
     files: tsFiles,
     rules: {
-      // disabled for now to get eslint to pass
-      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
       '@typescript-eslint/no-unsafe-enum-comparison': 'off',
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/array-type': 'off',
@@ -129,6 +132,27 @@ const projectOverrides = defineConfig([
       ],
       '@typescript-eslint/no-shadow': 'error',
       'no-undef': 'off',
+    },
+  },
+  {
+    name: 'project/no-direct-localstorage-in-ui',
+    files: ['src/app/components/**/*.{ts,tsx}', 'src/app/features/**/*.{ts,tsx}'],
+    ignores: ['src/app/components/**/*.test.{ts,tsx}', 'src/app/features/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'localStorage',
+          message:
+            'Direct localStorage access is not allowed in components or features. Use an atom (atomWithLocalStorage) or a storage utility from src/app/state/ instead.',
+        },
+        {
+          object: 'window',
+          property: 'localStorage',
+          message:
+            'Direct localStorage access is not allowed in components or features. Use an atom (atomWithLocalStorage) or a storage utility from src/app/state/ instead.',
+        },
+      ],
     },
   },
 ]);

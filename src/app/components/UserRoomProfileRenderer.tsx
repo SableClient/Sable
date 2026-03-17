@@ -1,7 +1,7 @@
 import { Menu, PopOut, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useCloseUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
-import { UserRoomProfileState } from '$state/userRoomProfile';
+import { type UserRoomProfileState } from '$state/userRoomProfile';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { stopPropagation } from '$utils/keyboard';
 import { SpaceProvider } from '$hooks/useSpace';

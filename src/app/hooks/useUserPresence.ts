@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, UserEvent, UserEventHandlerMap } from '$types/matrix-sdk';
+import { type User, UserEvent, type UserEventHandlerMap } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export enum Presence {

@@ -1,4 +1,9 @@
-import { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler, useState } from 'react';
+import {
+  type ChangeEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
+  useState,
+} from 'react';
 import {
   as,
   Box,
@@ -11,7 +16,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Switch,
   Text,
   toRem,
@@ -25,7 +30,7 @@ import { SettingTile } from '$components/setting-tile';
 import {
   DarkTheme,
   LightTheme,
-  Theme,
+  type Theme,
   ThemeKind,
   useSystemThemeKind,
   useThemeNames,

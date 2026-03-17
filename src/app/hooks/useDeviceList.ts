@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useMemo } from 'react';
-import { IMyDevice, CryptoEvent, CryptoEventHandlerMap } from '$types/matrix-sdk';
+import { type IMyDevice, CryptoEvent, type CryptoEventHandlerMap } from '$types/matrix-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useMatrixClient } from './useMatrixClient';
 

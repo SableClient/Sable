@@ -6,18 +6,18 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
+  type IconSrc,
   Line,
   Menu,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Text,
   Tooltip,
   TooltipProvider,
   toRem,
 } from 'folds';
-import { MouseEventHandler, ReactNode, useState } from 'react';
+import { type MouseEventHandler, type ReactNode, useState } from 'react';
 import { ReactEditor, useSlate } from 'slate-react';
 import { isMacOS } from '$utils/user-agent';
 import { KeySymbol } from '$utils/key-symbol';
@@ -25,7 +25,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 import { floatingToolbar } from '$styles/overrides/Composer.css';
-import { HeadingLevel } from './slate';
+import { type HeadingLevel } from './slate';
 import { BlockType, MarkType } from './types';
 import * as css from './Editor.css';
 import {

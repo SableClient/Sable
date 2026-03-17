@@ -1,4 +1,4 @@
-import { ReactNode, RefObject, useCallback, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useCallback, useRef, useState } from 'react';
 import { useDebounce } from '$hooks/useDebounce';
 
 type ConfirmPasswordMatchProps = {

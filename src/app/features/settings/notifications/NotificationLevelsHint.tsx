@@ -1,5 +1,16 @@
-import { MouseEventHandler, useState } from 'react';
-import { Box, config, Header, Icon, IconButton, Icons, Menu, PopOut, RectCords, Text } from 'folds';
+import { type MouseEventHandler, useState } from 'react';
+import {
+  Box,
+  config,
+  Header,
+  Icon,
+  IconButton,
+  Icons,
+  Menu,
+  PopOut,
+  type RectCords,
+  Text,
+} from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 

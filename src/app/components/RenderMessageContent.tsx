@@ -3,8 +3,8 @@ import { MsgType } from '$types/matrix-sdk';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts } from 'linkifyjs';
+import { type HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts } from 'linkifyjs';
 import { Box, config } from 'folds';
 import {
   AudioContent,

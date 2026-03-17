@@ -19,7 +19,12 @@ import {
 } from 'folds';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
+import {
+  type RoomTopicEventContent,
+  type MatrixClient,
+  type MatrixError,
+  type Room,
+} from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import {
   Page,

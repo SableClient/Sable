@@ -1,10 +1,15 @@
 import to from 'await-to-js';
-import { createClient, LoginRequest, LoginResponse, MatrixError } from '$types/matrix-sdk';
+import {
+  createClient,
+  type LoginRequest,
+  type LoginResponse,
+  MatrixError,
+} from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { clientAllowedServer, ClientConfig } from '$hooks/useClientConfig';
+import { clientAllowedServer, type ClientConfig } from '$hooks/useClientConfig';
 import {
   deleteAfterLoginRedirectPath,
   getAfterLoginRedirectPath,

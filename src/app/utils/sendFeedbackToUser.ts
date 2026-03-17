@@ -1,4 +1,4 @@
-import { MatrixEvent, Room } from 'matrix-js-sdk';
+import { MatrixEvent, type Room } from 'matrix-js-sdk';
 
 export function sendFeedback(msg: string, room: Room, userId: string) {
   const localNotice = new MatrixEvent({

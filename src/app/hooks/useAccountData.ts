@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AccountDataEvents } from '$types/matrix-sdk';
+import { type AccountDataEvents } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 

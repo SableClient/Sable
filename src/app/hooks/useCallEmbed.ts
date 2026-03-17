@@ -1,11 +1,11 @@
-import { createContext, RefObject, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, type RefObject, useCallback, useContext, useEffect, useState } from 'react';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { MatrixClient, Room } from 'matrix-js-sdk';
+import { type MatrixClient, type Room } from 'matrix-js-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import {
   CallEmbed,
-  ElementCallThemeKind,
+  type ElementCallThemeKind,
   ElementWidgetActions,
   useClientWidgetApiEvent,
 } from '../plugins/call';
@@ -15,7 +15,7 @@ import { callEmbedAtom } from '../state/callEmbed';
 import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
 import { useCallMembersChange, useCallSession } from './useCall';
-import { CallPreferences } from '../state/callPreferences';
+import { type CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('useCallEmbed');

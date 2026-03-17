@@ -1,4 +1,4 @@
-import { ClientEvent, ClientEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import { ClientEvent, type ClientEventHandlerMap, type MatrixClient } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 
 export const useSyncState = (

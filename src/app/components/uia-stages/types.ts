@@ -1,5 +1,5 @@
-import { AuthDict } from '$types/matrix-sdk';
-import { AuthStageData } from '$hooks/useUIAFlows';
+import { type AuthDict } from '$types/matrix-sdk';
+import { type AuthStageData } from '$hooks/useUIAFlows';
 
 export type StageComponentProps = {
   stageData: AuthStageData;

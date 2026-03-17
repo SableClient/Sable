@@ -1,6 +1,6 @@
 import { Cursor } from '$plugins/text-area/Cursor';
-import { Operations } from '$plugins/text-area/Operations';
-import { TextArea } from '$plugins/text-area/TextArea';
+import { type Operations } from '$plugins/text-area/Operations';
+import { type TextArea } from '$plugins/text-area/TextArea';
 
 export class Intent {
   public readonly textArea: TextArea;

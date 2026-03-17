@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Header, Menu, Scroll, config } from 'folds';
 

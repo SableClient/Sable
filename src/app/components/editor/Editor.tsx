@@ -1,28 +1,28 @@
 /* eslint-disable no-param-reassign */
 import {
-  ClipboardEventHandler,
-  KeyboardEventHandler,
-  ReactNode,
+  type ClipboardEventHandler,
+  type KeyboardEventHandler,
+  type ReactNode,
   forwardRef,
   useCallback,
   useState,
 } from 'react';
 import { Box, Scroll, Text } from 'folds';
-import { Descendant, Editor, createEditor } from 'slate';
+import { type Descendant, type Editor, createEditor } from 'slate';
 import {
   Slate,
   Editable,
   withReact,
-  RenderLeafProps,
-  RenderElementProps,
-  RenderPlaceholderProps,
+  type RenderLeafProps,
+  type RenderElementProps,
+  type RenderPlaceholderProps,
   ReactEditor,
 } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
-import { CustomElement } from './slate';
+import { type CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
 

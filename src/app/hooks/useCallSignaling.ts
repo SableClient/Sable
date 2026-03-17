@@ -14,10 +14,10 @@ const debugLog = createDebugLogger('CallSignaling');
 
 type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
 
-interface SignalState {
+type SignalState = {
   incoming: string | null;
   outgoing: string | null;
-}
+};
 
 export function useCallSignaling() {
   const mx = useMatrixClient();

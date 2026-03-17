@@ -1,6 +1,6 @@
 import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
-import { EventTimelineSet, Room } from '$types/matrix-sdk';
-import { MouseEventHandler, ReactNode, useCallback, useMemo } from 'react';
+import { type EventTimelineSet, type Room } from '$types/matrix-sdk';
+import { type MouseEventHandler, type ReactNode, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
 import parse from 'html-react-parser';

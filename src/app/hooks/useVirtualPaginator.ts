@@ -5,7 +5,7 @@ import {
   isInScrollView,
   isIntersectingScrollView,
 } from '$utils/dom';
-import { OnIntersectionCallback, useIntersectionObserver } from './useIntersectionObserver';
+import { type OnIntersectionCallback, useIntersectionObserver } from './useIntersectionObserver';
 
 const PAGINATOR_ANCHOR_ATTR = 'data-paginator-anchor';
 

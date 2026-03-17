@@ -1,5 +1,6 @@
-import { VideoHTMLAttributes, forwardRef, useEffect, useRef } from 'react';
+import { type VideoHTMLAttributes, forwardRef, useEffect, useRef } from 'react';
 import classNames from 'classnames';
+import { getMediaVolume, setMediaVolume } from '$state/mediaVolume';
 import * as css from './media.css';
 
 export const Video = forwardRef<HTMLVideoElement, VideoHTMLAttributes<HTMLVideoElement>>(
@@ -9,8 +10,6 @@ export const Video = forwardRef<HTMLVideoElement, VideoHTMLAttributes<HTMLVideoE
   )
 );
 
-export const MEDIA_VOLUME_KEY = 'mediaVolume';
-
 export function PersistedVolumeVideo({
   onVolumeChange,
   ...props
@@ -18,11 +17,8 @@ export function PersistedVolumeVideo({
   const innerRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(MEDIA_VOLUME_KEY);
-    if (innerRef.current && stored !== null) {
-      const parsed = parseFloat(stored);
-      if (!Number.isNaN(parsed)) innerRef.current.volume = parsed;
-    }
+    const volume = getMediaVolume();
+    if (innerRef.current && volume !== undefined) innerRef.current.volume = volume;
   }, []);
 
   return (
@@ -30,7 +26,7 @@ export function PersistedVolumeVideo({
       {...props}
       ref={innerRef}
       onVolumeChange={(e) => {
-        localStorage.setItem(MEDIA_VOLUME_KEY, String((e.target as HTMLVideoElement).volume));
+        setMediaVolume((e.target as HTMLVideoElement).volume);
         onVolumeChange?.(e);
       }}
     />

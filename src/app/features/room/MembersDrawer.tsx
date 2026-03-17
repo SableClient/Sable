@@ -1,6 +1,6 @@
 import {
-  ChangeEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type MouseEventHandler,
   useCallback,
   useMemo,
   useRef,
@@ -18,7 +18,7 @@ import {
   Input,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Spinner,
   Text,
@@ -27,7 +27,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
+import { type MatrixClient, type Room, type RoomMember } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
 
@@ -35,7 +35,11 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { SearchItemStrGetter, UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import {
+  type SearchItemStrGetter,
+  type UseAsyncSearchOptions,
+  useAsyncSearch,
+} from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';

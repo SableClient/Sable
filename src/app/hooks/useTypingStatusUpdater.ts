@@ -1,4 +1,4 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { useMemo, useRef } from 'react';
 import { TYPING_TIMEOUT_MS } from '$state/typingMembers';
 

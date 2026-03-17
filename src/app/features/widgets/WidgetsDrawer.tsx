@@ -1,4 +1,4 @@
-import { FormEventHandler, MouseEventHandler, useState } from 'react';
+import { type FormEventHandler, type MouseEventHandler, useState } from 'react';
 import {
   Box,
   Header,
@@ -15,10 +15,10 @@ import {
   Button,
   Line,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useRoomWidgets, RoomWidget, enrichWidgetUrl } from '$hooks/useRoomWidgets';
+import { useRoomWidgets, type RoomWidget, enrichWidgetUrl } from '$hooks/useRoomWidgets';
 import { useSetSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';

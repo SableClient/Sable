@@ -1,6 +1,6 @@
 import {
-  ChangeEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type MouseEventHandler,
   useCallback,
   useEffect,
   useRef,
@@ -23,7 +23,7 @@ import {
   Button,
   Input,
   Badge,
-  RectCords,
+  type RectCords,
 } from 'folds';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -31,8 +31,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { SearchItemStrGetter, UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
-import { DebounceOptions, useDebounce } from '$hooks/useDebounce';
+import {
+  type SearchItemStrGetter,
+  type UseAsyncSearchOptions,
+  useAsyncSearch,
+} from '$hooks/useAsyncSearch';
+import { type DebounceOptions, useDebounce } from '$hooks/useDebounce';
 import { VirtualTile } from '$components/virtualizer';
 import { stopPropagation } from '$utils/keyboard';
 

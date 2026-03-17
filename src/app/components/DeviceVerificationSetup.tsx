@@ -1,4 +1,4 @@
-import { FormEventHandler, forwardRef, useCallback, useState } from 'react';
+import { type FormEventHandler, forwardRef, useCallback, useState } from 'react';
 import {
   Dialog,
   Header,
@@ -15,7 +15,7 @@ import {
 } from 'folds';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
-import { AuthDict, IAuthData, MatrixError, UIAuthCallback } from '$types/matrix-sdk';
+import { type AuthDict, type IAuthData, MatrixError, type UIAuthCallback } from '$types/matrix-sdk';
 import { clearSecretStorageKeys } from '$client/secretStorageKeys';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { copyToClipboard } from '$utils/dom';

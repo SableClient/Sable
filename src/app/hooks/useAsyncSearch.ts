@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  MatchHandler,
+  type MatchHandler,
   AsyncSearch,
-  AsyncSearchHandler,
-  AsyncSearchOption,
-  MatchQueryOption,
-  NormalizeOption,
+  type AsyncSearchHandler,
+  type AsyncSearchOption,
+  type MatchQueryOption,
+  type NormalizeOption,
   normalize,
   matchQuery,
-  ResultHandler,
+  type ResultHandler,
 } from '$utils/AsyncSearch';
 import { sanitizeForRegex } from '$utils/regex';
 

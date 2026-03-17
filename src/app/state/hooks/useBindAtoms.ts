@@ -1,4 +1,4 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { allInvitesAtom, useBindAllInvitesAtom } from '$state/room-list/inviteList';
 import { allRoomsAtom, useBindAllRoomsAtom } from '$state/room-list/roomList';
 import { mDirectAtom, useBindMDirectAtom } from '$state/mDirectList';

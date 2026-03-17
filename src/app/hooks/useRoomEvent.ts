@@ -1,10 +1,10 @@
 import {
-  IEvent,
+  type IEvent,
   MatrixEvent,
   MatrixEventEvent,
-  Room,
+  type Room,
   RoomEvent,
-  CryptoBackend,
+  type CryptoBackend,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import to from 'await-to-js';

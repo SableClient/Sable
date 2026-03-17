@@ -1,7 +1,7 @@
 import { atom, useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import { useMemo } from 'react';
-import { Settings, settingsAtom as sAtom } from '$state/settings';
+import { type Settings, type settingsAtom as sAtom } from '$state/settings';
 
 export type SettingSetter<K extends keyof Settings> =
   | Settings[K]

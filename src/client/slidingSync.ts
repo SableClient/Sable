@@ -1,12 +1,12 @@
 /* eslint-disable max-classes-per-file */
 import {
   ClientEvent,
-  Extension,
+  type Extension,
   ExtensionState,
-  MatrixClient,
-  MSC3575List,
-  MSC3575RoomData,
-  MSC3575RoomSubscription,
+  type MatrixClient,
+  type MSC3575List,
+  type MSC3575RoomData,
+  type MSC3575RoomSubscription,
   MSC3575_WILDCARD,
   SlidingSync,
   SlidingSyncEvent,

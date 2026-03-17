@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 
 export const NICKNAMES_KEY = 'sableNicknames';

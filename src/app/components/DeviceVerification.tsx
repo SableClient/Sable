@@ -1,11 +1,11 @@
 import {
-  ShowSasCallbacks,
+  type ShowSasCallbacks,
   VerificationPhase,
-  VerificationRequest,
-  Verifier,
+  type VerificationRequest,
+  type Verifier,
   VerificationMethod,
 } from '$types/matrix-sdk';
-import { CSSProperties, useCallback, useEffect, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,

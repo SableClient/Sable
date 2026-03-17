@@ -1,7 +1,7 @@
 import { Modal500 } from '$components/Modal500';
 import { useCloseRoomSettings, useRoomSettingsState } from '$state/hooks/roomSettings';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
-import { RoomSettingsState } from '$state/roomSettings';
+import { type RoomSettingsState } from '$state/roomSettings';
 import { RoomProvider } from '$hooks/useRoom';
 import { SpaceProvider } from '$hooks/useSpace';
 import { RoomSettings } from './RoomSettings';

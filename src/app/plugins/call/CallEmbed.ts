@@ -1,28 +1,28 @@
 import {
   ClientEvent,
   KnownMembership,
-  MatrixClient,
-  MatrixEvent,
+  type MatrixClient,
+  type MatrixEvent,
   MatrixEventEvent,
-  Room,
+  type Room,
   RoomStateEvent,
 } from 'matrix-js-sdk';
 import {
   ClientWidgetApi,
   type IWidgetApiRequest,
-  IRoomEvent,
-  IWidget,
+  type IRoomEvent,
+  type IWidget,
   Widget,
   WidgetApiFromWidgetAction,
   WidgetApiToWidgetAction,
-  WidgetDriver,
+  type WidgetDriver,
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
 import {
   ElementCallIntent,
-  ElementCallThemeKind,
-  ElementMediaStateDetail,
+  type ElementCallThemeKind,
+  type ElementMediaStateDetail,
   ElementWidgetActions,
 } from './types';
 import { CallControl } from './CallControl';

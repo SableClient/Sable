@@ -15,6 +15,7 @@ import {
   matchRoutes,
 } from 'react-router-dom';
 import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './app/utils/sentryScrubbers';
+import { getSentryEnabled, getSentryReplayEnabled } from './app/state/sentryStorage';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
@@ -25,8 +26,8 @@ let sessionErrorCount = 0;
 const SESSION_ERROR_LIMIT = 50;
 
 // Default off: Sentry only runs when the user has opted in via the banner or Settings.
-const sentryEnabled = localStorage.getItem('sable_sentry_enabled') === 'true';
-const replayEnabled = localStorage.getItem('sable_sentry_replay_enabled') === 'true';
+const sentryEnabled = getSentryEnabled();
+const replayEnabled = getSentryReplayEnabled();
 
 // Only initialize if DSN is provided and user hasn't opted out
 if (dsn && sentryEnabled) {

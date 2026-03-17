@@ -10,8 +10,8 @@ import {
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
   OpenIDRequestState,
-  SimpleObservable,
-  IOpenIDUpdate,
+  type SimpleObservable,
+  type IOpenIDUpdate,
 } from 'matrix-widget-api';
 import {
   EventType,
@@ -22,7 +22,7 @@ import {
   type SendDelayedEventResponse,
   type StateEvents,
   type TimelineEvents,
-  MatrixClient,
+  type MatrixClient,
 } from 'matrix-js-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';

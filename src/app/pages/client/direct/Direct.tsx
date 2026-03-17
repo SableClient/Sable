@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   Avatar,
@@ -10,7 +10,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   config,
   toRem,

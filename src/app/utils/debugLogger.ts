@@ -20,14 +20,14 @@ export type LogCategory =
   | 'error'
   | 'general';
 
-export interface LogEntry {
+export type LogEntry = {
   timestamp: number;
   level: LogLevel;
   category: LogCategory;
   namespace: string;
   message: string;
   data?: unknown;
-}
+};
 
 type LogListener = (entry: LogEntry) => void;
 

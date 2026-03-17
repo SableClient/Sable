@@ -1,25 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { ClientWidgetApi, IWidget, IRoomEvent, Widget, WidgetKind } from 'matrix-widget-api';
+import {
+  ClientWidgetApi,
+  type IWidget,
+  type IRoomEvent,
+  Widget,
+  WidgetKind,
+} from 'matrix-widget-api';
 import {
   ClientEvent,
   Direction,
-  IEvent,
-  MatrixClient,
-  MatrixEvent,
+  type IEvent,
+  type MatrixClient,
+  type MatrixEvent,
   MatrixEventEvent,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { resolveWidgetUrl } from '$hooks/useRoomWidgets';
-import { GenericWidgetDriver, CapabilityApprovalCallback } from './GenericWidgetDriver';
+import { GenericWidgetDriver, type CapabilityApprovalCallback } from './GenericWidgetDriver';
 
 const log = createLogger('WidgetIframe');
 
-interface WidgetIframeProps {
+type WidgetIframeProps = {
   widget: IWidget;
   roomId: string;
   mx: MatrixClient;
   onCapabilityRequest?: CapabilityApprovalCallback;
-}
+};
 
 export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: WidgetIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);

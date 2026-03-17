@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { StateEvent } from '$types/matrix/room';
-import { PermissionGroup } from '$features/common-settings/permissions';
+import { type PermissionGroup } from '$features/common-settings/permissions';
 
 export const usePermissionGroups = (): PermissionGroup[] => {
   const groups: PermissionGroup[] = useMemo(() => {

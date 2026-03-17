@@ -1,4 +1,4 @@
-import { MatchResult, MatchRule } from '$plugins/markdown/internal';
+import { type MatchResult, type MatchRule } from '$plugins/markdown/internal';
 
 /**
  * Type for a function that parses block-level markdown into HTML.

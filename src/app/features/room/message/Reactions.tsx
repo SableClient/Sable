@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useState } from 'react';
+import { type MouseEventHandler, useCallback, useState } from 'react';
 import {
   Box,
   Modal,
@@ -12,8 +12,7 @@ import {
   toRem,
 } from 'folds';
 import classNames from 'classnames';
-import { Room } from '$types/matrix-sdk';
-import { type Relations } from '$types/matrix-sdk';
+import { type Room, type Relations } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryEventSentBy } from '$utils/matrix';

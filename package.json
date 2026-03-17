@@ -24,7 +24,12 @@
     "knip": "knip",
     "knope": "knope",
     "document-change": "knope document-change",
-    "postinstall": "node scripts/install-knope.js"
+    "postinstall": "node scripts/install-knope.js",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
+    "*.{css,json,md,yaml,yml}": ["prettier --write"]
   },
   "keywords": [],
   "author": "7w1",
@@ -34,8 +39,8 @@
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^1.4.0",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@fontsource-variable/nunito": "5.2.7",
-    "@sentry/react": "^10.43.0",
     "@fontsource/space-mono": "5.2.9",
+    "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tanstack/react-virtual": "^3.13.19",
@@ -94,12 +99,12 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
-    "@sableclient/sable-call-embedded": "v1.1.3",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@eslint/compat": "2.0.2",
     "@eslint/js": "9.39.3",
     "@rollup/plugin-inject": "^5.0.5",
     "@rollup/plugin-wasm": "^6.2.2",
+    "@sableclient/sable-call-embedded": "v1.1.3",
     "@sentry/vite-plugin": "^5.1.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -123,8 +128,10 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.5",
     "globals": "17.3.0",
+    "husky": "^9.1.7",
     "jsdom": "^29.0.0",
     "knip": "5.85.0",
+    "lint-staged": "^16.4.0",
     "prettier": "3.8.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",

@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useRef, useState } from 'react';
+import { type FormEventHandler, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import {

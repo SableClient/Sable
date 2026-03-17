@@ -1,4 +1,4 @@
-import { FormEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import { type FormEventHandler, type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Text,
@@ -15,7 +15,7 @@ import {
   OverlayBackdrop,
   OverlayCenter,
 } from 'folds';
-import { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
+import { type CryptoApi, type IMyDevice, type MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';

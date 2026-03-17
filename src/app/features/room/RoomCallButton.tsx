@@ -1,14 +1,14 @@
 import { IconButton, Icon, Icons, TooltipProvider, Tooltip, Text } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
 
-interface RoomCallButtonProps {
+type RoomCallButtonProps = {
   room: Room;
-}
+};
 
 export function RoomCallButton({ room }: RoomCallButtonProps) {
   const startCall = useCallStart();

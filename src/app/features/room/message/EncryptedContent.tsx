@@ -1,5 +1,5 @@
-import { MatrixEvent, MatrixEventEvent, MatrixEventHandlerMap } from '$types/matrix-sdk';
-import { ReactNode, useEffect, useState } from 'react';
+import { type MatrixEvent, MatrixEventEvent, type MatrixEventHandlerMap } from '$types/matrix-sdk';
+import { type ReactNode, useEffect, useState } from 'react';
 import { MessageEvent } from '$types/matrix/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import * as Sentry from '@sentry/react';

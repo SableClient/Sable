@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -9,7 +9,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   Tooltip,
   TooltipProvider,
@@ -25,7 +25,7 @@ import { useSpace } from '$hooks/useSpace';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import { type IPowerLevels } from '$hooks/usePowerLevels';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
 import { stopPropagation } from '$utils/keyboard';

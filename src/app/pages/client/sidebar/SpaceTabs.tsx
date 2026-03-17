@@ -1,7 +1,7 @@
 import {
-  MouseEventHandler,
-  ReactNode,
-  RefObject,
+  type MouseEventHandler,
+  type ReactNode,
+  type RefObject,
   forwardRef,
   useCallback,
   useEffect,
@@ -19,13 +19,13 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   config,
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import {
   draggable,
   dropTargetForElements,
@@ -34,7 +34,7 @@ import {
 import {
   attachInstruction,
   extractInstruction,
-  Instruction,
+  type Instruction,
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -65,9 +65,9 @@ import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
 import {
-  ISidebarFolder,
-  SidebarItems,
-  TSidebarItem,
+  type ISidebarFolder,
+  type SidebarItems,
+  type TSidebarItem,
   makeCinnySpacesContent,
   parseSidebar,
   sidebarItemWithout,

@@ -1,12 +1,12 @@
-import { ReactNode, useCallback, useEffect, useMemo } from 'react';
-import { MatrixError, createClient } from '$types/matrix-sdk';
+import { type ReactNode, useCallback, useEffect, useMemo } from 'react';
+import { type MatrixError, createClient } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { promiseFulfilledResult, promiseRejectedResult } from '$utils/common';
 import {
-  AuthFlows,
+  type AuthFlows,
   RegisterFlowStatus,
-  RegisterFlowsResponse,
+  type RegisterFlowsResponse,
   parseRegisterErrResp,
 } from '$hooks/useAuthFlows';
 

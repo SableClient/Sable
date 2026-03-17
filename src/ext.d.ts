@@ -5,7 +5,7 @@ declare const BUILD_HASH: string;
 declare const IS_RELEASE_TAG: boolean;
 
 declare module 'browser-encrypt-attachment' {
-  export interface EncryptedAttachmentInfo {
+  export type EncryptedAttachmentInfo = {
     v: string;
     key: {
       alg: string;
@@ -16,12 +16,12 @@ declare module 'browser-encrypt-attachment' {
     };
     iv: string;
     hashes: Record<string, string>;
-  }
+  };
 
-  export interface EncryptedAttachment {
+  export type EncryptedAttachment = {
     data: ArrayBuffer;
     info: EncryptedAttachmentInfo;
-  }
+  };
 
   export function encryptAttachment(dataBuffer: ArrayBuffer): Promise<EncryptedAttachment>;
 

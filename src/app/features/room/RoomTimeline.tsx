@@ -1,11 +1,11 @@
 /* eslint-disable react/destructuring-assignment */
 import {
   Fragment,
-  Dispatch,
-  MouseEventHandler,
-  ReactNode,
-  RefObject,
-  SetStateAction,
+  type Dispatch,
+  type MouseEventHandler,
+  type ReactNode,
+  type RefObject,
+  type SetStateAction,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -15,26 +15,26 @@ import {
 } from 'react';
 import {
   Direction,
-  EventTimeline,
-  EventTimelineSet,
-  EventTimelineSetHandlerMap,
+  type EventTimeline,
+  type EventTimelineSet,
+  type EventTimelineSetHandlerMap,
   EventStatus,
-  IContent,
-  IRoomTimelineData,
-  MatrixClient,
-  MatrixEvent,
+  type IContent,
+  type IRoomTimelineData,
+  type MatrixClient,
+  type MatrixEvent,
   PushProcessor,
   RelationType,
-  Room,
+  type Room,
   RoomEvent,
-  RoomEventHandlerMap,
+  type RoomEventHandlerMap,
   ThreadEvent,
 } from '$types/matrix-sdk';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import { type HTMLReactParserOptions } from 'html-react-parser';
 import classNames from 'classnames';
 import { ReactEditor } from 'slate-react';
-import { Editor } from 'slate';
-import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import { type Editor } from 'slate';
+import { type SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -46,7 +46,7 @@ import {
   Chip,
   color,
   config,
-  ContainerColor,
+  type ContainerColor,
   Icon,
   Icons,
   Line,
@@ -56,11 +56,11 @@ import {
   toRem,
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { useTranslation } from 'react-i18next';
 import { getMxIdLocalPart, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { ItemRange, useVirtualPaginator } from '$hooks/useVirtualPaginator';
+import { type ItemRange, useVirtualPaginator } from '$hooks/useVirtualPaginator';
 import { useAlive } from '$hooks/useAlive';
 import { editableActiveElement, scrollToBottom } from '$utils/dom';
 import {
@@ -114,7 +114,7 @@ import { createMentionElement, isEmptyEditor, moveCursor } from '$components/edi
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import { type GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
 import { RenderMessageContent } from '$components/RenderMessageContent';
@@ -139,7 +139,7 @@ import { profilesCacheAtom } from '$state/userRoomProfile';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as css from './RoomTimeline.css';
-import { EncryptedContent, Event, ForwardedMessageProps, Message, Reactions } from './message';
+import { EncryptedContent, Event, type ForwardedMessageProps, Message, Reactions } from './message';
 
 const debugLog = createDebugLogger('RoomTimeline');
 

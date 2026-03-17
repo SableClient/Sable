@@ -1,5 +1,11 @@
-import { ChangeEventHandler, FormEventHandler, useCallback, useMemo, useState } from 'react';
-import { IPushRule, IPushRules, PushRuleKind } from '$types/matrix-sdk';
+import {
+  type ChangeEventHandler,
+  type FormEventHandler,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
+import { type IPushRule, type IPushRules, PushRuleKind } from '$types/matrix-sdk';
 import { Box, Text, Badge, Button, Input, config, IconButton, Icons, Icon, Spinner } from 'folds';
 import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
@@ -9,7 +15,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   getNotificationModeActions,
   NotificationMode,
-  NotificationModeOptions,
+  type NotificationModeOptions,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useCallback, useMemo, useRef, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useCallback, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   Avatar,
@@ -11,7 +11,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   color,
@@ -21,7 +21,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import { JoinRule, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import { JoinRule, type Room, type RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';

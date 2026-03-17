@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { Box, Button, config, Menu, Spinner, Text } from 'folds';
-import { AuthDict, IMyDevice, MatrixError } from '$types/matrix-sdk';
+import { type AuthDict, type IMyDevice, type MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { ActionUIA, ActionUIAFlowsLoader } from '$components/ActionUIA';
-import { AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
+import { type AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUIAMatrixError } from '$hooks/useUIAFlows';
 import { DeviceVerificationStatus } from '$components/DeviceVerificationStatus';

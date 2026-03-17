@@ -1,5 +1,5 @@
 import { Box, color, Spinner, Switch, Text } from 'folds';
-import { JoinRule, MatrixError, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import { JoinRule, type MatrixError, type RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
@@ -9,8 +9,8 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { StateEvent } from '$types/matrix/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type ExtendedJoinRules } from '$components/JoinRulesSwitcher';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 type RoomPublishProps = {
   permissions: RoomPermissionsAPI;

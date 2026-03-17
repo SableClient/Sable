@@ -1,7 +1,7 @@
 import {
-  ChangeEventHandler,
-  FormEventHandler,
-  KeyboardEventHandler,
+  type ChangeEventHandler,
+  type FormEventHandler,
+  type KeyboardEventHandler,
   useCallback,
   useMemo,
   useRef,
@@ -29,14 +29,14 @@ import {
   Scroll,
   MenuItem,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { Membership } from '$types/matrix/room';
-import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch, type UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';

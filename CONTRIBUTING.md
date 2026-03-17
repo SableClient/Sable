@@ -47,6 +47,8 @@ Also, we use [ESLint](https://eslint.org/) for clean and stylistically consisten
 
 If your change touches logic with testable behaviour, please include tests. See [docs/TESTING.md](./docs/TESTING.md) for a guide on how to write them.
 
+For conventions on code style, naming, and project patterns, see [docs/CODE_QUALITY.md](./docs/CODE_QUALITY.md).
+
 ## Restrictions on Generative AI Usage
 
 We expect and appreciate authentic engagement in our community.

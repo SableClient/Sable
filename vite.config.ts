@@ -17,6 +17,7 @@ import path from 'path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
+import tsconfigPaths from 'vite-tsconfig-paths';
 import buildConfig from './build.config';
 
 const packageJson = JSON.parse(
@@ -132,21 +133,6 @@ export default defineConfig(({ command }) => ({
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
     IS_RELEASE_TAG: JSON.stringify(isReleaseTag),
   },
-  resolve: {
-    alias: {
-      $hooks: path.resolve(__dirname, 'src/app/hooks'),
-      $plugins: path.resolve(__dirname, 'src/app/plugins'),
-      $components: path.resolve(__dirname, 'src/app/components'),
-      $features: path.resolve(__dirname, 'src/app/features'),
-      $state: path.resolve(__dirname, 'src/app/state'),
-      $styles: path.resolve(__dirname, 'src/app/styles'),
-      $utils: path.resolve(__dirname, 'src/app/utils'),
-      $pages: path.resolve(__dirname, 'src/app/pages'),
-      $types: path.resolve(__dirname, 'src/types'),
-      $public: path.resolve(__dirname, 'public'),
-      $client: path.resolve(__dirname, 'src/client'),
-    },
-  },
   server: {
     port: 8080,
     host: true,
@@ -157,6 +143,7 @@ export default defineConfig(({ command }) => ({
     },
   },
   plugins: [
+    tsconfigPaths(),
     serverMatrixSdkCryptoWasm(),
     topLevelAwait({
       // The export name of top-level await promise for each chunk module

@@ -28,8 +28,13 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
-    "*.{css,json,md,yaml,yml}": ["prettier --write"]
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,json,md,yaml,yml}": [
+      "prettier --write"
+    ]
   },
   "keywords": [],
   "author": "7w1",
@@ -140,6 +145,7 @@
     "vite-plugin-static-copy": "^3.2.0",
     "vite-plugin-svgr": "4.5.0",
     "vite-plugin-top-level-await": "^1.6.0",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.0",
     "wrangler": "^4.70.0"
   }

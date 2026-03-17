@@ -150,13 +150,34 @@ jobs:
             printf 'files<<EOF\n%b\nEOF\n' "$missing" >> $GITHUB_OUTPUT
           fi
 
-      - name: Comment on PR
-        if: steps.check.outputs.missing == 'true'
+      - name: Update PR comment
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
+            const marker = '<!-- missing-tests-advisory -->';
+            const missing = '${{ steps.check.outputs.missing }}' === 'true';
             const files = `${{ steps.check.outputs.files }}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+
+            if (!missing) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+              return;
+            }
+
             const body = [
+              marker,
               '## ⚠️ Logic changes without tests',
               '',
               'The following changed files have no corresponding `.test.` file.',
@@ -164,12 +185,22 @@ jobs:
               '',
               files,
             ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
   build:
     name: Build

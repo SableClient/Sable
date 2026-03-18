@@ -9,10 +9,10 @@ export function SearchTab() {
   const open = () => setOpen(true);
 
   return (
-    <SidebarItem active={opened}>
+    <SidebarItem active={opened} noIndicator>
       <SidebarItemTooltip tooltip="Search">
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={open}>
+          <SidebarAvatar as="button" ref={triggerRef} size="300" fill="Surface" active={opened} onClick={open}>
             <Icon src={Icons.Search} filled={opened} />
           </SidebarAvatar>
         )}

@@ -39,7 +39,7 @@ export function CreateTab() {
   };
 
   return (
-    <SidebarItem active={createSelected}>
+    <SidebarItem active={createSelected || !!menuCords} noIndicator>
       <SidebarItemTooltip tooltip="Add Space">
         {(triggerRef) => (
           <PopOut
@@ -105,7 +105,11 @@ export function CreateTab() {
               className={menuCords ? ContainerColor({ variant: 'Surface' }) : undefined}
               as="button"
               ref={triggerRef}
-              outlined
+              size="300"
+              fill="Surface"
+              ghost
+             
+              active={createSelected || !!menuCords}
               onClick={handleMenu}
             >
               <Icon src={Icons.Plus} />

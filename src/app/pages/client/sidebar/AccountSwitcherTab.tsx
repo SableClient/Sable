@@ -268,14 +268,16 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor || settingsOpen}>
+    <SidebarItem active={!!menuAnchor || settingsOpen} noIndicator>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
           <SidebarAvatar
             as="button"
             ref={triggerRef}
             onClick={handleToggle}
-            outlined={sessions.length > 1}
+            size="300"
+            fill="Surface"
+            active={!!menuAnchor || settingsOpen}
           >
             <UserAvatar
               userId={activeSession.userId}

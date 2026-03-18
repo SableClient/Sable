@@ -448,7 +448,7 @@ function SpaceTab({
                 as="button"
                 data-id={space.roomId}
                 ref={triggerRef}
-                size={folder ? '300' : '400'}
+                size="300"
                 onClick={onClick}
                 onContextMenu={handleContextMenu}
               >
@@ -457,9 +457,7 @@ function SpaceTab({
                   uniformIcons
                   src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
                   alt={space.name}
-                  renderFallback={() => (
-                    <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
-                  )}
+                  renderFallback={() => <Text size="H6">{nameInitials(space.name, 2)}</Text>}
                 />
               </SidebarAvatar>
             )}
@@ -531,11 +529,9 @@ function OpenedSpaceFolder({ folder, onClose, children }: Readonly<OpenedSpaceFo
       data-drop-below={orderBelow === 'reorder-below'}
     >
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
-      <SidebarAvatar size="300">
-        <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          <Icon size="400" src={Icons.ChevronTop} filled />
-        </IconButton>
-      </SidebarAvatar>
+      <IconButton data-id={folder.id} size="300" variant="Background" radii="Pill" onClick={onClose}>
+        <Icon size="200" src={Icons.ChevronTop} filled />
+      </IconButton>
       {children}
       <SidebarFolderDropTarget ref={belowTargetRef} position="Bottom" />
     </SidebarFolder>
@@ -574,6 +570,7 @@ function ClosedSpaceFolder({
         <SidebarItem
           active={selected}
           ref={handlerRef}
+          style={{ width: '100%' }}
           aria-disabled={disabled}
           data-drop-child={dropType === 'make-child'}
           data-drop-above={dropType === 'reorder-above'}
@@ -820,7 +817,6 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   if (sidebarItems.length === 0) return null;
   return (
     <>
-      <SidebarStackSeparator />
       <SidebarStack>
         {sidebarItems.map((item) => {
           if (typeof item === 'object') {

@@ -28,20 +28,21 @@ globalStyle(
 
 globalStyle(
   `
-    button:hover, 
-    [role="button"]:hover
+    button:hover:not([data-sidebar-item] button):not([data-sidebar-folder] button), 
+    [role="button"]:hover:not([data-sidebar-item] [role="button"]):not([data-sidebar-folder] [role="button"])
 `,
   {
     transform: 'translateY(-1px)',
   }
 );
 
+// :not here is a temporary way to sidestep this global imitation without affecting everything else.
 globalStyle(
   `
-    button[class*="_1684mq51"]:has(img):hover,
-    [data-index] [class*="_1r9nvaso"]:hover,
-    [data-index] [class*="_1r9nvaso"] *:hover,
-    [data-index] button:has(p):hover
+    button[class*="_1684mq51"]:has(img):hover:not([data-sidebar-item] button),
+    [data-index] [class*="_1r9nvaso"]:hover:not([data-sidebar-item] [class*="_1r9nvaso"]),
+    [data-index] [class*="_1r9nvaso"] *:hover:not([data-sidebar-item] [class*="_1r9nvaso"] *),
+    [data-index] button:has(p):hover:not([data-sidebar-item] button)
 `,
   {
     transform: 'none !important',

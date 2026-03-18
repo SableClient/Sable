@@ -100,7 +100,9 @@ export function HomeTab() {
           <SidebarAvatar
             as="button"
             ref={triggerRef}
-            outlined
+            size="300"
+            fill="Surface"
+            active={homeSelected}
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >

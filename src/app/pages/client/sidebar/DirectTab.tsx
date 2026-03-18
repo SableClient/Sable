@@ -106,7 +106,9 @@ export function DirectTab() {
           <SidebarAvatar
             as="button"
             ref={triggerRef}
-            outlined
+            size="300"
+            fill="Surface"
+            active={directSelected}
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >

@@ -67,7 +67,7 @@ function DMItem({ room, selected }: DMItemProps) {
     if (!isGroupDM) {
       // Regular DM
       return (
-        <Avatar size="400" radii="400">
+        <Avatar size="300" radii="300">
           <RoomAvatar
             roomId={room.roomId}
             src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)}
@@ -85,7 +85,7 @@ function DMItem({ room, selected }: DMItemProps) {
     if (groupMembers.length === 1) {
       // Single member in group DM - fill the space like a normal DM
       return (
-        <Avatar size="400" radii="400">
+        <Avatar size="300" radii="300">
           <UserAvatar
             userId={groupMembers[0].userId}
             src={getSingleMemberAvatarSrc()}
@@ -133,7 +133,7 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
+          <SidebarAvatar as="button" ref={triggerRef} size="300" onClick={handleClick}>
             {renderAvatar()}
           </SidebarAvatar>
         )}

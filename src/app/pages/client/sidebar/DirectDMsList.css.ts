@@ -6,8 +6,8 @@ export const GroupAvatarContainer = style({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: '40px',
-  height: '40px',
+  width: '34px',
+  height: '34px',
 });
 
 export const GroupAvatarRow = style({
@@ -21,8 +21,8 @@ export const GroupAvatar = style({
   border: `2px solid ${color.Surface.Container}`,
   borderRadius: '50%',
   overflow: 'hidden',
-  width: '24px',
-  height: '24px',
+  width: '20px',
+  height: '20px',
   selectors: {
     // First avatar (most recent) - top center
     '&:nth-child(1)': {

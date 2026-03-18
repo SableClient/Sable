@@ -55,7 +55,9 @@ function UnverifiedIndicator() {
                 className={unverified ? css.UnverifiedAvatar : css.UnverifiedOtherAvatar}
                 as="button"
                 ref={triggerRef}
-                outlined
+                size="300"
+                fill="Surface"
+                active={settings}
                 onClick={() => setSettings(true)}
               >
                 <Icon

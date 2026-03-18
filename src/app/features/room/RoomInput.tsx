@@ -1246,7 +1246,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
                 aria-pressed={showAudioRecorder}
                 onClick={() => {
-                  if (mobileOrTablet()) return;
+                  if (mobileOrTablet() && !showAudioRecorder) return;
                   if (showAudioRecorder) {
                     audioRecorderRef.current?.stop();
                   } else {

@@ -372,6 +372,8 @@ function MessageInternal(
             avatar_url: string | undefined;
             displayname: string | undefined;
             id: string | undefined;
+            "moe.sable.app.name_color": string | undefined;
+            "io.fsky.nyx.pronouns": any | undefined;
           }
         | undefined,
     [mEvent]
@@ -379,7 +381,9 @@ function MessageInternal(
 
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
-  const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);
+  const cosmetics = useSableCosmetics(senderId, room);
+  const usernameColor = pmp?.["moe.sable.app.name_color"] ?? cosmetics.color
+  const usernameFont = cosmetics.font // TODO: try allowing per-message font
 
   const [highlightMentions] = useSetting(settingsAtom, 'highlightMentions');
 
@@ -430,8 +434,9 @@ function MessageInternal(
     return getParsedPronouns(rawName, parsePronouns);
   }, [pmp, senderDisplayName, parsePronouns]);
 
+  const sourcePronouns = pmp?.["io.fsky.nyx.pronouns"] ?? profile.pronouns ?? []
   const mergedPronouns = useMemo(() => {
-    const existing = profile.pronouns ? [...profile.pronouns] : [];
+    const existing = sourcePronouns ? [...sourcePronouns] : [];
 
     if (inlinePronoun) {
       const isDupe = existing.some((p) => p.summary?.toLowerCase() === inlinePronoun);
@@ -445,7 +450,7 @@ function MessageInternal(
     }
 
     return existing;
-  }, [profile.pronouns, inlinePronoun]);
+  }, [sourcePronouns, inlinePronoun]);
 
   useEffect(() => {
     if (!mobileOptionsOpen) return undefined;

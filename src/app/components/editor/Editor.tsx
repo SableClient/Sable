@@ -68,6 +68,7 @@ type CustomEditorProps = {
   onPaste?: ClipboardEventHandler;
   className?: string;
   variant?: 'Surface' | 'SurfaceVariant' | 'Background';
+  replacementContent?: ReactNode;
 };
 export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
   (
@@ -86,6 +87,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       onPaste,
       className,
       variant = 'SurfaceVariant',
+      replacementContent,
     },
     ref
   ) => {
@@ -150,23 +152,25 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               visibility="Always"
               hideTrack
             >
-              <Editable
-                data-editable-name={editableName}
-                className={css.EditorTextarea}
-                placeholder={placeholder}
-                renderPlaceholder={renderPlaceholder}
-                renderElement={renderElement}
-                renderLeaf={renderLeaf}
-                onKeyDown={handleKeydown}
-                onKeyUp={onKeyUp}
-                onPaste={onPaste}
-                // Defer to OS capitalization setting (respects iOS sentence-case toggle).
-                autoCapitalize="sentences"
-                // keeps focus after pressing send.
-                onBlur={() => {
-                  if (mobileOrTablet()) ReactEditor.focus(editor);
-                }}
-              />
+              {replacementContent ? (
+                <div className={css.EditorReplacementContent}>{replacementContent}</div>
+              ) : (
+                <Editable
+                  data-editable-name={editableName}
+                  className={css.EditorTextarea}
+                  placeholder={placeholder}
+                  renderPlaceholder={renderPlaceholder}
+                  renderElement={renderElement}
+                  renderLeaf={renderLeaf}
+                  onKeyDown={handleKeydown}
+                  onKeyUp={onKeyUp}
+                  onPaste={onPaste}
+                  autoCapitalize="sentences"
+                  onBlur={() => {
+                    if (mobileOrTablet()) ReactEditor.focus(editor);
+                  }}
+                />
+              )}
             </Scroll>
             {after && (
               <Box className={css.EditorOptions} alignItems="Center" gap="100" shrink="No">

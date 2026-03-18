@@ -290,6 +290,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef<number>(0);
     const HOLD_THRESHOLD_MS = 400;
+    const isMobileRecording = showAudioRecorder && mobileOrTablet();
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
@@ -1077,10 +1078,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder={showAudioRecorder && mobileOrTablet() ? '' : 'Send a message...'}
+          placeholder="Send a message..."
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          replacementContent={
+            isMobileRecording ? (
+              <AudioMessageRecorder
+                ref={audioRecorderRef}
+                onRequestClose={() => setShowAudioRecorder(false)}
+                onRecordingComplete={(payload) => {
+                  const extension = getSupportedAudioExtension(payload.audioCodec);
+                  const file = new File(
+                    [payload.audioBlob],
+                    `sable-audio-message-${Date.now()}.${extension}`,
+                    {
+                      type: payload.audioCodec,
+                    }
+                  );
+                  handleFiles([file], {
+                    waveform: payload.waveform,
+                    audioDuration: payload.audioLength,
+                  });
+                  setShowAudioRecorder(false);
+                }}
+                onAudioLengthUpdate={() => {}}
+                onWaveformUpdate={() => {}}
+              />
+            ) : undefined
+          }
           top={
             <>
               {scheduledTime && (
@@ -1197,7 +1223,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            !(showAudioRecorder && mobileOrTablet()) && (
+            !isMobileRecording && (
               <IconButton
                 onClick={() => pickFile('*')}
                 variant="SurfaceVariant"
@@ -1212,7 +1238,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           after={
             <>
-              {showAudioRecorder && (
+              {showAudioRecorder && !isMobileRecording && (
                 <AudioMessageRecorder
                   ref={audioRecorderRef}
                   onRequestClose={() => setShowAudioRecorder(false)}

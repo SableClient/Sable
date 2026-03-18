@@ -22,6 +22,23 @@ export const EditorOptions = style([
 
 export const EditorTextareaScroll = style({});
 
+export const EditorReplacementContent = style([
+  DefaultReset,
+  {
+    flexGrow: 1,
+    height: '100%',
+    padding: `${toRem(13)} ${toRem(1)}`,
+    selectors: {
+      [`${EditorTextareaScroll}:first-child &`]: {
+        paddingLeft: toRem(13),
+      },
+      [`${EditorTextareaScroll}:last-child &`]: {
+        paddingRight: toRem(13),
+      },
+    },
+  },
+]);
+
 export const EditorTextarea = style([
   DefaultReset,
   {

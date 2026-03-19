@@ -1024,11 +1024,23 @@ export function RoomTimeline({
   // content is shorter than the viewport height (e.g., on initial load when
   // sliding sync has only delivered 1-3 events). Recomputed whenever VList
   // reports a scroll (which also fires on resize) and after eventsLength changes.
+  //
+  // Why `+ topSpacerHeightRef.current` in the formula:
+  // VList's `viewportSize` is the *content-box* height, i.e. the outer container
+  // height minus the CSS paddingTop we're applying. So:
+  //   viewportSize = containerH - topSpacer - paddingBottom
+  // Without adding back the current spacer, the formula's stable point is only
+  // half the needed offset (items end up halfway up the screen). Adding the
+  // current spacer reconstructs containerH and we converge to:
+  //   newSpacer = containerH - paddingBottom - itemsHeight  (correct)
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
+  const topSpacerHeightRef = useRef(0);
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;
-    setTopSpacerHeight(Math.max(0, v.viewportSize - v.scrollSize));
+    const newH = Math.max(0, v.viewportSize + topSpacerHeightRef.current - v.scrollSize);
+    topSpacerHeightRef.current = newH;
+    setTopSpacerHeight(newH);
   }, []);
 
   // shift=true while a backward pagination is in flight so VList maintains scroll
@@ -1118,7 +1130,9 @@ export function RoomTimeline({
       if (!v) return;
       // Recompute spacer: when content grows to fill the viewport the spacer
       // should collapse to 0 so we don't push items further down.
-      setTopSpacerHeight(Math.max(0, v.viewportSize - v.scrollSize));
+      const newH = Math.max(0, v.viewportSize + topSpacerHeightRef.current - v.scrollSize);
+      topSpacerHeightRef.current = newH;
+      setTopSpacerHeight(newH);
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
       if (isNowAtBottom !== atBottomRef.current) {
@@ -1504,9 +1518,12 @@ export function RoomTimeline({
   }, []); // run once on mount
 
   // Recalculate top spacer whenever event count changes so the spacer collapses
-  // as messages load in (items animate up from the bottom).
+  // as messages load in (items animate up from the bottom). Deferred to the
+  // next animation frame so virtua's ResizeObserver has measured new items
+  // before we read scrollSize (otherwise we'd use a stale scrollSize).
   useLayoutEffect(() => {
-    recalcTopSpacer();
+    const id = requestAnimationFrame(recalcTopSpacer);
+    return () => cancelAnimationFrame(id);
   }, [recalcTopSpacer, eventsLength]);
 
   // virtua's VList has its own internal ResizeObserver for item height changes

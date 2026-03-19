@@ -1040,6 +1040,11 @@ export function RoomTimeline({
   const eventsLengthRef = useRef(eventsLength);
   eventsLengthRef.current = eventsLength;
 
+  // Tracks the eventsLength at the time of the last scroll-to-bottom so the
+  // stay-at-bottom effect can detect whether useLiveEventArrive already queued
+  // a scroll for the current batch of new events (avoiding a double-fire).
+  const lastScrolledAtEventsLengthRef = useRef(eventsLength);
+
   // Scroll to a specific event index in VList.
   // eventOffset accounts for any leading non-event VList items (currently 0).
   const scrollToItem = useCallback(
@@ -1190,6 +1195,13 @@ export function RoomTimeline({
           // to avoid Android WebView smooth-scroll not reaching bottom.
           scrollToBottomRef.current.smooth = mEvt.getSender() !== mx.getUserId();
 
+          // Mark the current eventsLength (about to become eventsLength+1 after
+          // setTimeline causes a re-render) as already-scrolled so the
+          // stay-at-bottom useEffect below does not double-fire.
+          // We use eventsLengthRef.current + 1 because setTimeline hasn't
+          // re-rendered yet; the next render will see eventsLength+1.
+          lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
+
           // virtua derives eventsLength from linkedTimelines automatically; just
           // trigger a re-render so the VList count prop updates.
           setTimeline((ct) => ({ ...ct }));
@@ -1333,30 +1345,38 @@ export function RoomTimeline({
     }, [])
   );
 
-  // When the live timeline reconnects (liveTimelineLinked flips true) while the
-  // user is at the bottom, queue a scroll-to-bottom so VList shows the latest
-  // message. New events at the bottom are handled directly by useLiveEventArrive
-  // (which increments the count *and* calls setTimeline in the same synchronous
-  // block so the layout effect sees the new count immediately). Including
-  // eventsLength here would double-fire the scroll on every arrival, causing the
-  // "really sticks to bottom" behaviour where a deferred count increment from
-  // event N is picked up during the next render and yanks the user back down.
-  // Timeline resets are handled by useLiveTimelineRefresh; timelineJustResetRef
-  // is still cleared here so the Sentry guard in the layout effect stays accurate.
+  // When new events arrive at the live end and the user is at the bottom (or a
+  // timeline reset just happened), queue a scroll-to-bottom so VList shows the
+  // latest message.
+  //
+  // useLiveEventArrive handles single live events: it increments
+  // scrollToBottomRef.count AND records lastScrolledAtEventsLengthRef in the
+  // same batch as setTimeline, so this effect sees those changes together.
+  // The dedup guard (eventsLength <= lastScrolled) prevents a double-fire.
+  //
+  // We still need eventsLength in deps to catch bulk arrivals: timeline resets
+  // (useLiveTimelineRefresh reinitialises linkedTimelines then events arrive
+  // incrementally) and forward pagination catches up many events at once.
+  // timelineJustResetRef covers resets where the user was scrolled up.
   useEffect(() => {
     const resetPending = timelineJustResetRef.current;
     if (resetPending) timelineJustResetRef.current = false;
-    if (atBottom && liveTimelineLinked && eventsLengthRef.current > 0) {
-      scrollToBottomRef.current.count += 1;
-      scrollToBottomRef.current.smooth = false;
-      Sentry.addBreadcrumb({
-        category: 'ui.scroll',
-        message: 'Timeline: stay-at-bottom scroll (reconnect/live)',
-        level: 'info',
-        data: { eventsLength: eventsLengthRef.current, atBottom },
-      });
-    }
-  }, [atBottom, liveTimelineLinked]);
+
+    if (!(atBottom || resetPending) || !liveTimelineLinked || eventsLength === 0) return;
+
+    // Skip if useLiveEventArrive already queued a scroll for this exact batch.
+    if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetPending) return;
+
+    lastScrolledAtEventsLengthRef.current = eventsLength;
+    scrollToBottomRef.current.count += 1;
+    scrollToBottomRef.current.smooth = false;
+    Sentry.addBreadcrumb({
+      category: 'ui.scroll',
+      message: 'Timeline: stay-at-bottom scroll (bulk/reconnect)',
+      level: 'info',
+      data: { eventsLength, wasReset: resetPending, atBottom },
+    });
+  }, [atBottom, liveTimelineLinked, eventsLength]);
 
   // Recover from transient empty timeline state when the live timeline
   // already has events (can happen when opening by event id, then fallbacking).

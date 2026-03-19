@@ -1076,33 +1076,38 @@ export function RoomTimeline({
   // shift=true while a backward pagination is in flight so VList maintains scroll
   // position when historical events are prepended to the list.
   // useLayoutEffect ensures shift is true DURING the render that shows new items.
+  //
+  // IMPORTANT: shift only works when scrollOffset > 0. When offset=0 (user is at
+  // the bottom and all content fits in the viewport), virtua cannot go negative
+  // to maintain position — so shift is a no-op and the user ends up seeing
+  // prepended old history instead of the newest messages.
+  //
+  // Fix: only enable shift when the user is actually scrolled up (not at bottom).
+  // When at the bottom, skip shift and instead call scrollToIndex(last) directly
+  // in the useLayoutEffect after pagination completes. Because useLayoutEffect
+  // fires after React commits the DOM but before the browser paints, there is no
+  // visible flash of old content — the user sees only the final scroll position.
   const [shift, setShift] = useState(false);
   const prevBackwardStatusRef = useRef<PaginationStatus>('idle');
-  // When backward pagination starts while the user is at the bottom (common on
-  // initial mount with classic sync: 8 events delivered → canPaginateBack=true →
-  // backward pagination fires immediately), record that state so we can
-  // re-anchor to the newest message when pagination completes.
-  // This is necessary because scrollToIndex on mount is a no-op (8 items fit
-  // the viewport exactly, offset stays 0), so onScrollEnd never fires and the
-  // mount-window re-anchor loop never runs. Without this, the shift mechanism
-  // keeps the user on the *oldest* of the original 8 items, not the *newest*.
   const wasAtBottomBeforePaginationRef = useRef(false);
   useLayoutEffect(() => {
     const prev = prevBackwardStatusRef.current;
     prevBackwardStatusRef.current = backwardStatus;
     if (backwardStatus === 'loading') {
       wasAtBottomBeforePaginationRef.current = atBottomRef.current;
-      setShift(true);
-    } else if (prev === 'loading' && backwardStatus === 'idle' && shift) {
-      // New items have been rendered with shift=true; turn it off next frame.
-      setShift(false);
-      // If the user was at the bottom before pagination, re-anchor to the
-      // newest message after the prepend settles (rAF gives virtua time to
-      // apply the shift and measure items).
+      // Only use shift when the user is scrolled up reading history. When at
+      // the bottom (offset≈0), shift cannot maintain visual position because
+      // the scroll offset cannot go negative.
+      if (!atBottomRef.current) {
+        setShift(true);
+      }
+    } else if (prev === 'loading' && backwardStatus === 'idle') {
+      if (shift) setShift(false);
       if (wasAtBottomBeforePaginationRef.current) {
-        requestAnimationFrame(() => {
-          vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
-        });
+        // Synchronous scroll in useLayoutEffect: fires after the new event count
+        // is committed to the DOM but before the browser paints. No visible
+        // flash — the user sees only the final bottom position.
+        vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
       }
     }
   }, [backwardStatus, shift]);

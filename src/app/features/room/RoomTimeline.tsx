@@ -1065,11 +1065,13 @@ export function RoomTimeline({
     }
   }, []);
 
-  // One-shot flag: the FIRST scroll-end after mount triggers a correction scroll
-  // in case virtua's estimated item heights caused the initial scrollToIndex to
-  // land short of the true DOM bottom (items above the viewport are not yet
-  // measured and may be taller than the default estimate).
-  const initialScrollSettledRef = useRef(false);
+  // Mount-window anchor: keep re-anchoring to the last item in onScrollEnd until
+  // we are truly at the bottom (distanceFromBottom < 20 px) or the 3-second mount
+  // window expires. This corrects for virtua's estimated item heights being too
+  // short (items above the viewport unmeasured on mount), which causes
+  // scrollToIndex(last) to land short for rooms with lots of history.
+  // mountScrollWindowRef.current = 0 means the window has closed.
+  const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
 
   // shift=true while a backward pagination is in flight so VList maintains scroll
   // position when historical events are prepended to the list.
@@ -2826,12 +2828,27 @@ export function RoomTimeline({
         style={{ flex: 1, minHeight: 0, paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600, paddingBottom: config.space.S600 }}
         onScroll={handleVListScroll}
         onScrollEnd={() => {
-          // One-shot correction: after the first scroll animation settles, re-anchor
-          // to the true bottom if virtua's estimated item heights left us short.
-          // initialScrollSettledRef stays false until this fires once per mount.
-          if (!initialScrollSettledRef.current && eventsLengthRef.current > 0 && !eventId) {
-            initialScrollSettledRef.current = true;
-            vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+          // While the mount-window is open, keep re-anchoring to the last item
+          // until we're truly at the bottom (distanceFromBottom < 20 px).
+          // This compensates for virtua's estimated heights being too short:
+          // each time items above get measured virtua adjusts scrollSize, so
+          // successive scrollToIndex calls walk us to the true DOM bottom.
+          const windowExpiry = mountScrollWindowRef.current;
+          if (windowExpiry !== 0 && eventsLengthRef.current > 0 && !eventId) {
+            const v = vListRef.current;
+            if (v) {
+              const distanceFromBottom = v.scrollSize - v.scrollOffset - v.viewportSize;
+              if (distanceFromBottom < 20) {
+                // We're at the true bottom — close the window.
+                mountScrollWindowRef.current = 0;
+              } else if (Date.now() < windowExpiry) {
+                // Still drifted; fire another anchor.
+                v.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+              } else {
+                // Timed out without reaching bottom — give up.
+                mountScrollWindowRef.current = 0;
+              }
+            }
           }
         }}
       >

@@ -262,6 +262,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
+    /**
+     * Nickname someone set for another user
+     * this nickname should be treated as private
+     */
     const nicknames = useAtomValue(nicknamesAtom);
 
     const powerLevels = usePowerLevelsContext();
@@ -385,6 +389,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     let replyBodyJSX: ReactNode = replyDraft ? trimReplyFromBody(replyDraft.body) : null;
 
     if (htmlBody) {
+      /**
+       * message with linebreaks, etc stripped
+       */
       const strippedHtml = trimReplyFromFormattedBody(htmlBody)
         .replaceAll(/<br\s*\/?>/gi, ' ')
         .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
@@ -633,12 +640,65 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       uploadBoardHandlers.current?.handleSend();
 
       const commandName = getBeginCommand(editor);
-      let plainText = toPlainText(editor.children, isMarkdown).trim();
+      /**
+       * a map of regex patterns to replace nicknames with,
+       * used when stripNickname is true in toMatrixCustomHTML
+       * during HTML generation for the message content.
+       * This is necessary because the HTML generation needs to know
+       * which nicknames to strip in order to generate the correct formatted_body,
+       * and the plain text generation needs to replace those same nicknames with
+       * the original user IDs so that the message content remains consistent and
+       * mentions are correctly processed by the server and clients.
+       */
+      const nicknameReplacement = new Map<RegExp, string>();
+      if (replyEvent) {
+        /**
+         * the id of the user being replied to,
+         * whose nickname (if any) should be stripped
+         * from the message content and replaced with their
+         * user ID for correct mention processing
+         */
+        const senderId = replyEvent.getSender();
+        if (senderId) {
+          const nick = nicknames[senderId];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(senderId)?.rawDisplayName ?? senderId
+            );
+          }
+        }
+      }
+      /**
+       * any other users mentioned in the message being replied to,
+       * whose nicknames should also be stripped and replaced with user IDs
+       */
+      const mentions = getMentions(mx, roomId, editor);
+      if (mentions?.users) {
+        mentions.users.forEach((id) => {
+          const nick = nicknames[id];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(id)?.rawDisplayName ?? id
+            );
+          }
+        });
+      }
+      /**
+       * the plain text we will send
+       */
+      let plainText = toPlainText(editor.children, isMarkdown, true, nicknameReplacement).trim();
+      /**
+       * the html we will send
+       */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(editor.children, {
           allowTextFormatting: true,
           allowBlockMarkdown: isMarkdown,
           allowInlineMarkdown: isMarkdown,
+          stripNickname: true,
+          nickNameReplacement: nicknameReplacement,
         })
       );
       let msgType = MsgType.Text;
@@ -795,6 +855,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
     }, [
       editor,
+      replyEvent,
       isMarkdown,
       canSendReaction,
       mx,
@@ -804,6 +865,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       silentReply,
       scheduledTime,
       editingScheduledDelayId,
+      nicknames,
       handleQuickReact,
       commands,
       sendTypingStatus,
@@ -836,9 +898,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             return;
           }
 
-          if (isKeyHotkey('enter', evt) && !isComposing(evt)) {
+          if ((isKeyHotkey('enter', evt) || isKeyHotkey('tab', evt)) && !isComposing(evt)) {
             const selectedItem =
-              autocompleteMenu.querySelector<HTMLButtonElement>('button[data-selected]') ??
+              autocompleteMenu.querySelector<HTMLButtonElement>('button[data-selected="true"]') ??
               autocompleteMenu.querySelector<HTMLButtonElement>('button');
 
             if (selectedItem) {
@@ -1159,7 +1221,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         grow="Yes"
                         style={{ minWidth: 0 }}
                       >
-                        {replyDraft.relation?.rel_type === RelationType.Thread && (
+                        {replyDraft.relation?.rel_type === RelationType.Thread && !threadRootId && (
                           <ThreadIndicator />
                         )}
                         <ReplyLayout

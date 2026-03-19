@@ -204,7 +204,10 @@ export const ImageContent = as<'div', ImageContentProps>(
               src: srcState.data,
               onLoad: handleLoad,
               onError: handleError,
-              onClick: () => setViewer(true),
+              onClick: () => {
+                setIsHovered(false);
+                setViewer(true);
+              },
               tabIndex: 0,
             })}
           </Box>

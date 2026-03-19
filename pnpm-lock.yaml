@@ -196,6 +196,9 @@ importers:
       ua-parser-js:
         specifier: ^1.0.41
         version: 1.0.41
+      virtua:
+        specifier: ^0.48.8
+        version: 0.48.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       workbox-precaching:
         specifier: ^7.4.0
         version: 7.4.0
@@ -5403,6 +5406,26 @@ packages:
   uuid@13.0.0:
     resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
     hasBin: true
+
+  virtua@0.48.8:
+    resolution: {integrity: sha512-jpsxOw5V4B6hg44JePRLo9DL0TV7N1lBEVtPjKpAJebXyhI2s9lfiXJESaLapNtr3vtiSk/pWHiLf7B2a6UcgQ==}
+    peerDependencies:
+      react: '>=16.14.0'
+      react-dom: '>=16.14.0'
+      solid-js: '>=1.0'
+      svelte: '>=5.0'
+      vue: '>=3.2'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   vite-node@3.2.4:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
@@ -11503,6 +11526,11 @@ snapshots:
   uuid@10.0.0: {}
 
   uuid@13.0.0: {}
+
+  virtua@0.48.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   vite-node@3.2.4(@types/node@24.10.13)(jiti@2.6.1)(terser@5.46.0)(yaml@2.8.2):
     dependencies:

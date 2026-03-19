@@ -3,6 +3,7 @@ import {
   Fragment,
   Dispatch,
   MouseEventHandler,
+  ReactElement,
   ReactNode,
   RefObject,
   SetStateAction,
@@ -50,7 +51,6 @@ import {
   Icon,
   Icons,
   Line,
-  Scroll,
   Spinner,
   Text,
   toRem,
@@ -58,11 +58,11 @@ import {
 import { isKeyHotkey } from 'is-hotkey';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { useTranslation } from 'react-i18next';
+import { VList, VListHandle } from 'virtua';
 import { getMxIdLocalPart, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { ItemRange, useVirtualPaginator } from '$hooks/useVirtualPaginator';
 import { useAlive } from '$hooks/useAlive';
-import { editableActiveElement, scrollToBottom } from '$utils/dom';
+import { editableActiveElement } from '$utils/dom';
 import {
   CompactPlaceholder,
   DefaultPlaceholder,
@@ -283,7 +283,6 @@ type PaginationStatus = 'idle' | 'loading' | 'error';
 
 type Timeline = {
   linkedTimelines: EventTimeline[];
-  range: ItemRange;
 };
 
 const useEventTimelineLoader = (
@@ -377,20 +376,8 @@ const useTimelinePagination = (
       const topTmIndex = newLTimelines.findIndex(timelineMatch(topTimeline));
       const topAddedTm = topTmIndex === -1 ? [] : newLTimelines.slice(0, topTmIndex);
 
-      const topTmAddedEvt =
-        timelineToEventsCount(newLTimelines[topTmIndex]) - timelinesEventsCount[0];
-      const offsetRange = getTimelinesEventsCount(topAddedTm) + (backwards ? topTmAddedEvt : 0);
-
-      setTimeline((currentTimeline) => ({
-        linkedTimelines: newLTimelines,
-        range:
-          offsetRange > 0
-            ? {
-                start: currentTimeline.range.start + offsetRange,
-                end: currentTimeline.range.end + offsetRange,
-              }
-            : { ...currentTimeline.range },
-      }));
+      // virtua renders all loaded events; no render-window range to offset
+      setTimeline(() => ({ linkedTimelines: newLTimelines }));
     };
 
     return async (backwards: boolean) => {
@@ -744,18 +731,10 @@ function ThreadReplyChip({
 
 const getInitialTimeline = (room: Room) => {
   const linkedTimelines = getLinkedTimelines(getLiveTimeline(room));
-  const evLength = getTimelinesEventsCount(linkedTimelines);
-  return {
-    linkedTimelines,
-    range: {
-      start: Math.max(evLength - PAGINATION_LIMIT, 0),
-      end: evLength,
-    },
-  };
+  return { linkedTimelines };
 };
 
 const getEmptyTimeline = () => ({
-  range: { start: 0, end: 0 },
   linkedTimelines: [],
 });
 
@@ -847,8 +826,6 @@ export function RoomTimeline({
     readUptoEventIdRef.current = unreadInfo.readUptoEventId;
   }
 
-  const atBottomAnchorRef = useRef<HTMLElement>(null);
-
   // TODO: The return value of "useState" should be destructured and named symmetrically (typescript:S6754)
   const [atBottom, setAtBottomState] = useState<boolean>(true);
   const atBottomRef = useRef(atBottom);
@@ -888,7 +865,6 @@ export function RoomTimeline({
   // is restored to the live end without forcing a viewport scroll.
   const timelineJustResetRef = useRef(false);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
   const scrollToBottomRef = useRef({
     count: 0,
     smooth: true,
@@ -978,10 +954,7 @@ export function RoomTimeline({
         eventsLength,
         prevEventsLength: prev,
         liveTimelineLinked,
-        rangeEnd: timeline.range.end,
         atBottom: atBottomRef.current,
-        // Gap between live end and visible window — non-zero while user is scrolled back
-        rangeGap: eventsLength - timeline.range.end,
       },
     });
 
@@ -991,11 +964,11 @@ export function RoomTimeline({
     if (delta > 50 && liveTimelineLinked) {
       Sentry.captureMessage('Timeline: large event batch from sliding sync', {
         level: 'warning',
-        extra: { delta, eventsLength, rangeEnd: timeline.range.end, atBottom: atBottomRef.current },
+        extra: { delta, eventsLength, atBottom: atBottomRef.current },
         tags: { feature: 'timeline', batchSize },
       });
     }
-    // atBottomRef and timeline.range.end are intentionally read at effect time, not as deps
+    // atBottomRef is intentionally read at effect time, not as a dep
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsLength, liveTimelineLinked]);
 
@@ -1003,12 +976,6 @@ export function RoomTimeline({
   useEffect(() => {
     const mode = eventId ? 'jump' : 'live';
     Sentry.metrics.count('sable.timeline.open', 1, { attributes: { mode } });
-    const initialWindowSize = timeline.range.end - timeline.range.start;
-    if (initialWindowSize > 0) {
-      Sentry.metrics.distribution('sable.timeline.render_window', initialWindowSize, {
-        attributes: { encrypted: String(room.hasEncryptionStateEvent()), mode },
-      });
-    }
     debugLog.info('timeline', 'Timeline mounted', {
       roomId: room.roomId,
       eventId,
@@ -1031,10 +998,19 @@ export function RoomTimeline({
   }, [liveTimelineLinked, room.roomId, eventsLength]);
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
-  const rangeAtStart = timeline.range.start === 0;
-  const rangeAtEnd = timeline.range.end === eventsLength;
-  const atLiveEndRef = useRef(liveTimelineLinked && rangeAtEnd);
-  atLiveEndRef.current = liveTimelineLinked && rangeAtEnd;
+  // With virtua, all loaded events are always rendered; range concept is gone.
+  const rangeAtStart = true;
+  const rangeAtEnd = true;
+  const atLiveEndRef = useRef(liveTimelineLinked);
+  atLiveEndRef.current = liveTimelineLinked;
+  // Stable refs for handleVListRangeChange — declared here so they are available
+  // before the callback is defined, and updated every render.
+  const canPaginateBackRef = useRef(false);
+  const liveTimelineLinkedRef = useRef(false);
+  // Keep refs in sync for handleVListRangeChange (which cannot close over these
+  // without adding them to its dep array and recreating the callback).
+  canPaginateBackRef.current = canPaginateBack;
+  liveTimelineLinkedRef.current = liveTimelineLinked;
 
   const {
     paginate: handleTimelinePagination,
@@ -1042,62 +1018,109 @@ export function RoomTimeline({
     forwardStatus,
   } = useTimelinePagination(mx, timeline, setTimeline, PAGINATION_LIMIT);
 
-  const getScrollElement = useCallback(() => scrollRef.current, []);
+  const vListRef = useRef<VListHandle>(null);
 
-  const { getItems, scrollToItem, scrollToElement, observeBackAnchor, observeFrontAnchor } =
-    useVirtualPaginator({
-      count: eventsLength,
-      limit: PAGINATION_LIMIT,
-      range: timeline.range,
-      onRangeChange: useCallback((newRange) => {
-        setTimeline((currentTimeline) => {
-          const deltaStart = Math.abs(currentTimeline.range.start - newRange.start);
-          const deltaEnd = Math.abs(currentTimeline.range.end - newRange.end);
+  // shift=true while a backward pagination is in flight so VList maintains scroll
+  // position when historical events are prepended to the list.
+  // useLayoutEffect ensures shift is true DURING the render that shows new items.
+  const [shift, setShift] = useState(false);
+  const prevBackwardStatusRef = useRef<PaginationStatus>('idle');
+  useLayoutEffect(() => {
+    const prev = prevBackwardStatusRef.current;
+    prevBackwardStatusRef.current = backwardStatus;
+    if (backwardStatus === 'loading') {
+      setShift(true);
+    } else if (prev === 'loading' && backwardStatus === 'idle' && shift) {
+      // New items have been rendered with shift=true; turn it off next frame.
+      setShift(false);
+    }
+  }, [backwardStatus, shift]);
 
-          if (deltaStart < 3 && deltaEnd < 3) {
-            return currentTimeline;
-          }
+  // Stable eventsLength ref for callbacks that must not capture stale closures.
+  const eventsLengthRef = useRef(eventsLength);
+  eventsLengthRef.current = eventsLength;
 
-          // Log range changes with scroll state so we can correlate visible-content
-          // jumps with paginator window shifts. scrollRef is a stable ref — safe here.
-          const scrollEl = scrollRef.current;
-          const ds = newRange.start - currentTimeline.range.start;
-          const de = newRange.end - currentTimeline.range.end;
-          debugLog.debug('timeline', 'Virtual paginator range changed', {
-            prevRange: { start: currentTimeline.range.start, end: currentTimeline.range.end },
-            newRange,
-            deltaStart: ds,
-            deltaEnd: de,
-            scrollTop: scrollEl?.scrollTop,
-            scrollHeight: scrollEl?.scrollHeight,
-            clientHeight: scrollEl?.clientHeight,
-          });
-          Sentry.addBreadcrumb({
-            category: 'ui.timeline',
-            message: 'Timeline window shifted',
-            level: 'debug',
-            data: {
-              prevStart: currentTimeline.range.start,
-              prevEnd: currentTimeline.range.end,
-              newStart: newRange.start,
-              newEnd: newRange.end,
-              deltaStart: ds,
-              deltaEnd: de,
-            },
-          });
+  // Scroll to a specific event index in VList.
+  // eventOffset accounts for any leading non-event VList items (currently 0).
+  const scrollToItem = useCallback(
+    (index: number, opts?: { align?: 'start' | 'center' | 'end'; behavior?: string; stopInView?: boolean }): boolean => {
+      if (index < 0 || index >= eventsLengthRef.current) return false;
+      const v = vListRef.current;
+      if (!v) return false;
+      if (opts?.stopInView) {
+        const itemOffset = v.getItemOffset(index);
+        if (itemOffset >= v.scrollOffset && itemOffset < v.scrollOffset + v.viewportSize) {
+          return false;
+        }
+      }
+      v.scrollToIndex(index, {
+        align: opts?.align,
+        smooth: opts?.behavior === 'smooth',
+      });
+      return true;
+    },
+    []
+  );
 
-          return { ...currentTimeline, range: newRange };
-        });
-      }, []),
-      getScrollElement,
-      getItemElement: useCallback(
-        (index: number) =>
-          (scrollRef.current?.querySelector(`[data-message-item="${index}"]`) as HTMLElement) ??
-          undefined,
-        []
-      ),
-      onEnd: handleTimelinePagination,
-    });
+  // Scroll to an arbitrary DOM element by resolving its parent message-item index.
+  const scrollToElement = useCallback(
+    (element: HTMLElement, opts?: { align?: 'start' | 'center' | 'end'; behavior?: string; stopInView?: boolean }): boolean => {
+      const messageItem = element.closest<HTMLElement>('[data-message-item]');
+      const indexStr = messageItem?.getAttribute('data-message-item');
+      if (!indexStr) return false;
+      const index = parseInt(indexStr, 10);
+      if (Number.isNaN(index)) return false;
+      return scrollToItem(index, opts);
+    },
+    [scrollToItem]
+  );
+
+  // VList onRangeChange: trigger server-side pagination when user scrolls to
+  // the edges of the loaded event window.
+  // Guards prevent redundant server calls when the timeline is already at its
+  // natural end (live or backward) — the paginate function has an internal
+  // `fetching` mutex but avoiding the call entirely is cleaner.
+  const handleVListRangeChange = useCallback(
+    (startIndex: number, endIndex: number) => {
+      if (startIndex === 0 && canPaginateBackRef.current) {
+        handleTimelinePagination(true);
+      }
+      if (endIndex >= eventsLengthRef.current - 1 && !liveTimelineLinkedRef.current) {
+        handleTimelinePagination(false);
+      }
+    },
+    [handleTimelinePagination]
+  );
+
+  // VList onScroll: derive atBottom from scroll position rather than an
+  // IntersectionObserver, which avoids false-positive flips on bulk loads.
+  // Also trigger paginate-forward when user scrolls near the bottom but the
+  // live timeline is not yet linked (historical navigation).
+  const handleVListScroll = useCallback(
+    (offset: number) => {
+      const v = vListRef.current;
+      if (!v) return;
+      const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
+      const isNowAtBottom = distanceFromBottom < 100;
+      if (isNowAtBottom !== atBottomRef.current) {
+        setAtBottom(isNowAtBottom);
+        if (isNowAtBottom && atLiveEndRef.current && document.hasFocus()) {
+          tryAutoMarkAsRead();
+        }
+      }
+      // Paginate: near top → backward, near bottom → forward (historical nav)
+      if (offset < 500 && canPaginateBackRef.current) {
+        handleTimelinePagination(true);
+      }
+      if (distanceFromBottom < 500 && !liveTimelineLinkedRef.current) {
+        handleTimelinePagination(false);
+      }
+    },
+    // tryAutoMarkAsRead and setAtBottom are stable callbacks; atBottomRef and
+    // atLiveEndRef are refs so they don't change identity across renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [handleTimelinePagination]
+  );
 
   const loadEventTimeline = useEventTimelineLoader(
     mx,
@@ -1120,13 +1143,8 @@ export function RoomTimeline({
           scrollTo: true,
           highlight: evtId !== readUptoEventIdRef.current,
         });
-        setTimeline({
-          linkedTimelines: lTimelines,
-          range: {
-            start: Math.max(evtAbsIndex - PAGINATION_LIMIT, 0),
-            end: Math.min(evtAbsIndex + PAGINATION_LIMIT, evLength),
-          },
-        });
+        // virtua renders all loaded events so we only need to store the timelines.
+        setTimeline({ linkedTimelines: lTimelines });
       },
       [alive, setAtBottom, room.roomId]
     ),
@@ -1172,13 +1190,9 @@ export function RoomTimeline({
           // to avoid Android WebView smooth-scroll not reaching bottom.
           scrollToBottomRef.current.smooth = mEvt.getSender() !== mx.getUserId();
 
-          setTimeline((ct) => ({
-            ...ct,
-            range: {
-              start: ct.range.start + 1,
-              end: ct.range.end + 1,
-            },
-          }));
+          // virtua derives eventsLength from linkedTimelines automatically; just
+          // trigger a re-render so the VList count prop updates.
+          setTimeline((ct) => ({ ...ct }));
           return;
         }
         setTimeline((ct) => ({ ...ct }));
@@ -1319,53 +1333,24 @@ export function RoomTimeline({
     }, [])
   );
 
-  // When historical events load (e.g., from active subscription), stay at bottom
-  // by adjusting the range. The virtual paginator expects the range to match the
-  // position we want to display. Without this, loading more history makes it look
-  // like we've scrolled up because the range (0, 10) is now showing the old events
-  // instead of the latest ones.
-  //
-  // Also runs after a timeline reset (timelineJustResetRef=true) even when
-  // atBottom=false. After TimelineReset the SDK fires the event before populating
-  // the fresh timeline, so getInitialTimeline sees range.end=0. When events
-  // arrive eventsLength grows and we need to heal the range back to the live end
-  // regardless of the user's scroll position.
+  // When new events arrive at the live end and the user is at the bottom (or a
+  // timeline reset just happened), queue a scroll-to-bottom so VList keeps the
+  // latest message in view. With virtua, all loaded events are always rendered —
+  // there is no range to expand, just a scroll to trigger.
   useEffect(() => {
     const resetPending = timelineJustResetRef.current;
-    if ((atBottom || resetPending) && liveTimelineLinked && eventsLength > timeline.range.end) {
+    if ((atBottom || resetPending) && liveTimelineLinked && eventsLength > 0) {
       if (resetPending) timelineJustResetRef.current = false;
-      // More events exist than our current range shows. Adjust to the live end.
-      //
-      // IMPORTANT: also queue a scroll-to-bottom here. The scroll that was queued
-      // during TimelineReset / initial mount fires when range.end is still 0
-      // (the SDK fires Reset *before* populating the fresh timeline), so the DOM
-      // has no items yet and the scroll is a no-op. This second increment fires
-      // after setTimeline renders the full range, guaranteeing we actually land
-      // at the bottom once the events are visible.
-      const rangeGap = eventsLength - timeline.range.end;
       scrollToBottomRef.current.count += 1;
       scrollToBottomRef.current.smooth = false;
       Sentry.addBreadcrumb({
         category: 'ui.scroll',
-        message: 'Timeline: stay-at-bottom range expansion + scroll',
+        message: 'Timeline: stay-at-bottom scroll (new events)',
         level: 'info',
-        data: {
-          eventsLength,
-          prevRangeEnd: timeline.range.end,
-          rangeGap,
-          wasReset: resetPending,
-          atBottom,
-        },
+        data: { eventsLength, wasReset: resetPending, atBottom },
       });
-      setTimeline((ct) => ({
-        ...ct,
-        range: {
-          start: Math.max(eventsLength - PAGINATION_LIMIT, 0),
-          end: eventsLength,
-        },
-      }));
     }
-  }, [atBottom, liveTimelineLinked, eventsLength, timeline.range.end]);
+  }, [atBottom, liveTimelineLinked, eventsLength]);
 
   // Recover from transient empty timeline state when the live timeline
   // already has events (can happen when opening by event id, then fallbacking).
@@ -1388,14 +1373,13 @@ export function RoomTimeline({
         }
         if (!roomInputRef.current) return;
         const editorBaseEntry = getResizeObserverEntry(roomInputRef.current, entries);
-        const scrollElement = getScrollElement();
-        if (!editorBaseEntry || !scrollElement) return;
+        if (!editorBaseEntry) return;
 
         if (atBottomRef.current) {
-          scrollToBottom(scrollElement);
+          vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
         }
       };
-    }, [getScrollElement, roomInputRef]),
+    }, [roomInputRef]),
     useCallback(() => roomInputRef.current, [roomInputRef])
   );
 
@@ -1412,38 +1396,6 @@ export function RoomTimeline({
     }
   }, [mx, room, hideReads]);
 
-  useIntersectionObserver(
-    useCallback(
-      (entries) => {
-        const target = atBottomAnchorRef.current;
-        if (!target) return;
-        const targetEntry = getIntersectionObserverEntry(target, entries);
-        if (!targetEntry) return;
-
-        if (targetEntry.isIntersecting) {
-          // User has reached the bottom
-          debugLog.debug('timeline', 'Scrolled to bottom', { roomId: room.roomId });
-          setAtBottom(true);
-          if (atLiveEndRef.current && document.hasFocus()) {
-            tryAutoMarkAsRead();
-          }
-        } else {
-          // User has intentionally scrolled up.
-          debugLog.debug('timeline', 'Scrolled away from bottom', { roomId: room.roomId });
-          setAtBottom(false);
-        }
-      },
-      [tryAutoMarkAsRead, setAtBottom, room.roomId]
-    ),
-    useCallback(
-      () => ({
-        root: getScrollElement(),
-        rootMargin: '100px',
-      }),
-      [getScrollElement]
-    ),
-    useCallback(() => atBottomAnchorRef.current, [])
-  );
 
   useDocumentFocusChange(
     useCallback(
@@ -1493,65 +1445,17 @@ export function RoomTimeline({
     }
   }, [eventId]); // handleOpenEvent intentionally omitted — use ref above
 
-  // Scroll to bottom on initial timeline load
+  // Scroll to bottom on initial timeline load.
+  // VList handles scroll, so we use scrollToIndex rather than scrollToBottom.
   useLayoutEffect(() => {
-    const scrollEl = scrollRef.current;
-    if (scrollEl) {
-      const preScrollTop = scrollEl.scrollTop;
-      const preScrollHeight = scrollEl.scrollHeight;
-      const { clientHeight } = scrollEl;
-      scrollToBottom(scrollEl);
-      // Log whether we were actually away from bottom at mount — useful for diagnosing
-      // rooms that open with the wrong scroll position.
-      const distanceFromBottom = preScrollHeight - preScrollTop - clientHeight;
-      debugLog.debug('timeline', 'Initial scroll to bottom (mount)', {
-        preScrollTop,
-        preScrollHeight,
-        clientHeight,
-        postScrollTop: scrollEl.scrollTop,
-        distanceFromBottom,
-        alreadyAtBottom: distanceFromBottom <= 2,
-      });
-      if (distanceFromBottom > 0) {
-        Sentry.metrics.distribution('sable.timeline.initial_scroll_offset_px', distanceFromBottom);
-      }
+    if (eventsLength > 0) {
+      vListRef.current?.scrollToIndex(eventsLength - 1, { align: 'end' });
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
 
-  // Rescroll to bottom when images load at the start
-  useEffect(() => {
-    const scrollEl = scrollRef.current;
-    const contentEl = scrollEl?.firstElementChild as HTMLElement;
-    if (!scrollEl || !contentEl) return () => {};
-
-    const forceScroll = () => {
-      // if the user isn't scrolling jump down to latest content
-      const wasAtBottom = atBottomRef.current;
-      const preScrollTop = scrollEl?.scrollTop ?? 0;
-      const preScrollHeight = scrollEl?.scrollHeight ?? 0;
-      // Log every resize so we can see when media loads move the timeline and whether
-      // we corrected it (atBottom=true) or left it (atBottom=false, user is scrolled up).
-      debugLog.debug('timeline', 'Content resized (image/media load)', {
-        atBottom: wasAtBottom,
-        preScrollTop,
-        preScrollHeight,
-        clientHeight: scrollEl?.clientHeight,
-        distanceFromBottom: preScrollHeight - preScrollTop - (scrollEl?.clientHeight ?? 0),
-      });
-      if (!wasAtBottom) return;
-      scrollToBottom(scrollEl, 'instant');
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(forceScroll);
-    });
-
-    resizeObserver.observe(contentEl);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [room]);
+  // virtua's VList has its own internal ResizeObserver for item height changes
+  // (e.g. media loads), so the explicit media ResizeObserver is no longer needed.
 
   // if live timeline is linked and unreadInfo change
   // Scroll to last read message
@@ -1595,8 +1499,8 @@ export function RoomTimeline({
   const scrollToBottomCount = scrollToBottomRef.current.count;
   useLayoutEffect(() => {
     if (scrollToBottomCount > 0) {
-      const scrollEl = scrollRef.current;
-      if (scrollEl) {
+      const v = vListRef.current;
+      if (v) {
         const behavior = scrollToBottomRef.current.smooth && !reducedMotion ? 'smooth' : 'instant';
         const wasAtBottom = atBottomRef.current;
         Sentry.addBreadcrumb({
@@ -1614,30 +1518,18 @@ export function RoomTimeline({
             tags: { feature: 'timeline' },
           });
         }
-        // Use requestAnimationFrame to ensure the virtual paginator has finished
-        // updating the DOM before we scroll. This prevents scroll position from
-        // being stale when new messages arrive while at the bottom.
-        requestAnimationFrame(() => {
-          const preScrollTop = scrollEl.scrollTop;
-          const { scrollHeight } = scrollEl;
-          scrollToBottom(scrollEl, behavior);
-          debugLog.debug('timeline', 'scrollToBottom fired', {
-            behavior,
-            preScrollTop,
-            scrollHeight,
-            postScrollTop: scrollEl.scrollTop,
-            remainingOffset: scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight,
-          });
-          // On Android WebView, layout may still settle after the initial scroll.
-          // Fire a second instant scroll after a short delay to guarantee we
-          // reach the true bottom (e.g. after images finish loading or the
-          // virtual keyboard shifts the viewport).
-          if (behavior === 'instant') {
-            setTimeout(() => {
-              scrollToBottom(scrollEl, 'instant');
-            }, 80);
-          }
-        });
+        const lastIndex = eventsLengthRef.current - 1;
+        v.scrollToIndex(lastIndex, { align: 'end', smooth: behavior === 'smooth' });
+        debugLog.debug('timeline', 'scrollToBottom fired', { behavior, lastIndex });
+        // On Android WebView, layout may still settle after the initial scroll.
+        // Fire a second instant scroll after a short delay to guarantee we
+        // reach the true bottom (e.g. after images finish loading or the
+        // virtual keyboard shifts the viewport).
+        if (behavior === 'instant') {
+          setTimeout(() => {
+            vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+          }, 80);
+        }
       }
     }
   }, [scrollToBottomCount, reducedMotion, room.roomId]);
@@ -1652,9 +1544,7 @@ export function RoomTimeline({
   // scroll out of view msg editor in view.
   useEffect(() => {
     if (editId) {
-      const editMsgElement =
-        (scrollRef.current?.querySelector(`[data-message-id="${editId}"]`) as HTMLElement) ??
-        undefined;
+      const editMsgElement = document.querySelector<HTMLElement>(`[data-message-id="${editId}"]`) ?? undefined;
       if (editMsgElement) {
         scrollToElement(editMsgElement, {
           align: 'center',
@@ -2626,8 +2516,7 @@ export function RoomTimeline({
   let isPrevRendered = false;
   let newDivider = false;
   let dayDivider = false;
-  const timelineItems = getItems();
-  const eventRenderer = (item: number) => {
+  const eventRenderer = (item: number): ReactElement | null => {
     const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(timeline.linkedTimelines, item);
     if (!eventTimeline) return null;
     const timelineSet = eventTimeline?.getTimelineSet();
@@ -2665,17 +2554,19 @@ export function RoomTimeline({
     // event ID) so they remain visible with the ThreadReplyChip attached.
     if (mEvent.threadRootId !== undefined && mEvent.threadRootId !== mEventId) return null;
 
-    const eventJSX = reactionOrEditEvent(mEvent)
-      ? null
-      : renderMatrixEvent(
-          mEvent.getType(),
-          typeof mEvent.getStateKey() === 'string',
-          mEventId,
-          mEvent,
-          item,
-          timelineSet,
-          collapsed
-        );
+    const eventJSX = (
+      reactionOrEditEvent(mEvent)
+        ? null
+        : renderMatrixEvent(
+            mEvent.getType(),
+            typeof mEvent.getStateKey() === 'string',
+            mEventId,
+            mEvent,
+            item,
+            timelineSet,
+            collapsed
+          )
+    ) as ReactElement | null;
     prevEvent = mEvent;
     isPrevRendered = !!eventJSX;
 
@@ -2720,11 +2611,11 @@ export function RoomTimeline({
       );
     }
 
-    return eventJSX;
+    return eventJSX ?? null;
   };
 
   let backPaginationJSX: ReactNode | undefined;
-  if (canPaginateBack || !rangeAtStart || backwardStatus !== 'idle') {
+  if (canPaginateBack || backwardStatus !== 'idle') {
     if (backwardStatus === 'error') {
       backPaginationJSX = (
         <Box
@@ -2746,65 +2637,26 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (backwardStatus === 'loading' && timelineItems.length > 0) {
+    } else if (backwardStatus === 'loading') {
       backPaginationJSX = (
         <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
           <Spinner variant="Secondary" size="400" />
         </Box>
       );
-    } else if (timelineItems.length === 0) {
-      // When eventsLength===0 AND liveTimelineLinked the live EventTimeline was
-      // just reset by a sliding sync TimelineRefresh and new events haven't
-      // arrived yet. Attaching the IntersectionObserver anchor here would
-      // immediately fire a server-side /messages request before current events
-      // land — potentially causing a "/messages hangs → spinner stuck" scenario.
-      // Suppressing the anchor for this transient state is safe: the rangeAtEnd
-      // self-heal useEffect will call getInitialTimeline once events arrive, and
-      // at that point the correct anchor (below) will be re-observed.
-      // eventsLength>0 covers the range={K,K} case from recalibratePagination
-      // where items=0 but events exist — that needs the anchor for local range
-      // extension (no server call since start>0).
-      const placeholderBackAnchor =
-        eventsLength > 0 || !liveTimelineLinked ? observeBackAnchor : undefined;
-      backPaginationJSX =
-        messageLayout === MessageLayout.Compact ? (
-          <>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase ref={placeholderBackAnchor}>
-              <CompactPlaceholder />
-            </MessageBase>
-          </>
-        ) : (
-          <>
-            <MessageBase>
-              <DefaultPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <DefaultPlaceholder />
-            </MessageBase>
-            <MessageBase ref={placeholderBackAnchor}>
-              <DefaultPlaceholder />
-            </MessageBase>
-          </>
-        );
-    } else {
-      backPaginationJSX = <div ref={observeBackAnchor} style={{ height: 1 }} />;
     }
   }
 
+  // When eventsLength===0 show placeholder skeletons inside VList.
+  const showLoadingPlaceholders = eventsLength === 0 && (canPaginateBack || backwardStatus === 'loading' || forwardStatus === 'loading');
+
+  // VList requires a `data` array whose length controls item count.
+  // We use a simple array of indices so the render function receives the index directly.
+  const vListItemCount = showLoadingPlaceholders ? 3 : eventsLength;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const vListData = useMemo(() => Array.from({ length: vListItemCount }, (_, i) => i), [vListItemCount]);
+
   let frontPaginationJSX: ReactNode | undefined;
-  if (!liveTimelineLinked || !rangeAtEnd || forwardStatus !== 'idle') {
+  if (!liveTimelineLinked || forwardStatus !== 'idle') {
     if (forwardStatus === 'error') {
       frontPaginationJSX = (
         <Box
@@ -2826,47 +2678,12 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (forwardStatus === 'loading' && timelineItems.length > 0) {
+    } else if (forwardStatus === 'loading') {
       frontPaginationJSX = (
         <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
           <Spinner variant="Secondary" size="400" />
         </Box>
       );
-    } else if (timelineItems.length === 0) {
-      frontPaginationJSX =
-        messageLayout === MessageLayout.Compact ? (
-          <>
-            <MessageBase ref={observeFrontAnchor}>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <CompactPlaceholder />
-            </MessageBase>
-          </>
-        ) : (
-          <>
-            <MessageBase ref={observeFrontAnchor}>
-              <DefaultPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <DefaultPlaceholder />
-            </MessageBase>
-            <MessageBase>
-              <DefaultPlaceholder />
-            </MessageBase>
-          </>
-        );
-    } else {
-      frontPaginationJSX = <div ref={observeFrontAnchor} style={{ height: 1 }} />;
     }
   }
 
@@ -2895,33 +2712,46 @@ export function RoomTimeline({
           </Chip>
         </TimelineFloat>
       )}
-      <Scroll ref={scrollRef} visibility="Hover">
-        <Box
-          className={css.messageList}
-          direction="Column"
-          justifyContent="End"
-          style={{ minHeight: '100%', padding: `${config.space.S600} 0` }}
-        >
-          {!canPaginateBack && rangeAtStart && getItems().length > 0 && (
-            <div
-              style={{
-                padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${
-                  messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)
-                }`,
-              }}
-            >
-              <RoomIntro room={room} />
-            </div>
-          )}
-          {backPaginationJSX}
-
-          {timelineItems.map(eventRenderer)}
-
-          {frontPaginationJSX}
-          <span ref={atBottomAnchorRef} />
-        </Box>
-      </Scroll>
-      {(!atBottom || !(liveTimelineLinked && rangeAtEnd)) && (
+      {backPaginationJSX}
+      <VList
+        ref={vListRef}
+        data={vListData}
+        shift={shift}
+        className={css.messageList}
+        style={{ flex: 1, minHeight: 0, padding: `${config.space.S600} 0` }}
+        onScroll={handleVListScroll}
+      >
+        {(data: number): ReactElement => {
+          // `data` is the item-index because vListData = [0, 1, 2, ...N-1].
+          const index = data;
+          if (showLoadingPlaceholders) {
+            return (
+              <MessageBase key={index}>
+                {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+              </MessageBase>
+            );
+          }
+          if (index === 0 && !canPaginateBack) {
+            return (
+              <Fragment key="intro-and-first">
+                <div
+                  style={{
+                    padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${
+                      messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)
+                    }`,
+                  }}
+                >
+                  <RoomIntro room={room} />
+                </div>
+                {eventRenderer(index)}
+              </Fragment>
+            );
+          }
+          return eventRenderer(index) ?? <Fragment key={index} />;
+        }}
+      </VList>
+      {frontPaginationJSX}
+      {(!atBottom || !liveTimelineLinked) && (
         <TimelineFloat position="Bottom">
           <Chip
             variant="SurfaceVariant"

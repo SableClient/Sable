@@ -1333,24 +1333,30 @@ export function RoomTimeline({
     }, [])
   );
 
-  // When new events arrive at the live end and the user is at the bottom (or a
-  // timeline reset just happened), queue a scroll-to-bottom so VList keeps the
-  // latest message in view. With virtua, all loaded events are always rendered —
-  // there is no range to expand, just a scroll to trigger.
+  // When the live timeline reconnects (liveTimelineLinked flips true) while the
+  // user is at the bottom, queue a scroll-to-bottom so VList shows the latest
+  // message. New events at the bottom are handled directly by useLiveEventArrive
+  // (which increments the count *and* calls setTimeline in the same synchronous
+  // block so the layout effect sees the new count immediately). Including
+  // eventsLength here would double-fire the scroll on every arrival, causing the
+  // "really sticks to bottom" behaviour where a deferred count increment from
+  // event N is picked up during the next render and yanks the user back down.
+  // Timeline resets are handled by useLiveTimelineRefresh; timelineJustResetRef
+  // is still cleared here so the Sentry guard in the layout effect stays accurate.
   useEffect(() => {
     const resetPending = timelineJustResetRef.current;
-    if ((atBottom || resetPending) && liveTimelineLinked && eventsLength > 0) {
-      if (resetPending) timelineJustResetRef.current = false;
+    if (resetPending) timelineJustResetRef.current = false;
+    if (atBottom && liveTimelineLinked && eventsLengthRef.current > 0) {
       scrollToBottomRef.current.count += 1;
       scrollToBottomRef.current.smooth = false;
       Sentry.addBreadcrumb({
         category: 'ui.scroll',
-        message: 'Timeline: stay-at-bottom scroll (new events)',
+        message: 'Timeline: stay-at-bottom scroll (reconnect/live)',
         level: 'info',
-        data: { eventsLength, wasReset: resetPending, atBottom },
+        data: { eventsLength: eventsLengthRef.current, atBottom },
       });
     }
-  }, [atBottom, liveTimelineLinked, eventsLength]);
+  }, [atBottom, liveTimelineLinked]);
 
   // Recover from transient empty timeline state when the live timeline
   // already has events (can happen when opening by event id, then fallbacking).
@@ -1446,11 +1452,20 @@ export function RoomTimeline({
   }, [eventId]); // handleOpenEvent intentionally omitted — use ref above
 
   // Scroll to bottom on initial timeline load.
-  // VList handles scroll, so we use scrollToIndex rather than scrollToBottom.
+  // The immediate scrollToIndex fires before VList's ResizeObserver has measured
+  // items (ResizeObserver callbacks are async), so the scroll may overshoot on
+  // estimated heights. The 80 ms delayed retry fires after layout has settled —
+  // the same pattern used by the scrollToBottom layout effect below.
   useLayoutEffect(() => {
     if (eventsLength > 0) {
       vListRef.current?.scrollToIndex(eventsLength - 1, { align: 'end' });
     }
+    const t = setTimeout(() => {
+      if (vListRef.current && eventsLengthRef.current > 0) {
+        vListRef.current.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+      }
+    }, 80);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
 
@@ -2712,7 +2727,6 @@ export function RoomTimeline({
           </Chip>
         </TimelineFloat>
       )}
-      {backPaginationJSX}
       <VList
         ref={vListRef}
         data={vListData}
@@ -2731,19 +2745,31 @@ export function RoomTimeline({
               </MessageBase>
             );
           }
-          if (index === 0 && !canPaginateBack) {
+          if (index === 0) {
+            // backPaginationJSX is rendered inside item 0 rather than as a flex
+            // sibling above VList so that VList's height stays constant during
+            // back pagination (prevents the "narrowing" visual glitch).
+            if (!canPaginateBack) {
+              return (
+                <Fragment key="intro-and-first">
+                  {backPaginationJSX}
+                  <div
+                    style={{
+                      padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${
+                        messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)
+                      }`,
+                    }}
+                  >
+                    <RoomIntro room={room} />
+                  </div>
+                  {eventRenderer(index)}
+                </Fragment>
+              );
+            }
             return (
-              <Fragment key="intro-and-first">
-                <div
-                  style={{
-                    padding: `${config.space.S700} ${config.space.S400} ${config.space.S600} ${
-                      messageLayout === MessageLayout.Compact ? config.space.S400 : toRem(64)
-                    }`,
-                  }}
-                >
-                  <RoomIntro room={room} />
-                </div>
-                {eventRenderer(index)}
+              <Fragment key="first-with-pagination">
+                {backPaginationJSX}
+                {eventRenderer(0) ?? <Fragment key={0} />}
               </Fragment>
             );
           }

@@ -1055,6 +1055,12 @@ export function RoomTimeline({
     }
   }, []);
 
+  // One-shot flag: the FIRST scroll-end after mount triggers a correction scroll
+  // in case virtua's estimated item heights caused the initial scrollToIndex to
+  // land short of the true DOM bottom (items above the viewport are not yet
+  // measured and may be taller than the default estimate).
+  const initialScrollSettledRef = useRef(false);
+
   // shift=true while a backward pagination is in flight so VList maintains scroll
   // position when historical events are prepended to the list.
   // useLayoutEffect ensures shift is true DURING the render that shows new items.
@@ -1511,24 +1517,6 @@ export function RoomTimeline({
     }
   }, [eventId]); // handleOpenEvent intentionally omitted — use ref above
 
-  // Scroll to bottom on initial timeline load.
-  // The immediate scrollToIndex fires before VList's ResizeObserver has measured
-  // items (ResizeObserver callbacks are async), so the scroll may overshoot on
-  // estimated heights. The 80 ms delayed retry fires after layout has settled —
-  // the same pattern used by the scrollToBottom layout effect below.
-  useLayoutEffect(() => {
-    if (eventsLength > 0) {
-      vListRef.current?.scrollToIndex(eventsLength - 1, { align: 'end' });
-    }
-    const t = setTimeout(() => {
-      if (vListRef.current && eventsLengthRef.current > 0) {
-        vListRef.current.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
-      }
-    }, 80);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount
-
   // Recalculate top spacer whenever event count changes so the spacer collapses
   // as messages load in (items animate up from the bottom). Deferred to the
   // next animation frame so virtua's ResizeObserver has measured new items
@@ -1578,6 +1566,30 @@ export function RoomTimeline({
       });
     }, 2000);
   }, [alive, focusItem, scrollToItem]);
+
+  // Scroll to bottom on initial timeline load. Declared AFTER the unread-scroll
+  // and focus-scroll effects so that on the initial render commit, those effects
+  // fire first and this effect fires last — guaranteeing the user lands at the
+  // bottom of the live timeline regardless of what unread/focus scrolls did.
+  //
+  // The immediate scrollToIndex fires before virtua's ResizeObserver has
+  // measured items, so it uses estimated heights. The 80 ms delayed retry fires
+  // after items have had time to measure. The onScrollEnd handler on VList fires
+  // a final one-shot correction scroll so that measurement-caused height changes
+  // (items above the viewport estimated too short) don't leave a gap at the
+  // bottom after the 80 ms retry.
+  useLayoutEffect(() => {
+    if (eventsLength > 0) {
+      vListRef.current?.scrollToIndex(eventsLength - 1, { align: 'end' });
+    }
+    const t = setTimeout(() => {
+      if (vListRef.current && eventsLengthRef.current > 0) {
+        vListRef.current.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
 
   // scroll to bottom of timeline
   const scrollToBottomCount = scrollToBottomRef.current.count;
@@ -2803,6 +2815,15 @@ export function RoomTimeline({
         className={css.messageList}
         style={{ flex: 1, minHeight: 0, paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600, paddingBottom: config.space.S600 }}
         onScroll={handleVListScroll}
+        onScrollEnd={() => {
+          // One-shot correction: after the first scroll animation settles, re-anchor
+          // to the true bottom if virtua's estimated item heights left us short.
+          // initialScrollSettledRef stays false until this fires once per mount.
+          if (!initialScrollSettledRef.current && eventsLengthRef.current > 0 && !eventId) {
+            initialScrollSettledRef.current = true;
+            vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+          }
+        }}
       >
         {(data: number): ReactElement => {
           // `data` is the item-index because vListData = [0, 1, 2, ...N-1].

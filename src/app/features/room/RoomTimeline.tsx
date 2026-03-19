@@ -1039,6 +1039,9 @@ export function RoomTimeline({
     const v = vListRef.current;
     if (!v) return;
     const newH = Math.max(0, v.viewportSize + topSpacerHeightRef.current - v.scrollSize);
+    // TEMP DEBUG — remove before merge
+    // eslint-disable-next-line no-console
+    console.log('[spacer] viewportSize=%o scrollSize=%o prevSpacer=%o newH=%o', v.viewportSize, v.scrollSize, topSpacerHeightRef.current, newH);
     topSpacerHeightRef.current = newH;
     setTopSpacerHeight(newH);
   }, []);
@@ -1131,6 +1134,9 @@ export function RoomTimeline({
       // Recompute spacer: when content grows to fill the viewport the spacer
       // should collapse to 0 so we don't push items further down.
       const newH = Math.max(0, v.viewportSize + topSpacerHeightRef.current - v.scrollSize);
+      // TEMP DEBUG — remove before merge
+      // eslint-disable-next-line no-console
+      console.log('[spacer/scroll] offset=%o viewportSize=%o scrollSize=%o prevSpacer=%o newH=%o', offset, v.viewportSize, v.scrollSize, topSpacerHeightRef.current, newH);
       topSpacerHeightRef.current = newH;
       setTopSpacerHeight(newH);
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;

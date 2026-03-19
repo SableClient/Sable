@@ -165,6 +165,7 @@ function IdentityCosmetics() {
     'legacyUsernameColor'
   );
   const [showPronouns, setShowPronouns] = useSetting(settingsAtom, 'showPronouns');
+  const [parsePronouns, setParsePronouns] = useSetting(settingsAtom, 'parsePronouns');
   const [renderGlobalColors, setRenderGlobalColors] = useSetting(
     settingsAtom,
     'renderGlobalNameColors'
@@ -194,6 +195,13 @@ function IdentityCosmetics() {
           title="Show Pronoun Pills"
           description="Display user pronouns in the message timeline."
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Pronoun Pills for All"
+          description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
+          after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

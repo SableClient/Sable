@@ -121,7 +121,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     return true;
   }, [trimmedBody, safeCustomBody]);
 
-  if (!body) return <BrokenContent body={customBody ?? body} />;
+  if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;

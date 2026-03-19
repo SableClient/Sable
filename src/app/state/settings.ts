@@ -71,6 +71,7 @@ export interface Settings {
   privacyBlurAvatars: boolean;
   privacyBlurEmotes: boolean;
   showPronouns: boolean;
+  parsePronouns: boolean;
   renderGlobalNameColors: boolean;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
@@ -97,6 +98,7 @@ export interface Settings {
   saveStickerEmojiBandwidth: boolean;
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
+  highlightMentions: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -154,6 +156,7 @@ const defaultSettings: Settings = {
   privacyBlurAvatars: false,
   privacyBlurEmotes: false,
   showPronouns: true,
+  parsePronouns: true,
   renderGlobalNameColors: true,
   renderRoomColors: true,
   renderRoomFonts: true,
@@ -178,6 +181,7 @@ const defaultSettings: Settings = {
   saveStickerEmojiBandwidth: false,
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
+  highlightMentions: true,
 
   // furry stuff
   renderAnimals: true,

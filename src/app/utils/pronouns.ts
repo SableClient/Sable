@@ -63,3 +63,45 @@ export function filterPronounsByLanguage(
 
   return filteredPronouns;
 }
+
+const pronounParseCache = new Map<
+  string,
+  { cleanedDisplayName: string; inlinePronoun: string | null }
+>();
+
+export function getParsedPronouns(rawName: string, parseSetting: boolean) {
+  if (!parseSetting || !rawName) {
+    return { cleanedDisplayName: rawName, inlinePronoun: null };
+  }
+
+  if (pronounParseCache.has(rawName)) {
+    return pronounParseCache.get(rawName)!;
+  }
+
+  // match text like (she/her) or [he/they/them] but not (hi)
+  const regex = /[([]?([a-zA-Z]+\/[a-zA-Z]+(?:\/[a-zA-Z]+)?)[)\]]?/;
+  const match = rawName.match(regex);
+
+  let result: { cleanedDisplayName: string; inlinePronoun: string | null } = {
+    cleanedDisplayName: rawName,
+    inlinePronoun: null,
+  };
+
+  if (match) {
+    let strippedName = rawName.replace(match[0], '').trim();
+    if (!strippedName || strippedName === '') {
+      strippedName = rawName;
+    }
+    result = {
+      cleanedDisplayName: strippedName,
+      inlinePronoun: match[1].toLowerCase().slice(0, 16),
+    };
+  }
+
+  if (pronounParseCache.size > 1000) {
+    pronounParseCache.clear();
+  }
+
+  pronounParseCache.set(rawName, result);
+  return result;
+}

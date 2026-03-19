@@ -104,34 +104,41 @@ export function AudioContent({
         max={duration || 1}
         values={[currentTime]}
         onChange={(values) => seek(values[0])}
-        renderTrack={(params) => (
-          <div {...params.props}>
-            {params.children}
-            <ProgressBar
-              as="div"
-              variant="Secondary"
+        renderTrack={(params) => {
+          const { key, ...restProps } = params.props as any;
+          return (
+            <div key={key} {...restProps}>
+              {params.children}
+              <ProgressBar
+                as="div"
+                variant="Secondary"
+                size="300"
+                min={0}
+                max={duration}
+                value={currentTime}
+                radii="300"
+              />
+            </div>
+          );
+        }}
+        renderThumb={(params) => {
+          const { key, style, ...restProps } = params.props as any;
+          return (
+            <Badge
+              key={key}
               size="300"
-              min={0}
-              max={duration}
-              value={currentTime}
-              radii="300"
+              variant="Secondary"
+              fill="Solid"
+              radii="Pill"
+              outlined
+              {...restProps}
+              style={{
+                ...style,
+                zIndex: 0,
+              }}
             />
-          </div>
-        )}
-        renderThumb={(params) => (
-          <Badge
-            size="300"
-            variant="Secondary"
-            fill="Solid"
-            radii="Pill"
-            outlined
-            {...params.props}
-            style={{
-              ...params.props.style,
-              zIndex: 0,
-            }}
-          />
-        )}
+          );
+        }}
       />
     ),
     leftControl: (
@@ -174,34 +181,41 @@ export function AudioContent({
           max={1}
           values={[volume]}
           onChange={(values) => setVolume(values[0])}
-          renderTrack={(params) => (
-            <div {...params.props}>
-              {params.children}
-              <ProgressBar
-                style={{ width: toRem(48) }}
-                variant="Secondary"
+          renderTrack={(params) => {
+            const { key, ...restProps } = params.props as any;
+            return (
+              <div key={key} {...restProps}>
+                {params.children}
+                <ProgressBar
+                  style={{ width: toRem(48) }}
+                  variant="Secondary"
+                  size="300"
+                  min={0}
+                  max={1}
+                  value={volume}
+                  radii="300"
+                />
+              </div>
+            );
+          }}
+          renderThumb={(params) => {
+            const { key, style, ...restProps } = params.props as any;
+            return (
+              <Badge
+                key={key}
                 size="300"
-                min={0}
-                max={1}
-                value={volume}
-                radii="300"
+                variant="Secondary"
+                fill="Solid"
+                radii="Pill"
+                outlined
+                {...restProps}
+                style={{
+                  ...style,
+                  zIndex: 0,
+                }}
               />
-            </div>
-          )}
-          renderThumb={(params) => (
-            <Badge
-              size="300"
-              variant="Secondary"
-              fill="Solid"
-              radii="Pill"
-              outlined
-              {...params.props}
-              style={{
-                ...params.props.style,
-                zIndex: 0,
-              }}
-            />
-          )}
+            );
+          }}
         />
       </>
     ),

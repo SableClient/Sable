@@ -1,6 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { RecipeVariants, recipe } from '@vanilla-extract/recipes';
-import { RadiiVariant, color, config } from 'folds';
+import { DefaultReset, RadiiVariant, color, config, toRem } from 'folds';
 
 export const UploadCard = recipe({
   base: {
@@ -34,3 +34,65 @@ export const UploadCardError = style({
   padding: `0 ${config.space.S100}`,
   color: color.Critical.Main,
 });
+
+export const AudioPreviewContainer = style([
+  DefaultReset,
+  {
+    backgroundColor: color.SurfaceVariant.Container,
+    border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+    borderRadius: config.radii.R400,
+    padding: config.space.S300,
+    width: '100%',
+    maxWidth: toRem(400),
+    boxSizing: 'border-box',
+  },
+]);
+
+export const AudioWaveformContainer = style([
+  DefaultReset,
+  {
+    minHeight: 44,
+    cursor: 'pointer',
+    userSelect: 'none',
+    overflow: 'hidden',
+  },
+]);
+
+export const AudioWaveformBar = style([
+  DefaultReset,
+  {
+    width: 2,
+    height: 3,
+    borderRadius: 1,
+    flexShrink: 0,
+    transition: 'background-color 40ms, opacity 40ms',
+    pointerEvents: 'none',
+  },
+]);
+
+export const AudioWaveformBarPlayed = style([
+  DefaultReset,
+  {
+    backgroundColor: color.Secondary.Main,
+    opacity: 1,
+  },
+]);
+
+export const AudioWaveformBarUnplayed = style([
+  DefaultReset,
+  {
+    backgroundColor: color.SurfaceVariant.OnContainer,
+    opacity: 0.5,
+  },
+]);
+
+export const AudioTimeDisplay = style([
+  DefaultReset,
+  {
+    fontVariantNumeric: 'tabular-nums',
+    color: color.SurfaceVariant.OnContainer,
+    minWidth: toRem(30),
+    textAlign: 'right',
+    flexShrink: 0,
+  },
+]);

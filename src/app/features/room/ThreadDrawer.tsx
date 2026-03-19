@@ -54,6 +54,36 @@ import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import * as css from './ThreadDrawer.css';
 
+/**
+ * Resolve the list of reply events to show in the thread drawer.
+ *
+ * Prefers events from the SDK Thread object (authoritative, full history) but
+ * falls back to scanning the main room timeline when the Thread object was
+ * created without `initialEvents` (as happens with classic sync).  In that
+ * case `thread.events` contains only the root event, so filtering it yields an
+ * empty array — we must fall back rather than showing nothing.
+ *
+ * Exported for unit testing.
+ */
+export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEvent[] {
+  const thread = room.getThread(threadRootId);
+  const fromThread = thread?.events ?? [];
+  const filteredFromThread = fromThread.filter(
+    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+  );
+  if (filteredFromThread.length > 0) {
+    return filteredFromThread;
+  }
+  return room
+    .getUnfilteredTimelineSet()
+    .getLiveTimeline()
+    .getEvents()
+    .filter(
+      (ev) =>
+        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    );
+}
+
 type ForwardedMessageProps = {
   isForwarded: boolean;
   originalTimestamp: number;
@@ -398,6 +428,33 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const rootEvent = room.findEventById(threadRootId);
 
+  // When the drawer is opened with classic sync, room.createThread() may have
+  // been called with empty initialEvents so thread.events only has the root.
+  // Backfill events from the main room timeline into the Thread object so the
+  // authoritative source is populated for subsequent renders and receipts.
+  useEffect(() => {
+    const thread = room.getThread(threadRootId);
+    if (!thread) return;
+    const hasRepliesInThread = thread.events.some(
+      (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    );
+    if (hasRepliesInThread) return; // already populated, nothing to do
+
+    const liveEvents = room
+      .getUnfilteredTimelineSet()
+      .getLiveTimeline()
+      .getEvents()
+      .filter(
+        (ev) =>
+          ev.threadRootId === threadRootId &&
+          ev.getId() !== threadRootId &&
+          !reactionOrEditEvent(ev)
+      );
+    if (liveEvents.length > 0) {
+      thread.addEvents(liveEvents, false);
+    }
+  }, [room, threadRootId]);
+
   // Re-render when new thread events arrive (including reactions via ThreadEvent.Update).
   useEffect(() => {
     const isEventInThread = (mEvent: MatrixEvent): boolean => {
@@ -481,26 +538,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     markThreadAsRead();
   }, [mx, room, threadRootId, forceUpdate]);
 
-  // Use the Thread object if available (authoritative source with full history).
-  // Fall back to scanning the live room timeline for local echoes and the
-  // window before the Thread object is registered by the SDK.
-  const replyEvents: MatrixEvent[] = (() => {
-    const thread = room.getThread(threadRootId);
-    const fromThread = thread?.events ?? [];
-    if (fromThread.length > 0) {
-      return fromThread.filter((ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev));
-    }
-    return room
-      .getUnfilteredTimelineSet()
-      .getLiveTimeline()
-      .getEvents()
-      .filter(
-        (ev) =>
-          ev.threadRootId === threadRootId &&
-          ev.getId() !== threadRootId &&
-          !reactionOrEditEvent(ev)
-      );
-  })();
+  const replyEvents = getThreadReplyEvents(room, threadRootId);
 
   replyEventsRef.current = replyEvents;
 

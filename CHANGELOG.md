@@ -1,5 +1,17 @@
 # Sable Client Changelog
 
+## 1.9.3 (2026-03-17)
+
+### Fixes
+
+* Fix autocomplete Enter & Tab key always selecting the first item and the first item not being highlighted on open. ([#310](https://github.com/SableClient/Sable/pull/310) by @Just-Insane)
+* Fix messages with body empty but formatted body filled rendering as empty. ([#337](https://github.com/SableClient/Sable/pull/337) by @7w1)
+* Fix emoticon autocomplete not respecting character threshold setting. ([#337](https://github.com/SableClient/Sable/pull/337) by @7w1)
+* Fix images without explicit dimensions not appearing. ([#338](https://github.com/SableClient/Sable/pull/338) by @7w1)
+* Fix Mac OS to macOS in the the devices tab ([#328](https://github.com/SableClient/Sable/pull/328) by @DidiDidi129)
+* Improved voice message recording UI, it should now feel a lot more integrated. ([#311](https://github.com/SableClient/Sable/pull/311) by @hazre)
+* Add opt-in Sentry crash reporting with a consent banner. ([#333](https://github.com/SableClient/Sable/pull/333) by @Just-Insane)
+
 ## 1.9.2 (2026-03-17)
 
 ### Fixes

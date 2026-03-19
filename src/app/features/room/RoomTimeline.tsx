@@ -1038,9 +1038,21 @@ export function RoomTimeline({
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;
-    const newH = Math.max(0, v.viewportSize + topSpacerHeightRef.current - v.scrollSize);
+    const prev = topSpacerHeightRef.current;
+    const newH = Math.max(0, v.viewportSize + prev - v.scrollSize);
     topSpacerHeightRef.current = newH;
     setTopSpacerHeight(newH);
+    // When the spacer just collapsed to 0, content now fills the viewport for
+    // the first time (bulk load after sparse initial delivery). At this point
+    // atBottom is false because handleVListScroll already saw the new large
+    // scrollSize against the old offset, so the stay-at-bottom effect skips.
+    // Force a scroll to the last item after one more rAF so the paddingTop
+    // CSS change re-render has settled before virtua processes the scroll.
+    if (prev > 0 && newH === 0 && eventsLengthRef.current > 0) {
+      requestAnimationFrame(() => {
+        vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+      });
+    }
   }, []);
 
   // shift=true while a backward pagination is in flight so VList maintains scroll

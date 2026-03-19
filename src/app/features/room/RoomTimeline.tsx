@@ -1078,14 +1078,32 @@ export function RoomTimeline({
   // useLayoutEffect ensures shift is true DURING the render that shows new items.
   const [shift, setShift] = useState(false);
   const prevBackwardStatusRef = useRef<PaginationStatus>('idle');
+  // When backward pagination starts while the user is at the bottom (common on
+  // initial mount with classic sync: 8 events delivered → canPaginateBack=true →
+  // backward pagination fires immediately), record that state so we can
+  // re-anchor to the newest message when pagination completes.
+  // This is necessary because scrollToIndex on mount is a no-op (8 items fit
+  // the viewport exactly, offset stays 0), so onScrollEnd never fires and the
+  // mount-window re-anchor loop never runs. Without this, the shift mechanism
+  // keeps the user on the *oldest* of the original 8 items, not the *newest*.
+  const wasAtBottomBeforePaginationRef = useRef(false);
   useLayoutEffect(() => {
     const prev = prevBackwardStatusRef.current;
     prevBackwardStatusRef.current = backwardStatus;
     if (backwardStatus === 'loading') {
+      wasAtBottomBeforePaginationRef.current = atBottomRef.current;
       setShift(true);
     } else if (prev === 'loading' && backwardStatus === 'idle' && shift) {
       // New items have been rendered with shift=true; turn it off next frame.
       setShift(false);
+      // If the user was at the bottom before pagination, re-anchor to the
+      // newest message after the prepend settles (rAF gives virtua time to
+      // apply the shift and measure items).
+      if (wasAtBottomBeforePaginationRef.current) {
+        requestAnimationFrame(() => {
+          vListRef.current?.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+        });
+      }
     }
   }, [backwardStatus, shift]);
 
@@ -1591,16 +1609,12 @@ export function RoomTimeline({
   // (items above the viewport estimated too short) don't leave a gap at the
   // bottom after the 80 ms retry.
   useLayoutEffect(() => {
-    console.log('[mount-scroll] mount effect fired, eventsLength=', eventsLength, 'vListRef=', !!vListRef.current);
     if (eventsLength > 0) {
-      console.log('[mount-scroll] calling scrollToIndex immediately', eventsLength - 1);
       vListRef.current?.scrollToIndex(eventsLength - 1, { align: 'end' });
     }
     const t = setTimeout(() => {
-      const v = vListRef.current;
-      console.log('[mount-scroll] 80ms retry, eventsLength=', eventsLengthRef.current, 'v=', !!v, v ? `scrollSize=${v.scrollSize} scrollOffset=${v.scrollOffset} viewportSize=${v.viewportSize} dfb=${v.scrollSize - v.scrollOffset - v.viewportSize}` : '');
-      if (v && eventsLengthRef.current > 0) {
-        v.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
+      if (vListRef.current && eventsLengthRef.current > 0) {
+        vListRef.current.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
       }
     }, 80);
     return () => clearTimeout(t);
@@ -2832,29 +2846,25 @@ export function RoomTimeline({
         style={{ flex: 1, minHeight: 0, paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600, paddingBottom: config.space.S600 }}
         onScroll={handleVListScroll}
         onScrollEnd={() => {
-          const windowExpiry = mountScrollWindowRef.current;
-          const v = vListRef.current;
-          const dfb = v ? v.scrollSize - v.scrollOffset - v.viewportSize : -1;
-          console.log('[onScrollEnd] windowExpiry=', windowExpiry !== 0 ? 'open' : 'closed', 'dfb=', dfb, 'eventsLength=', eventsLengthRef.current, v ? `scrollSize=${v.scrollSize} scrollOffset=${v.scrollOffset} viewportSize=${v.viewportSize}` : 'no-vlist');
           // While the mount-window is open, keep re-anchoring to the last item
           // until we're truly at the bottom (distanceFromBottom < 20 px).
           // This compensates for virtua's estimated heights being too short:
           // each time items above get measured virtua adjusts scrollSize, so
           // successive scrollToIndex calls walk us to the true DOM bottom.
+          const windowExpiry = mountScrollWindowRef.current;
           if (windowExpiry !== 0 && eventsLengthRef.current > 0 && !eventId) {
+            const v = vListRef.current;
             if (v) {
-              if (dfb < 20) {
+              const distanceFromBottom = v.scrollSize - v.scrollOffset - v.viewportSize;
+              if (distanceFromBottom < 20) {
                 // We're at the true bottom — close the window.
                 mountScrollWindowRef.current = 0;
-                console.log('[onScrollEnd] window closed - at bottom');
               } else if (Date.now() < windowExpiry) {
                 // Still drifted; fire another anchor.
-                console.log('[onScrollEnd] re-anchoring, dfb=', dfb);
                 v.scrollToIndex(eventsLengthRef.current - 1, { align: 'end' });
               } else {
                 // Timed out without reaching bottom — give up.
                 mountScrollWindowRef.current = 0;
-                console.log('[onScrollEnd] window timed out, dfb=', dfb);
               }
             }
           }

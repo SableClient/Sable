@@ -2895,7 +2895,7 @@ export function RoomTimeline({
           </Chip>
         </TimelineFloat>
       )}
-      <Scroll ref={scrollRef} visibility="Hover">
+      <Scroll ref={scrollRef} visibility="Hover" style={{ overflowAnchor: 'auto' }}>
         <Box
           className={css.messageList}
           direction="Column"

@@ -1039,7 +1039,17 @@ export function RoomTimeline({
     const v = vListRef.current;
     if (!v) return;
     const prev = topSpacerHeightRef.current;
-    const newH = Math.max(0, v.viewportSize + prev - v.scrollSize);
+    // Only apply a spacer when the items genuinely don't fill the viewport
+    // (sparse room with 1-3 events). With classic sync the room starts with
+    // ~50 events whose heights are estimated, so scrollSize can temporarily
+    // appear smaller than viewportSize. Guard: don't set a spacer if we have
+    // "enough" events to plausibly fill the viewport (eventsLength > 5), unless
+    // a spacer already exists and we're shrinking it — in that case let it
+    // collapse to 0 normally.
+    const hasEnoughEvents = eventsLengthRef.current > 5;
+    const newH = (hasEnoughEvents && prev === 0)
+      ? 0
+      : Math.max(0, v.viewportSize + prev - v.scrollSize);
     topSpacerHeightRef.current = newH;
     setTopSpacerHeight(newH);
     // When the spacer just collapsed to 0, content now fills the viewport for

@@ -1020,6 +1020,17 @@ export function RoomTimeline({
 
   const vListRef = useRef<VListHandle>(null);
 
+  // Top padding that pushes items to the bottom of the viewport when the total
+  // content is shorter than the viewport height (e.g., on initial load when
+  // sliding sync has only delivered 1-3 events). Recomputed whenever VList
+  // reports a scroll (which also fires on resize) and after eventsLength changes.
+  const [topSpacerHeight, setTopSpacerHeight] = useState(0);
+  const recalcTopSpacer = useCallback(() => {
+    const v = vListRef.current;
+    if (!v) return;
+    setTopSpacerHeight(Math.max(0, v.viewportSize - v.scrollSize));
+  }, []);
+
   // shift=true while a backward pagination is in flight so VList maintains scroll
   // position when historical events are prepended to the list.
   // useLayoutEffect ensures shift is true DURING the render that shows new items.
@@ -1105,6 +1116,9 @@ export function RoomTimeline({
     (offset: number) => {
       const v = vListRef.current;
       if (!v) return;
+      // Recompute spacer: when content grows to fill the viewport the spacer
+      // should collapse to 0 so we don't push items further down.
+      setTopSpacerHeight(Math.max(0, v.viewportSize - v.scrollSize));
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
       if (isNowAtBottom !== atBottomRef.current) {
@@ -1121,8 +1135,8 @@ export function RoomTimeline({
         handleTimelinePagination(false);
       }
     },
-    // tryAutoMarkAsRead and setAtBottom are stable callbacks; atBottomRef and
-    // atLiveEndRef are refs so they don't change identity across renders.
+    // tryAutoMarkAsRead, setAtBottom and setTopSpacerHeight are stable callbacks;
+    // atBottomRef and atLiveEndRef are refs so they don't change identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [handleTimelinePagination]
   );
@@ -1488,6 +1502,12 @@ export function RoomTimeline({
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
+
+  // Recalculate top spacer whenever event count changes so the spacer collapses
+  // as messages load in (items animate up from the bottom).
+  useLayoutEffect(() => {
+    recalcTopSpacer();
+  }, [recalcTopSpacer, eventsLength]);
 
   // virtua's VList has its own internal ResizeObserver for item height changes
   // (e.g. media loads), so the explicit media ResizeObserver is no longer needed.
@@ -2752,7 +2772,7 @@ export function RoomTimeline({
         data={vListData}
         shift={shift}
         className={css.messageList}
-        style={{ flex: 1, minHeight: 0, padding: `${config.space.S600} 0` }}
+        style={{ flex: 1, minHeight: 0, paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600, paddingBottom: config.space.S600 }}
         onScroll={handleVListScroll}
       >
         {(data: number): ReactElement => {

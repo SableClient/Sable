@@ -193,6 +193,7 @@ export function SystemNotification() {
     settingsAtom,
     'faviconForMentionsOnly'
   );
+  const [highlightMentions, setHighlightMentions] = useSetting(settingsAtom, 'highlightMentions');
 
   // Describe what the current badge combo actually does so users aren't left guessing.
   const badgeBehaviourSummary = (): string => {
@@ -398,6 +399,20 @@ export function SystemNotification() {
           title="Show Mention Counts"
           description="Displays a number for mentions and keyword alerts."
           after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Highlight Mentions"
+          description="Highlight the full background message when it contains a mention/keyword."
+          after={
+            <Switch variant="Primary" value={highlightMentions} onChange={setHighlightMentions} />
+          }
         />
       </SequenceCard>
     </Box>

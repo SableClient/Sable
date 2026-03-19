@@ -65,6 +65,7 @@ export const ImageContent = as<'div', ImageContentProps>(
   (
     {
       className,
+      style,
       body,
       mimeType,
       url,
@@ -122,9 +123,15 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
 
+    const hasDimensions = typeof info?.w === 'number' && typeof info?.h === 'number';
+
     return (
       <Box
         className={classNames(css.RelativeBase, className)}
+        style={{
+          ...(hasDimensions ? { aspectRatio: `${info.w} / ${info.h}` } : { minHeight: '150px' }),
+          ...style,
+        }}
         {...props}
         ref={ref}
         onPointerEnter={() => setIsHovered(true)}
@@ -185,14 +192,22 @@ export const ImageContent = as<'div', ImageContentProps>(
           </Box>
         )}
         {srcState.status === AsyncStatus.Success && (
-          <Box className={classNames(css.AbsoluteContainer, blurred && css.Blur)}>
+          <Box
+            className={classNames(
+              hasDimensions ? css.AbsoluteContainer : undefined,
+              blurred && css.Blur
+            )}
+          >
             {renderImage({
               alt: body,
               title: body,
               src: srcState.data,
               onLoad: handleLoad,
               onError: handleError,
-              onClick: () => setViewer(true),
+              onClick: () => {
+                setIsHovered(false);
+                setViewer(true);
+              },
               tabIndex: 0,
             })}
           </Box>

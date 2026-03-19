@@ -1,6 +1,6 @@
 {
   "name": "sable",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "An almost stable Matrix client",
   "type": "module",
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
@@ -36,6 +36,7 @@
     "@fontsource-variable/nunito": "5.2.7",
     "@sentry/react": "^10.43.0",
     "@fontsource/space-mono": "5.2.9",
+    "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tanstack/react-virtual": "^3.13.19",
@@ -94,7 +95,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
-    "@sableclient/sable-call-embedded": "v1.1.3",
+    "@sableclient/sable-call-embedded": "v1.1.4",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@eslint/compat": "2.0.2",
     "@eslint/js": "9.39.3",

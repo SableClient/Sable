@@ -25,6 +25,7 @@ import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
 import {
   Box,
+  color,
   config,
   Dialog,
   Icon,
@@ -152,6 +153,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
@@ -162,7 +164,7 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import { AudioMessageRecorder } from './AudioMessageRecorder';
+import { AudioMessageRecorder, AudioMessageRecorderHandle } from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -255,6 +257,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
+    /**
+     * Nickname someone set for another user
+     * this nickname should be treated as private
+     */
     const nicknames = useAtomValue(nicknamesAtom);
 
     const powerLevels = usePowerLevelsContext();
@@ -285,8 +291,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
-    const [audioMsgWaveform, setAudioMsgWaveform] = useState<number[] | undefined>(undefined);
-    const [audioMsgLength, setAudioMsgLength] = useState<number | undefined>(undefined);
+    const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
+    const micHoldStartRef = useRef<number>(0);
+    const HOLD_THRESHOLD_MS = 400;
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
@@ -296,7 +303,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [inputKey, setInputKey] = useState(0);
 
     const handleFiles = useCallback(
-      async (files: File[]) => {
+      async (files: File[], audioMeta?: { waveform: number[]; audioDuration: number }) => {
         setUploadBoard(true);
         const safeFiles = files.map(safeFile);
         const fileItems: TUploadItem[] = [];
@@ -310,6 +317,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               ...ef,
               metadata: {
                 markedAsSpoiler: false,
+                waveform: audioMeta?.waveform,
+                audioDuration: audioMeta?.audioDuration,
               },
             })
           );
@@ -321,6 +330,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               encInfo: undefined,
               metadata: {
                 markedAsSpoiler: false,
+                waveform: audioMeta?.waveform,
+                audioDuration: audioMeta?.audioDuration,
               },
             })
           );
@@ -373,6 +384,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     let replyBodyJSX: ReactNode = replyDraft ? trimReplyFromBody(replyDraft.body) : null;
 
     if (htmlBody) {
+      /**
+       * message with linebreaks, etc stripped
+       */
       const strippedHtml = trimReplyFromFormattedBody(htmlBody)
         .replaceAll(/<br\s*\/?>/gi, ' ')
         .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
@@ -489,7 +503,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           return getVideoMsgContent(mx, fileItem, upload.mxc);
         }
         if (fileItem.file.type.startsWith('audio')) {
-          return getAudioMsgContent(fileItem, upload.mxc, audioMsgWaveform, audioMsgLength);
+          return getAudioMsgContent(fileItem, upload.mxc);
         }
         return getFileMsgContent(fileItem, upload.mxc);
       });
@@ -561,7 +575,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           contents.map((content) =>
             mx
               .sendMessage(roomId, threadRootId ?? null, content as any)
-              .then((res) => {
+              .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
                   roomId,
                   eventId: res.event_id,
@@ -621,12 +635,65 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       uploadBoardHandlers.current?.handleSend();
 
       const commandName = getBeginCommand(editor);
-      let plainText = toPlainText(editor.children, isMarkdown).trim();
+      /**
+       * a map of regex patterns to replace nicknames with,
+       * used when stripNickname is true in toMatrixCustomHTML
+       * during HTML generation for the message content.
+       * This is necessary because the HTML generation needs to know
+       * which nicknames to strip in order to generate the correct formatted_body,
+       * and the plain text generation needs to replace those same nicknames with
+       * the original user IDs so that the message content remains consistent and
+       * mentions are correctly processed by the server and clients.
+       */
+      const nicknameReplacement = new Map<RegExp, string>();
+      if (replyEvent) {
+        /**
+         * the id of the user being replied to,
+         * whose nickname (if any) should be stripped
+         * from the message content and replaced with their
+         * user ID for correct mention processing
+         */
+        const senderId = replyEvent.getSender();
+        if (senderId) {
+          const nick = nicknames[senderId];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(senderId)?.rawDisplayName ?? senderId
+            );
+          }
+        }
+      }
+      /**
+       * any other users mentioned in the message being replied to,
+       * whose nicknames should also be stripped and replaced with user IDs
+       */
+      const mentions = getMentions(mx, roomId, editor);
+      if (mentions?.users) {
+        mentions.users.forEach((id) => {
+          const nick = nicknames[id];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(id)?.rawDisplayName ?? id
+            );
+          }
+        });
+      }
+      /**
+       * the plain text we will send
+       */
+      let plainText = toPlainText(editor.children, isMarkdown, true, nicknameReplacement).trim();
+      /**
+       * the html we will send
+       */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(editor.children, {
           allowTextFormatting: true,
           allowBlockMarkdown: isMarkdown,
           allowInlineMarkdown: isMarkdown,
+          stripNickname: true,
+          nickNameReplacement: nicknameReplacement,
         })
       );
       let msgType = MsgType.Text;
@@ -759,7 +826,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           },
           () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
         )
-          .then((res) => {
+          .then((res: { event_id: string }) => {
             debugLog.info('message', 'Message sent successfully', {
               roomId,
               eventId: res.event_id,
@@ -783,6 +850,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
     }, [
       editor,
+      replyEvent,
       isMarkdown,
       canSendReaction,
       mx,
@@ -792,6 +860,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       silentReply,
       scheduledTime,
       editingScheduledDelayId,
+      nicknames,
       handleQuickReact,
       commands,
       sendTypingStatus,
@@ -805,41 +874,54 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
-        if (autocompleteQuery && isKeyHotkey('arrowdown', evt)) {
-          evt.preventDefault();
-          document
-            .querySelector('[data-autocomplete-menu]')
-            ?.dispatchEvent(new CustomEvent('autocomplete-navigate', { detail: { direction: 1 } }));
-          return;
-        }
-        if (autocompleteQuery && isKeyHotkey('arrowup', evt)) {
-          evt.preventDefault();
-          document
-            .querySelector('[data-autocomplete-menu]')
-            ?.dispatchEvent(
+        const autocompleteMenu = document.querySelector('[data-autocomplete-menu]');
+        const isMenuVisible = !!(autocompleteQuery && autocompleteMenu);
+
+        if (isMenuVisible) {
+          if (isKeyHotkey('arrowdown', evt)) {
+            evt.preventDefault();
+            autocompleteMenu.dispatchEvent(
+              new CustomEvent('autocomplete-navigate', { detail: { direction: 1 } })
+            );
+            return;
+          }
+          if (isKeyHotkey('arrowup', evt)) {
+            evt.preventDefault();
+            autocompleteMenu.dispatchEvent(
               new CustomEvent('autocomplete-navigate', { detail: { direction: -1 } })
             );
-          return;
+            return;
+          }
+
+          if ((isKeyHotkey('enter', evt) || isKeyHotkey('tab', evt)) && !isComposing(evt)) {
+            const selectedItem =
+              autocompleteMenu.querySelector<HTMLButtonElement>('button[data-selected="true"]') ??
+              autocompleteMenu.querySelector<HTMLButtonElement>('button');
+
+            if (selectedItem) {
+              evt.preventDefault();
+              selectedItem.click();
+              return;
+            }
+          }
         }
+
         if (
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
         ) {
           evt.preventDefault();
-          if (autocompleteQuery) {
-            const selectedItem =
-              document.querySelector<HTMLButtonElement>(
-                '[data-autocomplete-menu] button[data-selected]'
-              ) ?? document.querySelector<HTMLButtonElement>('[data-autocomplete-menu] button');
-            selectedItem?.click();
-            return;
-          }
           submit().catch((error) => {
             log.error('submit failed', { roomId }, error);
           });
+          return;
         }
         if (isKeyHotkey('escape', evt)) {
           evt.preventDefault();
+          if (showAudioRecorder) {
+            audioRecorderRef.current?.cancel();
+            return;
+          }
           if (autocompleteQuery) {
             setAutocompleteQuery(undefined);
             return;
@@ -847,7 +929,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setReplyDraft(undefined);
         }
       },
-      [submit, roomId, setReplyDraft, enterForNewline, autocompleteQuery, isComposing]
+      [
+        submit,
+        roomId,
+        setReplyDraft,
+        enterForNewline,
+        autocompleteQuery,
+        isComposing,
+        showAudioRecorder,
+      ]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -1049,7 +1139,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder="Send a message..."
+          placeholder={showAudioRecorder && mobileOrTablet() ? '' : 'Send a message...'}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
@@ -1126,7 +1216,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         grow="Yes"
                         style={{ minWidth: 0 }}
                       >
-                        {replyDraft.relation?.rel_type === RelationType.Thread && (
+                        {replyDraft.relation?.rel_type === RelationType.Thread && !threadRootId && (
                           <ThreadIndicator />
                         )}
                         <ReplyLayout
@@ -1169,19 +1259,97 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              title="Upload File"
-              aria-label="Upload and attach a File"
-            >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+            !(showAudioRecorder && mobileOrTablet()) && (
+              <IconButton
+                onClick={() => pickFile('*')}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="Upload File"
+                aria-label="Upload and attach a File"
+              >
+                <Icon src={Icons.PlusCircle} />
+              </IconButton>
+            )
           }
           after={
             <>
+              {showAudioRecorder && (
+                <AudioMessageRecorder
+                  ref={audioRecorderRef}
+                  onRequestClose={() => setShowAudioRecorder(false)}
+                  onRecordingComplete={(payload) => {
+                    const extension = getSupportedAudioExtension(payload.audioCodec);
+                    const file = new File(
+                      [payload.audioBlob],
+                      `sable-audio-message-${Date.now()}.${extension}`,
+                      {
+                        type: payload.audioCodec,
+                      }
+                    );
+                    handleFiles([file], {
+                      waveform: payload.waveform,
+                      audioDuration: payload.audioLength,
+                    });
+                    setShowAudioRecorder(false);
+                  }}
+                  onAudioLengthUpdate={() => {}}
+                  onWaveformUpdate={() => {}}
+                />
+              )}
+
+              {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
+              <IconButton
+                ref={micBtnRef}
+                variant={showAudioRecorder ? 'Critical' : 'SurfaceVariant'}
+                size="300"
+                radii="300"
+                title={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
+                aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
+                aria-pressed={showAudioRecorder}
+                onClick={() => {
+                  if (mobileOrTablet()) return;
+                  if (showAudioRecorder) {
+                    audioRecorderRef.current?.stop();
+                  } else {
+                    setShowAudioRecorder(true);
+                  }
+                }}
+                onPointerDown={() => {
+                  if (!mobileOrTablet()) return;
+                  if (showAudioRecorder) return;
+                  micHoldStartRef.current = Date.now();
+                  setShowAudioRecorder(true);
+
+                  let cleanup: () => void;
+                  const onUp = () => {
+                    cleanup();
+                    const held = Date.now() - micHoldStartRef.current;
+                    if (held >= HOLD_THRESHOLD_MS) {
+                      setTimeout(() => {
+                        audioRecorderRef.current?.stop();
+                      }, 50);
+                    } else {
+                      setTimeout(() => {
+                        audioRecorderRef.current?.cancel();
+                      }, 50);
+                    }
+                  };
+                  cleanup = () => {
+                    window.removeEventListener('pointerup', onUp);
+                    window.removeEventListener('pointercancel', cleanup);
+                  };
+                  window.addEventListener('pointerup', onUp);
+                  window.addEventListener('pointercancel', cleanup);
+                }}
+              >
+                {showAudioRecorder ? (
+                  <Stop size={20} weight="fill" style={{ color: color.Critical.Main }} />
+                ) : (
+                  <Microphone size={20} />
+                )}
+              </IconButton>
+
               <IconButton
                 variant="SurfaceVariant"
                 size="300"
@@ -1193,47 +1361,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               >
                 <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
               </IconButton>
-              <IconButton
-                ref={micBtnRef}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="record audio message"
-                aria-pressed={showAudioRecorder}
-                onClick={() => setShowAudioRecorder(!showAudioRecorder)}
-              >
-                <Icon src={Icons.Mic} />
-              </IconButton>
-              {showAudioRecorder && (
-                <PopOut
-                  anchor={micBtnRef.current?.getBoundingClientRect() ?? undefined}
-                  offset={8}
-                  position="Top"
-                  align="End"
-                  alignOffset={-44}
-                  content={
-                    <AudioMessageRecorder
-                      onRequestClose={() => {
-                        setShowAudioRecorder(false);
-                      }}
-                      onRecordingComplete={(audioBlob) => {
-                        const file = new File(
-                          [audioBlob],
-                          `sable-audio-message-${Date.now()}.${getSupportedAudioExtension(audioBlob.type)}`,
-                          {
-                            type: audioBlob.type,
-                          }
-                        );
-                        handleFiles([file]);
-                        // Close the recorder after handling the file, to give some feedback that the recording was successful
-                        setShowAudioRecorder(false);
-                      }}
-                      onAudioLengthUpdate={(len) => setAudioMsgLength(len)}
-                      onWaveformUpdate={(w) => setAudioMsgWaveform(w)}
-                    />
-                  }
-                />
-              )}
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut

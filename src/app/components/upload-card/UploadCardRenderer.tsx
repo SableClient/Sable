@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
@@ -14,6 +14,7 @@ import {
   toRem,
 } from 'folds';
 import { HTMLReactParserOptions } from 'html-react-parser';
+import { Play, Pause } from '@phosphor-icons/react';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
@@ -27,6 +28,7 @@ import { roomUploadAtomFamily, TUploadItem, TUploadMetadata } from '$state/room/
 import { useObjectURL } from '$hooks/useObjectURL';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
+import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
 
 type PreviewImageProps = {
@@ -68,6 +70,196 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
       }}
       src={fileUrl}
     />
+  );
+}
+
+const BAR_COUNT = 44;
+
+function formatAudioTime(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+type PreviewAudioProps = {
+  fileItem: TUploadItem;
+};
+function PreviewAudio({ fileItem }: PreviewAudioProps) {
+  const { originalFile, metadata } = fileItem;
+  const audioUrl = useObjectURL(originalFile);
+  const { waveform, audioDuration } = metadata;
+  const duration = audioDuration ?? 0;
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const bars = useMemo(() => {
+    if (!waveform || waveform.length === 0) {
+      return Array(BAR_COUNT).fill(0.3);
+    }
+    if (waveform.length <= BAR_COUNT) {
+      const step = (waveform.length - 1) / (BAR_COUNT - 1);
+      return Array.from({ length: BAR_COUNT }, (_, i) => {
+        const position = i * step;
+        const lower = Math.floor(position);
+        const upper = Math.min(Math.ceil(position), waveform.length - 1);
+        const fraction = position - lower;
+        if (lower === upper) {
+          return waveform[lower] ?? 0.3;
+        }
+        return (waveform[lower] ?? 0.3) * (1 - fraction) + (waveform[upper] ?? 0.3) * fraction;
+      });
+    }
+    const step = waveform.length / BAR_COUNT;
+    return Array.from({ length: BAR_COUNT }, (_, i) => {
+      const start = Math.floor(i * step);
+      const end = Math.floor((i + 1) * step);
+      const slice = waveform.slice(start, end);
+      return slice.length > 0 ? Math.max(...slice) : 0.3;
+    });
+  }, [waveform]);
+
+  const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
+
+  useEffect(() => {
+    if (!audioUrl) {
+      return undefined;
+    }
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+
+    return () => {
+      audio.pause();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [audioUrl]);
+
+  const startRaf = (audio: HTMLAudioElement) => {
+    const tick = () => {
+      setCurrentTime(audio.currentTime);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const stopRaf = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  const handlePlayPause = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      stopRaf();
+    } else {
+      audio.play().catch(() => {});
+      setIsPlaying(true);
+      startRaf(audio);
+    }
+  };
+
+  const handleScrubClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrentTime(audio.currentTime);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+
+    const SEEK_STEP = 5;
+    let newTime = currentTime;
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      newTime = Math.max(0, currentTime - SEEK_STEP);
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      newTime = Math.min(duration, currentTime + SEEK_STEP);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      newTime = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      newTime = duration;
+    } else {
+      return;
+    }
+
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  return (
+    <Box alignItems="Center" gap="200" className={css.AudioPreviewContainer}>
+      <IconButton
+        variant="Secondary"
+        size="400"
+        radii="300"
+        onClick={handlePlayPause}
+        title={isPlaying ? 'Pause' : 'Play voice message'}
+        aria-label={isPlaying ? 'Pause' : 'Play voice message'}
+        aria-pressed={isPlaying}
+      >
+        {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+      </IconButton>
+
+      <Box
+        grow="Yes"
+        alignItems="Center"
+        gap="100"
+        onClick={handleScrubClick}
+        onKeyDown={handleKeyDown}
+        className={css.AudioWaveformContainer}
+        tabIndex={0}
+        role="slider"
+        aria-label="Audio position"
+        aria-valuemin={0}
+        aria-valuemax={duration}
+        aria-valuenow={Math.floor(currentTime)}
+        title="Seek"
+      >
+        {bars.map((level, i) => {
+          const barRatio = i / BAR_COUNT;
+          const played = progress > 0 && barRatio <= progress;
+          return (
+            <div
+              // eslint-disable-next-line react/no-array-index-key
+              key={i}
+              className={`${css.AudioWaveformBar} ${played ? css.AudioWaveformBarPlayed : css.AudioWaveformBarUnplayed}`}
+              style={{ height: Math.max(3, Math.round(level * 24)) }}
+            />
+          );
+        })}
+      </Box>
+
+      <Text size="T200" className={css.AudioTimeDisplay}>
+        {formatAudioTime(isPlaying ? currentTime : duration)}
+      </Text>
+    </Box>
   );
 }
 
@@ -247,6 +439,7 @@ export function UploadCardRenderer({
               <PreviewVideo fileItem={fileItem} />
             </MediaPreview>
           )}
+          {fileItem.metadata.waveform && <PreviewAudio fileItem={fileItem} />}
           {upload.status === UploadStatus.Idle && !fileSizeExceeded && (
             <UploadCardProgress sentBytes={0} totalBytes={file.size} />
           )}

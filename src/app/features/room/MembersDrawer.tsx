@@ -155,7 +155,11 @@ function MemberItem({
           }}
         >
           <AvatarPresence
-            badge={presence && <PresenceBadge presence={presence.presence} size="200" />}
+            badge={
+              presence && presence.lastActiveTs !== 0 ? (
+                <PresenceBadge presence={presence.presence} size="200" />
+              ) : undefined
+            }
           >
             <Avatar size="300" radii="400">
               <UserAvatar

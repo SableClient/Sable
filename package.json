@@ -90,7 +90,7 @@
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
-    "ua-parser-js": "^1.0.41",
+    "ua-parser-js": "^2.0.9",
     "virtua": "^0.48.8",
     "workbox-precaching": "^7.4.0"
   },

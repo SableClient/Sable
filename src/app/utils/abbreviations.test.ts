@@ -7,15 +7,15 @@ describe('buildAbbreviationsMap', () => {
     expect(buildAbbreviationsMap([])).toEqual(new Map());
   });
 
-  it('stores the term with its original casing as the key', () => {
+  it('stores the key as lowercase regardless of input casing', () => {
     const map = buildAbbreviationsMap([{ term: 'FOSS', definition: 'Free and Open Source Software' }]);
-    expect(map.get('FOSS')).toBe('Free and Open Source Software');
-    expect(map.get('foss')).toBeUndefined();
+    expect(map.get('foss')).toBe('Free and Open Source Software');
+    expect(map.get('FOSS')).toBeUndefined();
   });
 
   it('trims surrounding whitespace from terms', () => {
     const map = buildAbbreviationsMap([{ term: '  FOSS  ', definition: 'Free and Open Source Software' }]);
-    expect(map.get('FOSS')).toBe('Free and Open Source Software');
+    expect(map.get('foss')).toBe('Free and Open Source Software');
     expect(map.size).toBe(1);
   });
 
@@ -27,13 +27,12 @@ describe('buildAbbreviationsMap', () => {
     expect(map.size).toBe(0);
   });
 
-  it('treats the same term with different casing as separate entries', () => {
+  it('deduplicates different-cased variants of the same term (last entry wins)', () => {
     const map = buildAbbreviationsMap([
       { term: 'OSS', definition: 'Open Source Software' },
       { term: 'oss', definition: 'open source software' },
     ]);
-    expect(map.size).toBe(2);
-    expect(map.get('OSS')).toBe('Open Source Software');
+    expect(map.size).toBe(1);
     expect(map.get('oss')).toBe('open source software');
   });
 
@@ -43,8 +42,8 @@ describe('buildAbbreviationsMap', () => {
       { term: 'RTFM', definition: 'Read The Fine Manual' },
     ]);
     expect(map.size).toBe(2);
-    expect(map.get('FOSS')).toBe('Free and Open Source Software');
-    expect(map.get('RTFM')).toBe('Read The Fine Manual');
+    expect(map.get('foss')).toBe('Free and Open Source Software');
+    expect(map.get('rtfm')).toBe('Read The Fine Manual');
   });
 });
 
@@ -70,14 +69,14 @@ describe('splitByAbbreviations', () => {
   it('splits a term match in the middle of a string', () => {
     expect(splitByAbbreviations('Use FOSS software', map)).toEqual([
       { text: 'Use ' },
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
       { text: ' software' },
     ]);
   });
 
   it('splits a term match at the start of a string', () => {
     expect(splitByAbbreviations('FOSS is great', map)).toEqual([
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
       { text: ' is great' },
     ]);
   });
@@ -85,21 +84,24 @@ describe('splitByAbbreviations', () => {
   it('splits a term match at the end of a string', () => {
     expect(splitByAbbreviations('I love FOSS', map)).toEqual([
       { text: 'I love ' },
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
     ]);
   });
 
   it('handles multiple terms in the same string', () => {
     expect(splitByAbbreviations('FOSS and RTFM', map)).toEqual([
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
       { text: ' and ' },
-      { text: 'RTFM', termKey: 'RTFM' },
+      { text: 'RTFM', termKey: 'rtfm' },
     ]);
   });
 
-  it('is case-sensitive and does not match the wrong casing', () => {
+  it('matches case-insensitively (termKey is always lowercase)', () => {
     expect(splitByAbbreviations('I like foss and Foss', map)).toEqual([
-      { text: 'I like foss and Foss' },
+      { text: 'I like ' },
+      { text: 'foss', termKey: 'foss' },
+      { text: ' and ' },
+      { text: 'Foss', termKey: 'foss' },
     ]);
   });
 
@@ -118,9 +120,9 @@ describe('splitByAbbreviations', () => {
   it('matches a shorter term standalone when the longer overlapping term is also defined', () => {
     // OSS is a suffix of FOSS; when standalone it should still match
     expect(splitByAbbreviations('OSS is related to FOSS', map)).toEqual([
-      { text: 'OSS', termKey: 'OSS' },
+      { text: 'OSS', termKey: 'oss' },
       { text: ' is related to ' },
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
     ]);
   });
 
@@ -128,18 +130,18 @@ describe('splitByAbbreviations', () => {
     // FOSS contains OSS; FOSS should win and OSS should not be matched separately
     expect(splitByAbbreviations('Use FOSS today', map)).toEqual([
       { text: 'Use ' },
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
       { text: ' today' },
     ]);
   });
 
   it('preserves plain text between two consecutive matches', () => {
     expect(splitByAbbreviations('FOSS, RTFM, OSS', map)).toEqual([
-      { text: 'FOSS', termKey: 'FOSS' },
+      { text: 'FOSS', termKey: 'foss' },
       { text: ', ' },
-      { text: 'RTFM', termKey: 'RTFM' },
+      { text: 'RTFM', termKey: 'rtfm' },
       { text: ', ' },
-      { text: 'OSS', termKey: 'OSS' },
+      { text: 'OSS', termKey: 'oss' },
     ]);
   });
 });

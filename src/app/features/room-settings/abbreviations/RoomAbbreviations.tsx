@@ -31,9 +31,10 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 
 type AbbreviationsProps = {
   requestClose: () => void;
+  isSpace?: boolean;
 };
 
-export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
+export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps) {
   const room = useRoom();
   const mx = useMatrixClient();
   const powerLevels = usePowerLevels(room);
@@ -190,7 +191,7 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
                 </Box>
               )}
 
-              {parentSpace && (
+              {!isSpace && parentSpace && (
                 <Box direction="Column" gap="100">
                   <Text size="L400">
                     {spaceEntries.length > 0
@@ -240,8 +241,8 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
               <Box direction="Column" gap="100">
                 <Text size="L400">
                   {entries.length > 0
-                    ? `Room Abbreviations (${entries.length})`
-                    : 'Room Abbreviations'}
+                    ? `${isSpace ? 'Space' : 'Room'} Abbreviations (${entries.length})`
+                    : `${isSpace ? 'Space' : 'Room'} Abbreviations`}
                 </Text>
                 {entries.length === 0 ? (
                   <SequenceCard
@@ -250,7 +251,7 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
                     direction="Column"
                   >
                     <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
-                      No room-level abbreviations defined yet.
+                      No {isSpace ? 'space' : 'room'}-level abbreviations defined yet.
                       {canEdit && ' Use the form above to add some.'}
                     </Text>
                   </SequenceCard>

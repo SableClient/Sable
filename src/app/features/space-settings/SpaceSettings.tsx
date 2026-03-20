@@ -194,7 +194,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
         <DeveloperTools requestClose={handlePageRequestClose} />
       )}
       {activePage === SpaceSettingsPage.AbbreviationsPage && (
-        <RoomAbbreviations requestClose={handlePageRequestClose} />
+        <RoomAbbreviations isSpace requestClose={handlePageRequestClose} />
       )}
     </PageRoot>
   );

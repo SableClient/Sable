@@ -301,7 +301,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                                       <Text size="T300">
                                         <b>{entry.term}</b>
                                       </Text>
-                                      <Chip variant="Primary" radii="Pill" size="300">
+                                      <Chip variant="Primary" radii="Pill" size="400">
                                         <Text size="T200">Space - {spaceName}</Text>
                                       </Chip>
                                     </Box>

@@ -56,7 +56,7 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
     const definition = definitionInput.value.trim();
     if (!term || !definition) return;
 
-    const alreadyExists = entries.some((e) => e.term === term);
+    const alreadyExists = entries.some((e) => e.term.toLowerCase() === term.toLowerCase());
     if (alreadyExists) {
       termInput.setCustomValidity('This term already exists.');
       termInput.reportValidity();

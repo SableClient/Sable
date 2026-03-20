@@ -13,6 +13,21 @@ export const Editor = style([
   },
 ]);
 
+export const EditorRow = style({
+  display: 'grid',
+  gridTemplateColumns: 'auto 1fr auto',
+  alignItems: 'center',
+});
+
+export const EditorRowMultiline = style({
+  gridTemplateColumns: 'auto 1fr',
+  gridTemplateAreas: `
+    "before textarea"
+    "before after"
+  `,
+  alignItems: 'start',
+});
+
 export const EditorOptions = style([
   DefaultReset,
   {
@@ -20,7 +35,23 @@ export const EditorOptions = style([
   },
 ]);
 
-export const EditorTextareaScroll = style({});
+export const EditorOptionsMultiline = style({
+  gridArea: 'before',
+  alignSelf: 'end',
+});
+
+export const EditorOptionsAfterMultiline = style({
+  gridArea: 'after',
+  justifySelf: 'end',
+});
+
+export const EditorTextareaScroll = style({
+  minWidth: 0,
+});
+
+export const EditorTextareaScrollMultiline = style({
+  gridArea: 'textarea',
+});
 
 export const EditorReplacementContent = style([
   DefaultReset,
@@ -39,11 +70,16 @@ export const EditorReplacementContent = style([
   },
 ]);
 
+export const EditorReplacementContentMultiline = style({
+  paddingLeft: config.space.S200,
+  paddingRight: config.space.S200,
+});
+
 export const EditorTextarea = style([
   DefaultReset,
   {
     flexGrow: 1,
-    height: '100%',
+    height: 'auto',
     padding: `${toRem(13)} ${toRem(1)}`,
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
@@ -58,6 +94,11 @@ export const EditorTextarea = style([
     },
   },
 ]);
+
+export const EditorTextareaMultiline = style({
+  paddingLeft: config.space.S200,
+  paddingRight: config.space.S200,
+});
 
 export const EditorPlaceholderContainer = style([
   DefaultReset,
@@ -74,6 +115,11 @@ export const EditorPlaceholderTextVisual = style([
     display: 'block',
     paddingTop: toRem(13),
     paddingLeft: toRem(1),
+    selectors: {
+      [`${EditorTextareaScroll}:first-child &`]: {
+        paddingLeft: toRem(13),
+      },
+    },
   },
 ]);
 

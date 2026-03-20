@@ -5,6 +5,7 @@ import {
   ReactNode,
   forwardRef,
   useCallback,
+  useRef,
   useState,
 } from 'react';
 import { Box, Scroll, Text } from 'folds';
@@ -99,6 +100,64 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const [slateInitialValue] = useState<CustomElement[]>(() => [
       { type: BlockType.Paragraph, children: [{ text: '' }] },
     ]);
+    const editableRef = useRef<HTMLDivElement>(null);
+    const beforeRef = useRef<HTMLDivElement>(null);
+    const afterRef = useRef<HTMLDivElement>(null);
+    const isMultilineRef = useRef(false);
+    const [isMultiline, setIsMultiline] = useState(false);
+    const layoutIsMultiline = isMultiline && !replacementContent;
+
+    const handleChange = useCallback(
+      (value: Descendant[]) => {
+        const hasMultipleBlocks = editor.children.length > 1;
+        const text = Editor.string(editor, []);
+        const hasExplicitNewlines = text.includes('\n');
+
+        const editable = editableRef.current;
+        if (editable) {
+          const computedStyle = getComputedStyle(editable);
+          const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+          const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+          const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+          const contentHeight = editable.scrollHeight - paddingTop - paddingBottom;
+          const isWrappingNow = contentHeight > lineHeight * 1.5;
+
+          let nextMultiline: boolean;
+
+          if (!isMultilineRef.current) {
+            nextMultiline = hasMultipleBlocks || hasExplicitNewlines || isWrappingNow;
+          } else {
+            const beforeWidth = beforeRef.current?.offsetWidth ?? 0;
+            const afterWidth = afterRef.current?.offsetWidth ?? 0;
+            const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+            const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+            const availableSingleLineWidth =
+              editable.offsetWidth - beforeWidth - afterWidth - paddingLeft - paddingRight;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let wouldWrapInSingleLine = false;
+            if (ctx) {
+              ctx.font = computedStyle.font;
+              const textWidth = ctx.measureText(text).width;
+              wouldWrapInSingleLine = textWidth > availableSingleLineWidth;
+            }
+
+            nextMultiline = hasMultipleBlocks || hasExplicitNewlines || wouldWrapInSingleLine;
+          }
+
+          isMultilineRef.current = nextMultiline;
+          setIsMultiline(nextMultiline);
+        } else {
+          const nextMultiline = hasMultipleBlocks || hasExplicitNewlines;
+          isMultilineRef.current = nextMultiline;
+          setIsMultiline(nextMultiline);
+        }
+
+        onChange?.(value);
+      },
+      [editor, onChange]
+    );
 
     const renderElement = useCallback(
       (props: RenderElementProps) => <RenderElement {...props} />,
@@ -136,16 +195,25 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
 
     return (
       <div className={`${css.Editor} ${className || ''}`} ref={ref}>
-        <Slate editor={editor} initialValue={slateInitialValue} onChange={onChange}>
+        <Slate editor={editor} initialValue={slateInitialValue} onChange={handleChange}>
           {top}
-          <Box alignItems="Start">
+          <Box
+            className={`${css.EditorRow} ${layoutIsMultiline ? css.EditorRowMultiline : ''}`}
+            alignItems="Start"
+          >
             {before && (
-              <Box className={css.EditorOptions} alignItems="Center" gap="100" shrink="No">
+              <Box
+                ref={beforeRef}
+                className={`${css.EditorOptions} ${layoutIsMultiline ? css.EditorOptionsMultiline : ''}`}
+                alignItems="Center"
+                gap="100"
+                shrink="No"
+              >
                 {before}
               </Box>
             )}
             <Scroll
-              className={css.EditorTextareaScroll}
+              className={`${css.EditorTextareaScroll} ${layoutIsMultiline ? css.EditorTextareaScrollMultiline : ''}`}
               variant={variant}
               style={{ maxHeight }}
               size="300"
@@ -153,11 +221,16 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               hideTrack
             >
               {replacementContent ? (
-                <div className={css.EditorReplacementContent}>{replacementContent}</div>
+                <div
+                  className={`${css.EditorReplacementContent} ${layoutIsMultiline ? css.EditorReplacementContentMultiline : ''}`}
+                >
+                  {replacementContent}
+                </div>
               ) : (
                 <Editable
+                  ref={editableRef}
                   data-editable-name={editableName}
-                  className={css.EditorTextarea}
+                  className={`${css.EditorTextarea} ${layoutIsMultiline ? css.EditorTextareaMultiline : ''}`}
                   placeholder={placeholder}
                   renderPlaceholder={renderPlaceholder}
                   renderElement={renderElement}
@@ -173,7 +246,13 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               )}
             </Scroll>
             {after && (
-              <Box className={css.EditorOptions} alignItems="Center" gap="100" shrink="No">
+              <Box
+                ref={afterRef}
+                className={`${css.EditorOptions} ${layoutIsMultiline ? css.EditorOptionsMultiline : ''} ${layoutIsMultiline ? css.EditorOptionsAfterMultiline : ''}`}
+                alignItems="Center"
+                gap="100"
+                shrink="No"
+              >
                 {after}
               </Box>
             )}

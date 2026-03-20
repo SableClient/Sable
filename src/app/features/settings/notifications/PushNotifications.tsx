@@ -10,6 +10,10 @@ type PushSubscriptionState = [
 ];
 
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
+  // On Tauri, notifications use the native plugin — permission is always granted.
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    return 'granted';
+  }
   if (!('Notification' in window)) {
     debugLog.warn('notification', 'Notification API not available in this browser');
     return 'denied';

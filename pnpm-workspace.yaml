@@ -1,3 +1,7 @@
+packages:
+  - '.'
+  - 'platforms/tauri'
+
 allowBuilds:
   '@sentry/cli': true
   '@swc/core': true

@@ -27,8 +27,13 @@ import {
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 
+import { getPlatform } from './platform';
+
 enableMapSet();
 const log = createLogger('index');
+
+// Initialize platform adapter early so it's cached for all consumers.
+getPlatform().then((p) => log.log(`Platform: ${p.name}`));
 
 document.body.classList.add(configClass, varsClass);
 

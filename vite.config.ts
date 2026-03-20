@@ -137,6 +137,7 @@ export default defineConfig({
       $types: path.resolve(__dirname, 'src/types'),
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
+      $platform: path.resolve(__dirname, 'src/platform'),
     },
   },
   server: {
@@ -241,6 +242,11 @@ export default defineConfig({
     copyPublicDir: false,
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
+      external: [
+        '@tauri-apps/api/core',
+        '@tauri-apps/api/window',
+        '@tauri-apps/plugin-shell',
+      ],
     },
   },
 });

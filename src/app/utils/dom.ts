@@ -222,6 +222,10 @@ export const syntaxErrorPosition = (error: SyntaxError): number | undefined => {
 };
 
 export const notificationPermission = (permission: NotificationPermission) => {
+  // On Tauri, notifications go through the native plugin — treat as granted.
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window && permission === 'granted') {
+    return true;
+  }
   if ('Notification' in window) {
     return window.Notification.permission === permission;
   }

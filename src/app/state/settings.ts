@@ -141,8 +141,10 @@ const defaultSettings: Settings = {
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,
-  showMessageContentInNotifications: false,
-  showMessageContentInEncryptedNotifications: false,
+  showMessageContentInNotifications:
+    typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
+  showMessageContentInEncryptedNotifications:
+    typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   clearNotificationsOnRead: false,
 
   hour24Clock: false,

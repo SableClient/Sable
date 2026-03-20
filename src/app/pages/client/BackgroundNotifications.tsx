@@ -40,6 +40,7 @@ import {
   resolveNotificationPreviewText,
 } from '$utils/notificationStyle';
 import * as Sentry from '@sentry/react';
+import { showOSNotification } from '$utils/nativeNotification';
 import { startClient, stopClient } from '$client/initMatrix';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { mobileOrTablet } from '$utils/user-agent';
@@ -173,40 +174,15 @@ export function BackgroundNotifications() {
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
-      // Prefer ServiceWorkerRegistration.showNotification so that taps are handled
-      // by the SW notificationclick event. This routes through HandleNotificationClick
-      // (postMessage path) which does the account switch + deep link reliably on all
-      // platforms including iOS where window.Notification onclick is not fired.
-      if ('serviceWorker' in navigator) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          await reg.showNotification(opts.title, {
-            body: opts.body,
-            icon: opts.icon,
-            badge: opts.badge,
-            silent: opts.silent ?? false,
-            data: opts.data,
-          } as NotificationOptions);
-          return;
-        } catch {
-          // Fall through to window.Notification if SW registration fails.
-        }
-      }
-      if ('Notification' in window && window.Notification.permission === 'granted') {
-        const noti = new window.Notification(opts.title, {
-          icon: opts.icon,
-          badge: opts.badge,
-          body: opts.body,
-          silent: opts.silent ?? false,
-          data: opts.data,
-        });
-        if (opts.onClick) {
-          noti.onclick = () => {
-            opts.onClick?.();
-            noti.close();
-          };
-        }
-      }
+      await showOSNotification({
+        title: opts.title,
+        body: opts.body,
+        icon: opts.icon,
+        badge: opts.badge,
+        silent: opts.silent,
+        data: opts.data,
+        onClick: opts.onClick,
+      });
     }
 
     current.forEach((mx, userId) => {

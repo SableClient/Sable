@@ -46,6 +46,7 @@ import {
   resolveNotificationPreviewText,
 } from '$utils/notificationStyle';
 import { mobileOrTablet } from '$utils/user-agent';
+import { showOSNotification } from '$utils/nativeNotification';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
@@ -174,17 +175,16 @@ function InviteNotifications() {
 
   const notify = useCallback(
     (count: number) => {
-      const noti = new window.Notification('Invitation', {
+      showOSNotification({
+        title: 'Invitation',
+        body: `You have ${count} new invitation request.`,
         icon: LogoSVG,
         badge: LogoSVG,
-        body: `You have ${count} new invitation request.`,
         silent: true,
+        onClick: () => {
+          if (!window.closed) navigate(getInboxInvitesPath());
+        },
       });
-
-      noti.onclick = () => {
-        if (!window.closed) navigate(getInboxInvitesPath());
-        noti.close();
-      };
     },
     [navigate]
   );
@@ -400,8 +400,10 @@ function MessageNotifications() {
       // in sandboxed environments, browsers with DnD active, or Electron — and
       // an uncaught exception here would abort the handler before setInAppBanner
       // is reached, causing in-app notifications to silently vanish too.
+      console.warn('[notification-guard] mobile:', mobileOrTablet(), 'sysNotif:', showSystemNotifications, 'perm:', notificationPermission('granted'));
       if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
         try {
+          console.warn('[notification-guard] PASSED — sending OS notification');
           const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
           const avatarMxc =
             room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
@@ -424,15 +426,21 @@ function MessageNotifications() {
             silent: !notificationSound || !isLoud,
             eventId,
           });
-          const noti = new window.Notification(osPayload.title, osPayload.options);
           const { roomId } = room;
-          noti.onclick = () => {
-            window.focus();
-            setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
-            noti.close();
-          };
+          showOSNotification({
+            title: osPayload.title,
+            body: osPayload.options.body,
+            icon: osPayload.options.icon,
+            badge: osPayload.options.badge,
+            silent: osPayload.options.silent ?? undefined,
+            data: osPayload.options.data,
+            onClick: () => {
+              window.focus();
+              setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
+            },
+          });
         } catch {
-          // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
+          // Notification unavailable or blocked (sandboxed context, DnD, etc.)
         }
       }
 

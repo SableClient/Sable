@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -d /e/dev/SableD/src/app/features/*/)",
+      "Bash(grep -r \"tauri\\\\|@capacitor\\\\|platform\" /e/dev/SableD/src --include=*.ts --include=*.tsx)",
+      "Bash(node:*)",
+      "Bash(\"E:/dev/SableD/platforms/tauri/build.bat\")",
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(cargo build:*)",
+      "Bash(find E:/dev/SableD/platforms/tauri/src-tauri/target/release/build/sable-desktop-e7a20646b4559dd8/ -name *.rs)",
+      "Bash(pnpm tauri:*)",
+      "Bash(cd:*)",
+      "Bash(find /e/dev/SableD/platforms/tauri/src-tauri/target -path */tauri-plugin-notification* -name *.rs)",
+      "Bash(find /e/dev/SableD/platforms/tauri/src-tauri -name Cargo.lock -exec head -1 {})",
+      "Bash(2)",
+      "Bash(find /e/dev/SableD -path */cargo/registry/src/*tauri*notification* -name *.rs)",
+      "Bash(grep -r 'pub struct TrayIconBuilder' ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-2.*/src/tray/)",
+      "Bash(find ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ -path */tauri-2.*/menu* -name *.rs)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(grep:*)",
+      "Bash(cargo fetch:*)",
+      "Bash(cargo check:*)"
+    ]
+  }
+}

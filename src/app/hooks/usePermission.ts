@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
 export const getNotificationState = (): PermissionState => {
+  // On Tauri, notifications use the native plugin — always report granted.
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    return 'granted';
+  }
   if ('Notification' in window) {
     if (window.Notification.permission === 'default') {
       return 'prompt';

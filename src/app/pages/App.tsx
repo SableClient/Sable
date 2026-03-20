@@ -11,6 +11,7 @@ import { setMatrixToBase } from '$plugins/matrix-to';
 import { ScreenSizeProvider, useScreenSize } from '$hooks/useScreenSize';
 import { useCompositionEndTracking } from '$hooks/useComposingCheck';
 import { ErrorPage } from '$components/DefaultErrorPage';
+import { WindowTitleBar } from '$components/platform/WindowTitleBar';
 import { ConfigConfigError, ConfigConfigLoading } from './ConfigConfig';
 import { FeatureCheck } from './FeatureCheck';
 import { createRouter } from './Router';
@@ -32,6 +33,7 @@ function App() {
         />
       )}
     >
+      <WindowTitleBar />
       <TooltipContainerProvider value={portalContainer}>
         <PopOutContainerProvider value={portalContainer}>
           <OverlayContainerProvider value={portalContainer}>

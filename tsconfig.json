@@ -21,7 +21,8 @@
       "$pages/*": ["src/app/pages/*"],
       "$types/*": ["src/types/*"],
       "$public/*": ["public/*"],
-      "$client/*": ["src/client/*"]
+      "$client/*": ["src/client/*"],
+      "$platform/*": ["src/platform/*"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

@@ -18,7 +18,8 @@ import { callChatAtom } from '$state/callEmbed';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { createDebugLogger } from '$utils/debugLogger';
-import { useRoomAbbreviations, RoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { useMergedAbbreviations, RoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { useSpaceOptionally } from '$hooks/useSpace';
 import { RoomViewHeader } from './RoomViewHeader';
 import { MembersDrawer } from './MembersDrawer';
 import { RoomView } from './RoomView';
@@ -98,7 +99,8 @@ export function Room() {
   );
 
   const callView = room.isCallRoom();
-  const abbreviations = useRoomAbbreviations(room);
+  const parentSpace = useSpaceOptionally();
+  const abbreviations = useMergedAbbreviations(room, parentSpace);
 
   // Log call view state
   useEffect(() => {

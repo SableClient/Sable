@@ -1,5 +1,17 @@
 import { FormEventHandler, useCallback } from 'react';
-import { Box, Button, Icon, IconButton, Icons, Input, Scroll, Spinner, Text, config } from 'folds';
+import {
+  Box,
+  Button,
+  Chip,
+  Icon,
+  IconButton,
+  Icons,
+  Input,
+  Scroll,
+  Spinner,
+  Text,
+  config,
+} from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -9,6 +21,8 @@ import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useStateEvent } from '$hooks/useStateEvent';
+import { useSpaceOptionally } from '$hooks/useSpace';
+import { useRoomName } from '$hooks/useRoomMeta';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { MatrixError } from '$types/matrix-sdk';
@@ -30,6 +44,17 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
   const stateEvent = useStateEvent(room, StateEvent.RoomAbbreviations);
   const content = stateEvent?.getContent<RoomAbbreviationsContent>();
   const entries: AbbreviationEntry[] = Array.isArray(content?.entries) ? content.entries : [];
+
+  // Parent space abbreviations (read-only, inherited)
+  const parentSpace = useSpaceOptionally();
+  const parentSpaceName = useRoomName(parentSpace ?? room);
+  const spaceStateEvent = useStateEvent(parentSpace ?? room, StateEvent.RoomAbbreviations);
+  const spaceContent = parentSpace
+    ? spaceStateEvent?.getContent<RoomAbbreviationsContent>()
+    : undefined;
+  const spaceEntries: AbbreviationEntry[] = Array.isArray(spaceContent?.entries)
+    ? spaceContent.entries
+    : [];
 
   const canEdit = permissions.stateEvent(StateEvent.RoomAbbreviations, userId);
 
@@ -56,7 +81,9 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
     const definition = definitionInput.value.trim();
     if (!term || !definition) return;
 
-    const alreadyExists = entries.some((e) => e.term.toLowerCase() === term.toLowerCase());
+    const alreadyExists =
+      entries.some((e) => e.term.toLowerCase() === term.toLowerCase()) ||
+      spaceEntries.some((e) => e.term.toLowerCase() === term.toLowerCase());
     if (alreadyExists) {
       termInput.setCustomValidity('This term already exists.');
       termInput.reportValidity();
@@ -163,11 +190,58 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
                 </Box>
               )}
 
+              {parentSpace && (
+                <Box direction="Column" gap="100">
+                  <Text size="L400">
+                    {spaceEntries.length > 0
+                      ? `Inherited from Space (${spaceEntries.length})`
+                      : 'Inherited from Space'}
+                  </Text>
+                  {spaceEntries.length === 0 ? (
+                    <SequenceCard
+                      className={SequenceCardStyle}
+                      variant="SurfaceVariant"
+                      direction="Column"
+                    >
+                      <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
+                        No abbreviations defined in {parentSpaceName}.
+                      </Text>
+                    </SequenceCard>
+                  ) : (
+                    spaceEntries.map((entry, index) => (
+                      <SequenceCard
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={index}
+                        className={SequenceCardStyle}
+                        variant="SurfaceVariant"
+                        direction="Row"
+                        gap="400"
+                        alignItems="Center"
+                      >
+                        <Box grow="Yes" direction="Column" gap="100">
+                          <Box gap="200" alignItems="Center">
+                            <Text size="T300">
+                              <b>{entry.term}</b>
+                            </Text>
+                            <Chip variant="Primary" radii="Pill" size="300">
+                              <Text size="T200">Space</Text>
+                            </Chip>
+                          </Box>
+                          <Text size="T200" style={{ opacity: 0.7 }}>
+                            {entry.definition}
+                          </Text>
+                        </Box>
+                      </SequenceCard>
+                    ))
+                  )}
+                </Box>
+              )}
+
               <Box direction="Column" gap="100">
                 <Text size="L400">
                   {entries.length > 0
-                    ? `Defined Abbreviations (${entries.length})`
-                    : 'Defined Abbreviations'}
+                    ? `Room Abbreviations (${entries.length})`
+                    : 'Room Abbreviations'}
                 </Text>
                 {entries.length === 0 ? (
                   <SequenceCard
@@ -176,7 +250,7 @@ export function RoomAbbreviations({ requestClose }: AbbreviationsProps) {
                     direction="Column"
                   >
                     <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
-                      No abbreviations defined yet.
+                      No room-level abbreviations defined yet.
                       {canEdit && ' Use the form above to add some.'}
                     </Text>
                   </SequenceCard>

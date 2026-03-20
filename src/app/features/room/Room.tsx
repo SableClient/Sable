@@ -18,6 +18,7 @@ import { callChatAtom } from '$state/callEmbed';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { createDebugLogger } from '$utils/debugLogger';
+import { useRoomAbbreviations, RoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { RoomViewHeader } from './RoomViewHeader';
 import { MembersDrawer } from './MembersDrawer';
 import { RoomView } from './RoomView';
@@ -97,6 +98,7 @@ export function Room() {
   );
 
   const callView = room.isCallRoom();
+  const abbreviations = useRoomAbbreviations(room);
 
   // Log call view state
   useEffect(() => {
@@ -105,58 +107,80 @@ export function Room() {
 
   return (
     <PowerLevelsContextProvider value={powerLevels}>
-      <Box grow="Yes" style={{ position: 'relative' }}>
-        {callView && (screenSize === ScreenSize.Desktop || !chat) && (
-          <Box grow="Yes" direction="Column">
-            <RoomViewHeader callView />
-            <Box grow="Yes">
-              <CallView />
+      <RoomAbbreviationsContext.Provider value={abbreviations}>
+        <Box grow="Yes" style={{ position: 'relative' }}>
+          {callView && (screenSize === ScreenSize.Desktop || !chat) && (
+            <Box grow="Yes" direction="Column">
+              <RoomViewHeader callView />
+              <Box grow="Yes">
+                <CallView />
+              </Box>
             </Box>
-          </Box>
-        )}
-        {!callView && (
-          <Box grow="Yes" direction="Column">
-            <RoomViewHeader />
-            <Box grow="Yes">
-              <RoomView eventId={eventId} />
+          )}
+          {!callView && (
+            <Box grow="Yes" direction="Column">
+              <RoomViewHeader />
+              <Box grow="Yes">
+                <RoomView eventId={eventId} />
+              </Box>
             </Box>
-          </Box>
-        )}
+          )}
 
-        {callView && chat && (
-          <>
-            {screenSize === ScreenSize.Desktop && (
+          {callView && chat && (
+            <>
+              {screenSize === ScreenSize.Desktop && (
+                <Line variant="Background" direction="Vertical" size="300" />
+              )}
+              <CallChatView />
+            </>
+          )}
+          {!callView && screenSize === ScreenSize.Desktop && isDrawer && (
+            <>
               <Line variant="Background" direction="Vertical" size="300" />
-            )}
-            <CallChatView />
-          </>
-        )}
-        {!callView && screenSize === ScreenSize.Desktop && isDrawer && (
-          <>
-            <Line variant="Background" direction="Vertical" size="300" />
-            <MembersDrawer key={room.roomId} room={room} members={members} />
-          </>
-        )}
-        {screenSize === ScreenSize.Desktop && isWidgetDrawerOpen && (
-          <>
-            <Line variant="Background" direction="Vertical" size="300" />
-            <WidgetsDrawer key={`widgets-${room.roomId}`} room={room} />
-          </>
-        )}
-        {screenSize === ScreenSize.Desktop && openThreadId && (
-          <>
-            <Line variant="Background" direction="Vertical" size="300" />
+              <MembersDrawer key={room.roomId} room={room} members={members} />
+            </>
+          )}
+          {screenSize === ScreenSize.Desktop && isWidgetDrawerOpen && (
+            <>
+              <Line variant="Background" direction="Vertical" size="300" />
+              <WidgetsDrawer key={`widgets-${room.roomId}`} room={room} />
+            </>
+          )}
+          {screenSize === ScreenSize.Desktop && openThreadId && (
+            <>
+              <Line variant="Background" direction="Vertical" size="300" />
+              <ThreadDrawer
+                key={`thread-${room.roomId}-${openThreadId}`}
+                room={room}
+                threadRootId={openThreadId}
+                onClose={() => setOpenThread(undefined)}
+              />
+            </>
+          )}
+          {screenSize === ScreenSize.Desktop && threadBrowserOpen && !openThreadId && (
+            <>
+              <Line variant="Background" direction="Vertical" size="300" />
+              <ThreadBrowser
+                key={`thread-browser-${room.roomId}`}
+                room={room}
+                onOpenThread={(id) => {
+                  setOpenThread(id);
+                  setThreadBrowserOpen(false);
+                }}
+                onClose={() => setThreadBrowserOpen(false)}
+              />
+            </>
+          )}
+          {screenSize !== ScreenSize.Desktop && openThreadId && (
             <ThreadDrawer
               key={`thread-${room.roomId}-${openThreadId}`}
               room={room}
               threadRootId={openThreadId}
               onClose={() => setOpenThread(undefined)}
+              overlay
             />
-          </>
-        )}
-        {screenSize === ScreenSize.Desktop && threadBrowserOpen && !openThreadId && (
-          <>
-            <Line variant="Background" direction="Vertical" size="300" />
+          )}
+          {screenSize !== ScreenSize.Desktop && threadBrowserOpen && !openThreadId && (
             <ThreadBrowser
               key={`thread-browser-${room.roomId}`}
               room={room}
@@ -165,31 +189,11 @@ export function Room() {
                 setThreadBrowserOpen(false);
               }}
               onClose={() => setThreadBrowserOpen(false)}
+              overlay
             />
-          </>
-        )}
-        {screenSize !== ScreenSize.Desktop && openThreadId && (
-          <ThreadDrawer
-            key={`thread-${room.roomId}-${openThreadId}`}
-            room={room}
-            threadRootId={openThreadId}
-            onClose={() => setOpenThread(undefined)}
-            overlay
-          />
-        )}
-        {screenSize !== ScreenSize.Desktop && threadBrowserOpen && !openThreadId && (
-          <ThreadBrowser
-            key={`thread-browser-${room.roomId}`}
-            room={room}
-            onOpenThread={(id) => {
-              setOpenThread(id);
-              setThreadBrowserOpen(false);
-            }}
-            onClose={() => setThreadBrowserOpen(false)}
-            overlay
-          />
-        )}
-      </Box>
+          )}
+        </Box>
+      </RoomAbbreviationsContext.Provider>
     </PowerLevelsContextProvider>
   );
 }

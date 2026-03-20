@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback } from 'react';
+import { FormEventHandler, useCallback, useMemo } from 'react';
+import { useAtomValue } from 'jotai';
 import {
   Box,
   Button,
@@ -21,12 +22,14 @@ import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { useSpaceOptionally } from '$hooks/useSpace';
-import { useRoomName } from '$hooks/useRoomMeta';
+import { useStateEventCallback } from '$hooks/useStateEventCallback';
+import { useForceUpdate } from '$hooks/useForceUpdate';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { MatrixError } from '$types/matrix-sdk';
 import { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
+import { getAllParents, getStateEvent } from '$utils/room';
+import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 
 type AbbreviationsProps = {
@@ -46,16 +49,48 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
   const content = stateEvent?.getContent<RoomAbbreviationsContent>();
   const entries: AbbreviationEntry[] = Array.isArray(content?.entries) ? content.entries : [];
 
-  // Parent space abbreviations (read-only, inherited)
-  const parentSpace = useSpaceOptionally();
-  const parentSpaceName = useRoomName(parentSpace ?? room);
-  const spaceStateEvent = useStateEvent(parentSpace ?? room, StateEvent.RoomAbbreviations);
-  const spaceContent = parentSpace
-    ? spaceStateEvent?.getContent<RoomAbbreviationsContent>()
-    : undefined;
-  const spaceEntries: AbbreviationEntry[] = Array.isArray(spaceContent?.entries)
-    ? spaceContent.entries
-    : [];
+  // Ancestor space abbreviations (read-only, inherited) — full multi-level support
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const [ancestorUpdateCount, forceAncestorUpdate] = useForceUpdate();
+
+  useStateEventCallback(
+    mx,
+    useCallback(
+      (event) => {
+        if (event.getType() !== StateEvent.RoomAbbreviations) return;
+        const eventRoomId = event.getRoomId();
+        if (eventRoomId && getAllParents(roomToParents, room.roomId).has(eventRoomId)) {
+          forceAncestorUpdate();
+        }
+      },
+      [room.roomId, roomToParents, forceAncestorUpdate]
+    )
+  );
+
+  type SpaceEntryGroup = { spaceId: string; spaceName: string; entries: AbbreviationEntry[] };
+  const ancestorGroups = useMemo(
+    (): SpaceEntryGroup[] =>
+      Array.from(getAllParents(roomToParents, room.roomId)).reduce<SpaceEntryGroup[]>(
+        (groups, parentId) => {
+          const parentRoom = mx.getRoom(parentId);
+          if (!parentRoom) return groups;
+          const ev = getStateEvent(parentRoom, StateEvent.RoomAbbreviations);
+          const c = ev?.getContent<RoomAbbreviationsContent>();
+          const parentEntries: AbbreviationEntry[] = Array.isArray(c?.entries) ? c.entries : [];
+          if (parentEntries.length > 0) {
+            groups.push({ spaceId: parentId, spaceName: parentRoom.name, entries: parentEntries });
+          }
+          return groups;
+        },
+        []
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mx, roomToParents, room.roomId, ancestorUpdateCount]
+  );
+  const allAncestorEntries = useMemo(
+    () => ancestorGroups.flatMap((g) => g.entries),
+    [ancestorGroups]
+  );
 
   const canEdit = permissions.stateEvent(StateEvent.RoomAbbreviations, userId);
 
@@ -84,7 +119,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
 
     const alreadyExists =
       entries.some((e) => e.term.toLowerCase() === term.toLowerCase()) ||
-      spaceEntries.some((e) => e.term.toLowerCase() === term.toLowerCase());
+      allAncestorEntries.some((e) => e.term.toLowerCase() === term.toLowerCase());
     if (alreadyExists) {
       termInput.setCustomValidity('This term already exists.');
       termInput.reportValidity();
@@ -191,106 +226,97 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                 </Box>
               )}
 
-              {!isSpace && parentSpace && (
-                <Box direction="Column" gap="100">
-                  <Text size="L400">
-                    {spaceEntries.length > 0
-                      ? `Inherited from Space (${spaceEntries.length})`
-                      : 'Inherited from Space'}
-                  </Text>
-                  {spaceEntries.length === 0 ? (
-                    <SequenceCard
-                      className={SequenceCardStyle}
-                      variant="SurfaceVariant"
-                      direction="Column"
-                    >
-                      <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
-                        No abbreviations defined in {parentSpaceName}.
-                      </Text>
-                    </SequenceCard>
-                  ) : (
-                    spaceEntries.map((entry, index) => (
-                      <SequenceCard
-                        // eslint-disable-next-line react/no-array-index-key
-                        key={index}
-                        className={SequenceCardStyle}
-                        variant="SurfaceVariant"
-                        direction="Row"
-                        gap="400"
-                        alignItems="Center"
-                      >
-                        <Box grow="Yes" direction="Column" gap="100">
-                          <Box gap="200" alignItems="Center">
-                            <Text size="T300">
-                              <b>{entry.term}</b>
-                            </Text>
-                            <Chip variant="Primary" radii="Pill" size="300">
-                              <Text size="T200">Space</Text>
-                            </Chip>
-                          </Box>
-                          <Text size="T200" style={{ opacity: 0.7 }}>
-                            {entry.definition}
-                          </Text>
-                        </Box>
-                      </SequenceCard>
-                    ))
-                  )}
-                </Box>
-              )}
-
               <Box direction="Column" gap="100">
-                <Text size="L400">
-                  {entries.length > 0
-                    ? `${isSpace ? 'Space' : 'Room'} Abbreviations (${entries.length})`
-                    : `${isSpace ? 'Space' : 'Room'} Abbreviations`}
-                </Text>
-                {entries.length === 0 ? (
-                  <SequenceCard
-                    className={SequenceCardStyle}
-                    variant="SurfaceVariant"
-                    direction="Column"
-                  >
-                    <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
-                      No {isSpace ? 'space' : 'room'}-level abbreviations defined yet.
-                      {canEdit && ' Use the form above to add some.'}
-                    </Text>
-                  </SequenceCard>
-                ) : (
-                  entries.map((entry, index) => (
-                    <SequenceCard
-                      // eslint-disable-next-line react/no-array-index-key
-                      key={index}
-                      className={SequenceCardStyle}
-                      variant="SurfaceVariant"
-                      direction="Row"
-                      gap="400"
-                      alignItems="Center"
-                    >
-                      <Box grow="Yes" direction="Column" gap="100">
-                        <Text size="T300">
-                          <b>{entry.term}</b>
-                        </Text>
-                        <Text size="T200" style={{ opacity: 0.7 }}>
-                          {entry.definition}
-                        </Text>
-                      </Box>
-                      {canEdit && (
-                        <Box shrink="No">
-                          <IconButton
-                            onClick={() => handleRemove(index)}
-                            variant="Background"
-                            size="300"
-                            radii="300"
-                            disabled={saving}
-                            aria-label={`Remove abbreviation ${entry.term}`}
-                          >
-                            <Icon src={Icons.Delete} size="100" />
-                          </IconButton>
-                        </Box>
+                {(() => {
+                  const totalCount = entries.length + (isSpace ? 0 : allAncestorEntries.length);
+                  const label = isSpace ? 'Space' : 'Room';
+                  return (
+                    <>
+                      <Text size="L400">
+                        {totalCount > 0
+                          ? `${label} Abbreviations (${totalCount})`
+                          : `${label} Abbreviations`}
+                      </Text>
+                      {totalCount === 0 ? (
+                        <SequenceCard
+                          className={SequenceCardStyle}
+                          variant="SurfaceVariant"
+                          direction="Column"
+                        >
+                          <Text size="T300" style={{ color: 'var(--mx-surface-variant-on)' }}>
+                            No {isSpace ? 'space' : 'room'}-level abbreviations defined yet.
+                            {canEdit && ' Use the form above to add some.'}
+                          </Text>
+                        </SequenceCard>
+                      ) : (
+                        <>
+                          {entries.map((entry, index) => (
+                            <SequenceCard
+                              // eslint-disable-next-line react/no-array-index-key
+                              key={`room-${index}`}
+                              className={SequenceCardStyle}
+                              variant="SurfaceVariant"
+                              direction="Row"
+                              gap="400"
+                              alignItems="Center"
+                            >
+                              <Box grow="Yes" direction="Column" gap="100">
+                                <Text size="T300">
+                                  <b>{entry.term}</b>
+                                </Text>
+                                <Text size="T200" style={{ opacity: 0.7 }}>
+                                  {entry.definition}
+                                </Text>
+                              </Box>
+                              {canEdit && (
+                                <Box shrink="No">
+                                  <IconButton
+                                    onClick={() => handleRemove(index)}
+                                    variant="Background"
+                                    size="300"
+                                    radii="300"
+                                    disabled={saving}
+                                    aria-label={`Remove abbreviation ${entry.term}`}
+                                  >
+                                    <Icon src={Icons.Delete} size="100" />
+                                  </IconButton>
+                                </Box>
+                              )}
+                            </SequenceCard>
+                          ))}
+                          {!isSpace &&
+                            ancestorGroups.flatMap(({ spaceId, spaceName, entries: spEntries }) =>
+                              spEntries.map((entry, index) => (
+                                <SequenceCard
+                                  // eslint-disable-next-line react/no-array-index-key
+                                  key={`${spaceId}-${index}`}
+                                  className={SequenceCardStyle}
+                                  variant="SurfaceVariant"
+                                  direction="Row"
+                                  gap="400"
+                                  alignItems="Center"
+                                >
+                                  <Box grow="Yes" direction="Column" gap="100">
+                                    <Box gap="200" alignItems="Center">
+                                      <Text size="T300">
+                                        <b>{entry.term}</b>
+                                      </Text>
+                                      <Chip variant="Primary" radii="Pill" size="300">
+                                        <Text size="T200">Space - {spaceName}</Text>
+                                      </Chip>
+                                    </Box>
+                                    <Text size="T200" style={{ opacity: 0.7 }}>
+                                      {entry.definition}
+                                    </Text>
+                                  </Box>
+                                </SequenceCard>
+                              ))
+                            )}
+                        </>
                       )}
-                    </SequenceCard>
-                  ))
-                )}
+                    </>
+                  );
+                })()}
               </Box>
             </Box>
           </PageContent>

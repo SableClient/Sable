@@ -1,4 +1,4 @@
-<!-- Please read https://github.com/ajbura/cinny/blob/dev/CONTRIBUTING.md before submitting your pull request -->
+<!-- Please read https://github.com/SableClient/Sable/blob/dev/CONTRIBUTING.md before submitting your pull request -->
 
 ### Description
 
@@ -12,6 +12,15 @@ Fixes #
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
+
+#### AI assistance level
+
+<!-- Select the one that best describes this PR. See CONTRIBUTING.md for what each level means. -->
+
+- [ ] **None** — No AI tools were used
+- [ ] **Research only** — AI used for research, brainstorming, or understanding existing code; no generated code included
+- [ ] **AI-assisted** — AI suggested code or logic that I reviewed, tested, and understand fully; I can explain every change
+- [ ] **Primarily AI-generated** — The majority of code was AI-generated; I have thoroughly reviewed it, verified correctness, and made it my own
 
 ### Checklist:
 

@@ -49,7 +49,7 @@ If your change touches logic with testable behaviour, please include tests. See 
 
 ## AI-Assisted Development
 
-We welcome AI-assisted contributions. Tools like GitHub Copilot, Cursor, Claude, ChatGPT, and others are legitimate parts of a modern development workflow, and we don't ask you to hide their use.
+We welcome AI-assisted contributions. Tools like GitHub Copilot, Cursor, Claude, ChatGPT, and others are legitimate parts of a modern development workflow. We ask that you do not hide AI usage in your contributions. Doing so is an actionable offence.
 
 That said, **you own everything you submit.** AI is a tool, not a co-author. Before opening a pull request:
 

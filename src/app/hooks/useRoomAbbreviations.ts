@@ -1,8 +1,14 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useCallback, useMemo } from 'react';
+import { useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { buildAbbreviationsMap, RoomAbbreviationsContent } from '$utils/abbreviations';
+import { getAllParents, getStateEvent } from '$utils/room';
+import { roomToParentsAtom } from '$state/room/roomToParents';
+import { useMatrixClient } from './useMatrixClient';
 import { useStateEvent } from './useStateEvent';
+import { useStateEventCallback } from './useStateEventCallback';
+import { useForceUpdate } from './useForceUpdate';
 
 const EMPTY_MAP: Map<string, string> = new Map();
 
@@ -20,24 +26,54 @@ export const useRoomAbbreviations = (room: Room): Map<string, string> => {
 };
 
 /**
- * Return a merged map of abbreviations from the parent space (if any) and the room.
- * Room-level entries override space-level entries for the same term (case-insensitive).
- * Pass `space` as the parent space Room, or null if there is none.
- * Both hooks are always called unconditionally to satisfy the Rules of Hooks.
+ * Return a merged map of abbreviations from ALL ancestor spaces and the room.
+ * Nearest ancestor entries override farther ancestor entries; room entries override everything.
+ * Subscribes to abbreviation state changes across the full space hierarchy.
  */
-export const useMergedAbbreviations = (room: Room, space: Room | null): Map<string, string> => {
-  // Always call with a valid Room — use `room` as a harmless fallback when space is null.
-  const spaceStateEvent = useStateEvent(space ?? room, StateEvent.RoomAbbreviations);
-  const roomStateEvent = useStateEvent(room, StateEvent.RoomAbbreviations);
+export const useMergedAbbreviations = (room: Room): Map<string, string> => {
+  const mx = useMatrixClient();
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const [updateCount, forceUpdate] = useForceUpdate();
 
-  const spaceContent = space ? spaceStateEvent?.getContent<RoomAbbreviationsContent>() : undefined;
-  const roomContent = roomStateEvent?.getContent<RoomAbbreviationsContent>();
+  useStateEventCallback(
+    mx,
+    useCallback(
+      (event) => {
+        if (event.getType() !== StateEvent.RoomAbbreviations) return;
+        const eventRoomId = event.getRoomId();
+        if (!eventRoomId) return;
+        if (
+          eventRoomId === room.roomId ||
+          getAllParents(roomToParents, room.roomId).has(eventRoomId)
+        ) {
+          forceUpdate();
+        }
+      },
+      [room.roomId, roomToParents, forceUpdate]
+    )
+  );
 
-  const spaceEntries = Array.isArray(spaceContent?.entries) ? spaceContent.entries : [];
-  const roomEntries = Array.isArray(roomContent?.entries) ? roomContent.entries : [];
+  return useMemo(() => {
+    const allParentIds = Array.from(getAllParents(roomToParents, room.roomId));
+    const ancestorEntries = allParentIds.flatMap((parentId) => {
+      const parentRoom = mx.getRoom(parentId);
+      if (!parentRoom) return [];
+      const content = getStateEvent(
+        parentRoom,
+        StateEvent.RoomAbbreviations
+      )?.getContent<RoomAbbreviationsContent>();
+      return Array.isArray(content?.entries) ? content.entries : [];
+    });
 
-  if (spaceEntries.length === 0 && roomEntries.length === 0) return EMPTY_MAP;
+    const roomContent = getStateEvent(
+      room,
+      StateEvent.RoomAbbreviations
+    )?.getContent<RoomAbbreviationsContent>();
+    const roomEntries = Array.isArray(roomContent?.entries) ? roomContent.entries : [];
 
-  // Space entries first; room entries are appended so they override duplicates.
-  return buildAbbreviationsMap([...spaceEntries, ...roomEntries]);
+    if (ancestorEntries.length === 0 && roomEntries.length === 0) return EMPTY_MAP;
+    // Ancestor entries first; room entries appended so they override duplicates.
+    return buildAbbreviationsMap([...ancestorEntries, ...roomEntries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mx, roomToParents, room, updateCount]);
 };

@@ -123,6 +123,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
+  ['moe.sable.room.abbreviations', ''],
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.

@@ -8,13 +8,17 @@ describe('buildAbbreviationsMap', () => {
   });
 
   it('stores the key as lowercase regardless of input casing', () => {
-    const map = buildAbbreviationsMap([{ term: 'FOSS', definition: 'Free and Open Source Software' }]);
+    const map = buildAbbreviationsMap([
+      { term: 'FOSS', definition: 'Free and Open Source Software' },
+    ]);
     expect(map.get('foss')).toBe('Free and Open Source Software');
     expect(map.get('FOSS')).toBeUndefined();
   });
 
   it('trims surrounding whitespace from terms', () => {
-    const map = buildAbbreviationsMap([{ term: '  FOSS  ', definition: 'Free and Open Source Software' }]);
+    const map = buildAbbreviationsMap([
+      { term: '  FOSS  ', definition: 'Free and Open Source Software' },
+    ]);
     expect(map.get('foss')).toBe('Free and Open Source Software');
     expect(map.size).toBe(1);
   });
@@ -55,7 +59,9 @@ describe('splitByAbbreviations', () => {
   ]);
 
   it('returns a single plain segment when the map is empty', () => {
-    expect(splitByAbbreviations('hello FOSS world', new Map())).toEqual([{ text: 'hello FOSS world' }]);
+    expect(splitByAbbreviations('hello FOSS world', new Map())).toEqual([
+      { text: 'hello FOSS world' },
+    ]);
   });
 
   it('returns a single plain segment when there are no matches', () => {
@@ -114,7 +120,9 @@ describe('splitByAbbreviations', () => {
   it('does not match a term embedded inside a longer word', () => {
     // OSS should not match inside CROSS or GLOSS
     const ossOnlyMap = buildAbbreviationsMap([{ term: 'OSS', definition: 'Open Source Software' }]);
-    expect(splitByAbbreviations('CROSS the GLOSS', ossOnlyMap)).toEqual([{ text: 'CROSS the GLOSS' }]);
+    expect(splitByAbbreviations('CROSS the GLOSS', ossOnlyMap)).toEqual([
+      { text: 'CROSS the GLOSS' },
+    ]);
   });
 
   it('matches a shorter term standalone when the longer overlapping term is also defined', () => {

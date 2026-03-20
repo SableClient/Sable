@@ -41,7 +41,11 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
       <TooltipProvider position="Top" tooltip={tooltipContent}>
         {(triggerRef) => (
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
-          <abbr ref={triggerRef as React.Ref<HTMLElement>} onClick={handleClick}>
+          <abbr
+            ref={triggerRef as React.Ref<HTMLElement>}
+            onClick={handleClick}
+            style={{ textDecoration: 'underline dotted', cursor: 'help' }}
+          >
             {text}
           </abbr>
         )}

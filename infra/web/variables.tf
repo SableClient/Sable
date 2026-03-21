@@ -7,7 +7,7 @@ variable "account_id" {
 variable "custom_domain" {
   description = "Custom domain attached to the Worker"
   type        = string
-  default     = "sable.cloudhub.social"
+  default     = "dev.cloudhub.social"
 }
 
 variable "worker_name" {

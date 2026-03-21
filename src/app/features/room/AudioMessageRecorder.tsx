@@ -140,10 +140,10 @@ export const AudioMessageRecorder = forwardRef<
           {error}
         </Text>
       )}
-      <Box grow="Yes" alignItems="Center" gap="200" className={containerClassName}>
+      <Box alignItems="Center" gap="200" className={containerClassName}>
         <div aria-hidden className={css.RecDot} />
 
-        <Box grow="Yes" alignItems="Center" gap="100" className={css.WaveformContainer}>
+        <Box alignItems="Center" gap="100" className={css.WaveformContainer}>
           {bars.map((level, i) => (
             <div
               // eslint-disable-next-line react/no-array-index-key

@@ -254,7 +254,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               </Box>
             )}
             {showResponsiveAfterInFooter && (
-              <Box className={css.EditorResponsiveAfterMultiline} alignItems="Center" gap="100">
+              <Box
+                className={css.EditorResponsiveAfterMultiline}
+                alignItems="Center"
+                justifyContent="End"
+                gap="100"
+              >
                 {responsiveAfter}
               </Box>
             )}

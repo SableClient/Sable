@@ -44,7 +44,6 @@ type RoomJoinButtonProps = {
 };
 function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
   const mx = useMatrixClient();
-
   const [joinState, join] = useAsyncCallback<Room, MatrixError, []>(
     useCallback(() => mx.joinRoom(roomId, { viaServers: via }), [mx, roomId, via])
   );
@@ -91,6 +90,52 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
         disabled={!canJoin}
       >
         <Text size="B300">Join</Text>
+      </Chip>
+    </Box>
+  );
+}
+
+function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
+  return (
+    <Box shrink="No" gap="200" alignItems="Center">
+      {/* {joinState.status === AsyncStatus.Error && (
+        <TooltipProvider
+          tooltip={
+            <Tooltip variant="Critical" style={{ maxWidth: toRem(200) }}>
+              <Box direction="Column" gap="100">
+                <Text style={{ wordBreak: 'break-word' }} size="T400">
+                  {joinState.error.data?.error || joinState.error.message}
+                </Text>
+                <Text size="T200">{joinState.error.name}</Text>
+              </Box>
+            </Tooltip>
+          }
+        >
+          {(triggerRef) => (
+            <Icon
+              ref={triggerRef}
+              style={{ color: color.Critical.Main, cursor: 'pointer' }}
+              src={Icons.Warning}
+              size="400"
+              filled
+              tabIndex={0}
+              aria-label={joinState.error.data?.error || joinState.error.message}
+            />
+          )}
+        </TooltipProvider>
+      )} */}
+      <Chip
+        variant="Secondary"
+        fill="Soft"
+        size="400"
+        radii="Pill"
+        // before={
+        //   canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="100" />
+        // }
+        onClick={join}
+        // disabled={!canJoin}
+      >
+        <Text size="B300">Knock</Text>
       </Chip>
     </Box>
   );

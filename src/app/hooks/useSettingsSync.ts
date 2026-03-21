@@ -44,7 +44,10 @@ export function useSettingsSyncEffect(): void {
     if (!syncEnabled) return;
     const event = mx.getAccountData(AccountDataEvent.SableSettings);
     if (!event) return;
-    const merged = deserializeFromSync(event.getContent(), settingsRef.current);
+    // Strip _echo so a stored echo from a previous session doesn't get treated
+    // as an incoming change from another device.
+    const { _echo: echoField, ...content } = event.getContent();
+    const merged = deserializeFromSync(content, settingsRef.current);
     if (merged) {
       if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
         setSettings(merged);
@@ -64,22 +67,33 @@ export function useSettingsSyncEffect(): void {
       if (event.getType() !== AccountDataEvent.SableSettings) return;
       if (!settingsRef.current.settingsSyncEnabled) return;
 
-      const content = event.getContent();
+      const rawContent = event.getContent();
 
       // If this is the echo of our own upload, just confirm success and skip.
-      if (typeof content._echo === 'string' && content._echo === pendingEchoTokenRef.current) {
+      if (
+        typeof rawContent._echo === 'string' &&
+        rawContent._echo === pendingEchoTokenRef.current
+      ) {
         pendingEchoTokenRef.current = null;
         setLastSynced(Date.now());
         setSyncStatus('idle');
         return;
       }
 
-      // Otherwise it came from another device — apply it only if values changed.
+      // Strip internal _echo field before deserializing so stale echoes from
+      // previous sessions (stored on the homeserver) don't bypass the check above
+      // and don't leak into the settings object.
+      const { _echo: echoField, ...content } = rawContent;
+
+      // Otherwise it came from another device — apply it.
       const merged = deserializeFromSync(content, settingsRef.current);
-      if (merged) {
-        if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
-          setSettings(merged);
-        }
+      // Skip if nothing actually changed (deserializeFromSync always returns a
+      // new object, so compare values to avoid a spurious settings → upload loop).
+      if (merged && JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
+        setSettings(merged);
+        setLastSynced(Date.now());
+      } else if (merged) {
+        // Same values — just update the last-synced timestamp without re-uploading.
         setLastSynced(Date.now());
       }
     },

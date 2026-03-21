@@ -47,7 +47,7 @@ export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProp
 
   useEffect(() => {
     if (knockState.status === AsyncStatus.Success) {
-      debugLog.info('ui', 'Successfully left room', { roomId });
+      debugLog.info('ui', 'Successfully knocked on room', { roomId });
       onDone();
     }
   }, [knockState, onDone, roomId]);

@@ -215,7 +215,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
             <Scroll
               className={`${css.EditorTextareaScroll} ${layoutIsMultiline ? css.EditorTextareaScrollMultiline : ''}`}
               variant={variant}
-              style={{ maxHeight }}
+              style={{ maxHeight: replacementContent ? undefined : maxHeight }}
               size="300"
               visibility="Always"
               hideTrack

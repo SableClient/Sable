@@ -1023,9 +1023,10 @@ export function useTimelineEventRenderer({
                     {(pinsRemoved?.length > 0 &&
                       `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
                       ''}
-                    {(!pinsAdded || pinsAdded.length <= 0) &&
+                    {((!pinsAdded || pinsAdded.length <= 0) &&
                       (!pinsRemoved || pinsRemoved.length <= 0) &&
-                      `has not changed the pins`}
+                      `has not changed the pins`) ||
+                      `:`}
                   </Text>
                   {(pinsAdded || pinsRemoved) &&
                     pinsAdded

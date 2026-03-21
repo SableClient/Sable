@@ -25,6 +25,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { millify } from '$plugins/millify';
+import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -97,48 +98,43 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
 
 function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
   return (
-    <Box shrink="No" gap="200" alignItems="Center">
-      {/* {joinState.status === AsyncStatus.Error && (
-        <TooltipProvider
-          tooltip={
-            <Tooltip variant="Critical" style={{ maxWidth: toRem(200) }}>
-              <Box direction="Column" gap="100">
-                <Text style={{ wordBreak: 'break-word' }} size="T400">
-                  {joinState.error.data?.error || joinState.error.message}
-                </Text>
-                <Text size="T200">{joinState.error.name}</Text>
-              </Box>
-            </Tooltip>
-          }
-        >
-          {(triggerRef) => (
-            <Icon
-              ref={triggerRef}
-              style={{ color: color.Critical.Main, cursor: 'pointer' }}
-              src={Icons.Warning}
-              size="400"
-              filled
-              tabIndex={0}
-              aria-label={joinState.error.data?.error || joinState.error.message}
+    <UseStateProvider initial={false}>
+      {(knocking, setKnocking) => (
+        <Box shrink="No" gap="200" alignItems="Center">
+          <Chip
+            variant="Secondary"
+            fill="Soft"
+            size="400"
+            radii="Pill"
+            before=<Icon src={Icons.MailPlus} size="50" />
+            onClick={() => setKnocking(true)}
+          >
+            <Text size="B300">Knock</Text>
+          </Chip>
+          {knocking && (
+            <KnockRoomPrompt
+              roomId={roomId}
+              via={via}
+              onDone={() => setKnocking(false)}
+              onCancel={() => setKnocking(false)}
             />
           )}
-        </TooltipProvider>
-      )} */}
-      <Chip
-        variant="Secondary"
-        fill="Soft"
-        size="400"
-        radii="Pill"
-        // before={
-        //   canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="100" />
-        // }
-        onClick={join}
-        // disabled={!canJoin}
-      >
-        <Text size="B300">Knock</Text>
-      </Chip>
-    </Box>
+        </Box>
+      )}
+    </UseStateProvider>
   );
+}
+
+type RoomJoinOrKnockButtonProps = {
+  roomId: string;
+  via?: string[];
+  joinRule?: JoinRule;
+};
+function RoomJoinOrKnockButton({ roomId, via, joinRule }: RoomJoinOrKnockButtonProps) {
+  if (joinRule === JoinRule.Knock) {
+    return <RoomKnockButton roomId={roomId} via={via} />;
+  }
+  return <RoomJoinButton roomId={roomId} via={via} />;
 }
 
 function RoomProfileLoading() {
@@ -212,7 +208,7 @@ function RoomProfileError({ roomId, suggested, inaccessibleRoom, via }: RoomProf
           )}
         </Box>
       </Box>
-      {!inaccessibleRoom && <RoomJoinButton roomId={roomId} via={via} />}
+      {!inaccessibleRoom && <RoomJoinOrKnockButton roomId={roomId} via={via} />}
     </Box>
   );
 }
@@ -409,7 +405,11 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                         </Chip>
                       </Box>
                     ) : (
-                      <RoomJoinButton roomId={roomId} via={content.via} />
+                      <RoomJoinOrKnockButton
+                        roomId={roomId}
+                        via={content.via}
+                        joinRule={localSummary.joinRule}
+                      />
                     )
                   }
                 />
@@ -453,7 +453,13 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   memberCount={summary.num_joined_members}
                   suggested={content.suggested}
                   joinRule={summary.join_rule}
-                  options={<RoomJoinButton roomId={roomId} via={content.via} />}
+                  options={
+                    <RoomJoinOrKnockButton
+                      roomId={roomId}
+                      via={content.via}
+                      joinRule={summary.join_rule}
+                    />
+                  }
                 />
               )}
             </>

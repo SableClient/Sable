@@ -18,6 +18,7 @@ import {
   Spinner,
 } from 'folds';
 import { MatrixError } from '$types/matrix-sdk';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
@@ -27,7 +28,7 @@ const debugLog = createDebugLogger('KnockRoomPrompt');
 
 type KnockRoomProps = {
   roomId: string;
-  via?: string;
+  via?: string | string[];
   onDone: () => void;
   onCancel: () => void;
 };
@@ -80,7 +81,7 @@ export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProp
               size="500"
             >
               <Box grow="Yes">
-                <Text size="H4">Knock on Room</Text>
+                <Text size="H4">Knock On Room</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
                 <Icon src={Icons.Cross} />

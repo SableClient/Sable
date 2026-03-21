@@ -36,9 +36,10 @@ type ReplyLayoutProps = {
   userColor?: string;
   username?: ReactNode;
   icon?: IconSrc;
+  replyIcon?: JSX.Element;
 };
 export const ReplyLayout = as<'div', ReplyLayoutProps>(
-  ({ username, userColor, icon, className, children, ...props }, ref) => (
+  ({ username, userColor, icon, className, children, replyIcon, ...props }, ref) => (
     <Box
       className={classNames(css.Reply, className)}
       alignItems="Center"
@@ -47,7 +48,7 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        <Icon size="100" src={Icons.ReplyArrow} />
+        {replyIcon || <Icon size="100" src={Icons.ReplyArrow} />}
       </Box>
       {!!icon && <Icon style={{ opacity: 0.6 }} size="50" src={icon} />}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
@@ -80,10 +81,11 @@ type ReplyProps = {
   replyEventId: string;
   threadRootId?: string;
   onClick?: MouseEventHandler;
+  replyIcon?: JSX.Element;
 };
 
 export const Reply = as<'div', ReplyProps>(
-  ({ room, timelineSet, replyEventId, threadRootId, onClick, ...props }, ref) => {
+  ({ room, timelineSet, replyEventId, threadRootId, onClick, replyIcon, ...props }, ref) => {
     const placeholderWidth = useMemo(() => randomNumberBetween(40, 400), []);
     const getFromLocalTimeline = useCallback(
       () => timelineSet?.findEventById(replyEventId),
@@ -180,6 +182,7 @@ export const Reply = as<'div', ReplyProps>(
           as="button"
           userColor={usernameColor}
           icon={image}
+          replyIcon={replyIcon}
           username={
             sender &&
             eventType !== StateEvent.RoomMember && (

@@ -280,7 +280,7 @@ export const RoomCard = as<'div', RoomCardProps>(
             <>
               <Button onClick={() => setKnocking(true)} variant="Secondary" size="300">
                 <Text size="B300" truncate>
-                  {knocking ? 'Knock' : 'Knocked'}
+                  Knock
                 </Text>
               </Button>
 

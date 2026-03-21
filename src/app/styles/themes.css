@@ -909,7 +909,7 @@
   --sable-surface-var-container-hover: #101010;
   --sable-surface-var-container-active: #101010;
   --sable-surface-var-container-line: #404040;
-  --sable-surface-var-on-container: #bdb6ec;
+  --sable-surface-var-on-container: #ffffff;
 
   /* Primary */
   --sable-primary-main: #bdb6ec;
@@ -928,11 +928,11 @@
   --sable-sec-main-hover: #aaa4ba;
   --sable-sec-main-active: #bbb6c8;
   --sable-sec-main-line: #ccc8d6;
-  --sable-sec-on-main: #1b1a21;
-  --sable-sec-container: #2d2c36;
-  --sable-sec-container-hover: #363541;
-  --sable-sec-container-active: #403f4c;
-  --sable-sec-container-line: #4b4a58;
+  --sable-sec-on-main: #000000;
+  --sable-sec-container: #101010;
+  --sable-sec-container-hover: #202020;
+  --sable-sec-container-active: #202020;
+  --sable-sec-container-line: #404040;
   --sable-sec-on-container: #eae8f0;
 
   /* Success */

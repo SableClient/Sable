@@ -22,7 +22,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { createDebugLogger } from '$utils/debugLogger';
 
-const debugLog = createDebugLogger('KockRoomPrompt');
+const debugLog = createDebugLogger('KnockRoomPrompt');
 
 type KnockRoomProps = {
   roomId: string;

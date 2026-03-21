@@ -1019,7 +1019,7 @@ export function useTimelineEventRenderer({
                     {(pinsAdded?.length > 0 &&
                       `pinned ${pinsAdded.length} message${pinsAdded.length > 1 ? 's' : ''}`) ||
                       ''}
-                    {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && `and`) || ':'}
+                    {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && `: and`) || ''}
                     {(pinsRemoved?.length > 0 &&
                       `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}:`) ||
                       ''}

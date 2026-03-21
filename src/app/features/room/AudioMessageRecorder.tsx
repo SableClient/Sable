@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { useVoiceRecorder } from '$plugins/voice-recorder-kit';
 import type { VoiceRecorderStopPayload } from '$plugins/voice-recorder-kit';
 import { Box, Text } from 'folds';
@@ -37,14 +38,22 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+const MAX_BAR_COUNT = 28;
+const MIN_BAR_COUNT = 8;
+const BAR_WIDTH_PX = 2;
+const BAR_GAP_PX = 4;
+const RECORDER_CHROME_PX = 72;
+
 export const AudioMessageRecorder = forwardRef<
   AudioMessageRecorderHandle,
   AudioMessageRecorderProps
 >(({ onRecordingComplete, onRequestClose, onWaveformUpdate, onAudioLengthUpdate }, ref) => {
   const isDismissedRef = useRef(false);
   const userRequestedStopRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isCanceling, setIsCanceling] = useState(false);
   const [announcedTime, setAnnouncedTime] = useState(0);
+  const [barCount, setBarCount] = useState(MAX_BAR_COUNT);
 
   const onRecordingCompleteRef = useRef(onRecordingComplete);
   onRecordingCompleteRef.current = onRecordingComplete;
@@ -102,14 +111,28 @@ export const AudioMessageRecorder = forwardRef<
     }
   }, [seconds, announcedTime]);
 
-  const BAR_COUNT = 28;
+  useElementSizeObserver(
+    useCallback(() => containerRef.current, []),
+    useCallback((width) => {
+      const availableWaveformWidth = Math.max(0, width - RECORDER_CHROME_PX);
+      const nextBarCount = Math.max(
+        MIN_BAR_COUNT,
+        Math.min(
+          MAX_BAR_COUNT,
+          Math.floor((availableWaveformWidth + BAR_GAP_PX) / (BAR_WIDTH_PX + BAR_GAP_PX))
+        )
+      );
+      setBarCount((current) => (current === nextBarCount ? current : nextBarCount));
+    }, [])
+  );
+
   const bars = useMemo(() => {
     if (levels.length === 0) {
-      return Array(BAR_COUNT).fill(0.15);
+      return Array(barCount).fill(0.15);
     }
-    if (levels.length <= BAR_COUNT) {
-      const step = (levels.length - 1) / (BAR_COUNT - 1);
-      return Array.from({ length: BAR_COUNT }, (_, i) => {
+    if (levels.length <= barCount) {
+      const step = (levels.length - 1) / (barCount - 1);
+      return Array.from({ length: barCount }, (_, i) => {
         const position = i * step;
         const lower = Math.floor(position);
         const upper = Math.min(Math.ceil(position), levels.length - 1);
@@ -120,14 +143,14 @@ export const AudioMessageRecorder = forwardRef<
         return (levels[lower] ?? 0.15) * (1 - fraction) + (levels[upper] ?? 0.15) * fraction;
       });
     }
-    const step = levels.length / BAR_COUNT;
-    return Array.from({ length: BAR_COUNT }, (_, i) => {
+    const step = levels.length / barCount;
+    return Array.from({ length: barCount }, (_, i) => {
       const start = Math.floor(i * step);
       const end = Math.floor((i + 1) * step);
       const slice = levels.slice(start, end);
       return slice.length > 0 ? Math.max(...slice) : 0.15;
     });
-  }, [levels]);
+  }, [barCount, levels]);
 
   const containerClassName = [css.Container, isCanceling ? css.ContainerCanceling : null]
     .filter(Boolean)
@@ -140,10 +163,15 @@ export const AudioMessageRecorder = forwardRef<
           {error}
         </Text>
       )}
-      <Box alignItems="Center" gap="200" className={containerClassName}>
+      <Box ref={containerRef} alignItems="Center" gap="200" className={containerClassName}>
         <div aria-hidden className={css.RecDot} />
 
-        <Box alignItems="Center" gap="100" className={css.WaveformContainer}>
+        <Box
+          grow="Yes"
+          alignItems="Center"
+          justifyContent="SpaceBetween"
+          className={css.WaveformContainer}
+        >
           {bars.map((level, i) => (
             <div
               // eslint-disable-next-line react/no-array-index-key

@@ -52,6 +52,18 @@ import {
   Message,
   Reactions,
 } from '$features/room/message';
+import { useSableCosmetics } from '$hooks/useSableCosmetics';
+
+type DecoratedUserProps = {
+  room: Room;
+  userId: string;
+  userName?: string;
+};
+
+function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
+  const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
+  return <b style={{ color, font }}> {userName ?? userId} </b>;
+}
 
 type ThreadReplyChipProps = {
   room: Room;
@@ -801,7 +813,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {t('Organisms.RoomCommon.changed_room_name')}
                   </Text>
                 </Box>
@@ -848,7 +860,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room topic'}
                   </Text>
                 </Box>
@@ -895,7 +907,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room avatar'}
                   </Text>
                 </Box>
@@ -949,7 +961,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {callJoined ? ' joined the call' : ' ended the call'}
                   </Text>
                 </Box>
@@ -998,7 +1010,7 @@ export function useTimelineEventRenderer({
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">
-                  <b>{senderName}</b>
+                  <DecoratedUser userId={senderId} userName={senderName} room={room} />
                   {' sent '}
                   <code className={customHtmlCss.Code}>{getType.call(mEvent)}</code>
                   {' state event'}

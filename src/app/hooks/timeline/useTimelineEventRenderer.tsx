@@ -7,6 +7,7 @@ import {
   Room,
   PushProcessor,
   EventTimelineSet,
+  IContent,
 } from '$types/matrix-sdk';
 import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { HTMLReactParserOptions } from 'html-react-parser';
@@ -294,10 +295,10 @@ export function useTimelineEventRenderer({
           editedNewContent = getEditedContent.call(editedEvent)['m.new_content'];
         }
 
-        const baseContent = (getEventContent.call(mEvent) || {}) as Record<string, any>;
+        const baseContent = getEventContent.call(mEvent) || {};
         const safeContent = (
           Object.keys(baseContent).length > 0 ? baseContent : getOriginalContent.call(mEvent)
-        ) as Record<string, any>;
+        ) as IContent;
 
         const getContent = (() => editedNewContent ?? safeContent) as GetContentCallback;
 
@@ -364,6 +365,7 @@ export function useTimelineEventRenderer({
                   timelineSet={timelineSet}
                   replyEventId={replyEventId}
                   threadRootId={threadRootId}
+                  mentions={baseContent['m.mentions']}
                   onClick={handleOpenReply}
                 />
               )
@@ -609,6 +611,7 @@ export function useTimelineEventRenderer({
         const senderId = getSender.call(mEvent) ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
+        const content = getEventContent.call(mEvent) ?? {};
 
         return (
           <Message
@@ -643,6 +646,7 @@ export function useTimelineEventRenderer({
                   timelineSet={timelineSet}
                   replyEventId={replyEventId}
                   threadRootId={threadRootId}
+                  mentions={content['m.mentions']}
                   onClick={handleOpenReply}
                 />
               )

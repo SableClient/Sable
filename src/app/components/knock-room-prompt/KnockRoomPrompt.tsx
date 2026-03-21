@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, FormEventHandler } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   IconButton,
   Icon,
   Icons,
+  Input,
   color,
   Button,
   Spinner,
@@ -32,17 +33,23 @@ type KnockRoomProps = {
 };
 export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProps) {
   const mx = useMatrixClient();
-  const [reason, setReason] = useState('');
 
-  const [knockState, knockRoom] = useAsyncCallback<undefined, MatrixError, []>(
-    useCallback(async () => {
-      debugLog.info('ui', 'Knock room button clicked', { roomId });
-      mx.knockRoom(roomId, { viaServers: via || undefined, reason: reason.trim() || undefined });
-    }, [mx, roomId, reason, via])
+  const [knockState, knockRoom] = useAsyncCallback<undefined, MatrixError, [string?]>(
+    useCallback(
+      async (reason?: string) => {
+        debugLog.info('ui', 'Knock room button clicked', { roomId });
+        mx.knockRoom(roomId, { viaServers: via || undefined, reason });
+      },
+      [mx, roomId, via]
+    )
   );
 
-  const handleKnock = () => {
-    knockRoom();
+  const handleKnock: FormEventHandler<HTMLFormElement> = (evt) => {
+    evt.preventDefault();
+    const target = evt.target as HTMLFormElement;
+    const reasonInput = (target?.reasonInput as HTMLInputElement) || undefined;
+    const reason = reasonInput?.value.trim() || undefined;
+    knockRoom(reason);
   };
 
   useEffect(() => {
@@ -79,28 +86,35 @@ export function KnockRoomPrompt({ roomId, via, onDone, onCancel }: KnockRoomProp
                 <Icon src={Icons.Cross} />
               </IconButton>
             </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+            <Box
+              as="form"
+              onSubmit={handleKnock}
+              style={{ padding: config.space.S400 }}
+              direction="Column"
+              gap="400"
+            >
               <Box direction="Column" gap="200">
                 <Text priority="400">
                   Request to join this room. You can optionally leave a reason for the moderators.
                 </Text>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Reason"
-                  rows={3}
-                  style={{ resize: 'vertical', width: '100%' }}
-                />
-                {knockState.status === AsyncStatus.Error && (
-                  <Text style={{ color: color.Critical.Main }} size="T300">
-                    Failed to knock! {knockState.error.message}
+                <Box direction="Column" gap="100">
+                  <Text size="L400">
+                    Reason{' '}
+                    <Text as="span" size="T200">
+                      (Optional)
+                    </Text>
                   </Text>
-                )}
+                  <Input name="reasonInput" variant="Background" />
+                  {knockState.status === AsyncStatus.Error && (
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      Failed to knock! {knockState.error.message}
+                    </Text>
+                  )}
+                </Box>
               </Box>
               <Button
                 type="submit"
                 variant="Primary"
-                onClick={handleKnock}
                 before={
                   knockState.status === AsyncStatus.Loading ? (
                     <Spinner fill="Solid" variant="Primary" size="200" />

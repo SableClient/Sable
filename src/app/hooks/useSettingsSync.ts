@@ -42,7 +42,7 @@ export function useSettingsSyncEffect(): void {
   // ── On mount / when sync is first enabled: load from account data ──────────
   useEffect(() => {
     if (!syncEnabled) return;
-    const event = mx.getAccountData(AccountDataEvent.SableSettings as never);
+    const event = mx.getAccountData(AccountDataEvent.SableSettings);
     if (!event) return;
     const merged = deserializeFromSync(event.getContent(), settingsRef.current);
     if (merged) {
@@ -94,7 +94,7 @@ export function useSettingsSyncEffect(): void {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
       const content = { ...serializeForSync(settingsRef.current), _echo: token };
-      mx.setAccountData(AccountDataEvent.SableSettings as never, content as never).catch(() => {
+      mx.setAccountData(AccountDataEvent.SableSettings, content as Record<string, unknown>).catch(() => {
         pendingEchoTokenRef.current = null;
         setSyncStatus('error');
       });

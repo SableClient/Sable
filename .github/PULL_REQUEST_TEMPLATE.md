@@ -22,6 +22,7 @@ Fixes #
 - [ ] My changes generate no new warnings
 
 ### AI disclosure:
+
 - [ ] No AI was used.
 - [ ] Written while asking insight from the AI tool (explain what insight was asked below).
 - [ ] Written alongside the AI tool (list the lines that were AI assisted, and explain them).

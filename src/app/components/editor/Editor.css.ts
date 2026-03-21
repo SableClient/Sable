@@ -28,6 +28,14 @@ export const EditorRowMultiline = style({
   alignItems: 'start',
 });
 
+export const EditorRowMultilineWithResponsiveAfter = style({
+  gridTemplateColumns: 'auto 1fr auto',
+  gridTemplateAreas: `
+    "before textarea textarea"
+    "before responsive-after after"
+  `,
+});
+
 export const EditorOptions = style([
   DefaultReset,
   {
@@ -53,34 +61,12 @@ export const EditorTextareaScrollMultiline = style({
   gridArea: 'textarea',
 });
 
-export const EditorReplacementContent = style([
-  DefaultReset,
-  {
-    flexGrow: 1,
-    height: '100%',
-    padding: `${toRem(13)} ${toRem(1)}`,
-    selectors: {
-      [`${EditorTextareaScroll}:first-child &`]: {
-        paddingLeft: toRem(13),
-      },
-      [`${EditorTextareaScroll}:last-child &`]: {
-        paddingRight: toRem(13),
-      },
-    },
-  },
-]);
-
-export const EditorReplacementContentMultiline = style({
-  paddingLeft: config.space.S200,
-  paddingRight: config.space.S200,
-});
-
 export const EditorTextarea = style([
   DefaultReset,
   {
     flexGrow: 1,
     height: 'auto',
-    padding: `${toRem(13)} ${toRem(1)}`,
+    padding: `${toRem(13)} 0 0`,
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
@@ -95,10 +81,14 @@ export const EditorTextarea = style([
   },
 ]);
 
-export const EditorTextareaMultiline = style({
-  paddingLeft: config.space.S200,
-  paddingRight: config.space.S200,
-});
+export const EditorResponsiveAfterMultiline = style([
+  EditorOptions,
+  {
+    gridArea: 'responsive-after',
+    minWidth: 0,
+    alignSelf: 'stretch',
+  },
+]);
 
 export const EditorPlaceholderContainer = style([
   DefaultReset,

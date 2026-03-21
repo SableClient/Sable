@@ -164,7 +164,11 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import { AudioMessageRecorder, AudioMessageRecorderHandle } from './AudioMessageRecorder';
+import {
+  AudioMessageRecorder,
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -290,7 +294,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef<number>(0);
     const HOLD_THRESHOLD_MS = 400;
-    const isMobileRecording = showAudioRecorder && mobileOrTablet();
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
@@ -473,6 +476,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [setSelectedFiles, selectedFiles]
     );
+
+    const handleAudioRecordingComplete = useCallback(
+      (payload: AudioRecordingCompletePayload) => {
+        const extension = getSupportedAudioExtension(payload.audioCodec);
+        const file = new File(
+          [payload.audioBlob],
+          `sable-audio-message-${Date.now()}.${extension}`,
+          {
+            type: payload.audioCodec,
+          }
+        );
+        handleFiles([file], {
+          waveform: payload.waveform,
+          audioDuration: payload.audioLength,
+        });
+        setShowAudioRecorder(false);
+      },
+      [handleFiles]
+    );
+
+    const audioRecorder = showAudioRecorder ? (
+      <AudioMessageRecorder
+        ref={audioRecorderRef}
+        onRequestClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+        onAudioLengthUpdate={() => {}}
+        onWaveformUpdate={() => {}}
+      />
+    ) : undefined;
 
     const handleCancelUpload = (uploads: Upload[]) => {
       uploads.forEach((upload) => {
@@ -1082,31 +1114,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
-          replacementContent={
-            isMobileRecording ? (
-              <AudioMessageRecorder
-                ref={audioRecorderRef}
-                onRequestClose={() => setShowAudioRecorder(false)}
-                onRecordingComplete={(payload) => {
-                  const extension = getSupportedAudioExtension(payload.audioCodec);
-                  const file = new File(
-                    [payload.audioBlob],
-                    `sable-audio-message-${Date.now()}.${extension}`,
-                    {
-                      type: payload.audioCodec,
-                    }
-                  );
-                  handleFiles([file], {
-                    waveform: payload.waveform,
-                    audioDuration: payload.audioLength,
-                  });
-                  setShowAudioRecorder(false);
-                }}
-                onAudioLengthUpdate={() => {}}
-                onWaveformUpdate={() => {}}
-              />
-            ) : undefined
-          }
+          responsiveAfter={audioRecorder}
+          forceMultilineLayout={showAudioRecorder}
           top={
             <>
               {scheduledTime && (
@@ -1223,45 +1232,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            !isMobileRecording && (
-              <IconButton
-                onClick={() => pickFile('*')}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
-              >
-                <Icon src={Icons.PlusCircle} />
-              </IconButton>
-            )
+            <IconButton
+              onClick={() => pickFile('*')}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
+            >
+              <Icon src={Icons.PlusCircle} />
+            </IconButton>
           }
           after={
             <>
-              {showAudioRecorder && !isMobileRecording && (
-                <AudioMessageRecorder
-                  ref={audioRecorderRef}
-                  onRequestClose={() => setShowAudioRecorder(false)}
-                  onRecordingComplete={(payload) => {
-                    const extension = getSupportedAudioExtension(payload.audioCodec);
-                    const file = new File(
-                      [payload.audioBlob],
-                      `sable-audio-message-${Date.now()}.${extension}`,
-                      {
-                        type: payload.audioCodec,
-                      }
-                    );
-                    handleFiles([file], {
-                      waveform: payload.waveform,
-                      audioDuration: payload.audioLength,
-                    });
-                    setShowAudioRecorder(false);
-                  }}
-                  onAudioLengthUpdate={() => {}}
-                  onWaveformUpdate={() => {}}
-                />
-              )}
-
               {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
               <IconButton
                 ref={micBtnRef}

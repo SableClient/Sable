@@ -60,6 +60,8 @@ type CustomEditorProps = {
   bottom?: ReactNode;
   before?: ReactNode;
   after?: ReactNode;
+  responsiveAfter?: ReactNode;
+  forceMultilineLayout?: boolean;
   maxHeight?: string;
   editor: Editor;
   placeholder?: string;
@@ -69,7 +71,6 @@ type CustomEditorProps = {
   onPaste?: ClipboardEventHandler;
   className?: string;
   variant?: 'Surface' | 'SurfaceVariant' | 'Background';
-  replacementContent?: ReactNode;
 };
 export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
   (
@@ -79,6 +80,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       bottom,
       before,
       after,
+      responsiveAfter,
+      forceMultilineLayout = false,
       maxHeight = '50vh',
       editor,
       placeholder,
@@ -88,7 +91,6 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       onPaste,
       className,
       variant = 'SurfaceVariant',
-      replacementContent,
     },
     ref
   ) => {
@@ -105,7 +107,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const afterRef = useRef<HTMLDivElement>(null);
     const isMultilineRef = useRef(false);
     const [isMultiline, setIsMultiline] = useState(false);
-    const layoutIsMultiline = isMultiline && !replacementContent;
+    const layoutIsMultiline = isMultiline || forceMultilineLayout;
+    const showResponsiveAfterInFooter = Boolean(responsiveAfter) && layoutIsMultiline;
+    const showResponsiveAfterInline = Boolean(responsiveAfter) && !showResponsiveAfterInFooter;
 
     const handleChange = useCallback(
       (value: Descendant[]) => {
@@ -198,7 +202,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
         <Slate editor={editor} initialValue={slateInitialValue} onChange={handleChange}>
           {top}
           <Box
-            className={`${css.EditorRow} ${layoutIsMultiline ? css.EditorRowMultiline : ''}`}
+            className={`${css.EditorRow} ${layoutIsMultiline ? css.EditorRowMultiline : ''} ${showResponsiveAfterInFooter ? css.EditorRowMultilineWithResponsiveAfter : ''}`}
             alignItems="Start"
           >
             {before && (
@@ -215,37 +219,29 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
             <Scroll
               className={`${css.EditorTextareaScroll} ${layoutIsMultiline ? css.EditorTextareaScrollMultiline : ''}`}
               variant={variant}
-              style={{ maxHeight: replacementContent ? undefined : maxHeight }}
+              style={{ maxHeight: showResponsiveAfterInFooter ? undefined : maxHeight }}
               size="300"
               visibility="Always"
               hideTrack
             >
-              {replacementContent ? (
-                <div
-                  className={`${css.EditorReplacementContent} ${layoutIsMultiline ? css.EditorReplacementContentMultiline : ''}`}
-                >
-                  {replacementContent}
-                </div>
-              ) : (
-                <Editable
-                  ref={editableRef}
-                  data-editable-name={editableName}
-                  className={`${css.EditorTextarea} ${layoutIsMultiline ? css.EditorTextareaMultiline : ''}`}
-                  placeholder={placeholder}
-                  renderPlaceholder={renderPlaceholder}
-                  renderElement={renderElement}
-                  renderLeaf={renderLeaf}
-                  onKeyDown={handleKeydown}
-                  onKeyUp={onKeyUp}
-                  onPaste={onPaste}
-                  autoCapitalize="sentences"
-                  onBlur={() => {
-                    if (mobileOrTablet()) ReactEditor.focus(editor);
-                  }}
-                />
-              )}
+              <Editable
+                ref={editableRef}
+                data-editable-name={editableName}
+                className={css.EditorTextarea}
+                placeholder={placeholder}
+                renderPlaceholder={renderPlaceholder}
+                renderElement={renderElement}
+                renderLeaf={renderLeaf}
+                onKeyDown={handleKeydown}
+                onKeyUp={onKeyUp}
+                onPaste={onPaste}
+                autoCapitalize="sentences"
+                onBlur={() => {
+                  if (mobileOrTablet()) ReactEditor.focus(editor);
+                }}
+              />
             </Scroll>
-            {after && (
+            {(after || showResponsiveAfterInline) && (
               <Box
                 ref={afterRef}
                 className={`${css.EditorOptions} ${layoutIsMultiline ? css.EditorOptionsMultiline : ''} ${layoutIsMultiline ? css.EditorOptionsAfterMultiline : ''}`}
@@ -253,7 +249,13 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 gap="100"
                 shrink="No"
               >
+                {showResponsiveAfterInline && responsiveAfter}
                 {after}
+              </Box>
+            )}
+            {showResponsiveAfterInFooter && (
+              <Box className={css.EditorResponsiveAfterMultiline} alignItems="Center" gap="100">
+                {responsiveAfter}
               </Box>
             )}
           </Box>

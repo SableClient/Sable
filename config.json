@@ -1,45 +1,26 @@
 {
-  "defaultHomeserver": 0,
-  "homeserverList": ["matrix.org", "mozilla.org", "unredacted.org", "sable.moe", "kendama.moe"],
-  "allowCustomHomeservers": true,
-  "elementCallUrl": null,
-
-  "disableAccountSwitcher": false,
-  "hideUsernamePasswordFields": false,
-
-  "pushNotificationDetails": {
-    "pushNotifyUrl": "https://sygnal.sable.moe/_matrix/push/v1/notify",
-    "vapidPublicKey": "BCnS4SbHjeOaqVFW4wjt5xDt_pYIL62qMzKePfYF9fl9PQU14RieIaObh7nLR_9dQf4sykZa-CTrcjkgMIE1mcg",
-    "webPushAppID": "moe.sable.app.sygnal"
-  },
-
-  "slidingSync": {
-    "enabled": true
-  },
-
-  "featuredCommunities": {
-    "openAsDefault": false,
-    "spaces": [
-      "#sable:sable.moe",
-      "#community:matrix.org",
-      "#space:unredacted.org",
-      "#science-space:matrix.org",
-      "#libregaming-games:tchncs.de",
-      "#mathematics-on:matrix.org"
+    "allowCustomHomeservers": true,
+    "defaultHomeserver": 0,
+    "elementCallUrl": "matrix.cloudhub.social",
+    "featuredCommunities": {
+        "openAsDefault": false,
+        "rooms": [],
+        "servers": [
+            "matrixrooms.info",
+            "gitter.im",
+            "matrix.org"
+        ],
+        "spaces": []
+    },
+    "homeserverList": [
+        "https://matrix.cloudhub.social"
     ],
-    "rooms": [
-      "#announcements:sable.moe",
-      "#freesoftware:matrix.org",
-      "#pcapdroid:matrix.org",
-      "#gentoo:matrix.org",
-      "#PrivSec.dev:arcticfoxes.net",
-      "#disroot:aria-net.org"
-    ],
-    "servers": ["matrixrooms.info", "mozilla.org", "unredacted.org"]
-  },
-
-  "hashRouter": {
-    "enabled": false,
-    "basename": "/"
-  }
+    "pushNotificationDetails": {
+        "pushNotifyUrl": "https://sygnal.cloudhub.social/_matrix/push/v1/notify",
+        "vapidPublicKey": "BEBdK6VUiqYxcOauFCM1ZB38llgiODAs6pR5EEcC7YBoUh2YvrULagwo5t-Ms0Is0lEmKDhpdUoMiy_i7ArI3oE",
+        "webPushAppID": "social.cloudhub.sable.web"
+    },
+    "slidingSync": {
+        "enabled": "true"
+    }
 }

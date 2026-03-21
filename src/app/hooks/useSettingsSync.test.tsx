@@ -51,7 +51,7 @@ function makeStore(overrides?: Partial<ReturnType<typeof getSettings>>) {
 
 /** Wrapper that provides an isolated jotai store per test. */
 function makeWrapper(store: ReturnType<typeof createStore>) {
-  return function ({ children }: { children: ReactNode }) {
+  return function Wrapper({ children }: { children: ReactNode }) {
     return createElement(Provider, { store }, children);
   };
 }

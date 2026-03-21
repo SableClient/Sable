@@ -94,10 +94,12 @@ export function useSettingsSyncEffect(): void {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
       const content = { ...serializeForSync(settingsRef.current), _echo: token };
-      mx.setAccountData(AccountDataEvent.SableSettings, content as Record<string, unknown>).catch(() => {
-        pendingEchoTokenRef.current = null;
-        setSyncStatus('error');
-      });
+      mx.setAccountData(AccountDataEvent.SableSettings, content as Record<string, unknown>).catch(
+        () => {
+          pendingEchoTokenRef.current = null;
+          setSyncStatus('error');
+        }
+      );
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timerRef.current);

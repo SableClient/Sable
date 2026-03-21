@@ -163,7 +163,29 @@ export const Reply = as<'div', ReplyProps>(
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
       image = callJoined ? Icons.Phone : Icons.PhoneDown;
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
-    } else if (Object.values(MessageEvent).every((v) => v !== eventType)) {
+    } else if (eventType === StateEvent.RoomPinnedEvents && replyEvent) {
+      const { pinned } = replyEvent.getContent();
+      const prevPinned = replyEvent.getPrevContent().pinned;
+      const pinsAdded =
+        prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+      const pinsRemoved =
+        prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+      image = Icons.Pin;
+      bodyJSX = (
+        <>
+          {(pinsAdded?.length > 0 &&
+            `pinned ${pinsAdded.length} message${pinsAdded.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && `and`) || ''}
+          {(pinsRemoved?.length > 0 &&
+            `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(!pinsAdded || pinsAdded.length <= 0) &&
+            (!pinsRemoved || pinsRemoved.length <= 0) &&
+            `has not changed the pins`}
+        </>
+      );
+    } else if (Object.values(MessageEvent).every((v) => v !== eventType && !!eventType)) {
       image = Icons.Code;
       bodyJSX = (
         <>

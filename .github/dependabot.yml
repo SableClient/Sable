@@ -47,13 +47,9 @@ updates:
       prefix: chore
     groups:
       npm-major:
-        patterns:
-          - '*'
         update-types:
           - major
       npm-non-major:
-        patterns:
-          - '*'
         update-types:
           - minor
           - patch

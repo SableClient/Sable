@@ -81,7 +81,15 @@ const copyFiles = {
       dest: '',
     },
     {
-      src: 'public/res/android',
+      src: 'public/res/logo-maskable',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/logo',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/svg',
       dest: 'public/',
     },
     {

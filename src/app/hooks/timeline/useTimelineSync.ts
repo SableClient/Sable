@@ -203,8 +203,11 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
   onArriveRef.current = onArrive;
 
   useEffect(() => {
-    const liveTimeline = getLiveTimeline(room);
-    const registeredAt = Date.now();
+    // Both are mutable: if TimelineReset replaces the live EventTimeline object
+    // we re-anchor them together inside the handler so the isLive check always
+    // runs against the current timeline and a fresh 60 s backfill window.
+    let liveTimeline = getLiveTimeline(room);
+    let registeredAt = Date.now();
     const handleTimelineEvent: EventTimelineSetHandlerMap[RoomEvent.Timeline] = (
       mEvent: MatrixEvent,
       eventRoom: Room | undefined,
@@ -213,6 +216,16 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
       data: IRoomTimelineData
     ) => {
       if (eventRoom?.roomId !== room.roomId) return;
+
+      // Lazily re-anchor on timeline replacement. Capturing liveTimeline once
+      // at registration causes events on the new timeline to fail the reference
+      // check and be silently dropped after a sync gap / reconnect.
+      const currentLiveTimeline = getLiveTimeline(room);
+      if (currentLiveTimeline !== liveTimeline) {
+        liveTimeline = currentLiveTimeline;
+        registeredAt = Date.now();
+      }
+
       const { getTs } = mEvent;
       const isLive =
         data.liveEvent ||
@@ -345,7 +358,7 @@ export function useTimelineSync({
     | undefined
   >();
 
-  const timelineJustResetRef = useRef(false);
+  const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
@@ -485,7 +498,7 @@ export function useTimelineSync({
     room,
     useCallback(() => {
       const wasAtBottom = isAtBottomRef.current;
-      timelineJustResetRef.current = true;
+      resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
@@ -508,12 +521,21 @@ export function useTimelineSync({
   );
 
   useEffect(() => {
-    const resetPending = timelineJustResetRef.current;
-    if (resetPending) timelineJustResetRef.current = false;
+    const resetAutoScrollPending = resetAutoScrollPendingRef.current;
+    if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 
-    if (!(isAtBottom || resetPending) || !liveTimelineLinked || eventsLength === 0) return;
+    // liveTimelineLinked can be transiently false after TimelineReset: the SDK
+    // fires the event before React commits the new linkedTimelines, so the stored
+    // chain still references the old detached timeline. When auto-scroll recovery
+    // is pending for a bottom-pinned user, the guard is meaningless lag.
+    if (
+      !(isAtBottom || resetAutoScrollPending) ||
+      (!liveTimelineLinked && !resetAutoScrollPending) ||
+      eventsLength === 0
+    )
+      return;
 
-    if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetPending) return;
+    if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetAutoScrollPending) return;
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom('instant');

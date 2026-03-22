@@ -64,6 +64,6 @@ repo = "Sable"
 [release_notes]
 # The <!-- commit:$commit_hash --> marker is used by prepare-release.yml
 change_templates = [
-    # "### $summary <!-- commit:$commit_hash -->\n\n$details",
+    "### $summary <!-- commit:$commit_hash -->\n\n$details",
     "* $summary <!-- commit:$commit_hash -->",
 ]

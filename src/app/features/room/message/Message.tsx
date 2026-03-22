@@ -14,7 +14,6 @@ import {
   as,
   config,
 } from 'folds';
-
 import {
   MouseEventHandler,
   MouseEvent,
@@ -35,6 +34,7 @@ import {
   Room,
   Relations,
   RoomPinnedEventsEventContent,
+  MatrixEventEvent,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -380,13 +380,15 @@ function MessageInternal(
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
-  const [editVersion, setEditVersion] = useState(0);
+  const [contentVersion, setContentVersion] = useState(0);
 
   useEffect(() => {
-    const onReplaced = () => setEditVersion((v) => v + 1);
-    mEvent.on('Event.replaced' as any, onReplaced);
+    const onUpdate = () => setContentVersion((v) => v + 1);
+    mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
+    mEvent.on(MatrixEventEvent.Replaced, onUpdate);
     return () => {
-      mEvent.off('Event.replaced' as any, onReplaced);
+      mEvent.off(MatrixEventEvent.Decrypted, onUpdate);
+      mEvent.off(MatrixEventEvent.Replaced, onUpdate);
     };
   }, [mEvent]);
 
@@ -411,7 +413,7 @@ function MessageInternal(
       | PerMessageProfileBeeperFormat
       | undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mEvent, room, editVersion]);
+  }, [mEvent, room, contentVersion]);
 
   /**
    * We convert the per-message profile from the Beeper format to our internal format here in the message component

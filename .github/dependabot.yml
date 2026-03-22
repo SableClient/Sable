@@ -46,9 +46,14 @@ updates:
     commit-message:
       prefix: chore
     groups:
-      # Group all non-major updates together to reduce noise
-      npm-minor-patch:
+      npm-major:
+        patterns:
+          - '*'
+        update-types:
+          - major
+      npm-non-major:
+        patterns:
+          - '*'
         update-types:
           - minor
           - patch
-      # Major updates are ungrouped so they get individual review

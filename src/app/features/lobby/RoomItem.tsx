@@ -106,7 +106,7 @@ function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
             fill="Soft"
             size="400"
             radii="Pill"
-            before=<Icon src={Icons.MailPlus} size="50" />
+            before={<Icon src={Icons.MailPlus} size="50" />}
             onClick={() => setKnocking(true)}
           >
             <Text size="B300">Knock</Text>

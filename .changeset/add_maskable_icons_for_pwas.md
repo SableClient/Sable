@@ -2,4 +2,4 @@
 default: minor
 ---
 
-# Add Android/iOS PWA-specific icon variants.
+Add Android/iOS PWA-specific icon variants.

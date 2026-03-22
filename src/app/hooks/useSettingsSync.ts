@@ -46,7 +46,9 @@ export function useSettingsSyncEffect(): void {
     if (!event) return;
     const merged = deserializeFromSync(event.getContent(), settingsRef.current);
     if (merged) {
-      setSettings(merged);
+      if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
+        setSettings(merged);
+      }
       setLastSynced(Date.now());
     }
   }, [mx, syncEnabled, setSettings, setLastSynced]);
@@ -72,10 +74,12 @@ export function useSettingsSyncEffect(): void {
         return;
       }
 
-      // Otherwise it came from another device — apply it.
+      // Otherwise it came from another device — apply it only if values changed.
       const merged = deserializeFromSync(content, settingsRef.current);
       if (merged) {
-        setSettings(merged);
+        if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
+          setSettings(merged);
+        }
         setLastSynced(Date.now());
       }
     },

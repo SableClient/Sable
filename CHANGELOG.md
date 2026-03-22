@@ -1,5 +1,45 @@
 # Sable Client Changelog
 
+## 1.11.1 (2026-03-21)
+
+### Fixes
+
+* Fix conditional memo in reply renderer leading to crashes. ([#453](https://github.com/SableClient/Sable/pull/453) by @7w1)
+
+## 1.11.0 (2026-03-21)
+
+### Features
+
+* Implemented improved rendering for space hierarchies in nav bar and lobby. ([#252](https://github.com/SableClient/Sable/pull/252) by @KaceCottam)
+* Added styling for replies to non-messages. ([#416](https://github.com/SableClient/Sable/pull/416) by @nushea)
+
+### Fixes
+
+* Fix message composer clearing when edited messages are saved. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix editor flowing off screen when editing large messages in compact and bubble layouts. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix extra spacing in message editor. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix menu items not clickable due to menu transform. ([#450](https://github.com/SableClient/Sable/pull/450) by @7w1)
+* Fix replies not rendering matrix.to links and opening them in new tabs instead of jumping to them. ([#448](https://github.com/SableClient/Sable/pull/448) by @7w1)
+* Fix per-message profile messages collapsing together when different profiles are used. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix per-message profiles not updating avatar/name if edit events are recieved. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix editing per-message profile messages injecting profile name into message. ([#451](https://github.com/SableClient/Sable/pull/451) by @7w1)
+* Fix per-message profiles not rendering in encrypted rooms. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix thread chips not appearing on thread root messages. ([#446](https://github.com/SableClient/Sable/pull/446) by @7w1)
+* Fix up arrow to edit messages not editing messages. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+
+## 1.10.6 (2026-03-21)
+
+### Fixes
+
+* Change default notification server. ([#443](https://github.com/SableClient/Sable/pull/443) by @7w1)
+
+## 1.10.5 (2026-03-20)
+
+### Fixes
+
+* Hide unread dot/highlight for rooms with notification mode set to Mute. ([#429](https://github.com/SableClient/Sable/pull/429) by @saschabuehrle)
+* Fix thread drawer flooding console with "Ignoring event" warnings when server-side thread support is enabled. ([#438](https://github.com/SableClient/Sable/pull/438) by @Just-Insane)
+
 ## 1.10.4 (2026-03-20)
 
 ### Fixes

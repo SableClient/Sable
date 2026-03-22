@@ -1,4 +1,4 @@
-import { MouseEventHandler } from 'react';
+import { MouseEventHandler, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAtomValue } from 'jotai';
 import {
@@ -71,30 +71,25 @@ function ThreadReplyChip({
   const nicknames = useAtomValue(nicknamesAtom);
 
   const thread = room.getThread(mEventId);
-  let replyEvents: MatrixEvent[] = [];
 
-  if (thread) {
-    replyEvents = thread.events.filter((ev) => {
-      const { getId: getEvId } = ev;
-      return getEvId.call(ev) !== mEventId && !reactionOrEditEvent(ev);
-    });
-  } else {
+  const replyEvents = useMemo(() => {
     const linkedTimelines = getLinkedTimelines(getLiveTimeline(room));
-    const allEvents = linkedTimelines.flatMap((tl) => tl.getEvents() || []);
-    replyEvents = allEvents.filter((ev) => {
-      const { getId: getEvId, threadRootId } = ev;
-      return threadRootId === mEventId && getEvId.call(ev) !== mEventId && !reactionOrEditEvent(ev);
-    });
-  }
+    return linkedTimelines
+      .flatMap((tl) => tl.getEvents())
+      .filter(
+        (ev) => ev.threadRootId === mEventId && ev.getId() !== mEventId && !reactionOrEditEvent(ev)
+      );
+  }, [room, mEventId]);
 
-  const replyCount = replyEvents.length;
+  if (!thread) return null;
+
+  const replyCount = thread.length ?? 0;
   if (replyCount === 0) return null;
 
   const uniqueSenders: string[] = [];
   const seen = new Set<string>();
   replyEvents.forEach((ev) => {
-    const { getSender: getEvSender } = ev;
-    const s = getEvSender.call(ev);
+    const s = ev.getSender();
     if (s && !seen.has(s)) {
       seen.add(s);
       uniqueSenders.push(s);
@@ -104,11 +99,9 @@ function ThreadReplyChip({
   const latestReply = replyEvents.at(-1);
   let latestSenderId = '';
   let latestBody = '';
-
   if (latestReply) {
-    const { getSender: getLatestSender, getContent: getLatestContent } = latestReply;
-    latestSenderId = getLatestSender.call(latestReply) ?? '';
-    latestBody = (getLatestContent.call(latestReply)?.body as string | undefined) ?? '';
+    latestSenderId = latestReply.getSender() ?? '';
+    latestBody = (latestReply.getContent()?.body as string | undefined) ?? '';
   }
 
   const latestSenderName =
@@ -124,32 +117,34 @@ function ThreadReplyChip({
       variant={isOpen ? 'Primary' : 'SurfaceVariant'}
       radii="300"
       before={
-        <Box alignItems="Center" style={{ gap: 0 }}>
-          {uniqueSenders.slice(0, 3).map((senderId, index) => {
-            const avatarMxc = getMemberAvatarMxc(room, senderId);
-            const avatarUrl = avatarMxc
-              ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 20, 20, 'crop') ?? undefined)
-              : undefined;
-            const displayName =
-              getMemberDisplayName(room, senderId, nicknames) ??
-              getMxIdLocalPart(senderId) ??
-              senderId;
-            return (
-              <Avatar key={senderId} size="200" style={{ marginLeft: index > 0 ? '-4px' : 0 }}>
-                <UserAvatar
-                  userId={senderId}
-                  src={avatarUrl}
-                  alt={displayName}
-                  renderFallback={() => (
-                    <span style={{ fontSize: '10px', fontWeight: 'bold', lineHeight: 1 }}>
-                      {displayName[0]?.toUpperCase() ?? '?'}
-                    </span>
-                  )}
-                />
-              </Avatar>
-            );
-          })}
-        </Box>
+        uniqueSenders.length > 0 ? (
+          <Box alignItems="Center" style={{ gap: 0 }}>
+            {uniqueSenders.slice(0, 3).map((senderId, index) => {
+              const avatarMxc = getMemberAvatarMxc(room, senderId);
+              const avatarUrl = avatarMxc
+                ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 20, 20, 'crop') ?? undefined)
+                : undefined;
+              const displayName =
+                getMemberDisplayName(room, senderId, nicknames) ??
+                getMxIdLocalPart(senderId) ??
+                senderId;
+              return (
+                <Avatar key={senderId} size="200" style={{ marginLeft: index > 0 ? '-4px' : 0 }}>
+                  <UserAvatar
+                    userId={senderId}
+                    src={avatarUrl}
+                    alt={displayName}
+                    renderFallback={() => (
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', lineHeight: 1 }}>
+                        {displayName[0]?.toUpperCase() ?? '?'}
+                      </span>
+                    )}
+                  />
+                </Avatar>
+              );
+            })}
+          </Box>
+        ) : undefined
       }
       onClick={onToggle}
       style={{ marginTop: config.space.S200 }}
@@ -174,7 +169,6 @@ function ThreadReplyChip({
     </Chip>
   );
 }
-
 export interface TimelineEventRendererOptions {
   room: Room;
   mx: MatrixClient;

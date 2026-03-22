@@ -8,9 +8,9 @@
   "hideUsernamePasswordFields": false,
 
   "pushNotificationDetails": {
-    "pushNotifyUrl": "https://sygnal.cloudhub.social/_matrix/push/v1/notify",
-    "vapidPublicKey": "BCAlXMEViGKDCqCIAxYfj2esZXvbbYTUqWxHpb7kHmBiEVGYHdUmkxoCIkY9zjw6gaJ-ovbxyHGJN8XyiyNqhmM",
-    "webPushAppID": "social.cloudhub.sable.web"
+    "pushNotifyUrl": "https://sygnal.sable.moe/_matrix/push/v1/notify",
+    "vapidPublicKey": "BCnS4SbHjeOaqVFW4wjt5xDt_pYIL62qMzKePfYF9fl9PQU14RieIaObh7nLR_9dQf4sykZa-CTrcjkgMIE1mcg",
+    "webPushAppID": "moe.sable.app.sygnal"
   },
 
   "slidingSync": {

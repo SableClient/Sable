@@ -5,7 +5,7 @@ import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
-import { createMentionElement, moveCursor } from '$components/editor';
+import { createMentionElement, isEmptyEditor, moveCursor } from '$components/editor';
 
 export interface UseTimelineActionsOptions {
   room: Room;
@@ -216,10 +216,10 @@ export function useTimelineActions({
         return;
       }
       setEditId(undefined);
-      onEditorReset?.();
 
       requestAnimationFrame(() => {
         if (!alive()) return;
+        if (isEmptyEditor(editor)) onEditorReset?.();
         ReactEditor.focus(editor);
         moveCursor(editor);
       });

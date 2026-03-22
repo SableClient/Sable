@@ -143,8 +143,15 @@ export function useProcessedTimeline({
           const typeMatch =
             normalizeMessageType(getPrevType.call(prevEvent)) === normalizeMessageType(type);
           const dividerOk = !newDivider || eventSender === mxUserId;
+          const getPmpId = (ev: MatrixEvent): string | null =>
+            ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
-          collapsed = dividerOk && senderMatch && typeMatch && withinTimeThreshold;
+          collapsed =
+            dividerOk &&
+            senderMatch &&
+            typeMatch &&
+            withinTimeThreshold &&
+            getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
           const prevIsMessageEvent = MESSAGE_EVENT_TYPES.includes(getPrevType.call(prevEvent));
           collapsed = !prevIsMessageEvent;

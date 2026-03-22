@@ -95,7 +95,7 @@ function UserExtendedSection({
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];
 
   const pronouns = filterPronounsByLanguage(
-    profile.pronouns!,
+    profile.pronouns,
     languageFilterEnabled,
     languagesToFilterFor
   )

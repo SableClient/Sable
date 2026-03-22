@@ -96,9 +96,12 @@ export interface Settings {
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
   saveStickerEmojiBandwidth: boolean;
+  subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  mentionInReplies: boolean;
+  showPersonaSetting: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -179,9 +182,12 @@ const defaultSettings: Settings = {
   autoplayStickers: true,
   autoplayEmojis: true,
   saveStickerEmojiBandwidth: false,
+  subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  mentionInReplies: true,
+  showPersonaSetting: false,
 
   // furry stuff
   renderAnimals: true,

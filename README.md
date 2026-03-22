@@ -16,7 +16,7 @@ You can also download our desktop app for windows and linux from [releases](http
 ## Self-hosting
 You have a few options for self hosting, you can:
 1. Run the prebuilt docker container.
-2. Deploy on a site like GitLab Pages. Jae has a [guide here](https://docs.j4.lc/Public+documentation/Tutorials/Deploying+Sable+on+GitLab+Pages).
+2. Deploy on a site like GitLab Pages. Jae has a [guide here](https://docs.j4.lc/Tutorials/Deploying-Sable-on-GitLab-Pages).
 3. Build it yourself.
 
 ### Docker

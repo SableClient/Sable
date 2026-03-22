@@ -1,5 +1,93 @@
 # Sable Client Changelog
 
+## 1.11.1 (2026-03-21)
+
+### Fixes
+
+* Fix conditional memo in reply renderer leading to crashes. ([#453](https://github.com/SableClient/Sable/pull/453) by @7w1)
+
+## 1.11.0 (2026-03-21)
+
+### Features
+
+* Implemented improved rendering for space hierarchies in nav bar and lobby. ([#252](https://github.com/SableClient/Sable/pull/252) by @KaceCottam)
+* Added styling for replies to non-messages. ([#416](https://github.com/SableClient/Sable/pull/416) by @nushea)
+
+### Fixes
+
+* Fix message composer clearing when edited messages are saved. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix editor flowing off screen when editing large messages in compact and bubble layouts. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix extra spacing in message editor. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+* Fix menu items not clickable due to menu transform. ([#450](https://github.com/SableClient/Sable/pull/450) by @7w1)
+* Fix replies not rendering matrix.to links and opening them in new tabs instead of jumping to them. ([#448](https://github.com/SableClient/Sable/pull/448) by @7w1)
+* Fix per-message profile messages collapsing together when different profiles are used. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix per-message profiles not updating avatar/name if edit events are recieved. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix editing per-message profile messages injecting profile name into message. ([#451](https://github.com/SableClient/Sable/pull/451) by @7w1)
+* Fix per-message profiles not rendering in encrypted rooms. ([#449](https://github.com/SableClient/Sable/pull/449) by @7w1)
+* Fix thread chips not appearing on thread root messages. ([#446](https://github.com/SableClient/Sable/pull/446) by @7w1)
+* Fix up arrow to edit messages not editing messages. ([#447](https://github.com/SableClient/Sable/pull/447) by @7w1)
+
+## 1.10.6 (2026-03-21)
+
+### Fixes
+
+* Change default notification server. ([#443](https://github.com/SableClient/Sable/pull/443) by @7w1)
+
+## 1.10.5 (2026-03-20)
+
+### Fixes
+
+* Hide unread dot/highlight for rooms with notification mode set to Mute. ([#429](https://github.com/SableClient/Sable/pull/429) by @saschabuehrle)
+* Fix thread drawer flooding console with "Ignoring event" warnings when server-side thread support is enabled. ([#438](https://github.com/SableClient/Sable/pull/438) by @Just-Insane)
+
+## 1.10.4 (2026-03-20)
+
+### Fixes
+
+* Change default push notification server. ([#433](https://github.com/SableClient/Sable/pull/433) by @7w1)
+
+## 1.10.3 (2026-03-20)
+
+### Fixes
+
+* Place persona settings behind a toggle in experimental. ([#431](https://github.com/SableClient/Sable/pull/431) by @7w1)
+
+## 1.10.2 (2026-03-20)
+
+### Fixes
+
+* Fix edit button not always editing. ([#413](https://github.com/SableClient/Sable/pull/413) by @7w1)
+* Fix search/nav/links/etc not loading messages. ([#413](https://github.com/SableClient/Sable/pull/413) by @7w1)
+* Fix timeline not sticking to the bottom in non-reduced motion setting. ([#413](https://github.com/SableClient/Sable/pull/413) by @7w1)
+* Replace matrix.org with matrixrooms.info in default featured servers section. ([#413](https://github.com/SableClient/Sable/pull/413) by @7w1)
+
+## 1.10.1 (2026-03-20)
+
+### Fixes
+
+* Fix messages overlapping in timeline. ([#411](https://github.com/SableClient/Sable/pull/411) by @7w1)
+
+## 1.10.0 (2026-03-20)
+
+### Features
+
+* added the posibility to send using per message profiles with `/usepmp` ([#309](https://github.com/SableClient/Sable/pull/309) by @dozro)
+* Added a setting to Appearance that attempts to convert text in names like (it/its) into a pronoun pill, enlabed by default. ([#353](https://github.com/SableClient/Sable/pull/353) by @7w1)
+* Rewrite the room timeline using Virtua to fix all the scroll bugs. ([#175](https://github.com/SableClient/Sable/pull/175) by @7w1)
+* Update calls to have RNNoise noise suppression. ([#392](https://github.com/SableClient/Sable/pull/392) by @melogale)
+
+### Fixes
+
+* fix [accidental leaking of private nicknames](https://github.com/SableClient/Sable/issues/362) for users to be included in the message ([#365](https://github.com/SableClient/Sable/pull/365) by @dozro)
+* Hide presence badge in members list for users without homeserver support, mimicking room profile apperance. ([#354](https://github.com/SableClient/Sable/pull/354) by @7w1)
+* Tighten sliding sync memory management: stop the polling loop on client dispose, persist then prune large room timelines when leaving a room, remove adaptive timeline-limit logic, and auto-unsubscribe when the local user leaves or is banned from a room. ([#348](https://github.com/SableClient/Sable/pull/348) by @Just-Insane)
+* Fix thread drawer showing no messages when using classic sync. ([#343](https://github.com/SableClient/Sable/pull/343) by @Just-Insane)
+* Hide the redundant "Thread" indicator badge in the compose box when inside the Thread Drawer. ([#347](https://github.com/SableClient/Sable/pull/347) by @Just-Insane)
+* Reduce dead space around the root message in the thread drawer. ([#344](https://github.com/SableClient/Sable/pull/344) by @Just-Insane)
+* Added a toggle to notifications to disable full message mention highlighting. ([#355](https://github.com/SableClient/Sable/pull/355) by @7w1)
+* Add a setting to disable reply mentions by default ([#405](https://github.com/SableClient/Sable/pull/405) by @mini-bomba)
+* Reduced the opacity of mention highlight backgrounds to be less visually intrusive while remaining noticeable. ([#401](https://github.com/SableClient/Sable/pull/401) by @sachin-dul)
+
 ## 1.9.3 (2026-03-17)
 
 ### Fixes

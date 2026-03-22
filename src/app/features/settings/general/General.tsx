@@ -421,6 +421,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
 
   return (
     <Box direction="Column" gap="100">
@@ -469,6 +470,15 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           title="Presence Status"
           description="Show and receive online status from other users."
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Send notifications for replies"
+          description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
+          after={
+            <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
+          }
         />
       </SequenceCard>
     </Box>

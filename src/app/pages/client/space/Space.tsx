@@ -1,4 +1,13 @@
-import { MouseEventHandler, forwardRef, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  MouseEventHandler,
+  ReactElement,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   Avatar,
@@ -18,7 +27,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { JoinRule, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
@@ -31,18 +40,21 @@ import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useSpaceLobbySelected, useSpaceSearchSelected } from '$hooks/router/useSelectedSpace';
 import { useSpace } from '$hooks/useSpace';
 import { VirtualTile } from '$components/virtualizer';
+import { spaceRoomsAtom } from '$state/spaceRooms';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
-import { makeNavCategoryId } from '$state/closedNavCategories';
+import { SpaceNavItem } from '$features/space-nav';
+import { makeNavCategoryId, getNavCategoryIdParts } from '$state/closedNavCategories';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { useRoomName } from '$hooks/useRoomMeta';
-import { useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
+import { HierarchyItem, useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRecursiveChildScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
+import { roomToChildrenAtom } from '$state/room/roomToChildren';
 import { markAsRead } from '$utils/notifications';
 import { useRoomsUnread } from '$state/hooks/unread';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -375,7 +387,10 @@ export function Space() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mDirects = useAtomValue(mDirectAtom);
   const roomToUnread = useAtomValue(roomToUnreadAtom);
+  const roomToParents = useAtomValue(roomToParentsAtom);
+  const roomToChildren = useAtomValue(roomToChildrenAtom);
   const allRooms = useAtomValue(allRoomsAtom);
+  const [spaceRooms] = useAtom(spaceRoomsAtom);
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
@@ -397,25 +412,261 @@ export function Space() {
     [mx, allJoinedRooms]
   );
 
+  const closedCategoriesCache = useRef(new Map());
+  const ancestorsCollapsedCache = useRef(new Map());
+  useEffect(() => {
+    closedCategoriesCache.current.clear();
+    ancestorsCollapsedCache.current.clear();
+  }, [closedCategories, roomToParents, getRoom]);
+
+  /**
+   * Recursively checks if a given parentId (or all its ancestors) is in a closed category.
+   *
+   * @param spaceId - The root space ID.
+   * @param parentId - The parent space ID to start the check from.
+   * @param previousId - The last ID checked, only used to ignore root collapse state.
+   * @param visited - Set used to prevent recursion errors.
+   * @returns True if parentId or all ancestors is in a closed category.
+   */
+  const getInClosedCategories = useCallback(
+    (
+      spaceId: string,
+      parentId: string,
+      previousId?: string,
+      visited: Set<string> = new Set()
+    ): boolean => {
+      // Ignore root space being collapsed if in a subspace,
+      // this is due to many spaces dumping all rooms in the top-level space.
+      if (parentId === spaceId && previousId) {
+        if (spaceRooms.has(previousId) || getRoom(previousId)?.isSpaceRoom()) {
+          return false;
+        }
+      }
+
+      const categoryId = makeNavCategoryId(spaceId, parentId);
+
+      // Prevent infinite recursion
+      if (visited.has(categoryId)) return false;
+      visited.add(categoryId);
+
+      if (closedCategoriesCache.current.has(categoryId)) {
+        return closedCategoriesCache.current.get(categoryId);
+      }
+
+      if (closedCategories.has(categoryId)) {
+        closedCategoriesCache.current.set(categoryId, true);
+        return true;
+      }
+
+      const parentParentIds = roomToParents.get(parentId);
+      if (!parentParentIds || parentParentIds.size === 0) {
+        closedCategoriesCache.current.set(categoryId, false);
+        return false;
+      }
+
+      // As a subspace can be in multiple spaces,
+      // only return true if all parent spaces are closed.
+      const allClosed = !Array.from(parentParentIds).some(
+        (id) => !getInClosedCategories(spaceId, id, parentId, visited)
+      );
+      visited.delete(categoryId);
+      closedCategoriesCache.current.set(categoryId, allClosed);
+      return allClosed;
+    },
+    [closedCategories, getRoom, roomToParents, spaceRooms]
+  );
+
+  /**
+   * Recursively checks if the given room or any of its descendants should be visible.
+   *
+   * @param roomId - The room ID to check.
+   * @param visited - Set used to prevent recursion errors.
+   * @returns True if the room or any descendant should be visible.
+   */
+  const getContainsShowRoom = useCallback(
+    (roomId: string, visited: Set<string> = new Set()): boolean => {
+      if (roomToUnread.has(roomId) || roomId === selectedRoomId) {
+        return true;
+      }
+
+      // Prevent infinite recursion
+      if (visited.has(roomId)) return false;
+      visited.add(roomId);
+
+      const childIds = roomToChildren.get(roomId);
+      if (!childIds || childIds.size === 0) {
+        return false;
+      }
+
+      return Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+    },
+    [roomToUnread, selectedRoomId, roomToChildren]
+  );
+
+  /**
+   * Determines whether all parent categories are collapsed.
+   *
+   * @param spaceId - The root space ID.
+   * @param roomId - The room ID to start the check from.
+   * @returns True if every parent category is collapsed; false otherwise.
+   */
+  const getAllAncestorsCollapsed = (spaceId: string, roomId: string): boolean => {
+    const categoryId = makeNavCategoryId(spaceId, roomId);
+    if (ancestorsCollapsedCache.current.has(categoryId)) {
+      return ancestorsCollapsedCache.current.get(categoryId);
+    }
+
+    const parentIds = roomToParents.get(roomId);
+    if (!parentIds || parentIds.size === 0) {
+      ancestorsCollapsedCache.current.set(categoryId, false);
+      return false;
+    }
+
+    const allCollapsed = !Array.from(parentIds).some(
+      (id) => !getInClosedCategories(spaceId, id, roomId)
+    );
+    ancestorsCollapsedCache.current.set(categoryId, allCollapsed);
+    return allCollapsed;
+  };
+
+  /**
+   * Determines the depth limit for the joined space hierarchy and the SpaceNavItems to start appearing
+   */
+  const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
+  /**
+   * Creates an SVG used for connecting spaces to their subrooms.
+   * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
+   * @returns React SVG Element that can be overlayed on top of the nav category for rooms.
+   */
+  const getConnectorSVG = (
+    hierarchy: HierarchyItem[],
+    virtualizedItems: VirtualItem[]
+  ): ReactElement => {
+    const DEPTH_START = 2;
+    const PADDING_LEFT_DEPTH_OFFSET = 15.75;
+    const PADDING_LEFT_DEPTH_OFFSET_START = -15.75;
+    const RADIUS = 5;
+
+    let connectorStack: { aX: number; aY: number }[] = [];
+    // Holder for the paths
+    const pathHolder: ReactElement[] = [];
+    virtualizedItems.forEach((vItem) => {
+      const { roomId, depth } = hierarchy[vItem.index] ?? {};
+      const room = getRoom(roomId);
+      // We will render spaces at a level above their normal depth, since we want their children to be "under" them
+      const renderDepth = room?.isSpaceRoom() ? depth : depth + 1;
+      // for the root items, we are not doing anything with it.
+      if (renderDepth < DEPTH_START) {
+        return;
+      }
+      // for nearly root level text/call rooms, we will not be drawing any arcs.
+      if (renderDepth === DEPTH_START - 1 && !room?.isSpaceRoom() && connectorStack.length === 0) {
+        return;
+      }
+
+      // for the sub-root items, we will not draw any arcs from root to it.
+      // however, we should capture the aX and aY to draw starter arcs for next depths.
+      if (renderDepth === DEPTH_START) {
+        connectorStack = [
+          {
+            aX: PADDING_LEFT_DEPTH_OFFSET * DEPTH_START + PADDING_LEFT_DEPTH_OFFSET_START,
+            aY: vItem.end,
+          },
+        ];
+        return;
+      }
+      // adjust the stack to be at the correct depth, which is the "parent" of the current item.
+      while (connectorStack.length + DEPTH_START > renderDepth && connectorStack.length !== 0) {
+        connectorStack.pop();
+      }
+
+      // Fixes crash in case the top level virtual item is unrendered.
+      if (connectorStack.length === 0) {
+        connectorStack = [{ aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET), aY: 0 }];
+      }
+
+      const lastConnector = connectorStack[connectorStack.length - 1];
+
+      // aX: numeric x where the vertical connector starts
+      // aY: end of parent (already numeric)
+      const { aX, aY } = lastConnector;
+
+      // bX: point where the vertical connector ends
+      const bX = Math.round(
+        (renderDepth - 0.5) * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START
+      );
+      // bY: center of current item
+      const bY = vItem.end - vItem.size / 2;
+
+      const pathString =
+        `M ${aX} ${aY} ` +
+        `L ${aX} ${bY - RADIUS} ` +
+        `A ${RADIUS} ${RADIUS} 0 0 0 ${aX + RADIUS} ${bY} ` +
+        `L ${bX} ${bY}`;
+
+      pathHolder.push(
+        <path
+          d={pathString}
+          fill="none"
+          stroke={color.Surface.ContainerLine}
+          strokeWidth="2"
+          display="block"
+        />
+      );
+
+      // add this item to the connector stack, in case the next item's depth is higher.
+      connectorStack.push({
+        aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET) + PADDING_LEFT_DEPTH_OFFSET_START,
+        aY: vItem.end,
+      });
+    });
+    return (
+      <svg
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+        }}
+      >
+        {pathHolder}
+      </svg>
+    );
+  };
+
   const hierarchy = useSpaceJoinedHierarchy(
     space.roomId,
     getRoom,
     useCallback(
-      (parentId, roomId) => {
-        if (!closedCategories.has(makeNavCategoryId(space.roomId, parentId))) {
+      (parentId, roomId, depth) => {
+        if (depth >= subspaceHierarchyLimit) {
+          // we will exclude items above this depth
+          return true;
+        }
+        if (!getInClosedCategories(space.roomId, parentId, roomId)) {
           return false;
         }
         const unread = roomToUnread.get(roomId);
+        const containsShowRoom = getContainsShowRoom(roomId);
         const hasUnread = !!unread && (unread.total > 0 || unread.highlight > 0);
         const showRoomAnyway =
           hasUnread || roomId === selectedRoomId || callEmbed?.roomId === roomId;
-        return !showRoomAnyway;
+        return containsShowRoom || !showRoomAnyway;
       },
-      [space.roomId, closedCategories, roomToUnread, selectedRoomId, callEmbed]
+      [
+        getContainsShowRoom,
+        getInClosedCategories,
+        space.roomId,
+        callEmbed,
+        subspaceHierarchyLimit,
+        roomToUnread,
+        selectedRoomId,
+      ]
     ),
     useCallback(
-      (sId) => closedCategories.has(makeNavCategoryId(space.roomId, sId)),
-      [closedCategories, space.roomId]
+      (sId) => getInClosedCategories(space.roomId, sId),
+      [getInClosedCategories, space.roomId]
     )
   );
 
@@ -426,12 +677,29 @@ export function Space() {
     overscan: 10,
   });
 
-  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
-    closedCategories.has(categoryId)
-  );
+  const virtualizedItems = virtualizer.getVirtualItems();
+
+  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) => {
+    const collapsed = closedCategories.has(categoryId);
+    const [spaceId, roomId] = getNavCategoryIdParts(categoryId);
+
+    // Only prevent collapsing if all parents are collapsed
+    const toggleable = !getAllAncestorsCollapsed(spaceId, roomId);
+
+    if (toggleable) {
+      return collapsed;
+    }
+    return !collapsed;
+  });
 
   const getToLink = (roomId: string) =>
     getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
+
+  const getCategoryPadding = (depth: number): string | undefined => {
+    if (depth === 0) return undefined;
+    if (depth === 1) return config.space.S400;
+    return config.space.S0;
+  };
 
   const navigate = useNavigate();
   const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);
@@ -495,13 +763,35 @@ export function Space() {
                 position: 'relative',
               }}
             >
-              {virtualizer.getVirtualItems().map((vItem) => {
-                const { roomId } = hierarchy[vItem.index] ?? {};
+              {virtualizedItems.map((vItem) => {
+                const { roomId, depth } = hierarchy[vItem.index] ?? {};
                 const room = mx.getRoom(roomId);
+                const renderDepth = room?.isSpaceRoom() ? depth - 2 : depth - 1;
                 if (!room) return null;
+                if (depth === subspaceHierarchyLimit && room.isSpaceRoom()) {
+                  return (
+                    <VirtualTile
+                      virtualItem={vItem}
+                      key={vItem.index}
+                      ref={virtualizer.measureElement}
+                    >
+                      <div style={{ paddingLeft: `calc(${renderDepth} * ${config.space.S400})` }}>
+                        <SpaceNavItem
+                          room={room}
+                          selected={selectedRoomId === roomId}
+                          linkPath={getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                        />
+                      </div>
+                    </VirtualTile>
+                  );
+                }
+
+                const paddingTop = getCategoryPadding(depth);
+                const paddingLeft = `calc(${renderDepth} * ${config.space.S400})`;
 
                 if (room.isSpaceRoom()) {
                   const categoryId = makeNavCategoryId(space.roomId, roomId);
+                  const closedViaCategory = getInClosedCategories(space.roomId, roomId);
 
                   return (
                     <VirtualTile
@@ -509,14 +799,12 @@ export function Space() {
                       key={vItem.index}
                       ref={virtualizer.measureElement}
                     >
-                      <div
-                        style={{ paddingTop: vItem.index === 0 ? undefined : config.space.S400 }}
-                      >
+                      <div style={{ paddingTop, paddingLeft }}>
                         <NavCategoryHeader>
                           <RoomNavCategoryButton
                             data-category-id={categoryId}
                             onClick={handleCategoryClick}
-                            closed={closedCategories.has(categoryId)}
+                            closed={closedCategories.has(categoryId) || closedViaCategory}
                           >
                             {roomId === space.roomId ? 'Rooms' : room?.name}
                           </RoomNavCategoryButton>
@@ -532,20 +820,23 @@ export function Space() {
                     key={vItem.index}
                     ref={virtualizer.measureElement}
                   >
-                    <RoomNavItem
-                      room={room}
-                      selected={selectedRoomId === roomId}
-                      showAvatar={mDirects.has(roomId)}
-                      direct={mDirects.has(roomId)}
-                      linkPath={getToLink(roomId)}
-                      notificationMode={getRoomNotificationMode(
-                        notificationPreferences,
-                        room.roomId
-                      )}
-                    />
+                    <div style={{ paddingLeft }}>
+                      <RoomNavItem
+                        room={room}
+                        selected={selectedRoomId === roomId}
+                        showAvatar={mDirects.has(roomId)}
+                        direct={mDirects.has(roomId)}
+                        linkPath={getToLink(roomId)}
+                        notificationMode={getRoomNotificationMode(
+                          notificationPreferences,
+                          room.roomId
+                        )}
+                      />
+                    </div>
                   </VirtualTile>
                 );
               })}
+              {getConnectorSVG(hierarchy, virtualizedItems)}
             </NavCategory>
           </Box>
         </PageNavContent>

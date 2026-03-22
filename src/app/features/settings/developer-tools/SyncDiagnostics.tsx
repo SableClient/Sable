@@ -199,8 +199,7 @@ export function SyncDiagnostics() {
                 <Box direction="Column" gap="100">
                   <Text size="T300">Sliding proxy: {diagnostics.sliding.proxyBaseUrl}</Text>
                   <Text size="T300">
-                    Room timeline limit: {diagnostics.sliding.timelineLimit} (adaptive:{' '}
-                    {diagnostics.sliding.adaptiveTimeline ? 'yes' : 'no'}) | page size:{' '}
+                    Room timeline limit: {diagnostics.sliding.timelineLimit} | page size:{' '}
                     {diagnostics.sliding.listPageSize}
                   </Text>
                   {diagnostics.sliding.lists.map((list) => (

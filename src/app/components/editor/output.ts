@@ -17,6 +17,14 @@ export type OutputOptions = {
   allowTextFormatting?: boolean;
   allowInlineMarkdown?: boolean;
   allowBlockMarkdown?: boolean;
+  /**
+   * if true it will remove the nickname of the person from the message
+   */
+  stripNickname?: boolean;
+  /**
+   * a map of regex patterns to replace nicknames with, used when stripNickname is true
+   */
+  nickNameReplacement?: Map<RegExp, string>;
 };
 
 const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
@@ -99,6 +107,12 @@ const ignoreHTMLParseInlineMD = (text: string): string =>
     (txt) => parseInlineMD(txt)
   ).join('');
 
+/**
+ * convert slate internal representation to a custom HTML string that can be sent to the server
+ * @param node slate node
+ * @param opts options for output
+ * @returns custom HTML string
+ */
 export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
@@ -106,7 +120,7 @@ export const toMatrixCustomHTML = (
   let markdownLines = '';
   const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
     if (opts.allowBlockMarkdown && 'type' in n && n.type === BlockType.Paragraph) {
-      const line = toMatrixCustomHTML(n, {
+      let line = toMatrixCustomHTML(n, {
         ...opts,
         allowInlineMarkdown: false,
         allowBlockMarkdown: false,
@@ -114,6 +128,13 @@ export const toMatrixCustomHTML = (
         .replace(/<br\/>$/, '\n')
         .replace(/^(\\*)&gt;/, '$1>');
 
+      // strip nicknames if needed
+      if (opts.stripNickname && opts.nickNameReplacement) {
+        opts.nickNameReplacement?.keys().forEach((key) => {
+          const replacement = opts.nickNameReplacement!.get(key) ?? '';
+          line = line.replaceAll(key, replacement);
+        });
+      }
       markdownLines += line;
       if (index === targetNodes.length - 1) {
         return parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
@@ -175,12 +196,37 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
   }
 };
 
-export const toPlainText = (node: Descendant | Descendant[], isMarkdown: boolean): string => {
-  if (Array.isArray(node)) return node.map((n) => toPlainText(n, isMarkdown)).join('');
-  if (Text.isText(node))
+/**
+ * convert slate internal representation to a plain text string that can be sent to the server
+ * @param node the slate node
+ * @param isMarkdown set true if it's a markdown formatted text
+ * @param stripNickname whether to strip nicknames
+ * @param nickNameReplacement the nickname replacement
+ * @returns the plain text we want to send
+ */
+export const toPlainText = (
+  node: Descendant | Descendant[],
+  isMarkdown: boolean,
+  stripNickname = false,
+  nickNameReplacement?: Map<RegExp, string>
+): string => {
+  if (Array.isArray(node))
+    return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
+  if (Text.isText(node)) {
+    if (stripNickname && nickNameReplacement) {
+      let { text } = node;
+      nickNameReplacement?.keys().forEach((key) => {
+        const replacement = nickNameReplacement.get(key) ?? '';
+        text = text.replaceAll(key, replacement);
+      });
+      return isMarkdown
+        ? unescapeMarkdownBlockSequences(text, unescapeMarkdownInlineSequences)
+        : text;
+    }
     return isMarkdown
       ? unescapeMarkdownBlockSequences(node.text, unescapeMarkdownInlineSequences)
       : node.text;
+  }
 
   const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');
   return elementToPlainText(node, children);
@@ -208,10 +254,27 @@ export const trimCommand = (cmdName: string, str: string) => {
   return str.slice(match[0].length);
 };
 
+/**
+ * Type representing Mentions
+ */
 export type MentionsData = {
+  /**
+   * a boolean to denote if it's a room mention
+   */
   room: boolean;
+  /**
+   * a set of user ids that are mentioned in the message
+   */
   users: Set<string>;
 };
+
+/**
+ * get the mentions in a message
+ * @param mx the matrix client
+ * @param roomId the room id we will send the message in
+ * @param editor the slate editor
+ * @returns the mentions in a message {@link MentionsData}
+ */
 export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): MentionsData => {
   const mentionData: MentionsData = {
     room: false,

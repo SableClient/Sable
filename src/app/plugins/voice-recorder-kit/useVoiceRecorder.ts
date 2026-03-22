@@ -146,11 +146,14 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
     if (!audioContext) return;
     if (recordingStream) {
+      // Recording contexts are disposable. Closing them fully releases the capture graph so
+      // mobile browsers do not keep the mic route or low-quality audio mode alive.
       if (audioContext.state !== 'closed') {
         audioContext.close().catch(() => {});
       }
       return;
     }
+    // Playback reuses a shared context, so suspend it instead of tearing it down.
     if (audioContext.state !== 'closed') {
       audioContext.suspend().catch(() => {});
     }

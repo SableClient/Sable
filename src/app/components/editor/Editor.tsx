@@ -169,6 +169,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           const isRenderedSingleLine = !layoutIsMultiline;
 
           if (isRenderedSingleLine && scroll) {
+            // Scroll.clientWidth is the width the editable actually gets after padding and
+            // scrollbar math. Cache that delta while we are rendered single-line so later
+            // hidden measurements can compare against the same usable width.
             const renderedSingleLineWidth = scroll.clientWidth;
             if (renderedSingleLineWidth > 0) {
               singleLineWidthOffsetRef.current = Math.max(
@@ -231,6 +234,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               textMeasurer.style.textTransform = computedStyle.textTransform;
               textMeasurer.style.textIndent = computedStyle.textIndent;
               textMeasurer.style.tabSize = computedStyle.tabSize;
+              // Measure against a hidden clone instead of the live editable so we can ask
+              // "would this wrap at single-line width?" without the current layout feeding
+              // back into the answer.
               const measureHeight = (content: string, width: string): number => {
                 textMeasurer.style.width = width;
                 textMeasurer.textContent = normalizeMeasurementText(content);

@@ -65,6 +65,8 @@ export const AudioMessageRecorder = forwardRef<
   onAudioLengthUpdateRef.current = onAudioLengthUpdate;
 
   const stableOnStop = useCallback((payload: VoiceRecorderStopPayload) => {
+    // useVoiceRecorder also stops during cancel/teardown paths, so only surface a completed
+    // recording after an explicit user stop.
     if (!userRequestedStopRef.current) return;
     if (isDismissedRef.current) return;
     onRecordingCompleteRef.current({

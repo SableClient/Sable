@@ -460,6 +460,11 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
     (async () => {
       await self.clients.claim();
       await cleanupDeadClients();
+      // Proactively request sessions from all window clients so the sessions Map
+      // is pre-populated after a SW restart, rather than waiting for the first
+      // media fetch to trigger requestSessionWithTimeout.
+      const windowClients = await self.clients.matchAll({ type: 'window' });
+      windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
     })()
   );
 });
@@ -589,10 +594,8 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const redirect: RequestRedirect = 'follow';
 
   const session = sessions.get(clientId);
-  if (session) {
-    if (validMediaRequest(url, session.baseUrl)) {
-      event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
-    }
+  if (session && validMediaRequest(url, session.baseUrl)) {
+    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
     return;
   }
 
@@ -611,9 +614,16 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   }
 
   event.respondWith(
-    requestSessionWithTimeout(clientId).then((s) => {
+    requestSessionWithTimeout(clientId).then(async (s) => {
+      // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
         return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+      }
+      // Fallback: try the persisted session (helps when SW restarts on iOS and
+      // the client window hasn't responded to requestSession yet).
+      const persisted = await loadPersistedSession();
+      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
+        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
       console.warn(
         '[SW fetch] No valid session for media request',

@@ -72,6 +72,10 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const recordingSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const recordingAnalyserRef = useRef<AnalyserNode | null>(null);
+  const recordingDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationFrameIdRef = useRef<number | null>(null);
@@ -107,20 +111,49 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     }
   }, []);
 
+  const cleanupMediaRecorder = useCallback(() => {
+    const mediaRecorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (!mediaRecorder) return;
+    mediaRecorder.ondataavailable = null;
+    mediaRecorder.onstop = null;
+  }, []);
+
   const cleanupAudioContext = useCallback(() => {
+    const audioContext = audioContextRef.current;
+    const recordingSource = recordingSourceRef.current;
+    const recordingAnalyser = recordingAnalyserRef.current;
+    const recordingDestination = recordingDestinationRef.current;
+    const recordingStream = recordingStreamRef.current;
+
     if (animationFrameIdRef.current !== null) {
       cancelAnimationFrame(animationFrameIdRef.current);
       animationFrameIdRef.current = null;
     }
     frameCountRef.current = 0;
-    if (audioContextRef.current) {
-      if (audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.suspend().catch(() => {});
-      }
-      audioContextRef.current = null;
-    }
+    audioContextRef.current = null;
+    recordingSourceRef.current = null;
+    recordingAnalyserRef.current = null;
+    recordingDestinationRef.current = null;
+    recordingStreamRef.current = null;
     analyserRef.current = null;
     dataArrayRef.current = null;
+
+    recordingStream?.getTracks().forEach((track) => track.stop());
+    recordingSource?.disconnect();
+    recordingAnalyser?.disconnect();
+    recordingDestination?.disconnect();
+
+    if (!audioContext) return;
+    if (recordingStream) {
+      if (audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+      }
+      return;
+    }
+    if (audioContext.state !== 'closed') {
+      audioContext.suspend().catch(() => {});
+    }
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -219,7 +252,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
   const setupAudioGraph = useCallback(
     (stream: MediaStream): MediaStream => {
-      const audioContext = getSharedAudioContext();
+      const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
@@ -227,12 +260,16 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       analyser.smoothingTimeConstant = 0.6;
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
+      recordingSourceRef.current = source;
+      recordingAnalyserRef.current = analyser;
       analyserRef.current = analyser;
       dataArrayRef.current = dataArray;
 
       // Fix for iOS Safari: routing the stream through a MediaStreamDestination
       // prevents the AudioContext from "stealing" the track from the MediaRecorder
       const destination = audioContext.createMediaStreamDestination();
+      recordingDestinationRef.current = destination;
+      recordingStreamRef.current = destination.stream;
       source.connect(analyser);
       analyser.connect(destination);
 
@@ -306,6 +343,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       mediaRecorder.onstop = () => {
         cleanupAudioContext();
         cleanupStream();
+        cleanupMediaRecorder();
         stopTimer();
         setIsRecording(false);
         setIsPaused(false);
@@ -380,11 +418,13 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       setError('Microphone access denied or an error occurred.');
       cleanupAudioContext();
       cleanupStream();
+      cleanupMediaRecorder();
       stopTimer();
       setIsRecording(false);
     }
   }, [
     cleanupAudioContext,
+    cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
     getAudioLength,
@@ -458,6 +498,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       }
       cleanupAudioContext();
       cleanupStream();
+      cleanupMediaRecorder();
       stopTimer();
       setIsRecording(false);
       setIsStopped(true);
@@ -470,6 +511,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     audioFile,
     audioUrl,
     cleanupAudioContext,
+    cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
     stopTimer,
@@ -511,6 +553,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       }
       cleanupAudioContext();
       cleanupStream();
+      cleanupMediaRecorder();
       stopTimer();
       setIsRecording(false);
       setIsStopped(true);
@@ -523,6 +566,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     audioFile,
     audioUrl,
     cleanupAudioContext,
+    cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
     stopTimer,
@@ -681,6 +725,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       mediaRecorder.onstop = () => {
         cleanupAudioContext();
         cleanupStream();
+        cleanupMediaRecorder();
         stopTimer();
         setIsRecording(false);
         setIsPaused(false);
@@ -744,6 +789,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       setError('Microphone access denied or an error occurred.');
       cleanupAudioContext();
       cleanupStream();
+      cleanupMediaRecorder();
       stopTimer();
       setIsRecording(false);
       isResumingRef.current = false;
@@ -751,6 +797,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   }, [
     audioCodec,
     cleanupAudioContext,
+    cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
     getAudioLength,
@@ -772,6 +819,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
     cleanupAudioContext();
     cleanupStream();
+    cleanupMediaRecorder();
     stopTimer();
     setIsPlaying(false);
     setIsStopped(true);
@@ -795,7 +843,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     if (onDelete) {
       onDelete();
     }
-  }, [cleanupAudioContext, cleanupStream, onDelete, stopTimer]);
+  }, [cleanupAudioContext, cleanupMediaRecorder, cleanupStream, onDelete, stopTimer]);
 
   const handleRestart = useCallback(() => {
     isRestartingRef.current = true;
@@ -812,6 +860,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
     cleanupAudioContext();
     cleanupStream();
+    cleanupMediaRecorder();
     stopTimer();
     setIsRecording(false);
     setIsStopped(false);
@@ -842,7 +891,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     setAudioUrl(null);
     setAudioFile(null);
     internalStartRecording();
-  }, [cleanupAudioContext, cleanupStream, internalStartRecording, stopTimer]);
+  }, [cleanupAudioContext, cleanupMediaRecorder, cleanupStream, internalStartRecording, stopTimer]);
 
   useEffect(() => {
     if (autoStart) {
@@ -852,6 +901,8 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const mediaRecorder = mediaRecorderRef.current;
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
+      } else {
+        cleanupMediaRecorder();
       }
       cleanupAudioContext();
       cleanupStream();
@@ -869,7 +920,14 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         temporaryPreviewUrlRef.current = null;
       }
     };
-  }, [autoStart, cleanupAudioContext, cleanupStream, internalStartRecording, stopTimer]);
+  }, [
+    autoStart,
+    cleanupAudioContext,
+    cleanupMediaRecorder,
+    cleanupStream,
+    internalStartRecording,
+    stopTimer,
+  ]);
 
   const getState = (): RecorderState => {
     if (isPlaying) return 'playing';

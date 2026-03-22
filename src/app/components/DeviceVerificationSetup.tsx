@@ -1,18 +1,6 @@
 import { FormEventHandler, forwardRef, useCallback, useState } from 'react';
-import {
-  Dialog,
-  Header,
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  config,
-  Button,
-  Chip,
-  color,
-  Spinner,
-} from 'folds';
+import { Dialog, Header, Box, Text, IconButton, config, Button, Chip, color, Spinner } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
 import { AuthDict, IAuthData, MatrixError, UIAuthCallback } from '$types/matrix-sdk';
@@ -22,6 +10,7 @@ import { copyToClipboard } from '$utils/dom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { PasswordInput } from './password-input';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { UseStateProvider } from './UseStateProvider';
@@ -302,7 +291,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Setup Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} />
           </IconButton>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -337,7 +326,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Reset Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} />
           </IconButton>
         </Header>
         {reset ? (

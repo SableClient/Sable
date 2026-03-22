@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
-import { as, Avatar, Box, Icon, Icons, Text } from 'folds';
+import { as, Avatar, Box, Text } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -7,6 +8,7 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 const getName = (room: Room, member: RoomMember, nicknames: Record<string, string>) =>
@@ -42,7 +44,7 @@ export const MemberTile = as<'button', MemberTileProps>(
             userId={member.userId}
             src={avatarUrl ?? undefined}
             alt={name}
-            renderFallback={() => <Icon size="300" src={Icons.User} filled />}
+            renderFallback={() => <PhosphorIcon size="300" as={UserIcon} weight="fill" />}
           />
         </Avatar>
         <Box grow="Yes" as="span" direction="Column">

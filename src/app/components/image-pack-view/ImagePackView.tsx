@@ -1,7 +1,10 @@
-import { Box, IconButton, Text, Icon, Icons, Scroll, Chip } from 'folds';
+import { Box, IconButton, Text, Scroll, Chip } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { PackAddress } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Page, PageHeader, PageContent } from '$components/page';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { RoomImagePack } from './RoomImagePack';
 import { UserImagePack } from './UserImagePack';
 
@@ -22,14 +25,14 @@ export function ImagePackView({ address, requestClose }: ImagePackViewProps) {
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={<PhosphorIcon size="100" as={ArrowLeftIcon} />}
             >
               <Text size="T300">Emojis & Stickers</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

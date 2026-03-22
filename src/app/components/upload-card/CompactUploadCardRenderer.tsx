@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
-import { Chip, Icon, IconButton, Icons, Text, color } from 'folds';
+import { Chip, IconButton, Text, color } from 'folds';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { TUploadAtom, UploadStatus, UploadSuccess, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { TUploadContent } from '$utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '$utils/common';
 import { useMediaConfig } from '$hooks/useMediaConfig';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { UploadCard, UploadCardError, CompactUploadCardProgress } from './UploadCard';
 
 type CompactUploadCardRendererProps = {
@@ -47,7 +50,7 @@ export function CompactUploadCardRenderer({
       compact
       outlined
       radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
+      before={<PhosphorIcon as={getFileTypeIcon(file.type)} />}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -69,7 +72,7 @@ export function CompactUploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            <PhosphorIcon as={XIcon} size="200" />
           </IconButton>
         </>
       }
@@ -79,7 +82,7 @@ export function CompactUploadCardRenderer({
           <Text size="H6" truncate>
             {file.name}
           </Text>
-          <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
+          <PhosphorIcon as={CheckIcon} style={{ color: color.Success.Main }} size="100" />
         </>
       ) : (
         <>

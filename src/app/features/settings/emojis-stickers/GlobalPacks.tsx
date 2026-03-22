@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   IconButton,
   Avatar,
   AvatarImage,
@@ -21,6 +19,9 @@ import {
   Line,
   Chip,
 } from 'folds';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { StickerIcon } from '@phosphor-icons/react/dist/csr/Sticker';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
@@ -43,6 +44,7 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 function GlobalPackSelector({
   packs,
@@ -193,7 +195,7 @@ function GlobalPackSelector({
                                   <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
                                 ) : (
                                   <AvatarFallback>
-                                    <Icon size="400" src={Icons.Sticker} filled />
+                                    <PhosphorIcon as={StickerIcon} size="400" weight="fill" />
                                   </AvatarFallback>
                                 )}
                               </Avatar>
@@ -374,7 +376,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleUndoRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Plus} size="100" />
+                  <PhosphorIcon as={PlusIcon} size="100" />
                 </IconButton>
               ) : (
                 <IconButton
@@ -384,7 +386,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   onClick={() => handleRemove(address)}
                   disabled={applyingChanges}
                 >
-                  <Icon src={Icons.Cross} size="100" />
+                  <PhosphorIcon as={XIcon} size="100" />
                 </IconButton>
               )}
               <Avatar size="300" radii="300">
@@ -392,7 +394,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
                   <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
                 ) : (
                   <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
+                    <PhosphorIcon as={StickerIcon} size="400" weight="fill" />
                   </AvatarFallback>
                 )}
               </Avatar>

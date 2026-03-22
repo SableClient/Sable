@@ -1,6 +1,9 @@
 import { ComponentProps, forwardRef } from 'react';
-import { Icon, IconButton, Input, config, Icons } from 'folds';
+import { IconButton, Input, config } from 'folds';
+import { EyeIcon } from '@phosphor-icons/react/dist/csr/Eye';
+import { EyeSlashIcon } from '@phosphor-icons/react/dist/csr/EyeSlash';
 import { UseStateProvider } from '$components/UseStateProvider';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type' | 'size'> & {
   size: '400' | '500';
@@ -29,10 +32,10 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
                   size="300"
                   radii="300"
                 >
-                  <Icon
+                  <PhosphorIcon
                     style={{ opacity: config.opacity.P300 }}
                     size="100"
-                    src={visible ? Icons.Eye : Icons.EyeBlind}
+                    as={visible ? EyeIcon : EyeSlashIcon}
                   />
                 </IconButton>
               </>

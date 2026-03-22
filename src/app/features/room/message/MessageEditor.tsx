@@ -6,20 +6,9 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, PopOut, RectCords, Spinner, Text, as, config } from 'folds';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import {
@@ -73,6 +62,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { GetContentCallback } from '$types/matrix/room';
 import { sanitizeCustomHtml } from '$utils/sanitize';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type MessageEditorProps = {
   roomId: string;
@@ -471,7 +461,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                         radii="300"
                         onClick={() => setToolbar(!toolbar)}
                       >
-                        <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                        <PhosphorIcon
+                          as={TextAaIcon}
+                          size="400"
+                          weight={toolbar ? 'fill' : 'regular'}
+                        />
                       </IconButton>
                       <UseStateProvider initial={undefined}>
                         {(anchor: RectCords | undefined, setAnchor) => (
@@ -510,7 +504,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                               size="300"
                               radii="300"
                             >
-                              <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                              <PhosphorIcon
+                                as={SmileyIcon}
+                                size="400"
+                                weight={anchor !== undefined ? 'fill' : 'regular'}
+                              />
                             </IconButton>
                           </PopOut>
                         )}

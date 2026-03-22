@@ -10,17 +10,17 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Spinner,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { createDebugLogger } from '$utils/debugLogger';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const debugLog = createDebugLogger('LeaveRoomPrompt');
 
@@ -74,7 +74,7 @@ export function LeaveRoomPrompt({ roomId, onDone, onCancel }: LeaveRoomPromptPro
                 <Text size="H4">Leave Room</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

@@ -1,16 +1,6 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  color,
-  Icon,
-  Icons,
-  Input,
-  Spinner,
-  Text,
-  TextArea,
-} from 'folds';
+import { Avatar, Box, Button, Chip, color, Input, Spinner, Text, TextArea } from 'folds';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react/dist/csr/ArrowClockwise';
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/csr/PencilSimple';
 import { FormEventHandler, useCallback, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
@@ -35,6 +25,7 @@ import { useFilePicker } from '$hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -207,7 +198,7 @@ export function RoomProfileEdit({
                   roomType={room.getType()}
                   size="400"
                   joinRule={joinRule?.join_rule ?? JoinRule.Invite}
-                  filled
+                  weight="fill"
                 />
               )}
             />
@@ -239,7 +230,7 @@ export function RoomProfileEdit({
               disabled={submitting}
               title="Reset DM Name"
             >
-              <Icon src={Icons.Reload} size="100" />
+              <PhosphorIcon as={ArrowClockwiseIcon} size="100" />
             </Button>
           )}
         </Box>
@@ -352,7 +343,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
                     variant="Secondary"
                     fill="Soft"
                     radii="300"
-                    before={<Icon size="50" src={Icons.Pencil} />}
+                    before={<PhosphorIcon as={PencilSimpleIcon} size="50" />}
                     onClick={() => setEdit(true)}
                     outlined
                   >
@@ -372,7 +363,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
                       roomType={room.getType()}
                       size="400"
                       joinRule={joinRule?.join_rule ?? JoinRule.Invite}
-                      filled
+                      weight="fill"
                     />
                   )}
                 />

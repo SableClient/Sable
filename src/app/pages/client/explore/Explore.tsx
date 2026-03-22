@@ -7,9 +7,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Overlay,
   OverlayBackdrop,
@@ -18,6 +16,10 @@ import {
   color,
   config,
 } from 'folds';
+import { HardDrivesIcon } from '@phosphor-icons/react/dist/csr/HardDrives';
+import { LightbulbIcon } from '@phosphor-icons/react/dist/csr/Lightbulb';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getExploreFeaturedPath, getExploreServerPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -28,6 +30,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function AddServer() {
   const mx = useMatrixClient();
@@ -88,7 +91,7 @@ export function AddServer() {
                   <Text size="H4">Add Server</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setDialog(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  <PhosphorIcon as={XIcon} />
                 </IconButton>
               </Header>
               <Box
@@ -135,7 +138,7 @@ export function AddServer() {
         variant="Secondary"
         fill="Soft"
         size="300"
-        before={<Icon size="100" src={Icons.Plus} />}
+        before={<PhosphorIcon as={PlusIcon} size="100" />}
         onClick={() => setDialog(true)}
       >
         <Text size="B300" truncate>
@@ -178,7 +181,11 @@ export function Explore() {
                 <NavItemContent>
                   <Box as="span" grow="Yes" alignItems="Center" gap="200">
                     <Avatar size="200" radii="400">
-                      <Icon src={Icons.Bulb} size="100" filled={featuredSelected} />
+                      <PhosphorIcon
+                        as={LightbulbIcon}
+                        size="100"
+                        weight={featuredSelected ? 'fill' : 'regular'}
+                      />
                     </Avatar>
                     <Box as="span" grow="Yes">
                       <Text as="span" size="Inherit" truncate>
@@ -199,10 +206,10 @@ export function Explore() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon
-                          src={Icons.Server}
+                        <PhosphorIcon
+                          as={HardDrivesIcon}
                           size="100"
-                          filled={selectedServer === userServer}
+                          weight={selectedServer === userServer ? 'fill' : 'regular'}
                         />
                       </Avatar>
                       <Box as="span" grow="Yes">
@@ -234,7 +241,11 @@ export function Explore() {
                     <NavItemContent>
                       <Box as="span" grow="Yes" alignItems="Center" gap="200">
                         <Avatar size="200" radii="400">
-                          <Icon src={Icons.Server} size="100" filled={server === selectedServer} />
+                          <PhosphorIcon
+                            as={HardDrivesIcon}
+                            size="100"
+                            weight={server === selectedServer ? 'fill' : 'regular'}
+                          />
                         </Avatar>
                         <Box as="span" grow="Yes">
                           <Text as="span" size="Inherit" truncate>

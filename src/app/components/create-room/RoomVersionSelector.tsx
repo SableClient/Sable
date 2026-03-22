@@ -1,21 +1,12 @@
 import { MouseEventHandler, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  PopOut,
-  RectCords,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, Chip, config, Menu, PopOut, RectCords, Text, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
 import { stopPropagation } from '$utils/keyboard';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function RoomVersionSelector({
   versions,
@@ -104,7 +95,7 @@ export function RoomVersionSelector({
               fill="Soft"
               radii="300"
               aria-pressed={!!menuCords}
-              before={<Icon size="50" src={menuCords ? Icons.ChevronTop : Icons.ChevronBottom} />}
+              before={<PhosphorIcon size="50" as={menuCords ? CaretUpIcon : CaretDownIcon} />}
               disabled={disabled}
             >
               <Text size="B300">{value}</Text>

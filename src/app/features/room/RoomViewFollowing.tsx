@@ -1,16 +1,6 @@
 import { useState } from 'react';
-import {
-  Box,
-  Icon,
-  Icons,
-  Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Box, Modal, Overlay, OverlayBackdrop, OverlayCenter, Text, as, config } from 'folds';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
 import { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
@@ -24,6 +14,7 @@ import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { EventReaders } from '$components/event-readers';
 import { stopPropagation } from '$utils/keyboard';
 import { nicknamesAtom } from '$state/nicknames';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './RoomViewFollowing.css';
 
 export function RoomViewFollowingPlaceholder() {
@@ -85,7 +76,7 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
         >
           {names.length > 0 && (
             <>
-              <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.CheckTwice} />
+              <PhosphorIcon as={ChecksIcon} style={{ opacity: config.opacity.P300 }} size="100" />
               <Text size="T300" truncate>
                 {names.length === 1 && (
                   <>

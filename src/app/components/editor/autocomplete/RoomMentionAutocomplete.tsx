@@ -1,7 +1,8 @@
 import { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
 import { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
 import { JoinRule, MatrixClient } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 
@@ -17,6 +18,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getViaServers } from '$plugins/via-servers';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import { AutocompleteQuery } from './autocompleteQuery';
 
@@ -47,7 +49,7 @@ function UnknownRoomMentionItem({
       onClick={handleSelect}
       before={
         <Avatar size="200">
-          <Icon src={Icons.Hash} size="100" />
+          <PhosphorIcon as={HashIcon} size="100" />
         </Avatar>
       }
     >
@@ -172,7 +174,7 @@ export function RoomMentionAutocomplete({
                           size="50"
                           joinRule={room.getJoinRule() ?? JoinRule.Restricted}
                           roomType={room.getType()}
-                          filled
+                          weight="fill"
                         />
                       )}
                     />

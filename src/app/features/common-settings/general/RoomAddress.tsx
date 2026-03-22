@@ -7,13 +7,13 @@ import {
   Chip,
   color,
   config,
-  Icon,
-  Icons,
   Input,
   Spinner,
   Text,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
 import { MatrixError } from '$types/matrix-sdk';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
@@ -33,6 +33,7 @@ import { useAlive } from '$hooks/useAlive';
 import { StateEvent } from '$types/matrix/room';
 import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getMxIdServer } from '$utils/matrix';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type RoomPublishedAddressesProps = {
   permissions: RoomPermissionsAPI;
@@ -392,7 +393,7 @@ export function RoomLocalAddresses({ permissions }: { permissions: RoomPermissio
             outlined
             radii="300"
             before={
-              <Icon size="100" src={expand ? Icons.ChevronTop : Icons.ChevronBottom} filled />
+              <PhosphorIcon size="100" as={expand ? CaretUpIcon : CaretDownIcon} weight="fill" />
             }
           >
             <Text as="span" size="B300" truncate>

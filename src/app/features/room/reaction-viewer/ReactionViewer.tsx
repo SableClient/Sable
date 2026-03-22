@@ -1,19 +1,8 @@
 import { useCallback, useState } from 'react';
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
@@ -28,6 +17,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './ReactionViewer.css';
 
 export type ReactionViewerProps = {
@@ -102,7 +92,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
               <Text size="H3" truncate>{`Reacted with :${selectedShortcode}:`}</Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Header>
 
@@ -148,7 +138,9 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                             userId={senderId}
                             src={avatarUrl ?? undefined}
                             alt={name}
-                            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                            renderFallback={() => (
+                              <PhosphorIcon as={UserIcon} size="50" weight="fill" />
+                            )}
                           />
                         </Avatar>
                       }

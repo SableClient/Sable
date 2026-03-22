@@ -1,15 +1,17 @@
-import { Box, Icon, IconSrc } from 'folds';
-import { ReactNode } from 'react';
+import { Box } from 'folds';
+import { ReactNode, ComponentType } from 'react';
+import type { IconProps } from '@phosphor-icons/react';
 import { MessageLayout } from '$state/settings';
 import { BubbleLayout, CompactLayout, ModernLayout } from '$components/message/layout';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export type EventContentProps = {
   messageLayout: number;
   time: ReactNode;
-  iconSrc: IconSrc;
+  icon: ComponentType<IconProps>;
   content: ReactNode;
 };
-export function EventContent({ messageLayout, time, iconSrc, content }: EventContentProps) {
+export function EventContent({ messageLayout, time, icon, content }: EventContentProps) {
   const beforeJSX = (
     <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
       {messageLayout === MessageLayout.Compact && time}
@@ -18,7 +20,7 @@ export function EventContent({ messageLayout, time, iconSrc, content }: EventCon
         alignItems="Center"
         justifyContent="Center"
       >
-        <Icon style={{ opacity: 0.6 }} size="50" src={iconSrc} />
+        <PhosphorIcon style={{ opacity: 0.6 }} size="50" as={icon} />
       </Box>
     </Box>
   );

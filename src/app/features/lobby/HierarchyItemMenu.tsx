@@ -3,8 +3,6 @@ import FocusTrap from 'focus-trap-react';
 import {
   Box,
   IconButton,
-  Icon,
-  Icons,
   PopOut,
   Menu,
   MenuItem,
@@ -15,6 +13,8 @@ import {
   Spinner,
   toRem,
 } from 'folds';
+import { DotsThreeOutlineVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeOutlineVertical';
+import { SignOutIcon } from '@phosphor-icons/react/dist/csr/SignOut';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { MSpaceChildContent, StateEvent } from '$types/matrix/room';
@@ -33,6 +33,7 @@ import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -246,7 +247,7 @@ export function HierarchyItemMenu({
         radii="300"
         aria-pressed={!!menuAnchor}
       >
-        <Icon size="50" src={Icons.VerticalDots} />
+        <PhosphorIcon as={DotsThreeOutlineVerticalIcon} size="50" />
       </IconButton>
       {menuAnchor && (
         <PopOut
@@ -307,7 +308,7 @@ export function HierarchyItemMenu({
                             variant="Critical"
                             fill="None"
                             size="300"
-                            after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                            after={<PhosphorIcon as={SignOutIcon} size="100" />}
                             radii="300"
                             aria-pressed={promptLeave}
                           >

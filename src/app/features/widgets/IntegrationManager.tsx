@@ -2,19 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { Room } from '$types/matrix-sdk';
 
 import { useIntegrationManager, buildIntegrationManagerUrl } from '$hooks/useIntegrationManager';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './IntegrationManager.css';
 
 interface IntegrationManagerProps {
@@ -80,7 +80,7 @@ export function IntegrationManager({ room, open, onClose }: IntegrationManagerPr
                 </Box>
                 <Box shrink="No" alignItems="Center">
                   <IconButton variant="Background" onClick={onClose}>
-                    <Icon src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} />
                   </IconButton>
                 </Box>
               </Box>

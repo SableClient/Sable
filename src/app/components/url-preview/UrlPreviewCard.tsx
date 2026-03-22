@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IPreviewUrlResponse } from '$types/matrix-sdk';
-import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
+import { Box, IconButton, Scroll, Spinner, Text, as, color, config } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './UrlPreviewCard.css';
 import { UrlPreview, UrlPreviewContent, UrlPreviewDescription } from './UrlPreview';
 import { AudioContent, ImageContent, VideoContent } from '../message';
@@ -306,7 +309,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                 outlined
                 onClick={handleScrollBack}
               >
-                <Icon size="300" src={Icons.ArrowLeft} />
+                <PhosphorIcon size="300" as={ArrowLeftIcon} />
               </IconButton>
             </>
           )}
@@ -323,7 +326,7 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
                   outlined
                   onClick={handleScrollFront}
                 >
-                  <Icon size="300" src={Icons.ArrowRight} />
+                  <PhosphorIcon size="300" as={ArrowRightIcon} />
                 </IconButton>
               </>
             )}

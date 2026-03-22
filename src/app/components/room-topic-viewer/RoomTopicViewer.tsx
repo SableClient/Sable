@@ -1,7 +1,9 @@
-import { as, Box, Header, Icon, IconButton, Icons, Modal, Scroll, Text } from 'folds';
+import { as, Box, Header, IconButton, Modal, Scroll, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import classNames from 'classnames';
 import Linkify from 'linkify-react';
 import { LINKIFY_OPTS, scaleSystemEmoji } from '$plugins/react-custom-html-parser';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 export const RoomTopicViewer = as<
@@ -26,7 +28,7 @@ export const RoomTopicViewer = as<
         </Text>
       </Box>
       <IconButton size="300" onClick={requestClose} radii="300">
-        <Icon src={Icons.Cross} />
+        <PhosphorIcon as={XIcon} />
       </IconButton>
     </Header>
     <Scroll data-room-topic className={css.ModalScroll} size="300" hideTrack>

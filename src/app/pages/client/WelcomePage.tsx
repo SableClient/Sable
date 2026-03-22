@@ -1,6 +1,8 @@
-import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
+import { Box, Button, Text, config, toRem } from 'folds';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
 import { Page, PageHero, PageHeroSection } from '$components/page';
 import CinnySVG from '$public/res/svg/cinny-logo.svg';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function WelcomePage() {
   return (
@@ -35,7 +37,7 @@ export function WelcomePage() {
                   href="https://github.com/SableClient/Sable"
                   target="_blank"
                   rel="noreferrer noopener"
-                  before={<Icon size="200" src={Icons.Code} />}
+                  before={<PhosphorIcon as={CodeIcon} size="200" />}
                 >
                   <Text as="span" size="B400" truncate>
                     Source Code
@@ -48,7 +50,7 @@ export function WelcomePage() {
                   target="_blank"
                   rel="noreferrer noopener"
                   fill="Soft"
-                  before={<Icon size="200" src={Icons.Heart} />}
+                  before={<PhosphorIcon as={HeartIcon} size="200" />}
                 >
                   <Text as="span" size="B400" truncate>
                     Support
@@ -63,7 +65,7 @@ export function WelcomePage() {
                 href="https://github.com/SableClient/Sable/blob/dev/CHANGELOG.md"
                 target="_blank"
                 rel="noreferrer noopener"
-                before={<Icon size="200" src={Icons.Code} />}
+                before={<PhosphorIcon as={CodeIcon} size="200" />}
               >
                 <Text as="span" size="B400" truncate>
                   Features

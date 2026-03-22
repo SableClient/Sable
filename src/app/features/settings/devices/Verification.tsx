@@ -5,8 +5,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Spinner,
   Text,
   Overlay,
@@ -18,6 +16,8 @@ import {
   Menu,
   MenuItem,
 } from 'folds';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { CryptoApi, VerificationRequest } from '$types/matrix-sdk';
 import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
@@ -35,6 +35,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
 import { withSearchParam } from '$pages/pathUtils';
 import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -153,7 +154,7 @@ export function VerifyCurrentDeviceTile({
               radii="Pill"
               onClick={handleCancelVerification}
             >
-              <Icon size="100" src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} size="100" />
             </Chip>
           }
         />
@@ -294,7 +295,7 @@ export function DeviceVerificationOptions() {
         radii="300"
         onClick={handleMenu}
       >
-        <Icon size="100" src={Icons.VerticalDots} />
+        <PhosphorIcon as={DotsThreeVerticalIcon} size="100" />
       </IconButton>
       <PopOut
         anchor={menuCords}

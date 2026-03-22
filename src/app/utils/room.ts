@@ -1,5 +1,3 @@
-import { IconName, IconSrc } from 'folds';
-
 import {
   EventTimeline,
   EventTimelineSet,
@@ -31,6 +29,12 @@ import {
   UnreadInfo,
 } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
+import type { IconProps } from '@phosphor-icons/react';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { SpeakerHighIcon } from '@phosphor-icons/react/dist/csr/SpeakerHigh';
+import { StarFourIcon } from '@phosphor-icons/react/dist/csr/StarFour';
+import { LockSimpleIcon } from '@phosphor-icons/react/dist/csr/LockSimple';
+import { ComponentType } from 'react';
 
 export const getStateEvent = (
   room: Room,
@@ -418,44 +422,40 @@ export const getUnreadInfos = (mx: MatrixClient, options?: UnreadInfoOptions): U
   return unreadInfos;
 };
 
-export const getRoomIconSrc = (
-  icons: Record<IconName, IconSrc>,
-  roomType?: string,
-  joinRule?: JoinRule
-): IconSrc => {
+export const getRoomIcon = (roomType?: string, joinRule?: JoinRule): ComponentType<IconProps> => {
   if (roomType === RoomType.Space) {
-    if (joinRule === JoinRule.Public) return icons.SpaceGlobe;
+    if (joinRule === JoinRule.Public) return StarFourIcon;
     if (
       joinRule === JoinRule.Invite ||
       joinRule === JoinRule.Knock ||
       joinRule === JoinRule.Private
     ) {
-      return icons.SpaceLock;
+      return LockSimpleIcon;
     }
-    return icons.Space;
+    return StarFourIcon;
   }
 
   if (roomType === RoomType.Call) {
-    if (joinRule === JoinRule.Public) return icons.VolumeHighGlobe;
+    if (joinRule === JoinRule.Public) return SpeakerHighIcon;
     if (
       joinRule === JoinRule.Invite ||
       joinRule === JoinRule.Knock ||
       joinRule === JoinRule.Private
     ) {
-      return icons.VolumeHighLock;
+      return LockSimpleIcon;
     }
-    return icons.VolumeHigh;
+    return SpeakerHighIcon;
   }
 
-  if (joinRule === JoinRule.Public) return icons.HashGlobe;
+  if (joinRule === JoinRule.Public) return HashIcon;
   if (
     joinRule === JoinRule.Invite ||
     joinRule === JoinRule.Knock ||
     joinRule === JoinRule.Private
   ) {
-    return icons.HashLock;
+    return LockSimpleIcon;
   }
-  return icons.Hash;
+  return HashIcon;
 };
 
 export const getRoomAvatarUrl = (

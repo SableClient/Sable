@@ -3,9 +3,7 @@ import {
   Button,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -13,6 +11,7 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
 import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
@@ -48,6 +47,7 @@ import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { pushSessionToSW } from '../../../sw-session';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
@@ -95,7 +95,7 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
       fill="None"
       onClick={handleToggle}
     >
-      <Icon size="200" src={Icons.VerticalDots} />
+      <PhosphorIcon as={DotsThreeVerticalIcon} size="200" />
       <PopOut
         anchor={menuAnchor}
         position="Bottom"

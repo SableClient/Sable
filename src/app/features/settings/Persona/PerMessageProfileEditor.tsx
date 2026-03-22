@@ -1,5 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
-import { Box, Button, Text, Avatar, config, Icon, IconButton, Icons, Input } from 'folds';
+import { Box, Button, Text, Avatar, config, IconButton, Input } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixClient } from 'matrix-js-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
@@ -15,6 +16,7 @@ import {
   renamePerMessageProfile,
 } from '$hooks/usePerMessageProfile';
 import { parsePronounsStringToPronounsSetArray, PronounSet } from '$utils/pronouns';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SequenceCardStyle } from '../styles.css';
 
 /**
@@ -359,7 +361,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset display name"
                     title="Reset display name"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    <PhosphorIcon as={XIcon} size="100" aria-label="Reset icon" />
                   </IconButton>
                 )
               }
@@ -406,7 +408,7 @@ export function PerMessageProfileEditor({
                     aria-label="Reset pronouns"
                     title="Reset pronouns"
                   >
-                    <Icon src={Icons.Cross} size="100" aria-label="Reset icon" />
+                    <PhosphorIcon as={XIcon} size="100" aria-label="Reset icon" />
                   </IconButton>
                 )
               }

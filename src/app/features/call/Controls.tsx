@@ -1,5 +1,14 @@
-import { Icon, IconButton, Icons, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import { IconButton, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import { ChatCircleIcon } from '@phosphor-icons/react/dist/csr/ChatCircle';
+import { HeadphonesIcon } from '@phosphor-icons/react/dist/csr/Headphones';
+import { MicrophoneIcon } from '@phosphor-icons/react/dist/csr/Microphone';
+import { MicrophoneSlashIcon } from '@phosphor-icons/react/dist/csr/MicrophoneSlash';
+import { PresentationIcon } from '@phosphor-icons/react/dist/csr/Presentation';
+import { SpeakerXIcon } from '@phosphor-icons/react/dist/csr/SpeakerX';
+import { VideoCameraIcon } from '@phosphor-icons/react/dist/csr/VideoCamera';
+import { VideoCameraSlashIcon } from '@phosphor-icons/react/dist/csr/VideoCameraSlash';
 import { useAtom } from 'jotai';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 import { callChatAtom } from '../../state/callEmbed';
 
@@ -34,7 +43,11 @@ export function MicrophoneButton({ enabled, onToggle }: MicrophoneButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon size="400" src={enabled ? Icons.Mic : Icons.MicMute} filled={!enabled} />
+          <PhosphorIcon
+            size="400"
+            as={enabled ? MicrophoneIcon : MicrophoneSlashIcon}
+            weight={!enabled ? 'fill' : 'regular'}
+          />
         </IconButton>
       )}
     </TooltipProvider>
@@ -66,10 +79,10 @@ export function SoundButton({ enabled, onToggle }: SoundButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon
+          <PhosphorIcon
             size="400"
-            src={enabled ? Icons.Headphone : Icons.HeadphoneMute}
-            filled={!enabled}
+            as={enabled ? HeadphonesIcon : SpeakerXIcon}
+            weight={!enabled ? 'fill' : 'regular'}
           />
         </IconButton>
       )}
@@ -102,10 +115,10 @@ export function VideoButton({ enabled, onToggle }: VideoButtonProps) {
           onClick={() => onToggle()}
           outlined
         >
-          <Icon
+          <PhosphorIcon
             size="400"
-            src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
-            filled={enabled}
+            as={enabled ? VideoCameraIcon : VideoCameraSlashIcon}
+            weight={enabled ? 'fill' : 'regular'}
           />
         </IconButton>
       )}
@@ -138,7 +151,7 @@ export function ScreenShareButton({ enabled, onToggle }: ScreenShareButtonProps)
           onClick={() => onToggle()}
           outlined
         >
-          <Icon size="400" src={Icons.ScreenShare} filled={enabled} />
+          <PhosphorIcon size="400" as={PresentationIcon} weight={enabled ? 'fill' : 'regular'} />
         </IconButton>
       )}
     </TooltipProvider>
@@ -168,7 +181,7 @@ export function ChatButton() {
           onClick={() => setChat(!chat)}
           outlined
         >
-          <Icon size="400" src={Icons.Message} filled={chat} />
+          <PhosphorIcon size="400" as={ChatCircleIcon} weight={chat ? 'fill' : 'regular'} />
         </IconButton>
       )}
     </TooltipProvider>

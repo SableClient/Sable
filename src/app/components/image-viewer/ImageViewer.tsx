@@ -1,9 +1,14 @@
 import { WheelEvent } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
-import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, Chip, Header, IconButton, Text, as } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { DownloadSimpleIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple';
+import { MinusIcon } from '@phosphor-icons/react/dist/csr/Minus';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { downloadMedia } from '$utils/matrix';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './ImageViewer.css';
 
 export type ImageViewerProps = {
@@ -39,7 +44,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
         <Header className={css.ImageViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              <PhosphorIcon size="50" as={ArrowLeftIcon} />
             </IconButton>
             <Text size="T300" truncate>
               {alt}
@@ -54,7 +59,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               onClick={zoomOut}
               aria-label="Zoom Out"
             >
-              <Icon size="50" src={Icons.Minus} />
+              <PhosphorIcon size="50" as={MinusIcon} />
             </IconButton>
             <Chip variant="SurfaceVariant" radii="Pill" onClick={() => setZoom(zoom === 1 ? 2 : 1)}>
               <Text size="B300">{Math.round(zoom * 100)}%</Text>
@@ -67,13 +72,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               onClick={zoomIn}
               aria-label="Zoom In"
             >
-              <Icon size="50" src={Icons.Plus} />
+              <PhosphorIcon size="50" as={PlusIcon} />
             </IconButton>
             <Chip
               variant="Primary"
               onClick={handleDownload}
               radii="300"
-              before={<Icon size="50" src={Icons.Download} />}
+              before={<PhosphorIcon size="50" as={DownloadSimpleIcon} />}
             >
               <Text size="B300">Download</Text>
             </Chip>

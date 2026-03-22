@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { Box, Text, IconButton, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
+import { HeartIcon } from '@phosphor-icons/react/dist/csr/Heart';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -9,6 +12,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();
@@ -161,7 +165,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>
@@ -197,7 +201,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Code} size="100" filled />}
+                      before={<PhosphorIcon as={CodeIcon} size="100" weight="fill" />}
                     >
                       <Text size="B300">Source Code</Text>
                     </Button>
@@ -210,7 +214,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Heart} size="100" filled />}
+                      before={<PhosphorIcon as={HeartIcon} size="100" weight="fill" />}
                     >
                       <Text size="B300">Support</Text>
                     </Button>

@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
@@ -12,6 +13,7 @@ import {
 } from '$features/common-settings/general';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type GeneralProps = {
   requestClose: () => void;
@@ -33,7 +35,7 @@ export function General({ requestClose }: GeneralProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

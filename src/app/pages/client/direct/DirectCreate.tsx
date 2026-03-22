@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Box, Icon, IconButton, Icons, Scroll } from 'folds';
+import { Box, IconButton, Scroll } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { AtIcon } from '@phosphor-icons/react/dist/csr/At';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getDirectCreateSearchParams } from '$pages/pathSearchParam';
 import { getDirectRoomPath } from '$pages/pathUtils';
@@ -16,6 +18,7 @@ import {
 } from '$components/page';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { CreateChat } from '$features/create-chat';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { useDirectRooms } from './useDirectRooms';
 
 export function DirectCreate() {
@@ -45,7 +48,7 @@ export function DirectCreate() {
             <BackRouteHandler>
               {(onBack) => (
                 <IconButton onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  <PhosphorIcon as={ArrowLeftIcon} />
                 </IconButton>
               )}
             </BackRouteHandler>
@@ -59,7 +62,7 @@ export function DirectCreate() {
               <PageHeroSection>
                 <Box direction="Column" gap="700">
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Mention} />}
+                    icon={<PhosphorIcon as={AtIcon} size="600" />}
                     title="Create Chat"
                     subTitle="Start a private, encrypted chat by entering a user ID."
                   />

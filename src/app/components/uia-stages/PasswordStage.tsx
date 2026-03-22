@@ -1,7 +1,10 @@
-import { Box, Button, color, config, Dialog, Header, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { FormEventHandler } from 'react';
 import { AuthType } from '$types/matrix-sdk';
 import { PasswordInput } from '$components/password-input';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { StageComponentProps } from './types';
 import { ErrorCode } from '../../cs-errorcode';
 
@@ -46,7 +49,7 @@ export function PasswordStage({
           <Text size="H4">Account Password</Text>
         </Box>
         <IconButton size="300" onClick={onCancel} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
       <Box
@@ -66,7 +69,7 @@ export function PasswordStage({
             <PasswordInput size="400" name="passwordInput" outlined autoFocus required />
             {errorCode && (
               <Box alignItems="Center" gap="100" style={{ color: color.Critical.Main }}>
-                <Icon size="50" src={Icons.Warning} filled />
+                <PhosphorIcon size="50" as={WarningIcon} weight="fill" />
                 <Text size="T200">
                   <b>
                     {errorCode === ErrorCode.M_FORBIDDEN

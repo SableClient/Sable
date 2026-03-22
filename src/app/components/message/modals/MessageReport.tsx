@@ -6,8 +6,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -16,12 +14,15 @@ import {
   config,
   color,
 } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import * as css from '$features/room/message/styles.css';
 import { modalAtom, ModalType } from '$state/modal';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const debugLog = createDebugLogger('MessageReport');
 
@@ -33,7 +34,7 @@ export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: Matrix
       size="300"
       variant="Critical"
       fill="None"
-      after={<Icon size="100" src={Icons.Warning} />}
+      after={<PhosphorIcon as={WarningIcon} size="100" />}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
@@ -113,7 +114,7 @@ export function MessageReportInternal({ room, mEvent, onClose }: MessageReportIn
           <Text size="H4">Report Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
       <Box

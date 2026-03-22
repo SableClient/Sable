@@ -10,15 +10,15 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Button,
   Input,
   color,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { stopPropagation } from '$utils/keyboard';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
 import { parseMatrixToRoom, parseMatrixToRoomEvent, testMatrixTo } from '$plugins/matrix-to';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type JoinAddressProps = {
   onOpen: (roomIdOrAlias: string, via?: string[], eventId?: string) => void;
@@ -83,7 +83,7 @@ export function JoinAddressPrompt({ onOpen, onCancel }: JoinAddressProps) {
                 <Text size="H4">Join with Address</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box

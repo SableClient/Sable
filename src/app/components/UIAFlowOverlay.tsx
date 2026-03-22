@@ -7,12 +7,12 @@ import {
   Text,
   TooltipProvider,
   Tooltip,
-  Icons,
-  Icon,
   Chip,
   IconButton,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export type UIAFlowOverlayProps = {
   currentStep: number;
@@ -60,7 +60,7 @@ export function UIAFlowOverlay({
                   radii="Pill"
                   outlined
                 >
-                  <Icon size="50" src={Icons.Cross} />
+                  <PhosphorIcon size="50" as={XIcon} />
                 </IconButton>
               )}
             </TooltipProvider>

@@ -8,15 +8,16 @@ import {
   color,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   Scroll,
   Spinner,
   Text,
   toRem,
 } from 'folds';
+import { PushPinIcon } from '@phosphor-icons/react/dist/csr/PushPin';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import { useAtomValue } from 'jotai';
@@ -88,6 +89,7 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { EncryptedContent } from '$features/room/message';
 import type { PinReadMarker } from '$features/room/RoomViewHeader';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './RoomPinMenu.css';
 
 const log = createLogger('RoomPinMenu');
@@ -154,7 +156,7 @@ function PinnedMessageActiveContent(
                   : undefined
               }
               alt={displayName}
-              renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+              renderFallback={() => <PhosphorIcon as={UserIcon} size="200" weight="fill" />}
             />
           </Avatar>
         </AvatarBase>
@@ -242,7 +244,7 @@ function PinnedMessage(props: PinnedMessageProps) {
           {unpinState.status === AsyncStatus.Loading ? (
             <Spinner size="100" />
           ) : (
-            <Icon src={Icons.Cross} size="100" />
+            <PhosphorIcon as={XIcon} size="100" />
           )}
         </IconButton>
       )}
@@ -526,7 +528,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             </Box>
             <Box shrink="No">
               <IconButton size="300" onClick={requestClose} radii="300">
-                <Icon src={Icons.Cross} size="400" />
+                <PhosphorIcon as={XIcon} size="400" />
               </IconButton>
             </Box>
           </Header>
@@ -604,7 +606,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                     justifyContent="Center"
                     alignItems="Center"
                   >
-                    <Icon src={Icons.Pin} size="600" />
+                    <PhosphorIcon as={PushPinIcon} size="600" />
                     <Box
                       style={{ maxWidth: toRem(300) }}
                       direction="Column"

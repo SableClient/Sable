@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch, Button } from 'folds';
+import { Box, Text, IconButton, Scroll, Switch, Button } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -9,6 +10,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AccountDataEditor, AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
 import { DebugLogViewer } from './DebugLogViewer';
@@ -58,7 +60,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

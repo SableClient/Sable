@@ -1,4 +1,7 @@
-import { Box, Button, color, config, Icon, Icons, Spinner, Text, Input } from 'folds';
+import { Box, Button, color, config, Spinner, Text, Input } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/csr/Prohibit';
 import { useCallback, useRef } from 'react';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -9,6 +12,7 @@ import { settingsAtom } from '$state/settings';
 import { timeDayMonYear, timeHourMinute } from '$utils/time';
 import { SettingTile } from '$components/setting-tile';
 import { CutoutCard } from '$components/cutout-card';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type UserKickAlertProps = {
   reason?: string;
@@ -293,7 +297,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 inviteState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Secondary" fill="Soft" />
                 ) : (
-                  <Icon size="50" src={Icons.ArrowRight} />
+                  <PhosphorIcon size="50" as={ArrowRightIcon} />
                 )
               }
               onClick={invite}
@@ -313,7 +317,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 kickState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Soft" />
                 ) : (
-                  <Icon size="50" src={Icons.ArrowLeft} />
+                  <PhosphorIcon size="50" as={ArrowLeftIcon} />
                 )
               }
               onClick={kick}
@@ -333,7 +337,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 banState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Solid" />
                 ) : (
-                  <Icon size="50" src={Icons.Prohibited} />
+                  <PhosphorIcon size="50" as={ProhibitIcon} />
                 )
               }
               onClick={ban}

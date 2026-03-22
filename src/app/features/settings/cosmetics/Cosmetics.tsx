@@ -3,9 +3,7 @@ import {
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -14,6 +12,8 @@ import {
   Switch,
   Text,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -22,6 +22,7 @@ import { JumboEmojiSize, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Appearance } from './Themes';
 
 const emojiSizeItems = [
@@ -56,7 +57,7 @@ function SelectJumboEmojiSize() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={handleMenu}
       >
         <Text size="T300">{currentSizeName}</Text>
@@ -256,7 +257,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

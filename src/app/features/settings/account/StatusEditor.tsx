@@ -1,6 +1,8 @@
 import { ChangeEventHandler, FormEventHandler, useEffect, useState } from 'react';
-import { Box, Text, Button, Input, IconButton, Icon, Icons, Spinner, config } from 'folds';
+import { Box, Text, Button, Input, IconButton, Spinner, config } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type StatusEditorProps = {
   current?: string;
@@ -62,7 +64,7 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    <PhosphorIcon as={XIcon} size="100" />
                   </IconButton>
                 )
               }

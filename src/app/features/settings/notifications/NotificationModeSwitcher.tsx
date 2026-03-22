@@ -1,22 +1,12 @@
-import {
-  Box,
-  Button,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-} from 'folds';
+import { Box, Button, config, Menu, MenuItem, PopOut, RectCords, Spinner, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import { IPushRule } from '$types/matrix-sdk';
 import { MouseEventHandler, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { NotificationMode, useNotificationActionsMode } from '$hooks/useNotificationMode';
 import { stopPropagation } from '$utils/keyboard';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export const useNotificationModes = (): NotificationMode[] =>
   useMemo(() => [NotificationMode.NotifyLoud, NotificationMode.Notify, NotificationMode.OFF], []);
@@ -65,7 +55,7 @@ export function NotificationModeSwitcher({ pushRule, onChange }: NotificationMod
           changing ? (
             <Spinner variant="Secondary" size="300" />
           ) : (
-            <Icon size="300" src={Icons.ChevronBottom} />
+            <PhosphorIcon as={CaretDownIcon} size="300" />
           )
         }
         onClick={handleMenu}

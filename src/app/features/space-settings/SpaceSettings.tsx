@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { Avatar, Box, config, Icon, IconButton, Icons, IconSrc, MenuItem, Text } from 'folds';
+import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TerminalIcon } from '@phosphor-icons/react/dist/csr/Terminal';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import type { IconProps } from '@phosphor-icons/react';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -16,14 +24,15 @@ import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { Members } from '$features/common-settings/members';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { General } from './general';
 import { Permissions } from './permissions';
 
 type SpaceSettingsMenuItem = {
   page: SpaceSettingsPage;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: React.ComponentType<IconProps>;
+  activeIcon?: React.ComponentType<IconProps>;
 };
 
 const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
@@ -32,33 +41,32 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
       {
         page: SpaceSettingsPage.GeneralPage,
         name: 'General',
-        icon: Icons.Setting,
+        icon: GearIcon,
       },
       {
         page: SpaceSettingsPage.MembersPage,
         name: 'Members',
-        icon: Icons.User,
+        icon: UserIcon,
       },
       {
         page: SpaceSettingsPage.PermissionsPage,
         name: 'Permissions',
-        icon: Icons.Lock,
+        icon: LockIcon,
       },
       {
         page: SpaceSettingsPage.CosmeticsPage,
         name: 'Cosmetics',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
+        icon: TextAaIcon,
       },
       {
         page: SpaceSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
-        icon: Icons.Smile,
+        icon: SmileyIcon,
       },
       {
         page: SpaceSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
-        icon: Icons.Terminal,
+        icon: TerminalIcon,
       },
     ],
     []
@@ -114,7 +122,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
                         roomType={room.getType()}
                         size="50"
                         joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
-                        filled
+                        weight="fill"
                       />
                     )}
                   />
@@ -126,7 +134,7 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
               <Box shrink="No">
                 {screenSize === ScreenSize.Mobile && (
                   <IconButton onClick={requestClose} variant="Background">
-                    <Icon src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} size="200" weight="fill" />
                   </IconButton>
                 )}
               </Box>
@@ -145,7 +153,11 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
                         radii="400"
                         aria-pressed={activePage === item.page}
                         before={
-                          <Icon src={currentIcon} size="100" filled={activePage === item.page} />
+                          <PhosphorIcon
+                            as={currentIcon}
+                            size="100"
+                            weight={activePage === item.page ? 'fill' : 'regular'}
+                          />
                         }
                         onClick={() => setActivePage(item.page)}
                       >

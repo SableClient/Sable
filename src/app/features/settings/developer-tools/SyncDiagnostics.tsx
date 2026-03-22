@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
+import { Box, Button, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
@@ -7,6 +9,7 @@ import { Direction, EventType, NotificationCountType, Room } from '$types/matrix
 import { Membership } from '$types/matrix/room';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type RoomRenderingDiagnostics = {
   totalRooms: number;
@@ -189,7 +192,7 @@ export function SyncDiagnostics() {
                   fill="Soft"
                   outlined
                   radii="300"
-                  before={<Icon src={expandSliding ? Icons.ChevronTop : Icons.ChevronBottom} />}
+                  before={<PhosphorIcon as={expandSliding ? CaretUpIcon : CaretDownIcon} />}
                   onClick={() => setExpandSliding((v) => !v)}
                 >
                   <Text size="B300">{expandSliding ? 'Collapse' : 'Expand'}</Text>

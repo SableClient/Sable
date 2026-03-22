@@ -7,9 +7,7 @@ import {
   Button,
   color,
   config,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   percent,
   PopOut,
@@ -19,6 +17,8 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { DownloadIcon } from '@phosphor-icons/react/dist/csr/Download';
 import { BackupProgressStatus, backupRestoreProgressAtom } from '$state/backupRestore';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import {
@@ -29,6 +29,7 @@ import {
 } from '$hooks/useKeyBackup';
 import { stopPropagation } from '$utils/keyboard';
 import { useRestoreBackupOnVerification } from '$hooks/useRestoreBackupOnVerification';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { InfoCard } from './info-card';
 
 type BackupStatusProps = {
@@ -183,7 +184,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
             radii="300"
             onClick={handleMenu}
           >
-            <Icon size="100" src={Icons.VerticalDots} />
+            <PhosphorIcon size="100" as={DotsThreeVerticalIcon} />
           </IconButton>
           <PopOut
             anchor={menuCords}
@@ -232,7 +233,7 @@ export function BackupRestoreTile({ crypto }: BackupRestoreTileProps) {
                           ? undefined
                           : handleRestore
                       }
-                      before={<Icon size="100" src={Icons.Download} />}
+                      before={<PhosphorIcon size="100" as={DownloadIcon} />}
                     >
                       <Text size="B300">Restore Backup</Text>
                     </Button>

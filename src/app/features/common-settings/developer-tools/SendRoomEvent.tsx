@@ -3,8 +3,6 @@ import { MatrixError } from '$types/matrix-sdk';
 import {
   Box,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Text,
   config,
@@ -14,6 +12,8 @@ import {
   TextArea as TextAreaComponent,
   Input,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
@@ -22,6 +22,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { syntaxErrorPosition } from '$utils/dom';
 import { Cursor } from '$plugins/text-area';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -112,14 +113,14 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={<PhosphorIcon as={ArrowLeftIcon} size="100" />}
             >
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

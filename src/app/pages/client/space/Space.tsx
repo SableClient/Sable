@@ -13,9 +13,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -27,6 +25,16 @@ import {
   config,
   toRem,
 } from 'folds';
+import { ArrowUUpLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowUUpLeft';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { FlagIcon } from '@phosphor-icons/react/dist/csr/Flag';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { TerminalIcon } from '@phosphor-icons/react/dist/csr/Terminal';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
 import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
@@ -85,6 +93,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const debugLog = createDebugLogger('Space');
 
@@ -157,7 +166,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="100" />}
           radii="300"
           disabled={!unread}
         >
@@ -173,7 +182,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
           variant="Primary"
           fill="None"
           size="300"
-          after={<Icon size="100" src={Icons.UserPlus} />}
+          after={<PhosphorIcon as={UserPlusIcon} size="100" />}
           radii="300"
           aria-pressed={invitePrompt}
           disabled={!canInvite}
@@ -185,7 +194,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         <MenuItem
           onClick={handleCopyLink}
           size="300"
-          after={<Icon size="100" src={Icons.Link} />}
+          after={<PhosphorIcon as={LinkIcon} size="100" />}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -195,7 +204,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         <MenuItem
           onClick={handleRoomSettings}
           size="300"
-          after={<Icon size="100" src={Icons.Setting} />}
+          after={<PhosphorIcon as={GearIcon} size="100" />}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -206,7 +215,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
           <MenuItem
             onClick={handleOpenTimeline}
             size="300"
-            after={<Icon size="100" src={Icons.Terminal} />}
+            after={<PhosphorIcon as={TerminalIcon} size="100" />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -225,7 +234,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
                 variant="Critical"
                 fill="None"
                 size="300"
-                after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                after={<PhosphorIcon as={ArrowUUpLeftIcon} size="100" />}
                 radii="300"
                 aria-pressed={promptLeave}
               >
@@ -274,11 +283,11 @@ function SpaceHeader() {
             <Text size="H4" truncate>
               {spaceName}
             </Text>
-            {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
+            {joinRules?.join_rule !== JoinRule.Public && <PhosphorIcon as={LockIcon} size="50" />}
           </Box>
           <Box shrink="No">
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
+              <PhosphorIcon as={DotsThreeVerticalIcon} size="200" />
             </IconButton>
           </Box>
         </Box>
@@ -729,7 +738,11 @@ export function Space() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Flag} size="100" filled={lobbySelected} />
+                        <PhosphorIcon
+                          as={FlagIcon}
+                          weight={lobbySelected ? 'fill' : 'regular'}
+                          size="100"
+                        />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>
@@ -745,7 +758,11 @@ export function Space() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        <PhosphorIcon
+                          as={MagnifyingGlassIcon}
+                          weight={searchSelected ? 'fill' : 'regular'}
+                          size="100"
+                        />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>

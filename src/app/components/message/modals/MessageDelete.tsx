@@ -6,8 +6,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -16,12 +14,15 @@ import {
   config,
   color,
 } from 'folds';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const debugLog = createDebugLogger('MessageDelete');
 
@@ -31,7 +32,7 @@ export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: Matrix
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Delete} />}
+      after={<PhosphorIcon size="100" as={TrashIcon} />}
       radii="300"
       fill="None"
       variant="Critical"
@@ -114,7 +115,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
           <Text size="H4">Delete Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
       <Box

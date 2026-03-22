@@ -10,9 +10,7 @@ import {
   Box,
   Chip,
   config,
-  Icon,
   IconButton,
-  Icons,
   Input,
   PopOut,
   RectCords,
@@ -21,6 +19,11 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { FunnelIcon } from '@phosphor-icons/react/dist/csr/Funnel';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { SortAscendingIcon } from '@phosphor-icons/react/dist/csr/SortAscending';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { RoomMember } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
@@ -49,6 +52,7 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { getMouseEventCords } from '$utils/dom';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -155,7 +159,7 @@ export function Members({ requestClose }: MembersProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>
@@ -172,7 +176,7 @@ export function Members({ requestClose }: MembersProps) {
                 <Input
                   ref={searchInputRef}
                   onChange={handleSearchChange}
-                  before={<Icon size="200" src={Icons.Search} />}
+                  before={<PhosphorIcon as={MagnifyingGlassIcon} size="200" />}
                   variant="SurfaceVariant"
                   size="500"
                   placeholder="Search"
@@ -186,7 +190,7 @@ export function Members({ requestClose }: MembersProps) {
                         radii="Pill"
                         aria-pressed
                         onClick={handleSearchReset}
-                        after={<Icon size="50" src={Icons.Cross} />}
+                        after={<PhosphorIcon as={XIcon} size="50" />}
                       >
                         <Text size="B300">
                           {result.items.length === 0
@@ -224,7 +228,7 @@ export function Members({ requestClose }: MembersProps) {
                         variant="SurfaceVariant"
                         size="400"
                         radii="300"
-                        before={<Icon src={Icons.Filter} size="50" />}
+                        before={<PhosphorIcon as={FunnelIcon} size="50" />}
                       >
                         <Text size="T200">{membershipFilter.name}</Text>
                       </Chip>
@@ -256,7 +260,7 @@ export function Members({ requestClose }: MembersProps) {
                         variant="SurfaceVariant"
                         size="400"
                         radii="300"
-                        after={<Icon src={Icons.Sort} size="50" />}
+                        after={<PhosphorIcon as={SortAscendingIcon} size="50" />}
                       >
                         <Text size="T200">{memberSort.name}</Text>
                       </Chip>
@@ -277,7 +281,7 @@ export function Members({ requestClose }: MembersProps) {
                   size="300"
                   aria-label="Scroll to Top"
                 >
-                  <Icon src={Icons.ChevronTop} size="300" />
+                  <PhosphorIcon as={CaretUpIcon} size="300" />
                 </IconButton>
               </ScrollTopContainer>
               {fetchingMembers && (

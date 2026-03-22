@@ -2,9 +2,7 @@ import {
   Box,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -12,12 +10,14 @@ import {
   Scroll,
   Text,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { SpaceProvider } from '$hooks/useSpace';
 import { useCloseCreateSpaceModal, useCreateSpaceModalState } from '$state/hooks/createSpaceModal';
 import { CreateSpaceModalState } from '$state/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { CreateSpaceForm } from './CreateSpace';
 
 type CreateSpaceModalProps = {
@@ -58,7 +58,7 @@ function CreateSpaceModal({ state }: CreateSpaceModalProps) {
                   </Box>
                   <Box shrink="No">
                     <IconButton size="300" radii="300" onClick={closeDialog}>
-                      <Icon src={Icons.Cross} />
+                      <PhosphorIcon as={XIcon} />
                     </IconButton>
                   </Box>
                 </Header>

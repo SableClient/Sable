@@ -1,6 +1,10 @@
-import { Box, Text, Icon, Icons, config, IconSrc } from 'folds';
+import { Box, Text, config } from 'folds';
+import { ComponentType } from 'react';
+import type { IconProps } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { CreateRoomAccess } from './types';
 
 type CreateRoomAccessSelectorProps = {
@@ -8,7 +12,7 @@ type CreateRoomAccessSelectorProps = {
   onSelect: (value: CreateRoomAccess) => void;
   canRestrict?: boolean;
   disabled?: boolean;
-  getIcon: (access: CreateRoomAccess) => IconSrc;
+  getIcon: (access: CreateRoomAccess) => ComponentType<IconProps>;
 };
 export function CreateRoomAccessSelector({
   value,
@@ -32,8 +36,8 @@ export function CreateRoomAccessSelector({
           disabled={disabled}
         >
           <SettingTile
-            before={<Icon size="400" src={getIcon(CreateRoomAccess.Restricted)} />}
-            after={value === CreateRoomAccess.Restricted && <Icon src={Icons.Check} />}
+            before={<PhosphorIcon size="400" as={getIcon(CreateRoomAccess.Restricted)} />}
+            after={value === CreateRoomAccess.Restricted && <PhosphorIcon as={CheckIcon} />}
           >
             <Text size="H6">Restricted</Text>
             <Text size="T300" priority="300">
@@ -54,8 +58,8 @@ export function CreateRoomAccessSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomAccess.Private)} />}
-          after={value === CreateRoomAccess.Private && <Icon src={Icons.Check} />}
+          before={<PhosphorIcon size="400" as={getIcon(CreateRoomAccess.Private)} />}
+          after={value === CreateRoomAccess.Private && <PhosphorIcon as={CheckIcon} />}
         >
           <Text size="H6">Private</Text>
           <Text size="T300" priority="300">
@@ -75,8 +79,8 @@ export function CreateRoomAccessSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomAccess.Public)} />}
-          after={value === CreateRoomAccess.Public && <Icon src={Icons.Check} />}
+          before={<PhosphorIcon size="400" as={getIcon(CreateRoomAccess.Public)} />}
+          after={value === CreateRoomAccess.Public && <PhosphorIcon as={CheckIcon} />}
         >
           <Text size="H6">Public</Text>
           <Text size="T300" priority="300">

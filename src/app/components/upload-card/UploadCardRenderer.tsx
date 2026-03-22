@@ -2,9 +2,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Scroll,
   Text,
   Tooltip,
@@ -14,7 +12,13 @@ import {
   toRem,
 } from 'folds';
 import { HTMLReactParserOptions } from 'html-react-parser';
-import { Play, Pause } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { EyeSlashIcon } from '@phosphor-icons/react/dist/csr/EyeSlash';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { PauseIcon } from '@phosphor-icons/react/dist/csr/Pause';
+import { PencilIcon } from '@phosphor-icons/react/dist/csr/Pencil';
+import { PlayIcon } from '@phosphor-icons/react/dist/csr/Play';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
@@ -27,6 +31,7 @@ import { bytesToSize, getFileTypeIcon } from '$utils/common';
 import { roomUploadAtomFamily, TUploadItem, TUploadMetadata } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { useMediaConfig } from '$hooks/useMediaConfig';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
@@ -224,7 +229,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         aria-label={isPlaying ? 'Pause' : 'Play voice message'}
         aria-pressed={isPlaying}
       >
-        {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+        <PhosphorIcon size="200" as={isPlaying ? PauseIcon : PlayIcon} weight="fill" />
       </IconButton>
 
       <Box
@@ -296,7 +301,7 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
           fill="Soft"
           radii="Pill"
           aria-pressed={metadata.markedAsSpoiler}
-          before={<Icon src={Icons.EyeBlind} size="50" />}
+          before={<PhosphorIcon as={EyeSlashIcon} size="50" />}
           onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
         >
           <Text size="B300">Spoiler</Text>
@@ -371,7 +376,7 @@ export function UploadCardRenderer({
   return (
     <UploadCard
       radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
+      before={<PhosphorIcon as={getFileTypeIcon(file.type)} />}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -396,7 +401,7 @@ export function UploadCardRenderer({
               radii="Pill"
               size="300"
             >
-              <Icon src={Icons.Pencil} size="50" />
+              <PhosphorIcon as={PencilIcon} size="50" />
             </IconButton>
           )}
           {isDescribed && (
@@ -412,7 +417,7 @@ export function UploadCardRenderer({
                 </Tooltip>
               }
             >
-              {(triggerRef) => <Icon ref={triggerRef} src={Icons.Info} size="50" />}
+              {(triggerRef) => <PhosphorIcon as={InfoIcon} ref={triggerRef} size="50" />}
             </TooltipProvider>
           )}
 
@@ -423,7 +428,7 @@ export function UploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            <PhosphorIcon as={XIcon} size="200" />
           </IconButton>
         </>
       }
@@ -504,7 +509,7 @@ export function UploadCardRenderer({
         {file.name}
       </Text>
       {upload.status === UploadStatus.Success && (
-        <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
+        <PhosphorIcon as={CheckIcon} style={{ color: color.Success.Main }} size="100" />
       )}
     </UploadCard>
   );

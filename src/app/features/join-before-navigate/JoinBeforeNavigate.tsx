@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, IconButton, Scroll, Text, toRem } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
 import { useAtomValue } from 'jotai';
 import { RoomCard } from '$components/room-card';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -9,6 +10,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type JoinBeforeNavigateProps = { roomIdOrAlias: string; eventId?: string; viaServers?: string[] };
 export function JoinBeforeNavigate({
@@ -38,7 +40,7 @@ export function JoinBeforeNavigate({
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    <PhosphorIcon as={ArrowLeftIcon} />
                   </IconButton>
                 )}
               </BackRouteHandler>

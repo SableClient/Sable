@@ -1,4 +1,5 @@
-import { Box, config, Icon, Menu, MenuItem, PopOut, RectCords, Text, toRem } from 'folds';
+import { Box, config, Menu, MenuItem, PopOut, RectCords, Text, toRem } from 'folds';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { MouseEventHandler, ReactNode, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
@@ -98,10 +99,10 @@ export function RoomNotificationModeSwitcher({
                   disabled={changing}
                   onClick={() => handleSelect(mode)}
                   before={
-                    <Icon
+                    <PhosphorIcon
                       size="100"
-                      src={getRoomNotificationModeIcon(mode)}
-                      filled={mode === value}
+                      as={getRoomNotificationModeIcon(mode)}
+                      weight={mode === value ? 'fill' : 'regular'}
                     />
                   }
                 >

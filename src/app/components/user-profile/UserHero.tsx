@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   Avatar,
   Box,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -13,6 +11,9 @@ import {
   Tooltip,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import colorMXID from '$utils/colorMXID';
@@ -28,6 +29,7 @@ import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 
 type UserHeroProps = {
@@ -106,7 +108,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                 userId={userId}
                 src={avatarUrl}
                 alt={userId}
-                renderFallback={() => <Icon size="500" src={Icons.User} filled />}
+                renderFallback={() => <PhosphorIcon size="500" as={UserIcon} weight="fill" />}
               />
             </Avatar>
           </AvatarPresence>
@@ -175,7 +177,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                     justifyContent="Center"
                     style={{ alignSelf: isFullStatus ? 'flex-start' : 'center' }}
                   >
-                    <Icon size="50" src={isFullStatus ? Icons.ChevronTop : Icons.ChevronBottom} />
+                    <PhosphorIcon size="50" as={isFullStatus ? CaretUpIcon : CaretDownIcon} />
                   </Box>
                 )}
               </Box>

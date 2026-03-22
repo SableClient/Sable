@@ -1,23 +1,13 @@
 import { MouseEventHandler, ReactNode, useCallback, useState } from 'react';
-import {
-  Box,
-  Text,
-  Chip,
-  Icon,
-  Icons,
-  RectCords,
-  PopOut,
-  Menu,
-  config,
-  MenuItem,
-  color,
-} from 'folds';
+import { Box, Text, Chip, RectCords, PopOut, Menu, config, MenuItem, color } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import { SecretStorageKeyContent } from '$types/matrix/accountData';
 import { storePrivateKey } from '$client/secretStorageKeys';
 import { stopPropagation } from '$utils/keyboard';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SettingTile } from './setting-tile';
 import { SecretStorageRecoveryKey, SecretStorageRecoveryPassphrase } from './SecretStorage';
 
@@ -51,7 +41,7 @@ export function ManualVerificationMethodSwitcher({
         variant="Secondary"
         fill="Soft"
         radii="Pill"
-        before={<Icon size="100" src={Icons.ChevronBottom} />}
+        before={<PhosphorIcon size="100" as={CaretDownIcon} />}
         onClick={handleMenu}
       >
         <Text as="span" size="B300">

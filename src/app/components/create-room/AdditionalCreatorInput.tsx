@@ -3,8 +3,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Line,
   Menu,
@@ -17,6 +15,8 @@ import {
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import {
   ChangeEventHandler,
   KeyboardEventHandler,
@@ -31,6 +31,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export const useAdditionalCreators = (defaultCreators?: string[]) => {
   const mx = useMatrixClient();
@@ -164,7 +165,7 @@ export function AdditionalCreatorInput({
               key={creator}
               variant="Secondary"
               radii="Pill"
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={<PhosphorIcon size="50" as={XIcon} />}
               onClick={() => onRemove(creator)}
               disabled={disabled}
             >
@@ -284,7 +285,7 @@ export function AdditionalCreatorInput({
               aria-pressed={!!menuCords}
               disabled={disabled}
             >
-              <Icon size="50" src={Icons.Plus} />
+              <PhosphorIcon size="50" as={PlusIcon} />
             </Chip>
           </PopOut>
         </Box>

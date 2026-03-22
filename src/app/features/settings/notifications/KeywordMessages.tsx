@@ -1,6 +1,7 @@
 import { ChangeEventHandler, FormEventHandler, useCallback, useMemo, useState } from 'react';
 import { IPushRule, IPushRules, PushRuleKind } from '$types/matrix-sdk';
-import { Box, Text, Badge, Button, Input, config, IconButton, Icons, Icon, Spinner } from 'folds';
+import { Box, Text, Badge, Button, Input, config, IconButton, Spinner } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
@@ -14,6 +15,7 @@ import {
 } from '$hooks/useNotificationMode';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { NotificationModeSwitcher } from './NotificationModeSwitcher';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
 
@@ -82,7 +84,7 @@ function KeywordInput() {
                 radii="300"
                 variant="Secondary"
               >
-                <Icon src={Icons.Cross} size="100" />
+                <PhosphorIcon as={XIcon} size="100" />
               </IconButton>
             )
           }
@@ -120,7 +122,7 @@ function KeywordCross({ pushRule }: PushRulesProps) {
   const removing = removeState.status === AsyncStatus.Loading;
   return (
     <IconButton onClick={remove} size="300" radii="Pill" variant="Secondary" disabled={removing}>
-      {removing ? <Spinner size="100" /> : <Icon src={Icons.Cross} size="100" />}
+      {removing ? <Spinner size="100" /> : <PhosphorIcon as={XIcon} size="100" />}
     </IconButton>
   );
 }

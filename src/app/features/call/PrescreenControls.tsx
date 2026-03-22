@@ -1,4 +1,6 @@
-import { Box, Button, Icon, Icons, Spinner, Text, toRem } from 'folds';
+import { Box, Button, Spinner, Text, toRem } from 'folds';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SequenceCard } from '../../components/sequence-card';
 import * as css from './styles.css';
 import { ChatButton, ControlDivider, MicrophoneButton, SoundButton, VideoButton } from './Controls';
@@ -83,7 +85,7 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
               joining ? (
                 <Spinner variant="Success" fill="Solid" size="200" />
               ) : (
-                <Icon src={Icons.Phone} size="200" filled />
+                <PhosphorIcon as={PhoneIcon} size="200" weight="fill" />
               )
             }
           >

@@ -3,8 +3,6 @@ import {
   Avatar,
   Box,
   config,
-  Icon,
-  Icons,
   Input,
   Line,
   MenuItem,
@@ -15,6 +13,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import {
   ChangeEventHandler,
   KeyboardEventHandler,
@@ -55,6 +54,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -266,7 +266,7 @@ export function Search({ requestClose }: SearchProps) {
                 radii="400"
                 outlined
                 placeholder="Search"
-                before={<Icon size="200" src={Icons.Search} />}
+                before={<PhosphorIcon as={MagnifyingGlassIcon} size="200" />}
                 onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
               />

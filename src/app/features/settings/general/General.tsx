@@ -12,9 +12,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -25,6 +23,10 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { ShieldCheckIcon } from '@phosphor-icons/react/dist/csr/ShieldCheck';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
@@ -51,6 +53,7 @@ import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -200,7 +203,7 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
           size="300"
           radii="300"
         >
-          <Icon src={Icons.Cross} size="100" />
+          <PhosphorIcon as={XIcon} size="100" />
         </IconButton>
       ) : (
         <IconButton
@@ -212,7 +215,7 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
           radii="300"
           aria-pressed={!!anchor}
         >
-          <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+          <PhosphorIcon as={InfoIcon} style={{ opacity: config.opacity.P300 }} size="100" />
         </IconButton>
       )}
     </PopOut>
@@ -312,7 +315,7 @@ function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) 
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="400" />}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -507,7 +510,7 @@ function SelectMessageLayout() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -575,7 +578,7 @@ function SelectCaptionPosition() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -644,7 +647,7 @@ function SelectMessageSpacing() {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={handleMenu}
       >
         <Text size="T300">
@@ -718,7 +721,7 @@ function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) 
         fill="Soft"
         radii="300"
         disabled={disabled}
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={handleMenu}
       >
         <Text size="T300">{options.find((o) => o.id === action)?.name ?? action}</Text>
@@ -1182,7 +1185,7 @@ function DiagnosticsAndPrivacy() {
           fill="Soft"
           size="300"
           radii="300"
-          before={<Icon src={Icons.Shield} size="100" filled />}
+          before={<PhosphorIcon as={ShieldCheckIcon} size="100" weight="fill" />}
         >
           <Text size="B300">Privacy Policy</Text>
         </Button>
@@ -1203,7 +1206,7 @@ export function General({ requestClose }: Readonly<GeneralProps>) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

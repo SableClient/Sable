@@ -11,8 +11,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Scroll,
   Switch,
   Avatar,
@@ -27,6 +25,7 @@ import {
   Dialog,
   Header,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -58,6 +57,7 @@ import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
 import { PronounEditor } from '$features/settings/account/PronounEditor';
 import { PronounSet } from '$utils/pronouns';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const log = createLogger('Cosmetics');
 
@@ -205,7 +205,7 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
                   <Text size="H4">Remove Room Avatar</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  <PhosphorIcon as={XIcon} />
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -286,7 +286,7 @@ export function CosmeticsNickname({ profile, member, userId, room }: CosmeticsSe
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    <PhosphorIcon as={XIcon} size="100" />
                   </IconButton>
                 )
               }
@@ -416,7 +416,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

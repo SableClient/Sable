@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, config, Text, Input, IconButton, Icon, Icons } from 'folds';
+import { Box, Button, config, Text, Input, IconButton } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { HexColorPicker } from 'react-colorful';
 import { SettingTile } from '$components/setting-tile';
 import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type NameColorEditorProps = {
   title: string;
@@ -122,7 +124,7 @@ export function NameColorEditor({
                 onClick={handleReset}
                 title="Reset to default"
               >
-                <Icon src={Icons.Cross} size="100" />
+                <PhosphorIcon as={XIcon} size="100" />
               </IconButton>
             )}
           </Box>

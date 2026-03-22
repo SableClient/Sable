@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
 import { ConditionKind, IPushRules, MatrixClient, PushRuleKind } from '$types/matrix-sdk';
-import { Icons, IconSrc } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { BellIcon } from '@phosphor-icons/react/dist/csr/Bell';
+import { BellRingingIcon } from '@phosphor-icons/react/dist/csr/BellRinging';
+import { BellSimpleIcon } from '@phosphor-icons/react/dist/csr/BellSimple';
+import { BellSlashIcon } from '@phosphor-icons/react/dist/csr/BellSlash';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { isRoomId } from '$utils/matrix';
 import { useAccountData } from './useAccountData';
@@ -99,12 +103,14 @@ export const useRoomNotificationPreference = (
 ): RoomNotificationMode =>
   useMemo(() => getRoomNotificationMode(preferences, roomId), [preferences, roomId]);
 
-export const getRoomNotificationModeIcon = (mode?: RoomNotificationMode): IconSrc => {
-  if (mode === RoomNotificationMode.Mute) return Icons.BellMute;
-  if (mode === RoomNotificationMode.SpecialMessages) return Icons.BellPing;
-  if (mode === RoomNotificationMode.AllMessages) return Icons.BellRing;
+export const getRoomNotificationModeIcon = (
+  mode?: RoomNotificationMode
+): React.ComponentType<IconProps> => {
+  if (mode === RoomNotificationMode.Mute) return BellSlashIcon;
+  if (mode === RoomNotificationMode.SpecialMessages) return BellRingingIcon;
+  if (mode === RoomNotificationMode.AllMessages) return BellIcon;
 
-  return Icons.Bell;
+  return BellSimpleIcon;
 };
 
 export const setRoomNotificationPreference = async (

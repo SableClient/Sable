@@ -1,6 +1,14 @@
-import { Box, Chip, Icon, IconSrc, Icons, Text, as, color, toRem } from 'folds';
+import { Box, Chip, Text, as, color, toRem } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowBendUpLeft';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react/dist/csr/ArrowClockwise';
+import { ChatTeardropTextIcon } from '@phosphor-icons/react/dist/csr/ChatTeardropText';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
+import { PhoneSlashIcon } from '@phosphor-icons/react/dist/csr/PhoneSlash';
 import { EventTimelineSet, Room, SessionMembershipData } from '$types/matrix-sdk';
-import { MouseEventHandler, ReactNode, useCallback, useMemo } from 'react';
+import { MouseEventHandler, ReactNode, useCallback, useMemo, type ComponentType } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
 import parse from 'html-react-parser';
@@ -27,6 +35,7 @@ import { StateEvent, MessageEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useTranslation } from 'react-i18next';
 import * as customHtmlCss from '$styles/CustomHtml.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import {
   MessageBadEncryptedContent,
   MessageBlockedContent,
@@ -39,7 +48,7 @@ import { LinePlaceholder } from './placeholder';
 type ReplyLayoutProps = {
   userColor?: string;
   username?: ReactNode;
-  icon?: IconSrc;
+  icon?: ComponentType<IconProps>;
 };
 export const ReplyLayout = as<'div', ReplyLayoutProps>(
   ({ username, userColor, icon, className, children, ...props }, ref) => (
@@ -51,9 +60,9 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        <Icon size="100" src={Icons.ReplyArrow} />
+        <PhosphorIcon size="100" as={ArrowBendUpLeftIcon} />
       </Box>
-      {!!icon && <Icon style={{ opacity: 0.6 }} size="50" src={icon} />}
+      {!!icon && <PhosphorIcon style={{ opacity: 0.6 }} size="50" as={icon} />}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
         {username}
       </Box>
@@ -73,7 +82,7 @@ export const ThreadIndicator = as<'div'>(({ ...props }, ref) => (
     {...props}
     ref={ref}
   >
-    <Icon size="50" src={Icons.Thread} />
+    <PhosphorIcon size="50" as={ChatTeardropTextIcon} />
     <Text size="L400">Thread</Text>
   </Box>
 ));
@@ -130,7 +139,7 @@ export const Reply = as<'div', ReplyProps>(
       !replyEvent.getClearContent();
 
     let bodyJSX: ReactNode = fallbackBody;
-    let image: IconSrc | undefined;
+    let icon: ComponentType<IconProps> | undefined;
 
     const replyLinkifyOpts = useMemo(
       () => ({
@@ -168,23 +177,23 @@ export const Reply = as<'div', ReplyProps>(
       bodyJSX = scaleSystemEmoji(strippedBody);
     } else if (eventType === StateEvent.RoomMember && !!replyEvent) {
       const parsedMemberEvent = parseMemberEvent(replyEvent);
-      image = parsedMemberEvent.icon;
+      icon = parsedMemberEvent.icon;
       bodyJSX = parsedMemberEvent.body;
     } else if (eventType === StateEvent.RoomName) {
-      image = Icons.Hash;
+      icon = HashIcon;
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');
     } else if (eventType === StateEvent.RoomTopic) {
-      image = Icons.Hash;
+      icon = HashIcon;
       bodyJSX = ' changed room topic';
     } else if (eventType === StateEvent.RoomAvatar) {
-      image = Icons.Hash;
+      icon = HashIcon;
       bodyJSX = ' changed room avatar';
     } else if (eventType === StateEvent.GroupCallMemberPrefix && !!replyEvent) {
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
-      image = callJoined ? Icons.Phone : Icons.PhoneDown;
+      icon = callJoined ? PhoneIcon : PhoneSlashIcon;
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
     } else if (Object.values(MessageEvent).every((v) => v !== eventType)) {
-      image = Icons.Code;
+      icon = CodeIcon;
       bodyJSX = (
         <>
           {' sent '}
@@ -201,7 +210,7 @@ export const Reply = as<'div', ReplyProps>(
         <ReplyLayout
           as="button"
           userColor={usernameColor}
-          icon={image}
+          icon={icon}
           username={
             sender &&
             eventType !== StateEvent.RoomMember && (
@@ -237,7 +246,7 @@ export const Reply = as<'div', ReplyProps>(
           <Chip
             variant="Critical"
             radii="Pill"
-            before={<Icon size="50" src={Icons.Reload} />}
+            before={<PhosphorIcon size="50" as={ArrowClockwiseIcon} />}
             onClick={(evt) => {
               evt.stopPropagation();
               queryClient.invalidateQueries({ queryKey: [room.roomId, replyEventId] });

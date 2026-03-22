@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Badge, color, Icon, Icons, Text, toRem } from 'folds';
+import { Badge, color, Text, toRem } from 'folds';
+import { ShieldIcon } from '@phosphor-icons/react/dist/csr/Shield';
 import {
   SidebarAvatar,
   SidebarItem,
@@ -16,6 +17,7 @@ import {
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { Modal500 } from '$components/Modal500';
 import { Settings, SettingsPages } from '$features/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './UnverifiedTab.css';
 
 function UnverifiedIndicator() {
@@ -58,9 +60,9 @@ function UnverifiedIndicator() {
                 outlined
                 onClick={() => setSettings(true)}
               >
-                <Icon
+                <PhosphorIcon
+                  as={ShieldIcon}
                   style={{ color: unverified ? color.Critical.Main : color.Warning.Main }}
-                  src={Icons.ShieldUser}
                 />
               </SidebarAvatar>
             )}

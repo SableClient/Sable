@@ -1,4 +1,10 @@
-import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
+import { Box, Button, config, Scroll, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { ChatCircleIcon } from '@phosphor-icons/react/dist/csr/ChatCircle';
+import { ClockIcon } from '@phosphor-icons/react/dist/csr/Clock';
+import { HeartIcon } from '@phosphor-icons/react/dist/csr/Heart';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -34,6 +40,7 @@ import { RenderBody } from '$components/message';
 import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -153,7 +160,7 @@ function UserExtendedSection({
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.User} style={{ opacity: 0.5 }} />
+              <PhosphorIcon as={UserIcon} size="50" style={{ opacity: 0.5 }} />
               <Text size="T200" priority="400">
                 {pronouns}
               </Text>
@@ -161,7 +168,7 @@ function UserExtendedSection({
           )}
           {localTime && profile.timezone && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Clock} style={{ opacity: 0.5 }} />
+              <PhosphorIcon as={ClockIcon} size="50" style={{ opacity: 0.5 }} />
               <Text size="T200" priority="400">
                 {localTime} ({profile.timezone.replaceAll(/^["']|["']$/g, '')})
               </Text>
@@ -169,7 +176,7 @@ function UserExtendedSection({
           )}
           {catStatusText && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Heart} style={{ opacity: 0.5 }} />
+              <PhosphorIcon as={HeartIcon} size="50" style={{ opacity: 0.5 }} />
               <Text size="T200" priority="400">
                 {catStatusText}
               </Text>
@@ -213,7 +220,7 @@ function UserExtendedSection({
             size="300"
             fill="None"
             onClick={() => setShowMore(!showMore)}
-            after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
+            after={<PhosphorIcon size="50" as={showMore ? CaretUpIcon : CaretDownIcon} />}
             style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
           >
             <Text size="T200" priority="400">
@@ -363,7 +370,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 variant="Primary"
                 fill="Solid"
                 radii="300"
-                before={<Icon size="50" src={Icons.Message} filled />}
+                before={<PhosphorIcon as={ChatCircleIcon} size="50" weight="fill" />}
                 onClick={handleMessage}
                 style={{ marginLeft: 'auto' }}
               >

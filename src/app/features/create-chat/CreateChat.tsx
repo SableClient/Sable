@@ -1,4 +1,5 @@
-import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
+import { Box, Button, color, config, Input, Spinner, Switch, Text } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import { FormEventHandler, useCallback, useState } from 'react';
 import { ICreateRoomStateEvent, MatrixError, Preset, Visibility } from '$types/matrix-sdk';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +12,7 @@ import { millisecondsToMinutes } from '$utils/common';
 import { createRoomEncryptionState } from '$components/create-room';
 import { useAlive } from '$hooks/useAlive';
 import { getDirectRoomPath } from '$pages/pathUtils';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { ErrorCode } from '../../cs-errorcode';
 
 type CreateChatProps = {
@@ -90,7 +92,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
         />
         {invalidUserId && (
           <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="100">
-            <Icon src={Icons.Warning} filled size="50" />
+            <PhosphorIcon as={WarningIcon} size="50" weight="fill" />
             <Text size="T200" style={{ color: color.Critical.Main }}>
               <b>Please enter a valid User ID.</b>
             </Text>
@@ -121,7 +123,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
       </Box>
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          <Icon src={Icons.Warning} filled size="100" />
+          <PhosphorIcon as={WarningIcon} size="50" weight="fill" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED

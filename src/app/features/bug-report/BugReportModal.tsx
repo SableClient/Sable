@@ -6,9 +6,7 @@ import {
   Chip,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Modal,
   Overlay,
@@ -20,10 +18,13 @@ import {
   TextArea,
   Checkbox,
 } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import * as Sentry from '@sentry/react';
 import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
 import { stopPropagation } from '$utils/keyboard';
 import { getDebugLogger } from '$utils/debugLogger';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type ReportType = 'bug' | 'feature';
 
@@ -243,7 +244,7 @@ function BugReportModal() {
                   <Text size="H4">Report an Issue</Text>
                 </Box>
                 <IconButton size="300" radii="300" onClick={close}>
-                  <Icon src={Icons.Cross} />
+                  <PhosphorIcon as={XIcon} />
                 </IconButton>
               </Header>
               <Scroll size="300" hideTrack>
@@ -492,7 +493,7 @@ function BugReportModal() {
                       radii="400"
                       disabled={!canSubmit}
                       onClick={handleSubmit}
-                      after={<Icon src={Icons.ArrowRight} size="100" />}
+                      after={<PhosphorIcon as={ArrowRightIcon} size="100" />}
                     >
                       <Text size="B400">
                         {sentryEnabled && type === 'bug' ? 'Submit Report' : 'Open on GitHub'}

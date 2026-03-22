@@ -1,7 +1,9 @@
 import { MouseEventHandler, useState } from 'react';
-import { Box, config, Header, Icon, IconButton, Icons, Menu, PopOut, RectCords, Text } from 'folds';
+import { Box, config, Header, IconButton, Menu, PopOut, RectCords, Text } from 'folds';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function NotificationLevelsHint() {
   const [anchor, setAnchor] = useState<RectCords>();
@@ -63,7 +65,7 @@ export function NotificationLevelsHint() {
         radii="300"
         aria-pressed={!!anchor}
       >
-        <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+        <PhosphorIcon as={InfoIcon} size="100" style={{ opacity: config.opacity.P300 }} />
       </IconButton>
     </PopOut>
   );

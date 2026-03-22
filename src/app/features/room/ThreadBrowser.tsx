@@ -7,19 +7,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Scroll,
-  Text,
-  Avatar,
-  config,
-  Chip,
-} from 'folds';
+import { Box, Header, IconButton, Input, Scroll, Text, Avatar, config, Chip } from 'folds';
+import { ChatTeardropTextIcon } from '@phosphor-icons/react/dist/csr/ChatTeardropText';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixEvent, Room, Thread, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import { HTMLReactParserOptions } from 'html-react-parser';
@@ -53,6 +45,7 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
 
@@ -155,7 +148,7 @@ function ThreadPreview({ room, thread, onClick }: ThreadPreviewProps) {
                     : undefined
                 }
                 alt={displayName}
-                renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                renderFallback={() => <PhosphorIcon as={UserIcon} size="200" weight="fill" />}
               />
             </Avatar>
           </AvatarBase>
@@ -295,7 +288,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     >
       <Header className={css.ThreadDrawerHeader} variant="Background" size="400">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          <PhosphorIcon as={ChatTeardropTextIcon} size="200" />
           <Text size="H4" truncate>
             Threads
           </Text>
@@ -311,7 +304,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             radii="300"
             aria-label="Close threads"
           >
-            <Icon size="200" src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} size="200" />
           </IconButton>
         </Box>
       </Header>
@@ -330,7 +323,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           variant="Surface"
           size="400"
           radii="400"
-          before={<Icon size="50" src={Icons.Search} />}
+          before={<PhosphorIcon as={MagnifyingGlassIcon} size="50" />}
           after={
             query ? (
               <IconButton
@@ -343,7 +336,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 }}
                 aria-label="Clear search"
               >
-                <Icon size="50" src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} size="50" />
               </IconButton>
             ) : undefined
           }
@@ -365,7 +358,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
               justifyContent="Center"
               style={{ padding: config.space.S400, gap: config.space.S200 }}
             >
-              <Icon size="400" src={Icons.Thread} />
+              <PhosphorIcon as={ChatTeardropTextIcon} size="400" />
               <Text size="T300" align="Center">
                 {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
               </Text>

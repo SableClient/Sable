@@ -12,9 +12,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
@@ -27,6 +25,13 @@ import {
   config,
   toRem,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { HardDriveIcon } from '@phosphor-icons/react/dist/csr/HardDrive';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
@@ -44,6 +49,7 @@ import { getMxIdServer } from '$utils/matrix';
 import { stopPropagation } from '$utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 const useServerSearchParams = (searchParams: URLSearchParams): ExploreServerPathSearchParams =>
@@ -118,7 +124,7 @@ function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly
           active && loading ? (
             <Spinner variant="Secondary" size="200" />
           ) : (
-            <Icon size="200" src={Icons.Search} />
+            <PhosphorIcon as={MagnifyingGlassIcon} size="200" />
           )
         }
         after={
@@ -129,7 +135,7 @@ function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly
               size="400"
               radii="Pill"
               outlined
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={<PhosphorIcon as={XIcon} size="50" />}
               onClick={onReset}
             >
               <Text size="B300">Clear</Text>
@@ -237,7 +243,7 @@ function ThirdPartyProtocolsSelector({
         radii="Pill"
         size="400"
         variant={instanceId ? 'Success' : 'SurfaceVariant'}
-        after={<Icon size="100" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="100" />}
       >
         <Text size="T200" truncate>
           {selectedInstance?.desc ?? DEFAULT_INSTANCE_NAME}
@@ -332,7 +338,7 @@ function LimitButton({ limit, onLimitChange }: Readonly<LimitButtonProps>) {
         radii="Pill"
         size="400"
         variant="SurfaceVariant"
-        after={<Icon size="100" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="100" />}
       >
         <Text size="T200" truncate>{`Page Limit: ${limit}`}</Text>
       </Chip>
@@ -478,7 +484,7 @@ export function PublicRooms() {
                 size="500"
                 variant="Surface"
                 radii="Pill"
-                before={<Icon size="100" src={Icons.ArrowLeft} />}
+                before={<PhosphorIcon as={ArrowLeftIcon} size="100" />}
                 onClick={handleSearchClear}
               >
                 <Text size="T300">{server}</Text>
@@ -486,7 +492,9 @@ export function PublicRooms() {
             </Box>
 
             <Box grow="No" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
+              {screenSize !== ScreenSize.Mobile && (
+                <PhosphorIcon as={MagnifyingGlassIcon} size="400" />
+              )}
               <Text size="H3" truncate>
                 Search
               </Text>
@@ -500,14 +508,14 @@ export function PublicRooms() {
                 <BackRouteHandler>
                   {(onBack) => (
                     <IconButton onClick={onBack}>
-                      <Icon src={Icons.ArrowLeft} />
+                      <PhosphorIcon as={ArrowLeftIcon} />
                     </IconButton>
                   )}
                 </BackRouteHandler>
               )}
             </Box>
             <Box grow="Yes" justifyContent="Center" alignItems="Center" gap="200">
-              {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Server} />}
+              {screenSize !== ScreenSize.Mobile && <PhosphorIcon as={HardDriveIcon} size="400" />}
               <Text size="H3" truncate>
                 {server}
               </Text>
@@ -546,7 +554,7 @@ export function PublicRooms() {
                           aria-pressed={filter.value === serverSearchParams.type}
                           before={
                             filter.value === serverSearchParams.type && (
-                              <Icon size="100" src={Icons.Check} />
+                              <PhosphorIcon as={CheckIcon} size="100" />
                             )
                           }
                           outlined
@@ -649,7 +657,7 @@ export function PublicRooms() {
                         alignItems="Center"
                         gap="200"
                       >
-                        <Icon size="400" src={Icons.Info} />
+                        <PhosphorIcon as={InfoIcon} size="400" />
                         <Text size="T300" align="Center">
                           No communities found!
                         </Text>

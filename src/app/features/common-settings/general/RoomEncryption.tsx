@@ -6,15 +6,14 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useCallback, useState } from 'react';
 import { MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -28,6 +27,7 @@ import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -124,7 +124,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
                       <Text size="H4">Enable Encryption</Text>
                     </Box>
                     <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                      <Icon src={Icons.Cross} />
+                      <PhosphorIcon as={XIcon} />
                     </IconButton>
                   </Header>
                   <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

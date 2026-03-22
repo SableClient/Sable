@@ -1,12 +1,18 @@
 import { ReactNode } from 'react';
-import { IconSrc, Icons } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { AtIcon } from '@phosphor-icons/react/dist/csr/At';
+import { SignOutIcon } from '@phosphor-icons/react/dist/csr/SignOut';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
 import { MatrixEvent } from '$types/matrix-sdk';
 import { IMemberContent, Membership } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
 
 export type ParsedResult = {
-  icon: IconSrc;
+  icon: React.ComponentType<IconProps>;
   body: ReactNode;
 };
 
@@ -22,7 +28,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
     if (!senderId || !userId)
       return {
-        icon: Icons.User,
+        icon: UserIcon,
         body: 'Broken membership event',
       };
 
@@ -36,7 +42,7 @@ export const useMemberEventParser = (): MemberEventParser => {
       if (content.membership === Membership.Invite) {
         if (prevContent.membership === Membership.Knock) {
           return {
-            icon: Icons.ArrowGoRightPlus,
+            icon: UserPlusIcon,
             body: (
               <>
                 <b>{senderName}</b>
@@ -50,7 +56,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         }
 
         return {
-          icon: Icons.ArrowGoRightPlus,
+          icon: UserPlusIcon,
           body: (
             <>
               <b>{senderName}</b>
@@ -63,7 +69,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === Membership.Knock) {
         return {
-          icon: Icons.ArrowGoRightPlus,
+          icon: UserPlusIcon,
           body: (
             <>
               <b>{userName}</b>
@@ -76,7 +82,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === Membership.Join) {
         return {
-          icon: Icons.ArrowGoRight,
+          icon: ArrowRightIcon,
           body: (
             <>
               <b>{userName}</b>
@@ -89,7 +95,7 @@ export const useMemberEventParser = (): MemberEventParser => {
       if (content.membership === Membership.Leave) {
         if (prevContent.membership === Membership.Invite) {
           return {
-            icon: Icons.ArrowGoRightCross,
+            icon: SignOutIcon,
             body:
               senderId === userId ? (
                 <>
@@ -111,7 +117,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
         if (prevContent.membership === Membership.Knock) {
           return {
-            icon: Icons.ArrowGoRightCross,
+            icon: SignOutIcon,
             body:
               senderId === userId ? (
                 <>
@@ -133,7 +139,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
         if (prevContent.membership === Membership.Ban) {
           return {
-            icon: Icons.ArrowGoLeft,
+            icon: ArrowLeftIcon,
             body: (
               <>
                 <b>{senderName}</b>
@@ -145,7 +151,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         }
 
         return {
-          icon: Icons.ArrowGoLeft,
+          icon: ArrowLeftIcon,
           body:
             senderId === userId ? (
               <>
@@ -165,7 +171,7 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === Membership.Ban) {
         return {
-          icon: Icons.ArrowGoLeft,
+          icon: ArrowLeftIcon,
           body: (
             <>
               <b>{senderName}</b>
@@ -184,7 +190,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           : getMxIdLocalPart(userId);
 
       return {
-        icon: Icons.Mention,
+        icon: AtIcon,
         body:
           typeof content.displayname === 'string' ? (
             <>
@@ -202,7 +208,7 @@ export const useMemberEventParser = (): MemberEventParser => {
     }
     if (content.avatar_url !== prevContent.avatar_url) {
       return {
-        icon: Icons.User,
+        icon: UserIcon,
         body:
           content.avatar_url && typeof content.avatar_url === 'string' ? (
             <>
@@ -219,7 +225,7 @@ export const useMemberEventParser = (): MemberEventParser => {
     }
 
     return {
-      icon: Icons.User,
+      icon: UserIcon,
       body: 'Membership event with no changes',
     };
   };

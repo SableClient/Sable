@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, ComponentType } from 'react';
 import {
   Avatar,
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -15,6 +12,20 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import type { IconProps } from '@phosphor-icons/react';
+import { BellIcon } from '@phosphor-icons/react/dist/csr/Bell';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
+import { FunnelIcon } from '@phosphor-icons/react/dist/csr/Funnel';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { MonitorIcon } from '@phosphor-icons/react/dist/csr/Monitor';
+import { PowerIcon } from '@phosphor-icons/react/dist/csr/Power';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TerminalIcon } from '@phosphor-icons/react/dist/csr/Terminal';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { TextBIcon } from '@phosphor-icons/react/dist/csr/TextB';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useUserProfile } from '$hooks/useUserProfile';
@@ -28,6 +39,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Notifications } from './notifications';
 import { Devices } from './devices';
 import { EmojisStickers } from './emojis-stickers';
@@ -57,8 +69,8 @@ export enum SettingsPages {
 type SettingsMenuItem = {
   page: SettingsPages;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: ComponentType<IconProps>;
+  activeIcon?: ComponentType<IconProps>;
 };
 
 const useSettingsMenuItems = (showPersona: boolean): SettingsMenuItem[] =>
@@ -67,53 +79,53 @@ const useSettingsMenuItems = (showPersona: boolean): SettingsMenuItem[] =>
       {
         page: SettingsPages.GeneralPage,
         name: 'General',
-        icon: Icons.Setting,
+        icon: GearIcon,
       },
       {
         page: SettingsPages.AccountPage,
         name: 'Account',
-        icon: Icons.User,
+        icon: UserIcon,
       },
       {
         page: SettingsPages.CosmeticsPage,
         name: 'Appearance',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
+        icon: TextAaIcon,
+        activeIcon: TextBIcon,
       },
       {
         page: SettingsPages.NotificationPage,
         name: 'Notifications',
-        icon: Icons.Bell,
+        icon: BellIcon,
       },
       {
         page: SettingsPages.DevicesPage,
         name: 'Devices',
-        icon: Icons.Monitor,
+        icon: MonitorIcon,
       },
       {
         page: SettingsPages.EmojisStickersPage,
         name: 'Emojis & Stickers',
-        icon: Icons.Smile,
+        icon: SmileyIcon,
       },
       {
         page: SettingsPages.DeveloperToolsPage,
         name: 'Developer Tools',
-        icon: Icons.Terminal,
+        icon: TerminalIcon,
       },
       {
         page: SettingsPages.ExperimentalPage,
         name: 'Experimental',
-        icon: Icons.Funnel,
+        icon: FunnelIcon,
       },
       {
         page: SettingsPages.AboutPage,
         name: 'About',
-        icon: Icons.Info,
+        icon: InfoIcon,
       },
       {
         page: SettingsPages.KeyboardShortcutsPage,
         name: 'Keyboard Shortcuts',
-        icon: Icons.BlockCode,
+        icon: CodeIcon,
       },
     ];
 
@@ -121,7 +133,7 @@ const useSettingsMenuItems = (showPersona: boolean): SettingsMenuItem[] =>
       items.splice(2, 0, {
         page: SettingsPages.PerMessageProfilesPage,
         name: 'Persona',
-        icon: Icons.User,
+        icon: UserIcon,
       });
     }
 
@@ -184,7 +196,7 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
               <Box shrink="No">
                 {screenSize === ScreenSize.Mobile && (
                   <IconButton onClick={requestClose} variant="Background">
-                    <Icon src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} />
                   </IconButton>
                 )}
               </Box>
@@ -203,7 +215,11 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
                         radii="400"
                         aria-pressed={activePage === item.page}
                         before={
-                          <Icon src={currentIcon} size="100" filled={activePage === item.page} />
+                          <PhosphorIcon
+                            as={currentIcon}
+                            size="100"
+                            weight={activePage === item.page ? 'fill' : 'regular'}
+                          />
                         }
                         onClick={() => setActivePage(item.page)}
                       >
@@ -231,7 +247,7 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
                         variant="Critical"
                         fill="None"
                         radii="Pill"
-                        before={<Icon src={Icons.Power} size="100" />}
+                        before={<PhosphorIcon as={PowerIcon} size="100" />}
                         onClick={() => setLogout(true)}
                       >
                         <Text size="B400">Logout</Text>

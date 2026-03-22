@@ -11,7 +11,11 @@ import {
 import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import { Opts as LinkifyOpts } from 'linkifyjs';
-import { Box, Chip, Avatar, Text, Icons, config, toRem } from 'folds';
+import { Box, Chip, Avatar, Text, config, toRem } from 'folds';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
+import { PhoneSlashIcon } from '@phosphor-icons/react/dist/csr/PhoneSlash';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -745,7 +749,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={parsed.icon}
+              icon={parsed.icon}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -791,7 +795,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={HashIcon}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -838,7 +842,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={HashIcon}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -885,7 +889,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={Icons.Hash}
+              icon={HashIcon}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -939,7 +943,7 @@ export function useTimelineEventRenderer({
             <EventContent
               messageLayout={messageLayout}
               time={timeJSX}
-              iconSrc={callJoined ? Icons.Phone : Icons.PhoneDown}
+              icon={callJoined ? PhoneIcon : PhoneSlashIcon}
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
@@ -988,7 +992,7 @@ export function useTimelineEventRenderer({
           <EventContent
             messageLayout={messageLayout}
             time={timeJSX}
-            iconSrc={Icons.Code}
+            icon={CodeIcon}
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">
@@ -1049,7 +1053,7 @@ export function useTimelineEventRenderer({
           <EventContent
             messageLayout={messageLayout}
             time={timeJSX}
-            iconSrc={Icons.Code}
+            icon={CodeIcon}
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">

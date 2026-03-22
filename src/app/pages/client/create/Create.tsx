@@ -1,7 +1,9 @@
-import { Box, Icon, Icons, Scroll } from 'folds';
+import { Box, Scroll } from 'folds';
+import { FoldersIcon } from '@phosphor-icons/react/dist/csr/Folders';
 import { Page, PageContent, PageContentCenter, PageHero, PageHeroSection } from '$components/page';
 import { CreateSpaceForm } from '$features/create-space';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function Create() {
   const { navigateSpace } = useRoomNavigate();
@@ -15,7 +17,7 @@ export function Create() {
               <PageHeroSection>
                 <Box direction="Column" gap="700">
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Space} />}
+                    icon={<PhosphorIcon as={FoldersIcon} size="600" weight="fill" />}
                     title="Create Space"
                     subTitle="Build a space for your community."
                   />

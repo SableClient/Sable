@@ -4,8 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Modal,
@@ -19,6 +17,10 @@ import {
   as,
   config,
 } from 'folds';
+import { EyeSlashIcon } from '@phosphor-icons/react/dist/csr/EyeSlash';
+import { EyeIcon } from '@phosphor-icons/react/dist/csr/Eye';
+import { ImageSquareIcon } from '@phosphor-icons/react/dist/csr/ImageSquare';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
@@ -33,6 +35,7 @@ import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 type RenderViewerProps = {
@@ -185,7 +188,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               radii="300"
               size="300"
               onClick={loadSrc}
-              before={<Icon size="Inherit" src={Icons.Photo} filled />}
+              before={<PhosphorIcon size="Inherit" as={ImageSquareIcon} weight="fill" />}
             >
               <Text size="B300">View</Text>
             </Button>
@@ -276,7 +279,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                   outlined
                   radii="300"
                   onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
+                  before={<PhosphorIcon size="Inherit" as={WarningIcon} weight="fill" />}
                 >
                   <Text size="B300">Retry</Text>
                 </Button>
@@ -289,7 +292,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
+                after={<PhosphorIcon size="200" as={blurred ? EyeIcon : EyeSlashIcon} />}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"

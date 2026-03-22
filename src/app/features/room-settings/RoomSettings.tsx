@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { Avatar, Box, config, Icon, IconButton, Icons, IconSrc, MenuItem, Text } from 'folds';
+import { Avatar, Box, config, IconButton, MenuItem, Text } from 'folds';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TerminalIcon } from '@phosphor-icons/react/dist/csr/Terminal';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import type { IconProps } from '@phosphor-icons/react';
 import { JoinRule } from '$types/matrix-sdk';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -17,14 +25,15 @@ import { Members } from '$features/common-settings/members';
 import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Permissions } from './permissions';
 import { General } from './general';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
   name: string;
-  icon: IconSrc;
-  activeIcon?: IconSrc;
+  icon: React.ComponentType<IconProps>;
+  activeIcon?: React.ComponentType<IconProps>;
 };
 
 const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
@@ -33,33 +42,32 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
       {
         page: RoomSettingsPage.GeneralPage,
         name: 'General',
-        icon: Icons.Setting,
+        icon: GearIcon,
       },
       {
         page: RoomSettingsPage.MembersPage,
         name: 'Members',
-        icon: Icons.User,
+        icon: UserIcon,
       },
       {
         page: RoomSettingsPage.PermissionsPage,
         name: 'Permissions',
-        icon: Icons.Lock,
+        icon: LockIcon,
       },
       {
         page: RoomSettingsPage.CosmeticsPage,
         name: 'Cosmetics',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
+        icon: TextAaIcon,
       },
       {
         page: RoomSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
-        icon: Icons.Smile,
+        icon: SmileyIcon,
       },
       {
         page: RoomSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
-        icon: Icons.Terminal,
+        icon: TerminalIcon,
       },
     ],
     []
@@ -123,7 +131,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                           size="50"
                           roomType={room.getType()}
                           joinRule={joinRuleContent?.join_rule ?? JoinRule.Invite}
-                          filled
+                          weight="fill"
                         />
                       )}
                     />
@@ -135,7 +143,7 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                 <Box shrink="No">
                   {screenSize === ScreenSize.Mobile && (
                     <IconButton onClick={requestClose} variant="Background">
-                      <Icon src={Icons.Cross} />
+                      <PhosphorIcon as={XIcon} weight="fill" />
                     </IconButton>
                   )}
                 </Box>
@@ -154,7 +162,11 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
                           radii="400"
                           aria-pressed={activePage === item.page}
                           before={
-                            <Icon src={currentIcon} size="100" filled={activePage === item.page} />
+                            <PhosphorIcon
+                              as={currentIcon}
+                              size="50"
+                              weight={activePage === item.page ? 'fill' : 'regular'}
+                            />
                           }
                           onClick={() => setActivePage(item.page)}
                         >

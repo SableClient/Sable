@@ -6,13 +6,12 @@ import {
   AvatarImage,
   AvatarFallback,
   Button,
-  Icon,
-  Icons,
   Input,
   TextArea,
   Chip,
 } from 'folds';
 import Linkify from 'linkify-react';
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/csr/PencilSimple';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { nameInitials } from '$utils/common';
@@ -25,6 +24,7 @@ import { createUploadAtom, UploadSuccess } from '$state/upload';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type ImagePackAvatarProps = {
   url?: string;
@@ -75,7 +75,7 @@ export function ImagePackProfile({ meta, canEdit, onEdit }: ImagePackProfileProp
               variant="Secondary"
               fill="Soft"
               radii="300"
-              before={<Icon size="50" src={Icons.Pencil} />}
+              before={<PhosphorIcon size="50" as={PencilSimpleIcon} />}
               onClick={onEdit}
               outlined
             >

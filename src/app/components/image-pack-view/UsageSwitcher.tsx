@@ -1,8 +1,10 @@
 import { MouseEventHandler, useMemo, useState } from 'react';
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
+import { Box, Button, config, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import FocusTrap from 'focus-trap-react';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export const useUsageStr = (): ((usage: ImageUsage[]) => string) => {
   const getUsageStr = (usage: ImageUsage[]): string => {
@@ -76,7 +78,7 @@ export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) 
         type="button"
         outlined
         aria-disabled={!canEdit}
-        after={canEdit && <Icon src={Icons.ChevronBottom} size="100" />}
+        after={canEdit && <PhosphorIcon as={CaretDownIcon} size="100" />}
         onClick={canEdit ? handleSelectUsage : undefined}
       >
         <Text size="B300">{getUsageStr(usage)}</Text>

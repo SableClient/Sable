@@ -2,9 +2,7 @@ import { MouseEventHandler, forwardRef, useState } from 'react';
 import {
   Avatar,
   Box,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -16,6 +14,12 @@ import {
   config,
   toRem,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { SignOutIcon } from '@phosphor-icons/react/dist/csr/SignOut';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
 import FocusTrap from 'focus-trap-react';
 import { PageHeader } from '$components/page';
 import { useSetSetting } from '$state/hooks/settings';
@@ -37,6 +41,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './LobbyHeader.css';
 
 type LobbyMenuProps = {
@@ -81,7 +86,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={<PhosphorIcon as={UserPlusIcon} size="100" />}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -93,7 +98,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
           <MenuItem
             onClick={handleRoomSettings}
             size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
+            after={<PhosphorIcon as={GearIcon} size="100" />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -111,7 +116,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
                   variant="Critical"
                   fill="None"
                   size="300"
-                  after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                  after={<PhosphorIcon as={SignOutIcon} size="100" />}
                   radii="300"
                   aria-pressed={promptLeave}
                 >
@@ -166,7 +171,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton fill="None" onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    <PhosphorIcon as={ArrowLeftIcon} />
                   </IconButton>
                 )}
               </BackRouteHandler>
@@ -223,7 +228,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                   ref={triggerRef}
                   onClick={() => setPeopleDrawer((drawer) => !drawer)}
                 >
-                  <Icon size="400" src={Icons.User} />
+                  <PhosphorIcon as={UserIcon} size="400" />
                 </IconButton>
               )}
             </TooltipProvider>
@@ -245,7 +250,11 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
+                <PhosphorIcon
+                  as={DotsThreeVerticalIcon}
+                  size="400"
+                  weight={menuAnchor ? 'fill' : 'regular'}
+                />
               </IconButton>
             )}
           </TooltipProvider>

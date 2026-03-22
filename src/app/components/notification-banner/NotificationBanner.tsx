@@ -1,8 +1,10 @@
 import { useAtom } from 'jotai';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { createLogger } from '$utils/debug';
 import { inAppBannerAtom, InAppBannerNotification } from '$state/sessions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './NotificationBanner.css';
 
 const log = createLogger('NotificationBanner');
@@ -155,7 +157,7 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
           }}
           aria-label="Dismiss notification"
         >
-          <Icon size="100" src={Icons.Cross} />
+          <PhosphorIcon size="100" as={XIcon} weight="fill" />
         </IconButton>
       </Box>
       <div

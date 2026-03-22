@@ -1,4 +1,5 @@
-import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
+import { Box, IconButton, Text, as } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useSetAtom, useAtomValue } from 'jotai';
@@ -9,6 +10,7 @@ import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { nicknamesAtom } from '$state/nicknames';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './RoomViewTyping.css';
 
 export type RoomViewTypingProps = {
@@ -115,7 +117,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
             )}
           </Text>
           <IconButton title="Drop Typing Status" size="300" radii="Pill" onClick={handleDropAll}>
-            <Icon size="50" src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} size="50" />
           </IconButton>
         </Box>
       </div>

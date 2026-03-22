@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, ChangeEvent } from 'react';
-import { Box, IconButton, Button, Icon, Icons, Input, Text } from 'folds';
+import { Box, IconButton, Button, Input, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 interface IntlWithSupportedValues {
   supportedValuesOf(key: 'timeZone' | string): string[];
@@ -87,7 +89,7 @@ export function TimezoneEditor({ current, onSave }: TimezoneEditorProps) {
             radii="300"
             title="Reset"
           >
-            <Icon src={Icons.Cross} size="100" />
+            <PhosphorIcon as={XIcon} size="100" />
           </IconButton>
         </Box>
       }

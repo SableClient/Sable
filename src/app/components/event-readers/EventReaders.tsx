@@ -1,17 +1,7 @@
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, MenuItem, Scroll, Text, as, config } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
@@ -24,6 +14,7 @@ import { getMouseEventCords } from '$utils/dom';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './EventReaders.css';
 
 export type EventReadersProps = {
@@ -55,7 +46,7 @@ export const EventReaders = as<'div', EventReadersProps>(
             <Text size="H3">Seen by</Text>
           </Box>
           <IconButton size="300" onClick={requestClose}>
-            <Icon src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} />
           </IconButton>
         </Header>
         <Box grow="Yes">
@@ -96,7 +87,9 @@ export const EventReaders = as<'div', EventReadersProps>(
                           userId={readerId}
                           src={avatarUrl ?? undefined}
                           alt={name}
-                          renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                          renderFallback={() => (
+                            <PhosphorIcon size="50" as={UserIcon} weight="fill" />
+                          )}
                         />
                       </Avatar>
                     }

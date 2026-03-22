@@ -1,17 +1,8 @@
 import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, PopOut, RectCords, Spinner, Text, config } from 'folds';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { TextAUnderlineIcon } from '@phosphor-icons/react/dist/csr/TextAUnderline';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -37,6 +28,7 @@ import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { mobileOrTablet } from '$utils/user-agent';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './UploadDescriptionEditor.css';
 
 type DescriptionEditorProps = {
@@ -218,7 +210,7 @@ export function DescriptionEditor({
                     radii="300"
                     onClick={() => setToolbar(!toolbar)}
                   >
-                    <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                    <PhosphorIcon size="400" as={toolbar ? TextAUnderlineIcon : TextAaIcon} />
                   </IconButton>
                   <UseStateProvider initial={undefined}>
                     {(anchor: RectCords | undefined, setAnchor) => (
@@ -252,7 +244,11 @@ export function DescriptionEditor({
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          <PhosphorIcon
+                            size="400"
+                            as={SmileyIcon}
+                            weight={anchor !== undefined ? 'fill' : 'regular'}
+                          />
                         </IconButton>
                       </PopOut>
                     )}

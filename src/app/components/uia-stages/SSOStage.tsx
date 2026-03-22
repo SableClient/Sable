@@ -1,5 +1,8 @@
-import { Box, Button, color, config, Dialog, Header, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useCallback, useEffect, useState } from 'react';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { StageComponentProps } from './types';
 
 export function SSOStage({
@@ -57,7 +60,7 @@ export function SSOStage({
           <Text size="H4">SSO Login</Text>
         </Box>
         <IconButton size="300" onClick={onCancel} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
       <Box
@@ -70,7 +73,7 @@ export function SSOStage({
         </Text>
         {errorCode && (
           <Box alignItems="Center" gap="100" style={{ color: color.Critical.Main }}>
-            <Icon size="50" src={Icons.Warning} filled />
+            <PhosphorIcon size="50" as={WarningIcon} weight="fill" />
             <Text size="T200">
               <b>{`${errorCode}: ${error}`}</b>
             </Text>

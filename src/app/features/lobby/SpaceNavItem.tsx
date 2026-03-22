@@ -1,5 +1,6 @@
 import { ReactNode, useRef } from 'react';
-import { Avatar, Badge, Box, Chip, Icon, Icons, as, Text } from 'folds';
+import { Avatar, Badge, Box, Chip, as, Text } from 'folds';
+import { SquaresFourIcon } from '@phosphor-icons/react/dist/csr/SquaresFour';
 import classNames from 'classnames';
 import { IHierarchyRoom, MatrixClient, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -12,6 +13,7 @@ import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { InaccessibleSpaceProfile, UnjoinedSpaceProfile } from './SpaceItem';
 import * as css from './SpaceNavItem.css';
 import { useDraggableItem } from './DnD';
@@ -54,7 +56,7 @@ function SpaceNavProfile({
           />
         </Avatar>
       }
-      after={<Icon src={Icons.Space} size="50" />}
+      after={<PhosphorIcon as={SquaresFourIcon} size="50" />}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>

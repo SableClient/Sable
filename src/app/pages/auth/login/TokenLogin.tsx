@@ -1,20 +1,11 @@
-import {
-  Box,
-  Icon,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { Box, Overlay, OverlayBackdrop, OverlayCenter, Spinner, Text, color, config } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import { useCallback, useEffect } from 'react';
 import { MatrixError } from '$types/matrix-sdk';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { deviceDisplayName } from '$utils/user-agent';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { CustomLoginResponse, LoginError, login, useLoginComplete } from './loginUtil';
 
 function LoginTokenError({ message }: { message: string }) {
@@ -30,7 +21,7 @@ function LoginTokenError({ message }: { message: string }) {
       alignItems="Start"
       gap="300"
     >
-      <Icon size="300" filled src={Icons.Warning} />
+      <PhosphorIcon as={WarningIcon} size="300" weight="fill" />
       <Box direction="Column" gap="100">
         <Text size="L400">Token Login</Text>
         <Text size="T300">

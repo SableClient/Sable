@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Avatar, Box, Button, Icon, Icons, Spinner, Text, as } from 'folds';
+import { Avatar, Box, Button, Spinner, Text, as } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { Room } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import { IRoomCreateContent, Membership, StateEvent } from '$types/matrix/room';
@@ -20,6 +21,7 @@ import { RoomAvatar } from '$components/room-avatar';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { InfoCard } from '$components/info-card';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export type RoomIntroProps = {
   room: Room;
@@ -115,7 +117,7 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
           {isDirectConversation && (
             <InfoCard
               variant="Primary"
-              before={<Icon size="100" src={Icons.User} />}
+              before={<PhosphorIcon size="100" as={UserIcon} />}
               beforeAlign="Center"
               description="This is a direct message"
               after={

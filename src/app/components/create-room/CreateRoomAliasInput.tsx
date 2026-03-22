@@ -7,13 +7,16 @@ import {
   useState,
 } from 'react';
 import { MatrixError } from '$types/matrix-sdk';
-import { Box, color, Icon, Icons, Input, Spinner, Text, toRem } from 'folds';
+import { Box, color, Input, Spinner, Text, toRem } from 'folds';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import { isKeyHotkey } from 'is-hotkey';
 import { getMxIdServer } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { replaceSpaceWithDash } from '$utils/common';
 import { AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useDebounce } from '$hooks/useDebounce';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
   const mx = useMatrixClient();
@@ -89,7 +92,7 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
           aliasAvail.status === AsyncStatus.Loading ? (
             <Spinner size="100" variant="Secondary" />
           ) : (
-            <Icon size="100" src={Icons.Hash} />
+            <PhosphorIcon size="100" as={HashIcon} />
           )
         }
         after={
@@ -107,7 +110,7 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
       />
       {aliasAvailable === false && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="100">
-          <Icon src={Icons.Warning} filled size="50" />
+          <PhosphorIcon as={WarningIcon} weight="fill" size="50" />
           <Text size="T200">
             <b>This address is already taken. Please select a different one.</b>
           </Text>

@@ -1,5 +1,10 @@
 import { FormEventHandler, useCallback, useEffect, useState } from 'react';
-import { Box, Button, color, Icon, Icons, Spinner, Text, toRem } from 'folds';
+import { Box, Button, color, Spinner, Text, toRem } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { FileTextIcon } from '@phosphor-icons/react/dist/csr/FileText';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FileSaver from 'file-saver';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -15,6 +20,7 @@ import {
 import { useAlive } from '$hooks/useAlive';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type LocalBackupError = Error | FriendlyError;
 
@@ -154,7 +160,11 @@ function ExportKeysTile() {
               outlined
               radii="300"
               before={
-                <Icon size="100" src={expand ? Icons.ChevronTop : Icons.ChevronBottom} filled />
+                expand ? (
+                  <PhosphorIcon as={CaretUpIcon} size="50" weight="fill" />
+                ) : (
+                  <PhosphorIcon as={CaretDownIcon} size="50" weight="fill" />
+                )
               }
             >
               <Text as="span" size="B300" truncate>
@@ -283,8 +293,8 @@ function ImportKeysTile() {
                 variant="Warning"
                 fill="Solid"
                 radii="300"
-                before={<Icon size="100" src={Icons.File} filled />}
-                after={<Icon size="100" src={Icons.Cross} />}
+                before={<PhosphorIcon as={FileTextIcon} size="100" weight="fill" />}
+                after={<PhosphorIcon as={XIcon} size="100" />}
               >
                 <Text as="span" size="B300" truncate>
                   {file.name}
@@ -299,7 +309,7 @@ function ImportKeysTile() {
                 fill="Soft"
                 outlined
                 radii="300"
-                before={<Icon size="100" src={Icons.ArrowRight} />}
+                before={<PhosphorIcon as={ArrowRightIcon} size="100" />}
               >
                 <Text as="span" size="B300">
                   Import

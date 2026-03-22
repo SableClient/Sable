@@ -1,4 +1,7 @@
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { LightbulbIcon } from '@phosphor-icons/react/dist/csr/Lightbulb';
 import { useAtomValue } from 'jotai';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { RoomCard, RoomCardGrid } from '$components/room-card';
@@ -16,6 +19,7 @@ import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 export function FeaturedRooms() {
@@ -33,7 +37,7 @@ export function FeaturedRooms() {
             <BackRouteHandler>
               {(onBack) => (
                 <IconButton onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  <PhosphorIcon as={ArrowLeftIcon} />
                 </IconButton>
               )}
             </BackRouteHandler>
@@ -47,7 +51,7 @@ export function FeaturedRooms() {
               <Box direction="Column" gap="200">
                 <PageHeroSection>
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Bulb} />}
+                    icon={<PhosphorIcon as={LightbulbIcon} size="600" />}
                     title="Featured by Client"
                     subTitle="Find and explore public rooms and spaces featured by client provider."
                   />
@@ -120,7 +124,7 @@ export function FeaturedRooms() {
                       alignItems="Center"
                       gap="200"
                     >
-                      <Icon size="400" src={Icons.Info} />
+                      <PhosphorIcon as={InfoIcon} size="400" />
                       <Text size="T300" align="Center">
                         No rooms or spaces featured by client provider.
                       </Text>

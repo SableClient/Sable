@@ -17,7 +17,10 @@ import {
 } from 'html-react-parser';
 import { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, Chip, config, Header, IconButton, Scroll, Text, toRem } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
 import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -37,6 +40,7 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import {
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
@@ -280,7 +284,7 @@ export function CodeBlock({
             fill="None"
             radii="Pill"
             onClick={handleCopy}
-            before={copied && <Icon size="50" src={Icons.Check} />}
+            before={copied && <PhosphorIcon as={CheckIcon} size="50" />}
           >
             <Text size="B300">{copied ? 'Copied' : 'Copy'}</Text>
           </Chip>
@@ -293,7 +297,7 @@ export function CodeBlock({
               onClick={toggleExpand}
               aria-label={expanded ? 'Collapse' : 'Expand'}
             >
-              <Icon size="50" src={expanded ? Icons.ChevronTop : Icons.ChevronBottom} />
+              <PhosphorIcon size="50" as={expanded ? CaretUpIcon : CaretDownIcon} />
             </IconButton>
           )}
         </Box>

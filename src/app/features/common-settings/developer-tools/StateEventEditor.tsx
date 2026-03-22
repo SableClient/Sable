@@ -2,8 +2,6 @@ import { FormEventHandler, useCallback, useEffect, useMemo, useRef, useState } f
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Chip,
   Scroll,
@@ -13,6 +11,8 @@ import {
   Spinner,
   Button,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixError } from '$types/matrix-sdk';
 import { Page, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -31,6 +31,7 @@ import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -269,14 +270,14 @@ export function StateEventEditor({ type, stateKey, requestClose }: StateEventEdi
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={<PhosphorIcon as={ArrowLeftIcon} size="100" />}
             >
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

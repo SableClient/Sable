@@ -1,7 +1,9 @@
-import { Box, Button, Dialog, Icon, Icons, Text, color, config } from 'folds';
+import { Box, Button, Dialog, Text, color, config } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
 import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type ErrorPageProps = {
   error: Error;
@@ -48,10 +50,10 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
             <Box direction="Column" gap="100">
               <Box alignItems="Center" gap="200">
-                <Icon
+                <PhosphorIcon
                   size="300"
-                  src={Icons.Warning}
-                  filled
+                  as={WarningIcon}
+                  weight="fill"
                   style={{ color: color.Critical.Main }}
                 />
                 <Text size="H2">Oops! Something went wrong</Text>

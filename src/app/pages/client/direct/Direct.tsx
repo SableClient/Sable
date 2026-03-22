@@ -4,9 +4,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -15,6 +13,10 @@ import {
   config,
   toRem,
 } from 'folds';
+import { AtIcon } from '@phosphor-icons/react/dist/csr/At';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
@@ -51,6 +53,7 @@ import {
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { useDirectRooms } from './useDirectRooms';
 
 type DirectMenuProps = {
@@ -74,7 +77,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="100" />}
           radii="300"
           aria-disabled={!unread}
         >
@@ -109,7 +112,7 @@ function DirectHeader() {
           </Box>
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
+              <PhosphorIcon as={DotsThreeVerticalIcon} size="200" />
             </IconButton>
           </Box>
         </Box>
@@ -145,7 +148,7 @@ function DirectEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Mention} />}
+        icon={<PhosphorIcon as={AtIcon} size="600" />}
         title={
           <Text size="H5" align="Center">
             No Direct Messages
@@ -249,7 +252,7 @@ export function Direct() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
+                        <PhosphorIcon as={PlusIcon} size="100" />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>

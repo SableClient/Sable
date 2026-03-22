@@ -4,9 +4,7 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -16,6 +14,8 @@ import {
   config,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type DirectInvitePromptProps = {
   onCancel: () => void;
@@ -56,7 +56,7 @@ export function DirectInvitePrompt({
                 <Text size="H4">Invite another Member</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

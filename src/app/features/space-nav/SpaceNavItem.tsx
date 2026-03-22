@@ -1,9 +1,11 @@
 import { MouseEventHandler, useState } from 'react';
 import { Room } from '$types/matrix-sdk';
-import { Box, Icon, Icons, Text, config, RectCords, Avatar } from 'folds';
+import { Box, Text, config, RectCords, Avatar } from 'folds';
+import { StarFourIcon } from '@phosphor-icons/react/dist/csr/StarFour';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useRoomName } from '$hooks/useRoomMeta';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type SpaceNavItemProps = {
   room: Room;
@@ -49,10 +51,10 @@ export function SpaceNavItem({ room, selected, linkPath }: SpaceNavItemProps) {
           <NavItemContent>
             <Box as="span" grow="Yes" alignItems="Center" gap="200">
               <Avatar size="200" radii="400">
-                <Icon
-                  src={Icons.Space}
+                <PhosphorIcon
+                  as={StarFourIcon}
                   style={{ opacity: config.opacity.P300 }}
-                  filled={selected}
+                  weight={selected ? 'fill' : 'regular'}
                   size="100"
                 />
               </Avatar>

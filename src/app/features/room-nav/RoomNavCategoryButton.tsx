@@ -1,5 +1,8 @@
-import { as, Chip, Icon, Icons, Text } from 'folds';
+import { as, Chip, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
 import classNames from 'classnames';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 
 export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
@@ -9,10 +12,10 @@ export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
       variant="Background"
       radii="400"
       after={
-        <Icon
+        <PhosphorIcon
           className={css.CategoryButtonIcon}
           size="50"
-          src={closed ? Icons.ChevronRight : Icons.ChevronBottom}
+          as={closed ? CaretRightIcon : CaretDownIcon}
         />
       }
       {...props}

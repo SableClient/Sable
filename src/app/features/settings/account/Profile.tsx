@@ -10,8 +10,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   Avatar,
   Button,
@@ -24,6 +22,7 @@ import {
   config,
   Spinner,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
@@ -46,6 +45,7 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
@@ -196,7 +196,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
                   <Text size="H4">Remove Avatar</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  <PhosphorIcon as={XIcon} />
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -368,7 +368,7 @@ function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
                   <Text size="H4">Remove Banner</Text>
                 </Box>
                 <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
-                  <Icon src={Icons.Cross} />
+                  <PhosphorIcon as={XIcon} />
                 </IconButton>
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -453,7 +453,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    <PhosphorIcon as={XIcon} size="100" />
                   </IconButton>
                 )
               }

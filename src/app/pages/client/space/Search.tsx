@@ -1,5 +1,7 @@
 import { useRef } from 'react';
-import { Box, Icon, Icons, Text, Scroll, IconButton } from 'folds';
+import { Box, Text, Scroll, IconButton } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { MessageSearch } from '$features/message-search';
@@ -11,6 +13,7 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function SpaceSearch() {
   const mx = useMatrixClient();
@@ -35,14 +38,16 @@ export function SpaceSearch() {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    <PhosphorIcon as={ArrowLeftIcon} />
                   </IconButton>
                 )}
               </BackRouteHandler>
             )}
           </Box>
           <Box justifyContent="Center" alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Search} />}
+            {screenSize !== ScreenSize.Mobile && (
+              <PhosphorIcon as={MagnifyingGlassIcon} size="400" />
+            )}
             <Text size="H3" truncate>
               Message Search
             </Text>

@@ -1,10 +1,12 @@
 import { MouseEvent } from 'react';
 import { Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
 import { modalAtom, ModalType } from '$state/modal';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId: string }) {
   const setModal = useSetAtom(modalAtom);
@@ -12,7 +14,7 @@ export function MessageReadReceiptItem({ room, eventId }: { room: Room; eventId:
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.CheckTwice} />}
+      after={<PhosphorIcon size="100" as={ChecksIcon} />}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

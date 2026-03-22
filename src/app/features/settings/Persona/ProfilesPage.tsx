@@ -1,5 +1,7 @@
 import { Page, PageHeader, PageNavContent } from '$components/page';
-import { Box, IconButton, Icon, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
 
 type PerMessageProfilePageProps = {
@@ -18,7 +20,7 @@ export function PerMessageProfilePage({ requestClose }: PerMessageProfilePagePro
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

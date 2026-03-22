@@ -1,19 +1,14 @@
-import { FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { ComponentType, FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { MatrixError, Room } from '$types/matrix-sdk';
-import {
-  Box,
-  Button,
-  Chip,
-  color,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Spinner,
-  Switch,
-  Text,
-  TextArea,
-} from 'folds';
+import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { GlobeIcon } from '@phosphor-icons/react/dist/csr/Globe';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { StarFourIcon } from '@phosphor-icons/react/dist/csr/StarFour';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import {
@@ -40,10 +35,10 @@ import {
 import { RoomType } from '$types/matrix/room';
 import { ErrorCode } from '../../cs-errorcode';
 
-const getCreateSpaceAccessToIcon = (access: CreateRoomAccess) => {
-  if (access === CreateRoomAccess.Private) return Icons.SpaceLock;
-  if (access === CreateRoomAccess.Restricted) return Icons.Space;
-  return Icons.SpaceGlobe;
+const getCreateSpaceAccessToIcon = (access: CreateRoomAccess): ComponentType<IconProps> => {
+  if (access === CreateRoomAccess.Private) return LockIcon;
+  if (access === CreateRoomAccess.Restricted) return StarFourIcon;
+  return GlobeIcon;
 };
 
 type CreateSpaceFormProps = {
@@ -151,7 +146,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
         <Text size="L400">Name</Text>
         <Input
           required
-          before={<Icon size="100" src={getCreateSpaceAccessToIcon(access)} />}
+          before={<PhosphorIcon size="100" as={getCreateSpaceAccessToIcon(access)} />}
           name="nameInput"
           autoFocus
           size="500"
@@ -180,7 +175,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={<Icon src={advance ? Icons.ChevronTop : Icons.ChevronBottom} size="50" />}
+              before={<PhosphorIcon as={advance ? CaretUpIcon : CaretDownIcon} size="50" />}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -250,7 +245,7 @@ export function CreateSpaceForm({ defaultAccess, space, onCreate }: CreateSpaceF
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          <Icon src={Icons.Warning} filled size="100" />
+          <PhosphorIcon as={WarningIcon} size="100" weight="fill" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED

@@ -2,9 +2,7 @@ import { FormEventHandler, MouseEventHandler, useState } from 'react';
 import {
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
   Scroll,
@@ -15,6 +13,11 @@ import {
   Button,
   Line,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { SquaresFourIcon } from '@phosphor-icons/react/dist/csr/SquaresFour';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -26,6 +29,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { StateEvent } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { WidgetIframe } from './WidgetIframe';
 import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
@@ -46,7 +50,7 @@ function WidgetDrawerHeader({ activeWidget, onBack }: WidgetsDrawerHeaderProps) 
         {activeWidget && (
           <Box shrink="No" alignItems="Center">
             <IconButton fill="None" onClick={onBack}>
-              <Icon src={Icons.ArrowLeft} />
+              <PhosphorIcon as={ArrowLeftIcon} />
             </IconButton>
           </Box>
         )}
@@ -72,7 +76,7 @@ function WidgetDrawerHeader({ activeWidget, onBack }: WidgetsDrawerHeaderProps) 
                 variant="Background"
                 onClick={() => setWidgetDrawer(false)}
               >
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             )}
           </TooltipProvider>
@@ -191,7 +195,7 @@ function WidgetListItemView({ widget, onSelect, onRemove, canRemove }: WidgetLis
                 fill="None"
                 onClick={handleRemove}
               >
-                <Icon size="100" src={Icons.Delete} />
+                <PhosphorIcon as={TrashIcon} size="100" />
               </IconButton>
             )}
           </TooltipProvider>
@@ -281,7 +285,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Primary"
                       fill="Soft"
                       onClick={() => setShowIntegrationManager(true)}
-                      before={<Icon size="100" src={Icons.Category} />}
+                      before={<PhosphorIcon as={SquaresFourIcon} size="100" />}
                     >
                       <Text size="B300">Integration Manager</Text>
                     </Button>
@@ -290,7 +294,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                       variant="Secondary"
                       fill="Soft"
                       onClick={() => setShowAddForm(true)}
-                      before={<Icon size="100" src={Icons.Plus} />}
+                      before={<PhosphorIcon as={PlusIcon} size="100" />}
                     >
                       <Text size="B300">Add Custom Widget</Text>
                     </Button>

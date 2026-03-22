@@ -7,19 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Scroll,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, Scroll, Spinner, Text, color, config } from 'folds';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
 import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
@@ -72,6 +61,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
 import { CanDropCallback, useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
@@ -642,7 +632,7 @@ export function Lobby() {
                       size="300"
                       aria-label="Scroll to Top"
                     >
-                      <Icon src={Icons.ChevronTop} size="300" />
+                      <PhosphorIcon as={CaretUpIcon} size="300" />
                     </IconButton>
                   </ScrollTopContainer>
                   <div

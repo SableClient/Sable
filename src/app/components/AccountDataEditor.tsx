@@ -2,8 +2,6 @@ import { FormEventHandler, useCallback, useEffect, useMemo, useRef, useState } f
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Input,
   Button,
@@ -14,12 +12,15 @@ import {
   Scroll,
   config,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixError } from '$types/matrix-sdk';
 import { Cursor } from '$plugins/text-area';
 import { syntaxErrorPosition } from '$utils/dom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Page, PageHeader } from './page';
 import { SequenceCard } from './sequence-card';
 import { TextViewerContent } from './text-viewer';
@@ -288,14 +289,14 @@ export function AccountDataEditor({
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={<PhosphorIcon size="100" as={ArrowLeftIcon} />}
             >
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

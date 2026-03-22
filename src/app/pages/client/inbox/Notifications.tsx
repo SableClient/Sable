@@ -1,18 +1,12 @@
 /* eslint-disable react/destructuring-assignment */
 import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Avatar,
-  Box,
-  Chip,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Text,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Chip, Header, IconButton, Scroll, Text, config, toRem } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { ChatCircleIcon } from '@phosphor-icons/react/dist/csr/ChatCircle';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { useSearchParams } from 'react-router-dom';
 import {
   INotification,
@@ -98,6 +92,7 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type RoomNotificationsGroup = {
   roomId: string;
@@ -431,7 +426,7 @@ function RoomNotificationsGroupComp({
                   size="50"
                   roomType={room.getType()}
                   joinRule={room.getJoinRule() ?? JoinRule.Restricted}
-                  filled
+                  weight="fill"
                 />
               )}
             />
@@ -446,7 +441,7 @@ function RoomNotificationsGroupComp({
               variant="Primary"
               radii="Pill"
               onClick={handleMarkAsRead}
-              before={<Icon size="100" src={Icons.CheckTwice} />}
+              before={<PhosphorIcon as={ChecksIcon} size="100" />}
             >
               <Text size="T200">Mark as Read</Text>
             </Chip>
@@ -505,7 +500,9 @@ function RoomNotificationsGroupComp({
                             : undefined
                         }
                         alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                        renderFallback={() => (
+                          <PhosphorIcon as={UserIcon} weight="fill" size="200" />
+                        )}
                       />
                     </Avatar>
                   </AvatarBase>
@@ -644,14 +641,14 @@ export function Notifications() {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    <PhosphorIcon as={ArrowLeftIcon} />
                   </IconButton>
                 )}
               </BackRouteHandler>
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Message} />}
+            {screenSize !== ScreenSize.Mobile && <PhosphorIcon as={ChatCircleIcon} size="400" />}
             <Text size="H3" truncate>
               Notification Messages
             </Text>
@@ -673,7 +670,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(false)}
                       variant={onlyHighlight ? 'Surface' : 'Success'}
                       aria-pressed={!onlyHighlight}
-                      before={!onlyHighlight && <Icon size="100" src={Icons.Check} />}
+                      before={!onlyHighlight && <PhosphorIcon as={CheckIcon} size="100" />}
                       outlined
                     >
                       <Text size="T200">All Notifications</Text>
@@ -682,7 +679,7 @@ export function Notifications() {
                       onClick={() => setOnlyHighlighted(true)}
                       variant={onlyHighlight ? 'Success' : 'Surface'}
                       aria-pressed={onlyHighlight}
-                      before={onlyHighlight && <Icon size="100" src={Icons.Check} />}
+                      before={onlyHighlight && <PhosphorIcon as={CheckIcon} size="100" />}
                       outlined
                     >
                       <Text size="T200">Highlighted</Text>
@@ -698,7 +695,7 @@ export function Notifications() {
                     size="300"
                     aria-label="Scroll to Top"
                   >
-                    <Icon src={Icons.ChevronTop} size="300" />
+                    <PhosphorIcon as={CaretUpIcon} size="300" />
                   </IconButton>
                 </ScrollTopContainer>
                 <div

@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   Scroll,
@@ -14,6 +12,11 @@ import {
   color,
   config,
 } from 'folds';
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowBendUpLeft';
+import { ChatTeardropTextIcon } from '@phosphor-icons/react/dist/csr/ChatTeardropText';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -39,6 +42,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { MessageEvent } from '$types/matrix/room';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './EventHistory.css';
 
 export type EventHistoryProps = {
@@ -127,7 +131,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
         <Menu className={css.MenuOptions}>
           <MenuItem
             size="300"
-            after={<Icon size="100" src={Icons.ReplyArrow} />}
+            after={<PhosphorIcon size="100" as={ArrowBendUpLeftIcon} />}
             radii="300"
             fill="None"
             variant="Secondary"
@@ -142,7 +146,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
           />
           <MenuItem
             size="300"
-            after={<Icon size="100" src={Icons.ThreadReply} />}
+            after={<PhosphorIcon size="100" as={ChatTeardropTextIcon} />}
             radii="300"
             fill="None"
             variant="Secondary"
@@ -158,7 +162,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
           {canDelete && (
             <MenuItem
               size="300"
-              after={<Icon size="100" src={Icons.Delete} />}
+              after={<PhosphorIcon size="100" as={TrashIcon} />}
               radii="300"
               fill="None"
               variant="Critical"
@@ -226,7 +230,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
             <Text size="H3">Message version history</Text>
           </Box>
           <IconButton size="300" onClick={requestClose}>
-            <Icon src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} />
           </IconButton>
         </Header>
         <Header>
@@ -254,7 +258,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
                   userId={readerId ?? ''}
                   src={avatarUrl ?? undefined}
                   alt={name}
-                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                  renderFallback={() => <PhosphorIcon size="50" as={UserIcon} weight="fill" />}
                 />
               </Avatar>
             }

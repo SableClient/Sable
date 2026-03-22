@@ -10,8 +10,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Spinner,
@@ -19,6 +17,8 @@ import {
   PopOut,
   RectCords,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Direction, MatrixError } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -31,6 +31,7 @@ import { getToday, getYesterday, timeDayMonthYear, timeHourMinute } from '$utils
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type JumpToTimeProps = {
   onCancel: () => void;
@@ -109,7 +110,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                 <Text size="H4">Jump to Time</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="500">
@@ -126,7 +127,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                       outlined
                       radii="300"
                       aria-pressed={!!timePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={<PhosphorIcon as={CaretDownIcon} size="50" />}
                       onClick={handleTimePicker}
                     >
                       <Text size="B300">{timeHourMinute(ts, hour24Clock)}</Text>
@@ -167,7 +168,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
                       outlined
                       radii="300"
                       aria-pressed={!!datePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={<PhosphorIcon as={CaretDownIcon} size="50" />}
                       onClick={handleDatePicker}
                     >
                       <Text size="B300">{timeDayMonthYear(ts)}</Text>

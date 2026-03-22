@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Icon, IconButton, Icons, Scroll, Text } from 'folds';
+import { Box, IconButton, Scroll, Text } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -8,6 +9,7 @@ import { StateEvent } from '$types/matrix/room';
 import { PermissionGroups, Powers, PowersEditor } from '$features/common-settings/permissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { usePermissionGroups } from './usePermissionItems';
 
 type PermissionsProps = {
@@ -46,7 +48,7 @@ export function Permissions({ requestClose }: PermissionsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

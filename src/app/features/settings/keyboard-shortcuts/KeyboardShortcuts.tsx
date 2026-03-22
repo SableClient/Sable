@@ -4,8 +4,10 @@
  * Lists all keyboard shortcuts available in Sable in a semantic,
  * screen-reader-friendly dl/dt/dd structure.
  */
-import { Box, Icon, IconButton, Icons, Scroll, Text, config } from 'folds';
+import { Box, IconButton, Scroll, Text, config } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type ShortcutEntry = {
   keys: string;
@@ -124,7 +126,7 @@ export function KeyboardShortcuts({ requestClose }: KeyboardShortcutsProps) {
               variant="Surface"
               aria-label="Close keyboard shortcuts"
             >
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

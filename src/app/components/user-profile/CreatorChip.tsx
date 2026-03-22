@@ -1,4 +1,5 @@
-import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
+import { Chip, config, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import { MouseEventHandler, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -14,6 +15,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { SpaceSettingsPage } from '$state/spaceSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function CreatorChip() {
   const mx = useMatrixClient();
@@ -83,7 +85,7 @@ export function CreatorChip() {
         radii="Pill"
         before={
           cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
+            <PhosphorIcon size="50" as={CaretDownIcon} />
           ) : (
             <PowerColorBadge color={tag.color} />
           )

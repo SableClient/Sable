@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Text, Chip, Icon, Icons, IconButton } from 'folds';
+import { Box, Text, Chip, IconButton } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { ClockIcon } from '@phosphor-icons/react/dist/csr/Clock';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { PencilIcon } from '@phosphor-icons/react/dist/csr/Pencil';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Room } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -13,6 +19,7 @@ import {
 import { timeHourMinute, timeDayMonthYear } from '$utils/time';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SchedulePickerDialog } from './SchedulePickerDialog';
 import * as css from './ScheduledMessagesList.css';
 
@@ -90,8 +97,8 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
         <Chip
           variant="SurfaceVariant"
           radii="Pill"
-          before={<Icon size="50" src={Icons.Clock} />}
-          after={<Icon size="50" src={expanded ? Icons.ChevronTop : Icons.ChevronBottom} />}
+          before={<PhosphorIcon as={ClockIcon} size="50" />}
+          after={<PhosphorIcon size="50" as={expanded ? CaretUpIcon : CaretDownIcon} />}
           onClick={() => setExpanded(!expanded)}
         >
           <Text size="B300">
@@ -123,7 +130,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                 <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
                   {isEncryptedEvt ? (
                     <Box direction="Row" gap="100" alignItems="Center">
-                      <Icon size="50" src={Icons.Lock} />
+                      <PhosphorIcon as={LockIcon} size="50" />
                       <Text size="T300" priority="300">
                         Encrypted — cancel and resend to edit
                       </Text>
@@ -146,7 +153,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                       onClick={() => handleEdit(evt.delay_id, body, formattedBody, deliveryTs)}
                       aria-label="Edit scheduled message"
                     >
-                      <Icon size="50" src={Icons.Pencil} />
+                      <PhosphorIcon as={PencilIcon} size="50" />
                     </IconButton>
                   )}
                   <IconButton
@@ -156,7 +163,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
                     onClick={() => handleCancel(evt.delay_id)}
                     aria-label="Cancel scheduled message"
                   >
-                    <Icon size="50" src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} size="50" />
                   </IconButton>
                 </Box>
               </Box>

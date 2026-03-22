@@ -1,11 +1,13 @@
 import { MouseEvent } from 'react';
 import { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
-import { MenuItem, Icon, Icons, Text } from 'folds';
+import { MenuItem, Text } from 'folds';
+import { CodeBlockIcon } from '@phosphor-icons/react/dist/csr/CodeBlock';
 import { TextViewer } from '$components/text-viewer';
 import { getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
   const setModal = useSetAtom(modalAtom);
@@ -13,7 +15,7 @@ export function MessageSourceCodeItem({ room, mEvent }: { room: Room; mEvent: Ma
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.BlockCode} />}
+      after={<PhosphorIcon size="100" as={CodeBlockIcon} />}
       radii="300"
       onClick={(e: MouseEvent) => {
         e.preventDefault();

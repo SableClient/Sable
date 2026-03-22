@@ -5,9 +5,7 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -20,6 +18,8 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MouseEventHandler, useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -43,6 +43,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { CutoutCard } from '$components/cutout-card';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -71,7 +72,7 @@ function SelfDemoteAlert({ power, onCancel, onChange }: SelfDemoteAlertProps) {
                 <Text size="H4">Self Demotion</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
@@ -121,7 +122,7 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
                 <Text size="H4">Shared Power</Text>
               </Box>
               <IconButton size="300" onClick={onCancel} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400, paddingTop: 0 }} direction="Column" gap="500">
@@ -321,7 +322,7 @@ export function PowerChip({ userId }: { userId: string }) {
           radii="Pill"
           before={
             cords ? (
-              <Icon size="50" src={Icons.ChevronBottom} />
+              <PhosphorIcon size="50" as={CaretDownIcon} />
             ) : (
               <>
                 {!changing && <PowerColorBadge color={tag.color} />}

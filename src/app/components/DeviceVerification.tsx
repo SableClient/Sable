@@ -12,15 +12,14 @@ import {
   config,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import * as Sentry from '@sentry/react';
 import {
@@ -31,6 +30,7 @@ import {
 } from '$hooks/useVerificationRequest';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { ContainerColor } from '$styles/ContainerColor.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const DialogHeaderStyles: CSSProperties = {
   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -275,7 +275,7 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
                 <Text size="H4">Device Verification</Text>
               </Box>
               <IconButton size="300" radii="300" onClick={handleCancel}>
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

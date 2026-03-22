@@ -4,8 +4,6 @@ import {
   Badge,
   Box,
   Chip,
-  Icon,
-  Icons,
   Line,
   Overlay,
   OverlayBackdrop,
@@ -18,6 +16,9 @@ import {
   color,
   toRem,
 } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import FocusTrap from 'focus-trap-react';
 import { JoinRule, MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -34,6 +35,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
@@ -67,12 +69,12 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
           }
         >
           {(triggerRef) => (
-            <Icon
+            <PhosphorIcon
               ref={triggerRef}
               style={{ color: color.Critical.Main, cursor: 'pointer' }}
-              src={Icons.Warning}
+              as={WarningIcon}
               size="400"
-              filled
+              weight="fill"
               tabIndex={0}
               aria-label={joinState.error.data?.error || joinState.error.message}
             />
@@ -85,7 +87,11 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
         size="400"
         radii="Pill"
         before={
-          canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="100" />
+          canJoin ? (
+            <PhosphorIcon as={PlusIcon} size="50" />
+          ) : (
+            <Spinner variant="Secondary" size="100" />
+          )
         }
         onClick={join}
         disabled={!canJoin}
@@ -137,7 +143,7 @@ function RoomProfileError({ roomId, suggested, inaccessibleRoom, via }: RoomProf
             <RoomIcon
               size="300"
               joinRule={inaccessibleRoom ? JoinRule.Invite : JoinRule.Restricted}
-              filled
+              weight="fill"
             />
           )}
         />
@@ -360,7 +366,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                           radii="Pill"
                           aria-label="Open Room"
                         >
-                          <Icon size="50" src={Icons.ArrowRight} />
+                          <PhosphorIcon as={ArrowRightIcon} size="50" />
                         </Chip>
                       </Box>
                     ) : (

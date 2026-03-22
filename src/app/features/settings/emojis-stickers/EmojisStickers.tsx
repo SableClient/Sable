@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
+import { Box, Text, IconButton, Scroll } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';
 
@@ -31,7 +33,7 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>

@@ -7,23 +7,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
-  Text,
-  config,
-} from 'folds';
+import { Header, IconButton, Input, Menu, MenuItem, PopOut, RectCords, Text, config } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import FocusTrap from 'focus-trap-react';
 
 import { useDebounce } from '$hooks/useDebounce';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function ServerPicker({
   server,
@@ -161,7 +151,7 @@ export function ServerPicker({
               aria-pressed={!!serverMenuAnchor}
               radii="300"
             >
-              <Icon src={Icons.ChevronBottom} />
+              <PhosphorIcon as={CaretDownIcon} />
             </IconButton>
           </PopOut>
         )

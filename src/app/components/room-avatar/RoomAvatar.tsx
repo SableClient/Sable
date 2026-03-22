@@ -1,7 +1,8 @@
+import { forwardRef, ReactNode, useState } from 'react';
+import { AvatarFallback, color } from 'folds';
 import { JoinRule } from '$types/matrix-sdk';
-import { AvatarFallback, Icon, Icons, color } from 'folds';
-import { ComponentProps, ReactNode, forwardRef, useState } from 'react';
-import { getRoomIconSrc } from '$utils/room';
+import { PhosphorIcon, type PhosphorIconProps } from '$components/PhosphorIcon';
+import { getRoomIcon } from '$utils/room';
 import colorMXID from '$utils/colorMXID';
 import * as css from './RoomAvatar.css';
 import { AvatarImage } from './AvatarImage';
@@ -35,10 +36,10 @@ export function RoomAvatar({ roomId, src, alt, renderFallback, uniformIcons }: R
 
 export const RoomIcon = forwardRef<
   SVGSVGElement,
-  Omit<ComponentProps<typeof Icon>, 'src'> & {
+  Omit<PhosphorIconProps, 'as'> & {
     joinRule?: JoinRule;
     roomType?: string;
   }
 >(({ joinRule, roomType, ...props }, ref) => (
-  <Icon src={getRoomIconSrc(Icons, roomType, joinRule)} {...props} ref={ref} />
+  <PhosphorIcon as={getRoomIcon(roomType, joinRule)} {...props} ref={ref} />
 ));

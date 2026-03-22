@@ -1,17 +1,6 @@
 import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
-import {
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-} from 'folds';
+import { Button, color, config, Menu, MenuItem, PopOut, RectCords, Spinner, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import {
   HistoryVisibility,
   MatrixError,
@@ -28,6 +17,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
 import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const useVisibilityStr = () =>
   useMemo(
@@ -148,7 +138,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
                 submitting ? (
                   <Spinner size="100" variant="Secondary" />
                 ) : (
-                  <Icon size="100" src={Icons.ChevronBottom} />
+                  <PhosphorIcon as={CaretDownIcon} size="100" />
                 )
               }
             >

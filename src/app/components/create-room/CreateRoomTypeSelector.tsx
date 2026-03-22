@@ -1,14 +1,18 @@
-import { Box, Text, Icon, Icons, config, IconSrc } from 'folds';
+import { Box, Text, config } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { ComponentType } from 'react';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { CreateRoomType } from './types';
 
 type CreateRoomTypeSelectorProps = {
   value?: CreateRoomType;
   onSelect: (value: CreateRoomType) => void;
   disabled?: boolean;
-  getIcon: (type: CreateRoomType) => IconSrc;
+  getIcon: (type: CreateRoomType) => ComponentType<IconProps>;
 };
 export function CreateRoomTypeSelector({
   value,
@@ -30,8 +34,8 @@ export function CreateRoomTypeSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomType.TextRoom)} />}
-          after={value === CreateRoomType.TextRoom && <Icon src={Icons.Check} />}
+          before={<PhosphorIcon size="400" as={getIcon(CreateRoomType.TextRoom)} />}
+          after={value === CreateRoomType.TextRoom && <PhosphorIcon as={CheckIcon} />}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>
@@ -55,8 +59,8 @@ export function CreateRoomTypeSelector({
         disabled={disabled}
       >
         <SettingTile
-          before={<Icon size="400" src={getIcon(CreateRoomType.VoiceRoom)} />}
-          after={value === CreateRoomType.VoiceRoom && <Icon src={Icons.Check} />}
+          before={<PhosphorIcon size="400" as={getIcon(CreateRoomType.VoiceRoom)} />}
+          after={value === CreateRoomType.VoiceRoom && <PhosphorIcon as={CheckIcon} />}
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>

@@ -3,9 +3,7 @@ import { Room, RoomEvent as RoomEventEnum } from '$types/matrix-sdk';
 import {
   Avatar,
   Box,
-  Icon,
   IconButton,
-  Icons,
   Text,
   Menu,
   MenuItem,
@@ -19,6 +17,14 @@ import {
   Tooltip,
   TooltipProvider,
 } from 'folds';
+import { ChatCircleIcon } from '@phosphor-icons/react/dist/csr/ChatCircle';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
+import { SignOutIcon } from '@phosphor-icons/react/dist/csr/SignOut';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
 import { useFocusWithin, useHover } from 'react-aria';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
@@ -68,6 +74,7 @@ import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
 import { CallControlState } from '$plugins/call/CallControlState';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { RoomNavUser } from './RoomNavUser';
 
 /**
@@ -147,7 +154,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={<PhosphorIcon size="100" as={ChecksIcon} />}
             radii="300"
             disabled={!unread}
           >
@@ -163,7 +170,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
                   changing ? (
                     <Spinner size="100" variant="Secondary" />
                   ) : (
-                    <Icon size="100" src={getRoomNotificationModeIcon(notificationMode)} />
+                    <PhosphorIcon size="100" as={getRoomNotificationModeIcon(notificationMode)} />
                   )
                 }
                 radii="300"
@@ -184,7 +191,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={<PhosphorIcon size="100" as={UserPlusIcon} />}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -196,7 +203,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
           <MenuItem
             onClick={handleCopyLink}
             size="300"
-            after={<Icon size="100" src={Icons.Link} />}
+            after={<PhosphorIcon size="100" as={LinkIcon} />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -206,7 +213,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
           <MenuItem
             onClick={handleRoomSettings}
             size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
+            after={<PhosphorIcon size="100" as={GearIcon} />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -224,7 +231,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
                   variant="Critical"
                   fill="None"
                   size="300"
-                  after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                  after={<PhosphorIcon size="100" as={SignOutIcon} />}
                   radii="300"
                   aria-pressed={promptLeave}
                 >
@@ -406,7 +413,7 @@ export function RoomNavItem({
                           ? config.opacity.P500
                           : config.opacity.P300,
                     }}
-                    filled={selected || isActiveCall}
+                    weight={selected || isActiveCall ? 'fill' : 'regular'}
                     size="100"
                     joinRule={room.getJoinRule()}
                     roomType={room.getType()}
@@ -438,16 +445,16 @@ export function RoomNavItem({
                 </UnreadBadgeCenter>
               )}
               {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                <Icon
+                <PhosphorIcon
                   size="50"
-                  src={getRoomNotificationModeIcon(notificationMode)}
+                  as={getRoomNotificationModeIcon(notificationMode)}
                   aria-label={notificationMode}
                 />
               )}
               {(room.isCallRoom() || direct) && callMembers.length > 0 && !optionsVisible && (
                 <Badge variant="Critical" fill="Solid" size="400">
                   <Box alignItems="Center" gap="100">
-                    <Icon size="50" src={Icons.Phone} color="Inherit" />
+                    <PhosphorIcon size="50" as={PhoneIcon} color="Inherit" />
                     <Text as="span" size="L400" truncate>
                       {direct ? 'Calling' : `${callMembers.length} Live`}
                     </Text>
@@ -481,7 +488,11 @@ export function RoomNavItem({
                     size="300"
                     radii="300"
                   >
-                    <Icon size="50" src={Icons.Message} filled={isChatOpen} />
+                    <PhosphorIcon
+                      size="50"
+                      as={ChatCircleIcon}
+                      weight={isChatOpen ? 'fill' : 'regular'}
+                    />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -524,7 +535,7 @@ export function RoomNavItem({
                 size="300"
                 radii="300"
               >
-                <Icon size="50" src={Icons.VerticalDots} />
+                <PhosphorIcon size="50" as={DotsThreeVerticalIcon} />
               </IconButton>
             </PopOut>
           </NavItemOptions>

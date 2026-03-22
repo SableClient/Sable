@@ -2,8 +2,6 @@ import { ReactNode, useCallback, useState } from 'react';
 import {
   Box,
   Button,
-  Icon,
-  Icons,
   Modal,
   Overlay,
   OverlayBackdrop,
@@ -14,6 +12,9 @@ import {
   TooltipProvider,
   as,
 } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { DownloadIcon } from '@phosphor-icons/react/dist/csr/Download';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import FileSaver from 'file-saver';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
@@ -31,6 +32,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider
@@ -51,7 +53,7 @@ const renderErrorButton = (retry: () => void, text: string) => (
         outlined
         radii="300"
         onClick={retry}
-        before={<Icon size="100" src={Icons.Warning} filled />}
+        before={<PhosphorIcon as={WarningIcon} size="50" weight="fill" />}
       >
         <Text size="B400" truncate>
           {text}
@@ -140,7 +142,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
             textState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              <PhosphorIcon size="100" as={ArrowRightIcon} weight="fill" />
             )
           }
         >
@@ -224,7 +226,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
             pdfState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              <PhosphorIcon size="100" as={ArrowRightIcon} weight="fill" />
             )
           }
         >
@@ -280,7 +282,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
         downloadState.status === AsyncStatus.Loading ? (
           <Spinner fill="Soft" size="100" variant="Secondary" />
         ) : (
-          <Icon size="100" src={Icons.Download} filled />
+          <PhosphorIcon size="100" as={DownloadIcon} weight="fill" />
         )
       }
     >

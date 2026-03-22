@@ -12,9 +12,7 @@ import {
   Box,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
   PopOut,
@@ -27,6 +25,12 @@ import {
   config,
   toRem,
 } from 'folds';
+import { ArrowsDownUpIcon } from '@phosphor-icons/react/dist/csr/ArrowsDownUp';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { FunnelIcon } from '@phosphor-icons/react/dist/csr/Funnel';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
@@ -60,6 +64,7 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './MembersDrawer.css';
 
 type MemberDrawerHeaderProps = {
@@ -93,7 +98,7 @@ function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
                 variant="Background"
                 onClick={() => setPeopleDrawer(false)}
               >
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             )}
           </TooltipProvider>
@@ -166,7 +171,7 @@ function MemberItem({
                 userId={member.userId}
                 src={avatarUrl ?? undefined}
                 alt={name}
-                renderFallback={() => <Icon size="100" src={Icons.User} filled />}
+                renderFallback={() => <PhosphorIcon as={UserIcon} size="100" weight="fill" />}
               />
             </Avatar>
           </AvatarPresence>
@@ -322,7 +327,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                         variant="Background"
                         size="400"
                         radii="300"
-                        before={<Icon src={Icons.Filter} size="50" />}
+                        before={<PhosphorIcon as={FunnelIcon} size="50" />}
                       >
                         <Text size="T200">{membershipFilter.name}</Text>
                       </Chip>
@@ -354,7 +359,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                         variant="Background"
                         size="400"
                         radii="300"
-                        after={<Icon src={Icons.Sort} size="50" />}
+                        after={<PhosphorIcon as={ArrowsDownUpIcon} size="50" />}
                       >
                         <Text size="T200">{memberSort.name}</Text>
                       </Chip>
@@ -371,7 +376,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                   variant="Surface"
                   size="400"
                   radii="400"
-                  before={<Icon size="50" src={Icons.Search} />}
+                  before={<PhosphorIcon as={MagnifyingGlassIcon} size="50" />}
                   after={
                     result && (
                       <Chip
@@ -386,7 +391,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                           }
                           resetSearch();
                         }}
-                        after={<Icon size="50" src={Icons.Cross} />}
+                        after={<PhosphorIcon as={XIcon} size="50" />}
                       >
                         <Text size="B300">{`${result.items.length || 'No'} ${
                           result.items.length === 1 ? 'Result' : 'Results'
@@ -407,7 +412,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                 size="300"
                 aria-label="Scroll to Top"
               >
-                <Icon src={Icons.ChevronTop} size="300" />
+                <PhosphorIcon as={CaretUpIcon} size="300" />
               </IconButton>
             </ScrollTopContainer>
 

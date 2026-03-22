@@ -1,6 +1,10 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
+import { Badge, Chip, IconButton, ProgressBar, Spinner, Text, toRem } from 'folds';
+import { PauseIcon } from '@phosphor-icons/react/dist/csr/Pause';
+import { PlayIcon } from '@phosphor-icons/react/dist/csr/Play';
+import { SpeakerHighIcon } from '@phosphor-icons/react/dist/csr/SpeakerHigh';
+import { SpeakerSlashIcon } from '@phosphor-icons/react/dist/csr/SpeakerSlash';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -19,6 +23,7 @@ import { secondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { MEDIA_VOLUME_KEY } from '$components/media';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -152,7 +157,11 @@ export function AudioContent({
             srcState.status === AsyncStatus.Loading || loading ? (
               <Spinner variant="Secondary" size="50" />
             ) : (
-              <Icon src={playing ? Icons.Pause : Icons.Play} size="50" filled={playing} />
+              <PhosphorIcon
+                size="50"
+                as={playing ? PauseIcon : PlayIcon}
+                weight={playing ? 'fill' : 'regular'}
+              />
             )
           }
         >
@@ -173,7 +182,7 @@ export function AudioContent({
           onClick={() => setMute(!mute)}
           aria-pressed={mute}
         >
-          <Icon src={mute ? Icons.VolumeMute : Icons.VolumeHigh} size="50" />
+          <PhosphorIcon as={mute ? SpeakerSlashIcon : SpeakerHighIcon} size="50" />
         </IconButton>
         <Range
           step={0.1}

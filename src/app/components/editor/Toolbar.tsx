@@ -3,10 +3,7 @@ import {
   Badge,
   Box,
   config,
-  Icon,
   IconButton,
-  Icons,
-  IconSrc,
   Line,
   Menu,
   PopOut,
@@ -17,14 +14,32 @@ import {
   TooltipProvider,
   toRem,
 } from 'folds';
-import { MouseEventHandler, ReactNode, useState } from 'react';
+import { MouseEventHandler, ReactNode, useState, ComponentType } from 'react';
 import { ReactEditor, useSlate } from 'slate-react';
+import type { IconProps } from '@phosphor-icons/react';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
+import { CodeBlockIcon } from '@phosphor-icons/react/dist/csr/CodeBlock';
+import { EyeSlashIcon } from '@phosphor-icons/react/dist/csr/EyeSlash';
+import { ListBulletsIcon } from '@phosphor-icons/react/dist/csr/ListBullets';
+import { ListNumbersIcon } from '@phosphor-icons/react/dist/csr/ListNumbers';
+import { MarkdownLogoIcon } from '@phosphor-icons/react/dist/csr/MarkdownLogo';
+import { QuotesIcon } from '@phosphor-icons/react/dist/csr/Quotes';
+import { TextBIcon } from '@phosphor-icons/react/dist/csr/TextB';
+import { TextHOneIcon } from '@phosphor-icons/react/dist/csr/TextHOne';
+import { TextHThreeIcon } from '@phosphor-icons/react/dist/csr/TextHThree';
+import { TextHTwoIcon } from '@phosphor-icons/react/dist/csr/TextHTwo';
+import { TextItalicIcon } from '@phosphor-icons/react/dist/csr/TextItalic';
+import { TextStrikethroughIcon } from '@phosphor-icons/react/dist/csr/TextStrikethrough';
+import { TextUnderlineIcon } from '@phosphor-icons/react/dist/csr/TextUnderline';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { isMacOS } from '$utils/user-agent';
 import { KeySymbol } from '$utils/key-symbol';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 import { floatingToolbar } from '$styles/overrides/Composer.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { HeadingLevel } from './slate';
 import { BlockType, MarkType } from './types';
 import * as css from './Editor.css';
@@ -55,7 +70,7 @@ function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
   );
 }
 
-type MarkButtonProps = { format: MarkType; icon: IconSrc; tooltip: ReactNode };
+type MarkButtonProps = { format: MarkType; icon: ComponentType<IconProps>; tooltip: ReactNode };
 export function MarkButton({ format, icon, tooltip }: MarkButtonProps) {
   const editor = useSlate();
   const disableInline = isBlockActive(editor, BlockType.CodeBlock);
@@ -81,7 +96,7 @@ export function MarkButton({ format, icon, tooltip }: MarkButtonProps) {
           radii="300"
           disabled={disableInline}
         >
-          <Icon size="200" src={icon} />
+          <PhosphorIcon size="200" as={icon} />
         </IconButton>
       )}
     </TooltipProvider>
@@ -90,7 +105,7 @@ export function MarkButton({ format, icon, tooltip }: MarkButtonProps) {
 
 type BlockButtonProps = {
   format: BlockType;
-  icon: IconSrc;
+  icon: ComponentType<IconProps>;
   tooltip: ReactNode;
 };
 export function BlockButton({ format, icon, tooltip }: BlockButtonProps) {
@@ -112,12 +127,18 @@ export function BlockButton({ format, icon, tooltip }: BlockButtonProps) {
           size="400"
           radii="300"
         >
-          <Icon size="200" src={icon} />
+          <PhosphorIcon size="200" as={icon} />
         </IconButton>
       )}
     </TooltipProvider>
   );
 }
+
+const headingIcons: Record<HeadingLevel, ComponentType<IconProps>> = {
+  1: TextHOneIcon,
+  2: TextHTwoIcon,
+  3: TextHThreeIcon,
+};
 
 export function HeadingBlockButton() {
   const editor = useSlate();
@@ -169,7 +190,7 @@ export function HeadingBlockButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading1} />
+                    <PhosphorIcon size="200" as={TextHOneIcon} />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -184,7 +205,7 @@ export function HeadingBlockButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading2} />
+                    <PhosphorIcon size="200" as={TextHTwoIcon} />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -199,7 +220,7 @@ export function HeadingBlockButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading3} />
+                    <PhosphorIcon size="200" as={TextHThreeIcon} />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -216,8 +237,8 @@ export function HeadingBlockButton() {
         size="400"
         radii="300"
       >
-        <Icon size="200" src={level ? Icons[`Heading${level}`] : Icons.Heading1} />
-        <Icon size="200" src={isActive ? Icons.Cross : Icons.ChevronBottom} />
+        <PhosphorIcon size="200" as={level ? headingIcons[level] : TextHOneIcon} />
+        <PhosphorIcon size="200" as={isActive ? XIcon : CaretDownIcon} />
       </IconButton>
     </PopOut>
   );
@@ -271,32 +292,32 @@ export function Toolbar() {
             <Box shrink="No" gap="100">
               <MarkButton
                 format={MarkType.Bold}
-                icon={Icons.Bold}
+                icon={TextBIcon}
                 tooltip={<BtnTooltip text="Bold" shortCode={`${modKey} + B`} />}
               />
               <MarkButton
                 format={MarkType.Italic}
-                icon={Icons.Italic}
+                icon={TextItalicIcon}
                 tooltip={<BtnTooltip text="Italic" shortCode={`${modKey} + I`} />}
               />
               <MarkButton
                 format={MarkType.Underline}
-                icon={Icons.Underline}
+                icon={TextUnderlineIcon}
                 tooltip={<BtnTooltip text="Underline" shortCode={`${modKey} + U`} />}
               />
               <MarkButton
                 format={MarkType.StrikeThrough}
-                icon={Icons.Strike}
+                icon={TextStrikethroughIcon}
                 tooltip={<BtnTooltip text="Strike Through" shortCode={`${modKey} + S`} />}
               />
               <MarkButton
                 format={MarkType.Code}
-                icon={Icons.Code}
+                icon={CodeIcon}
                 tooltip={<BtnTooltip text="Inline Code" shortCode={`${modKey} + [`} />}
               />
               <MarkButton
                 format={MarkType.Spoiler}
-                icon={Icons.EyeBlind}
+                icon={EyeSlashIcon}
                 tooltip={<BtnTooltip text="Spoiler" shortCode={`${modKey} + H`} />}
               />
             </Box>
@@ -305,22 +326,22 @@ export function Toolbar() {
           <Box shrink="No" gap="100">
             <BlockButton
               format={BlockType.BlockQuote}
-              icon={Icons.BlockQuote}
+              icon={QuotesIcon}
               tooltip={<BtnTooltip text="Block Quote" shortCode={`${modKey} + '`} />}
             />
             <BlockButton
               format={BlockType.CodeBlock}
-              icon={Icons.BlockCode}
+              icon={CodeBlockIcon}
               tooltip={<BtnTooltip text="Block Code" shortCode={`${modKey} + ;`} />}
             />
             <BlockButton
               format={BlockType.OrderedList}
-              icon={Icons.OrderList}
+              icon={ListNumbersIcon}
               tooltip={<BtnTooltip text="Ordered List" shortCode={`${modKey} + 7`} />}
             />
             <BlockButton
               format={BlockType.UnorderedList}
-              icon={Icons.UnorderList}
+              icon={ListBulletsIcon}
               tooltip={<BtnTooltip text="Unordered List" shortCode={`${modKey} + 8`} />}
             />
             <HeadingBlockButton />
@@ -353,7 +374,11 @@ export function Toolbar() {
                   radii="300"
                   disabled={disableInline || !!isAnyMarkActive(editor)}
                 >
-                  <Icon size="200" src={Icons.Markdown} filled={isMarkdown} />
+                  <PhosphorIcon
+                    size="200"
+                    as={MarkdownLogoIcon}
+                    weight={isMarkdown ? 'fill' : 'regular'}
+                  />
                 </IconButton>
               )}
             </TooltipProvider>

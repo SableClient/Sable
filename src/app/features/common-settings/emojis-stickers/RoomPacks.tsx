@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   Button,
-  Icon,
-  Icons,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -16,6 +14,9 @@ import {
   IconButton,
   Menu,
 } from 'folds';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { StickerIcon } from '@phosphor-icons/react/dist/csr/Sticker';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import {
@@ -40,6 +41,7 @@ import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type CreatePackTileProps = {
   packs: ImagePack[];
@@ -221,7 +223,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleUndoRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Plus} size="100" />
+                    <PhosphorIcon as={PlusIcon} size="100" />
                   </IconButton>
                 ) : (
                   <IconButton
@@ -231,7 +233,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    <PhosphorIcon as={XIcon} size="100" />
                   </IconButton>
                 ))}
               <Avatar size="300" radii="300">
@@ -239,7 +241,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                   <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
                 ) : (
                   <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
+                    <PhosphorIcon as={StickerIcon} size="400" weight="fill" />
                   </AvatarFallback>
                 )}
               </Avatar>

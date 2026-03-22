@@ -5,9 +5,7 @@ import {
   Box,
   Button,
   Chip,
-  Icon,
   IconButton,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -17,6 +15,13 @@ import {
   color,
   config,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { EnvelopeIcon } from '@phosphor-icons/react/dist/csr/Envelope';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
@@ -67,6 +72,7 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useReportRoomSupported } from '$hooks/useReportRoomSupported';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const COMPACT_CARD_WIDTH = 548;
 
@@ -371,7 +377,7 @@ function InviteFilters({
         aria-selected={isKnown}
         outlined={!isKnown}
         onClick={() => onFilter(InviteFilter.Known)}
-        before={isKnown && <Icon size="100" src={Icons.Check} />}
+        before={isKnown && <PhosphorIcon as={CheckIcon} size="100" />}
         after={
           knownInvites.length > 0 && (
             <Badge variant={isKnown ? 'Success' : 'Secondary'} fill="Solid" radii="Pill">
@@ -387,7 +393,7 @@ function InviteFilters({
         aria-selected={isUnknown}
         outlined={!isUnknown}
         onClick={() => onFilter(InviteFilter.Unknown)}
-        before={isUnknown && <Icon size="100" src={Icons.Check} />}
+        before={isUnknown && <PhosphorIcon as={CheckIcon} size="100" />}
         after={
           unknownInvites.length > 0 && (
             <Badge variant={isUnknown ? 'Warning' : 'Secondary'} fill="Solid" radii="Pill">
@@ -403,7 +409,7 @@ function InviteFilters({
         aria-selected={isSpam}
         outlined={!isSpam}
         onClick={() => onFilter(InviteFilter.Spam)}
-        before={isSpam && <Icon size="100" src={Icons.Check} />}
+        before={isSpam && <PhosphorIcon as={CheckIcon} size="100" />}
         after={
           spamInvites.length > 0 && (
             <Badge variant={isSpam ? 'Critical' : 'Secondary'} fill="Solid" radii="Pill">
@@ -453,7 +459,7 @@ function KnownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Mail} />}
+              icon={<PhosphorIcon as={EnvelopeIcon} size="600" />}
               title="No Invites"
               subTitle="When someone you share a room with sends you an invite, it’ll show up here."
             />
@@ -526,7 +532,7 @@ function UnknownInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Info} />}
+              icon={<PhosphorIcon as={InfoIcon} size="600" />}
               title="No Invites"
               subTitle="Invites from people outside your rooms will appear here."
             />
@@ -601,7 +607,7 @@ function SpamInvites({
           >
             <PageHeroSection>
               <PageHero
-                icon={<Icon size="600" src={Icons.Warning} />}
+                icon={<PhosphorIcon as={WarningIcon} size="600" />}
                 title={`${invites.length} Spam Invites`}
                 subTitle="Some of the following invites may contain harmful content or have been sent by banned users."
               >
@@ -659,7 +665,7 @@ function SpamInvites({
                   fill="Soft"
                   radii="Pill"
                   before={
-                    <Icon size="100" src={showInvites ? Icons.ChevronTop : Icons.ChevronBottom} />
+                    <PhosphorIcon size="100" as={showInvites ? CaretUpIcon : CaretDownIcon} />
                   }
                   onClick={() => setShowInvites(!showInvites)}
                 >
@@ -685,7 +691,7 @@ function SpamInvites({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Warning} />}
+              icon={<PhosphorIcon as={WarningIcon} size="600" />}
               title="No Spam Invites"
               subTitle="Invites detected as spam appear here."
             />
@@ -760,14 +766,14 @@ export function Invites() {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    <PhosphorIcon as={ArrowLeftIcon} />
                   </IconButton>
                 )}
               </BackRouteHandler>
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Mail} />}
+            {screenSize !== ScreenSize.Mobile && <PhosphorIcon as={EnvelopeIcon} size="400" />}
             <Text size="H3" truncate>
               Invites
             </Text>

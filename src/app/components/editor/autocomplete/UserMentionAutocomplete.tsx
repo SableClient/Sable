@@ -1,7 +1,8 @@
 import { useEffect, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import { Avatar, MenuItem, Text } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -17,6 +18,7 @@ import { Membership } from '$types/matrix/room';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import { AutocompleteQuery } from './autocompleteQuery';
 
@@ -48,7 +50,7 @@ function UnknownMentionItem({
         <Avatar size="200">
           <UserAvatar
             userId={userId}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+            renderFallback={() => <PhosphorIcon as={UserIcon} size="50" weight="fill" />}
           />
         </Avatar>
       }
@@ -183,7 +185,7 @@ export function UserMentionAutocomplete({
                     userId={roomMember.userId}
                     src={avatarUrl ?? undefined}
                     alt={getName(roomMember)}
-                    renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                    renderFallback={() => <PhosphorIcon size="50" as={UserIcon} weight="fill" />}
                   />
                 </Avatar>
               }

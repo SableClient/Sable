@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Scroll,
   Button,
@@ -18,6 +16,10 @@ import {
   TooltipProvider,
   Tooltip,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { HexColorPicker } from 'react-colorful';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
@@ -49,6 +51,7 @@ import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { creatorsSupported } from '$utils/matrix';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type EditPowerProps = {
   maxPower: number;
@@ -255,7 +258,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: Readonly<EditPower
                         variant="Secondary"
                         fill="Soft"
                         radii="300"
-                        before={<Icon size="50" src={Icons.SmilePlus} />}
+                        before={<PhosphorIcon as={PlusIcon} size="50" />}
                       >
                         <Text size="B300">Pick</Text>
                       </Button>
@@ -382,14 +385,14 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={<PhosphorIcon as={ArrowLeftIcon} size="100" />}
             >
               <Text size="T300">Permissions</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>
@@ -515,7 +518,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
                                               : () => handleToggleDelete(power)
                                           }
                                         >
-                                          <Icon size="50" src={Icons.Delete} />
+                                          <PhosphorIcon as={TrashIcon} size="50" />
                                         </Chip>
                                       )}
                                     </TooltipProvider>

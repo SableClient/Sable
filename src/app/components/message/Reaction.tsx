@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Icon, Icons, Text, as } from 'folds';
+import { Box, Text, as } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import classNames from 'classnames';
 import { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
@@ -7,6 +8,7 @@ import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './Reaction.css';
 
 export const Reaction = as<
@@ -39,7 +41,7 @@ export const Reaction = as<
                 // reaction button still renders correctly and the user can see
                 // something went wrong rather than a browser broken-image icon.
                 <span title="Failed to load emoji image" aria-label="Failed to load emoji image">
-                  <Icon size="100" src={Icons.Warning} style={{ opacity: 0.5 }} />
+                  <PhosphorIcon size="100" as={WarningIcon} style={{ opacity: 0.5 }} />
                 </span>
               );
             return (

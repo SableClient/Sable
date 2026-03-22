@@ -10,8 +10,6 @@ import {
   Box,
   Chip,
   Text,
-  Icon,
-  Icons,
   Line,
   config,
   PopOut,
@@ -25,16 +23,21 @@ import {
   Badge,
   RectCords,
 } from 'folds';
+import { ArrowsDownUpIcon } from '@phosphor-icons/react/dist/csr/ArrowsDownUp';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { PlusCircleIcon } from '@phosphor-icons/react/dist/csr/PlusCircle';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
 import { SearchItemStrGetter, UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
 import { DebounceOptions, useDebounce } from '$hooks/useDebounce';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { VirtualTile } from '$components/virtualizer';
 import { stopPropagation } from '$utils/keyboard';
+import { getRoomIcon } from '$utils/room';
 
 type OrderButtonProps = {
   order?: string;
@@ -98,7 +101,7 @@ function OrderButton({ order, onChange }: OrderButtonProps) {
       <Chip
         variant="SurfaceVariant"
         radii="Pill"
-        after={<Icon size="50" src={Icons.Sort} />}
+        after={<PhosphorIcon as={ArrowsDownUpIcon} size="50" />}
         onClick={handleOpenMenu}
       >
         {rankOrder ? <Text size="T200">Relevance</Text> : <Text size="T200">Recent</Text>}
@@ -268,9 +271,9 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             radii="300"
                             aria-pressed={selected}
                             before={
-                              <Icon
+                              <PhosphorIcon
                                 size="50"
-                                src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())}
+                                as={getRoomIcon(room.getType(), room.getJoinRule())}
                               />
                             }
                           >
@@ -313,7 +316,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
         onClick={handleOpenMenu}
         variant="SurfaceVariant"
         radii="Pill"
-        before={<Icon size="100" src={Icons.PlusCircle} />}
+        before={<PhosphorIcon as={PlusCircleIcon} size="100" />}
       >
         <Text size="T200">Select Rooms</Text>
       </Chip>
@@ -352,7 +355,7 @@ export function SearchFilters({
         <Chip
           variant={!global ? 'Success' : 'Surface'}
           aria-pressed={!global}
-          before={!global && <Icon size="100" src={Icons.Check} />}
+          before={!global && <PhosphorIcon as={CheckIcon} size="100" />}
           outlined
           onClick={() => onGlobalChange()}
         >
@@ -362,7 +365,7 @@ export function SearchFilters({
           <Chip
             variant={global ? 'Success' : 'Surface'}
             aria-pressed={global}
-            before={global && <Icon size="100" src={Icons.Check} />}
+            before={global && <PhosphorIcon as={CheckIcon} size="100" />}
             outlined
             onClick={() => onGlobalChange(true)}
           >
@@ -386,9 +389,9 @@ export function SearchFilters({
               onClick={() => onSelectedRoomsChange(selectedRooms.filter((rId) => rId !== roomId))}
               radii="Pill"
               before={
-                <Icon size="50" src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())} />
+                <PhosphorIcon size="50" as={getRoomIcon(room.getType(), room.getJoinRule())} />
               }
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={<PhosphorIcon size="50" as={XIcon} />}
             >
               <Text size="T200">{room.name}</Text>
             </Chip>

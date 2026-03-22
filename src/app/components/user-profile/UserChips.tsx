@@ -19,8 +19,6 @@ import {
   Text,
   Line,
   Chip,
-  Icon,
-  Icons,
   RectCords,
   Spinner,
   toRem,
@@ -28,6 +26,13 @@ import {
   Scroll,
   Avatar,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { DotsThreeIcon } from '@phosphor-icons/react/dist/csr/DotsThree';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/csr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/csr/Prohibit';
+import { HardDrivesIcon } from '@phosphor-icons/react/dist/csr/HardDrives';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer } from '$utils/matrix';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
@@ -50,6 +55,7 @@ import { useNickname, useSetNickname } from '$hooks/useNickname';
 import { CutoutCard } from '$components/cutout-card';
 import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function ServerChip({ server }: { server: string }) {
   const mx = useMatrixClient();
@@ -135,9 +141,9 @@ export function ServerChip({ server }: { server: string }) {
         radii="Pill"
         before={
           cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
+            <PhosphorIcon as={CaretDownIcon} size="50" />
           ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Server} />
+            <PhosphorIcon as={copied ? CheckIcon : HardDrivesIcon} size="50" />
           )
         }
         onClick={open}
@@ -217,9 +223,9 @@ export function ShareChip({ userId }: { userId: string }) {
         radii="Pill"
         before={
           cords ? (
-            <Icon size="50" src={Icons.ChevronBottom} />
+            <PhosphorIcon as={CaretDownIcon} size="50" />
           ) : (
-            <Icon size="50" src={copied ? Icons.Check : Icons.Link} />
+            <PhosphorIcon as={copied ? CheckIcon : LinkIcon} size="50" />
           )
         }
         onClick={open}
@@ -566,7 +572,7 @@ export function OptionsChip({ userId }: { userId: string }) {
                   fill="None"
                   size="300"
                   radii="300"
-                  before={<Icon size="50" src={Icons.Pencil} />}
+                  before={<PhosphorIcon size="50" as={PencilSimpleIcon} />}
                   onClick={() => setEditingNick(true)}
                 >
                   <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
@@ -585,7 +591,7 @@ export function OptionsChip({ userId }: { userId: string }) {
                   ignoring ? (
                     <Spinner variant="Critical" size="50" />
                   ) : (
-                    <Icon size="50" src={Icons.Prohibited} />
+                    <PhosphorIcon size="50" as={ProhibitIcon} />
                   )
                 }
                 disabled={ignoring}
@@ -601,7 +607,7 @@ export function OptionsChip({ userId }: { userId: string }) {
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />
         ) : (
-          <Icon size="50" src={Icons.HorizontalDots} />
+          <PhosphorIcon size="50" as={DotsThreeIcon} />
         )}
       </Chip>
     </PopOut>

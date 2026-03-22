@@ -1,4 +1,6 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch } from 'folds';
+import { Box, Text, IconButton, Scroll, Switch } from 'folds';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
@@ -6,6 +8,7 @@ import { useSetting } from '$state/hooks/settings';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { LanguageSpecificPronouns } from '../cosmetics/LanguageSpecificPronouns';
 import { Sync } from '../general';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
@@ -48,7 +51,7 @@ export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>
@@ -57,7 +60,7 @@ export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <InfoCard
-              before=<Icon src={Icons.Warning} size="100" filled />
+              before={<PhosphorIcon as={WarningIcon} size="100" weight="fill" />}
               variant="Warning"
               description={
                 <>

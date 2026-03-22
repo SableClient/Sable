@@ -1,5 +1,7 @@
 import { Room } from 'matrix-js-sdk';
-import { Box, Icon, Icons, Text } from 'folds';
+import { Box, Text } from 'folds';
+import { MicrophoneIcon } from '@phosphor-icons/react/dist/csr/Microphone';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { getMemberDisplayName } from '../../utils/room';
 import { getMxIdLocalPart } from '../../utils/matrix';
 
@@ -13,7 +15,7 @@ export function MemberSpeaking({ room, speakers }: MemberSpeakingProps) {
   );
   return (
     <Box alignItems="Center" gap="100">
-      <Icon size="100" src={Icons.Mic} filled />
+      <PhosphorIcon as={MicrophoneIcon} size="100" weight="fill" />
       <Text size="T200" truncate>
         {speakingNames.length === 1 && (
           <>

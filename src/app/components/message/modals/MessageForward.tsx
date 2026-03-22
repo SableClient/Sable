@@ -2,20 +2,9 @@
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
-import {
-  Box,
-  Button,
-  Dialog,
-  Header,
-  Icon,
-  Icons,
-  IconButton,
-  MenuItem,
-  Text,
-  config,
-  Scroll,
-  as,
-} from 'folds';
+import { Box, Button, Dialog, Header, IconButton, MenuItem, Text, config, Scroll, as } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { JoinRule, MatrixEvent, Room } from '$types/matrix-sdk';
 import { useEffect, useMemo, useState } from 'react';
@@ -28,6 +17,7 @@ import { getStateEvents } from '$utils/room';
 import { StateEvent } from '$types/matrix/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const debugLog = createDebugLogger('MessageForward');
 
@@ -48,7 +38,7 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
     return (
       <MenuItem
         size="300"
-        after={<Icon size="100" src={Icons.ArrowRight} />}
+        after={<PhosphorIcon size="100" as={ArrowRightIcon} />}
         radii="300"
         {...props}
         onClick={handleClick}
@@ -311,7 +301,7 @@ export function MessageForwardInternal({
           <Text size="H4">Forward Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
       <Box direction="Column" style={{ height: '300px' }}>

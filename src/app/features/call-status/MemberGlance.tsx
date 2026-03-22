@@ -1,6 +1,8 @@
-import { Box, config, Icon, Icons, Text } from 'folds';
+import { Box, config, Text } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { Room } from 'matrix-js-sdk';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { UserAvatar } from '../../components/user-avatar';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
@@ -59,7 +61,7 @@ export function MemberGlance({ room, members, speakers, max = 6 }: MemberGlanceP
               userId={userId}
               src={avatarUrl}
               alt={name}
-              renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+              renderFallback={() => <PhosphorIcon as={UserIcon} size="50" weight="fill" />}
             />
           </StackedAvatar>
         );

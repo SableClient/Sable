@@ -37,7 +37,12 @@ export function CallRoomName({ room }: CallRoomNameProps) {
       variant="Background"
       radii="Pill"
       before={
-        <RoomIcon size="200" joinRule={room.getJoinRule()} roomType={room.getType()} filled />
+        <RoomIcon
+          size="200"
+          joinRule={room.getJoinRule()}
+          roomType={room.getType()}
+          weight="fill"
+        />
       }
       onClick={() => navigateRoom(room.roomId)}
     >

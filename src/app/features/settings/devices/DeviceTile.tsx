@@ -3,8 +3,6 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Chip,
   Input,
   Button,
@@ -15,6 +13,9 @@ import {
   OverlayBackdrop,
   OverlayCenter,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
 import { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
@@ -28,6 +29,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function DeviceTilePlaceholder() {
   return (
@@ -253,7 +255,7 @@ export function DeviceDeleteBtn({
       onClick={() => onDeleteToggle(deviceId)}
       disabled={disabled}
     >
-      <Icon size="50" src={Icons.Delete} />
+      <PhosphorIcon as={TrashIcon} size="50" />
     </Chip>
   );
 }
@@ -292,7 +294,7 @@ export function DeviceTile({
             radii="300"
             onClick={() => setDetails(!details)}
           >
-            <Icon size="50" src={details ? Icons.ChevronBottom : Icons.ChevronRight} />
+            <PhosphorIcon size="50" as={details ? CaretDownIcon : CaretRightIcon} />
           </IconButton>
         }
         after={

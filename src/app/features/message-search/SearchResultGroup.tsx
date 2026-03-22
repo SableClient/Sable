@@ -2,7 +2,8 @@
 import { MouseEventHandler, useMemo } from 'react';
 import { IEventWithRoomId, JoinRule, RelationType, Room } from '$types/matrix-sdk';
 import { HTMLReactParserOptions } from 'html-react-parser';
-import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
+import { Avatar, Box, Chip, Header, Text, config } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -52,6 +53,7 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { ResultItem } from './useMessageSearch';
 
 type SearchResultGroupProps = {
@@ -218,7 +220,7 @@ export function SearchResultGroup({
                   size="50"
                   roomType={room.getType()}
                   joinRule={room.getJoinRule() ?? JoinRule.Restricted}
-                  filled
+                  weight="fill"
                 />
               )}
             />
@@ -285,7 +287,9 @@ export function SearchResultGroup({
                             : undefined
                         }
                         alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+                        renderFallback={() => (
+                          <PhosphorIcon as={UserIcon} size="200" weight="fill" />
+                        )}
                       />
                     </Avatar>
                   </AvatarBase>

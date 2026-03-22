@@ -6,8 +6,6 @@ import {
   Box,
   Button,
   Dialog,
-  Icon,
-  Icons,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
@@ -17,6 +15,7 @@ import {
   color,
   config,
 } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
@@ -32,6 +31,7 @@ import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { RoomAvatar } from '$components/room-avatar';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 
 type GridColumnCount = '1' | '2' | '3';
@@ -255,7 +255,7 @@ export const RoomCard = as<'div', RoomCardProps>(
         </Box>
         {typeof joinedMemberCount === 'number' && (
           <Box gap="100">
-            <Icon size="50" src={Icons.User} />
+            <PhosphorIcon size="50" as={UserIcon} />
             <Text size="T200">{`${millify(joinedMemberCount)} Members`}</Text>
           </Box>
         )}

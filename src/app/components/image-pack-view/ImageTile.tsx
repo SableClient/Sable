@@ -1,5 +1,6 @@
 import { FormEventHandler, ReactNode, useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
+import { Badge, Box, Button, Chip, Input, Text } from 'folds';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { ImageUsage, imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -7,6 +8,7 @@ import { useObjectURL } from '$hooks/useObjectURL';
 import { createUploadAtom, TUploadAtom } from '$state/upload';
 import { replaceSpaceWithDash } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './style.css';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
 
@@ -71,7 +73,7 @@ export function ImageTile({
               radii="Pill"
               onClick={() => onDeleteToggle?.(defaultShortcode)}
             >
-              {deleted ? <Text size="B300">Undo</Text> : <Icon size="50" src={Icons.Delete} />}
+              {deleted ? <Text size="B300">Undo</Text> : <PhosphorIcon size="50" as={TrashIcon} />}
             </Chip>
             {!deleted && (
               <Chip

@@ -4,8 +4,6 @@ import {
   Avatar,
   Text,
   Chip,
-  Icon,
-  Icons,
   as,
   Badge,
   toRem,
@@ -16,6 +14,9 @@ import {
   MenuItem,
   RectCords,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import classNames from 'classnames';
 import { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
@@ -34,6 +35,7 @@ import { useOpenCreateRoomModal } from '$state/hooks/createRoomModal';
 import { useOpenCreateSpaceModal } from '$state/hooks/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './SpaceItem.css';
 import * as styleCss from './style.css';
 import { useDraggableItem } from './DnD';
@@ -138,7 +140,11 @@ export function UnjoinedSpaceProfile({
         </Avatar>
       }
       after={
-        canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="200" />
+        canJoin ? (
+          <PhosphorIcon as={PlusIcon} size="50" />
+        ) : (
+          <Spinner variant="Secondary" size="200" />
+        )
       }
     >
       <Box alignItems="Center" gap="200">
@@ -201,7 +207,7 @@ function SpaceProfile({
           />
         </Avatar>
       }
-      after={<Icon src={closed ? Icons.ChevronRight : Icons.ChevronBottom} size="50" />}
+      after={<PhosphorIcon as={closed ? CaretRightIcon : CaretDownIcon} size="50" />}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>
@@ -230,7 +236,7 @@ function RootSpaceProfile({ closed, categoryId, handleClose }: RootSpaceProfileP
       className={css.HeaderChip}
       variant="Surface"
       size="500"
-      after={<Icon src={closed ? Icons.ChevronRight : Icons.ChevronBottom} size="50" />}
+      after={<PhosphorIcon as={closed ? CaretRightIcon : CaretDownIcon} size="50" />}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>
@@ -307,7 +313,7 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
         <Chip
           variant="Primary"
           radii="Pill"
-          before={<Icon src={Icons.Plus} size="50" />}
+          before={<PhosphorIcon as={PlusIcon} size="50" />}
           onClick={handleAddRoom}
           aria-pressed={!!cords}
         >
@@ -376,7 +382,7 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
         <Chip
           variant="SurfaceVariant"
           radii="Pill"
-          before={<Icon src={Icons.Plus} size="50" />}
+          before={<PhosphorIcon as={PlusIcon} size="50" />}
           onClick={handleAddSpace}
           aria-pressed={!!cords}
         >

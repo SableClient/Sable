@@ -1,6 +1,8 @@
 /* eslint-disable react/no-array-index-key */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, config, Icon, Icons, Menu, Spinner, Text } from 'folds';
+import { Badge, Box, Button, Chip, config, Menu, Spinner, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
 import { produce } from 'immer';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -18,6 +20,7 @@ import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { PermissionGroup } from './types';
 
 const USER_DEFAULT_LOCATION: PermissionLocation = {
@@ -145,7 +148,7 @@ export function PermissionGroups({
                     }
                     before={
                       canEdit && (
-                        <Icon size="50" src={opened ? Icons.ChevronTop : Icons.ChevronBottom} />
+                        <PhosphorIcon size="50" as={opened ? CaretUpIcon : CaretDownIcon} />
                       )
                     }
                     onClick={handleOpen}
@@ -209,10 +212,7 @@ export function PermissionGroups({
                           }
                           before={
                             canEdit && (
-                              <Icon
-                                size="50"
-                                src={opened ? Icons.ChevronTop : Icons.ChevronBottom}
-                              />
+                              <PhosphorIcon size="50" as={opened ? CaretUpIcon : CaretDownIcon} />
                             )
                           }
                           onClick={handleOpen}

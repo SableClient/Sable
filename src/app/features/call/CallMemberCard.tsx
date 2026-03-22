@@ -1,6 +1,11 @@
 import { CallMembership, SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { useState } from 'react';
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { VideoCameraSlashIcon } from '@phosphor-icons/react/dist/csr/VideoCameraSlash';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
@@ -63,7 +68,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             userId={userId}
             src={avatarUrl}
             alt={name}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+            renderFallback={() => <PhosphorIcon size="50" as={UserIcon} weight="fill" />}
           />
         </Avatar>
         <Box grow="Yes">
@@ -71,7 +76,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             {name}
           </Text>
         </Box>
-        {audioOnly && <Icon src={Icons.VideoCameraMute} size="100" />}
+        {audioOnly && <PhosphorIcon size="100" as={VideoCameraSlashIcon} />}
       </Box>
     </SequenceCard>
   );
@@ -113,7 +118,7 @@ export function CallMemberRenderer({
               </Text>
             )}
           </Box>
-          <Icon src={viewMore ? Icons.ChevronTop : Icons.ChevronBottom} size="100" />
+          <PhosphorIcon as={viewMore ? CaretUpIcon : CaretDownIcon} size="100" />
         </SequenceCard>
       )}
     </>

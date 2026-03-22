@@ -1,6 +1,15 @@
-import { Box, Chip, Icon, IconButton, Icons, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import { Box, Chip, IconButton, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import { HeadphonesIcon } from '@phosphor-icons/react/dist/csr/Headphones';
+import { MicrophoneIcon } from '@phosphor-icons/react/dist/csr/Microphone';
+import { MicrophoneSlashIcon } from '@phosphor-icons/react/dist/csr/MicrophoneSlash';
+import { PhoneSlashIcon } from '@phosphor-icons/react/dist/csr/PhoneSlash';
+import { PresentationIcon } from '@phosphor-icons/react/dist/csr/Presentation';
+import { SpeakerXIcon } from '@phosphor-icons/react/dist/csr/SpeakerX';
+import { VideoCameraIcon } from '@phosphor-icons/react/dist/csr/VideoCamera';
+import { VideoCameraSlashIcon } from '@phosphor-icons/react/dist/csr/VideoCameraSlash';
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { StatusDivider } from './components';
 import { CallEmbed, useCallControlState } from '../../plugins/call';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
@@ -32,7 +41,11 @@ function MicrophoneButton({ enabled, onToggle, disabled }: MicrophoneButtonProps
           outlined
           disabled={disabled}
         >
-          <Icon size="100" src={enabled ? Icons.Mic : Icons.MicMute} filled={!enabled} />
+          <PhosphorIcon
+            size="100"
+            as={enabled ? MicrophoneIcon : MicrophoneSlashIcon}
+            weight={!enabled ? 'fill' : 'regular'}
+          />
         </IconButton>
       )}
     </TooltipProvider>
@@ -65,10 +78,10 @@ function SoundButton({ enabled, onToggle, disabled }: SoundButtonProps) {
           outlined
           disabled={disabled}
         >
-          <Icon
+          <PhosphorIcon
             size="100"
-            src={enabled ? Icons.Headphone : Icons.HeadphoneMute}
-            filled={!enabled}
+            as={enabled ? HeadphonesIcon : SpeakerXIcon}
+            weight={!enabled ? 'fill' : 'regular'}
           />
         </IconButton>
       )}
@@ -102,10 +115,10 @@ function VideoButton({ enabled, onToggle, disabled }: VideoButtonProps) {
           outlined
           disabled={disabled}
         >
-          <Icon
+          <PhosphorIcon
             size="100"
-            src={enabled ? Icons.VideoCamera : Icons.VideoCameraMute}
-            filled={enabled}
+            as={enabled ? VideoCameraIcon : VideoCameraSlashIcon}
+            weight={enabled ? 'fill' : 'regular'}
           />
         </IconButton>
       )}
@@ -139,7 +152,7 @@ function ScreenShareButton({ enabled, onToggle, disabled }: ScreenShareButtonPro
           outlined
           disabled={disabled}
         >
-          <Icon size="100" src={Icons.ScreenShare} filled={enabled} />
+          <PhosphorIcon size="100" as={PresentationIcon} weight={enabled ? 'fill' : 'regular'} />
         </IconButton>
       )}
     </TooltipProvider>
@@ -208,7 +221,7 @@ export function CallControl({
           exiting ? (
             <Spinner variant="Critical" fill="Soft" size="50" />
           ) : (
-            <Icon size="50" src={Icons.PhoneDown} filled />
+            <PhosphorIcon as={PhoneSlashIcon} size="50" weight="fill" />
           )
         }
         disabled={exiting}

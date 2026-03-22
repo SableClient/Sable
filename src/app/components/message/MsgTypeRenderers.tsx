@@ -1,5 +1,6 @@
 import { CSSProperties, ReactNode, useMemo } from 'react';
-import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
+import { Box, Chip, Text, toRem } from 'folds';
+import { ArrowSquareOutIcon } from '@phosphor-icons/react/dist/csr/ArrowSquareOut';
 import { IContent } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG, URL_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
@@ -22,6 +23,7 @@ import { parseGeoUri, scaleYDimension } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
@@ -509,7 +511,7 @@ export function MLocation({ content }: MLocationProps) {
         rel="noreferrer noopener"
         variant="Primary"
         radii="Pill"
-        before={<Icon src={Icons.External} size="50" />}
+        before={<PhosphorIcon as={ArrowSquareOutIcon} size="50" />}
       >
         <Text size="B300">Open Location</Text>
       </Chip>

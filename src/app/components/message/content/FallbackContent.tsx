@@ -1,4 +1,9 @@
-import { Box, Icon, Icons, Text, as, color, config } from 'folds';
+import { Box, Text, as, color, config } from 'folds';
+import { LockIcon } from '@phosphor-icons/react/dist/csr/Lock';
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const warningStyle = { color: color.Warning.Main, opacity: config.opacity.P300 };
 const criticalStyle = { color: color.Critical.Main, opacity: config.opacity.P300 };
@@ -6,7 +11,7 @@ const criticalStyle = { color: color.Critical.Main, opacity: config.opacity.P300
 export const MessageDeletedContent = as<'div', { children?: never; reason?: string }>(
   ({ reason, ...props }, ref) => (
     <Box as="span" alignItems="Center" gap="100" style={warningStyle} {...props} ref={ref}>
-      <Icon size="50" src={Icons.Delete} />
+      <PhosphorIcon size="50" as={TrashIcon} />
       {reason ? (
         <i>This message has been deleted. {reason}</i>
       ) : (
@@ -19,7 +24,7 @@ export const MessageDeletedContent = as<'div', { children?: never; reason?: stri
 export const MessageUnsupportedContent = as<'div', { children?: never; body?: string }>(
   ({ body, ...props }, ref) => (
     <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-      <Icon size="50" src={Icons.Warning} />
+      <PhosphorIcon size="50" as={WarningIcon} />
       <i>Unsupported message</i>
       {body && `: ${body}`}
       {!body && ' (no body)'}
@@ -29,21 +34,21 @@ export const MessageUnsupportedContent = as<'div', { children?: never; body?: st
 
 export const MessageFailedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Warning} />
+    <PhosphorIcon size="50" as={WarningIcon} />
     <i>Failed to load message</i>
   </Box>
 ));
 
 export const MessageBadEncryptedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={warningStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Lock} />
+    <PhosphorIcon size="50" as={LockIcon} />
     <i>Unable to decrypt message</i>
   </Box>
 ));
 
 export const MessageNotDecryptedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={warningStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Lock} />
+    <PhosphorIcon size="50" as={LockIcon} />
     <i>This message is not decrypted yet</i>
   </Box>
 ));
@@ -52,7 +57,7 @@ export const MessageNotDecryptedContent = as<'div', { children?: never }>(({ ...
 export const MessageBrokenContent = as<'div', { children?: never; body?: string }>(
   ({ body, ...props }, ref) => (
     <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-      <Icon size="50" src={Icons.Warning} />
+      <PhosphorIcon size="50" as={WarningIcon} />
       <i>Broken message</i>
       {body && `: ${body}`}
       {!body && ' (no body)'}
@@ -62,14 +67,14 @@ export const MessageBrokenContent = as<'div', { children?: never; body?: string 
 
 export const MessageEmptyContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={criticalStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Warning} />
+    <PhosphorIcon size="50" as={WarningIcon} />
     <i>Empty message</i>
   </Box>
 ));
 
 export const MessageBlockedContent = as<'div', { children?: never }>(({ ...props }, ref) => (
   <Box as="span" alignItems="Center" gap="100" style={warningStyle} {...props} ref={ref}>
-    <Icon size="50" src={Icons.Cross} />
+    <PhosphorIcon size="50" as={XIcon} />
     <i>Message from a blocked user</i>
   </Box>
 ));

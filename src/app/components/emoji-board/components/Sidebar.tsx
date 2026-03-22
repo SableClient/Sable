@@ -1,18 +1,9 @@
-import { ReactNode } from 'react';
-import {
-  Box,
-  Scroll,
-  Line,
-  as,
-  TooltipProvider,
-  Tooltip,
-  Text,
-  IconButton,
-  Icon,
-  IconSrc,
-  Icons,
-} from 'folds';
+import { ReactNode, ComponentType } from 'react';
+import { Box, Scroll, Line, as, TooltipProvider, Tooltip, Text, IconButton } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { ImageSquareIcon } from '@phosphor-icons/react/dist/csr/ImageSquare';
 import classNames from 'classnames';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 
 export function Sidebar({ children }: { children: ReactNode }) {
@@ -87,7 +78,7 @@ type GroupIconProps<T extends string> = {
   active: boolean;
   id: T;
   label: string;
-  icon: IconSrc;
+  icon: ComponentType<IconProps>;
   onClick: (id: T) => void;
 };
 export function GroupIcon<T extends string>({
@@ -99,7 +90,7 @@ export function GroupIcon<T extends string>({
 }: GroupIconProps<T>) {
   return (
     <SidebarBtn active={active} id={id} label={label} onClick={onClick}>
-      <Icon src={icon} filled={active} />
+      <PhosphorIcon as={icon} weight={active ? 'fill' : 'regular'} />
     </SidebarBtn>
   );
 }
@@ -123,7 +114,7 @@ export function ImageGroupIcon<T extends string>({
       {url ? (
         <img className={css.SidebarBtnImg} src={url} alt={label} />
       ) : (
-        <Icon src={Icons.Photo} filled={active} />
+        <PhosphorIcon as={ImageSquareIcon} weight={active ? 'fill' : 'regular'} />
       )}
     </SidebarBtn>
   );

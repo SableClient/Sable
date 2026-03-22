@@ -1,6 +1,8 @@
 import { MouseEventHandler, forwardRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { Box, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
@@ -25,6 +27,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
 
 type DirectMenuProps = {
@@ -48,7 +51,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="50" />}
           radii="300"
           aria-disabled={!unread}
         >
@@ -110,7 +113,7 @@ export function DirectTab() {
             onClick={handleDirectClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.User} filled={directSelected} />
+            <PhosphorIcon as={UserIcon} weight={directSelected ? 'fill' : 'regular'} size="200" />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

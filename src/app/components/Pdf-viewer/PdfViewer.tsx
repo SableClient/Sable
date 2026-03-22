@@ -7,9 +7,7 @@ import {
   Button,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   PopOut,
@@ -20,12 +18,20 @@ import {
   as,
   config,
 } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { CaretLeftIcon } from '@phosphor-icons/react/dist/csr/CaretLeft';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { DownloadIcon } from '@phosphor-icons/react/dist/csr/Download';
+import { MinusIcon } from '@phosphor-icons/react/dist/csr/Minus';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
 import FocusTrap from 'focus-trap-react';
 import FileSaver from 'file-saver';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { createPage, usePdfDocumentLoader, usePdfJSLoader } from '$plugins/pdfjs-dist';
 import { stopPropagation } from '$utils/keyboard';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './PdfViewer.css';
 
 export type PdfViewerProps = {
@@ -115,7 +121,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
         <Header className={css.PdfViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              <PhosphorIcon size="50" as={ArrowLeftIcon} />
             </IconButton>
             <Text size="T300" truncate>
               {name}
@@ -130,7 +136,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomOut}
               aria-label="Zoom Out"
             >
-              <Icon size="50" src={Icons.Minus} />
+              <PhosphorIcon size="50" as={MinusIcon} />
             </IconButton>
             <Chip variant="SurfaceVariant" radii="Pill" onClick={() => setZoom(zoom === 1 ? 2 : 1)}>
               <Text size="B300">{Math.round(zoom * 100)}%</Text>
@@ -143,13 +149,13 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomIn}
               aria-label="Zoom In"
             >
-              <Icon size="50" src={Icons.Plus} />
+              <PhosphorIcon size="50" as={PlusIcon} />
             </IconButton>
             <Chip
               variant="Primary"
               onClick={handleDownload}
               radii="300"
-              before={<Icon size="50" src={Icons.Download} />}
+              before={<PhosphorIcon size="50" as={DownloadIcon} />}
             >
               <Text size="B300">Download</Text>
             </Chip>
@@ -165,7 +171,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
                 fill="Soft"
                 size="300"
                 radii="300"
-                before={<Icon src={Icons.Warning} size="50" />}
+                before={<PhosphorIcon size="50" as={WarningIcon} />}
                 onClick={loadPdfJS}
               >
                 <Text size="B300">Retry</Text>
@@ -196,7 +202,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Secondary"
               radii="300"
-              before={<Icon size="50" src={Icons.ChevronLeft} />}
+              before={<PhosphorIcon size="50" as={CaretLeftIcon} />}
               onClick={handlePrevPage}
               aria-disabled={pageNo <= 1}
             >
@@ -258,7 +264,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Primary"
               radii="300"
-              after={<Icon size="50" src={Icons.ChevronRight} />}
+              after={<PhosphorIcon size="50" as={CaretRightIcon} />}
               onClick={handleNextPage}
               aria-disabled={pageNo >= docState.data.numPages}
             >

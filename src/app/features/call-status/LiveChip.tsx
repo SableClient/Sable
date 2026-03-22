@@ -5,8 +5,6 @@ import {
   Box,
   Chip,
   config,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -15,9 +13,13 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import FocusTrap from 'focus-trap-react';
 import { Room } from 'matrix-js-sdk';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 import { stopPropagation } from '../../utils/keyboard';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
@@ -102,7 +104,9 @@ export function LiveChip({ count, room, members }: LiveChipProps) {
                               userId={userId}
                               src={avatarUrl}
                               alt={name}
-                              renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                              renderFallback={() => (
+                                <PhosphorIcon as={UserIcon} size="50" weight="fill" />
+                              )}
                             />
                           </Avatar>
                         }
@@ -124,7 +128,7 @@ export function LiveChip({ count, room, members }: LiveChipProps) {
         variant="Surface"
         fill="Soft"
         before={<Badge variant="Critical" fill="Solid" size="200" />}
-        after={<Icon size="50" src={cords ? Icons.ChevronBottom : Icons.ChevronTop} />}
+        after={<PhosphorIcon size="50" as={cords ? CaretDownIcon : CaretUpIcon} />}
         radii="Pill"
         onClick={handleOpenMenu}
       >

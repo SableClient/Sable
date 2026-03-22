@@ -16,8 +16,6 @@ import {
   config,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
   Button,
   Spinner,
@@ -42,6 +40,8 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -174,7 +174,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} />
                   </IconButton>
                 </Box>
               </Header>

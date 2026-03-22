@@ -3,8 +3,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Button,
   Avatar,
@@ -13,6 +11,9 @@ import {
   OverlayCenter,
   OverlayBackdrop,
 } from 'folds';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { getRoomAvatarUrl } from '$utils/room';
@@ -27,6 +28,7 @@ import {
   mutedCallRoomIdAtom,
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { RoomAvatar } from './room-avatar';
 
 const debugLog = createDebugLogger('IncomingCall');
@@ -84,7 +86,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
           <Text size="H4">Incoming Call</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          <PhosphorIcon as={XIcon} />
         </IconButton>
       </Header>
 
@@ -94,7 +96,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             roomId={room.roomId}
             src={avatarUrl ?? undefined}
             alt={roomName}
-            renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+            renderFallback={() => <PhosphorIcon size="200" as={UserIcon} weight="fill" />}
           />
         </Avatar>
 
@@ -121,7 +123,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             variant="Primary"
             style={{ minWidth: '110px' }}
             onClick={handleAnswer}
-            before={<Icon size="100" src={Icons.Phone} />}
+            before={<PhosphorIcon size="100" as={PhoneIcon} />}
           >
             <Text size="B400">Answer</Text>
           </Button>

@@ -1,20 +1,4 @@
 import {
-  Avatar,
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
-  Text,
-  as,
-  config,
-} from 'folds';
-import {
   MouseEventHandler,
   MouseEvent,
   PointerEvent,
@@ -26,6 +10,29 @@ import {
   useEffect,
   useMemo,
 } from 'react';
+import {
+  Avatar,
+  Box,
+  Chip,
+  IconButton,
+  Line,
+  Menu,
+  MenuItem,
+  PopOut,
+  RectCords,
+  Text,
+  as,
+  config,
+} from 'folds';
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowBendUpLeft';
+import { ChatTeardropTextIcon } from '@phosphor-icons/react/dist/csr/ChatTeardropText';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/csr/PencilSimple';
+import { PushPinIcon } from '@phosphor-icons/react/dist/csr/PushPin';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { StarIcon } from '@phosphor-icons/react/dist/csr/Star';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
 import {
@@ -89,6 +96,7 @@ import {
   convertBeeperFormatToOurPerMessageProfile,
   PerMessageProfileBeeperFormat,
 } from '$hooks/usePerMessageProfile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 
@@ -153,7 +161,7 @@ export const MessageCopyLinkItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Link} />}
+      after={<PhosphorIcon as={LinkIcon} size="100" />}
       radii="300"
       onClick={handleCopy}
       {...props}
@@ -194,7 +202,7 @@ export const MessagePinItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Pin} />}
+      after={<PhosphorIcon as={PushPinIcon} size="100" />}
       radii="300"
       onClick={handlePin}
       {...props}
@@ -599,7 +607,7 @@ function MessageInternal(
           userId={senderId}
           src={cachedAvatar}
           alt={cleanedDisplayName}
-          renderFallback={() => <Icon size="200" src={Icons.User} filled />}
+          renderFallback={() => <PhosphorIcon as={UserIcon} size="200" weight="fill" />}
         />
       </Avatar>
     </AvatarBase>
@@ -868,7 +876,7 @@ function MessageInternal(
                     radii="300"
                     aria-pressed={!!emojiBoardAnchor}
                   >
-                    <Icon src={Icons.SmilePlus} size="100" />
+                    <PhosphorIcon as={SmileyIcon} size="100" />
                   </IconButton>
                 </PopOut>
               )}
@@ -882,7 +890,7 @@ function MessageInternal(
                 size="300"
                 radii="300"
               >
-                <Icon src={Icons.ReplyArrow} size="100" />
+                <PhosphorIcon as={ArrowBendUpLeftIcon} size="100" />
               </IconButton>
               {!isThreadedMessage && (
                 <IconButton
@@ -898,7 +906,7 @@ function MessageInternal(
                   size="300"
                   radii="300"
                 >
-                  <Icon src={Icons.ThreadPlus} size="100" />
+                  <PhosphorIcon as={ChatTeardropTextIcon} size="100" />
                 </IconButton>
               )}
               {canEditEvent(mx, mEvent) && onEditId && (
@@ -911,7 +919,7 @@ function MessageInternal(
                   size="300"
                   radii="300"
                 >
-                  <Icon src={Icons.Pencil} size="100" />
+                  <PhosphorIcon as={PencilSimpleIcon} size="100" />
                 </IconButton>
               )}
               <PopOut
@@ -943,7 +951,7 @@ function MessageInternal(
                         {canSendReaction && (
                           <MenuItem
                             size="300"
-                            after={<Icon size="100" src={Icons.SmilePlus} />}
+                            after={<PhosphorIcon as={SmileyIcon} size="100" />}
                             radii="300"
                             onClick={handleAddReactions}
                           >
@@ -963,7 +971,7 @@ function MessageInternal(
                           !doesStickerExistInDefaultPack(mx, mEvent.getContent().url) && (
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.Star} />}
+                              after={<PhosphorIcon as={StarIcon} size="100" />}
                               radii="300"
                               onClick={() => {
                                 addStickerToDefaultPack(
@@ -989,7 +997,7 @@ function MessageInternal(
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
                         <MenuItem
                           size="300"
-                          after={<Icon size="100" src={Icons.ReplyArrow} />}
+                          after={<PhosphorIcon as={ArrowBendUpLeftIcon} size="100" />}
                           radii="300"
                           data-event-id={mEvent.getId()}
                           onClick={(evt: any) => {
@@ -1004,7 +1012,7 @@ function MessageInternal(
                         {!isThreadedMessage && (
                           <MenuItem
                             size="300"
-                            after={<Icon src={Icons.ThreadPlus} size="100" />}
+                            after={<PhosphorIcon as={ChatTeardropTextIcon} size="100" />}
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={(evt: any) => {
@@ -1025,7 +1033,7 @@ function MessageInternal(
                         {canEditEvent(mx, mEvent) && onEditId && (
                           <MenuItem
                             size="300"
-                            after={<Icon size="100" src={Icons.Pencil} />}
+                            after={<PhosphorIcon as={PencilSimpleIcon} size="100" />}
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={() => {
@@ -1125,7 +1133,7 @@ function MessageInternal(
                           ) : (
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.Pencil} />}
+                              after={<PhosphorIcon as={PencilSimpleIcon} size="100" />}
                               radii="300"
                               onClick={() => {
                                 setNickDraft(nicknames[senderId] ?? '');
@@ -1168,7 +1176,7 @@ function MessageInternal(
                   onClick={handleOpenMenu}
                   aria-pressed={!!menuAnchor}
                 >
-                  <Icon src={Icons.VerticalDots} size="100" />
+                  <PhosphorIcon as={DotsThreeVerticalIcon} size="100" />
                 </IconButton>
               </PopOut>
             </Box>
@@ -1359,7 +1367,7 @@ export const Event = as<'div', EventProps>(
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                             <MenuItem
                               size="300"
-                              after={<Icon size="100" src={Icons.ReplyArrow} />}
+                              after={<PhosphorIcon as={ArrowBendUpLeftIcon} size="100" />}
                               radii="300"
                               data-event-id={mEvent.getId()}
                               onClick={(evt: any) => {
@@ -1417,7 +1425,7 @@ export const Event = as<'div', EventProps>(
                       size="300"
                       radii="300"
                     >
-                      <Icon src={Icons.ReplyArrow} size="100" />
+                      <PhosphorIcon as={ArrowBendUpLeftIcon} size="100" />
                     </IconButton>
                     <IconButton
                       variant="SurfaceVariant"
@@ -1426,7 +1434,7 @@ export const Event = as<'div', EventProps>(
                       onClick={handleOpenMenu}
                       aria-pressed={!!menuAnchor}
                     >
-                      <Icon src={Icons.VerticalDots} size="100" />
+                      <PhosphorIcon as={DotsThreeVerticalIcon} size="100" />
                     </IconButton>
                   </PopOut>
                 )}

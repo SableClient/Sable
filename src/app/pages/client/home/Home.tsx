@@ -4,9 +4,7 @@ import {
   Avatar,
   Box,
   Button,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -15,6 +13,12 @@ import {
   config,
   toRem,
 } from 'folds';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
@@ -61,6 +65,7 @@ import {
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { RoomSearchParams } from '$pages/paths';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { useHomeRooms } from './useHomeRooms';
 
 type HomeMenuProps = {
@@ -84,7 +89,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="100" />}
           radii="300"
           aria-disabled={!unread}
         >
@@ -119,7 +124,7 @@ function HomeHeader() {
           </Box>
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
+              <PhosphorIcon as={DotsThreeVerticalIcon} size="200" />
             </IconButton>
           </Box>
         </Box>
@@ -155,7 +160,7 @@ function HomeEmpty() {
   return (
     <NavEmptyCenter>
       <NavEmptyLayout
-        icon={<Icon size="600" src={Icons.Hash} />}
+        icon={<PhosphorIcon as={HashIcon} size="600" />}
         title={
           <Text size="H5" align="Center">
             No Rooms
@@ -247,7 +252,7 @@ export function Home() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
+                        <PhosphorIcon as={PlusIcon} size="100" />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>
@@ -266,7 +271,7 @@ export function Home() {
                         <NavItemContent>
                           <Box as="span" grow="Yes" alignItems="Center" gap="200">
                             <Avatar size="200" radii="400">
-                              <Icon src={Icons.Link} size="100" />
+                              <PhosphorIcon as={LinkIcon} size="100" />
                             </Avatar>
                             <Box as="span" grow="Yes">
                               <Text as="span" size="Inherit" truncate>
@@ -301,7 +306,11 @@ export function Home() {
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        <PhosphorIcon
+                          as={MagnifyingGlassIcon}
+                          size="100"
+                          weight={searchSelected ? 'fill' : 'regular'}
+                        />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>

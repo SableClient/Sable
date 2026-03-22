@@ -17,8 +17,6 @@ import {
   as,
   Box,
   Chip,
-  Icon,
-  Icons,
   Line,
   Text,
   Badge,
@@ -28,6 +26,9 @@ import {
   ContainerColor,
   Spinner,
 } from 'folds';
+import { ArrowDownIcon } from '@phosphor-icons/react/dist/csr/ArrowDown';
+import { ChatCircleDotsIcon } from '@phosphor-icons/react/dist/csr/ChatCircleDots';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -73,6 +74,7 @@ import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
 import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './RoomTimeline.css';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
@@ -733,7 +735,7 @@ export function RoomTimeline({
             variant="Primary"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.MessageUnread} />}
+            before={<PhosphorIcon as={ChatCircleDotsIcon} size="50" />}
             onClick={() => timelineSync.loadEventTimeline(unreadInfo.readUptoEventId)}
           >
             <Text size="L400">Jump to Unread</Text>
@@ -742,7 +744,7 @@ export function RoomTimeline({
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.CheckTwice} />}
+            before={<PhosphorIcon as={ChecksIcon} size="50" />}
             onClick={() => markAsRead(mx, room.roomId, hideReads)}
           >
             <Text size="L400">Mark as Read</Text>
@@ -877,7 +879,7 @@ export function RoomTimeline({
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            before={<Icon size="50" src={Icons.ArrowBottom} />}
+            before={<PhosphorIcon as={ArrowDownIcon} size="50" />}
             onClick={() => {
               if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
               timelineSync.setTimeline(getInitialTimeline(room));

@@ -1,17 +1,8 @@
 import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, Line, PopOut, RectCords, Spinner, Text, config } from 'folds';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { TextUnderlineIcon } from '@phosphor-icons/react/dist/csr/TextUnderline';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -38,6 +29,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { mobileOrTablet } from '$utils/user-agent';
 import { SettingTile } from '$components/setting-tile';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './BioEditor.css';
 
 type BioEditorProps = {
@@ -226,7 +218,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                     radii="300"
                     onClick={() => setToolbar(!toolbar)}
                   >
-                    <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                    <PhosphorIcon size="400" as={toolbar ? TextUnderlineIcon : TextAaIcon} />
                   </IconButton>
                   <UseStateProvider initial={undefined}>
                     {(anchor: RectCords | undefined, setAnchor) => (
@@ -260,7 +252,11 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          <PhosphorIcon
+                            as={SmileyIcon}
+                            size="400"
+                            weight={anchor !== undefined ? 'fill' : 'regular'}
+                          />
                         </IconButton>
                       </PopOut>
                     )}

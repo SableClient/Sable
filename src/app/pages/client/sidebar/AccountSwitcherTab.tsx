@@ -4,8 +4,6 @@ import {
   Button,
   Dialog,
   Header,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -17,6 +15,9 @@ import {
   Spinner,
   Line,
 } from 'folds';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +49,8 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -101,7 +104,7 @@ function AccountRow({
             </UnreadBadgeCenter>
           )}
           {isActive && (
-            <Icon size="200" src={Icons.Check} style={{ color: 'var(--mx-c-success)' }} />
+            <PhosphorIcon as={CheckIcon} size="200" style={{ color: 'var(--mx-c-success)' }} />
           )}
           {isBusy ? (
             <Spinner size="200" variant="Secondary" />
@@ -349,7 +352,7 @@ export function AccountSwitcherTab() {
                 <MenuItem
                   size="300"
                   radii="300"
-                  before={<Icon size="50" src={Icons.Plus} />}
+                  before={<PhosphorIcon as={PlusIcon} size="50" />}
                   onClick={handleAddAccount}
                 >
                   <Text size="T300">Add Account</Text>
@@ -358,7 +361,7 @@ export function AccountSwitcherTab() {
                 <MenuItem
                   size="300"
                   radii="300"
-                  before={<Icon size="200" src={Icons.Setting} />}
+                  before={<PhosphorIcon as={GearIcon} size="200" />}
                   onClick={handleOpenSettings}
                 >
                   <Text size="T300">Settings</Text>

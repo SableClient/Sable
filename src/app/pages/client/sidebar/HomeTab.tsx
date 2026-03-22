@@ -1,6 +1,8 @@
 import { MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { Box, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { HouseIcon } from '@phosphor-icons/react/dist/csr/House';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';
@@ -26,6 +28,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -48,7 +51,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="100" />}
           radii="300"
           aria-disabled={!unread}
         >
@@ -104,7 +107,7 @@ export function HomeTab() {
             onClick={handleHomeClick}
             onContextMenu={handleContextMenu}
           >
-            <Icon src={Icons.Home} filled={homeSelected} />
+            <PhosphorIcon as={HouseIcon} weight={homeSelected ? 'fill' : 'regular'} />
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

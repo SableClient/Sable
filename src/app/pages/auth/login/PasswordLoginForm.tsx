@@ -3,9 +3,7 @@ import {
   Box,
   Button,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   Overlay,
@@ -17,6 +15,7 @@ import {
   Text,
   config,
 } from 'folds';
+import { InfoIcon } from '@phosphor-icons/react/dist/csr/Info';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
 import { MatrixError } from '$types/matrix-sdk';
@@ -31,6 +30,7 @@ import { getResetPasswordPath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import {
   CustomLoginResponse,
   LoginError,
@@ -101,7 +101,7 @@ function UsernameHint({ server }: { server: string }) {
         radii="300"
         aria-pressed={!!anchor}
       >
-        <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.Info} />
+        <PhosphorIcon as={InfoIcon} style={{ opacity: config.opacity.P300 }} size="100" />
       </IconButton>
     </PopOut>
   );

@@ -1,5 +1,6 @@
 import { ChangeEventHandler, FormEventHandler, useCallback, useState } from 'react';
-import { Box, Button, Chip, Icon, IconButton, Icons, Input, Spinner, Text, config } from 'folds';
+import { Box, Button, Chip, IconButton, Input, Spinner, Text, config } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -8,6 +9,7 @@ import { isUserId } from '$utils/matrix';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 function IgnoreUserInput({ userList }: { userList: string[] }) {
   const mx = useMatrixClient();
@@ -73,7 +75,7 @@ function IgnoreUserInput({ userList }: { userList: string[] }) {
                 radii="300"
                 variant="Secondary"
               >
-                <Icon src={Icons.Cross} size="100" />
+                <PhosphorIcon as={XIcon} size="100" />
               </IconButton>
             )
           }
@@ -115,7 +117,7 @@ function IgnoredUserChip({ userId, userList }: { userId: string; userList: strin
         unIgnoring ? (
           <Spinner variant="Secondary" size="100" />
         ) : (
-          <Icon src={Icons.Cross} size="100" />
+          <PhosphorIcon as={XIcon} size="100" />
         )
       }
       onClick={handleUnignore}

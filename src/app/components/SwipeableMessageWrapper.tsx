@@ -2,9 +2,11 @@ import { useMotionValue, useSpring, useTransform, motion } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { ReactNode, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { config, Icon, Icons } from 'folds';
+import { config } from 'folds';
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowBendUpLeft';
 import { mobileOrTablet } from '$utils/user-agent';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onReply: () => void }) {
   const x = useMotionValue(0);
@@ -48,8 +50,8 @@ function ActiveSwipeWrapper({ children, onReply }: { children: ReactNode; onRepl
         }}
       >
         <motion.div style={{ opacity: iconOpacity }}>
-          <Icon
-            src={Icons.ReplyArrow}
+          <PhosphorIcon
+            as={ArrowBendUpLeftIcon}
             size="400"
             style={{
               color: isReady

@@ -10,19 +10,20 @@ import {
   Box,
   Text,
   IconButton,
-  Icon,
-  Icons,
   color,
   Button,
   Chip,
   PopOut,
   RectCords,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { stopPropagation } from '$utils/keyboard';
 import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/time';
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type SchedulePickerDialogProps = {
   initialTime?: number;
@@ -105,7 +106,7 @@ export function SchedulePickerDialog({
                 title="Cancel scheduling"
                 aria-label="Cancel scheduling"
               >
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box direction="Column" gap="500" style={{ padding: config.space.S400 }}>
@@ -122,7 +123,7 @@ export function SchedulePickerDialog({
                       outlined
                       radii="300"
                       aria-pressed={!!timePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={<PhosphorIcon as={CaretDownIcon} size="50" />}
                       onClick={handleTimePicker}
                     >
                       <Text size="B300">{timeHourMinute(ts, hour24Clock)}</Text>
@@ -163,7 +164,7 @@ export function SchedulePickerDialog({
                       outlined
                       radii="300"
                       aria-pressed={!!datePickerCords}
-                      after={<Icon size="50" src={Icons.ChevronBottom} />}
+                      after={<PhosphorIcon as={CaretDownIcon} size="50" />}
                       onClick={handleDatePicker}
                     >
                       <Text size="B300">{timeDayMonthYear(ts)}</Text>

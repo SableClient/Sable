@@ -1,4 +1,6 @@
-import { Box, toRem, config, Icons, Icon, Text } from 'folds';
+import { Box, toRem, config, Text } from 'folds';
+import { StickerIcon } from '@phosphor-icons/react/dist/csr/Sticker';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function NoStickerPacks() {
   return (
@@ -9,7 +11,7 @@ export function NoStickerPacks() {
       direction="Column"
       gap="300"
     >
-      <Icon size="600" src={Icons.Sticker} />
+      <PhosphorIcon size="600" as={StickerIcon} />
       <Box direction="Inherit">
         <Text align="Center">No Sticker Packs!</Text>
         <Text priority="300" align="Center" size="T200">

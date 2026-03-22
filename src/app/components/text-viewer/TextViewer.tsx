@@ -1,8 +1,10 @@
 import { ComponentProps, HTMLAttributes, Suspense, forwardRef, lazy } from 'react';
 import classNames from 'classnames';
-import { Box, Chip, Header, Icon, IconButton, Icons, Scroll, Text, as } from 'folds';
+import { Box, Chip, Header, IconButton, Scroll, Text, as } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
 import { ErrorBoundary } from 'react-error-boundary';
 import { copyToClipboard } from '$utils/dom';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './TextViewer.css';
 
 const ReactPrism = lazy(() => import('$plugins/react-prism/ReactPrism'));
@@ -53,7 +55,7 @@ export const TextViewer = as<'div', TextViewerProps>(
         <Header className={css.TextViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              <PhosphorIcon size="50" as={ArrowLeftIcon} />
             </IconButton>
             <Text size="T300" truncate>
               {name}

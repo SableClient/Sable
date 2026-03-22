@@ -5,8 +5,6 @@ import {
   Button,
   Chip,
   config,
-  Icon,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -16,6 +14,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
@@ -33,6 +32,7 @@ import {
 } from '$hooks/useTheme';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type ThemeSelectorProps = {
   themeNames: Record<string, string>;
@@ -84,7 +84,7 @@ function SelectTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
         outlined
         fill="Soft"
         radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        after={<PhosphorIcon as={CaretDownIcon} size="300" />}
         onClick={disabled ? undefined : handleThemeMenu}
         aria-disabled={disabled}
       >
@@ -163,7 +163,7 @@ function SystemThemePreferences() {
             variant={themeKind === ThemeKind.Light ? 'Primary' : 'Secondary'}
             outlined={themeKind === ThemeKind.Light}
             radii="Pill"
-            after={<Icon size="200" src={Icons.ChevronBottom} />}
+            after={<PhosphorIcon as={CaretDownIcon} size="200" />}
             onClick={handleLightThemeMenu}
           >
             <Text size="B300">{themeNames[selectedLightTheme.id] ?? selectedLightTheme.id}</Text>
@@ -204,7 +204,7 @@ function SystemThemePreferences() {
             variant={themeKind === ThemeKind.Dark ? 'Primary' : 'Secondary'}
             outlined={themeKind === ThemeKind.Dark}
             radii="Pill"
-            after={<Icon size="200" src={Icons.ChevronBottom} />}
+            after={<PhosphorIcon as={CaretDownIcon} size="200" />}
             onClick={handleDarkThemeMenu}
           >
             <Text size="B300">{themeNames[selectedDarkTheme.id] ?? selectedDarkTheme.id}</Text>

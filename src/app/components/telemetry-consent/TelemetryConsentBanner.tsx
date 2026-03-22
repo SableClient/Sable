@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
+import { Box, Button, Text } from 'folds';
+import { ShieldCheckIcon } from '@phosphor-icons/react/dist/csr/ShieldCheck';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './TelemetryConsentBanner.css';
 
 const SENTRY_KEY = 'sable_sentry_enabled';
@@ -41,7 +43,7 @@ export function TelemetryConsentBanner() {
         aria-label="Crash reporting prompt"
       >
         <div className={css.Header}>
-          <Icon src={Icons.Shield} size="400" />
+          <PhosphorIcon as={ShieldCheckIcon} size="400" />
           <div className={css.HeaderText}>
             <Text size="H4">Help improve Sable</Text>
             <Text size="T300" priority="300">

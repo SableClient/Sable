@@ -1,4 +1,5 @@
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
 import { MouseEventHandler } from 'react';
 import { useAtomValue } from 'jotai';
 import { Room, CallMembership } from '$types/matrix-sdk';
@@ -12,6 +13,7 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { nicknamesAtom } from '$state/nicknames';
 import { useCallEmbed } from '$hooks/useCallEmbed';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type RoomNavUserProps = {
   room: Room;
@@ -53,7 +55,7 @@ export function RoomNavUser({ room, callMembership }: RoomNavUserProps) {
                   userId={userId}
                   src={avatarUrl ?? undefined}
                   alt={name}
-                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                  renderFallback={() => <PhosphorIcon as={UserIcon} size="50" weight="fill" />}
                 />
               </Avatar>
               <Text as="span" size="B400" priority="300" truncate>

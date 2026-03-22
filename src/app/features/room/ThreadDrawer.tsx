@@ -1,5 +1,7 @@
 import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Text, config } from 'folds';
+import { Box, Header, IconButton, Scroll, Text, config } from 'folds';
+import { ChatsIcon } from '@phosphor-icons/react/dist/csr/Chats';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import {
   MatrixEvent,
   PushProcessor,
@@ -49,6 +51,7 @@ import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { IReplyDraft, roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { EncryptedContent, Message, Reactions } from './message';
 import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
@@ -745,7 +748,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       {/* Header */}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          <PhosphorIcon as={ChatsIcon} size="200" />
           <Text size="H4" truncate>
             Thread
           </Text>
@@ -761,7 +764,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             radii="300"
             aria-label="Close thread"
           >
-            <Icon size="200" src={Icons.Cross} />
+            <PhosphorIcon as={XIcon} size="200" />
           </IconButton>
         </Box>
       </Header>
@@ -808,7 +811,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               justifyContent="Center"
               style={{ padding: config.space.S400, gap: config.space.S200 }}
             >
-              <Icon size="400" src={Icons.Thread} />
+              <PhosphorIcon as={ChatsIcon} size="400" />
               <Text size="T300" align="Center">
                 No replies yet. Start the thread below!
               </Text>

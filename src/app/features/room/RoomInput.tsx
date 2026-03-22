@@ -27,9 +27,7 @@ import {
   color,
   config,
   Dialog,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -42,6 +40,20 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { BellRingingIcon } from '@phosphor-icons/react/dist/csr/BellRinging';
+import { BellSlashIcon } from '@phosphor-icons/react/dist/csr/BellSlash';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { ClockIcon } from '@phosphor-icons/react/dist/csr/Clock';
+import { FileIcon } from '@phosphor-icons/react/dist/csr/File';
+import { MicrophoneIcon } from '@phosphor-icons/react/dist/csr/Microphone';
+import { PaperPlaneTiltIcon } from '@phosphor-icons/react/dist/csr/PaperPlaneTilt';
+import { PlusCircleIcon } from '@phosphor-icons/react/dist/csr/PlusCircle';
+import { SmileyIcon } from '@phosphor-icons/react/dist/csr/Smiley';
+import { StickerIcon } from '@phosphor-icons/react/dist/csr/Sticker';
+import { StopIcon } from '@phosphor-icons/react/dist/csr/Stop';
+import { TextAaIcon } from '@phosphor-icons/react/dist/csr/TextAa';
+import { TextAUnderlineIcon } from '@phosphor-icons/react/dist/csr/TextAUnderline';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -141,9 +153,9 @@ import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForRoom,
 } from '$hooks/usePerMessageProfile';
-import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { sanitizeCustomHtml } from '$utils/sanitize';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -1068,7 +1080,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 gap="500"
                 style={{ padding: toRem(60) }}
               >
-                <Icon size="600" src={Icons.File} />
+                <PhosphorIcon as={FileIcon} size="600" />
                 <Text size="H4" align="Center">
                   {`Drop Files in "${room?.name || 'Room'}"`}
                 </Text>
@@ -1159,10 +1171,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       radii="300"
                       title="schedule message send"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      <PhosphorIcon as={XIcon} size="50" />
                     </IconButton>
                     <Box direction="Row" gap="200" alignItems="Center">
-                      <Icon size="100" src={Icons.Clock} />
+                      <PhosphorIcon as={ClockIcon} size="100" />
                       <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
@@ -1197,7 +1209,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       aria-label="Cancel reply"
                       title="Cancel reply"
                     >
-                      <Icon src={Icons.Cross} size="50" />
+                      <PhosphorIcon as={XIcon} size="50" />
                     </IconButton>
                     <Box
                       direction="Row"
@@ -1231,8 +1243,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         }
                         onClick={() => setSilentReply(!silentReply)}
                       >
-                        {!silentReply && <Icon src={Icons.BellPing} />}
-                        {silentReply && <Icon src={Icons.BellMute} />}
+                        {!silentReply && <PhosphorIcon as={BellRingingIcon} />}
+                        {silentReply && <PhosphorIcon as={BellSlashIcon} />}
                       </IconButton>
                     </Box>
                   </Box>
@@ -1250,7 +1262,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 title="Upload File"
                 aria-label="Upload and attach a File"
               >
-                <Icon src={Icons.PlusCircle} />
+                <PhosphorIcon as={PlusCircleIcon} />
               </IconButton>
             )
           }
@@ -1326,9 +1338,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 }}
               >
                 {showAudioRecorder ? (
-                  <Stop size={20} weight="fill" style={{ color: color.Critical.Main }} />
+                  <PhosphorIcon
+                    as={StopIcon}
+                    weight="fill"
+                    style={{ color: color.Critical.Main }}
+                  />
                 ) : (
-                  <Microphone size={20} />
+                  <PhosphorIcon as={MicrophoneIcon} />
                 )}
               </IconButton>
 
@@ -1341,7 +1357,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-label={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
                 onClick={() => setToolbar(!toolbar)}
               >
-                <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                <PhosphorIcon as={toolbar ? TextAUnderlineIcon : TextAaIcon} />
               </IconButton>
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
@@ -1386,9 +1402,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         title="open sticker picker"
                         aria-label="Open sticker picker"
                       >
-                        <Icon
-                          src={Icons.Sticker}
-                          filled={emojiBoardTab === EmojiBoardTab.Sticker}
+                        <PhosphorIcon
+                          as={StickerIcon}
+                          weight={emojiBoardTab === EmojiBoardTab.Sticker ? 'fill' : 'regular'}
                         />
                       </IconButton>
                     )}
@@ -1404,10 +1420,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       title="open emoji picker"
                       aria-label="Open emoji picker"
                     >
-                      <Icon
-                        src={Icons.Smile}
-                        filled={
-                          hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                      <PhosphorIcon
+                        as={SmileyIcon}
+                        weight={
+                          (hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji)
+                            ? 'fill'
+                            : 'regular'
                         }
                       />
                     </IconButton>
@@ -1437,7 +1455,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             submit();
                           }}
-                          before={<Icon size="100" src={Icons.Send} />}
+                          before={<PhosphorIcon as={PaperPlaneTiltIcon} size="100" />}
                         >
                           <Text size="B300">Send Now</Text>
                         </MenuItem>
@@ -1448,7 +1466,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             setScheduleMenuAnchor(undefined);
                             setShowSchedulePicker(true);
                           }}
-                          before={<Icon size="100" src={Icons.Clock} />}
+                          before={<PhosphorIcon as={ClockIcon} size="100" />}
                         >
                           <Text size="B300">Schedule Send</Text>
                         </MenuItem>
@@ -1495,7 +1513,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   radii="0"
                   className={delayedEventsSupported ? css.SplitSendButton : undefined}
                 >
-                  <Icon src={scheduledTime ? Icons.Clock : Icons.Send} />
+                  <PhosphorIcon as={scheduledTime ? ClockIcon : PaperPlaneTiltIcon} />
                 </IconButton>
                 {delayedEventsSupported && !mobileOrTablet() && (
                   <IconButton
@@ -1509,7 +1527,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     radii="0"
                     className={css.SplitChevronButton}
                   >
-                    <Icon size="50" src={Icons.ChevronBottom} />
+                    <PhosphorIcon as={CaretDownIcon} size="50" />
                   </IconButton>
                 )}
               </Box>

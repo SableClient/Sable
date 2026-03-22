@@ -12,9 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Icon,
   IconButton,
-  Icons,
   Line,
   Menu,
   MenuItem,
@@ -24,6 +22,12 @@ import {
   config,
   toRem,
 } from 'folds';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { PushPinIcon } from '@phosphor-icons/react/dist/csr/PushPin';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
 import { useAtom, useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
 import {
@@ -93,6 +97,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type SpaceMenuProps = {
   room: Room;
@@ -161,7 +166,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={<PhosphorIcon as={ChecksIcon} size="100" />}
             radii="300"
             disabled={!unread}
           >
@@ -174,7 +179,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               size="300"
               radii="300"
               onClick={handleUnpin}
-              after={<Icon size="100" src={Icons.Pin} />}
+              after={<PhosphorIcon as={PushPinIcon} size="100" />}
             >
               <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
                 Unpin
@@ -189,7 +194,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={<PhosphorIcon as={UserPlusIcon} size="100" />}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -201,7 +206,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleCopyLink}
             size="300"
-            after={<Icon size="100" src={Icons.Link} />}
+            after={<PhosphorIcon as={LinkIcon} size="100" />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -211,7 +216,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleRoomSettings}
             size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
+            after={<PhosphorIcon as={GearIcon} size="100" />}
             radii="300"
           >
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -533,7 +538,7 @@ function OpenedSpaceFolder({ folder, onClose, children }: Readonly<OpenedSpaceFo
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300">
         <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          <Icon size="400" src={Icons.ChevronTop} filled />
+          <PhosphorIcon as={CaretUpIcon} size="400" weight="fill" />
         </IconButton>
       </SidebarAvatar>
       {children}

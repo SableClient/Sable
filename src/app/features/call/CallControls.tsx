@@ -3,9 +3,7 @@ import {
   Box,
   Button,
   config,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   PopOut,
@@ -14,6 +12,8 @@ import {
   Text,
   toRem,
 } from 'folds';
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical';
+import { PhoneSlashIcon } from '@phosphor-icons/react/dist/csr/PhoneSlash';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { CallEmbed, useCallControlState } from '$plugins/call';
@@ -22,6 +22,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoom } from '$hooks/useRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useCallPreferences } from '$state/hooks/callPreferences';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './styles.css';
 import {
   ChatButton,
@@ -200,7 +201,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               outlined
               aria-pressed={!!cords}
             >
-              <Icon size="400" src={Icons.VerticalDots} />
+              <PhosphorIcon as={DotsThreeVerticalIcon} size="400" />
             </IconButton>
           </PopOut>
 
@@ -213,7 +214,7 @@ export function CallControls({ callEmbed }: CallControlsProps) {
               exiting ? (
                 <Spinner variant="Critical" fill="Solid" size="200" />
               ) : (
-                <Icon src={Icons.PhoneDown} size="200" filled />
+                <PhosphorIcon as={PhoneSlashIcon} size="200" weight="fill" />
               )
             }
             disabled={exiting}

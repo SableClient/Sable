@@ -1,4 +1,5 @@
-import { Badge, Box, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import { Badge, Box, IconButton, Spinner, Text, as, toRem } from 'folds';
+import { DownloadSimpleIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple';
 import { ReactNode, useCallback } from 'react';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FileSaver from 'file-saver';
@@ -7,6 +8,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const badgeStyles = { maxWidth: toRem(100) };
 
@@ -47,7 +49,7 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
       {downloading ? (
         <Spinner size="100" variant={hasError ? 'Critical' : 'Secondary'} />
       ) : (
-        <Icon size="100" src={Icons.Download} />
+        <PhosphorIcon size="100" as={DownloadSimpleIcon} />
       )}
     </IconButton>
   );

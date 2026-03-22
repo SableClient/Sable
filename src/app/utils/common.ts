@@ -1,4 +1,8 @@
-import { IconName, IconSrc } from 'folds';
+import { ComponentType } from 'react';
+import { PlayIcon } from '@phosphor-icons/react/dist/csr/Play';
+import { VideoCameraIcon } from '@phosphor-icons/react/dist/csr/VideoCamera';
+import { ImageIcon } from '@phosphor-icons/react/dist/csr/Image';
+import type { IconProps } from '@phosphor-icons/react';
 
 export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -31,18 +35,18 @@ export const secondsToMinutesAndSeconds = (seconds: number): string => {
   return `${mm}:${ss < 10 ? '0' : ''}${ss}`;
 };
 
-export const getFileTypeIcon = (icons: Record<IconName, IconSrc>, fileType: string): IconSrc => {
+export const getFileTypeIcon = (fileType: string): ComponentType<IconProps> => {
   const type = fileType.toLowerCase();
   if (type.startsWith('audio')) {
-    return icons.Play;
+    return PlayIcon;
   }
   if (type.startsWith('video')) {
-    return icons.Vlc;
+    return VideoCameraIcon;
   }
   if (type.startsWith('image')) {
-    return icons.Photo;
+    return ImageIcon;
   }
-  return icons.File;
+  return ImageIcon;
 };
 
 export const fulfilledPromiseSettledResult = <T>(prs: PromiseSettledResult<T>[]): T[] =>

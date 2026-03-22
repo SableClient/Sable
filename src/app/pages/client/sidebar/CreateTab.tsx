@@ -1,5 +1,8 @@
 import { MouseEventHandler, useState } from 'react';
-import { Box, config, Icon, Icons, Menu, PopOut, RectCords, Text } from 'folds';
+import { Box, config, Menu, PopOut, RectCords, Text } from 'folds';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { UsersThreeIcon } from '@phosphor-icons/react/dist/csr/UsersThree';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
@@ -16,6 +19,7 @@ import {
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { RoomSearchParams } from '$pages/paths';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function CreateTab() {
   const createSelected = useCreateSelected();
@@ -72,7 +76,7 @@ export function CreateTab() {
                       type="button"
                       onClick={handleCreateSpace}
                     >
-                      <SettingTile before={<Icon size="400" src={Icons.Space} />}>
+                      <SettingTile before={<PhosphorIcon as={UsersThreeIcon} size="400" />}>
                         <Text size="H6">Create Space</Text>
                         <Text size="T300" priority="300">
                           Build a space for your community.
@@ -89,7 +93,7 @@ export function CreateTab() {
                       type="button"
                       onClick={handleJoinWithAddress}
                     >
-                      <SettingTile before={<Icon size="400" src={Icons.Link} />}>
+                      <SettingTile before={<PhosphorIcon as={LinkIcon} size="400" />}>
                         <Text size="H6">Join with Address</Text>
                         <Text size="T300" priority="300">
                           Become a part of existing community.
@@ -108,7 +112,7 @@ export function CreateTab() {
               outlined
               onClick={handleMenu}
             >
-              <Icon src={Icons.Plus} />
+              <PhosphorIcon as={PlusIcon} />
             </SidebarAvatar>
             {joinAddress && (
               <JoinAddressPrompt

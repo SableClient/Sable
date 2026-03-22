@@ -1,4 +1,6 @@
-import { Box, Icon, Icons, Scroll, IconButton } from 'folds';
+import { Box, Scroll, IconButton } from 'folds';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
 import {
   Page,
   PageContent,
@@ -11,6 +13,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { CreateRoomForm } from '$features/create-room';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 export function HomeCreateRoom() {
   const screenSize = useScreenSizeContext();
@@ -25,7 +28,7 @@ export function HomeCreateRoom() {
             <BackRouteHandler>
               {(onBack) => (
                 <IconButton onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  <PhosphorIcon as={ArrowLeftIcon} />
                 </IconButton>
               )}
             </BackRouteHandler>
@@ -39,7 +42,7 @@ export function HomeCreateRoom() {
               <PageHeroSection>
                 <Box direction="Column" gap="700">
                   <PageHero
-                    icon={<Icon size="600" src={Icons.Hash} />}
+                    icon={<PhosphorIcon as={HashIcon} size="600" />}
                     title="Create Room"
                     subTitle="Build a Room for Real-Time Conversations."
                   />

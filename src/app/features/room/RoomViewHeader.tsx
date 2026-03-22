@@ -9,8 +9,6 @@ import {
   OverlayCenter,
   OverlayBackdrop,
   IconButton,
-  Icon,
-  Icons,
   Tooltip,
   TooltipProvider,
   Menu,
@@ -88,6 +86,21 @@ import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
+import { ArrowLeftIcon } from '@phosphor-icons/react/dist/csr/ArrowLeft';
+import { ChatCircleIcon } from '@phosphor-icons/react/dist/csr/ChatCircle';
+import { ChatTeardropTextIcon } from '@phosphor-icons/react/dist/csr/ChatTeardropText';
+import { ChecksIcon } from '@phosphor-icons/react/dist/csr/Checks';
+import { ClockCounterClockwiseIcon } from '@phosphor-icons/react/dist/csr/ClockCounterClockwise';
+import { DotsThreeOutlineVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeOutlineVertical';
+import { GearIcon } from '@phosphor-icons/react/dist/csr/Gear';
+import { LinkIcon } from '@phosphor-icons/react/dist/csr/Link';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { PushPinIcon } from '@phosphor-icons/react/dist/csr/PushPin';
+import { SignOutIcon } from '@phosphor-icons/react/dist/csr/SignOut';
+import { SquaresFourIcon } from '@phosphor-icons/react/dist/csr/SquaresFour';
+import { UserIcon } from '@phosphor-icons/react/dist/csr/User';
+import { UserPlusIcon } from '@phosphor-icons/react/dist/csr/UserPlus';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
@@ -212,7 +225,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         <MenuItem
           onClick={handleMarkAsRead}
           size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
+          after={<PhosphorIcon as={ChecksIcon} size="100" />}
           radii="300"
           disabled={!unread}
         >
@@ -228,7 +241,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
                 changing ? (
                   <Spinner size="100" variant="Secondary" />
                 ) : (
-                  <Icon size="100" src={getRoomNotificationModeIcon(notificationMode)} />
+                  <PhosphorIcon size="100" as={getRoomNotificationModeIcon(notificationMode)} />
                 )
               }
               radii="300"
@@ -249,7 +262,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
           variant="Primary"
           fill="None"
           size="300"
-          after={<Icon size="100" src={Icons.UserPlus} />}
+          after={<PhosphorIcon as={UserPlusIcon} size="100" />}
           radii="300"
           aria-pressed={invitePrompt}
           disabled={!canInvite}
@@ -261,7 +274,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         <MenuItem
           onClick={handleCopyLink}
           size="300"
-          after={<Icon size="100" src={Icons.Link} />}
+          after={<PhosphorIcon as={LinkIcon} size="100" />}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -271,7 +284,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         <MenuItem
           onClick={handleOpenSettings}
           size="300"
-          after={<Icon size="100" src={Icons.Setting} />}
+          after={<PhosphorIcon as={GearIcon} size="100" />}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
@@ -284,7 +297,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
               <MenuItem
                 onClick={() => setPromptJump(true)}
                 size="300"
-                after={<Icon size="100" src={Icons.RecentClock} />}
+                after={<PhosphorIcon as={ClockCounterClockwiseIcon} size="100" />}
                 radii="300"
                 aria-pressed={promptJump}
               >
@@ -316,7 +329,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
                 variant="Critical"
                 fill="None"
                 size="300"
-                after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                after={<PhosphorIcon as={SignOutIcon} size="100" />}
                 radii="300"
                 aria-pressed={promptLeave}
               >
@@ -589,7 +602,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             {(onBack) => (
               <Box shrink="No" alignItems="Center">
                 <IconButton fill="None" onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  <PhosphorIcon as={ArrowLeftIcon} />
                 </IconButton>
               </Box>
             )}
@@ -667,7 +680,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 >
                   {(triggerRef) => (
                     <IconButton fill="None" ref={triggerRef} onClick={handleSearchClick}>
-                      <Icon size="400" src={Icons.Search} />
+                      <PhosphorIcon as={MagnifyingGlassIcon} size="400" />
                     </IconButton>
                   )}
                 </TooltipProvider>
@@ -706,7 +719,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Pin} filled={!!pinMenuAnchor} />
+                    <PhosphorIcon
+                      as={PushPinIcon}
+                      size="400"
+                      weight={pinMenuAnchor ? 'fill' : 'regular'}
+                    />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -777,7 +794,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Thread} filled={threadBrowserOpen} />
+                    <PhosphorIcon
+                      as={ChatTeardropTextIcon}
+                      size="400"
+                      weight={threadBrowserOpen ? 'fill' : 'regular'}
+                    />
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -818,7 +839,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                       </Text>
                     </Badge>
                   )}
-                  <Icon size="400" src={Icons.Category} filled={widgetDrawer} />
+                  <PhosphorIcon
+                    as={SquaresFourIcon}
+                    size="400"
+                    weight={widgetDrawer ? 'fill' : 'regular'}
+                  />
                 </IconButton>
               )}
             </TooltipProvider>
@@ -839,7 +864,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             >
               {(triggerRef) => (
                 <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
-                  <Icon size="400" src={Icons.User} filled={peopleDrawer} />
+                  <PhosphorIcon
+                    as={UserIcon}
+                    size="400"
+                    weight={peopleDrawer ? 'fill' : 'regular'}
+                  />
                 </IconButton>
               )}
             </TooltipProvider>
@@ -863,7 +892,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                     setChat(!chat);
                   }}
                 >
-                  <Icon size="400" src={Icons.Message} filled={chat} />
+                  <PhosphorIcon as={ChatCircleIcon} size="400" weight={chat ? 'fill' : 'regular'} />
                 </IconButton>
               )}
             </TooltipProvider>
@@ -886,7 +915,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
+                <PhosphorIcon
+                  as={DotsThreeOutlineVerticalIcon}
+                  size="400"
+                  weight={menuAnchor ? 'fill' : 'regular'}
+                />
               </IconButton>
             )}
           </TooltipProvider>

@@ -1,10 +1,12 @@
-import { IconButton, Icon, Icons, TooltipProvider, Tooltip, Text } from 'folds';
+import { IconButton, TooltipProvider, Tooltip, Text } from 'folds';
+import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
 import { useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -61,7 +63,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
           onClick={handleStartCall}
           aria-label="Start Voice Call"
         >
-          <Icon size="400" src={Icons.Phone} />
+          <PhosphorIcon as={PhoneIcon} size="400" />
         </IconButton>
       )}
     </TooltipProvider>

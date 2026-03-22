@@ -5,9 +5,7 @@ import {
   Button,
   config,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
   MenuItem,
@@ -19,6 +17,9 @@ import {
   Spinner,
   Text,
 } from 'folds';
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import {
   ChangeEventHandler,
   MouseEventHandler,
@@ -50,6 +51,7 @@ import { StateEvent } from '$types/matrix/room';
 import { getViaServers } from '$plugins/via-servers';
 import { rateLimitedActions } from '$utils/matrix';
 import { useAlive } from '$hooks/useAlive';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
   limit: 500,
@@ -224,7 +226,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    <PhosphorIcon as={XIcon} />
                   </IconButton>
                 </Box>
               </Header>
@@ -241,7 +243,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                     >
                       <Input
                         onChange={handleSearchChange}
-                        before={<Icon size="200" src={Icons.Search} />}
+                        before={<PhosphorIcon size="200" as={MagnifyingGlassIcon} />}
                         placeholder="Search"
                         size="400"
                         variant="Background"
@@ -321,7 +323,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                                   )}
                                 </Avatar>
                               }
-                              after={selectedItem && <Icon size="200" src={Icons.Check} />}
+                              after={selectedItem && <PhosphorIcon as={CheckIcon} size="200" />}
                             >
                               <Box grow="Yes">
                                 <Text truncate size="T400">

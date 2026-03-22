@@ -12,9 +12,8 @@ import {
   config,
   Box,
   IconButton,
-  Icon,
-  Icons,
 } from 'folds';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import FocusTrap from 'focus-trap-react';
 import { MatrixError, Method, RoomTombstoneEventContent } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
@@ -38,6 +37,7 @@ import { useAlive } from '$hooks/useAlive';
 import { creatorsSupported } from '$utils/matrix';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { BreakWord } from '$styles/Text.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
   const mx = useMatrixClient();
@@ -105,7 +105,7 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
                 <Text size="H4">{room.isSpaceRoom() ? 'Space Upgrade' : 'Room Upgrade'}</Text>
               </Box>
               <IconButton size="300" onClick={requestClose} radii="300">
-                <Icon src={Icons.Cross} />
+                <PhosphorIcon as={XIcon} />
               </IconButton>
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">

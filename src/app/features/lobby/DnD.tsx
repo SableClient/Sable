@@ -7,8 +7,10 @@ import {
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import classNames from 'classnames';
-import { Box, Icon, Icons, as } from 'folds';
+import { Box, as } from 'folds';
+import { DotsThreeOutlineVerticalIcon } from '@phosphor-icons/react/dist/csr/DotsThreeOutlineVertical';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './DnD.css';
 
 export type DropContainerData = {
@@ -57,7 +59,7 @@ export const ItemDraggableTarget = as<'div'>(({ className, ...props }, ref) => (
     ref={ref}
     {...props}
   >
-    <Icon size="50" src={Icons.VerticalDots} />
+    <PhosphorIcon as={DotsThreeOutlineVerticalIcon} size="50" />
   </Box>
 ));
 

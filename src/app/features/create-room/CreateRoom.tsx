@@ -1,19 +1,13 @@
-import { FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { ComponentType, FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { MatrixError, Room, JoinRule } from '$types/matrix-sdk';
-import {
-  Box,
-  Button,
-  Chip,
-  color,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Spinner,
-  Switch,
-  Text,
-  TextArea,
-} from 'folds';
+import { Box, Button, Chip, color, config, Input, Spinner, Switch, Text, TextArea } from 'folds';
+import type { IconProps } from '@phosphor-icons/react';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
+import { MicrophoneIcon } from '@phosphor-icons/react/dist/csr/Microphone';
+import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import {
@@ -40,7 +34,7 @@ import {
 } from '$components/create-room';
 import { RoomType } from '$types/matrix/room';
 import { CreateRoomTypeSelector } from '$components/create-room/CreateRoomTypeSelector';
-import { getRoomIconSrc } from '$utils/room';
+import { getRoomIcon } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import { ErrorCode } from '../../cs-errorcode';
 
@@ -53,12 +47,12 @@ const getCreateRoomAccessToIcon = (access: CreateRoomAccess, type?: CreateRoomTy
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return getRoomIconSrc(Icons, isVoiceRoom ? RoomType.Call : undefined, joinRule);
+  return getRoomIcon(isVoiceRoom ? RoomType.Call : undefined, joinRule);
 };
 
-const getCreateRoomTypeToIcon = (type: CreateRoomType) => {
-  if (type === CreateRoomType.VoiceRoom) return Icons.VolumeHigh;
-  return Icons.Hash;
+const getCreateRoomTypeToIcon = (type: CreateRoomType): ComponentType<IconProps> => {
+  if (type === CreateRoomType.VoiceRoom) return MicrophoneIcon;
+  return HashIcon;
 };
 
 type CreateRoomFormProps = {
@@ -204,7 +198,7 @@ export function CreateRoomForm({
         <Text size="L400">Name</Text>
         <Input
           required
-          before={<Icon size="100" src={getCreateRoomAccessToIcon(access, type)} />}
+          before={<PhosphorIcon size="100" as={getCreateRoomAccessToIcon(access, type)} />}
           name="nameInput"
           autoFocus
           size="500"
@@ -233,7 +227,7 @@ export function CreateRoomForm({
           <Box grow="Yes" justifyContent="End">
             <Chip
               radii="Pill"
-              before={<Icon src={advance ? Icons.ChevronTop : Icons.ChevronBottom} size="50" />}
+              before={<PhosphorIcon as={advance ? CaretUpIcon : CaretDownIcon} size="50" />}
               onClick={() => setAdvance(!advance)}
               type="button"
             >
@@ -331,7 +325,7 @@ export function CreateRoomForm({
 
       {error && (
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="200">
-          <Icon src={Icons.Warning} filled size="100" />
+          <PhosphorIcon as={WarningIcon} size="100" weight="fill" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
               {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED

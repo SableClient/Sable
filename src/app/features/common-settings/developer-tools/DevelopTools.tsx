@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import {
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  Scroll,
-  Switch,
-  Button,
-  MenuItem,
-  config,
-  color,
-} from 'folds';
+import { Box, Text, IconButton, Scroll, Switch, Button, MenuItem, config, color } from 'folds';
+import { CaretDownIcon } from '@phosphor-icons/react/dist/csr/CaretDown';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { EventType, NotificationCountType } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
@@ -32,6 +25,7 @@ import { CutoutCard } from '$components/cutout-card';
 import { AccountDataEditor, AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SendRoomEvent } from './SendRoomEvent';
 import { StateEventEditor, StateEventInfo } from './StateEventEditor';
 
@@ -178,7 +172,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              <PhosphorIcon as={XIcon} />
             </IconButton>
           </Box>
         </Box>
@@ -278,10 +272,10 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           radii="300"
                           outlined
                           before={
-                            <Icon
-                              src={expandState ? Icons.ChevronTop : Icons.ChevronBottom}
+                            <PhosphorIcon
+                              as={expandState ? CaretUpIcon : CaretDownIcon}
                               size="100"
-                              filled
+                              weight="fill"
                             />
                           }
                         >
@@ -310,14 +304,10 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 radii="300"
                                 outlined
                                 before={
-                                  <Icon
-                                    src={
-                                      expandUnreadDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
+                                  <PhosphorIcon
+                                    as={expandUnreadDiagnostics ? CaretUpIcon : CaretDownIcon}
                                     size="100"
-                                    filled
+                                    weight="fill"
                                   />
                                 }
                               >
@@ -395,14 +385,10 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 radii="300"
                                 outlined
                                 before={
-                                  <Icon
-                                    src={
-                                      expandSlidingDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
+                                  <PhosphorIcon
+                                    as={expandSlidingDiagnostics ? CaretUpIcon : CaretDownIcon}
                                     size="100"
-                                    filled
+                                    weight="fill"
                                   />
                                 }
                               >
@@ -467,7 +453,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={<PhosphorIcon as={PlusIcon} size="50" />}
                           >
                             <Box grow="Yes">
                               <Text size="T200" truncate>
@@ -493,9 +479,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                     size="300"
                                     radii="0"
                                     before={
-                                      <Icon
+                                      <PhosphorIcon
                                         size="50"
-                                        src={expanded ? Icons.ChevronBottom : Icons.ChevronRight}
+                                        as={expanded ? CaretDownIcon : CaretRightIcon}
                                       />
                                     }
                                     after={<Text size="L400">{stateKeyToEvents.size}</Text>}
@@ -521,7 +507,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                         fill="None"
                                         size="300"
                                         radii="0"
-                                        before={<Icon size="50" src={Icons.Plus} />}
+                                        before={<PhosphorIcon size="50" as={PlusIcon} />}
                                       >
                                         <Box grow="Yes">
                                           <Text size="T200" truncate>
@@ -544,7 +530,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                             fill="None"
                                             size="300"
                                             radii="0"
-                                            after={<Icon size="50" src={Icons.ChevronRight} />}
+                                            after={<PhosphorIcon size="50" as={CaretRightIcon} />}
                                           >
                                             <Box grow="Yes">
                                               <Text size="T200" truncate>
@@ -580,10 +566,10 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           radii="300"
                           outlined
                           before={
-                            <Icon
-                              src={expandAccountData ? Icons.ChevronTop : Icons.ChevronBottom}
+                            <PhosphorIcon
+                              as={expandAccountData ? CaretUpIcon : CaretDownIcon}
                               size="100"
-                              filled
+                              weight="fill"
                             />
                           }
                         >
@@ -603,7 +589,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={<PhosphorIcon as={PlusIcon} size="50" />}
                             onClick={() => setAccountDataType(null)}
                           >
                             <Box grow="Yes">
@@ -621,7 +607,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 fill="None"
                                 size="300"
                                 radii="0"
-                                after={<Icon size="50" src={Icons.ChevronRight} />}
+                                after={<PhosphorIcon as={CaretRightIcon} size="50" />}
                                 onClick={() => setAccountDataType(type)}
                               >
                                 <Box grow="Yes">

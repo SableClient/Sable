@@ -1,9 +1,14 @@
 import { MutableRefObject, ReactNode, useImperativeHandle, useRef } from 'react';
-import { Badge, Box, Chip, Header, Icon, Icons, Spinner, Text, as, percent } from 'folds';
+import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
+import { CaretRightIcon } from '@phosphor-icons/react/dist/csr/CaretRight';
+import { CaretUpIcon } from '@phosphor-icons/react/dist/csr/CaretUp';
+import { PaperPlaneIcon } from '@phosphor-icons/react/dist/csr/PaperPlane';
+import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
 import { TUploadFamilyObserverAtom, Upload, UploadStatus, UploadSuccess } from '$state/upload';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 import * as css from './UploadBoard.css';
 
 type UploadBoardProps = {
@@ -85,7 +90,7 @@ export function UploadBoardHeader({
         grow="Yes"
         gap="100"
       >
-        <Icon src={open ? Icons.ChevronTop : Icons.ChevronRight} size="50" />
+        <PhosphorIcon as={open ? CaretUpIcon : CaretRightIcon} size="50" />
         <Text size="H6">Files</Text>
       </Box>
       <Box className={css.UploadBoardHeaderContent} alignItems="Center" gap="100">
@@ -96,7 +101,7 @@ export function UploadBoardHeader({
             variant="Primary"
             radii="Pill"
             outlined
-            after={<Icon src={Icons.Send} size="50" filled />}
+            after={<PhosphorIcon as={PaperPlaneIcon} size="50" weight="fill" />}
           >
             <Text size="B300">Send</Text>
           </Chip>
@@ -120,7 +125,7 @@ export function UploadBoardHeader({
             onClick={handleCancel}
             variant="SurfaceVariant"
             radii="Pill"
-            after={<Icon src={Icons.Cross} size="50" />}
+            after={<PhosphorIcon as={XIcon} size="50" />}
           >
             <Text size="B300">{uploads.length === 1 ? 'Remove' : 'Remove All'}</Text>
           </Chip>

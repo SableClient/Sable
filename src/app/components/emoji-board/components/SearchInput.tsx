@@ -1,6 +1,9 @@
 import { ChangeEventHandler, useRef } from 'react';
-import { Input, Chip, Icon, Icons, Text } from 'folds';
+import { Input, Chip, Text } from 'folds';
+import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
+import { MagnifyingGlassIcon } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import { mobileOrTablet } from '$utils/user-agent';
+import { PhosphorIcon } from '$components/PhosphorIcon';
 
 type SearchInputProps = {
   query?: string;
@@ -34,14 +37,14 @@ export function SearchInput({
           <Chip
             variant="Primary"
             radii="Pill"
-            after={<Icon src={Icons.ArrowRight} size="50" />}
+            after={<PhosphorIcon as={ArrowRightIcon} size="50" />}
             outlined
             onClick={handleReact}
           >
             <Text size="L400">React</Text>
           </Chip>
         ) : (
-          <Icon src={Icons.Search} size="50" />
+          <PhosphorIcon as={MagnifyingGlassIcon} size="50" />
         )
       }
       onChange={onChange}

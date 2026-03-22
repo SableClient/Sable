@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box, toRem } from 'folds';
+import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -10,10 +10,9 @@ import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { UnreadBadge } from '$components/unread-badge';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl } from '$utils/room';
@@ -139,19 +138,11 @@ function DMItem({ room, selected }: DMItemProps) {
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge
-          hasCount={unread.total > 0}
-          style={{
-            left: unread.total > 0 ? toRem(-6) : toRem(-4),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={unread.highlight > 0}
-            count={unread.highlight > 0 ? unread.highlight : unread.total}
-            dm
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={unread.highlight > 0}
+          count={unread.highlight > 0 ? unread.highlight : unread.total}
+          dm
+        />
       )}
     </SidebarItem>
   );

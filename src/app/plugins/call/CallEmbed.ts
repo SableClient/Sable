@@ -53,11 +53,15 @@ export class CallEmbed {
   private readonly disposables: Array<() => void> = [];
 
   static getIntent(dm: boolean, ongoing: boolean, video: boolean): ElementCallIntent {
-    if (ongoing) {
-      return !video ? ElementCallIntent.JoinExistingDMVoice : (dm ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExisting);
+    if (!dm) {
+      return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingDMVoice;
     }
 
-    return !video ? (dm ? ElementCallIntent.StartCallDMVoice : ElementCallIntent.JoinExistingDMVoice) : (dm ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCall);
+    if (ongoing) {
+      return video ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExistingDMVoice;
+    }
+
+    return video ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCallDMVoice;
   }
 
   static getWidget(

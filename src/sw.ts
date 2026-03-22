@@ -118,6 +118,14 @@ type SessionInfo = {
  */
 const sessions = new Map<string, SessionInfo>();
 
+/**
+ * Session pre-loaded from cache on SW activation. Acts as an immediate
+ * fallback so media fetches don't 401 during the window between SW restart
+ * and the first live setSession message from the page.
+ * Cleared as soon as any real setSession call comes in.
+ */
+let preloadedSession: SessionInfo | undefined;
+
 const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
 const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
 
@@ -142,12 +150,15 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
       userId: typeof userId === 'string' ? userId : undefined,
     };
     sessions.set(clientId, info);
+    // A real session has arrived — discard the preloaded fallback.
+    preloadedSession = undefined;
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
+    preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
   }
@@ -460,6 +471,10 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
     (async () => {
       await self.clients.claim();
       await cleanupDeadClients();
+      // Pre-load the persisted session into memory so that media fetches arriving
+      // before the first setSession message from the page are immediately
+      // authenticated rather than falling through to a 3-second timeout.
+      preloadedSession = await loadPersistedSession();
       // Proactively request sessions from all window clients so the sessions Map
       // is pre-populated after a SW restart, rather than waiting for the first
       // media fetch to trigger requestSessionWithTimeout.
@@ -584,7 +599,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (method !== 'GET' || !mediaPath(url)) return;
 
   const { clientId } = event;
-  if (!clientId) return;
 
   // For browser sub-resource loads (images, video, audio, etc.), 'follow' is
   // the correct mode: the auth header is sent to the Matrix server which owns
@@ -593,7 +607,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // the browser cannot render as an <img>/<video>/etc.
   const redirect: RequestRedirect = 'follow';
 
-  const session = sessions.get(clientId);
+  const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
     event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
     return;
@@ -607,9 +621,29 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // as the wrong one.
   // Thus any logic in the future which cares about which user is authenticating the request
   // might break this. Also, again, it is technically wrong.
-  const byBaseUrl = [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl));
+  // Also checks preloadedSession — populated from cache at SW activate — for the window
+  // between SW restart and the first live setSession arriving from the page.
+  const byBaseUrl =
+    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
+    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
+      ? preloadedSession
+      : undefined);
   if (byBaseUrl) {
     event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    return;
+  }
+
+  // No clientId: the fetch came from a context not associated with a specific
+  // window (e.g. a prerender). Fall back to the persisted session directly.
+  if (!clientId) {
+    event.respondWith(
+      loadPersistedSession().then((persisted) => {
+        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
+          return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+        }
+        return fetch(event.request);
+      })
+    );
     return;
   }
 

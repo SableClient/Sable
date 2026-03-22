@@ -67,6 +67,8 @@ export function getSupportedAudioExtension(codec: string): string {
       return 'webm';
     case 'audio/mp4':
       return 'm4a';
+    case 'audio/x-m4a':
+      return 'm4a';
     case 'audio/mpeg':
       return 'mp3';
     case 'audio/wav':

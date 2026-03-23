@@ -403,8 +403,9 @@ function MessageInternal(
 
   /**
    * boolean to indicate wheather we should indicate to the user that it is a pmp
+   * We want to not show it, when the name is unset, or whitespace only
    */
-  const showPmPInfo = pmp !== undefined;
+  const showPmPInfo = pmp !== undefined && pmp.name && pmp.name?.trim() !== '';
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
   const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);

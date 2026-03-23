@@ -27,8 +27,7 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder } from './url-preview';
-import { ClientPreview } from './url-preview/ClientPreview';
+import { UrlPreviewCard, UrlPreviewHolder, ClientPreview } from './url-preview';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -118,7 +117,6 @@ function RenderMessageContentInternal({
           {toRender.map(({ url, type }) => (!!type ? (
             <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
 		  ) : (clientUrlPreview ? (
-			
 			<ClientPreview url={url} />
 		  ) : undefined)
           ))}

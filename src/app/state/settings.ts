@@ -54,7 +54,6 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
-  clientPreviewOEmbed: boolean;
   clientUrlPreviewWhitelist: string[];
 
   usePushNotifications: boolean;

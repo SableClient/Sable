@@ -1,10 +1,12 @@
-import { ReactNode, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { Header, Menu, Scroll, config } from 'folds';
 
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useAlive } from '$hooks/useAlive';
+import { Editor } from 'slate';
+import { ReactEditor } from 'slate-react';
 import * as css from './AutocompleteMenu.css';
 import { BaseAutocompleteMenu } from './BaseAutocompleteMenu';
 
@@ -12,8 +14,14 @@ type AutocompleteMenuProps = {
   requestClose: () => void;
   headerContent: ReactNode;
   children: ReactNode;
+  editor: Editor;
 };
-export function AutocompleteMenu({ headerContent, requestClose, children }: AutocompleteMenuProps) {
+export function AutocompleteMenu({
+  headerContent,
+  requestClose,
+  children,
+  editor,
+}: AutocompleteMenuProps) {
   const alive = useAlive();
   const itemsRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +32,7 @@ export function AutocompleteMenu({ headerContent, requestClose, children }: Auto
     }
   };
   const [isActive, setIsActive] = useState(true);
+  useEffect(() => ReactEditor.focus(editor), [editor, isActive]);
   function handleInput(evt: any) {
     if (!evt) return;
     if (
@@ -35,6 +44,7 @@ export function AutocompleteMenu({ headerContent, requestClose, children }: Auto
     )
       return;
     setIsActive(false);
+    ReactEditor.focus(editor);
   }
 
   return (

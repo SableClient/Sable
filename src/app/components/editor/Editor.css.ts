@@ -14,7 +14,6 @@ export const Editor = style([
 ]);
 
 export const EditorRow = style({
-  display: 'grid',
   gridTemplateColumns: 'auto 1fr auto',
   alignItems: 'center',
 });

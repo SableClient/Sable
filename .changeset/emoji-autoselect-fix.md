@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Fixed emoji barrel (autoselector) issues
+Fixed text autocomplete issues

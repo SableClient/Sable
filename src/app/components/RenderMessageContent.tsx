@@ -28,6 +28,7 @@ import {
   VideoContent,
 } from './message';
 import { UrlPreviewCard, UrlPreviewHolder } from './url-preview';
+import { ClientPreview } from './url-preview/ClientPreview';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -43,6 +44,7 @@ type RenderMessageContentProps = {
   getContent: <T>() => T;
   mediaAutoLoad?: boolean;
   urlPreview?: boolean;
+  clientUrlPreview?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
@@ -68,6 +70,7 @@ function RenderMessageContentInternal({
   getContent,
   mediaAutoLoad,
   urlPreview,
+  clientUrlPreview,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
@@ -112,8 +115,12 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => (
+          {toRender.map(({ url, type }) => (!!type ? (
             <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
+		  ) : (clientUrlPreview ? (
+			
+			<ClientPreview url={url} />
+		  ) : undefined)
           ))}
         </UrlPreviewHolder>
       );

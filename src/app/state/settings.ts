@@ -44,12 +44,18 @@ export interface Settings {
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
   hideNickAvatarEvents: boolean;
-  mediaAutoLoad: boolean;
-  urlPreview: boolean;
-  encUrlPreview: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
   legacyUsernameColor: boolean;
+
+  mediaAutoLoad: boolean;
+  urlPreview: boolean;
+  encUrlPreview: boolean;
+  clientUrlPreview: boolean;
+  encClientUrlPreview: boolean;
+  clientPreviewYoutube: boolean;
+  clientPreviewOEmbed: boolean;
+  clientUrlPreviewWhitelist: string[];
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;

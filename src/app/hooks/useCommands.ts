@@ -233,6 +233,7 @@ export enum Command {
   Delete = 'delete',
   Acl = 'acl',
   // Sable commands
+  Knock = 'knock',
   Color = 'color',
   SColor = 'scolor',
   Font = 'font',
@@ -763,6 +764,20 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         },
       },
       // Sable commands
+      [Command.Knock]: {
+        name: Command.Knock,
+        description:
+          'Knock on (request to join) room with address. Example: /knock address1 address2',
+        exe: async (payload) => {
+          const rawIds = splitWithSpace(payload);
+          const roomIdOrAliases = rawIds.filter(
+            (idOrAlias) => isRoomId(idOrAlias) || isRoomAlias(idOrAlias)
+          );
+          roomIdOrAliases.forEach(async (idOrAlias) => {
+            await mx.knockRoom(idOrAlias);
+          });
+        },
+      },
       [Command.Color]: {
         name: Command.Color,
         description: 'Set a room-specific color. Example: /color #ff00ff | /color reset',

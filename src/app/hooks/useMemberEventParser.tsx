@@ -63,12 +63,12 @@ export const useMemberEventParser = (): MemberEventParser => {
 
       if (content.membership === Membership.Knock) {
         return {
-          icon: Icons.ArrowGoRightPlus,
+          icon: Icons.Mail,
           body: (
             <>
               <b>{userName}</b>
-              {' request to join room '}
-              {reason}
+              {' requested to join room: '}
+              <i>{reason}</i>
             </>
           ),
         };

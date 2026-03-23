@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, ReactNode } from 'react';
 import { Box, Badge, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
@@ -82,6 +82,8 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedDa
 
   const [blurHash, setBlurHash] = useState<string | undefined>();
 
+  const title = embedData.title ? embedData.title : '';
+
   return (
     <Attachment
       style={{
@@ -92,11 +94,7 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedDa
       }}
     >
       <AttachmentHeader>
-        <EmbedHeader
-          title={embedData.title}
-          source="YOUTUBE"
-          after={EmbedOpenButton({ url: videoUrl })}
-        />
+        <EmbedHeader title={title} source="YOUTUBE" after={EmbedOpenButton({ url: videoUrl })} />
       </AttachmentHeader>
       <AttachmentBox
         style={{
@@ -105,7 +103,8 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedDa
         }}
       >
         <VideoContent
-          body={embedData.title}
+          body={title}
+          mimeType="fake"
           url={videoUrl}
           info={{
             thumbnail_info: { [MATRIX_BLUR_HASH_PROPERTY_NAME]: blurHash },

@@ -44,7 +44,6 @@ export function AutocompleteMenu({
     )
       return;
     setIsActive(false);
-    ReactEditor.focus(editor);
   }
 
   return (
@@ -52,7 +51,7 @@ export function AutocompleteMenu({
       <FocusTrap
         active={isActive}
         focusTrapOptions={{
-          initialFocus: () => itemsRef.current?.querySelector<HTMLButtonElement>('button') ?? false,
+          initialFocus: () => false,
           onPostDeactivate: handleDeactivate,
           returnFocusOnDeactivate: false,
           clickOutsideDeactivates: true,

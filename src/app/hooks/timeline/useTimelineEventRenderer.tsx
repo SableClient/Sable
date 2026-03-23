@@ -12,7 +12,7 @@ import {
 import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { HTMLReactParserOptions } from 'html-react-parser';
 import { Opts as LinkifyOpts } from 'linkifyjs';
-import { Box, Chip, Avatar, Text, Icons, config, toRem } from 'folds';
+import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -53,6 +53,18 @@ import {
   Message,
   Reactions,
 } from '$features/room/message';
+import { useSableCosmetics } from '$hooks/useSableCosmetics';
+
+function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
+  const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
+  return <b style={{ color, font }}> {userName ?? userId} </b>;
+}
+
+type DecoratedUserProps = {
+  room: Room;
+  userId: string;
+  userName?: string;
+};
 
 type ThreadReplyChipProps = {
   room: Room;
@@ -767,7 +779,6 @@ export function useTimelineEventRenderer({
         const senderId = getSender.call(mEvent) ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
-
         const timeJSX = (
           <Time
             ts={getTs.call(mEvent)}
@@ -799,7 +810,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {t('Organisms.RoomCommon.changed_room_name')}
                   </Text>
                 </Box>
@@ -846,7 +857,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room topic'}
                   </Text>
                 </Box>
@@ -893,7 +904,7 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room avatar'}
                   </Text>
                 </Box>
@@ -947,9 +958,95 @@ export function useTimelineEventRenderer({
               content={
                 <Box grow="Yes" direction="Column">
                   <Text size="T300" priority="300">
-                    <b>{senderName}</b>
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {callJoined ? ' joined the call' : ' ended the call'}
                   </Text>
+                </Box>
+              }
+            />
+          </Event>
+        );
+      },
+      [StateEvent.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const { getSender, getTs, getContent, getPrevContent } = mEvent;
+        if (!showHiddenEvents) return null;
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const senderId = getSender.call(mEvent) ?? '';
+        const senderName =
+          getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
+
+        const { pinned } = getContent.call(mEvent);
+        const prevPinned = getPrevContent.call(mEvent).pinned;
+        const pinsAdded =
+          prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+        const pinsRemoved =
+          prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+
+        const timeJSX = (
+          <Time
+            ts={getTs.call(mEvent)}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        );
+
+        return (
+          <Event
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            highlight={highlighted}
+            collapse={collapse}
+            canDelete={canRedact || senderId === mx.getUserId()}
+            onReplyClick={onReplyClick}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            messageSpacing={messageSpacing}
+          >
+            <EventContent
+              messageLayout={messageLayout}
+              time={timeJSX}
+              iconSrc={Icons.Pin}
+              content={
+                <Box grow="Yes" direction="Column">
+                  <Text size="T300" priority="300">
+                    <DecoratedUser userId={senderId} userName={senderName} room={room} />
+                    {(pinsAdded?.length > 0 &&
+                      `pinned ${pinsAdded.length} message${pinsAdded.length > 1 ? 's' : ''}`) ||
+                      ''}
+                    {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && ` and`) || ''}
+                    {(pinsRemoved?.length > 0 &&
+                      `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
+                      ''}
+                    {((!pinsAdded || pinsAdded.length <= 0) &&
+                      (!pinsRemoved || pinsRemoved.length <= 0) &&
+                      `has not changed the pins`) ||
+                      `:`}
+                  </Text>
+                  {(pinsAdded || pinsRemoved) &&
+                    pinsAdded
+                      .concat(pinsRemoved)
+                      .slice(0, 4)
+                      .map((x: string) => (
+                        <Reply
+                          style={{ opacity: '80%' }}
+                          room={room}
+                          replyEventId={x ?? ''}
+                          onClick={handleOpenReply}
+                          replyIcon={
+                            <>
+                              <Icon size="100" src={Icons.Pin} />
+                              <Icon
+                                size="100"
+                                src={pinned.includes(x) ? Icons.Plus : Icons.Minus}
+                              />
+                            </>
+                          }
+                        />
+                      ))}
                 </Box>
               }
             />
@@ -996,7 +1093,7 @@ export function useTimelineEventRenderer({
             content={
               <Box grow="Yes" direction="Column">
                 <Text size="T300" priority="300">
-                  <b>{senderName}</b>
+                  <DecoratedUser userId={senderId} userName={senderName} room={room} />
                   {' sent '}
                   <code className={customHtmlCss.Code}>{getType.call(mEvent)}</code>
                   {' state event'}

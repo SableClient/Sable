@@ -41,9 +41,10 @@ type ReplyLayoutProps = {
   username?: ReactNode;
   icon?: IconSrc;
   mentioned: boolean;
+  replyIcon?: JSX.Element;
 };
 export const ReplyLayout = as<'div', ReplyLayoutProps>(
-  ({ username, userColor, icon, className, mentioned, children, ...props }, ref) => (
+  ({ username, userColor, icon, className, mentioned, children, replyIcon, ...props }, ref) => (
     <Box
       className={classNames(css.Reply, className)}
       alignItems="Center"
@@ -52,7 +53,7 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        <Icon size="100" src={Icons.ReplyArrow} />
+        {replyIcon || <Icon size="100" src={Icons.ReplyArrow} />}
       </Box>
       {!!icon && <Icon style={{ opacity: 0.6 }} size="50" src={icon} />}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
@@ -87,10 +88,14 @@ type ReplyProps = {
   threadRootId?: string;
   mentions?: IMentions;
   onClick?: MouseEventHandler;
+  replyIcon?: JSX.Element;
 };
 
 export const Reply = as<'div', ReplyProps>(
-  ({ room, timelineSet, replyEventId, threadRootId, mentions, onClick, ...props }, ref) => {
+  (
+    { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
+    ref
+  ) => {
     const placeholderWidth = useMemo(() => randomNumberBetween(40, 400), []);
     const getFromLocalTimeline = useCallback(
       () => timelineSet?.findEventById(replyEventId),
@@ -188,7 +193,29 @@ export const Reply = as<'div', ReplyProps>(
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
       image = callJoined ? Icons.Phone : Icons.PhoneDown;
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
-    } else if (Object.values(MessageEvent).every((v) => v !== eventType)) {
+    } else if (eventType === StateEvent.RoomPinnedEvents && replyEvent) {
+      const { pinned } = replyEvent.getContent();
+      const prevPinned = replyEvent.getPrevContent().pinned;
+      const pinsAdded =
+        prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+      const pinsRemoved =
+        prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+      image = Icons.Pin;
+      bodyJSX = (
+        <>
+          {(pinsAdded?.length > 0 &&
+            `pinned ${pinsAdded.length} message${pinsAdded.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && `and`) || ''}
+          {(pinsRemoved?.length > 0 &&
+            `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(!pinsAdded || pinsAdded.length <= 0) &&
+            (!pinsRemoved || pinsRemoved.length <= 0) &&
+            `has not changed the pins`}
+        </>
+      );
+    } else if (Object.values(MessageEvent).every((v) => v !== eventType && !!eventType)) {
       image = Icons.Code;
       bodyJSX = (
         <>
@@ -207,6 +234,7 @@ export const Reply = as<'div', ReplyProps>(
           as="button"
           userColor={usernameColor}
           icon={image}
+          replyIcon={replyIcon}
           mentioned={mentioned}
           username={
             sender &&

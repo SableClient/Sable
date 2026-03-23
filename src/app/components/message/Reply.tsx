@@ -12,6 +12,9 @@ import {
   getReactCustomHtmlParser,
   scaleSystemEmoji,
   LINKIFY_OPTS,
+  makeMentionCustomProps,
+  factoryRenderLinkifyWithMention,
+  renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
 import { useRoomEvent } from '$hooks/useRoomEvent';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
@@ -21,6 +24,7 @@ import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { StateEvent, MessageEvent } from '$types/matrix/room';
+import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useTranslation } from 'react-i18next';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import {
@@ -114,6 +118,7 @@ export const Reply = as<'div', ReplyProps>(
     const fallbackBody = isRedacted ? <MessageDeletedContent /> : <MessageFailedContent />;
 
     const badEncryption = replyEvent?.getContent().msgtype === 'm.bad.encrypted';
+    const mentionClickHandler = useMentionClickHandler(room.roomId);
 
     // An encrypted event that hasn't been decrypted yet (keys pending) has an
     // empty result from getClearContent().  Treat it as still-loading rather
@@ -129,6 +134,22 @@ export const Reply = as<'div', ReplyProps>(
     let bodyJSX: ReactNode = fallbackBody;
     let image: IconSrc | undefined;
 
+    const replyLinkifyOpts = useMemo(
+      () => ({
+        ...LINKIFY_OPTS,
+        render: factoryRenderLinkifyWithMention((href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          )
+        ),
+      }),
+      [mx, room.roomId, mentionClickHandler, nicknames]
+    );
+
     if (format === 'org.matrix.custom.html' && formattedBody) {
       const strippedHtml = trimReplyFromFormattedBody(formattedBody)
         .replaceAll(/<br\s*\/?>/gi, ' ')
@@ -138,9 +159,10 @@ export const Reply = as<'div', ReplyProps>(
         .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
         .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
-        linkifyOpts: LINKIFY_OPTS,
+        linkifyOpts: replyLinkifyOpts,
         useAuthentication,
         nicknames,
+        handleMentionClick: mentionClickHandler,
       });
       bodyJSX = parse(strippedHtml, parserOpts) as JSX.Element;
     } else if (body) {

@@ -16,7 +16,7 @@ export function CallChatView() {
   return (
     <Page
       style={{
-        width: screenSize === ScreenSize.Desktop ? toRem(456) : '100%',
+        width: screenSize === ScreenSize.Desktop ? toRem(399) : '100%',
         flexShrink: 0,
         flexGrow: 0,
       }}

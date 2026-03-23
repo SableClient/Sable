@@ -109,6 +109,7 @@ export type RoomTimelineProps = {
   eventId?: string;
   editor: Editor;
   onEditorReset?: () => void;
+  onEditLastMessageRef?: React.MutableRefObject<(() => void) | undefined>;
 };
 
 export function RoomTimeline({
@@ -116,6 +117,7 @@ export function RoomTimeline({
   eventId,
   editor,
   onEditorReset,
+  onEditLastMessageRef,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
@@ -659,6 +661,23 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  useEffect(() => {
+    if (!onEditLastMessageRef) return;
+    const ref = onEditLastMessageRef;
+    ref.current = () => {
+      const myUserId = mx.getUserId();
+      const found = [...processedEventsRef.current]
+        .reverse()
+        .find(
+          (e) =>
+            e.mEvent.getSender() === myUserId &&
+            e.mEvent.getType() === 'm.room.message' &&
+            !e.mEvent.isRedacted()
+        );
+      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
+    };
+  }, [onEditLastMessageRef, mx, actions]);
 
   useEffect(() => {
     const v = vListRef.current;

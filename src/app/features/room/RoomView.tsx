@@ -73,6 +73,7 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
 export function RoomView({ eventId }: { eventId?: string }) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
+  const editLastMessageRef = useRef<(() => void) | undefined>();
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const screenSize = useScreenSizeContext();
@@ -161,6 +162,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
                 eventId={eventId}
                 editor={editor}
                 onEditorReset={handleResetEditor}
+                onEditLastMessageRef={editLastMessageRef}
               />
               <RoomViewTyping room={room} />
               <GlobalModalManager />
@@ -186,6 +188,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
                         roomId={roomId}
                         fileDropContainerRef={roomViewRef}
                         ref={roomInputRef}
+                        onEditLastMessage={() => editLastMessageRef.current?.()}
                       />
                     )}
                     {!canMessage && (

@@ -18,8 +18,7 @@ globalStyle(
     button:active, 
     [role="button"]:active, 
     [class*="Button"]:active, 
-    [class*="Chip"]:active, 
-    [class*="MenuItem"]:active
+    [class*="Chip"]:active
 `,
   {
     transform: 'scale(0.96) !important',

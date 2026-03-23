@@ -153,7 +153,11 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import { AudioMessageRecorder, AudioMessageRecorderHandle } from './AudioMessageRecorder';
+import {
+  AudioMessageRecorder,
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -231,9 +235,10 @@ interface RoomInputProps {
   roomId: string;
   room: Room;
   threadRootId?: string;
+  onEditLastMessage?: () => void;
 }
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room, threadRootId }, ref) => {
+  ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
@@ -428,6 +433,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [setSelectedFiles, selectedFiles]
     );
+
+    const handleAudioRecordingComplete = useCallback(
+      (payload: AudioRecordingCompletePayload) => {
+        const extension = getSupportedAudioExtension(payload.audioCodec);
+        const file = new File(
+          [payload.audioBlob],
+          `sable-audio-message-${Date.now()}.${extension}`,
+          {
+            type: payload.audioCodec,
+          }
+        );
+        handleFiles([file], {
+          waveform: payload.waveform,
+          audioDuration: payload.audioLength,
+        });
+        setShowAudioRecorder(false);
+      },
+      [handleFiles]
+    );
+
+    const audioRecorder = showAudioRecorder ? (
+      <AudioMessageRecorder
+        ref={audioRecorderRef}
+        onRequestClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+        onAudioLengthUpdate={() => {}}
+        onWaveformUpdate={() => {}}
+      />
+    ) : undefined;
 
     const handleCancelUpload = (uploads: Upload[]) => {
       uploads.forEach((upload) => {
@@ -891,6 +925,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         }
 
+        if (isKeyHotkey('arrowup', evt) && isEmptyEditor(editor)) {
+          const { selection } = editor;
+          if (selection && Editor.isStart(editor, selection.anchor, [])) {
+            evt.preventDefault();
+            onEditLastMessage?.();
+            return;
+          }
+        }
+
         if (
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
@@ -922,6 +965,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         autocompleteQuery,
         isComposing,
         showAudioRecorder,
+        editor,
+        onEditLastMessage,
       ]
     );
 
@@ -1124,10 +1169,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder={showAudioRecorder && mobileOrTablet() ? '' : 'Send a message...'}
+          placeholder="Send a message..."
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          responsiveAfter={audioRecorder}
+          forceMultilineLayout={showAudioRecorder}
           top={
             <>
               {scheduledTime && (
@@ -1229,45 +1276,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            !(showAudioRecorder && mobileOrTablet()) && (
-              <IconButton
-                onClick={() => pickFile('*')}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
-              >
-                <Icon src={Icons.PlusCircle} />
-              </IconButton>
-            )
+            <IconButton
+              onClick={() => pickFile('*')}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
+            >
+              <Icon src={Icons.PlusCircle} />
+            </IconButton>
           }
           after={
             <>
-              {showAudioRecorder && (
-                <AudioMessageRecorder
-                  ref={audioRecorderRef}
-                  onRequestClose={() => setShowAudioRecorder(false)}
-                  onRecordingComplete={(payload) => {
-                    const extension = getSupportedAudioExtension(payload.audioCodec);
-                    const file = new File(
-                      [payload.audioBlob],
-                      `sable-audio-message-${Date.now()}.${extension}`,
-                      {
-                        type: payload.audioCodec,
-                      }
-                    );
-                    handleFiles([file], {
-                      waveform: payload.waveform,
-                      audioDuration: payload.audioLength,
-                    });
-                    setShowAudioRecorder(false);
-                  }}
-                  onAudioLengthUpdate={() => {}}
-                  onWaveformUpdate={() => {}}
-                />
-              )}
-
               {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
               <IconButton
                 ref={micBtnRef}
@@ -1278,7 +1299,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
                 aria-pressed={showAudioRecorder}
                 onClick={() => {
-                  if (mobileOrTablet()) return;
+                  if (mobileOrTablet() && !showAudioRecorder) return;
                   if (showAudioRecorder) {
                     audioRecorderRef.current?.stop();
                   } else {

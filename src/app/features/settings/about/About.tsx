@@ -3,7 +3,7 @@ import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spin
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import CinnySVG from '$public/res/svg/cinny.svg';
+import CinnySVG from '$public/res/svg/cinny-logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';

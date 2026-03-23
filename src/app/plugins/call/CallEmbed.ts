@@ -52,7 +52,7 @@ export class CallEmbed {
 
   private readonly disposables: Array<() => void> = [];
 
-  static getIntent(dm: boolean, ongoing: boolean, video: boolean): ElementCallIntent {
+  static getIntent(dm: boolean, ongoing: boolean, video: boolean | undefined): ElementCallIntent {
     if (!dm) {
       return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingDMVoice;
     }

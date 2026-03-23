@@ -41,6 +41,7 @@ type ReplyLayoutProps = {
   username?: ReactNode;
   icon?: IconSrc;
   mentioned: boolean;
+  replyIcon?: JSX.Element;
 };
 export const ReplyLayout = as<'div', ReplyLayoutProps>(
   ({ username, userColor, icon, className, mentioned, children, replyIcon, ...props }, ref) => (
@@ -91,7 +92,10 @@ type ReplyProps = {
 };
 
 export const Reply = as<'div', ReplyProps>(
-  ({ room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props }, ref) => {
+  (
+    { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
+    ref
+  ) => {
     const placeholderWidth = useMemo(() => randomNumberBetween(40, 400), []);
     const getFromLocalTimeline = useCallback(
       () => timelineSet?.findEventById(replyEventId),

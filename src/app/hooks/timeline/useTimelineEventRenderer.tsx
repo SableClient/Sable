@@ -52,6 +52,7 @@ import {
   Message,
   Reactions,
 } from '$features/room/message';
+import * as css from './TimelineEventRenderer.css';
 
 type ThreadReplyChipProps = {
   room: Room;
@@ -748,7 +749,7 @@ export function useTimelineEventRenderer({
               iconSrc={parsed.icon}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                  <Text size="T300" priority="300" className={css.StateEvent}>
                     {parsed.body}
                   </Text>
                 </Box>
@@ -794,7 +795,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                  <Text size="T300" priority="300" className={css.StateEvent}>
                     <b>{senderName}</b>
                     {t('Organisms.RoomCommon.changed_room_name')}
                   </Text>
@@ -841,7 +842,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                  <Text size="T300" priority="300" className={css.StateEvent}>
                     <b>{senderName}</b>
                     {' changed room topic'}
                   </Text>
@@ -888,7 +889,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                  <Text size="T300" priority="300" className={css.StateEvent}>
                     <b>{senderName}</b>
                     {' changed room avatar'}
                   </Text>
@@ -942,7 +943,7 @@ export function useTimelineEventRenderer({
               iconSrc={callJoined ? Icons.Phone : Icons.PhoneDown}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                  <Text size="T300" priority="300" className={css.StateEvent}>
                     <b>{senderName}</b>
                     {callJoined ? ' joined the call' : ' ended the call'}
                   </Text>

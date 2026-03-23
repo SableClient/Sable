@@ -148,7 +148,7 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
 
   // this component is overly complicated, because it was designed to support more embed types than just youtube
   // i'm leaving this mess here to support later expansion
-  const isYoutube = youtubeUrl(url);
+  const isYoutube = !!youtubeUrl(url);
   const videoId = isYoutube ? url.match(/(?:shorts\/|watch\?v=|youtu\.be\/)(.{11})/)?.[1] : null;
 
   const fetchUrl =
@@ -164,7 +164,7 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
     const fetchYoutube = isYoutube && showYoutube;
 
     if (fetchYoutube) loadEmbed();
-  }, [loadEmbed]);
+  }, [isYoutube, showYoutube, loadEmbed]);
 
   let previewContent;
 

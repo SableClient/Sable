@@ -117,11 +117,11 @@ function RenderMessageContentInternal({
           {toRender.map(({ url, type }) => {
             if (type) {
               return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
-            } else if (clientUrlPreview) {
-              return <ClientPreview url={url} />;
-            } else {
-              return null;
             }
+            if (clientUrlPreview) {
+              return <ClientPreview url={url} />;
+            }
+            return null;
           })}
         </UrlPreviewHolder>
       );

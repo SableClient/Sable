@@ -119,6 +119,8 @@ function RenderMessageContentInternal({
               return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
             } else if (clientUrlPreview) {
               return <ClientPreview url={url} />;
+            } else {
+              return null;
             }
           })}
         </UrlPreviewHolder>

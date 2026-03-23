@@ -969,9 +969,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Client Side Embeds"
-          description={
-            'Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services.'
-          }
+          description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
           after={
             <Switch variant="Primary" value={clientUrlPreview} onChange={setClientUrlPreview} />
           }

@@ -54,7 +54,6 @@ export interface Settings {
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
   clientPreviewYoutube: boolean;
-  clientUrlPreviewWhitelist: string[];
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;
@@ -136,6 +135,9 @@ const defaultSettings: Settings = {
   mediaAutoLoad: true,
   urlPreview: true,
   encUrlPreview: false,
+  clientUrlPreview: false,
+  encClientUrlPreview: false,
+  clientPreviewYoutube: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
   legacyUsernameColor: false,

@@ -251,7 +251,7 @@ export function useTimelineEventRenderer({
     dateFormatString,
     mediaAutoLoad,
     showUrlPreview,
-	showClientUrlPreview,
+    showClientUrlPreview,
     autoplayStickers,
     hideMemberInReadOnly,
     isReadOnly,
@@ -592,7 +592,7 @@ export function useTimelineEventRenderer({
                       getContent={getContent}
                       mediaAutoLoad={mediaAutoLoad}
                       urlPreview={showUrlPreview}
-					  clientUrlPreview={showClientUrlPreview}
+                      clientUrlPreview={showClientUrlPreview}
                       htmlReactParserOptions={htmlReactParserOptions}
                       linkifyOpts={linkifyOpts}
                       outlineAttachment={messageLayout === MessageLayout.Bubble}

@@ -144,7 +144,9 @@ export function RoomTimeline({
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
-  const showClientUrlPreview = room.hasEncryptionStateEvent() ? encClientUrlPreview : clientUrlPreview;
+  const showClientUrlPreview = room.hasEncryptionStateEvent()
+    ? encClientUrlPreview
+    : clientUrlPreview;
 
   const nicknames = useAtomValue(nicknamesAtom);
   const globalProfiles = useAtomValue(profilesCacheAtom);
@@ -486,7 +488,7 @@ export function RoomTimeline({
       dateFormatString,
       mediaAutoLoad,
       showUrlPreview,
-	  showClientUrlPreview,
+      showClientUrlPreview,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,

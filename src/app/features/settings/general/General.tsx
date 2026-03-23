@@ -871,8 +871,14 @@ function Messages() {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
-  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
-  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(settingsAtom, 'clientPreviewYoutube');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -960,27 +966,51 @@ function Messages() {
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
         />
       </SequenceCard>
-	  <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-		<SettingTile
-		  title="Client Side Embeds"
-		  description={
-			"Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
-		  }
-		  after={<Switch variant="Primary" value={clientUrlPreview} onChange={setClientUrlPreview} />}
-		/>
-	  </SequenceCard>
-	  <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column" style={clientUrlPreview ? {} : {display: 'none'}}>
-		<SettingTile
-		  title="Client Embeds in Encrypted Rooms"
-		  after={<Switch variant="Primary" value={encClientUrlPreview} onChange={setEncClientUrlPreview} />}
-		/>
-	  </SequenceCard>
-	  <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column" style={clientUrlPreview ? {} : {display: 'none'}}>
-		<SettingTile
-		  title="Embed YouTube Links"
-		  after={<Switch variant="Primary" value={clientPreviewYoutube} onChange={setClientPreviewYoutube} />}
-		/>
-	  </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Client Side Embeds"
+          description={
+            'Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services.'
+          }
+          after={
+            <Switch variant="Primary" value={clientUrlPreview} onChange={setClientUrlPreview} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Client Embeds in Encrypted Rooms"
+          after={
+            <Switch
+              variant="Primary"
+              value={encClientUrlPreview}
+              onChange={setEncClientUrlPreview}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Embed YouTube Links"
+          after={
+            <Switch
+              variant="Primary"
+              value={clientPreviewYoutube}
+              onChange={setClientPreviewYoutube}
+            />
+          }
+        />
+      </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Member Events in Read-Only Rooms"

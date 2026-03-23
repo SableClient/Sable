@@ -114,16 +114,17 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => (!!type ? (
-            <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
-		  ) : (clientUrlPreview ? (
-			<ClientPreview url={url} />
-		  ) : undefined)
-          ))}
+          {toRender.map(({ url, type }) =>
+            type ? (
+              <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
+            ) : clientUrlPreview ? (
+              <ClientPreview url={url} />
+            ) : undefined
+          )}
         </UrlPreviewHolder>
       );
     },
-    [ts]
+    [ts, clientUrlPreview]
   );
 
   const renderCaption = () => {

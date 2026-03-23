@@ -40,7 +40,7 @@ export type PerMessageProfileBeeperFormat = {
   /**
    * the display name to use for messages using this profile. This is required because otherwise the profile would have no effect on the message.
    */
-  displayname: string;
+  displayname?: string;
   /**
    * the avatar url to use for messages using this profile.
    * Beeper expects this to be a mxc url.
@@ -50,7 +50,7 @@ export type PerMessageProfileBeeperFormat = {
    * using the unstable prefix for pronouns, under which it is also stored in profiles
    */
   'io.fsky.nyx.pronouns'?: PronounSet[];
-  has_fallback: boolean;
+  has_fallback?: boolean;
 };
 
 /**
@@ -61,15 +61,23 @@ export type PerMessageProfileBeeperFormat = {
  * @return {*}  {PerMessageProfileBeeperFormat} the per message profile in Beeper's format, which can be applied to a message before sending it
  */
 export function convertPerMessageProfileToBeeperFormat(
-  profile: PerMessageProfile
+  profile: PerMessageProfile,
+  has_fallback: boolean
 ): PerMessageProfileBeeperFormat {
-  return {
+  const beeperPMP: PerMessageProfileBeeperFormat = {
     id: profile.id,
     displayname: profile.name,
     avatar_url: profile.avatarUrl,
     'io.fsky.nyx.pronouns': profile.pronouns,
-    has_fallback: true,
+    has_fallback,
   };
+  // delete empty fields
+  // to-do maybe find a better way of doing it
+  if (!profile.name || profile?.name.trim().length === 0) delete beeperPMP.displayname;
+  if (!profile.avatarUrl) delete beeperPMP.avatar_url;
+  if (!profile.pronouns || profile.pronouns?.length === 0) delete beeperPMP['io.fsky.nyx.pronouns'];
+  if (!has_fallback) delete beeperPMP.has_fallback;
+  return beeperPMP;
 }
 
 /**
@@ -85,7 +93,7 @@ export function convertBeeperFormatToOurPerMessageProfile(
 ): PerMessageProfile {
   return {
     id: beeperProfile.id,
-    name: beeperProfile.displayname,
+    name: beeperProfile.displayname ?? '',
     avatarUrl: beeperProfile.avatar_url,
     pronouns: beeperProfile['io.fsky.nyx.pronouns'],
   };

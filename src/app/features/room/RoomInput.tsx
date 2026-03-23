@@ -746,30 +746,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] =
-          convertPerMessageProfileToBeeperFormat(perMessageProfile);
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          perMessageProfile.name.trim() !== ''
+        );
 
-        // if a per-message profile is used, it must per spec include a fallback
-        const prefix = `${perMessageProfile.name}: `;
+        if (perMessageProfile.name.trim() !== '') {
+          // if a per-message profile is used, it must per spec include a fallback
+          const prefix = `${perMessageProfile.name}: `;
 
-        if (!content.body.startsWith(prefix)) {
-          // to prevent double-prefixing when the fallback is already present
-          content.body = prefix + content.body;
-        }
+          if (!content.body.startsWith(prefix)) {
+            // to prevent double-prefixing when the fallback is already present
+            content.body = prefix + content.body;
+          }
 
-        /**
-         * html escaped version of the display name
-         */
-        const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+          /**
+           * html escaped version of the display name
+           */
+          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
 
-        const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 
-        if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
-          content.formatted_body = htmlPrefix + content.formatted_body;
-        } else {
-          // we don't have a formatted body, but we need one
-          content.format = 'org.matrix.custom.html';
-          content.formatted_body = `${htmlPrefix}${plainText}`;
+          if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
+            content.formatted_body = htmlPrefix + content.formatted_body;
+          } else {
+            // we don't have a formatted body, but we need one
+            content.format = 'org.matrix.custom.html';
+            content.formatted_body = `${htmlPrefix}${plainText}`;
+          }
         }
       }
 

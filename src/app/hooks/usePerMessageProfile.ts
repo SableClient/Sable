@@ -73,7 +73,7 @@ export function convertPerMessageProfileToBeeperFormat(
   };
   // delete empty fields
   // to-do maybe find a better way of doing it
-  if (!profile.name) delete beeperPMP.displayname;
+  if (!profile.name || profile?.name.trim().length === 0) delete beeperPMP.displayname;
   if (!profile.avatarUrl) delete beeperPMP.avatar_url;
   if (!profile.pronouns || profile.pronouns?.length === 0) delete beeperPMP['io.fsky.nyx.pronouns'];
   if (!has_fallback) delete beeperPMP.has_fallback;

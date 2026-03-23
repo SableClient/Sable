@@ -770,10 +770,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (perMessageProfile) {
         content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
           perMessageProfile,
-          perMessageProfile.name !== ''
+          perMessageProfile.name.trim() !== ''
         );
 
-        if (perMessageProfile.name !== '') {
+        if (perMessageProfile.name.trim() !== '') {
           // if a per-message profile is used, it must per spec include a fallback
           const prefix = `${perMessageProfile.name}: `;
 

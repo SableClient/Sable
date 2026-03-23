@@ -28,6 +28,8 @@ export function SidebarNav() {
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
+    const target = evt.target as HTMLElement;
+    if (target.closest('button, a, [role="button"]')) return;
     evt.preventDefault();
     const cords = new DOMRect(evt.clientX, evt.clientY, 0, 0);
     setMenuAnchor((current) => (current ? undefined : cords));

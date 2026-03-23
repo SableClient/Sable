@@ -114,13 +114,13 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) =>
-            type ? (
-              <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
-            ) : clientUrlPreview ? (
-              <ClientPreview url={url} />
-            ) : undefined
-          )}
+          {toRender.map(({ url, type }) => {
+            if (type) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+            } else if (clientUrlPreview) {
+              return <ClientPreview url={url} />;
+            }
+          })}
         </UrlPreviewHolder>
       );
     },

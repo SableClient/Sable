@@ -5,12 +5,12 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { safeDecodeUrl } from '$plugins/react-custom-html-parser';
 import * as css from './UrlPreviewCard.css';
 import { UrlPreview, UrlPreviewContent, UrlPreviewDescription } from './UrlPreview';
 import { AudioContent, ImageContent, VideoContent } from '../message';
 import { Image, MediaControl, Video } from '../media';
 import { ImageViewer } from '../image-viewer';
-import { safeDecodeUrl } from '$plugins/react-custom-html-parser';
 
 const linkStyles = { color: color.Success.Main };
 

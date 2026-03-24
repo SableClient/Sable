@@ -145,7 +145,11 @@ export function UserMentionAutocomplete({
   });
 
   return (
-    <AutocompleteMenu headerContent={<Text size="L400">Mentions</Text>} requestClose={requestClose}>
+    <AutocompleteMenu
+      headerContent={<Text size="L400">Mentions</Text>}
+      requestClose={requestClose}
+      editor={editor}
+    >
       {query.text === 'room' && (
         <UnknownMentionItem
           userId={roomAliasOrId}

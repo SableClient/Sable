@@ -55,6 +55,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { PhosphorIcon } from '$components/PhosphorIcon';
+import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -167,7 +168,19 @@ export function Search({ requestClose }: SearchProps) {
   );
 
   const [result, search, resetSearch] = useAsyncSearch(targetRooms, getTargetStr, SEARCH_OPTIONS);
-  const roomsToRender = result ? result.items : topActiveRooms;
+  const selectedSpaceId = useSelectedSpace();
+
+  const roomsToRender = useMemo(() => {
+    const items = result ? result.items : topActiveRooms;
+    if (!selectedSpaceId) return items;
+
+    return [...items].sort((a, b) => {
+      const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
+      const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
+      return bInSpace - aInSpace;
+    });
+  }, [result, topActiveRooms, selectedSpaceId, roomToParents]);
+
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
 
   const queryHighlighRegex = result?.query

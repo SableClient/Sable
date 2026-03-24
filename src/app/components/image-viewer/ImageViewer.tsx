@@ -30,8 +30,15 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY < 0) zoomIn();
-      else zoomOut();
+      const { deltaY } = e;
+      // Mouse wheel scrolls only by integer delta values, therefore
+      // If deltaY is an integer, then it's a mouse wheel action
+      if (Number.isInteger(deltaY)) {
+        if (deltaY < 0) {
+          zoomIn();
+        } else zoomOut();
+      }
+      // If it's not an integer, then it's a touchpad action, do nothing and let the browser handle the zooming
     };
 
     return (

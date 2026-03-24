@@ -136,6 +136,7 @@ function PinnedMessageActiveContent(
     getMemberDisplayName(room, sender, nicknames) ?? getMxIdLocalPart(sender) ?? sender;
   const senderAvatarMxc = getMemberAvatarMxc(room, sender);
   const getContent = (() => pinnedEvent.getContent()) as GetContentCallback;
+  const content = pinnedEvent.getContent();
 
   const memberPowerTag = getMemberPowerTag(sender);
   const tagIconSrc = memberPowerTag?.icon
@@ -185,6 +186,7 @@ function PinnedMessageActiveContent(
           room={room}
           replyEventId={pinnedEvent.replyEventId}
           threadRootId={pinnedEvent.threadRootId}
+          mentions={content['m.mentions']}
           onClick={handleOpenClick}
         />
       )}

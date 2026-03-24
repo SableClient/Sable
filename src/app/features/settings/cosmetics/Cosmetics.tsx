@@ -24,6 +24,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { PhosphorIcon } from '$components/PhosphorIcon';
 import { Appearance } from './Themes';
+import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
@@ -270,6 +271,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
               <IdentityCosmetics />
               <JumboEmoji />
               <Privacy />
+              <LanguageSpecificPronouns />
             </Box>
           </PageContent>
         </Scroll>

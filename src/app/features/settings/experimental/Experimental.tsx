@@ -9,7 +9,6 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { PhosphorIcon } from '$components/PhosphorIcon';
-import { LanguageSpecificPronouns } from '../cosmetics/LanguageSpecificPronouns';
 import { Sync } from '../general';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
@@ -75,7 +74,6 @@ export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
             <Box direction="Column" gap="700">
               <Sync />
               <MSC4268HistoryShare />
-              <LanguageSpecificPronouns />
               <BandwidthSavingEmojis />
               <PersonaToggle />
             </Box>

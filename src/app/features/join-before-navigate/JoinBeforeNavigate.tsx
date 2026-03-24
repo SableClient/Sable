@@ -67,6 +67,7 @@ export function JoinBeforeNavigate({
                   topic={summary?.topic}
                   memberCount={summary?.num_joined_members}
                   roomType={summary?.room_type}
+                  joinRule={summary?.join_rule}
                   viaServers={viaServers}
                   renderTopicViewer={(name, topic, requestClose) => (
                     <RoomTopicViewer name={name} topic={topic} requestClose={requestClose} />

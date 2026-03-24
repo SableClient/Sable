@@ -327,6 +327,7 @@ export function SearchResultGroup({
                     room={room}
                     replyEventId={replyEventId}
                     threadRootId={threadRootId}
+                    mentions={event.content['m.mentions']}
                     onClick={handleOpenClick}
                   />
                 )}

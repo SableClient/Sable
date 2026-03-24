@@ -19,6 +19,7 @@ import {
 import { ArrowRightIcon } from '@phosphor-icons/react/dist/csr/ArrowRight';
 import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus';
 import { WarningIcon } from '@phosphor-icons/react/dist/csr/Warning';
+import { HandFistIcon } from '@phosphor-icons/react/dist/csr/HandFist';
 import FocusTrap from 'focus-trap-react';
 import { JoinRule, MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -26,6 +27,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { millify } from '$plugins/millify';
+import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -46,7 +48,6 @@ type RoomJoinButtonProps = {
 };
 function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
   const mx = useMatrixClient();
-
   const [joinState, join] = useAsyncCallback<Room, MatrixError, []>(
     useCallback(() => mx.joinRoom(roomId, { viaServers: via }), [mx, roomId, via])
   );
@@ -100,6 +101,47 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
       </Chip>
     </Box>
   );
+}
+
+function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
+  return (
+    <UseStateProvider initial={false}>
+      {(knocking, setKnocking) => (
+        <Box shrink="No" gap="200" alignItems="Center">
+          <Chip
+            variant="Secondary"
+            fill="Soft"
+            size="400"
+            radii="Pill"
+            before={<PhosphorIcon as={HandFistIcon} size="50" />}
+            onClick={() => setKnocking(true)}
+          >
+            <Text size="B300">Knock</Text>
+          </Chip>
+          {knocking && (
+            <KnockRoomPrompt
+              roomId={roomId}
+              via={via}
+              onDone={() => setKnocking(false)}
+              onCancel={() => setKnocking(false)}
+            />
+          )}
+        </Box>
+      )}
+    </UseStateProvider>
+  );
+}
+
+type RoomJoinOrKnockButtonProps = {
+  roomId: string;
+  via?: string[];
+  joinRule?: JoinRule;
+};
+function RoomJoinOrKnockButton({ roomId, via, joinRule }: RoomJoinOrKnockButtonProps) {
+  if (joinRule === JoinRule.Knock) {
+    return <RoomKnockButton roomId={roomId} via={via} />;
+  }
+  return <RoomJoinButton roomId={roomId} via={via} />;
 }
 
 function RoomProfileLoading() {
@@ -173,7 +215,7 @@ function RoomProfileError({ roomId, suggested, inaccessibleRoom, via }: RoomProf
           )}
         </Box>
       </Box>
-      {!inaccessibleRoom && <RoomJoinButton roomId={roomId} via={via} />}
+      {!inaccessibleRoom && <RoomJoinOrKnockButton roomId={roomId} via={via} />}
     </Box>
   );
 }
@@ -370,7 +412,11 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                         </Chip>
                       </Box>
                     ) : (
-                      <RoomJoinButton roomId={roomId} via={content.via} />
+                      <RoomJoinOrKnockButton
+                        roomId={roomId}
+                        via={content.via}
+                        joinRule={localSummary.joinRule}
+                      />
                     )
                   }
                 />
@@ -414,7 +460,13 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                   memberCount={summary.num_joined_members}
                   suggested={content.suggested}
                   joinRule={summary.join_rule}
-                  options={<RoomJoinButton roomId={roomId} via={content.via} />}
+                  options={
+                    <RoomJoinOrKnockButton
+                      roomId={roomId}
+                      via={content.via}
+                      joinRule={summary.join_rule}
+                    />
+                  }
                 />
               )}
             </>

@@ -121,6 +121,7 @@ export const login = async (
           httpStatus: err.httpStatus,
         });
         throw new MatrixError({
+          error: err.message,
           errcode: LoginError.Unknown,
         });
       }

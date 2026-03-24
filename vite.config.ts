@@ -123,7 +123,7 @@ function serverMatrixSdkCryptoWasm() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   appType: 'spa',
   publicDir: false,
   base: buildConfig.base,
@@ -150,6 +150,7 @@ export default defineConfig({
   server: {
     port: 8080,
     host: true,
+    allowedHosts: command === 'serve' ? true : undefined,
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..'],
@@ -251,4 +252,4 @@ export default defineConfig({
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
     },
   },
-});
+}));

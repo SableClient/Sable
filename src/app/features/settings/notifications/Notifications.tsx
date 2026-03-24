@@ -1,9 +1,6 @@
 import { Box, Text, IconButton, Scroll } from 'folds';
 import { XIcon } from '@phosphor-icons/react/dist/csr/X';
 import { Page, PageContent, PageHeader } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { PhosphorIcon } from '$components/PhosphorIcon';
 import { SystemNotification } from './SystemNotification';
 import { AllMessagesNotifications } from './AllMessages';
@@ -38,17 +35,6 @@ export function Notifications({ requestClose }: NotificationsProps) {
               <AllMessagesNotifications />
               <SpecialMessagesNotifications />
               <KeywordMessagesNotifications />
-              <Box direction="Column" gap="100">
-                <Text size="L400">Block Messages</Text>
-                <SequenceCard
-                  className={SequenceCardStyle}
-                  variant="SurfaceVariant"
-                  direction="Column"
-                  gap="400"
-                >
-                  <SettingTile description='This option has been moved to "Account > Block Users" section.' />
-                </SequenceCard>
-              </Box>
             </Box>
           </PageContent>
         </Scroll>

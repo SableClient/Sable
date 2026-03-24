@@ -64,6 +64,14 @@ export const LINKIFY_OPTS: LinkifyOpts = {
   ignoreTags: ['span'],
 };
 
+export const safeDecodeUrl = (url: string) => {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return url;
+  }
+};
+
 export const makeMentionCustomProps = (
   handleMentionClick?: ReactEventHandler<HTMLElement>,
   content?: string
@@ -165,7 +173,7 @@ export const factoryRenderLinkifyWithMention = (
     content,
   }) => {
     const encodedHref = attributes.href;
-    const decodedHref = encodedHref && decodeURIComponent(encodedHref);
+    const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
 
     if (tagName === 'a' && decodedHref && testMatrixTo(decodedHref)) {
       const mention = mentionRender(decodedHref);
@@ -484,7 +492,7 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'a' && typeof props.href === 'string') {
           const encodedHref = props.href;
-          const decodedHref = encodedHref && decodeURIComponent(encodedHref);
+          const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
           if (!decodedHref || !testMatrixTo(decodedHref)) {
             return undefined;
           }
@@ -496,7 +504,7 @@ export const getReactCustomHtmlParser = (
           const mention = renderMatrixMention(
             mx,
             roomId,
-            decodeURIComponent(props.href),
+            safeDecodeUrl(props.href),
             makeMentionCustomProps(params.handleMentionClick, content),
             params.nicknames
           );

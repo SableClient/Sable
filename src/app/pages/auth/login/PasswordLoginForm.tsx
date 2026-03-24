@@ -258,7 +258,7 @@ export function PasswordLoginForm({ defaultUsername, defaultEmail }: PasswordLog
                 <FieldError message="Failed to login. Your login request has been rate-limited by server, Please try after some time." />
               )}
               {loginState.error.errcode === LoginError.Unknown && (
-                <FieldError message="Failed to login. Unknown reason." />
+                <FieldError message={`Failed to login: ${loginState.error.data.error}`} />
               )}
             </>
           )}

@@ -137,7 +137,11 @@ export function RoomMentionAutocomplete({
   });
 
   return (
-    <AutocompleteMenu headerContent={<Text size="L400">Rooms</Text>} requestClose={requestClose}>
+    <AutocompleteMenu
+      headerContent={<Text size="L400">Rooms</Text>}
+      requestClose={requestClose}
+      editor={editor}
+    >
       {autoCompleteRoomIds.length === 0 ? (
         <UnknownRoomMentionItem query={query} handleAutocomplete={handleAutocomplete} />
       ) : (

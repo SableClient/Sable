@@ -7,7 +7,9 @@ import { CodeIcon } from '@phosphor-icons/react/dist/csr/Code';
 import { HashIcon } from '@phosphor-icons/react/dist/csr/Hash';
 import { PhoneIcon } from '@phosphor-icons/react/dist/csr/Phone';
 import { PhoneSlashIcon } from '@phosphor-icons/react/dist/csr/PhoneSlash';
-import { EventTimelineSet, Room, SessionMembershipData } from '$types/matrix-sdk';
+import { AtIcon } from '@phosphor-icons/react/dist/csr/At';
+import { PushPinIcon } from '@phosphor-icons/react/dist/csr/PushPin';
+import { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
 import { MouseEventHandler, ReactNode, useCallback, useMemo, type ComponentType } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
@@ -49,9 +51,11 @@ type ReplyLayoutProps = {
   userColor?: string;
   username?: ReactNode;
   icon?: ComponentType<IconProps>;
+  mentioned: boolean;
+  replyIcon?: JSX.Element;
 };
 export const ReplyLayout = as<'div', ReplyLayoutProps>(
-  ({ username, userColor, icon, className, children, ...props }, ref) => (
+  ({ username, userColor, icon, className, mentioned, children, replyIcon, ...props }, ref) => (
     <Box
       className={classNames(css.Reply, className)}
       alignItems="Center"
@@ -60,10 +64,11 @@ export const ReplyLayout = as<'div', ReplyLayoutProps>(
       ref={ref}
     >
       <Box style={{ color: userColor }} alignItems="Center" shrink="No">
-        <PhosphorIcon size="100" as={ArrowBendUpLeftIcon} />
+        {replyIcon || <PhosphorIcon size="100" as={ArrowBendUpLeftIcon} />}
       </Box>
       {!!icon && <PhosphorIcon style={{ opacity: 0.6 }} size="50" as={icon} />}
       <Box style={{ color: userColor, maxWidth: toRem(200) }} alignItems="Center" shrink="No">
+        {mentioned && <PhosphorIcon size="100" as={AtIcon} />}
         {username}
       </Box>
       <Box grow="Yes" className={css.ReplyContent}>
@@ -92,11 +97,16 @@ type ReplyProps = {
   timelineSet?: EventTimelineSet;
   replyEventId: string;
   threadRootId?: string;
+  mentions?: IMentions;
   onClick?: MouseEventHandler;
+  replyIcon?: JSX.Element;
 };
 
 export const Reply = as<'div', ReplyProps>(
-  ({ room, timelineSet, replyEventId, threadRootId, onClick, ...props }, ref) => {
+  (
+    { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
+    ref
+  ) => {
     const placeholderWidth = useMemo(() => randomNumberBetween(40, 400), []);
     const getFromLocalTimeline = useCallback(
       () => timelineSet?.findEventById(replyEventId),
@@ -140,6 +150,7 @@ export const Reply = as<'div', ReplyProps>(
 
     let bodyJSX: ReactNode = fallbackBody;
     let icon: ComponentType<IconProps> | undefined;
+    let mentioned = sender != null && (mentions?.user_ids?.includes(sender) ?? false);
 
     const replyLinkifyOpts = useMemo(
       () => ({
@@ -178,7 +189,13 @@ export const Reply = as<'div', ReplyProps>(
     } else if (eventType === StateEvent.RoomMember && !!replyEvent) {
       const parsedMemberEvent = parseMemberEvent(replyEvent);
       icon = parsedMemberEvent.icon;
-      bodyJSX = parsedMemberEvent.body;
+      mentioned = false;
+      bodyJSX = (
+        <Box direction="Row" style={{ columnGap: toRem(6) }}>
+          {' '}
+          {parsedMemberEvent.body}{' '}
+        </Box>
+      );
     } else if (eventType === StateEvent.RoomName) {
       icon = HashIcon;
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');
@@ -192,7 +209,29 @@ export const Reply = as<'div', ReplyProps>(
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
       icon = callJoined ? PhoneIcon : PhoneSlashIcon;
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
-    } else if (Object.values(MessageEvent).every((v) => v !== eventType)) {
+    } else if (eventType === StateEvent.RoomPinnedEvents && replyEvent) {
+      const { pinned } = replyEvent.getContent();
+      const prevPinned = replyEvent.getPrevContent().pinned;
+      const pinsAdded =
+        prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+      const pinsRemoved =
+        prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+      icon = PushPinIcon;
+      bodyJSX = (
+        <>
+          {(pinsAdded?.length > 0 &&
+            `pinned ${pinsAdded.length} message${pinsAdded.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(pinsAdded?.length > 0 && pinsRemoved?.length > 0 && `and`) || ''}
+          {(pinsRemoved?.length > 0 &&
+            `unpinned ${pinsRemoved.length} message${pinsRemoved.length > 1 ? 's' : ''}`) ||
+            ''}
+          {(!pinsAdded || pinsAdded.length <= 0) &&
+            (!pinsRemoved || pinsRemoved.length <= 0) &&
+            `has not changed the pins`}
+        </>
+      );
+    } else if (Object.values(MessageEvent).every((v) => v !== eventType && !!eventType)) {
       icon = CodeIcon;
       bodyJSX = (
         <>
@@ -211,6 +250,8 @@ export const Reply = as<'div', ReplyProps>(
           as="button"
           userColor={usernameColor}
           icon={icon}
+          replyIcon={replyIcon}
+          mentioned={mentioned}
           username={
             sender &&
             eventType !== StateEvent.RoomMember && (

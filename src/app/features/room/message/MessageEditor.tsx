@@ -270,6 +270,13 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
         ) {
+          const prevWordRange = getPrevWorldRange(editor);
+          if (
+            prevWordRange &&
+            getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
+          )
+            return;
+
           evt.preventDefault();
           handleSave();
         }
@@ -278,7 +285,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           onCancel();
         }
       },
-      [onCancel, handleSave, enterForNewline, isComposing]
+      [enterForNewline, isComposing, editor, handleSave, onCancel]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(

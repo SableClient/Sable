@@ -106,6 +106,7 @@ export function EmoticonAutocomplete({
     <AutocompleteMenu
       headerContent={<Text size="L400">{title ?? 'Emojis'}</Text>}
       requestClose={requestClose}
+      editor={editor}
     >
       {autoCompleteEmoticon.map((emoticon) => {
         const isCustomEmoji = 'url' in emoticon;

@@ -463,6 +463,9 @@ function RoomNotificationsGroupComp({
           const replyEventId = relation?.['m.in_reply_to']?.event_id;
           const threadRootId =
             relation?.rel_type === RelationType.Thread ? relation.event_id : undefined;
+          // doesn't work for encrypted rooms
+          // not a big deal really, don't want to bother with finding the event by id and decrypting
+          const mentions = event.content['m.mentions'];
 
           const memberPowerTag = getMemberPowerTag(event.sender);
           const tagColor = memberPowerTag?.color
@@ -540,6 +543,7 @@ function RoomNotificationsGroupComp({
                     room={room}
                     replyEventId={replyEventId}
                     threadRootId={threadRootId}
+                    mentions={mentions}
                     onClick={handleOpenClick}
                   />
                 )}

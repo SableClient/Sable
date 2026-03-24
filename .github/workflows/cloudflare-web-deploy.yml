@@ -20,7 +20,7 @@ on:
 env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.event.head_commit.message || github.sha }}
+  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}
   TF_VAR_account_id: ${{ secrets.TF_VAR_ACCOUNT_ID }}
   TF_VAR_zone_id: ${{ secrets.TF_VAR_ZONE_ID }}
   TF_HTTP_ADDRESS: ${{ secrets.TF_HTTP_ADDRESS }}

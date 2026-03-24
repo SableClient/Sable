@@ -8,6 +8,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp, downloadMedia } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { PhosphorIcon } from '$components/PhosphorIcon';
+import { safeDecodeUrl } from '$plugins/react-custom-html-parser';
 import * as css from './UrlPreviewCard.css';
 import { UrlPreview, UrlPreviewContent, UrlPreviewDescription } from './UrlPreview';
 import { AudioContent, ImageContent, VideoContent } from '../message';
@@ -103,7 +104,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
               priority="300"
             >
               {typeof siteName === 'string' && `${siteName} | `}
-              {decodeURIComponent(url)}
+              {safeDecodeUrl(url)}
             </Text>
             {title && (
               <Text truncate priority="400">
@@ -201,7 +202,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
             size="T200"
             priority="300"
           >
-            {decodeURIComponent(url)}
+            {safeDecodeUrl(url)}
           </Text>
         </UrlPreviewContent>
       );

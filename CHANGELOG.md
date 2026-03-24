@@ -1,5 +1,49 @@
 # Sable Client Changelog
 
+## 1.12.0 (2026-03-24)
+
+### Features
+
+* `Ctrl + K` search menu is now context aware and lists the current space's rooms at the top. ([#499](https://github.com/SableClient/Sable/pull/499) by @7w1)
+* Add knocking support when attempting to join a room from the directory, an address, a room mention, or space hierarchy, as well as text command support for knocking. Also improves rendering for knock notifications in rooms. ([#470](https://github.com/SableClient/Sable/pull/470) by @polyjitter)
+* Add Android/iOS PWA-specific icon variants. ([#473](https://github.com/SableClient/Sable/pull/473) by @Septicity)
+* Add support for youtube embeds. ([#497](https://github.com/SableClient/Sable/pull/497) by @thundertheidiot)
+* Add sidebar three dot menu for quick access to related settings ([#474](https://github.com/SableClient/Sable/pull/474) by @wolterkam)
+* Replies that mention the OP are now indicated by the OP username being prefixed with @ ([#465](https://github.com/SableClient/Sable/pull/465) by @mini-bomba)
+* Made pin events show a tally of the messages that are pinned. ([#462](https://github.com/SableClient/Sable/pull/462) by @nushea)
+
+#### Improve multiline composer and voice recording ([#476](https://github.com/SableClient/Sable/pull/476) by @hazre)
+
+- Add a multiline composer layout for longer drafts.
+- Keep the voice recorder between composer actions in multiline mode.
+- Show the recorder inside the composer on mobile while recording.
+- Prevent the composer from expanding when recording starts.
+- Make the recorder footer and waveform fit better across screen sizes.
+- Let interrupted mobile recording gestures still stop correctly.
+- Stabilize wrap detection around edge cases like narrow widths and trailing spaces.
+
+### Fixes
+
+* Added error messages provided by homeserver to unknown login errors. ([#496](https://github.com/SableClient/Sable/pull/496) by @7w1)
+* Ensure new updates always reload the page properly. ([#502](https://github.com/SableClient/Sable/pull/502) by @7w1)
+* Removed the blocked users moved notice from notifications setting page. ([#490](https://github.com/SableClient/Sable/pull/490) by @7w1)
+* Fix recieved encrypted message per-message profiles not triggering rerenders. ([#464](https://github.com/SableClient/Sable/pull/464) by @7w1)
+* Add `.m4a` files as a recognized audio type. ([#472](https://github.com/SableClient/Sable/pull/472) by @henk717)
+* Fix messages disappearing from rooms after reconnects and timeline resets. ([#478](https://github.com/SableClient/Sable/pull/478) by @hazre)
+* Fix Camera being enabled by default even when the client has it off pre joining in browsers that permit the video (Electron/Tauri as examples). ([#485](https://github.com/SableClient/Sable/pull/485) by @Rawrington)
+* Fix cinny-dark-theme link colors being too dark ([#469](https://github.com/SableClient/Sable/pull/469) by @Elec3137)
+* Fix "Default" menu item height in room notification switcher. ([#466](https://github.com/SableClient/Sable/pull/466) by @polyjitter)
+* fix the issue of empty displaynames of a persona, causing an empty fallback message, it will now ommit the fallback, if the name is empty or only consists of whitespace ([#495](https://github.com/SableClient/Sable/pull/495) by @dozro)
+* Fixed an Android issue where recording a voice message with headphones could leave audio stuck in low-quality mode until the app was restarted. ([#476](https://github.com/SableClient/Sable/pull/476) by @hazre)
+* Fixed voice message scrubbing/seeking on Firefox by switching the recorder from WebM (no seek index) to Ogg/Opus. ([#476](https://github.com/SableClient/Sable/pull/476) by @hazre)
+* fixes touchpad zooming behaviour ([#481](https://github.com/SableClient/Sable/pull/481) by @integralfunction)
+* Fixes width mismatch for the call chat view. ([#460](https://github.com/SableClient/Sable/pull/460) by @polyjitter)
+* Fix messages sent from sable showing wrong on other client(s) ([#468](https://github.com/SableClient/Sable/pull/468) by @nushea)
+
+### Documentation
+
+* Updated PR template and CONTRIBUTING.md to add AI disclosure requirement. ([#456](https://github.com/SableClient/Sable/pull/456) by @Rosy-iso)
+
 ## 1.11.1 (2026-03-21)
 
 ### Fixes

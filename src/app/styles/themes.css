@@ -894,21 +894,21 @@
   --sable-bg-container: #000000;
   --sable-bg-container-hover: #101010;
   --sable-bg-container-active: #101010;
-  --sable-bg-container-line: #404040;
+  --sable-bg-container-line: #702070;
   --sable-bg-on-container: #ffffff;
 
   /* Surface */
   --sable-surface-container: #000000;
   --sable-surface-container-hover: #101010;
   --sable-surface-container-active: #101010;
-  --sable-surface-container-line: #404040;
+  --sable-surface-container-line: #702070;
   --sable-surface-on-container: #ffffff;
 
   /* Surface Variant */
   --sable-surface-var-container: #050505;
   --sable-surface-var-container-hover: #101010;
   --sable-surface-var-container-active: #101010;
-  --sable-surface-var-container-line: #404040;
+  --sable-surface-var-container-line: #702070;
   --sable-surface-var-on-container: #ffffff;
 
   /* Primary */

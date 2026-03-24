@@ -23,6 +23,14 @@ const openMediaInNewTab = async (url: string | undefined) => {
   window.open(blobUrl, '_blank');
 };
 
+const safeDecodeUrl = (url: string) => {
+  try {
+    return decodeURIComponent(url);
+  } catch (e) {
+    return url;
+  }
+};
+
 export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: string | null }>(
   ({ url, ts, mediaType, ...props }, ref) => {
     const mx = useMatrixClient();
@@ -100,7 +108,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
               priority="300"
             >
               {typeof siteName === 'string' && `${siteName} | `}
-              {decodeURIComponent(url)}
+              {safeDecodeUrl(url)}
             </Text>
             {title && (
               <Text truncate priority="400">
@@ -198,7 +206,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
             size="T200"
             priority="300"
           >
-            {decodeURIComponent(url)}
+            {safeDecodeUrl(url)}
           </Text>
         </UrlPreviewContent>
       );

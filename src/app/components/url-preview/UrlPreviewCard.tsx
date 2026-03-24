@@ -10,6 +10,7 @@ import { UrlPreview, UrlPreviewContent, UrlPreviewDescription } from './UrlPrevi
 import { AudioContent, ImageContent, VideoContent } from '../message';
 import { Image, MediaControl, Video } from '../media';
 import { ImageViewer } from '../image-viewer';
+import { safeDecodeUrl } from '$plugins/react-custom-html-parser';
 
 const linkStyles = { color: color.Success.Main };
 
@@ -21,14 +22,6 @@ const openMediaInNewTab = async (url: string | undefined) => {
   const blob = await downloadMedia(url);
   const blobUrl = URL.createObjectURL(blob);
   window.open(blobUrl, '_blank');
-};
-
-const safeDecodeUrl = (url: string) => {
-  try {
-    return decodeURIComponent(url);
-  } catch {
-    return url;
-  }
 };
 
 export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: string | null }>(

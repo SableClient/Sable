@@ -60,7 +60,7 @@ export const LINKIFY_OPTS: LinkifyOpts = {
   ignoreTags: ['span'],
 };
 
-const safeDecodeUrl = (url: string) => {
+export const safeDecodeUrl = (url: string) => {
   try {
     return decodeURIComponent(url);
   } catch {

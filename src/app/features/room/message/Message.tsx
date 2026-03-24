@@ -384,6 +384,11 @@ function MessageInternal(
 
   useEffect(() => {
     const onUpdate = () => setContentVersion((v) => v + 1);
+
+    if (mEvent.getClearContent()) {
+      setContentVersion((v) => (v === 0 ? 1 : v));
+    }
+
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);
     return () => {

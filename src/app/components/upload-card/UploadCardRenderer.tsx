@@ -128,6 +128,10 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
       return undefined;
     }
     const audio = new Audio(audioUrl);
+    audio.preload = 'auto';
+    // Explicitly load so Firefox parses metadata immediately, making
+    // currentTime writable before the user has ever pressed play.
+    audio.load();
     audioRef.current = audio;
 
     audio.onended = () => {
@@ -177,13 +181,34 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
     }
   };
 
+  const seekTo = (audio: HTMLAudioElement, targetTime: number) => {
+    // Alias to a local const to satisfy no-param-reassign.
+    const el = audio;
+    if (el.seekable.length > 0) {
+      el.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    } else {
+      // Metadata not yet loaded (Firefox, first scrub before load() resolves).
+      // Do NOT call load() again here — that resets currentTime to 0 and
+      // restarts the fetch. load() was already called in the useEffect;
+      // just wait for the in-flight loadedmetadata event.
+      el.addEventListener(
+        'loadedmetadata',
+        () => {
+          el.currentTime = targetTime;
+          setCurrentTime(targetTime);
+        },
+        { once: true }
+      );
+    }
+  };
+
   const handleScrubClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
     if (!audio || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
-    setCurrentTime(audio.currentTime);
+    seekTo(audio, ratio * duration);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -209,8 +234,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
       return;
     }
 
-    audio.currentTime = newTime;
-    setCurrentTime(newTime);
+    seekTo(audio, newTime);
   };
 
   return (

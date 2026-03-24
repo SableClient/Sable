@@ -153,7 +153,11 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import { AudioMessageRecorder, AudioMessageRecorderHandle } from './AudioMessageRecorder';
+import {
+  AudioMessageRecorder,
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -429,6 +433,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [setSelectedFiles, selectedFiles]
     );
+
+    const handleAudioRecordingComplete = useCallback(
+      (payload: AudioRecordingCompletePayload) => {
+        const extension = getSupportedAudioExtension(payload.audioCodec);
+        const file = new File(
+          [payload.audioBlob],
+          `sable-audio-message-${Date.now()}.${extension}`,
+          {
+            type: payload.audioCodec,
+          }
+        );
+        handleFiles([file], {
+          waveform: payload.waveform,
+          audioDuration: payload.audioLength,
+        });
+        setShowAudioRecorder(false);
+      },
+      [handleFiles]
+    );
+
+    const audioRecorder = showAudioRecorder ? (
+      <AudioMessageRecorder
+        ref={audioRecorderRef}
+        onRequestClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+        onAudioLengthUpdate={() => {}}
+        onWaveformUpdate={() => {}}
+      />
+    ) : undefined;
 
     const handleCancelUpload = (uploads: Upload[]) => {
       uploads.forEach((upload) => {
@@ -713,30 +746,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] =
-          convertPerMessageProfileToBeeperFormat(perMessageProfile);
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          perMessageProfile.name.trim() !== ''
+        );
 
-        // if a per-message profile is used, it must per spec include a fallback
-        const prefix = `${perMessageProfile.name}: `;
+        if (perMessageProfile.name.trim() !== '') {
+          // if a per-message profile is used, it must per spec include a fallback
+          const prefix = `${perMessageProfile.name}: `;
 
-        if (!content.body.startsWith(prefix)) {
-          // to prevent double-prefixing when the fallback is already present
-          content.body = prefix + content.body;
-        }
+          if (!content.body.startsWith(prefix)) {
+            // to prevent double-prefixing when the fallback is already present
+            content.body = prefix + content.body;
+          }
 
-        /**
-         * html escaped version of the display name
-         */
-        const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+          /**
+           * html escaped version of the display name
+           */
+          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
 
-        const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 
-        if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
-          content.formatted_body = htmlPrefix + content.formatted_body;
-        } else {
-          // we don't have a formatted body, but we need one
-          content.format = 'org.matrix.custom.html';
-          content.formatted_body = `${htmlPrefix}${plainText}`;
+          if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
+            content.formatted_body = htmlPrefix + content.formatted_body;
+          } else {
+            // we don't have a formatted body, but we need one
+            content.format = 'org.matrix.custom.html';
+            content.formatted_body = `${htmlPrefix}${plainText}`;
+          }
         }
       }
 
@@ -1136,10 +1173,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder={showAudioRecorder && mobileOrTablet() ? '' : 'Send a message...'}
+          placeholder="Send a message..."
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          responsiveAfter={audioRecorder}
+          forceMultilineLayout={showAudioRecorder}
           top={
             <>
               {scheduledTime && (
@@ -1241,45 +1280,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            !(showAudioRecorder && mobileOrTablet()) && (
-              <IconButton
-                onClick={() => pickFile('*')}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
-              >
-                <Icon src={Icons.PlusCircle} />
-              </IconButton>
-            )
+            <IconButton
+              onClick={() => pickFile('*')}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
+            >
+              <Icon src={Icons.PlusCircle} />
+            </IconButton>
           }
           after={
             <>
-              {showAudioRecorder && (
-                <AudioMessageRecorder
-                  ref={audioRecorderRef}
-                  onRequestClose={() => setShowAudioRecorder(false)}
-                  onRecordingComplete={(payload) => {
-                    const extension = getSupportedAudioExtension(payload.audioCodec);
-                    const file = new File(
-                      [payload.audioBlob],
-                      `sable-audio-message-${Date.now()}.${extension}`,
-                      {
-                        type: payload.audioCodec,
-                      }
-                    );
-                    handleFiles([file], {
-                      waveform: payload.waveform,
-                      audioDuration: payload.audioLength,
-                    });
-                    setShowAudioRecorder(false);
-                  }}
-                  onAudioLengthUpdate={() => {}}
-                  onWaveformUpdate={() => {}}
-                />
-              )}
-
               {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
               <IconButton
                 ref={micBtnRef}
@@ -1290,7 +1303,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
                 aria-pressed={showAudioRecorder}
                 onClick={() => {
-                  if (mobileOrTablet()) return;
+                  if (mobileOrTablet() && !showAudioRecorder) return;
                   if (showAudioRecorder) {
                     audioRecorderRef.current?.stop();
                   } else {

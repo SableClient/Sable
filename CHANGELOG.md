@@ -1,5 +1,12 @@
 # Sable Client Changelog
 
+## 1.12.2 (2026-03-24)
+
+### Fixes
+
+* Fix standard embed links not rendering. ([#506](https://github.com/SableClient/Sable/pull/506) by @7w1)
+* Added maximum height to state events ([#491](https://github.com/SableClient/Sable/pull/491) by @nushea)
+
 ## 1.12.1 (2026-03-24)
 
 ### Fixes

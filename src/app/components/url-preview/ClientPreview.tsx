@@ -140,7 +140,8 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedDa
   );
 });
 
-const youtubeUrl = (url: string) => url.match(/(https:\/\/)(www\.|m\.|)(youtube\.com|youtu\.be)\//);
+export const youtubeUrl = (url: string) =>
+  url.match(/(https:\/\/)(www\.|m\.|)(youtube\.com|youtu\.be)\//);
 
 export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref) => {
   const [showYoutube] = useSetting(settingsAtom, 'clientPreviewYoutube');

@@ -1,5 +1,11 @@
 # Sable Client Changelog
 
+## 1.12.1 (2026-03-24)
+
+### Fixes
+
+* Change cloudflare deploy worker message to something much shorter to avoid char limit. ([#504](https://github.com/SableClient/Sable/pull/504) by @7w1)
+
 ## 1.12.0 (2026-03-24)
 
 ### Features

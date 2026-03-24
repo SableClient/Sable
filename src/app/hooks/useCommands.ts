@@ -263,6 +263,9 @@ export enum Command {
   Report = 'bugreport',
   // Experimental
   ShareE2EEHistory = 'sharehistory',
+  // Spec missing from cinny
+  Location = 'location',
+  ShareMyLocation = 'sharemylocation',
 }
 
 export type CommandContent = {
@@ -1443,6 +1446,82 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         description: 'Report a bug or request a feature',
         exe: async () => {
           openBugReport();
+        },
+      },
+      [Command.Location]: {
+        name: Command.Location,
+        description: 'Share a location as /location <latitude> <longitude>',
+        exe: async (payload) => {
+          const target = payload
+            .replace(',', ' ')
+            .replace('/', ' ')
+            .replace('  ', ' ')
+            .trim()
+            .split(' ');
+
+          const mlat = target[0];
+          const mlon = target[1];
+          const malt = target[2];
+          if (!mlat || !mlat) {
+            sendFeedback(
+              'You need to specify a latitude, a longitude parameter, and optionally an altitude, as for example: /location 43.959971 -59.790623 or use the /sharemylocation to share the current location',
+              room,
+              mx.getSafeUserId()
+            );
+            return;
+          }
+          await mx.sendMessage(room.roomId, {
+            msgtype: 'm.location',
+            geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
+            body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
+          } as any);
+        },
+      },
+      [Command.ShareMyLocation]: {
+        name: Command.ShareMyLocation,
+        description:
+          'Share current location. Requires your browser to have location permissions. Add the flag --accurate or -a for enabling the high accuracy option',
+        exe: async (payload) => {
+          const target = payload.trim();
+          const options = {
+            enableHighAccuracy:
+              target === '--accurate' ||
+              target === '-a' ||
+              target === '--high-accuracy' ||
+              target === '-h',
+            timeout: 5000,
+            maximumAge: 0,
+          };
+          function success(pos: any) {
+            const crd = pos.coords;
+
+            const mlat = crd.latitude;
+            const mlon = crd.longitude;
+            const malt = crd.altitude;
+            const macc = crd.accuracy;
+            if (!mlat || !mlat) {
+              sendFeedback(
+                'Unable to retrieve the location data for an unknown reason',
+                room,
+                mx.getSafeUserId()
+              );
+              return;
+            }
+            mx.sendMessage(room.roomId, {
+              msgtype: 'm.location',
+              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=${macc}`,
+              body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
+            } as any);
+          }
+
+          function error(err: any) {
+            let response = `Unable to retrieve the location data, Error no. ${err.code}: ${err.message}`;
+            if (err.code === 1) response = `The prompt for sharing your location was denied.`;
+            if (err.code === 2)
+              response = `Your device does not have a gps tracker, or it may not be turned on.`;
+            sendFeedback(response, room, mx.getSafeUserId());
+          }
+          navigator.geolocation.getCurrentPosition(success, error, options);
         },
       },
     }),

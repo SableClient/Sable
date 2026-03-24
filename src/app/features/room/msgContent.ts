@@ -59,8 +59,6 @@ export const getImageMsgContent = async (
     msgtype: MsgType.Image,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (imgEl) {
@@ -101,8 +99,6 @@ export const getVideoMsgContent = async (
     msgtype: MsgType.Video,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (videoEl) {
@@ -155,8 +151,6 @@ export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgCont
     msgtype: MsgType.Audio,
     filename: file.name,
     body: item.body && item.body.length > 0 ? item.body : 'a voice message',
-    format: 'org.matrix.custom.html',
-    formatted_body: item.body && item.body.length > 0 ? item.body : '<em>a voice message</em>',
     info: {
       mimetype: file.type,
       size: file.size,
@@ -220,8 +214,6 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     msgtype: MsgType.File,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     info: {
       mimetype: file.type,
       size: file.size,

@@ -11,12 +11,11 @@ import {
   toRem,
   Spinner,
   PopOut,
+  config,
   Menu,
   MenuItem,
   RectCords,
-  config,
 } from 'folds';
-import FocusTrap from 'focus-trap-react';
 import classNames from 'classnames';
 import { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
@@ -26,17 +25,18 @@ import { nameInitials } from '$utils/common';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { getRoomAvatarUrl } from '$utils/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { stopPropagation } from '$utils/keyboard';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
+import { CreateRoomType } from '$components/create-room';
+import { AddExistingModal } from '$features/add-existing';
 import { useOpenCreateRoomModal } from '$state/hooks/createRoomModal';
 import { useOpenCreateSpaceModal } from '$state/hooks/createSpaceModal';
-import { CreateRoomType } from '$components/create-room/types';
-import { AddExistingModal } from '$features/add-existing';
-import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
-import { useDraggableItem } from './DnD';
-import * as styleCss from './style.css';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
 import * as css from './SpaceItem.css';
+import * as styleCss from './style.css';
+import { useDraggableItem } from './DnD';
 
 function SpaceProfileLoading() {
   return (
@@ -57,7 +57,7 @@ type InaccessibleSpaceProfileProps = {
   roomId: string;
   suggested?: boolean;
 };
-function InaccessibleSpaceProfile({ roomId, suggested }: InaccessibleSpaceProfileProps) {
+export function InaccessibleSpaceProfile({ roomId, suggested }: InaccessibleSpaceProfileProps) {
   return (
     <Chip
       as="span"
@@ -102,7 +102,7 @@ type UnjoinedSpaceProfileProps = {
   avatarUrl?: string;
   suggested?: boolean;
 };
-function UnjoinedSpaceProfile({
+export function UnjoinedSpaceProfile({
   roomId,
   via,
   name,
@@ -303,15 +303,17 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
         </FocusTrap>
       }
     >
-      <Chip
-        variant="Primary"
-        radii="Pill"
-        before={<Icon src={Icons.Plus} size="50" />}
-        onClick={handleAddRoom}
-        aria-pressed={!!cords}
-      >
-        <Text size="B300">Add Room</Text>
-      </Chip>
+      {item.parentId === undefined && (
+        <Chip
+          variant="Primary"
+          radii="Pill"
+          before={<Icon src={Icons.Plus} size="50" />}
+          onClick={handleAddRoom}
+          aria-pressed={!!cords}
+        >
+          <Text size="B300">Add Room</Text>
+        </Chip>
+      )}
       {addExisting && (
         <AddExistingModal parentId={item.roomId} requestClose={() => setAddExisting(false)} />
       )}
@@ -370,15 +372,17 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
         </FocusTrap>
       }
     >
-      <Chip
-        variant="SurfaceVariant"
-        radii="Pill"
-        before={<Icon src={Icons.Plus} size="50" />}
-        onClick={handleAddSpace}
-        aria-pressed={!!cords}
-      >
-        <Text size="B300">Add Space</Text>
-      </Chip>
+      {item.parentId === undefined && (
+        <Chip
+          variant="SurfaceVariant"
+          radii="Pill"
+          before={<Icon src={Icons.Plus} size="50" />}
+          onClick={handleAddSpace}
+          aria-pressed={!!cords}
+        >
+          <Text size="B300">Add Space</Text>
+        </Chip>
+      )}
       {addExisting && (
         <AddExistingModal space parentId={item.roomId} requestClose={() => setAddExisting(false)} />
       )}
@@ -502,7 +506,7 @@ export const SpaceItemCard = as<'div', SpaceItemCardProps>(
           {space && canEditChild && (
             <Box shrink="No" alignItems="Inherit" gap="200">
               <AddRoomButton item={item} />
-              {item.parentId === undefined && <AddSpaceButton item={item} />}
+              <AddSpaceButton item={item} />
             </Box>
           )}
         </Box>

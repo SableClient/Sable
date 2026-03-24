@@ -30,6 +30,9 @@ import { IPowerLevels } from '$hooks/usePowerLevels';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { getCanonicalAliasOrRoomId } from '$utils/matrix';
+import { useNavigate } from 'react-router-dom';
+import { getSpaceLobbyPath } from '$pages/pathUtils';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -227,6 +230,7 @@ export function HierarchyItemMenu({
   };
 
   const handleRequestClose = useCallback(() => setMenuAnchor(undefined), []);
+  const navigate = useNavigate();
 
   if (!joined && !canEditChild) {
     return null;
@@ -278,6 +282,17 @@ export function HierarchyItemMenu({
                         </Text>
                       </MenuItem>
                     )}
+                    <MenuItem
+                      size="300"
+                      radii="300"
+                      onClick={() => {
+                        navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, item.roomId)));
+                      }}
+                    >
+                      <Text as="span" size="T300" truncate>
+                        Open Lobby
+                      </Text>
+                    </MenuItem>
                     <InviteMenuItem
                       item={item}
                       requestClose={handleRequestClose}

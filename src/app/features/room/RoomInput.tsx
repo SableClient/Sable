@@ -3,7 +3,6 @@ import {
   KeyboardEventHandler,
   MouseEvent,
   RefObject,
-  ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -44,13 +43,6 @@ import {
   toRem,
 } from 'folds';
 
-import parse from 'html-react-parser';
-import {
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  scaleSystemEmoji,
-} from '$plugins/react-custom-html-parser';
-
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   AutocompletePrefix,
@@ -83,7 +75,6 @@ import {
   TUploadContent,
   encryptFile,
   getImageInfo,
-  getMxIdLocalPart,
   mxcUrlToHttp,
   toggleReaction,
 } from '$utils/matrix';
@@ -113,23 +104,16 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import {
-  getMemberDisplayName,
-  getMentionContent,
-  reactionOrEditEvent,
-  trimReplyFromBody,
-  trimReplyFromFormattedBody,
-} from '$utils/room';
+import { getMentionContent, reactionOrEditEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
-import { ReplyLayout, ThreadIndicator } from '$components/message';
+import { Reply, ThreadIndicator } from '$components/message';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useComposingCheck } from '$hooks/useComposingCheck';
-import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
@@ -169,7 +153,11 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import { AudioMessageRecorder, AudioMessageRecorderHandle } from './AudioMessageRecorder';
+import {
+  AudioMessageRecorder,
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -247,9 +235,10 @@ interface RoomInputProps {
   roomId: string;
   room: Room;
   threadRootId?: string;
+  onEditLastMessage?: () => void;
 }
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room, threadRootId }, ref) => {
+  ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
@@ -258,6 +247,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
+    const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const commands = useCommands(mx, room);
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
@@ -275,12 +265,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
-    const replyUserID = replyDraft?.userId;
-
-    const { color: replyUsernameColor, font: replyUsernameFont } = useSableCosmetics(
-      replyUserID ?? '',
-      room
-    );
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -363,7 +347,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
-    const [silentReply, setSilentReply] = useState(false);
+    const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -373,41 +357,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const replyEvent = replyDraft ? room.findEventById(replyDraft.eventId) : undefined;
-    const {
-      body: replyBody,
-      formatted_body: replyFormattedBody,
-      format: replyFormat,
-    } = replyEvent?.getContent() ?? {};
-
-    // Prefer the live event content; fall back to what was snapshotted in the
-    // draft when the user hit Reply (the event may not be in SDK state if it
-    // was redacted or evicted, but the draft always carries the original body).
-    const htmlBody =
-      replyFormat === 'org.matrix.custom.html' ? replyFormattedBody : replyDraft?.formattedBody;
-    const plainBody = replyBody ?? replyDraft?.body;
-
-    let replyBodyJSX: ReactNode = replyDraft ? trimReplyFromBody(replyDraft.body) : null;
-
-    if (htmlBody) {
-      /**
-       * message with linebreaks, etc stripped
-       */
-      const strippedHtml = trimReplyFromFormattedBody(htmlBody)
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replaceAll(/<\/?p[^>]*>/gi, '')
-        .replaceAll(/(?:\r\n|\r|\n)/g, ' ')
-        .trim();
-      const parserOpts = getReactCustomHtmlParser(mx, roomId, {
-        linkifyOpts: LINKIFY_OPTS,
-        useAuthentication,
-        nicknames,
-      });
-      replyBodyJSX = parse(strippedHtml, parserOpts);
-    } else if (plainBody) {
-      const strippedBody = trimReplyFromBody(plainBody).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
-      replyBodyJSX = scaleSystemEmoji(strippedBody);
-    }
 
     // Seed the reply draft with the thread relation whenever we're in thread
     // mode (e.g. on first render or when the thread root changes). We use the
@@ -449,9 +398,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     useEffect(() => {
       if (replyDraft !== undefined) {
-        setSilentReply(replyDraft.userId === mx.getUserId());
+        setSilentReply(replyDraft.userId === mx.getUserId() || !mentionInReplies);
       }
-    }, [mx, replyDraft]);
+    }, [mentionInReplies, mx, replyDraft]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -484,6 +433,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [setSelectedFiles, selectedFiles]
     );
+
+    const handleAudioRecordingComplete = useCallback(
+      (payload: AudioRecordingCompletePayload) => {
+        const extension = getSupportedAudioExtension(payload.audioCodec);
+        const file = new File(
+          [payload.audioBlob],
+          `sable-audio-message-${Date.now()}.${extension}`,
+          {
+            type: payload.audioCodec,
+          }
+        );
+        handleFiles([file], {
+          waveform: payload.waveform,
+          audioDuration: payload.audioLength,
+        });
+        setShowAudioRecorder(false);
+      },
+      [handleFiles]
+    );
+
+    const audioRecorder = showAudioRecorder ? (
+      <AudioMessageRecorder
+        ref={audioRecorderRef}
+        onRequestClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+        onAudioLengthUpdate={() => {}}
+        onWaveformUpdate={() => {}}
+      />
+    ) : undefined;
 
     const handleCancelUpload = (uploads: Upload[]) => {
       uploads.forEach((upload) => {
@@ -768,30 +746,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] =
-          convertPerMessageProfileToBeeperFormat(perMessageProfile);
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          perMessageProfile.name.trim() !== ''
+        );
 
-        // if a per-message profile is used, it must per spec include a fallback
-        const prefix = `${perMessageProfile.name}: `;
+        if (perMessageProfile.name.trim() !== '') {
+          // if a per-message profile is used, it must per spec include a fallback
+          const prefix = `${perMessageProfile.name}: `;
 
-        if (!content.body.startsWith(prefix)) {
-          // to prevent double-prefixing when the fallback is already present
-          content.body = prefix + content.body;
-        }
+          if (!content.body.startsWith(prefix)) {
+            // to prevent double-prefixing when the fallback is already present
+            content.body = prefix + content.body;
+          }
 
-        /**
-         * html escaped version of the display name
-         */
-        const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+          /**
+           * html escaped version of the display name
+           */
+          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
 
-        const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 
-        if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
-          content.formatted_body = htmlPrefix + content.formatted_body;
-        } else {
-          // we don't have a formatted body, but we need one
-          content.format = 'org.matrix.custom.html';
-          content.formatted_body = `${htmlPrefix}${plainText}`;
+          if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
+            content.formatted_body = htmlPrefix + content.formatted_body;
+          } else {
+            // we don't have a formatted body, but we need one
+            content.format = 'org.matrix.custom.html';
+            content.formatted_body = `${htmlPrefix}${plainText}`;
+          }
         }
       }
 
@@ -947,6 +929,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         }
 
+        if (isKeyHotkey('arrowup', evt) && isEmptyEditor(editor)) {
+          const { selection } = editor;
+          if (selection && Editor.isStart(editor, selection.anchor, [])) {
+            evt.preventDefault();
+            onEditLastMessage?.();
+            return;
+          }
+        }
+
         if (
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
@@ -978,6 +969,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         autocompleteQuery,
         isComposing,
         showAudioRecorder,
+        editor,
+        onEditLastMessage,
       ]
     );
 
@@ -1180,10 +1173,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           editableName="RoomInput"
           editor={editor}
           key={inputKey}
-          placeholder={showAudioRecorder && mobileOrTablet() ? '' : 'Send a message...'}
+          placeholder="Send a message..."
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          responsiveAfter={audioRecorder}
+          forceMultilineLayout={showAudioRecorder}
           top={
             <>
               {scheduledTime && (
@@ -1260,22 +1255,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {replyDraft.relation?.rel_type === RelationType.Thread && !threadRootId && (
                           <ThreadIndicator />
                         )}
-                        <ReplyLayout
-                          userColor={replyUsernameColor}
-                          username={
-                            <Text size="T300" truncate style={{ fontFamily: replyUsernameFont }}>
-                              <b>
-                                {getMemberDisplayName(room, replyDraft.userId, nicknames) ??
-                                  getMxIdLocalPart(replyDraft.userId) ??
-                                  replyDraft.userId}
-                              </b>
-                            </Text>
-                          }
-                        >
-                          <Text size="T300" truncate>
-                            {replyBodyJSX}
-                          </Text>
-                        </ReplyLayout>
+                        <Reply room={room} replyEventId={replyDraft.eventId} />
                       </Box>
                       <IconButton
                         variant="SurfaceVariant"
@@ -1300,45 +1280,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            !(showAudioRecorder && mobileOrTablet()) && (
-              <IconButton
-                onClick={() => pickFile('*')}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="Upload File"
-                aria-label="Upload and attach a File"
-              >
-                <Icon src={Icons.PlusCircle} />
-              </IconButton>
-            )
+            <IconButton
+              onClick={() => pickFile('*')}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
+            >
+              <Icon src={Icons.PlusCircle} />
+            </IconButton>
           }
           after={
             <>
-              {showAudioRecorder && (
-                <AudioMessageRecorder
-                  ref={audioRecorderRef}
-                  onRequestClose={() => setShowAudioRecorder(false)}
-                  onRecordingComplete={(payload) => {
-                    const extension = getSupportedAudioExtension(payload.audioCodec);
-                    const file = new File(
-                      [payload.audioBlob],
-                      `sable-audio-message-${Date.now()}.${extension}`,
-                      {
-                        type: payload.audioCodec,
-                      }
-                    );
-                    handleFiles([file], {
-                      waveform: payload.waveform,
-                      audioDuration: payload.audioLength,
-                    });
-                    setShowAudioRecorder(false);
-                  }}
-                  onAudioLengthUpdate={() => {}}
-                  onWaveformUpdate={() => {}}
-                />
-              )}
-
               {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
               <IconButton
                 ref={micBtnRef}
@@ -1349,7 +1303,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
                 aria-pressed={showAudioRecorder}
                 onClick={() => {
-                  if (mobileOrTablet()) return;
+                  if (mobileOrTablet() && !showAudioRecorder) return;
                   if (showAudioRecorder) {
                     audioRecorderRef.current?.stop();
                   } else {

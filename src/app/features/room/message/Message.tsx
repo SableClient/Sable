@@ -14,7 +14,6 @@ import {
   as,
   config,
 } from 'folds';
-
 import {
   MouseEventHandler,
   MouseEvent,
@@ -35,6 +34,7 @@ import {
   Room,
   Relations,
   RoomPinnedEventsEventContent,
+  MatrixEventEvent,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -49,7 +49,7 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
+import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
@@ -380,18 +380,40 @@ function MessageInternal(
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
+  const [contentVersion, setContentVersion] = useState(0);
+
+  useEffect(() => {
+    const onUpdate = () => setContentVersion((v) => v + 1);
+    mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
+    mEvent.on(MatrixEventEvent.Replaced, onUpdate);
+    return () => {
+      mEvent.off(MatrixEventEvent.Decrypted, onUpdate);
+      mEvent.off(MatrixEventEvent.Replaced, onUpdate);
+    };
+  }, [mEvent]);
+
   /**
    * We read the per-message profile from the event content here.
    * We have to do this in the message component because the per-message profile can be different for each message, and we need to read it for each message individually.
    * We also want to avoid reading and parsing the per-message profile in a parent component like the timeline, because that would be inefficient and would cause unnecessary re-renders of the entire timeline whenever a per-message profile changes.
    */
-  const pmp: PerMessageProfileBeeperFormat | undefined = useMemo(
-    () =>
-      mEvent.event.content?.['com.beeper.per_message_profile'] as
-        | PerMessageProfileBeeperFormat
-        | undefined,
-    [mEvent]
-  );
+  const pmp: PerMessageProfileBeeperFormat | undefined = useMemo(() => {
+    const evtId = mEvent.getId();
+    const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+    const editedEvent =
+      evtTimeline && evtId
+        ? getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet())
+        : undefined;
+
+    const resolvedContent = editedEvent
+      ? editedEvent.getContent()['m.new_content']
+      : mEvent.getContent();
+
+    return resolvedContent?.['com.beeper.per_message_profile'] as
+      | PerMessageProfileBeeperFormat
+      | undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mEvent, room, contentVersion]);
 
   /**
    * We convert the per-message profile from the Beeper format to our internal format here in the message component
@@ -403,8 +425,9 @@ function MessageInternal(
 
   /**
    * boolean to indicate wheather we should indicate to the user that it is a pmp
+   * We want to not show it, when the name is unset, or whitespace only
    */
-  const showPmPInfo = pmp !== undefined;
+  const showPmPInfo = parsedPMPContent?.name && parsedPMPContent.name?.trim() !== '';
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
   const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);
@@ -683,7 +706,7 @@ function MessageInternal(
         <MessageEditor
           style={{
             maxWidth: '100%',
-            width: '100vw',
+            width: '100%',
           }}
           roomId={room.roomId}
           room={room}
@@ -1202,6 +1225,7 @@ export type EventProps = {
   messageSpacing: MessageSpacing;
   hideReadReceipts?: boolean;
   showDeveloperTools?: boolean;
+  collapse?: boolean;
 };
 export const Event = as<'div', EventProps>(
   (
@@ -1211,6 +1235,7 @@ export const Event = as<'div', EventProps>(
       mEvent,
       highlight,
       notifyHighlight,
+      collapse,
       canDelete,
       onReplyClick,
       messageSpacing,
@@ -1301,7 +1326,7 @@ export const Event = as<'div', EventProps>(
         className={classNames(css.MessageBase, className)}
         tabIndex={0}
         space={messageSpacing}
-        autoCollapse
+        collapse={collapse}
         highlight={highlight}
         notifyHighlight={highlightMentions ? notifyHighlight : undefined}
         selected={!!menuAnchor}
@@ -1333,6 +1358,25 @@ export const Event = as<'div', EventProps>(
                       >
                         <Menu {...props} ref={ref}>
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
+                            <MenuItem
+                              size="300"
+                              after={<Icon size="100" src={Icons.ReplyArrow} />}
+                              radii="300"
+                              data-event-id={mEvent.getId()}
+                              onClick={(evt: any) => {
+                                onReplyClick(evt);
+                                closeMenu();
+                              }}
+                            >
+                              <Text
+                                className={css.MessageMenuItemText}
+                                as="span"
+                                size="T300"
+                                truncate
+                              >
+                                Reply
+                              </Text>
+                            </MenuItem>
                             {!hideReadReceipts && (
                               <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
                             )}

@@ -7,8 +7,8 @@ export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
     <Chip
       className={classNames(css.CategoryButton, className)}
       variant="Background"
-      radii="Pill"
-      before={
+      radii="400"
+      after={
         <Icon
           className={css.CategoryButtonIcon}
           size="50"
@@ -18,7 +18,7 @@ export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
       {...props}
       ref={ref}
     >
-      <Text size="O400" priority="300" truncate>
+      <Text size="B400" priority="300" truncate>
         {children}
       </Text>
     </Chip>

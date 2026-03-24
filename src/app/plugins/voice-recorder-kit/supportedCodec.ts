@@ -13,14 +13,17 @@ const safariPreferredCodecs = [
 ];
 
 const defaultPreferredCodecs = [
-  // Chromium / Firefox stable path.
+  // Firefox: ogg produces seekable blobs; webm passes isTypeSupported() but
+  // records without a cue index so currentTime assignment silently fails.
+  // Must come before webm so Firefox picks ogg.
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+  // Chromium: webm is seekable and preferred. Since Chromium doesn't support
+  // ogg recording, it will skip the above and land here.
   'audio/webm;codecs=opus',
   'audio/webm',
-  // Firefox
-  'audio/ogg;codecs=opus',
-  'audio/ogg;codecs=vorbis',
-  'audio/ogg',
   // Fallbacks
+  'audio/ogg;codecs=vorbis',
   'audio/wav;codecs=1',
   'audio/wav',
   'audio/mpeg',

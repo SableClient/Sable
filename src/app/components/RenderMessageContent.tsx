@@ -27,7 +27,7 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder, ClientPreview } from './url-preview';
+import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -118,15 +118,18 @@ function RenderMessageContentInternal({
             if (type) {
               return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
             }
-            if (clientUrlPreview) {
+            if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview url={url} />;
+            }
+            if (urlPreview) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
             }
             return null;
           })}
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview]
+    [ts, clientUrlPreview, urlPreview]
   );
 
   const renderCaption = () => {

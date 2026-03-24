@@ -1516,9 +1516,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
           function error(err: any) {
             let response = `Unable to retrieve the location data, Error no. ${err.code}: ${err.message}`;
-            if (err.code === 1) response = `The prompt for sharing your location was denied.`;
+            if (err.code === 1)
+              response = 'You have denied access to the location for the website.';
             if (err.code === 2)
-              response = `Your device does not have a gps tracker, or it may not be turned on.`;
+              response = 'Your device does not have a gps module, or it may not be turned on.';
             sendFeedback(response, room, mx.getSafeUserId());
           }
           navigator.geolocation.getCurrentPosition(success, error, options);

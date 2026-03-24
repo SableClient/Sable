@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { IPowerLevels, readPowerLevel } from './usePowerLevels';
+import { type IPowerLevels, readPowerLevel } from './usePowerLevels';
 
 export const useMemberPowerCompare = (creators: Set<string>, powerLevels: IPowerLevels) => {
   /**

@@ -1,4 +1,4 @@
-import { ChangeEventHandler, FormEventHandler, useCallback, useState } from 'react';
+import { type ChangeEventHandler, type FormEventHandler, useCallback, useState } from 'react';
 import { Box, Button, Chip, Icon, IconButton, Icons, Input, Spinner, Text, config } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';

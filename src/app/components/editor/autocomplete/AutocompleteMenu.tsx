@@ -1,11 +1,11 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { Header, Menu, Scroll, config } from 'folds';
 
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useAlive } from '$hooks/useAlive';
-import { Editor } from 'slate';
+import { type Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import * as css from './AutocompleteMenu.css';
 import { BaseAutocompleteMenu } from './BaseAutocompleteMenu';

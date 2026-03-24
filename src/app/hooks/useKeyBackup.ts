@@ -1,9 +1,9 @@
 import {
-  BackupTrustInfo,
-  CryptoApi,
+  type BackupTrustInfo,
+  type CryptoApi,
   CryptoEvent,
-  CryptoEventHandlerMap,
-  KeyBackupInfo,
+  type CryptoEventHandlerMap,
+  type KeyBackupInfo,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';

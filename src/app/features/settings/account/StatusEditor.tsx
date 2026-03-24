@@ -1,4 +1,4 @@
-import { ChangeEventHandler, FormEventHandler, useEffect, useState } from 'react';
+import { type ChangeEventHandler, type FormEventHandler, useEffect, useState } from 'react';
 import { Box, Text, Button, Input, IconButton, Icon, Icons, Spinner, config } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 

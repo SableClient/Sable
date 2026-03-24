@@ -21,7 +21,7 @@ import { pushSessionToSW } from './sw-session';
 import {
   getFallbackSession,
   MATRIX_SESSIONS_KEY,
-  Sessions,
+  type Sessions,
   ACTIVE_SESSION_KEY,
 } from './app/state/sessions';
 import { createLogger } from './app/utils/debug';

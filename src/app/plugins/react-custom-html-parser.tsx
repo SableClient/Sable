@@ -1,9 +1,9 @@
 /* eslint-disable jsx-a11y/alt-text */
 import {
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
   lazy,
-  ReactEventHandler,
-  ReactNode,
+  type ReactEventHandler,
+  type ReactNode,
   Suspense,
   useMemo,
   useState,
@@ -12,16 +12,16 @@ import {
   attributesToProps,
   domToReact,
   Element,
-  HTMLReactParserOptions,
+  type HTMLReactParserOptions,
   Text as DOMText,
 } from 'html-react-parser';
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
-import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
+import { type IntermediateRepresentation, type OptFn, type Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { ChildNode } from 'domhandler';
+import { type ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -30,7 +30,7 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import { Nicknames } from '$state/nicknames';
+import { type Nicknames } from '$state/nicknames';
 import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';

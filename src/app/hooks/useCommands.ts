@@ -1,14 +1,14 @@
 import {
   Direction,
   EventTimeline,
-  IContextResponse,
-  MatrixClient,
+  type IContextResponse,
+  type MatrixClient,
   Method,
   Preset,
-  Room,
-  RoomMember,
+  type Room,
+  type RoomMember,
   Visibility,
-  RoomServerAclEventContent,
+  type RoomServerAclEventContent,
   MsgType,
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
@@ -38,7 +38,7 @@ import { useUserProfile } from './useUserProfile';
 import {
   addOrUpdatePerMessageProfile,
   deletePerMessageProfile,
-  PerMessageProfile,
+  type PerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
 

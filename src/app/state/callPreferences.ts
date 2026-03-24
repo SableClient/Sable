@@ -1,4 +1,4 @@
-import { WritableAtom } from 'jotai';
+import { type WritableAtom } from 'jotai';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,

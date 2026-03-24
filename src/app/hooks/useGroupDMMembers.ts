@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MatrixClient, Room } from '$types/matrix-sdk';
+import { type MatrixClient, type Room } from '$types/matrix-sdk';
 
 export type GroupMemberInfo = {
   userId: string;

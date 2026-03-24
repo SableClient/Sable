@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { RecipeVariants, recipe } from '@vanilla-extract/recipes';
+import { type RecipeVariants, recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, RadiiVariant, color, config, toRem } from 'folds';
 
 export const UploadCard = recipe({

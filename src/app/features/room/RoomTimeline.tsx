@@ -1,6 +1,6 @@
 import {
   Fragment,
-  ReactNode,
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,11 +8,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Editor } from 'slate';
+import { type Editor } from 'slate';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
+import { PushProcessor, type Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { VList, VListHandle } from 'virtua';
+import { VList, type VListHandle } from 'virtua';
 import {
   as,
   Box,
@@ -25,7 +25,7 @@ import {
   color,
   config,
   toRem,
-  ContainerColor,
+  type ContainerColor,
   Spinner,
 } from 'folds';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
@@ -71,7 +71,7 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import { type ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 

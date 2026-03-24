@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   ClientEvent,
   createClient,
-  MatrixClient,
-  MatrixEvent,
+  type MatrixClient,
+  type MatrixEvent,
   MatrixEventEvent,
-  Room,
+  type Room,
   RoomEvent,
   SyncState,
   PushProcessor,
@@ -14,7 +14,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   sessionsAtom,
   activeSessionIdAtom,
-  Session,
+  type Session,
   pendingNotificationAtom,
   backgroundUnreadCountsAtom,
   inAppBannerAtom,
@@ -144,7 +144,7 @@ export function BackgroundNotifications() {
   const inactiveSessionsRef = useRef(inactiveSessions);
   inactiveSessionsRef.current = inactiveSessions;
 
-  interface NotifyOptions {
+  type NotifyOptions = {
     /** Title shown in the notification banner. */
     title: string;
     /** Body text. */
@@ -162,7 +162,7 @@ export function BackgroundNotifications() {
     /** Optional callback invoked when the user clicks the notification (window.Notification
      * fallback path only; the SW path routes via its own notificationclick handler). */
     onClick?: () => void;
-  }
+  };
 
   useEffect(() => {
     if (!shouldRunBackgroundNotifications) {

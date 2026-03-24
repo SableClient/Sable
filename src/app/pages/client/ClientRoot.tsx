@@ -9,13 +9,20 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
 } from 'folds';
-import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import { HttpApiEvent, type HttpApiEventHandlerMap, type MatrixClient } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import {
+  useRef,
+  type MouseEventHandler,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   CryptoEvent,
-  CryptoEventHandlerMap,
-  VerificationPhase,
-  VerificationRequest,
+  type CryptoEventHandlerMap,
+  type VerificationPhase,
+  type VerificationRequest,
   VerificationRequestEvent,
-  VerificationRequestEventHandlerMap,
-  Verifier,
+  type VerificationRequestEventHandlerMap,
+  type Verifier,
   VerifierEvent,
-  VerifierEventHandlerMap,
+  type VerifierEventHandlerMap,
 } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 

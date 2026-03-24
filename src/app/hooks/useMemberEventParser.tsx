@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
-import { IconSrc, Icons, Text } from 'folds';
-import { MatrixEvent, Room } from '$types/matrix-sdk';
-import { IMemberContent, Membership } from '$types/matrix/room';
+import { type ReactNode } from 'react';
+import { type IconSrc, Icons, Text } from 'folds';
+import { type MatrixEvent, type Room } from '$types/matrix-sdk';
+import { type IMemberContent, Membership } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
 import { useSableCosmetics } from './useSableCosmetics';

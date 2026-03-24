@@ -1,5 +1,5 @@
-import { PronounSet } from '$utils/pronouns';
-import { MatrixClient } from 'matrix-js-sdk';
+import { type PronounSet } from '$utils/pronouns';
+import { type MatrixClient } from 'matrix-js-sdk';
 
 const ACCOUNT_DATA_PREFIX = 'fyi.cisnt.permessageprofile';
 

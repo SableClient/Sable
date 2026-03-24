@@ -1,6 +1,6 @@
 import {
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -14,7 +14,7 @@ import {
   Icons,
   Line,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   as,
@@ -23,19 +23,19 @@ import {
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import {
-  IContent,
-  IMentions,
-  MatrixEvent,
-  ReplacementEvent,
+  type IContent,
+  type IMentions,
+  type MatrixEvent,
+  type ReplacementEvent,
   RelationType,
-  Room,
-  RoomMessageTextEventContent,
+  type Room,
+  type RoomMessageTextEventContent,
   MsgType,
 } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
+  type AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   RoomMentionAutocomplete,
@@ -68,10 +68,10 @@ import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import { type HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { GetContentCallback } from '$types/matrix/room';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
+import { type GetContentCallback } from '$types/matrix/room';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 
 type MessageEditorProps = {

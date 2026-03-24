@@ -12,16 +12,16 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 
 import { useIntegrationManager, buildIntegrationManagerUrl } from '$hooks/useIntegrationManager';
 import * as css from './IntegrationManager.css';
 
-interface IntegrationManagerProps {
+type IntegrationManagerProps = {
   room: Room;
   open: boolean;
   onClose: () => void;
-}
+};
 
 export function IntegrationManager({ room, open, onClose }: IntegrationManagerProps) {
   const { managers, scalarToken, loading, error } = useIntegrationManager();

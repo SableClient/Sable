@@ -1,9 +1,9 @@
-import { useEffect, useCallback, FormEventHandler } from 'react';
+import { useEffect, useCallback, type FormEventHandler } from 'react';
 import { Dialog, Text, Box, Button, config, Input, color, Spinner } from 'folds';
-import { AuthType, MatrixError } from '$types/matrix-sdk';
-import { AsyncState, AsyncStatus } from '$hooks/useAsyncCallback';
-import { RequestEmailTokenCallback, RequestEmailTokenResponse } from '$hooks/types';
-import { StageComponentProps } from './types';
+import { AuthType, type MatrixError } from '$types/matrix-sdk';
+import { type AsyncState, AsyncStatus } from '$hooks/useAsyncCallback';
+import { type RequestEmailTokenCallback, type RequestEmailTokenResponse } from '$hooks/types';
+import { type StageComponentProps } from './types';
 
 function EmailErrorDialog({
   title,

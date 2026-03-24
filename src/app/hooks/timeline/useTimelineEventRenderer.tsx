@@ -1,22 +1,22 @@
-import { MouseEventHandler, useMemo } from 'react';
+import { type MouseEventHandler, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAtomValue } from 'jotai';
 import {
-  MatrixClient,
-  MatrixEvent,
-  Room,
-  PushProcessor,
-  EventTimelineSet,
-  IContent,
+  type MatrixClient,
+  type MatrixEvent,
+  type Room,
+  type PushProcessor,
+  type EventTimelineSet,
+  type IContent,
 } from '$types/matrix-sdk';
-import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import { type SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import { type HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
-import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
-import { useMemberEventParser } from '$hooks/useMemberEventParser';
+import { type useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
+import { type useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
@@ -34,7 +34,7 @@ import { ImageViewer } from '$components/image-viewer';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { UserAvatar } from '$components/user-avatar';
-import { MessageEvent, StateEvent, GetContentCallback } from '$types/matrix/room';
+import { MessageEvent, StateEvent, type GetContentCallback } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
   getEditedEvent,
@@ -49,7 +49,7 @@ import * as customHtmlCss from '$styles/CustomHtml.css';
 import {
   EncryptedContent,
   Event,
-  ForwardedMessageProps,
+  type ForwardedMessageProps,
   Message,
   Reactions,
 } from '$features/room/message';
@@ -187,7 +187,7 @@ function ThreadReplyChip({
     </Chip>
   );
 }
-export interface TimelineEventRendererOptions {
+export type TimelineEventRendererOptions = {
   room: Room;
   mx: MatrixClient;
   pushProcessor: PushProcessor;
@@ -239,7 +239,7 @@ export interface TimelineEventRendererOptions {
     getMemberPowerTag: ReturnType<typeof useGetMemberPowerTag>;
     parseMemberEvent: ReturnType<typeof useMemberEventParser>;
   };
-}
+};
 
 export function useTimelineEventRenderer({
   room,

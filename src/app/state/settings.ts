@@ -23,7 +23,7 @@ export enum CaptionPosition {
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
-export interface Settings {
+export type Settings = {
   themeId?: string;
   useSystemTheme: boolean;
   lightThemeId?: string;
@@ -109,7 +109,7 @@ export interface Settings {
 
   // furry stuff
   renderAnimals: boolean;
-}
+};
 
 const defaultSettings: Settings = {
   themeId: undefined,

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Room, RoomEvent } from '$types/matrix-sdk';
+import { type Room, RoomEvent } from '$types/matrix-sdk';
 import { useTimelineSync } from './useTimelineSync';
 
 vi.mock('@sentry/react', () => ({

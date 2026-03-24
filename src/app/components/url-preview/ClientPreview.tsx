@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Box, Badge, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
@@ -10,7 +10,7 @@ import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 
-interface OEmbed {
+type OEmbed = {
   type: 'photo' | 'video' | 'link' | 'rich';
   version: '1.0';
   title?: string;
@@ -26,7 +26,7 @@ interface OEmbed {
   html?: string;
   width?: number;
   height?: number;
-}
+};
 
 async function oEmbedData(url: string): Promise<OEmbed> {
   const data = await fetch(url).then((resp) => resp.json());

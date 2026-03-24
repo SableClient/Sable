@@ -7,7 +7,7 @@ import { useAuthServer } from '$hooks/useAuthServer';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { getLoginPath, getRegisterPath, withSearchParam } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
-import { LoginPathSearchParams } from '$pages/paths';
+import { type LoginPathSearchParams } from '$pages/paths';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { SSOLogin } from '$pages/auth/SSOLogin';
 import { OrDivider } from '$pages/auth/OrDivider';

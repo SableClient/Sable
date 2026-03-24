@@ -1,6 +1,6 @@
 import {
-  ChangeEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type MouseEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -20,10 +20,10 @@ import {
   config,
   Chip,
 } from 'folds';
-import { MatrixEvent, Room, Thread, ThreadEvent } from '$types/matrix-sdk';
+import { type MatrixEvent, type Room, type Thread, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import { type HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -43,7 +43,7 @@ import {
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { GetContentCallback } from '$types/matrix/room';
+import { type GetContentCallback } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import {

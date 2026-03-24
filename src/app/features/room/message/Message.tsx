@@ -9,16 +9,16 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   as,
   config,
 } from 'folds';
 import {
-  MouseEventHandler,
-  MouseEvent,
-  PointerEvent,
-  ReactNode,
+  type MouseEventHandler,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
   memo,
   useCallback,
   useRef,
@@ -30,10 +30,10 @@ import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
 import {
   EventStatus,
-  MatrixEvent,
-  Room,
-  Relations,
-  RoomPinnedEventsEventContent,
+  type MatrixEvent,
+  type Room,
+  type Relations,
+  type RoomPinnedEventsEventContent,
   MatrixEventEvent,
   RoomEvent,
   IRoomTimelineData,
@@ -53,7 +53,7 @@ import {
 } from '$components/message';
 import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
+import { getSettings, MessageLayout, type MessageSpacing, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
@@ -65,7 +65,7 @@ import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
-import { MemberPowerTag, StateEvent } from '$types/matrix/room';
+import { type MemberPowerTag, StateEvent } from '$types/matrix/room';
 import { PowerIcon } from '$components/power';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
@@ -89,7 +89,7 @@ import {
 } from '$utils/addStickerToDefaultStickerPack';
 import {
   convertBeeperFormatToOurPerMessageProfile,
-  PerMessageProfileBeeperFormat,
+  type PerMessageProfileBeeperFormat,
 } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';

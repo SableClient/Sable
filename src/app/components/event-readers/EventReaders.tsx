@@ -12,7 +12,7 @@ import {
   as,
   config,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';

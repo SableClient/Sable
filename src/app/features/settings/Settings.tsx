@@ -7,7 +7,7 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
+  type IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,

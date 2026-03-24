@@ -1,7 +1,7 @@
-import { ComponentProps } from 'react';
+import { type ComponentProps } from 'react';
 import { Box, as } from 'folds';
 import classNames from 'classnames';
-import { ContainerColor, ContainerColorVariants } from '$styles/ContainerColor.css';
+import { ContainerColor, type ContainerColorVariants } from '$styles/ContainerColor.css';
 import * as css from './style.css';
 
 export const SequenceCard = as<

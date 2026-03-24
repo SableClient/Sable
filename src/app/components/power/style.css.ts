@@ -1,5 +1,5 @@
 import { createVar, style } from '@vanilla-extract/css';
-import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
+import { recipe, type RecipeVariants } from '@vanilla-extract/recipes';
 import { color, config, DefaultReset, toRem } from 'folds';
 
 export const PowerColorBadge = style({

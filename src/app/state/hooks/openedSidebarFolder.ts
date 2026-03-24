@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { OpenedSidebarFolderAtom } from '$state/openedSidebarFolder';
+import { type OpenedSidebarFolderAtom } from '$state/openedSidebarFolder';
 
 const OpenedSidebarFolderAtomContext = createContext<OpenedSidebarFolderAtom | null>(null);
 export const OpenedSidebarFolderProvider = OpenedSidebarFolderAtomContext.Provider;

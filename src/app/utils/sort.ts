@@ -1,4 +1,4 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 
 export type SortFunc<T> = (a: T, b: T) => number;
 

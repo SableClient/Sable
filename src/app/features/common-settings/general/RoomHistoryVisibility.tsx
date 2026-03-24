@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import { type MouseEventHandler, useCallback, useMemo, useState } from 'react';
 import {
   Button,
   color,
@@ -8,14 +8,14 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
 } from 'folds';
 import {
   HistoryVisibility,
-  MatrixError,
-  RoomHistoryVisibilityEventContent,
+  type MatrixError,
+  type RoomHistoryVisibilityEventContent,
 } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
@@ -27,7 +27,7 @@ import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 const useVisibilityStr = () =>
   useMemo(

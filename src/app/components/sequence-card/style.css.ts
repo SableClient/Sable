@@ -1,5 +1,5 @@
 import { createVar } from '@vanilla-extract/css';
-import { RecipeVariants, recipe } from '@vanilla-extract/recipes';
+import { type RecipeVariants, recipe } from '@vanilla-extract/recipes';
 import { config } from 'folds';
 
 const outlinedWidth = createVar('0');

@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import { type FormEventHandler, useCallback, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -16,14 +16,14 @@ import {
   IconButton,
   Menu,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import { type MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import {
-  ImagePack,
+  type ImagePack,
   ImageUsage,
-  PackAddress,
+  type PackAddress,
   packAddressEqual,
-  PackContent,
+  type PackContent,
 } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';

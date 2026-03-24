@@ -14,7 +14,7 @@ import {
   as,
   config,
 } from 'folds';
-import { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
+import { type MatrixEvent, type Room, type RoomMember, type Relations } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';

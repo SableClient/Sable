@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { ImagePack, PackContent } from '$plugins/custom-emoji';
+import { ImagePack, type PackContent } from '$plugins/custom-emoji';
 import { StateEvent } from '$types/matrix/room';
 import { useRoomImagePack } from '$hooks/useImagePacks';
 import { randomStr } from '$utils/common';

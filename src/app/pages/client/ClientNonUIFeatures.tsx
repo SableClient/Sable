@@ -1,13 +1,13 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MatrixEvent,
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  RoomEventHandlerMap,
+  type RoomEventHandlerMap,
   SetPresence,
 } from '$types/matrix-sdk';
 import parse from 'html-react-parser';

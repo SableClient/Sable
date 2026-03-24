@@ -1,13 +1,13 @@
 /* eslint-disable jsx-a11y/media-has-caption */
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import { type EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { IAudioInfo } from '$types/matrix/common';
+import { type IAudioInfo } from '$types/matrix/common';
 import {
-  PlayTimeCallback,
+  type PlayTimeCallback,
   useMediaLoading,
   useMediaPlay,
   useMediaPlayTimeCallback,
@@ -18,7 +18,7 @@ import { useThrottle } from '$hooks/useThrottle';
 import { secondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { MEDIA_VOLUME_KEY } from '$components/media';
+import { getMediaVolume, setMediaVolume } from '$state/mediaVolume';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -62,11 +62,8 @@ export function AudioContent({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(MEDIA_VOLUME_KEY);
-    if (audioRef.current && stored !== null) {
-      const parsed = parseFloat(stored);
-      if (!Number.isNaN(parsed)) audioRef.current.volume = parsed;
-    }
+    const volume = getMediaVolume();
+    if (audioRef.current && volume !== undefined) audioRef.current.volume = volume;
   }, []);
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -225,7 +222,7 @@ export function AudioContent({
         autoPlay
         ref={audioRef}
         onVolumeChange={(e) => {
-          localStorage.setItem(MEDIA_VOLUME_KEY, String((e.target as HTMLAudioElement).volume));
+          setMediaVolume((e.target as HTMLAudioElement).volume);
         }}
       >
         {srcState.status === AsyncStatus.Success && <source src={srcState.data} type={mimeType} />}

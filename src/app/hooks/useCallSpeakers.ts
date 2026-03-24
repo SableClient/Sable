@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CallEmbed } from '../plugins/call';
+import { type CallEmbed } from '../plugins/call';
 import { useMutationObserver } from './useMutationObserver';
 import { isUserId } from '../utils/matrix';
 import { useCallMembers, useCallSession } from './useCall';

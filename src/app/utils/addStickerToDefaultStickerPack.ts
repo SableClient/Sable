@@ -1,7 +1,7 @@
-import { PackContent, ImageUsage } from '$plugins/custom-emoji';
+import { type PackContent, ImageUsage } from '$plugins/custom-emoji';
 import { AccountDataEvent } from '$types/matrix/accountData';
-import { IImageInfo } from '$types/matrix/common';
-import { MatrixClient } from 'matrix-js-sdk';
+import { type IImageInfo } from '$types/matrix/common';
+import { type MatrixClient } from 'matrix-js-sdk';
 
 // Utility function to add a sticker to the default sticker pack
 // For now this only works for unencrypted stickers

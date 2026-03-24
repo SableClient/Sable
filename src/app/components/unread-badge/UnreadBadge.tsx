@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import { Box, Badge, toRem, Text } from 'folds';
 import { millify } from '$plugins/millify';
 import { useSetting } from '$state/hooks/settings';

@@ -1,6 +1,6 @@
 import {
-  MouseEventHandler,
-  ReactElement,
+  type MouseEventHandler,
+  type ReactElement,
   forwardRef,
   useCallback,
   useEffect,
@@ -20,17 +20,17 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   color,
   config,
   toRem,
 } from 'folds';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import { JoinRule, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import { JoinRule, type Room, type RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
@@ -48,7 +48,7 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { useRoomName } from '$hooks/useRoomMeta';
-import { HierarchyItem, useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
+import { type HierarchyItem, useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';

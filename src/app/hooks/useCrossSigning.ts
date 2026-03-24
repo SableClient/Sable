@@ -1,4 +1,4 @@
-import { AccountDataEvent, SecretAccountData } from '$types/matrix/accountData';
+import { AccountDataEvent, type SecretAccountData } from '$types/matrix/accountData';
 import { useAccountData } from './useAccountData';
 
 export const useCrossSigningActive = (): boolean => {

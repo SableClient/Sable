@@ -16,9 +16,9 @@ import {
   toRem,
 } from 'folds';
 import {
-  ChangeEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -27,12 +27,16 @@ import {
 } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { useDirects, useOrphanSpaces, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import {
+  type SearchItemStrGetter,
+  useAsyncSearch,
+  type UseAsyncSearchOptions,
+} from '$hooks/useAsyncSearch';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import {

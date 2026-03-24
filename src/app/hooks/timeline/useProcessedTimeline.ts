@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import { type MatrixEvent, type EventTimelineSet, type EventTimeline } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
@@ -8,7 +8,7 @@ import {
 import { reactionOrEditEvent, isMembershipChanged } from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
 
-export interface UseProcessedTimelineOptions {
+export type UseProcessedTimelineOptions = {
   items: number[];
   linkedTimelines: EventTimeline[];
   ignoredUsersSet: Set<string>;
@@ -20,9 +20,9 @@ export interface UseProcessedTimelineOptions {
   hideNickAvatarEvents: boolean;
   isReadOnly: boolean;
   hideMemberInReadOnly: boolean;
-}
+};
 
-export interface ProcessedEvent {
+export type ProcessedEvent = {
   id: string;
   itemIndex: number;
   mEvent: MatrixEvent;
@@ -31,7 +31,7 @@ export interface ProcessedEvent {
   collapsed: boolean;
   willRenderNewDivider: boolean;
   willRenderDayDivider: boolean;
-}
+};
 
 const MESSAGE_EVENT_TYPES = [
   'm.room.message',

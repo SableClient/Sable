@@ -1,4 +1,4 @@
-import { GuestAccess, HistoryVisibility, JoinRule, Room } from '$types/matrix-sdk';
+import { GuestAccess, HistoryVisibility, type JoinRule, type Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { getStateEvent } from '$utils/room';
 

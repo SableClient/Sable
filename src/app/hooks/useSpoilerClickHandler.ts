@@ -1,4 +1,4 @@
-import { ReactEventHandler, useCallback } from 'react';
+import { type ReactEventHandler, useCallback } from 'react';
 
 export const useSpoilerClickHandler = (): ReactEventHandler<HTMLElement> => {
   const handleClick: ReactEventHandler<HTMLElement> = useCallback((evt) => {

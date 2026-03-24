@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import { type MouseEventHandler, useCallback, useMemo, useState } from 'react';
 import {
   config,
   Box,
@@ -6,8 +6,8 @@ import {
   Text,
   Icon,
   Icons,
-  IconSrc,
-  RectCords,
+  type IconSrc,
+  type RectCords,
   PopOut,
   Menu,
   Button,

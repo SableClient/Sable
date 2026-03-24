@@ -1,8 +1,8 @@
 import {
   forwardRef,
-  KeyboardEventHandler,
-  MouseEvent,
-  RefObject,
+  type KeyboardEventHandler,
+  type MouseEvent,
+  type RefObject,
   useCallback,
   useEffect,
   useRef,
@@ -12,13 +12,13 @@ import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
 import {
   EventType,
-  IContent,
-  MatrixEvent,
+  type IContent,
+  type MatrixEvent,
   MsgType,
   RelationType,
-  Room,
-  IEventRelation,
-  StickerEventContent,
+  type Room,
+  type IEventRelation,
+  type StickerEventContent,
 } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -37,7 +37,7 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Text,
   toRem,
@@ -46,7 +46,7 @@ import {
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
+  type AutocompleteQuery,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
@@ -72,7 +72,7 @@ import {
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import {
-  TUploadContent,
+  type TUploadContent,
   encryptFile,
   getImageInfo,
   mxcUrlToHttp,
@@ -87,18 +87,23 @@ import {
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
-  TUploadItem,
-  TUploadMetadata,
-  IReplyDraft,
+  type TUploadItem,
+  type TUploadMetadata,
+  type IReplyDraft,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
 import {
   UploadBoard,
   UploadBoardContent,
   UploadBoardHeader,
-  UploadBoardImperativeHandlers,
+  type UploadBoardImperativeHandlers,
 } from '$components/upload-board';
-import { Upload, UploadStatus, UploadSuccess, createUploadFamilyObserverAtom } from '$state/upload';
+import {
+  type Upload,
+  UploadStatus,
+  type UploadSuccess,
+  createUploadFamilyObserverAtom,
+} from '$state/upload';
 import { getImageUrlBlob, loadImageElement } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
@@ -155,8 +160,8 @@ import {
 import { CommandAutocomplete } from './CommandAutocomplete';
 import {
   AudioMessageRecorder,
-  AudioMessageRecorderHandle,
-  AudioRecordingCompletePayload,
+  type AudioMessageRecorderHandle,
+  type AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
@@ -225,18 +230,18 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEve
 
 const log = createLogger('RoomInput');
 const debugLog = createDebugLogger('RoomInput');
-interface ReplyEventContent {
+type ReplyEventContent = {
   'm.relates_to'?: IEventRelation;
-}
+};
 
-interface RoomInputProps {
+type RoomInputProps = {
   editor: Editor;
   fileDropContainerRef: RefObject<HTMLElement>;
   roomId: string;
   room: Room;
   threadRootId?: string;
   onEditLastMessage?: () => void;
-}
+};
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies

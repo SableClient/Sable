@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { IAuthData, MatrixError, ILoginFlowsResponse } from '$types/matrix-sdk';
+import { type IAuthData, type MatrixError, type ILoginFlowsResponse } from '$types/matrix-sdk';
 
 export enum RegisterFlowStatus {
   FlowRequired = 401,

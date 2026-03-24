@@ -1,4 +1,4 @@
-import { useCallback, useEffect, FormEventHandler } from 'react';
+import { useCallback, useEffect, type FormEventHandler } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -17,7 +17,7 @@ import {
   Button,
   Spinner,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import { type MatrixError } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

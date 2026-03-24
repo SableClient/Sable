@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import { EventTimeline, Room } from '$types/matrix-sdk';
+import { EventTimeline, type Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';

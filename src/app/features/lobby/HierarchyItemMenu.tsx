@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useEffect, useState } from 'react';
+import { type MouseEventHandler, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Box,
@@ -9,15 +9,15 @@ import {
   Menu,
   MenuItem,
   Text,
-  RectCords,
+  type RectCords,
   config,
   Line,
   Spinner,
   toRem,
 } from 'folds';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import { type HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { MSpaceChildContent, StateEvent } from '$types/matrix/room';
+import { type MSpaceChildContent, StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
@@ -26,7 +26,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import { type IPowerLevels } from '$hooks/usePowerLevels';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';

@@ -1,6 +1,14 @@
-import { ComplexStyleRule, createVar, style } from '@vanilla-extract/css';
-import { RecipeVariants, recipe } from '@vanilla-extract/recipes';
-import { ContainerColor, DefaultReset, Disabled, RadiiVariant, color, config, toRem } from 'folds';
+import { type ComplexStyleRule, createVar, style } from '@vanilla-extract/css';
+import { type RecipeVariants, recipe } from '@vanilla-extract/recipes';
+import {
+  type ContainerColor,
+  DefaultReset,
+  Disabled,
+  RadiiVariant,
+  color,
+  config,
+  toRem,
+} from 'folds';
 
 export const NavCategory = style([
   DefaultReset,

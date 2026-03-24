@@ -1,18 +1,18 @@
 import {
   ClientEvent,
   createClient,
-  MatrixClient,
+  type MatrixClient,
   IndexedDBStore,
   IndexedDBCryptoStore,
   SyncState,
-  ISyncStateData,
+  type ISyncStateData,
 } from '$types/matrix-sdk';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
 import {
-  Session,
-  Sessions,
-  SessionStoreName,
+  type Session,
+  type Sessions,
+  type SessionStoreName,
   getSessionStoreName,
   MATRIX_SESSIONS_KEY,
 } from '$state/sessions';
@@ -22,7 +22,11 @@ import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
-import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from './slidingSync';
+import {
+  type SlidingSyncConfig,
+  type SlidingSyncDiagnostics,
+  SlidingSyncManager,
+} from './slidingSync';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');

@@ -1,9 +1,9 @@
 import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
-import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
+import { type SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
+import { type HTMLReactParserOptions } from 'html-react-parser';
 import { getMxIdServer, mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -19,9 +19,9 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { getDirectCreatePath, withSearchParam } from '$pages/pathUtils';
-import { DirectCreateSearchParams } from '$pages/paths';
+import { type DirectCreateSearchParams } from '$pages/paths';
 import { nicknamesAtom } from '$state/nicknames';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import { type UserProfile, useUserProfile } from '$hooks/useUserProfile';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,

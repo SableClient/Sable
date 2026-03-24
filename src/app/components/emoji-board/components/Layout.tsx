@@ -1,5 +1,5 @@
 import { as, Box, Line } from 'folds';
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import classNames from 'classnames';
 import * as css from './styles.css';
 

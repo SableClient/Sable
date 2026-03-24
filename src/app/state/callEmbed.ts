@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { CallEmbed } from '../plugins/call';
+import { type CallEmbed } from '../plugins/call';
 
 const baseCallEmbedAtom = atom<CallEmbed | undefined>(undefined);
 

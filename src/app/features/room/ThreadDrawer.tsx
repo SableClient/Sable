@@ -1,18 +1,18 @@
-import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Header, Icon, IconButton, Icons, Scroll, Text, config } from 'folds';
 import {
-  MatrixEvent,
+  type MatrixEvent,
   PushProcessor,
   ReceiptType,
   RelationType,
-  Room,
+  type Room,
   RoomEvent,
   ThreadEvent,
 } from '$types/matrix-sdk';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactEditor } from 'slate-react';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import { type HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { ImageContent, MSticker, RedactedContent, Reply } from '$components/message';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { Image } from '$components/media';
@@ -36,18 +36,18 @@ import { minuteDifference } from '$utils/time';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nicknamesAtom } from '$state/nicknames';
-import { MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
+import { MessageLayout, type MessageSpacing, settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import { type GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
-import { IReplyDraft, roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import { type IReplyDraft, roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { EncryptedContent, Message, Reactions } from './message';
 import { RoomInput } from './RoomInput';

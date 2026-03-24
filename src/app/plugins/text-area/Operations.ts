@@ -1,7 +1,7 @@
-import { Cursor } from './Cursor';
+import { type Cursor } from './Cursor';
 
-export interface Operations {
+export type Operations = {
   select(cursor: Cursor): void;
   deselect(cursor: Cursor): void;
   insert(cursor: Cursor, text: string): Cursor;
-}
+};

@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
-import { MemberPowerTag, MemberPowerTagIcon } from '$types/matrix/room';
+import { type MatrixClient, type Room, type RoomMember } from '$types/matrix-sdk';
+import { type MemberPowerTag, type MemberPowerTagIcon } from '$types/matrix/room';
 import { accessibleColor } from '$plugins/color';
-import { getPowerLevelTag, PowerLevelTags, usePowerLevelTags } from './usePowerLevelTags';
-import { IPowerLevels, readPowerLevel } from './usePowerLevels';
+import { getPowerLevelTag, type PowerLevelTags, usePowerLevelTags } from './usePowerLevelTags';
+import { type IPowerLevels, readPowerLevel } from './usePowerLevels';
 import { useRoomCreatorsTag } from './useRoomCreatorsTag';
-import { ThemeKind } from './useTheme';
+import { type ThemeKind } from './useTheme';
 
 export type GetMemberPowerTag = (userId: string) => MemberPowerTag;
 

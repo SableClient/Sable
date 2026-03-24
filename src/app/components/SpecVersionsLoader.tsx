@@ -1,6 +1,6 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { SpecVersions, specVersions } from '../cs-api';
+import { type SpecVersions, specVersions } from '../cs-api';
 
 type SpecVersionsLoaderProps = {
   baseUrl: string;

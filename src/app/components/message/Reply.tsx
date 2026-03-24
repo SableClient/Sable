@@ -179,7 +179,12 @@ export const Reply = as<'div', ReplyProps>(
       const parsedMemberEvent = parseMemberEvent(replyEvent);
       image = parsedMemberEvent.icon;
       mentioned = false;
-      bodyJSX = parsedMemberEvent.body;
+      bodyJSX = (
+        <Box direction="Row" style={{ columnGap: toRem(6) }}>
+          {' '}
+          {parsedMemberEvent.body}{' '}
+        </Box>
+      );
     } else if (eventType === StateEvent.RoomName) {
       image = Icons.Hash;
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');

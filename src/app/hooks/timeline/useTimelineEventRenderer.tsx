@@ -59,7 +59,11 @@ import * as css from './TimelineEventRenderer.css';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
-  return <b style={{ color, font }}> {userName ?? userId} </b>;
+  return (
+    <Text truncate>
+      <b style={{ color, font }}> {userName ?? userId} </b>
+    </Text>
+  );
 }
 
 type DecoratedUserProps = {
@@ -765,11 +769,11 @@ export function useTimelineEventRenderer({
               time={timeJSX}
               iconSrc={parsed.icon}
               content={
-                <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300" className={css.StateEvent}>
+                <Text size="T300" priority="300">
+                  <Box direction="Row" style={{ flexWrap: 'wrap', columnGap: toRem(6) }}>
                     {parsed.body}
-                  </Text>
-                </Box>
+                  </Box>
+                </Text>
               }
             />
           </Event>
@@ -811,7 +815,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300" className={css.StateEvent}>
+                  <Text size="T300" priority="300">
                     <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {t('Organisms.RoomCommon.changed_room_name')}
                   </Text>
@@ -858,7 +862,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300" className={css.StateEvent}>
+                  <Text size="T300" priority="300">
                     <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room topic'}
                   </Text>
@@ -905,7 +909,7 @@ export function useTimelineEventRenderer({
               iconSrc={Icons.Hash}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300" className={css.StateEvent}>
+                  <Text size="T300" priority="300">
                     <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {' changed room avatar'}
                   </Text>
@@ -959,7 +963,7 @@ export function useTimelineEventRenderer({
               iconSrc={callJoined ? Icons.Phone : Icons.PhoneDown}
               content={
                 <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300" className={css.StateEvent}>
+                  <Text size="T300" priority="300">
                     <DecoratedUser userId={senderId} userName={senderName} room={room} />
                     {callJoined ? ' joined the call' : ' ended the call'}
                   </Text>
@@ -1094,7 +1098,7 @@ export function useTimelineEventRenderer({
             iconSrc={Icons.Code}
             content={
               <Box grow="Yes" direction="Column">
-                <Text size="T300" priority="300" className={css.StateEvent}>
+                <Text size="T300" priority="300">
                   <DecoratedUser userId={senderId} userName={senderName} room={room} />
                   {' sent '}
                   <code className={customHtmlCss.Code}>{getType.call(mEvent)}</code>
@@ -1155,7 +1159,7 @@ export function useTimelineEventRenderer({
             iconSrc={Icons.Code}
             content={
               <Box grow="Yes" direction="Column">
-                <Text size="T300" priority="300" className={css.StateEvent}>
+                <Text size="T300" priority="300">
                   <b>{senderName}</b>
                   {' sent '}
                   <code className={customHtmlCss.Code}>{getType.call(mEvent)}</code>

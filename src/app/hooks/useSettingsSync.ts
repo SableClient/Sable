@@ -39,14 +39,14 @@ export function useSettingsSyncEffect(): void {
 
   const syncEnabled = settings.settingsSyncEnabled;
 
-  // ── On mount / when sync is first enabled: load from account data ──────────
+  // On mount / when sync is first enabled: load from account data
   useEffect(() => {
     if (!syncEnabled) return;
     const event = mx.getAccountData(AccountDataEvent.SableSettings);
     if (!event) return;
-    // Strip _echo so a stored echo from a previous session doesn't get treated
+    // Strip synctoken so a stored sync token from a previous session doesn't get treated
     // as an incoming change from another device.
-    const { _echo: echoField, ...content } = event.getContent();
+    const { synctoken: echoField, ...content } = event.getContent();
     const merged = deserializeFromSync(content, settingsRef.current);
     if (merged) {
       if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
@@ -56,12 +56,12 @@ export function useSettingsSyncEffect(): void {
     }
   }, [mx, syncEnabled, setSettings, setLastSynced]);
 
-  // ── Echo-detection: track the token of our last upload ────────────────────
+  // Echo-detection: track the token of our last upload
   // When our upload echoes back via ClientEvent.AccountData we skip applying it
   // (to avoid overwriting settings that changed between upload and echo).
   const pendingEchoTokenRef = useRef<string | null>(null);
 
-  // ── Live updates from other devices ───────────────────────────────────────
+  // Live updates from other devices
   const onAccountData = useCallback(
     (event: MatrixEvent) => {
       if (event.getType() !== AccountDataEvent.SableSettings) return;
@@ -71,8 +71,8 @@ export function useSettingsSyncEffect(): void {
 
       // If this is the echo of our own upload, just confirm success and skip.
       if (
-        typeof rawContent._echo === 'string' &&
-        rawContent._echo === pendingEchoTokenRef.current
+        typeof rawContent.synctoken === 'string' &&
+        rawContent.synctoken === pendingEchoTokenRef.current
       ) {
         pendingEchoTokenRef.current = null;
         setLastSynced(Date.now());
@@ -80,10 +80,10 @@ export function useSettingsSyncEffect(): void {
         return;
       }
 
-      // Strip internal _echo field before deserializing so stale echoes from
+      // Strip internal synctoken field before deserializing so stale tokens from
       // previous sessions (stored on the homeserver) don't bypass the check above
       // and don't leak into the settings object.
-      const { _echo: echoField, ...content } = rawContent;
+      const { synctoken: echoField, ...content } = rawContent;
 
       // Otherwise it came from another device — apply it.
       const merged = deserializeFromSync(content, settingsRef.current);
@@ -101,7 +101,7 @@ export function useSettingsSyncEffect(): void {
   );
   useAccountDataCallback(mx, onAccountData);
 
-  // ── Debounced upload whenever settings change ──────────────────────────────
+  // Debounced upload whenever settings change
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (!syncEnabled) return undefined;
@@ -111,7 +111,7 @@ export function useSettingsSyncEffect(): void {
       setSyncStatus('syncing');
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
-      const content = { ...serializeForSync(settingsRef.current), _echo: token };
+      const content = { ...serializeForSync(settingsRef.current), synctoken: token };
       mx.setAccountData(AccountDataEvent.SableSettings, content as Record<string, unknown>).catch(
         () => {
           pendingEchoTokenRef.current = null;

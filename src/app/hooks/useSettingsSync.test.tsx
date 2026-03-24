@@ -63,7 +63,7 @@ function makeSableSettingsEvent(content: unknown) {
   };
 }
 
-// ── Atom initial values ───────────────────────────────────────────────────────
+// Atom initial values
 
 describe('atom initial values', () => {
   it('settingsSyncLastSyncedAtom starts as null', () => {
@@ -77,7 +77,7 @@ describe('atom initial values', () => {
   });
 });
 
-// ── Hook: sync disabled ───────────────────────────────────────────────────────
+// Hook: sync disabled
 
 describe('useSettingsSyncEffect — sync disabled', () => {
   beforeEach(() => {
@@ -104,7 +104,7 @@ describe('useSettingsSyncEffect — sync disabled', () => {
   });
 });
 
-// ── Hook: sync enabled — mount behaviour ─────────────────────────────────────
+// Hook: sync enabled — mount behaviour
 
 describe('useSettingsSyncEffect — sync enabled on mount', () => {
   beforeEach(() => {
@@ -155,7 +155,7 @@ describe('useSettingsSyncEffect — sync enabled on mount', () => {
   });
 });
 
-// ── Hook: debounced upload ────────────────────────────────────────────────────
+// Hook: debounced upload
 
 describe('useSettingsSyncEffect — debounced upload', () => {
   beforeEach(() => {
@@ -183,7 +183,7 @@ describe('useSettingsSyncEffect — debounced upload', () => {
     ];
     expect(type).toBe(AccountDataEvent.SableSettings);
     expect(content.v).toBe(SETTINGS_SYNC_VERSION);
-    expect(typeof content._echo).toBe('string');
+    expect(typeof content.synctoken).toBe('string');
   });
 
   it('sets sync status to syncing while the upload is in flight', () => {
@@ -212,7 +212,7 @@ describe('useSettingsSyncEffect — debounced upload', () => {
   });
 });
 
-// ── Hook: echo-token loop prevention ─────────────────────────────────────────
+// Hook: echo-token loop prevention
 
 describe('useSettingsSyncEffect — echo-token loop prevention', () => {
   beforeEach(() => {
@@ -236,12 +236,12 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
 
     // Capture the echo token that was uploaded.
     const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent._echo as string;
+    const echoToken = uploadedContent.synctoken as string;
 
     // Simulate the homeserver echoing our own event back.
     const echoEvent = makeSableSettingsEvent({
       v: SETTINGS_SYNC_VERSION,
-      _echo: echoToken,
+      synctoken: echoToken,
       settings: { isMarkdown: false }, // different — must be ignored
     });
 
@@ -262,12 +262,12 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     });
 
     const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent._echo as string;
+    const echoToken = uploadedContent.synctoken as string;
 
     const before = Date.now();
     act(() => {
       callbackHolder.current?.(
-        makeSableSettingsEvent({ v: SETTINGS_SYNC_VERSION, _echo: echoToken, settings: {} })
+        makeSableSettingsEvent({ v: SETTINGS_SYNC_VERSION, synctoken: echoToken, settings: {} })
       );
     });
     const after = Date.now();
@@ -286,7 +286,7 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     const remoteEvent = makeSableSettingsEvent({
       v: SETTINGS_SYNC_VERSION,
       settings: { isMarkdown: false },
-      // No _echo — definitely from another device.
+      // No synctoken — definitely from another device.
     });
 
     act(() => {

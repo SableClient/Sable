@@ -9,7 +9,7 @@ import {
   importSettingsFromJson,
 } from './settingsSync';
 
-// ── fixtures ──────────────────────────────────────────────────────────────────
+// fixtures
 
 let base: ReturnType<typeof getSettings>;
 
@@ -18,7 +18,7 @@ beforeEach(() => {
   base = getSettings();
 });
 
-// ── NON_SYNCABLE_KEYS ─────────────────────────────────────────────────────────
+// NON_SYNCABLE_KEYS
 
 describe('NON_SYNCABLE_KEYS', () => {
   it('contains all device-local and security-sensitive keys', () => {
@@ -47,7 +47,7 @@ describe('NON_SYNCABLE_KEYS', () => {
   });
 });
 
-// ── serializeForSync ──────────────────────────────────────────────────────────
+// serializeForSync
 
 describe('serializeForSync', () => {
   it('sets the correct schema version', () => {
@@ -76,7 +76,7 @@ describe('serializeForSync', () => {
   });
 });
 
-// ── deserializeFromSync ───────────────────────────────────────────────────────
+// deserializeFromSync
 
 describe('deserializeFromSync', () => {
   it('returns null for null input', () => {
@@ -163,7 +163,7 @@ describe('deserializeFromSync', () => {
   });
 });
 
-// ── exportSettingsAsJson ──────────────────────────────────────────────────────
+// exportSettingsAsJson
 
 describe('exportSettingsAsJson', () => {
   let fakeUrl: string;
@@ -223,7 +223,7 @@ describe('exportSettingsAsJson', () => {
   });
 });
 
-// ── importSettingsFromJson ────────────────────────────────────────────────────
+// importSettingsFromJson
 
 describe('importSettingsFromJson', () => {
   let mockInput: {

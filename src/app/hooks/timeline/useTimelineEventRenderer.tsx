@@ -55,7 +55,6 @@ import {
 } from '$features/room/message';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
-import * as css from './TimelineEventRenderer.css';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));

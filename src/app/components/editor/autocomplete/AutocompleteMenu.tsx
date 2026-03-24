@@ -51,7 +51,7 @@ export function AutocompleteMenu({
       <FocusTrap
         active={isActive}
         focusTrapOptions={{
-          initialFocus: () => false,
+          initialFocus: false,
           onPostDeactivate: handleDeactivate,
           returnFocusOnDeactivate: false,
           clickOutsideDeactivates: true,

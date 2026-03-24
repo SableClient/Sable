@@ -78,6 +78,7 @@ export function CommandAutocomplete({
         </Box>
       }
       requestClose={requestClose}
+      editor={editor}
     >
       {autoCompleteNames.map((commandName) => (
         <MenuItem

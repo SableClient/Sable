@@ -14,6 +14,13 @@ import { ImageViewer } from '../image-viewer';
 
 const linkStyles = { color: color.Success.Main };
 
+// Module-level in-flight deduplication: prevents N+1 concurrent requests when a
+// large event batch renders many UrlPreviewCard instances for the same URL.
+// Keyed by URL only (not ts) — the same URL shows the same preview regardless
+// of which message referenced it. Rejected promises are evicted so a later
+// render can retry after network recovery.
+const previewRequestCache = new Map<string, Promise<IPreviewUrlResponse>>();
+
 const openMediaInNewTab = async (url: string | undefined) => {
   if (!url) {
     console.warn('Attempted to open an empty url');
@@ -34,7 +41,12 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
     const [previewStatus, loadPreview] = useAsyncCallback(
       useCallback(() => {
         if (isDirect) return Promise.resolve(null);
-        return mx.getUrlPreview(url, ts);
+        const cached = previewRequestCache.get(url);
+        if (cached !== undefined) return cached;
+        const promise = mx.getUrlPreview(url, ts);
+        previewRequestCache.set(url, promise);
+        promise.catch(() => previewRequestCache.delete(url));
+        return promise;
       }, [url, ts, mx, isDirect])
     );
 

@@ -171,6 +171,13 @@ const useTimelinePagination = (
           await to(decryptAllTimelineEvent(mx, fetchedTimeline));
         }
 
+        // `continuing` tracks whether we hand the fetchingRef lock to a recursive
+        // continuation call below.  The finally block must NOT reset the lock if
+        // the recursive call has already claimed it, otherwise there is a brief
+        // window where fetchingRef is false while the recursive paginate is in
+        // flight, allowing a third overlapping call to start on sparse pages.
+        let continuing = false;
+
         if (alive()) {
           recalibratePagination(lTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
@@ -184,13 +191,24 @@ const useTimelinePagination = (
                 Direction.Backward
               ) === 'string';
             if (stillHasToken) {
+              // Release lock so inner paginate can claim it, then mark continuing
+              // so the finally block below does NOT reset it after inner claims.
               fetchingRef.current[directionKey] = false;
+              continuing = true;
               paginate(backwards);
+              // At this point the inner paginate has synchronously set
+              // fetchingRef.current[directionKey] = true before hitting its own
+              // await.  The finally below will skip the reset.
             }
           }
         }
       } finally {
-        fetchingRef.current[directionKey] = false;
+        // Only release the lock if we did NOT hand it to a recursive continuation.
+        // If `continuing` is true the recursive call owns the lock and will release
+        // it in its own finally block.
+        if (!continuing) {
+          fetchingRef.current[directionKey] = false;
+        }
       }
     };
   }, [mx, alive, setTimeline, limit, setBackwardStatus, setForwardStatus]);

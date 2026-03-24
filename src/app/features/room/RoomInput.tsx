@@ -493,6 +493,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleCancelUpload(uploads);
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
+      /**
+       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+       */
+      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+
+      if (perMessageProfile) {
+        contents.forEach((c) => {
+          // We intentionally mutate the objects here to avoid unnecessary copying
+          // mutating should be unproblematic here, since contents isn't a react component,
+          // or used for rendering
+          // eslint-disable-next-line no-param-reassign
+          c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+            perMessageProfile,
+            false
+          );
+        });
+      }
+
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
@@ -1033,11 +1053,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent = {
         body: label,
         url: mxc,
         info,
       };
+
+      /**
+       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+       */
+      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+
+      if (perMessageProfile) {
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          false
+        );
+      }
+
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
         if (threadRootId) {

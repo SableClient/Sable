@@ -971,7 +971,12 @@ function Messages() {
           title="Client Side Embeds"
           description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
           after={
-            <Switch variant="Primary" value={clientUrlPreview} onChange={setClientUrlPreview} />
+            <Switch
+              variant="Primary"
+              value={clientUrlPreview}
+              onChange={setClientUrlPreview}
+              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+            />
           }
         />
       </SequenceCard>
@@ -988,6 +993,11 @@ function Messages() {
               variant="Primary"
               value={encClientUrlPreview}
               onChange={setEncClientUrlPreview}
+              title={
+                encClientUrlPreview
+                  ? 'Disable client-side embeds in encrypted rooms'
+                  : 'Enable client-side embeds in encrypted rooms'
+              }
             />
           }
         />
@@ -1005,6 +1015,11 @@ function Messages() {
               variant="Primary"
               value={clientPreviewYoutube}
               onChange={setClientPreviewYoutube}
+              title={
+                clientPreviewYoutube
+                  ? 'Disable client-side Youtube video embeds'
+                  : 'Enable client-side Youtube video embeds'
+              }
             />
           }
         />

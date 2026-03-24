@@ -1,5 +1,12 @@
 # Sable Client Changelog
 
+## 1.12.3 (2026-03-24)
+
+### Fixes
+
+* Fixed text autocomplete issues ([#487](https://github.com/SableClient/Sable/pull/487) by @nushea)
+* Fix crash when url contains malformed/dangling uri components. ([#512](https://github.com/SableClient/Sable/pull/512) by @7w1)
+
 ## 1.12.2 (2026-03-24)
 
 ### Fixes

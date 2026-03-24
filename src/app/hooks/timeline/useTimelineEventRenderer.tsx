@@ -53,11 +53,16 @@ import {
   Message,
   Reactions,
 } from '$features/room/message';
+
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
-  return <b style={{ color, font }}> {userName ?? userId} </b>;
+  return (
+    <Text truncate>
+      <b style={{ color, font }}> {userName ?? userId} </b>
+    </Text>
+  );
 }
 
 type DecoratedUserProps = {
@@ -767,11 +772,11 @@ export function useTimelineEventRenderer({
               time={timeJSX}
               iconSrc={parsed.icon}
               content={
-                <Box grow="Yes" direction="Column">
-                  <Text size="T300" priority="300">
+                <Text size="T300" priority="300">
+                  <Box direction="Row" style={{ flexWrap: 'wrap', columnGap: toRem(6) }}>
                     {parsed.body}
-                  </Text>
-                </Box>
+                  </Box>
+                </Text>
               }
             />
           </Event>

@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { IconSrc, Icons } from 'folds';
+import { IconSrc, Icons, Text } from 'folds';
 import { MatrixEvent, Room } from '$types/matrix-sdk';
 import { IMemberContent, Membership } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -17,7 +17,11 @@ function DecoratedUser({ roomId, userId, userName }: DecoratedUserProps) {
   const mx = useMatrixClient();
   const room = mx.getRoom(roomId);
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
-  return <b style={{ color, font }}> {userName ?? userId} </b>;
+  return (
+    <Text truncate>
+      <b style={{ color, font }}>{userName ?? userId} </b>
+    </Text>
+  );
 }
 
 export type ParsedResult = {
@@ -56,10 +60,12 @@ export const useMemberEventParser = (): MemberEventParser => {
             body: (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                {' accepted '}
+                <Text>{' accepted '}</Text>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                {`'s join request `}
-                {reason}
+                <Text>
+                  {`'s join request `}
+                  {reason}
+                </Text>
               </>
             ),
           };
@@ -70,9 +76,9 @@ export const useMemberEventParser = (): MemberEventParser => {
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-              {' invited '}
+              <Text>{' invited '}</Text>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {reason}
+              <Text>{reason}</Text>
             </>
           ),
         };
@@ -84,8 +90,10 @@ export const useMemberEventParser = (): MemberEventParser => {
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {' requested to join room: '}
-              <i>{reason}</i>
+              <Text>
+                {' requested to join room: '}
+                <i>{reason}</i>
+              </Text>
             </>
           ),
         };
@@ -97,7 +105,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {' joined the room'}
+              <Text>{' joined the room'}</Text>
             </>
           ),
         };
@@ -111,16 +119,20 @@ export const useMemberEventParser = (): MemberEventParser => {
               senderId === userId ? (
                 <>
                   <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  {' rejected the invitation '}
-                  {reason}
+                  <Text>
+                    {' rejected the invitation '}
+                    {reason}
+                  </Text>
                 </>
               ) : (
                 <>
                   <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                  {' rejected '}
+                  <Text>{' rejected '}</Text>
                   <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  {`'s join request `}
-                  {reason}
+                  <Text>
+                    {`'s join request `}
+                    {reason}
+                  </Text>
                 </>
               ),
           };
@@ -133,16 +145,20 @@ export const useMemberEventParser = (): MemberEventParser => {
               senderId === userId ? (
                 <>
                   <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  {' revoked joined request '}
-                  {reason}
+                  <Text>
+                    {' revoked joined request '}
+                    {reason}
+                  </Text>
                 </>
               ) : (
                 <>
                   <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
                   {' revoked '}
                   <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                  {`'s invite `}
-                  {reason}
+                  <Text>
+                    {`'s invite `}
+                    {reason}
+                  </Text>
                 </>
               ),
           };
@@ -154,9 +170,9 @@ export const useMemberEventParser = (): MemberEventParser => {
             body: (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                {' unbanned '}
+                <Text>{' unbanned '}</Text>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                {reason}
+                <Text>{reason}</Text>
               </>
             ),
           };
@@ -168,15 +184,17 @@ export const useMemberEventParser = (): MemberEventParser => {
             senderId === userId ? (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                {' left the room '}
-                {reason}
+                <Text>
+                  {' left the room '}
+                  {reason}
+                </Text>
               </>
             ) : (
               <>
                 <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-                {' kicked '}
+                <Text>{' kicked '}</Text>
                 <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-                {reason}
+                <Text>{reason}</Text>
               </>
             ),
         };
@@ -188,9 +206,9 @@ export const useMemberEventParser = (): MemberEventParser => {
           body: (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={senderId} userName={senderName} />
-              {' banned '}
+              <Text>{' banned '}</Text>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {reason}
+              <Text>{reason}</Text>
             </>
           ),
         };
@@ -209,13 +227,13 @@ export const useMemberEventParser = (): MemberEventParser => {
           typeof content.displayname === 'string' ? (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
-              {' changed display name to '}
+              <Text>{' changed display name to '}</Text>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
             </>
           ) : (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={prevUserName} />
-              {' removed their display name '}
+              <Text>{' removed their display name '}</Text>
             </>
           ),
       };
@@ -227,12 +245,12 @@ export const useMemberEventParser = (): MemberEventParser => {
           content.avatar_url && typeof content.avatar_url === 'string' ? (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {' changed their avatar'}
+              <Text>{' changed their avatar'}</Text>
             </>
           ) : (
             <>
               <DecoratedUser roomId={roomId ?? ''} userId={userId} userName={userName} />
-              {' removed their avatar '}
+              <Text>{' removed their avatar '}</Text>
             </>
           ),
       };

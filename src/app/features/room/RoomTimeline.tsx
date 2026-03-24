@@ -131,6 +131,8 @@ export function RoomTimeline({
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview] = useSetting(settingsAtom, 'encClientUrlPreview');
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
@@ -142,6 +144,9 @@ export function RoomTimeline({
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
+  const showClientUrlPreview = room.hasEncryptionStateEvent()
+    ? encClientUrlPreview
+    : clientUrlPreview;
 
   const nicknames = useAtomValue(nicknamesAtom);
   const globalProfiles = useAtomValue(profilesCacheAtom);
@@ -483,6 +488,7 @@ export function RoomTimeline({
       dateFormatString,
       mediaAutoLoad,
       showUrlPreview,
+      showClientUrlPreview,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,

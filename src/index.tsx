@@ -54,9 +54,8 @@ if ('serviceWorker' in navigator) {
     if (window.confirm('A new version of the app is available. Refresh to update?')) {
       if (registration.waiting) {
         registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-      } else {
-        window.location.reload();
       }
+      window.location.reload();
     }
   };
 

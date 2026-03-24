@@ -1119,7 +1119,11 @@ export function Sync() {
                   More info/Documentation
                 </a>
                 .{' '}
-                <a href="https://github.com/SableClient/Sable/issues/39" target="_blank" rel="noreferrer">
+                <a
+                  href="https://github.com/SableClient/Sable/issues/39"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Known issues (Sable GitHub)
                 </a>
                 .

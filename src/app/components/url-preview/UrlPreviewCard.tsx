@@ -26,7 +26,7 @@ const openMediaInNewTab = async (url: string | undefined) => {
 const safeDecodeUrl = (url: string) => {
   try {
     return decodeURIComponent(url);
-  } catch (e) {
+  } catch {
     return url;
   }
 };

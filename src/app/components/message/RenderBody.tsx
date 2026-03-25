@@ -1,4 +1,4 @@
-import { MouseEventHandler, useEffect, useState } from 'react';
+import { MouseEventHandler, ReactNode, useEffect, useState } from 'react';
 import parse, { HTMLReactParserOptions } from 'html-react-parser';
 import Linkify from 'linkify-react';
 import { Opts } from 'linkifyjs';
@@ -57,6 +57,33 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
       )}
     </>
   );
+}
+
+/**
+ * Builds a `replaceTextNode` callback for use with {@link getReactCustomHtmlParser}.
+ * Returns `undefined` when there are no abbreviations to apply (avoids creating
+ * extra closures in the common case).
+ */
+export function buildAbbrReplaceTextNode(
+  abbrMap: Map<string, string>
+): ((text: string) => ReactNode | undefined) | undefined {
+  if (abbrMap.size === 0) return undefined;
+  return (text: string) => {
+    const segments = splitByAbbreviations(text, abbrMap);
+    if (!segments.some((s) => s.termKey !== undefined)) return undefined;
+    return (
+      <>
+        {segments.map((seg, i) =>
+          seg.termKey !== undefined ? (
+            // eslint-disable-next-line react/no-array-index-key
+            <AbbreviationTerm key={i} text={seg.text} definition={abbrMap.get(seg.termKey) ?? ''} />
+          ) : (
+            seg.text
+          )
+        )}
+      </>
+    );
+  };
 }
 
 type RenderBodyProps = {

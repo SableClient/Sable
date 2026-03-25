@@ -351,10 +351,15 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
+    replaceTextNode?: (text: string) => ReactNode | undefined;
   }
 ): HTMLReactParserOptions => {
+  const { replaceTextNode } = params;
   const opts: HTMLReactParserOptions = {
     replace: (domNode) => {
+      if (replaceTextNode && domNode instanceof DOMText) {
+        return replaceTextNode(domNode.data) ?? undefined;
+      }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
         const renderChildren = () => domToReact(children as any, opts);

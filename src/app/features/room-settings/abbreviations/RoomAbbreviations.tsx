@@ -177,7 +177,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                         as="form"
                         onSubmit={handleAdd}
                         direction="Column"
-                        gap="200"
+                        gap="400"
                       >
                         <Box direction="Column" gap="100">
                           <Text size="L400">Term</Text>
@@ -209,7 +209,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                             {saveState.error.message}
                           </Text>
                         )}
-                        <Box gap="200" justifyContent="End">
+                        <Box gap="200">
                           <Button
                             type="submit"
                             size="300"

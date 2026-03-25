@@ -93,6 +93,7 @@ export interface Settings {
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
   showPingCounts: boolean;
+  showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
   underlineLinks: boolean;
@@ -183,6 +184,7 @@ const defaultSettings: Settings = {
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
   showPingCounts: true,
+  showEasterEggs: true,
   hideReads: false,
   emojiSuggestThreshold: 2,
   underlineLinks: false,

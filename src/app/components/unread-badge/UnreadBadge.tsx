@@ -19,6 +19,17 @@ type ResolveUnreadBadgeModeOptions = Omit<UnreadBadgeProps, 'mode'> & {
 
 export type UnreadBadgeMode = 'dot' | 'count';
 
+/**
+ * Resolve whether an unread badge should render as a dot or a numeric count.
+ *
+ * @param options.count The unread count backing this badge. Non-positive counts always resolve to dot mode.
+ * @param options.dm Whether the badge belongs to a direct message.
+ * @param options.highlight Whether the badge represents a mention or keyword highlight.
+ * @param options.showUnreadCounts Whether regular room unread badges should show counts.
+ * @param options.badgeCountDMsOnly Whether direct message unread badges should show counts.
+ * @param options.showPingCounts Whether highlight badges should show counts.
+ * @returns `'count'` when the current badge context is allowed to show a number, otherwise `'dot'`.
+ */
 export function resolveUnreadBadgeMode({
   highlight,
   count,

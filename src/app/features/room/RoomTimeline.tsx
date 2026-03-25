@@ -145,7 +145,7 @@ export function RoomTimeline({
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
-    ? encClientUrlPreview
+    ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;
 
   const nicknames = useAtomValue(nicknamesAtom);

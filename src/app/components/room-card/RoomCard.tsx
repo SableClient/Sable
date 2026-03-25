@@ -21,7 +21,6 @@ import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { nameInitials } from '$utils/common';
-import { millify } from '$plugins/millify';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
@@ -32,6 +31,7 @@ import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { RoomAvatar } from '$components/room-avatar';
+import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './style.css';
 
 type GridColumnCount = '1' | '2' | '3';
@@ -256,7 +256,7 @@ export const RoomCard = as<'div', RoomCardProps>(
         {typeof joinedMemberCount === 'number' && (
           <Box gap="100">
             <Icon size="50" src={Icons.User} />
-            <Text size="T200">{`${millify(joinedMemberCount)} Members`}</Text>
+            <Text size="T200">{`${formatCompactNumber(joinedMemberCount)} Members`}</Text>
           </Box>
         )}
         {typeof joinedRoomId === 'string' && (

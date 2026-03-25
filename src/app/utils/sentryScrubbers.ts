@@ -92,7 +92,7 @@ export function scrubMatrixUrl(url: string): string {
       .replace(/\/%23[^/?#\s]*/gi, '/[ROOM_ALIAS]')
       // URL-encoded event IDs as bare path segments: /%24eventId  (%24 = $)
       .replace(/\/%24[^/?#\s]*/gi, '/[EVENT_ID]')
-      // ── Opaque Matrix IDs with percent-encoded colon (%3A) ─────────────────────────
+      //  Opaque Matrix IDs with percent-encoded colon (%3A)
       // Catches device IDs, filter tokens, and other bare Matrix IDs that lack a sigil
       // prefix but still follow the localpart%3Aserver pattern in URL paths.
       // e.g. /Gj3Wy2D8gAi8jTIyR%3Asable.moe  (decoded: Gj3Wy2D8gAi8jTIyR:sable.moe)

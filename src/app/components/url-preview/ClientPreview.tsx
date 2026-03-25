@@ -211,7 +211,7 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
 
   let previewContent;
 
-  if (isYoutube && videoInfo) {
+  if (videoInfo) {
     if (showYoutube) {
       if (embedStatus.status === AsyncStatus.Error) return null;
 

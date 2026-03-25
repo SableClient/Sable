@@ -51,6 +51,9 @@ const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
 // Timeline limit for the active-room subscription (full history load).
 // List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
 const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
+// Rooms with more than this many events in memory are pruned when they go inactive.
+// The full history remains on disk (IndexedDBStore); it is re-loaded on next open.
+const PRUNE_TIMELINE_THRESHOLD = 150;
 
 export type PartialSlidingSyncRequest = {
   filters?: MSC3575List['filters'];
@@ -540,6 +543,24 @@ export class SlidingSyncManager {
     this.presenceExtension.setEnabled(enabled);
   }
 
+  /**
+   * Reset the live timeline for a room that is no longer actively viewed,
+   * freeing its in-memory event chain. Only fires when the room has accumulated
+   * more than PRUNE_TIMELINE_THRESHOLD events. The full history remains on disk
+   * (IndexedDBStore) and is re-loaded from the server subscription on next open.
+   */
+  private pruneRoomTimeline(roomId: string): void {
+    const room = this.mx.getRoom(roomId);
+    if (!room) return;
+    const tl = room.getUnfilteredTimelineSet().getLiveTimeline();
+    if (tl.getEvents().length <= PRUNE_TIMELINE_THRESHOLD) return;
+    room.getUnfilteredTimelineSet().resetLiveTimeline();
+    debugLog.info('timeline', 'Pruned room timeline from memory', {
+      roomId,
+      threshold: PRUNE_TIMELINE_THRESHOLD,
+    });
+  }
+
   public getDiagnostics(): SlidingSyncDiagnostics {
     return {
       proxyBaseUrl: this.proxyBaseUrl,
@@ -946,6 +967,7 @@ export class SlidingSyncManager {
       remainingSubscriptions: this.activeRoomSubscriptions.size,
       syncCycle: this.syncCount,
     });
+    this.pruneRoomTimeline(roomId);
   }
 
   public static async probe(

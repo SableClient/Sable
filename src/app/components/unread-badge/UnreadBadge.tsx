@@ -1,6 +1,5 @@
 import { CSSProperties, ReactNode } from 'react';
 import { Box, Badge, toRem, Text } from 'folds';
-import { millify } from '$plugins/millify';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 
@@ -35,6 +34,18 @@ export function resolveUnreadBadgeMode({
   return showNumber ? 'count' : 'dot';
 }
 
+export function formatUnreadBadgeCount(count: number, showEasterEggs: boolean): string {
+  if (count <= 999) {
+    return count.toString();
+  }
+
+  if (count === 1000) {
+    return '1k';
+  }
+
+  return showEasterEggs ? ':3' : '1k+';
+}
+
 const styles: CSSProperties = {
   minWidth: toRem(16),
 };
@@ -50,6 +61,7 @@ export function UnreadBadge({ highlight, count, dm, mode }: UnreadBadgeProps) {
   const [showUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [showEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const resolvedMode =
     mode ??
     resolveUnreadBadgeMode({
@@ -71,7 +83,7 @@ export function UnreadBadge({ highlight, count, dm, mode }: UnreadBadgeProps) {
     >
       {resolvedMode === 'count' && (
         <Text as="span" size="L400">
-          {millify(count)}
+          {formatUnreadBadgeCount(count, showEasterEggs)}
         </Text>
       )}
     </Badge>

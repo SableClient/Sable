@@ -870,6 +870,15 @@ function Messages() {
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -955,6 +964,64 @@ function Messages() {
         <SettingTile
           title="Url Preview in Encrypted Room"
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Client Side Embeds"
+          description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          after={
+            <Switch
+              variant="Primary"
+              value={clientUrlPreview}
+              onChange={setClientUrlPreview}
+              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Client Embeds in Encrypted Rooms"
+          after={
+            <Switch
+              variant="Primary"
+              value={encClientUrlPreview}
+              onChange={setEncClientUrlPreview}
+              title={
+                encClientUrlPreview
+                  ? 'Disable client-side embeds in encrypted rooms'
+                  : 'Enable client-side embeds in encrypted rooms'
+              }
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Embed YouTube Links"
+          after={
+            <Switch
+              variant="Primary"
+              value={clientPreviewYoutube}
+              onChange={setClientPreviewYoutube}
+              title={
+                clientPreviewYoutube
+                  ? 'Disable client-side Youtube video embeds'
+                  : 'Enable client-side Youtube video embeds'
+              }
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -1052,7 +1119,11 @@ export function Sync() {
                   More info/Documentation
                 </a>
                 .{' '}
-                <a href="https://github.com/7w1/sable/issues/146" target="_blank" rel="noreferrer">
+                <a
+                  href="https://github.com/SableClient/Sable/issues/39"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Known issues (Sable GitHub)
                 </a>
                 .

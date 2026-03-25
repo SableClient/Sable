@@ -35,6 +35,8 @@ import {
   Relations,
   RoomPinnedEventsEventContent,
   MatrixEventEvent,
+  RoomEvent,
+  IRoomTimelineData,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -383,14 +385,29 @@ function MessageInternal(
   const [contentVersion, setContentVersion] = useState(0);
 
   useEffect(() => {
-    const onUpdate = () => setContentVersion((v) => v + 1);
+    const triggerTimelineRegroup = () => {
+      room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
+        liveEvent: true,
+      } as IRoomTimelineData);
+    };
+
+    const onUpdate = () => {
+      setContentVersion((v) => v + 1);
+      triggerTimelineRegroup();
+    };
+
+    if (mEvent.getClearContent()) {
+      setContentVersion((v) => (v === 0 ? 1 : v));
+      triggerTimelineRegroup();
+    }
+
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);
     return () => {
       mEvent.off(MatrixEventEvent.Decrypted, onUpdate);
       mEvent.off(MatrixEventEvent.Replaced, onUpdate);
     };
-  }, [mEvent]);
+  }, [mEvent, room]);
 
   /**
    * We read the per-message profile from the event content here.
@@ -425,8 +442,9 @@ function MessageInternal(
 
   /**
    * boolean to indicate wheather we should indicate to the user that it is a pmp
+   * We want to not show it, when the name is unset, or whitespace only
    */
-  const showPmPInfo = pmp !== undefined;
+  const showPmPInfo = parsedPMPContent?.name && parsedPMPContent.name?.trim() !== '';
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
   const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);

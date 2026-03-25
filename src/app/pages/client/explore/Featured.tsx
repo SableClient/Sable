@@ -67,6 +67,7 @@ export function FeaturedRooms() {
                                 name={roomSummary?.name}
                                 topic={roomSummary?.topic}
                                 memberCount={roomSummary?.num_joined_members}
+                                joinRule={roomSummary?.join_rule}
                                 onView={navigateSpace}
                                 renderTopicViewer={(name, topic, requestClose) => (
                                   <RoomTopicViewer
@@ -96,6 +97,7 @@ export function FeaturedRooms() {
                                 name={roomSummary?.name}
                                 topic={roomSummary?.topic}
                                 memberCount={roomSummary?.num_joined_members}
+                                joinRule={roomSummary?.join_rule}
                                 onView={navigateRoom}
                                 renderTopicViewer={(name, topic, requestClose) => (
                                   <RoomTopicViewer

@@ -255,6 +255,7 @@ function ThreadMessage({
             room={room}
             timelineSet={timelineSet}
             replyEventId={replyEventId}
+            mentions={baseContent['m.mentions']}
             onClick={onReferenceClick}
           />
         )

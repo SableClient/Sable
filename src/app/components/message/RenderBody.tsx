@@ -1,4 +1,4 @@
-import { MouseEventHandler, ReactNode, useEffect, useState } from 'react';
+import { MouseEventHandler, useEffect, useState } from 'react';
 import parse, { HTMLReactParserOptions } from 'html-react-parser';
 import Linkify from 'linkify-react';
 import { Opts } from 'linkifyjs';
@@ -66,9 +66,9 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
  */
 export function buildAbbrReplaceTextNode(
   abbrMap: Map<string, string>
-): ((text: string) => ReactNode | undefined) | undefined {
+): ((text: string) => JSX.Element | undefined) | undefined {
   if (abbrMap.size === 0) return undefined;
-  return (text: string) => {
+  return function replaceTextNode(text: string) {
     const segments = splitByAbbreviations(text, abbrMap);
     if (!segments.some((s) => s.termKey !== undefined)) return undefined;
     return (

@@ -408,7 +408,16 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         nicknames,
         replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
       }),
-    [mx, room, linkifyOpts, spoilerClickHandler, mentionClickHandler, useAuthentication, nicknames, abbrMap]
+    [
+      mx,
+      room,
+      linkifyOpts,
+      spoilerClickHandler,
+      mentionClickHandler,
+      useAuthentication,
+      nicknames,
+      abbrMap,
+    ]
   );
 
   // Power levels & permissions

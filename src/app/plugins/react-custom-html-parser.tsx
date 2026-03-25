@@ -351,7 +351,7 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
-    replaceTextNode?: (text: string) => ReactNode | undefined;
+    replaceTextNode?: (text: string) => JSX.Element | undefined;
   }
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;

@@ -147,6 +147,13 @@ const useTimelinePagination = (
         (backwards ? setBackwardStatus : setForwardStatus)('loading');
       }
 
+      // `continuing` tracks whether we hand the fetchingRef lock to a recursive
+      // continuation call below.  The finally block must NOT reset the lock if
+      // the recursive call has already claimed it, otherwise there is a brief
+      // window where fetchingRef is false while the recursive paginate is in
+      // flight, allowing a third overlapping call to start on sparse pages.
+      let continuing = false;
+
       try {
         const countBefore = getTimelinesEventsCount(lTimelines);
 
@@ -170,13 +177,6 @@ const useTimelinePagination = (
         if (evRoom?.hasEncryptionStateEvent()) {
           await to(decryptAllTimelineEvent(mx, fetchedTimeline));
         }
-
-        // `continuing` tracks whether we hand the fetchingRef lock to a recursive
-        // continuation call below.  The finally block must NOT reset the lock if
-        // the recursive call has already claimed it, otherwise there is a brief
-        // window where fetchingRef is false while the recursive paginate is in
-        // flight, allowing a third overlapping call to start on sparse pages.
-        let continuing = false;
 
         if (alive()) {
           recalibratePagination(lTimelines);

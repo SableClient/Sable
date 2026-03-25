@@ -1,5 +1,6 @@
 import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo } from 'react';
 import { Editor } from 'slate';
+import { ReactEditor } from 'slate-react';
 import { Box, MenuItem, Text, toRem } from 'folds';
 import { Room } from '$types/matrix-sdk';
 
@@ -57,13 +58,10 @@ export function EmoticonAutocomplete({
 
   const [emojiThreshold] = useSetting(settingsAtom, 'emojiSuggestThreshold');
 
-  const searchList = useMemo(() => {
-    const list: Array<EmoticonSearchItem> = [];
-    return list.concat(
-      imagePacks.flatMap((pack) => pack.getImages(ImageUsage.Emoticon)),
-      emojis
-    );
-  }, [imagePacks]);
+  const searchList = useMemo<Array<EmoticonSearchItem>>(
+    () => [...imagePacks.flatMap((pack) => pack.getImages(ImageUsage.Emoticon)), ...emojis],
+    [imagePacks]
+  );
 
   const [result, search, resetSearch] = useAsyncSearch(
     searchList,
@@ -91,6 +89,7 @@ export function EmoticonAutocomplete({
       const emoticonEl = createEmoticonElement(key, shortcode);
       replaceWithElement(editor, query.range, emoticonEl);
       moveCursor(editor, true);
+      ReactEditor.focus(editor);
       requestClose();
     });
 
@@ -107,6 +106,7 @@ export function EmoticonAutocomplete({
     <AutocompleteMenu
       headerContent={<Text size="L400">{title ?? 'Emojis'}</Text>}
       requestClose={requestClose}
+      editor={editor}
     >
       {autoCompleteEmoticon.map((emoticon) => {
         const isCustomEmoji = 'url' in emoticon;

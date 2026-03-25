@@ -44,7 +44,6 @@ import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import { millify } from '$plugins/millify';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { UserAvatar } from '$components/user-avatar';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
@@ -60,6 +59,7 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 
 type MemberDrawerHeaderProps = {
@@ -73,7 +73,7 @@ function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
       <Box grow="Yes" alignItems="Center" gap="200">
         <Box grow="Yes" alignItems="Center" gap="200">
           <Text title={`${room.getJoinedMemberCount()} Members`} size="H5" truncate>
-            {`${millify(room.getJoinedMemberCount())} Members`}
+            {`${formatCompactNumber(room.getJoinedMemberCount())} Members`}
           </Text>
         </Box>
         <Box shrink="No" alignItems="Center">
@@ -155,7 +155,11 @@ function MemberItem({
           }}
         >
           <AvatarPresence
-            badge={presence && <PresenceBadge presence={presence.presence} size="200" />}
+            badge={
+              presence && presence.lastActiveTs !== 0 ? (
+                <PresenceBadge presence={presence.presence} size="200" />
+              ) : undefined
+            }
           >
             <Avatar size="300" radii="400">
               <UserAvatar

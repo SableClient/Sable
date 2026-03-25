@@ -1,5 +1,6 @@
 import {
   ChangeEventHandler,
+  FocusEventHandler,
   KeyboardEventHandler,
   MouseEventHandler,
   useEffect,
@@ -37,10 +38,16 @@ export function ServerPicker({
 }) {
   const [serverMenuAnchor, setServerMenuAnchor] = useState<RectCords>();
   const serverInputRef = useRef<HTMLInputElement>(null);
+  const inputFocusedRef = useRef(false);
 
   useEffect(() => {
-    // sync input with it outside server changes
-    if (serverInputRef.current && serverInputRef.current.value !== server) {
+    // sync input with outside server changes, but only when not focused
+    // (on iOS, syncing while focused causes the deleted text to reappear)
+    if (
+      !inputFocusedRef.current &&
+      serverInputRef.current &&
+      serverInputRef.current.value !== server
+    ) {
       serverInputRef.current.value = server;
     }
   }, [server]);
@@ -50,6 +57,18 @@ export function ServerPicker({
   const handleServerChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const inputServer = evt.target.value.trim();
     if (inputServer) debounceServerSelect(inputServer);
+  };
+
+  const handleInputFocus: FocusEventHandler<HTMLInputElement> = () => {
+    inputFocusedRef.current = true;
+  };
+
+  const handleInputBlur: FocusEventHandler<HTMLInputElement> = () => {
+    inputFocusedRef.current = false;
+    // restore the server value if the input was cleared without selecting a new one
+    if (serverInputRef.current && serverInputRef.current.value.trim() === '') {
+      serverInputRef.current.value = server;
+    }
   };
 
   const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
@@ -86,6 +105,8 @@ export function ServerPicker({
       defaultValue={server}
       onChange={handleServerChange}
       onKeyDown={handleKeyDown}
+      onFocus={handleInputFocus}
+      onBlur={handleInputBlur}
       size="500"
       readOnly={!allowCustomServer}
       onClick={allowCustomServer ? undefined : handleOpenServerMenu}

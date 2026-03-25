@@ -3,10 +3,13 @@ import {
   ClientEvent,
   Extension,
   ExtensionState,
+  KnownMembership,
   MatrixClient,
   MSC3575List,
+  MSC3575RoomData,
   MSC3575RoomSubscription,
   MSC3575_WILDCARD,
+  RoomMemberEvent,
   SlidingSync,
   SlidingSyncEvent,
   SlidingSyncState,
@@ -17,6 +20,7 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
 
 const log = createLogger('slidingSync');
 const debugLog = createDebugLogger('slidingSync');
@@ -44,13 +48,9 @@ const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 // Subscription key for the room the user is actively viewing.
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
-// Adaptive timeline limits for the room the user is actively viewing.
-// Lower limits reduce initial bandwidth on constrained devices/connections;
-// the user can always paginate further once the room is open.
-// These values must be high enough to ensure proper timeline initialization and pagination tokens.
-const ACTIVE_ROOM_TIMELINE_LIMIT_LOW = 50;
-const ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM = 100;
-const ACTIVE_ROOM_TIMELINE_LIMIT_HIGH = 150;
+// Timeline limit for the active-room subscription (full history load).
+// List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
+const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
 
 export type PartialSlidingSyncRequest = {
   filters?: MSC3575List['filters'];
@@ -79,7 +79,6 @@ export type SlidingSyncListDiagnostics = {
 export type SlidingSyncDiagnostics = {
   proxyBaseUrl: string;
   timelineLimit: number;
-  adaptiveTimeline: boolean;
   listPageSize: number;
   lists: SlidingSyncListDiagnostics[];
 };
@@ -87,63 +86,6 @@ export type SlidingSyncDiagnostics = {
 const clampPositive = (value: number | undefined, fallback: number): number => {
   if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return fallback;
   return Math.round(value);
-};
-
-type AdaptiveSignals = {
-  saveData: boolean;
-  effectiveType: string | null;
-  deviceMemoryGb: number | null;
-  mobile: boolean;
-  missingSignals: number;
-};
-
-const readAdaptiveSignals = (): AdaptiveSignals => {
-  const navigatorLike = typeof navigator !== 'undefined' ? navigator : undefined;
-  const connection = (navigatorLike as any)?.connection;
-  const effectiveType = connection?.effectiveType;
-  const deviceMemory = (navigatorLike as any)?.deviceMemory;
-  const uaMobile = (navigatorLike as any)?.userAgentData?.mobile;
-  const fallbackMobileUA = navigatorLike?.userAgent ?? '';
-  const mobileByUA =
-    typeof uaMobile === 'boolean'
-      ? uaMobile
-      : /Mobi|Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(fallbackMobileUA);
-  const saveData = connection?.saveData === true;
-  const normalizedEffectiveType = typeof effectiveType === 'string' ? effectiveType : null;
-  const normalizedDeviceMemory = typeof deviceMemory === 'number' ? deviceMemory : null;
-  const missingSignals =
-    Number(normalizedEffectiveType === null) + Number(normalizedDeviceMemory === null);
-  return {
-    saveData,
-    effectiveType: normalizedEffectiveType,
-    deviceMemoryGb: normalizedDeviceMemory,
-    mobile: mobileByUA,
-    missingSignals,
-  };
-};
-
-// Resolve the timeline limit for the active-room subscription based on device/network.
-// The list subscription always uses LIST_TIMELINE_LIMIT=1 regardless of conditions.
-const resolveAdaptiveRoomTimelineLimit = (
-  configuredLimit: number | undefined,
-  signals: AdaptiveSignals
-): number => {
-  if (typeof configuredLimit === 'number' && configuredLimit > 0) {
-    return clampPositive(configuredLimit, ACTIVE_ROOM_TIMELINE_LIMIT_HIGH);
-  }
-  if (signals.saveData || signals.effectiveType === 'slow-2g' || signals.effectiveType === '2g') {
-    return ACTIVE_ROOM_TIMELINE_LIMIT_LOW;
-  }
-  if (
-    signals.effectiveType === '3g' ||
-    (signals.deviceMemoryGb !== null && signals.deviceMemoryGb <= 4)
-  ) {
-    return ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM;
-  }
-  if (signals.mobile && signals.missingSignals > 0) {
-    return ACTIVE_ROOM_TIMELINE_LIMIT_MEDIUM;
-  }
-  return ACTIVE_ROOM_TIMELINE_LIMIT_HIGH;
 };
 
 // Minimal required_state for list entries; enough to render the room list sidebar,
@@ -304,15 +246,16 @@ export class SlidingSyncManager {
 
   private readonly listPageSize: number;
 
-  private roomTimelineLimit: number;
-
-  private readonly adaptiveTimeline: boolean;
-
-  private readonly configuredTimelineLimit?: number;
+  private readonly roomTimelineLimit: number;
 
   private readonly onConnectionChange: () => void;
 
   private readonly onLifecycle: (state: SlidingSyncState, resp: unknown, err?: Error) => void;
+
+  private readonly onMembershipLeave: (
+    event: unknown,
+    member: { userId: string; roomId: string; membership?: string }
+  ) => void;
 
   private presenceExtension!: ExtensionPresence;
 
@@ -323,6 +266,22 @@ export class SlidingSyncManager {
   private syncCount = 0;
 
   private previousListCounts: Map<string, number> = new Map();
+
+  /**
+   * One-shot RoomData listeners keyed by roomId, used to measure the latency
+   * between subscribeToRoom() and the first data arriving for that room.
+   * Cleaned up automatically after first fire or on unsubscribe/dispose.
+   */
+  private readonly pendingRoomDataListeners = new Map<
+    string,
+    (roomId: string, data: MSC3575RoomData) => void
+  >();
+
+  /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
+  private attachTime: number | null = null;
+
+  /** Span covering the period from attach() to the first successful complete cycle. */
+  private initialSyncSpan: ReturnType<typeof Sentry.startInactiveSpan> | null = null;
 
   public readonly slidingSync: SlidingSync;
 
@@ -340,14 +299,8 @@ export class SlidingSyncManager {
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
 
-    const adaptiveTimeline = !(
-      typeof config.timelineLimit === 'number' && config.timelineLimit > 0
-    );
-    const signals = readAdaptiveSignals();
-    const roomTimelineLimit = resolveAdaptiveRoomTimelineLimit(config.timelineLimit, signals);
-    this.adaptiveTimeline = adaptiveTimeline;
+    const roomTimelineLimit = clampPositive(config.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
-    this.configuredTimelineLimit = config.timelineLimit;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
     const lists = buildLists(listPageSize, includeInviteList);
@@ -369,6 +322,9 @@ export class SlidingSyncManager {
     this.onLifecycle = (state, resp, err) => {
       const syncStartTime = performance.now();
       this.syncCount += 1;
+      Sentry.metrics.count('sable.sync.cycle', 1, {
+        attributes: { transport: 'sliding', state },
+      });
 
       debugLog.info('sync', `Sliding sync lifecycle: ${state} (cycle #${this.syncCount})`, {
         state,
@@ -383,6 +339,9 @@ export class SlidingSyncManager {
           errorMessage: err.message,
           syncNumber: this.syncCount,
           state,
+        });
+        Sentry.metrics.count('sable.sync.error', 1, {
+          attributes: { transport: 'sliding', state },
         });
       }
 
@@ -425,22 +384,38 @@ export class SlidingSyncManager {
         });
       }
 
+      const syncDuration = performance.now() - syncStartTime;
+
       // Mark initial sync as complete after first successful cycle
       if (!this.initialSyncCompleted) {
         this.initialSyncCompleted = true;
+        // Wall-clock ms from attach() — the actual user-perceived wait for first data.
+        const initialElapsed =
+          this.attachTime != null ? performance.now() - this.attachTime : syncDuration;
         debugLog.info('sync', 'Initial sync completed', {
           syncNumber: this.syncCount,
           totalRoomCount,
           listCounts: Object.fromEntries(
             this.listKeys.map((key) => [key, this.slidingSync.getListData(key)?.joinedCount ?? 0])
           ),
-          timeElapsed: `${(performance.now() - syncStartTime).toFixed(2)}ms`,
+          timeElapsed: `${initialElapsed.toFixed(2)}ms`,
         });
+        Sentry.metrics.distribution('sable.sync.initial_ms', initialElapsed, {
+          attributes: { transport: 'sliding' },
+        });
+        this.initialSyncSpan?.setAttributes({
+          'sync.cycles_to_ready': this.syncCount,
+          'sync.rooms_at_ready': totalRoomCount,
+        });
+        this.initialSyncSpan?.end();
+        this.initialSyncSpan = null;
       }
 
       this.expandListsToKnownCount();
 
-      const syncDuration = performance.now() - syncStartTime;
+      Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
+        attributes: { transport: 'sliding' },
+      });
       if (syncDuration > 1000) {
         debugLog.warn('sync', 'Slow sync cycle detected', {
           syncNumber: this.syncCount,
@@ -448,6 +423,14 @@ export class SlidingSyncManager {
           totalRoomCount,
         });
       }
+    };
+
+    this.onMembershipLeave = (_event, member) => {
+      if (member.userId !== this.mx.getUserId()) return;
+      if (member.membership !== KnownMembership.Leave && member.membership !== KnownMembership.Ban)
+        return;
+      if (!this.activeRoomSubscriptions.has(member.roomId)) return;
+      this.unsubscribeFromRoom(member.roomId);
     };
 
     this.onConnectionChange = () => {
@@ -472,23 +455,6 @@ export class SlidingSyncManager {
           syncNumber: this.syncCount,
         });
       }
-
-      if (this.disposed || !this.adaptiveTimeline) return;
-      const nextLimit = resolveAdaptiveRoomTimelineLimit(
-        this.configuredTimelineLimit,
-        readAdaptiveSignals()
-      );
-      if (nextLimit === this.roomTimelineLimit) return;
-      debugLog.info('sync', `Adaptive timeline limit updated to ${nextLimit}`, {
-        limit: nextLimit,
-        previousLimit: this.roomTimelineLimit,
-        reason: 'connection change',
-      });
-      this.roomTimelineLimit = nextLimit;
-      this.applyRoomTimelineLimit(nextLimit);
-      log.log(
-        `Sliding Sync adaptive room timeline updated to ${nextLimit} for ${this.mx.getUserId()}`
-      );
     };
   }
 
@@ -497,12 +463,19 @@ export class SlidingSyncManager {
       proxyBaseUrl: this.proxyBaseUrl,
       listPageSize: this.listPageSize,
       roomTimelineLimit: this.roomTimelineLimit,
-      adaptiveTimeline: this.adaptiveTimeline,
       maxRooms: this.maxRooms,
       lists: this.listKeys,
     });
 
+    this.attachTime = performance.now();
+    this.initialSyncSpan = Sentry.startInactiveSpan({
+      name: 'sync.initial',
+      op: 'matrix.sync',
+      attributes: { 'sync.transport': 'sliding', 'sync.proxy': this.proxyBaseUrl },
+    });
+
     this.slidingSync.on(SlidingSyncEvent.Lifecycle, this.onLifecycle);
+    this.mx.on(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
       typeof navigator !== 'undefined' ? (navigator as any).connection : undefined
     ) as
@@ -533,8 +506,15 @@ export class SlidingSyncManager {
       initialSyncCompleted: this.initialSyncCompleted,
     });
 
+    // Clean up pending room-data latency listeners before marking disposed.
+    // SlidingSync.stop() will removeAllListeners anyway, but this keeps the Map tidy.
+    this.pendingRoomDataListeners.clear();
+
     this.disposed = true;
+    // Stop the SDK's internal polling loop and abort any in-flight requests.
+    this.slidingSync.stop();
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
+    this.mx.removeListener(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
       typeof navigator !== 'undefined' ? (navigator as any).connection : undefined
     ) as
@@ -556,14 +536,6 @@ export class SlidingSyncManager {
     });
   }
 
-  private applyRoomTimelineLimit(timelineLimit: number): void {
-    this.slidingSync.modifyRoomSubscriptionInfo(buildEncryptedSubscription(timelineLimit));
-    this.slidingSync.addCustomSubscription(
-      UNENCRYPTED_SUBSCRIPTION_KEY,
-      buildUnencryptedSubscription(timelineLimit)
-    );
-  }
-
   public setPresenceEnabled(enabled: boolean): void {
     this.presenceExtension.setEnabled(enabled);
   }
@@ -572,7 +544,6 @@ export class SlidingSyncManager {
     return {
       proxyBaseUrl: this.proxyBaseUrl,
       timelineLimit: this.roomTimelineLimit,
-      adaptiveTimeline: this.adaptiveTimeline,
       listPageSize: this.listPageSize,
       lists: this.listKeys.map((key) => {
         const listData = this.slidingSync.getListData(key);
@@ -674,6 +645,18 @@ export class SlidingSyncManager {
     if (allListsComplete) {
       this.listsFullyLoaded = true;
       log.log(`Sliding Sync all lists fully loaded for ${this.mx.getUserId()}`);
+      const totalRooms = this.listKeys.reduce(
+        (sum, key) => sum + (this.slidingSync.getListData(key)?.joinedCount ?? 0),
+        0
+      );
+      const listsLoadedMs =
+        this.attachTime != null ? Math.round(performance.now() - this.attachTime) : 0;
+      Sentry.metrics.distribution('sable.sync.lists_loaded_ms', listsLoadedMs, {
+        attributes: { transport: 'sliding' },
+      });
+      Sentry.metrics.gauge('sable.sync.total_rooms', totalRooms, {
+        attributes: { transport: 'sliding' },
+      });
     } else if (expandedAny) {
       log.log(`Sliding Sync lists expanding... for ${this.mx.getUserId()}`);
     }
@@ -763,52 +746,64 @@ export class SlidingSyncManager {
     let endIndex = batchSize - 1;
     let hasMore = true;
     let firstTime = true;
+    let batchCount = 0;
 
-    const spideringRequiredState: MSC3575List['required_state'] = [
-      [EventType.RoomJoinRules, ''],
-      [EventType.RoomAvatar, ''],
-      [EventType.RoomTombstone, ''],
-      [EventType.RoomEncryption, ''],
-      [EventType.RoomCreate, ''],
-      [EventType.RoomTopic, ''],
-      [EventType.RoomCanonicalAlias, ''],
-      [EventType.RoomMember, MSC3575_STATE_KEY_ME],
-      ['m.space.child', MSC3575_WILDCARD],
-      ['im.ponies.room_emotes', MSC3575_WILDCARD],
-    ];
+    await Sentry.startSpan(
+      { name: 'sync.spidering', op: 'matrix.sync', attributes: { 'sync.transport': 'sliding' } },
+      async (span) => {
+        const spideringRequiredState: MSC3575List['required_state'] = [
+          [EventType.RoomJoinRules, ''],
+          [EventType.RoomAvatar, ''],
+          [EventType.RoomTombstone, ''],
+          [EventType.RoomEncryption, ''],
+          [EventType.RoomCreate, ''],
+          [EventType.RoomTopic, ''],
+          [EventType.RoomCanonicalAlias, ''],
+          [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+          ['m.space.child', MSC3575_WILDCARD],
+          ['im.ponies.room_emotes', MSC3575_WILDCARD],
+        ];
 
-    while (hasMore) {
-      if (this.disposed) return;
-      const ranges: [number, number][] = [[0, endIndex]];
-      try {
-        if (firstTime) {
-          // Full setList on first call to register the list with all params.
-          this.slidingSync.setList(LIST_SEARCH, {
-            ranges,
-            sort: ['by_recency'],
-            timeline_limit: 0,
-            required_state: spideringRequiredState,
-          });
-        } else {
-          // Cheaper range-only update for subsequent pages; sticky params are preserved.
-          this.slidingSync.setListRanges(LIST_SEARCH, ranges);
+        while (hasMore) {
+          if (this.disposed) return;
+          batchCount += 1;
+          const ranges: [number, number][] = [[0, endIndex]];
+          try {
+            if (firstTime) {
+              // Full setList on first call to register the list with all params.
+              this.slidingSync.setList(LIST_SEARCH, {
+                ranges,
+                sort: ['by_recency'],
+                timeline_limit: 0,
+                required_state: spideringRequiredState,
+              });
+            } else {
+              // Cheaper range-only update for subsequent pages; sticky params are preserved.
+              this.slidingSync.setListRanges(LIST_SEARCH, ranges);
+            }
+          } catch {
+            // Swallow errors — the next iteration will retry with updated ranges.
+          } finally {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise<void>((res) => {
+              setTimeout(res, gapBetweenRequestsMs);
+            });
+          }
+
+          if (this.disposed) return;
+          const listData = this.slidingSync.getListData(LIST_SEARCH);
+          hasMore = endIndex + 1 < (listData?.joinedCount ?? 0);
+          endIndex += batchSize;
+          firstTime = false;
         }
-      } catch {
-        // Swallow errors — the next iteration will retry with updated ranges.
-      } finally {
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise<void>((res) => {
-          setTimeout(res, gapBetweenRequestsMs);
+        const finalCount = this.slidingSync.getListData(LIST_SEARCH)?.joinedCount ?? 0;
+        span.setAttributes({
+          'spidering.batches': batchCount,
+          'spidering.total_rooms': finalCount,
         });
+        log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);
       }
-
-      if (this.disposed) return;
-      const listData = this.slidingSync.getListData(LIST_SEARCH);
-      hasMore = endIndex + 1 < (listData?.joinedCount ?? 0);
-      endIndex += batchSize;
-      firstTime = false;
-    }
-    log.log(`Sliding Sync spidering complete for ${this.mx.getUserId()}`);
+    );
   }
 
   /**
@@ -865,7 +860,8 @@ export class SlidingSyncManager {
   public subscribeToRoom(roomId: string): void {
     if (this.disposed) return;
     const room = this.mx.getRoom(roomId);
-    if (room && !this.mx.isRoomEncrypted(roomId)) {
+    const isEncrypted = this.mx.isRoomEncrypted(roomId);
+    if (room && !isEncrypted) {
       // Only use the unencrypted (lazy-load) subscription when we are certain
       // the room is unencrypted.  Unknown rooms fall through to the safer
       // encrypted default.
@@ -873,7 +869,58 @@ export class SlidingSyncManager {
     }
     this.activeRoomSubscriptions.add(roomId);
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
+      attributes: { transport: 'sliding' },
+    });
     log.log(`Sliding Sync active room subscription added: ${roomId}`);
+    debugLog.info('sync', 'Room subscription requested (sliding)', {
+      encrypted: isEncrypted,
+      unknownRoom: !room,
+      activeSubscriptions: this.activeRoomSubscriptions.size,
+      syncCycle: this.syncCount,
+    });
+    Sentry.addBreadcrumb({
+      category: 'sync.sliding',
+      message: 'Subscribed to room (active)',
+      level: 'info',
+      data: { encrypted: isEncrypted, activeSubscriptions: this.activeRoomSubscriptions.size },
+    });
+    // One-shot listener: measure latency from subscription request to first room data.
+    // Clean up any stale listener for the same roomId first.
+    const existingListener = this.pendingRoomDataListeners.get(roomId);
+    if (existingListener) {
+      this.slidingSync.removeListener(SlidingSyncEvent.RoomData, existingListener);
+    }
+    const subscribeMs = performance.now();
+    const onFirstRoomData = (dataRoomId: string) => {
+      if (dataRoomId !== roomId) return;
+      const latencyMs = Math.round(performance.now() - subscribeMs);
+      // Measure how many events landed on the live timeline as part of this
+      // subscription activation — this is the "page" the timeline has to absorb.
+      const subscribedRoom = this.mx.getRoom(roomId);
+      const eventCount = subscribedRoom?.getLiveTimeline().getEvents().length ?? 0;
+      debugLog.info('sync', 'Room subscription: first data received (sliding)', {
+        latencyMs,
+        syncCycle: this.syncCount,
+        eventCount,
+      });
+      Sentry.metrics.distribution('sable.sync.room_sub_latency_ms', latencyMs, {
+        attributes: { transport: 'sliding' },
+      });
+      Sentry.metrics.distribution('sable.sync.room_sub_event_count', eventCount, {
+        attributes: { transport: 'sliding' },
+      });
+      Sentry.addBreadcrumb({
+        category: 'sync.sliding',
+        message: `Room subscription data arrived (${eventCount} events, ${latencyMs}ms)`,
+        level: 'info',
+        data: { latencyMs, eventCount, syncCycle: this.syncCount },
+      });
+      this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
+      this.pendingRoomDataListeners.delete(roomId);
+    };
+    this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
+    this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
   }
 
   /**
@@ -883,9 +930,22 @@ export class SlidingSyncManager {
    */
   public unsubscribeFromRoom(roomId: string): void {
     if (this.disposed) return;
+    // Clean up any pending first-data latency listener for this room.
+    const pendingListener = this.pendingRoomDataListeners.get(roomId);
+    if (pendingListener) {
+      this.slidingSync.removeListener(SlidingSyncEvent.RoomData, pendingListener);
+      this.pendingRoomDataListeners.delete(roomId);
+    }
     this.activeRoomSubscriptions.delete(roomId);
     this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
+      attributes: { transport: 'sliding' },
+    });
     log.log(`Sliding Sync active room subscription removed: ${roomId}`);
+    debugLog.info('sync', 'Room subscription removed (sliding)', {
+      remainingSubscriptions: this.activeRoomSubscriptions.size,
+      syncCycle: this.syncCount,
+    });
   }
 
   public static async probe(
@@ -893,25 +953,33 @@ export class SlidingSyncManager {
     proxyBaseUrl: string,
     probeTimeoutMs: number
   ): Promise<boolean> {
-    try {
-      const response = await mx.slidingSync(
-        {
-          lists: {
-            probe: {
-              ranges: [[0, 0]],
-              timeline_limit: 1,
-              required_state: [],
+    return Sentry.startSpan(
+      { name: 'sync.probe', op: 'matrix.sync', attributes: { 'sync.proxy': proxyBaseUrl } },
+      async (span) => {
+        try {
+          const response = await mx.slidingSync(
+            {
+              lists: {
+                probe: {
+                  ranges: [[0, 0]],
+                  timeline_limit: 1,
+                  required_state: [],
+                },
+              },
+              timeout: 0,
+              clientTimeout: probeTimeoutMs,
             },
-          },
-          timeout: 0,
-          clientTimeout: probeTimeoutMs,
-        },
-        proxyBaseUrl
-      );
+            proxyBaseUrl
+          );
 
-      return typeof response.pos === 'string' && response.pos.length > 0;
-    } catch {
-      return false;
-    }
+          const supported = typeof response.pos === 'string' && response.pos.length > 0;
+          span.setAttribute('probe.supported', supported);
+          return supported;
+        } catch {
+          span.setAttribute('probe.supported', false);
+          return false;
+        }
+      }
+    );
   }
 }

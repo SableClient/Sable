@@ -189,6 +189,11 @@ export function SystemNotification() {
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [faviconForMentionsOnly, setFaviconForMentionsOnly] = useSetting(
+    settingsAtom,
+    'faviconForMentionsOnly'
+  );
+  const [highlightMentions, setHighlightMentions] = useSetting(settingsAtom, 'highlightMentions');
 
   // Describe what the current badge combo actually does so users aren't left guessing.
   const badgeBehaviourSummary = (): string => {
@@ -347,6 +352,24 @@ export function SystemNotification() {
         gap="400"
       >
         <SettingTile
+          title="Favicon Dot: Mentions Only"
+          description="Only change the browser tab favicon when you have mentions or keywords. Unreads without mentions won't affect the favicon."
+          after={
+            <Switch
+              variant="Primary"
+              value={faviconForMentionsOnly}
+              onChange={setFaviconForMentionsOnly}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
           title="Show Room Counts"
           description="Displays a number for unread activity in Rooms and Spaces."
           after={
@@ -378,6 +401,20 @@ export function SystemNotification() {
           title="Show Mention Counts"
           description="Displays a number for mentions and keyword alerts."
           after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Highlight Mentions"
+          description="Highlight the full background message when it contains a mention/keyword."
+          after={
+            <Switch variant="Primary" value={highlightMentions} onChange={setHighlightMentions} />
+          }
         />
       </SequenceCard>
     </Box>

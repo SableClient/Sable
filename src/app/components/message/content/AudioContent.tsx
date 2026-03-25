@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/media-has-caption */
-import { ReactNode, useCallback, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
@@ -19,6 +19,7 @@ import { secondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMediaDownloadToken } from '$hooks/useMediaSrc';
+import { MEDIA_VOLUME_KEY } from '$components/media';
 
 const PLAY_TIME_THROTTLE_OPS = {
   wait: 500,
@@ -66,6 +67,14 @@ export function AudioContent({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  useEffect(() => {
+    const stored = localStorage.getItem(MEDIA_VOLUME_KEY);
+    if (audioRef.current && stored !== null) {
+      const parsed = parseFloat(stored);
+      if (!Number.isNaN(parsed)) audioRef.current.volume = parsed;
+    }
+  }, []);
+
   const [currentTime, setCurrentTime] = useState(0);
   // duration in seconds. (NOTE: info.duration is in milliseconds)
   const infoDuration = info.duration ?? 0;
@@ -101,34 +110,41 @@ export function AudioContent({
         max={duration || 1}
         values={[currentTime]}
         onChange={(values) => seek(values[0])}
-        renderTrack={(params) => (
-          <div {...params.props}>
-            {params.children}
-            <ProgressBar
-              as="div"
-              variant="Secondary"
+        renderTrack={(params) => {
+          const { key, ...restProps } = params.props as any;
+          return (
+            <div key={key} {...restProps}>
+              {params.children}
+              <ProgressBar
+                as="div"
+                variant="Secondary"
+                size="300"
+                min={0}
+                max={duration}
+                value={currentTime}
+                radii="300"
+              />
+            </div>
+          );
+        }}
+        renderThumb={(params) => {
+          const { key, style, ...restProps } = params.props as any;
+          return (
+            <Badge
+              key={key}
               size="300"
-              min={0}
-              max={duration}
-              value={currentTime}
-              radii="300"
+              variant="Secondary"
+              fill="Solid"
+              radii="Pill"
+              outlined
+              {...restProps}
+              style={{
+                ...style,
+                zIndex: 0,
+              }}
             />
-          </div>
-        )}
-        renderThumb={(params) => (
-          <Badge
-            size="300"
-            variant="Secondary"
-            fill="Solid"
-            radii="Pill"
-            outlined
-            {...params.props}
-            style={{
-              ...params.props.style,
-              zIndex: 0,
-            }}
-          />
-        )}
+          );
+        }}
       />
     ),
     leftControl: (
@@ -171,39 +187,53 @@ export function AudioContent({
           max={1}
           values={[volume]}
           onChange={(values) => setVolume(values[0])}
-          renderTrack={(params) => (
-            <div {...params.props}>
-              {params.children}
-              <ProgressBar
-                style={{ width: toRem(48) }}
-                variant="Secondary"
+          renderTrack={(params) => {
+            const { key, ...restProps } = params.props as any;
+            return (
+              <div key={key} {...restProps}>
+                {params.children}
+                <ProgressBar
+                  style={{ width: toRem(48) }}
+                  variant="Secondary"
+                  size="300"
+                  min={0}
+                  max={1}
+                  value={volume}
+                  radii="300"
+                />
+              </div>
+            );
+          }}
+          renderThumb={(params) => {
+            const { key, style, ...restProps } = params.props as any;
+            return (
+              <Badge
+                key={key}
                 size="300"
-                min={0}
-                max={1}
-                value={volume}
-                radii="300"
+                variant="Secondary"
+                fill="Solid"
+                radii="Pill"
+                outlined
+                {...restProps}
+                style={{
+                  ...style,
+                  zIndex: 0,
+                }}
               />
-            </div>
-          )}
-          renderThumb={(params) => (
-            <Badge
-              size="300"
-              variant="Secondary"
-              fill="Solid"
-              radii="Pill"
-              outlined
-              {...params.props}
-              style={{
-                ...params.props.style,
-                zIndex: 0,
-              }}
-            />
-          )}
+            );
+          }}
         />
       </>
     ),
     children: (
-      <audio controls={false} autoPlay ref={audioRef}>
+      <audio
+        controls={false}
+        autoPlay
+        ref={audioRef}
+        onVolumeChange={(e) => {
+          localStorage.setItem(MEDIA_VOLUME_KEY, String((e.target as HTMLAudioElement).volume));
+        }}
+      >
         {srcState.status === AsyncStatus.Success && <source src={srcState.data} type={mimeType} />}
       </audio>
     ),

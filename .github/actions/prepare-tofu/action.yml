@@ -6,6 +6,10 @@ inputs:
     description: The OpenTofu version to install.
     required: false
     default: '1.11.5'
+  is_release_tag:
+    description: Whether the build is for a release tag. Passed through to VITE_IS_RELEASE_TAG.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -14,6 +18,14 @@ runs:
       uses: ./.github/actions/setup
       with:
         build: 'true'
+      env:
+        VITE_IS_RELEASE_TAG: ${{ inputs.is_release_tag }}
+        VITE_SENTRY_DSN: ${{ env.VITE_SENTRY_DSN }}
+        VITE_SENTRY_ENVIRONMENT: ${{ env.VITE_SENTRY_ENVIRONMENT }}
+        VITE_APP_VERSION: ${{ env.VITE_APP_VERSION }}
+        SENTRY_AUTH_TOKEN: ${{ env.SENTRY_AUTH_TOKEN }}
+        SENTRY_ORG: ${{ env.SENTRY_ORG }}
+        SENTRY_PROJECT: ${{ env.SENTRY_PROJECT }}
 
     - name: Setup OpenTofu
       uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8

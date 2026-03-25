@@ -3,6 +3,7 @@ import { createClient, LoginRequest, LoginResponse, MatrixError } from '$types/m
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
+import * as Sentry from '@sentry/react';
 import { clientAllowedServer, ClientConfig } from '$hooks/useClientConfig';
 import {
   deleteAfterLoginRedirectPath,
@@ -78,48 +79,64 @@ export const login = async (
 
   const mx = createClient({ baseUrl: url });
   debugLog.info('general', 'Attempting login', { baseUrl: url, loginType: data.type });
-  const [err, res] = await to<LoginResponse, MatrixError>(mx.loginRequest(data));
 
-  if (err) {
-    if (err.httpStatus === 400) {
-      debugLog.error('general', 'Login failed - invalid request', { httpStatus: 400 });
-      throw new MatrixError({
-        errcode: LoginError.InvalidRequest,
-      });
-    }
-    if (err.httpStatus === 429) {
-      debugLog.error('general', 'Login failed - rate limited', { httpStatus: 429 });
-      throw new MatrixError({
-        errcode: LoginError.RateLimited,
-      });
-    }
-    if (err.errcode === ErrorCode.M_USER_DEACTIVATED) {
-      debugLog.error('general', 'Login failed - user deactivated', { errcode: err.errcode });
-      throw new MatrixError({
-        errcode: LoginError.UserDeactivated,
-      });
-    }
+  return Sentry.startSpan(
+    { name: 'auth.login', op: 'auth', attributes: { 'auth.method': data.type } },
+    async (span) => {
+      const [err, res] = await to<LoginResponse, MatrixError>(mx.loginRequest(data));
 
-    if (err.httpStatus === 403) {
-      debugLog.error('general', 'Login failed - forbidden', { httpStatus: 403 });
-      throw new MatrixError({
-        errcode: LoginError.Forbidden,
-      });
-    }
+      if (err) {
+        span.setAttribute('auth.error', err.errcode ?? 'unknown');
+        Sentry.metrics.count('sable.auth.login_failed', 1, {
+          attributes: { errcode: err.errcode ?? 'unknown' },
+        });
+        if (err.httpStatus === 400) {
+          debugLog.error('general', 'Login failed - invalid request', { httpStatus: 400 });
+          throw new MatrixError({
+            errcode: LoginError.InvalidRequest,
+          });
+        }
+        if (err.httpStatus === 429) {
+          debugLog.error('general', 'Login failed - rate limited', { httpStatus: 429 });
+          throw new MatrixError({
+            errcode: LoginError.RateLimited,
+          });
+        }
+        if (err.errcode === ErrorCode.M_USER_DEACTIVATED) {
+          debugLog.error('general', 'Login failed - user deactivated', { errcode: err.errcode });
+          throw new MatrixError({
+            errcode: LoginError.UserDeactivated,
+          });
+        }
 
-    debugLog.error('general', 'Login failed - unknown error', {
-      error: err.message,
-      httpStatus: err.httpStatus,
-    });
-    throw new MatrixError({
-      errcode: LoginError.Unknown,
-    });
-  }
-  debugLog.info('general', 'Login successful', { userId: res.user_id, deviceId: res.device_id });
-  return {
-    baseUrl: url,
-    response: res,
-  };
+        if (err.httpStatus === 403) {
+          debugLog.error('general', 'Login failed - forbidden', { httpStatus: 403 });
+          throw new MatrixError({
+            errcode: LoginError.Forbidden,
+          });
+        }
+
+        debugLog.error('general', 'Login failed - unknown error', {
+          error: err.message,
+          httpStatus: err.httpStatus,
+        });
+        throw new MatrixError({
+          error: err.message,
+          errcode: LoginError.Unknown,
+        });
+      }
+
+      span.setAttribute('auth.success', true);
+      debugLog.info('general', 'Login successful', {
+        userId: res.user_id,
+        deviceId: res.device_id,
+      });
+      return {
+        baseUrl: url,
+        response: res,
+      };
+    }
+  );
 };
 
 export const useLoginComplete = (data?: CustomLoginResponse) => {

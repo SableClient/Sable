@@ -121,7 +121,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
       [room, setReplyDraft]
     );
 
-    function MenuOptions({ mEvent }: { mEvent: MatrixEvent }) {
+    function MenuOptions({ mEvent }: Readonly<{ mEvent: MatrixEvent }>) {
       const setModal = useSetAtom(modalAtom);
       return (
         <Menu className={css.MenuOptions}>
@@ -177,7 +177,10 @@ export const EventHistory = as<'div', EventHistoryProps>(
       );
     }
 
-    function EventItem({ mEvent, EventContent }: { mEvent: MatrixEvent; EventContent: IContent }) {
+    function EventItem({
+      mEvent,
+      EventContent,
+    }: Readonly<{ mEvent: MatrixEvent; EventContent: IContent }>) {
       const [isHovered, setIsHovered] = useState(false);
       return (
         <Box

@@ -11,25 +11,26 @@ import {
   JoinRule,
   MatrixClient,
   MatrixEvent,
-  MsgType,
   NotificationCountType,
   PushProcessor,
   RelationType,
   Room,
   RoomMember,
   CryptoBackend,
+  MsgType,
 } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import {
   IRoomCreateContent,
   Membership,
-  MessageEvent,
   NotificationType,
   RoomToParents,
   RoomType,
+  MessageEvent,
   StateEvent,
   UnreadInfo,
 } from '$types/matrix/room';
+import * as Sentry from '@sentry/react';
 
 export const getStateEvent = (
   room: Room,
@@ -557,7 +558,22 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
     .filter((event) => event.isEncrypted())
     .reverse()
     .map((event) => event.attemptDecryption(crypto as CryptoBackend, { isRetry: true }));
-  await Promise.allSettled(decryptionPromises);
+  const decryptStart = performance.now();
+  await Sentry.startSpan(
+    {
+      name: 'decrypt.bulk',
+      op: 'matrix.crypto',
+      attributes: { event_count: decryptionPromises.length },
+    },
+    () => Promise.allSettled(decryptionPromises)
+  );
+  if (decryptionPromises.length > 0) {
+    Sentry.metrics.distribution(
+      'sable.decryption.bulk_latency_ms',
+      performance.now() - decryptStart,
+      { attributes: { event_count: String(decryptionPromises.length) } }
+    );
+  }
 };
 
 export const getReactionContent = (eventId: string, key: string, shortcode?: string) => ({
@@ -602,11 +618,15 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
   const relationType = content['m.relates_to']?.rel_type;
   return (
     mEvent.getSender() === mx.getUserId() &&
-    (!relationType || relationType === RelationType.Thread) &&
     mEvent.getType() === MessageEvent.RoomMessage &&
+    (!relationType || relationType === RelationType.Thread) &&
     (content.msgtype === MsgType.Text ||
       content.msgtype === MsgType.Emote ||
-      content.msgtype === MsgType.Notice)
+      content.msgtype === MsgType.Notice ||
+      content.msgtype === MsgType.Image ||
+      content.msgtype === MsgType.Video ||
+      content.msgtype === MsgType.Audio ||
+      content.msgtype === MsgType.File)
   );
 };
 

@@ -4,6 +4,8 @@ import {
   MatrixClient,
   IndexedDBStore,
   IndexedDBCryptoStore,
+  SyncState,
+  ISyncStateData,
 } from '$types/matrix-sdk';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
@@ -17,6 +19,7 @@ import {
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from './slidingSync';
@@ -24,6 +27,10 @@ import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from '.
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
 const slidingSyncByClient = new WeakMap<MatrixClient, SlidingSyncManager>();
+const classicSyncObserverByClient = new WeakMap<
+  MatrixClient,
+  (state: SyncState, prevState: SyncState | null, data?: ISyncStateData) => void
+>();
 const FAST_SYNC_POLL_TIMEOUT_MS = 10000;
 const SLIDING_SYNC_POLL_TIMEOUT_MS = 20000;
 type SyncTransport = 'classic' | 'sliding';
@@ -144,12 +151,17 @@ const isClientReadyForUi = (syncState: string | null): boolean =>
 
 const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
   new Promise((resolve) => {
+    const waitStart = performance.now();
     if (isClientReadyForUi(mx.getSyncState())) {
+      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
+        attributes: { timed_out: 'false' },
+      });
       resolve();
       return;
     }
 
     let timer = 0;
+    let timedOut = false;
     let finish = () => {};
     const onSync = (state: string) => {
       debugLog.info('sync', `Sync state changed: ${state}`, {
@@ -165,10 +177,25 @@ const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> 
       settled = true;
       mx.removeListener(ClientEvent.Sync, onSync);
       clearTimeout(timer);
+      const waitMs = performance.now() - waitStart;
+      Sentry.metrics.distribution('sable.sync.client_ready_ms', waitMs, {
+        attributes: { timed_out: String(timedOut) },
+      });
+      if (timedOut) {
+        Sentry.addBreadcrumb({
+          category: 'sync',
+          message: 'waitForClientReady timed out — client may be stuck',
+          level: 'warning',
+          data: { timeout_ms: timeoutMs },
+        });
+      }
       resolve();
     };
 
-    timer = window.setTimeout(finish, timeoutMs);
+    timer = window.setTimeout(() => {
+      timedOut = true;
+      finish();
+    }, timeoutMs);
     mx.on(ClientEvent.Sync, onSync);
   });
 
@@ -287,6 +314,12 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   const wipeAllStores = async () => {
     log.warn('initClient: wiping all stores for', session.userId);
     debugLog.warn('sync', 'Wiping all stores due to mismatch', { userId: session.userId });
+    Sentry.addBreadcrumb({
+      category: 'crypto',
+      message: 'Crypto store mismatch — wiping local stores and retrying',
+      level: 'warning',
+    });
+    Sentry.metrics.count('sable.crypto.store_wipe', 1);
     await deleteSessionStores(storeName);
     try {
       const allDbs = await window.indexedDB.databases();
@@ -390,10 +423,66 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       fallbackFromSliding,
       reason,
     });
+    Sentry.metrics.count('sable.sync.transport', 1, {
+      attributes: { transport: 'classic', reason, fallback: String(fallbackFromSliding) },
+    });
     await mx.startClient({
       lazyLoadMembers: true,
       pollTimeout: FAST_SYNC_POLL_TIMEOUT_MS,
     });
+    // Attach an ongoing classic-sync observer — equivalent to SlidingSyncManager's
+    // onLifecycle listener. Tracks state transitions, initial-sync timing, and errors.
+    let classicSyncCount = 0;
+    const classicSyncStartMs = performance.now();
+    let classicInitialSyncDone = false;
+    const classicSyncListener = (
+      state: SyncState,
+      prevState: SyncState | null,
+      data?: ISyncStateData
+    ) => {
+      classicSyncCount += 1;
+      Sentry.metrics.count('sable.sync.cycle', 1, { attributes: { transport: 'classic', state } });
+      debugLog.info('sync', `Classic sync state: ${state}`, {
+        state,
+        prevState: prevState ?? 'null',
+        syncNumber: classicSyncCount,
+        error: data?.error?.message,
+      });
+      if (state === SyncState.Error || state === SyncState.Reconnecting) {
+        debugLog.warn('sync', `Classic sync problem: ${state}`, {
+          state,
+          prevState: prevState ?? 'null',
+          errorMessage: data?.error?.message,
+          syncNumber: classicSyncCount,
+        });
+        Sentry.metrics.count('sable.sync.error', 1, {
+          attributes: { transport: 'classic', state },
+        });
+        Sentry.addBreadcrumb({
+          category: 'sync.classic',
+          message: `Classic sync problem: ${state}`,
+          level: 'warning',
+          data: { state, prevState, error: data?.error?.message, syncNumber: classicSyncCount },
+        });
+      }
+      if (
+        !classicInitialSyncDone &&
+        (state === SyncState.Syncing || state === SyncState.Prepared)
+      ) {
+        classicInitialSyncDone = true;
+        const elapsed = performance.now() - classicSyncStartMs;
+        debugLog.info('sync', 'Classic sync initial ready', {
+          state,
+          syncNumber: classicSyncCount,
+          elapsed: `${elapsed.toFixed(0)}ms`,
+        });
+        Sentry.metrics.distribution('sable.sync.initial_ms', elapsed, {
+          attributes: { transport: 'classic' },
+        });
+      }
+    };
+    classicSyncObserverByClient.set(mx, classicSyncListener);
+    mx.on(ClientEvent.Sync, classicSyncListener);
   };
 
   const shouldBootstrapClassicOnColdCache = async (): Promise<boolean> => {
@@ -487,6 +576,9 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     fallbackFromSliding: false,
     reason: 'sliding_active',
   });
+  Sentry.metrics.count('sable.sync.transport', 1, {
+    attributes: { transport: 'sliding', reason: 'sliding_active', fallback: 'false' },
+  });
 
   try {
     await mx.startClient({
@@ -509,6 +601,11 @@ export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
   disposeSlidingSync(mx);
+  const classicSyncListener = classicSyncObserverByClient.get(mx);
+  if (classicSyncListener) {
+    mx.removeListener(ClientEvent.Sync, classicSyncListener);
+    classicSyncObserverByClient.delete(mx);
+  }
   mx.stopClient();
   syncTransportByClient.delete(mx);
 };

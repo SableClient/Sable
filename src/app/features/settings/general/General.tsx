@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import dayjs from 'dayjs';
+import { useAtomValue, useSetAtom } from 'jotai';
 import {
   Box,
   Button,
@@ -26,7 +27,6 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { useAtomValue, useSetAtom } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
@@ -51,12 +51,14 @@ import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
+import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
+import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 
 type DateHintProps = {
   hasChanges: boolean;
   handleReset: () => void;
 };
-function DateHint({ hasChanges, handleReset }: DateHintProps) {
+function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
   const [anchor, setAnchor] = useState<RectCords>();
   const categoryPadding = { padding: config.space.S200, paddingTop: 0 };
 
@@ -223,7 +225,7 @@ type CustomDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
-function CustomDateFormat({ value, onChange }: CustomDateFormatProps) {
+function CustomDateFormat({ value, onChange }: Readonly<CustomDateFormatProps>) {
   const [dateFormatCustom, setDateFormatCustom] = useState(value);
 
   useEffect(() => {
@@ -288,12 +290,12 @@ type PresetDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
-function PresetDateFormat({ value, onChange }: PresetDateFormatProps) {
+function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const dateFormatItems = useDateFormatItems();
 
   const getDisplayDate = (format: string): string =>
-    format !== '' ? dayjs().format(format) : 'Custom';
+    format === '' ? 'Custom' : dayjs().format(format);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -415,12 +417,13 @@ function DateAndTime() {
   );
 }
 
-function Editor({ isMobile }: { isMobile: boolean }) {
+function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [isMarkdown, setIsMarkdown] = useSetting(settingsAtom, 'isMarkdown');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
 
   return (
     <Box direction="Column" gap="100">
@@ -469,6 +472,15 @@ function Editor({ isMobile }: { isMobile: boolean }) {
           title="Presence Status"
           description="Show and receive online status from other users."
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Send notifications for replies"
+          description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
+          after={
+            <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
+          }
         />
       </SequenceCard>
     </Box>
@@ -681,7 +693,7 @@ function SelectMessageSpacing() {
   );
 }
 
-function SelectRightSwipeAction({ disabled }: { disabled?: boolean }) {
+function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [action, setAction] = useSetting(settingsAtom, 'rightSwipeAction');
 
@@ -749,7 +761,7 @@ function SelectRightSwipeAction({ disabled }: { disabled?: boolean }) {
   );
 }
 
-function Gestures({ isMobile }: { isMobile: boolean }) {
+function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [mobileGestures, setMobileGestures] = useSetting(settingsAtom, 'mobileGestures');
 
   return (
@@ -788,7 +800,7 @@ function EmojiSelectorThresholdInput() {
     const val = evt.target.value;
     setInputValue(val);
 
-    const parsed = parseInt(val, 10);
+    const parsed = Number.parseInt(val, 10);
     if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) {
       setEmojiThreshold(parsed);
     }
@@ -809,7 +821,7 @@ function EmojiSelectorThresholdInput() {
   return (
     <Input
       style={{ width: toRem(80) }}
-      variant={parseInt(inputValue, 10) === emojiThreshold ? 'Secondary' : 'Success'}
+      variant={Number.parseInt(inputValue, 10) === emojiThreshold ? 'Secondary' : 'Success'}
       size="300"
       radii="300"
       type="number"
@@ -820,6 +832,31 @@ function EmojiSelectorThresholdInput() {
       onKeyDown={handleKeyDown}
       outlined
     />
+  );
+}
+
+function Calls() {
+  const [alwaysShowCallButton, setAlwaysShowCallButton] = useSetting(
+    settingsAtom,
+    'alwaysShowCallButton'
+  );
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Calls</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Call Button for Large Rooms"
+          after={
+            <Switch
+              variant="Primary"
+              value={alwaysShowCallButton}
+              onChange={setAlwaysShowCallButton}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
   );
 }
 
@@ -835,6 +872,15 @@ function Messages() {
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -920,6 +966,64 @@ function Messages() {
         <SettingTile
           title="Url Preview in Encrypted Room"
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Client Side Embeds"
+          description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          after={
+            <Switch
+              variant="Primary"
+              value={clientUrlPreview}
+              onChange={setClientUrlPreview}
+              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Client Embeds in Encrypted Rooms"
+          after={
+            <Switch
+              variant="Primary"
+              value={encClientUrlPreview}
+              onChange={setEncClientUrlPreview}
+              title={
+                encClientUrlPreview
+                  ? 'Disable client-side embeds in encrypted rooms'
+                  : 'Enable client-side embeds in encrypted rooms'
+              }
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Embed YouTube Links"
+          after={
+            <Switch
+              variant="Primary"
+              value={clientPreviewYoutube}
+              onChange={setClientPreviewYoutube}
+              title={
+                clientPreviewYoutube
+                  ? 'Disable client-side Youtube video embeds'
+                  : 'Enable client-side Youtube video embeds'
+              }
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -1017,7 +1121,11 @@ export function Sync() {
                   More info/Documentation
                 </a>
                 .{' '}
-                <a href="https://github.com/7w1/sable/issues/146" target="_blank" rel="noreferrer">
+                <a
+                  href="https://github.com/SableClient/Sable/issues/39"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Known issues (Sable GitHub)
                 </a>
                 .
@@ -1053,7 +1161,186 @@ export function Sync() {
 type GeneralProps = {
   requestClose: () => void;
 };
-export function General({ requestClose }: GeneralProps) {
+
+function SettingsSyncSection() {
+  const [syncEnabled, setSyncEnabled] = useSetting(settingsAtom, 'settingsSyncEnabled');
+  const lastSynced = useAtomValue(settingsSyncLastSyncedAtom);
+  const syncStatus = useAtomValue(settingsSyncStatusAtom);
+  const fullSettings = useAtomValue(settingsAtom);
+  const setSettings = useSetAtom(settingsAtom);
+
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    setImportError(null);
+    const merged = await importSettingsFromJson(fullSettings);
+    if (merged === null) {
+      setImportError('Could not import — file was invalid or you cancelled.');
+      return;
+    }
+    setSettings(merged);
+  };
+
+  const syncStatusLabel: Record<typeof syncStatus, string> = {
+    idle: lastSynced
+      ? `Last synced at ${dayjs(lastSynced).format('HH:mm:ss')}`
+      : 'Not yet synced this session',
+    syncing: 'Syncing…',
+    error: 'Sync failed — will retry on next change',
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Settings Sync & Backup</Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Sync across devices"
+          description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
+          after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
+        />
+        {syncEnabled && (
+          <SettingTile title="Sync status" description={syncStatusLabel[syncStatus]} />
+        )}
+      </SequenceCard>
+      <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.Download} size="100" />}
+          onClick={() => exportSettingsAsJson(fullSettings)}
+        >
+          <Text size="B300">Export Settings</Text>
+        </Button>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.ArrowTop} size="100" />}
+          onClick={handleImport}
+        >
+          <Text size="B300">Import Settings</Text>
+        </Button>
+      </Box>
+      {importError && (
+        <Text size="T200" style={{ color: 'var(--mx-color-critical-container-on)' }}>
+          {importError}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function DiagnosticsAndPrivacy() {
+  const [sentryEnabled, setSentryEnabled] = useState(
+    localStorage.getItem('sable_sentry_enabled') === 'true'
+  );
+  const [sessionReplayEnabled, setSessionReplayEnabled] = useState(
+    localStorage.getItem('sable_sentry_replay_enabled') === 'true'
+  );
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+
+  const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
+
+  const handleSentryToggle = (enabled: boolean) => {
+    setSentryEnabled(enabled);
+    if (enabled) {
+      localStorage.setItem('sable_sentry_enabled', 'true');
+    } else {
+      localStorage.setItem('sable_sentry_enabled', 'false');
+    }
+    setNeedsRefresh(true);
+  };
+
+  const handleReplayToggle = (enabled: boolean) => {
+    setSessionReplayEnabled(enabled);
+    if (enabled) {
+      localStorage.setItem('sable_sentry_replay_enabled', 'true');
+    } else {
+      localStorage.removeItem('sable_sentry_replay_enabled');
+    }
+    setNeedsRefresh(true);
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Diagnostics & Privacy</Text>
+      {needsRefresh && (
+        <Box
+          style={{
+            padding: '12px',
+            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+            borderRadius: '8px',
+          }}
+        >
+          <Text size="T300" style={{ color: 'rgb(33, 150, 243)' }}>
+            Please refresh the page for these settings to take effect.
+          </Text>
+        </Box>
+      )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Error Reporting"
+          description={
+            isSentryConfigured
+              ? 'Send anonymous crash reports to help improve Sable. No messages, room names, or personal data are included.'
+              : 'Error reporting is not configured for this build.'
+          }
+          after={
+            <Switch
+              variant="Primary"
+              value={sentryEnabled}
+              onChange={handleSentryToggle}
+              disabled={!isSentryConfigured}
+            />
+          }
+        />
+        {sentryEnabled && isSentryConfigured && (
+          <SettingTile
+            title="Session Replay"
+            description="Allow recording of UI interactions to help debug errors. All text, media, and inputs are fully masked before sending."
+            after={
+              <Switch
+                variant="Primary"
+                value={sessionReplayEnabled}
+                onChange={handleReplayToggle}
+              />
+            }
+          />
+        )}
+      </SequenceCard>
+      <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
+        <Button
+          as="a"
+          href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
+          rel="noreferrer noopener"
+          target="_blank"
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.Shield} size="100" filled />}
+        >
+          <Text size="B300">Privacy Policy</Text>
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+export function General({ requestClose }: Readonly<GeneralProps>) {
   return (
     <Page>
       <PageHeader outlined={false}>
@@ -1078,6 +1365,9 @@ export function General({ requestClose }: GeneralProps) {
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
+              <Calls />
+              <SettingsSyncSection />
+              <DiagnosticsAndPrivacy />
             </Box>
           </PageContent>
         </Scroll>

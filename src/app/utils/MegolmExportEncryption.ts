@@ -5,7 +5,7 @@
 import { createLogger } from './debug';
 
 const logger = createLogger('MegolmExportEncryption');
-const subtleCrypto = window.crypto.subtle;
+const subtleCrypto = globalThis.crypto.subtle;
 
 export type FriendlyError = {
   message: string;
@@ -43,9 +43,9 @@ function toArrayBufferView(data: Uint8Array): Uint8Array<ArrayBuffer> {
 function encodeBase64(uint8Array: Uint8Array): string {
   // Misinterpt the Uint8Array as Latin-1.
   // window.btoa expects a unicode string with codepoints in the range 0-255.
-  const latin1String = String.fromCharCode.apply(null, Array.from(uint8Array));
+  const latin1String = String.fromCodePoint.apply(null, Array.from(uint8Array));
   // Use the builtin base64 encoder.
-  return window.btoa(latin1String);
+  return globalThis.btoa(latin1String);
 }
 
 /**
@@ -55,7 +55,7 @@ function encodeBase64(uint8Array: Uint8Array): string {
  */
 function decodeBase64(base64: string): Uint8Array<ArrayBuffer> {
   // window.atob returns a unicode string with codepoints in the range 0-255.
-  const latin1String = window.atob(base64);
+  const latin1String = globalThis.atob(base64);
   // Encode the string as a Uint8Array
   const uint8Array = new Uint8Array(new ArrayBuffer(latin1String.length));
   for (let i = 0; i < latin1String.length; i += 1) {
@@ -303,10 +303,10 @@ export async function encryptMegolmKeyFile(
   const kdfRounds = normalizedOptions.kdf_rounds || 500000;
 
   const salt = new Uint8Array(new ArrayBuffer(16));
-  window.crypto.getRandomValues(salt);
+  globalThis.crypto.getRandomValues(salt);
 
   const iv = new Uint8Array(new ArrayBuffer(16));
-  window.crypto.getRandomValues(iv);
+  globalThis.crypto.getRandomValues(iv);
 
   // clear bit 63 of the IV to stop us hitting the 64-bit counter boundary
   // (which would mean we wouldn't be able to decrypt on Android). The loss

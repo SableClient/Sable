@@ -1,4 +1,4 @@
-export function pushSessionToSW(baseUrl?: string, accessToken?: string) {
+export function pushSessionToSW(baseUrl?: string, accessToken?: string, userId?: string) {
   if (!('serviceWorker' in navigator)) return;
   if (!navigator.serviceWorker.controller) return;
 
@@ -6,5 +6,6 @@ export function pushSessionToSW(baseUrl?: string, accessToken?: string) {
     type: 'setSession',
     accessToken,
     baseUrl,
+    userId,
   });
 }

@@ -3,7 +3,7 @@ import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spin
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import CinnySVG from '$public/res/svg/cinny.svg';
+import CinnySVG from '$public/res/svg/cinny-logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -35,7 +35,7 @@ export function HomeserverInfo() {
                 setFederationUrl(newUrl);
               }
             })
-            .catch((error2) => setVersion({ error: error2 }));
+            .catch((error_) => setVersion({ error: error_ }));
         } else {
           setVersion({ error });
         }
@@ -144,7 +144,7 @@ export function HomeserverInfo() {
 type AboutProps = {
   requestClose: () => void;
 };
-export function About({ requestClose }: AboutProps) {
+export function About({ requestClose }: Readonly<AboutProps>) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
@@ -293,7 +293,7 @@ export function About({ requestClose }: AboutProps) {
                           target="_blank"
                         >
                           Cinny
-                        </a>{' '}
+                        </a>
                         is ©{' '}
                         <a
                           href="https://github.com/ajbura"

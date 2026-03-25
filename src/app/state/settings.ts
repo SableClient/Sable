@@ -44,13 +44,16 @@ export interface Settings {
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
   hideNickAvatarEvents: boolean;
-  mediaAutoLoad: boolean;
-  urlPreview: boolean;
-  encUrlPreview: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
   legacyUsernameColor: boolean;
-  allowPipVideos: boolean;
+
+  mediaAutoLoad: boolean;
+  urlPreview: boolean;
+  encUrlPreview: boolean;
+  clientUrlPreview: boolean;
+  encClientUrlPreview: boolean;
+  clientPreviewYoutube: boolean;
 
   usePushNotifications: boolean;
   useUnifiedPush: boolean;
@@ -65,6 +68,8 @@ export interface Settings {
   dateFormatString: string;
 
   developerTools: boolean;
+  enableMSC4268CMD: boolean;
+  settingsSyncEnabled: boolean;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -72,6 +77,7 @@ export interface Settings {
   privacyBlurAvatars: boolean;
   privacyBlurEmotes: boolean;
   showPronouns: boolean;
+  parsePronouns: boolean;
   renderGlobalNameColors: boolean;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
@@ -88,6 +94,7 @@ export interface Settings {
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
   showPingCounts: boolean;
+  showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
   underlineLinks: boolean;
@@ -96,6 +103,12 @@ export interface Settings {
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
   saveStickerEmojiBandwidth: boolean;
+  subspaceHierarchyLimit: number;
+  alwaysShowCallButton: boolean;
+  faviconForMentionsOnly: boolean;
+  highlightMentions: boolean;
+  mentionInReplies: boolean;
+  showPersonaSetting: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -127,10 +140,14 @@ const defaultSettings: Settings = {
   mediaAutoLoad: true,
   urlPreview: true,
   encUrlPreview: false,
+  clientUrlPreview: false,
+  encClientUrlPreview: false,
+  clientPreviewYoutube: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
   legacyUsernameColor: false,
-  allowPipVideos: false,
+
+  enableMSC4268CMD: false,
 
   // Push notifications (SW/Sygnal): default on for mobile, opt-in on desktop.
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
@@ -148,6 +165,7 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+  settingsSyncEnabled: false,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -155,6 +173,7 @@ const defaultSettings: Settings = {
   privacyBlurAvatars: false,
   privacyBlurEmotes: false,
   showPronouns: true,
+  parsePronouns: true,
   renderGlobalNameColors: true,
   renderRoomColors: true,
   renderRoomFonts: true,
@@ -169,6 +188,7 @@ const defaultSettings: Settings = {
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
   showPingCounts: true,
+  showEasterEggs: true,
   hideReads: false,
   emojiSuggestThreshold: 2,
   underlineLinks: false,
@@ -177,6 +197,12 @@ const defaultSettings: Settings = {
   autoplayStickers: true,
   autoplayEmojis: true,
   saveStickerEmojiBandwidth: false,
+  subspaceHierarchyLimit: 3,
+  alwaysShowCallButton: false,
+  faviconForMentionsOnly: false,
+  highlightMentions: true,
+  mentionInReplies: true,
+  showPersonaSetting: false,
 
   // furry stuff
   renderAnimals: true,

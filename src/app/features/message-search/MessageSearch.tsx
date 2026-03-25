@@ -49,7 +49,7 @@ export function MessageSearch({
   rooms,
   senders,
   scrollRef,
-}: MessageSearchProps) {
+}: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
   const allRooms = useRooms(mx, allRoomsAtom, mDirects);
@@ -175,7 +175,7 @@ export function MessageSearch({
     });
   };
 
-  const lastVItem = vItems[vItems.length - 1];
+  const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
   useEffect(() => {
@@ -253,7 +253,7 @@ export function MessageSearch({
       {((msgSearchParams.term && status === 'pending') ||
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
-          {[...Array(8).keys()].map((key) => (
+          {[...new Array(8).keys()].map((key) => (
             <SequenceCard variant="SurfaceVariant" key={key} style={{ minHeight: toRem(80) }} />
           ))}
         </Box>

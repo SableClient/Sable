@@ -9,9 +9,11 @@ import {
 } from 'matrix-js-sdk';
 import {
   ClientWidgetApi,
+  type IWidgetApiRequest,
   IRoomEvent,
   IWidget,
   Widget,
+  WidgetApiFromWidgetAction,
   WidgetApiToWidgetAction,
   WidgetDriver,
 } from 'matrix-widget-api';
@@ -50,12 +52,16 @@ export class CallEmbed {
 
   private readonly disposables: Array<() => void> = [];
 
-  static getIntent(dm: boolean, ongoing: boolean): ElementCallIntent {
-    if (ongoing) {
-      return dm ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExisting;
+  static getIntent(dm: boolean, ongoing: boolean, video: boolean | undefined): ElementCallIntent {
+    if (!dm) {
+      return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingDMVoice;
     }
 
-    return dm ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCall;
+    if (ongoing) {
+      return video ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExistingDMVoice;
+    }
+
+    return video ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCallDMVoice;
   }
 
   static getWidget(
@@ -149,9 +155,24 @@ export class CallEmbed {
     const controlState = initialControlState ?? new CallControlState(true, false, true);
     this.control = new CallControl(controlState, call, iframe);
 
+    this.disposables.push(
+      this.listenAction(WidgetApiFromWidgetAction.UpdateAlwaysOnScreen, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, { success: true });
+      })
+    );
+    this.disposables.push(
+      this.listenAction(ElementWidgetActions.Close, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
+      })
+    );
+
     let initialMediaEvent = true;
     this.disposables.push(
       this.listenAction<ElementMediaStateDetail>(ElementWidgetActions.DeviceMute, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
         if (initialMediaEvent) {
           initialMediaEvent = false;
           this.control.applyState();
@@ -218,11 +239,24 @@ export class CallEmbed {
       this.readUpToMap[room.roomId] = roomEvent.getId()!;
     });
 
-    // Attach listeners for feeding events - the underlying widget classes handle permissions for us
-    this.mx.on(ClientEvent.Event, this.onEvent.bind(this));
-    this.mx.on(MatrixEventEvent.Decrypted, this.onEventDecrypted.bind(this));
-    this.mx.on(RoomStateEvent.Events, this.onStateUpdate.bind(this));
-    this.mx.on(ClientEvent.ToDeviceEvent, this.onToDeviceEvent.bind(this));
+    // Attach listeners for feeding events - the underlying widget classes handle permissions for us.
+    // Bind once and store via disposables so the same function reference is used for removal.
+    // Using .bind(this) at call-site would create a new function every time, making .off() a no-op
+    // and causing MaxListeners warnings when the embed is recreated during sync retries.
+    const boundOnEvent = this.onEvent.bind(this);
+    const boundOnEventDecrypted = this.onEventDecrypted.bind(this);
+    const boundOnStateUpdate = this.onStateUpdate.bind(this);
+    const boundOnToDeviceEvent = this.onToDeviceEvent.bind(this);
+    this.mx.on(ClientEvent.Event, boundOnEvent);
+    this.mx.on(MatrixEventEvent.Decrypted, boundOnEventDecrypted);
+    this.mx.on(RoomStateEvent.Events, boundOnStateUpdate);
+    this.mx.on(ClientEvent.ToDeviceEvent, boundOnToDeviceEvent);
+    this.disposables.push(() => {
+      this.mx.off(ClientEvent.Event, boundOnEvent);
+      this.mx.off(MatrixEventEvent.Decrypted, boundOnEventDecrypted);
+      this.mx.off(RoomStateEvent.Events, boundOnStateUpdate);
+      this.mx.off(ClientEvent.ToDeviceEvent, boundOnToDeviceEvent);
+    });
   }
 
   /**
@@ -239,17 +273,15 @@ export class CallEmbed {
     this.container.removeChild(this.iframe);
     this.control.dispose();
 
-    this.mx.off(ClientEvent.Event, this.onEvent.bind(this));
-    this.mx.off(MatrixEventEvent.Decrypted, this.onEventDecrypted.bind(this));
-    this.mx.off(RoomStateEvent.Events, this.onStateUpdate.bind(this));
-    this.mx.off(ClientEvent.ToDeviceEvent, this.onToDeviceEvent.bind(this));
-
+    // Listener removal is handled by the disposables pushed in start().
     // Clear internal state
     this.readUpToMap = {};
     this.eventsToFeed = new WeakSet<MatrixEvent>();
   }
 
-  private onCallJoined(): void {
+  private onCallJoined(evt: CustomEvent): void {
+    evt.preventDefault();
+    this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
     debugLog.info('call', 'Call joined', { roomId: this.roomId });
     this.joined = true;
     this.applyStyles();

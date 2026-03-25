@@ -85,7 +85,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
       if (docState.status !== AsyncStatus.Success) return;
       const jumpInput = evt.currentTarget.jumpInput as HTMLInputElement;
       if (!jumpInput) return;
-      const jumpTo = parseInt(jumpInput.value, 10);
+      const jumpTo = Number.parseInt(jumpInput.value, 10);
       setPageNo(Math.max(1, Math.min(docState.data.numPages, jumpTo)));
       setJumpAnchor(undefined);
     };

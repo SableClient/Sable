@@ -322,7 +322,7 @@ const parseHeadingNode = (
 
   const headingMatch = node.name.match(/^h([123456])$/);
   const [, g1AsLevel] = headingMatch ?? ['h3', '3'];
-  const level = parseInt(g1AsLevel, 10);
+  const level = Number.parseInt(g1AsLevel, 10);
 
   const mdSequence = node.attribs['data-md'];
   if (mdSequence !== undefined) {
@@ -334,7 +334,7 @@ const parseHeadingNode = (
 
   return {
     type: BlockType.Heading,
-    level: (level <= 3 ? level : 3) as HeadingLevel,
+    level: Math.min(level, 3) as HeadingLevel,
     children,
   };
 };

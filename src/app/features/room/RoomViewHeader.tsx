@@ -340,7 +340,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
 });
 RoomMenu.displayName = 'RoomMenu';
 
-export function RoomViewHeader({ callView }: { callView?: boolean }) {
+export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const navigate = useNavigate();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -361,6 +361,8 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
     .getLiveTimeline()
     .getState(EventTimeline.FORWARDS)
     ?.maySendStateEvent('org.matrix.msc3401.call.member', mx.getUserId()!);
+  const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
+  const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
   const encryptionEvent = useStateEvent(room, StateEvent.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
@@ -408,14 +410,14 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       }
 
       const lastSeenIndex = pinnedIds.indexOf(pinMarker?.last_seen_id);
-      if (lastSeenIndex !== -1) {
-        const newPins = pinnedIds.slice(lastSeenIndex + 1);
-        setUnreadPinsCount(newPins.length);
-      } else {
+      if (lastSeenIndex === -1) {
         const oldCount = pinMarker?.count ?? 0;
         const startIndex = Math.max(0, oldCount - 1);
         const newCount = pinnedIds.length > 0 ? pinnedIds.length - startIndex : 0;
         setUnreadPinsCount(Math.max(0, newCount));
+      } else {
+        const newPins = pinnedIds.slice(lastSeenIndex + 1);
+        setUnreadPinsCount(newPins.length);
       }
     };
     checkUnreads().catch((err) => {
@@ -557,7 +559,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       await mx.setRoomAccountData(room.roomId, AccountDataEvent.SablePinStatus, {
         hash,
         count: pinnedIds.length,
-        last_seen_id: pinnedIds[pinnedIds.length - 1],
+        last_seen_id: pinnedIds.at(-1),
       });
     };
 
@@ -708,7 +710,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                   </IconButton>
                 )}
               </TooltipProvider>
-              {canUseCalls && <RoomCallButton room={room} />}
+              {canUseCalls && shouldShowCallButton && <RoomCallButton room={room} />}
               <PopOut
                 anchor={pinMenuAnchor}
                 position="Bottom"

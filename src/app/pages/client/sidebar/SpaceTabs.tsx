@@ -51,7 +51,7 @@ import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathU
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
   SidebarStack,
   SidebarStackSeparator,
@@ -60,7 +60,6 @@ import {
 } from '$components/sidebar';
 import { RoomUnreadProvider, RoomsUnreadProvider } from '$components/RoomUnreadProvider';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
-import { UnreadBadge } from '$components/unread-badge';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
@@ -244,9 +243,8 @@ const useDraggableItem = (
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
 
-    return !target
-      ? undefined
-      : draggable({
+    return target
+      ? draggable({
           element: target,
           dragHandle,
           getInitialData: () => ({ item }),
@@ -258,7 +256,8 @@ const useDraggableItem = (
             setDragging(false);
             onDragging?.(undefined);
           },
-        });
+        })
+      : undefined;
   }, [targetRef, dragHandleRef, item, onDragging]);
 
   return dragging;
@@ -357,7 +356,7 @@ const useDnDMonitor = (
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) {
-      throw Error('Scroll element ref not configured');
+      throw new Error('Scroll element ref not configured');
     }
 
     return combine(
@@ -399,7 +398,7 @@ function SpaceTab({
   onDragging,
   disabled,
   onUnpin,
-}: SpaceTabProps) {
+}: Readonly<SpaceTabProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const targetRef = useRef<HTMLDivElement>(null);
@@ -465,18 +464,10 @@ function SpaceTab({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge
-              hasCount={unread.total > 0}
-              style={{
-                left: unread.total > 0 ? toRem(-6) : toRem(-2),
-                right: 'auto',
-              }}
-            >
-              <UnreadBadge
-                highlight={unread.highlight > 0}
-                count={unread.highlight > 0 ? unread.highlight : unread.total}
-              />
-            </SidebarItemBadge>
+            <SidebarUnreadBadge
+              highlight={unread.highlight > 0}
+              count={unread.highlight > 0 ? unread.highlight : unread.total}
+            />
           )}
           {menuAnchor && (
             <PopOut
@@ -515,7 +506,7 @@ type OpenedSpaceFolderProps = {
   onClose: MouseEventHandler<HTMLButtonElement>;
   children?: ReactNode;
 };
-function OpenedSpaceFolder({ folder, onClose, children }: OpenedSpaceFolderProps) {
+function OpenedSpaceFolder({ folder, onClose, children }: Readonly<OpenedSpaceFolderProps>) {
   const aboveTargetRef = useRef<HTMLDivElement>(null);
   const belowTargetRef = useRef<HTMLDivElement>(null);
 
@@ -555,7 +546,7 @@ function ClosedSpaceFolder({
   onOpen,
   onDragging,
   disabled,
-}: ClosedSpaceFolderProps) {
+}: Readonly<ClosedSpaceFolderProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const handlerRef = useRef<HTMLDivElement>(null);
@@ -606,18 +597,10 @@ function ClosedSpaceFolder({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge
-              hasCount={unread.total > 0}
-              style={{
-                left: unread.total > 0 ? toRem(-6) : toRem(-2),
-                right: 'auto',
-              }}
-            >
-              <UnreadBadge
-                highlight={unread.highlight > 0}
-                count={unread.highlight > 0 ? unread.highlight : unread.total}
-              />
-            </SidebarItemBadge>
+            <SidebarUnreadBadge
+              highlight={unread.highlight > 0}
+              count={unread.highlight > 0 ? unread.highlight : unread.total}
+            />
           )}
         </SidebarItem>
       )}
@@ -628,7 +611,7 @@ function ClosedSpaceFolder({
 type SpaceTabsProps = {
   scrollRef: RefObject<HTMLDivElement | null>;
 };
-export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
+export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   const navigate = useNavigate();
   const mx = useMatrixClient();
   const screenSize = useScreenSizeContext();
@@ -786,7 +769,7 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
     }
 
     const activePath = navToActivePath.get(targetSpaceId);
-    if (activePath && activePath.pathname.startsWith(spacePath)) {
+    if (activePath?.pathname.startsWith(spacePath)) {
       navigate(joinPathComponent(activePath));
       return;
     }

@@ -1,34 +1,29 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box, toRem } from 'folds';
+import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room, SyncState } from '$types/matrix-sdk';
-import { useDirects } from '$state/hooks/roomList';
+import { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { mDirectAtom } from '$state/mDirectList';
-import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { UnreadBadge } from '$components/unread-badge';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
-import { factoryRoomIdByActivity } from '$utils/sort';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
-import { useSyncState } from '$hooks/useSyncState';
+import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
 import * as css from './DirectDMsList.css';
 
-const MAX_DM_AVATARS = 3;
 const MAX_GROUP_MEMBERS = 3;
 
 type DMItemProps = {
@@ -143,19 +138,11 @@ function DMItem({ room, selected }: DMItemProps) {
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge
-          hasCount={unread.total > 0}
-          style={{
-            left: unread.total > 0 ? toRem(-6) : toRem(-2),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={unread.highlight > 0}
-            count={unread.highlight > 0 ? unread.highlight : unread.total}
-            dm
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={unread.highlight > 0}
+          count={unread.highlight > 0 ? unread.highlight : unread.total}
+          dm
+        />
       )}
     </SidebarItem>
   );
@@ -163,50 +150,29 @@ function DMItem({ room, selected }: DMItemProps) {
 
 export function DirectDMsList() {
   const mx = useMatrixClient();
-  const mDirects = useAtomValue(mDirectAtom);
-  const directs = useDirects(mx, allRoomsAtom, mDirects);
-  const roomToUnread = useAtomValue(roomToUnreadAtom);
   const selectedRoomId = useSelectedRoom();
+  const sidebarRoomIds = useSidebarDirectRoomIds();
 
-  // Track sync state to wait for initial sync completion
-  const [syncReady, setSyncReady] = useState(false);
+  const mountTimeRef = useRef(performance.now());
+  const firstReadyRef = useRef(false);
 
-  useSyncState(
-    mx,
-    useCallback((state, prevState) => {
-      // Consider ready after initial sync reaches Syncing state
-      // This ensures m.direct and unread counts are populated
-      if (state === SyncState.Syncing && prevState !== SyncState.Syncing) {
-        setSyncReady(true);
-      }
-      // Also set ready if we're already syncing (e.g., after a refresh while still online)
-      if (state === SyncState.Syncing || state === SyncState.Catchup) {
-        setSyncReady(true);
-      }
-    }, [])
+  const recentDMs = useMemo(
+    () =>
+      sidebarRoomIds
+        .map((roomId) => mx.getRoom(roomId))
+        .filter((room): room is Room => room !== null),
+    [sidebarRoomIds, mx]
   );
 
-  // Get up to MAX_DM_AVATARS recent DMs that have unread messages
-  const recentDMs = useMemo(() => {
-    // Don't show DMs until initial sync completes
-    if (!syncReady) {
-      return [];
+  useEffect(() => {
+    if (recentDMs.length > 0 && !firstReadyRef.current) {
+      firstReadyRef.current = true;
+      Sentry.metrics.distribution(
+        'sable.roomlist.time_to_ready_ms',
+        performance.now() - mountTimeRef.current
+      );
     }
-
-    // Filter to only DMs with unread messages
-    const withUnread = directs.filter((roomId) => {
-      const unread = roomToUnread.get(roomId);
-      return unread && (unread.total > 0 || unread.highlight > 0);
-    });
-
-    // Sort by activity
-    const sorted = withUnread.sort(factoryRoomIdByActivity(mx));
-
-    return sorted
-      .slice(0, MAX_DM_AVATARS)
-      .map((roomId) => mx.getRoom(roomId))
-      .filter((room): room is Room => room !== null);
-  }, [directs, mx, roomToUnread, syncReady]);
+  }, [recentDMs]);
 
   if (recentDMs.length === 0) {
     return null;

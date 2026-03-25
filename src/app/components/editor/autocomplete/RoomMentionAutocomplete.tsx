@@ -1,5 +1,6 @@
 import { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
 import { Editor } from 'slate';
+import { ReactEditor } from 'slate-react';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
 import { JoinRule, MatrixClient } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
@@ -115,6 +116,7 @@ export function RoomMentionAutocomplete({
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);
+    ReactEditor.focus(editor);
     requestClose();
   };
 
@@ -133,7 +135,11 @@ export function RoomMentionAutocomplete({
   });
 
   return (
-    <AutocompleteMenu headerContent={<Text size="L400">Rooms</Text>} requestClose={requestClose}>
+    <AutocompleteMenu
+      headerContent={<Text size="L400">Rooms</Text>}
+      requestClose={requestClose}
+      editor={editor}
+    >
       {autoCompleteRoomIds.length === 0 ? (
         <UnknownRoomMentionItem query={query} handleAutocomplete={handleAutocomplete} />
       ) : (

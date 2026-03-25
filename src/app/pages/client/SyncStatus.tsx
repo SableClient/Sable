@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
+import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
 import { titlebarStatusAtom, type TitlebarStatusView } from '$state/titlebarStatus';
 import {
@@ -54,6 +55,18 @@ export function SyncStatus({ mx }: SyncStatusProps) {
         }
         return { current: nextCurrent, previous: nextPrevious };
       });
+
+      if (nextCurrent === SyncState.Reconnecting || nextCurrent === SyncState.Error) {
+        Sentry.addBreadcrumb({
+          category: 'sync',
+          message: `Sync state changed to ${nextCurrent}`,
+          level: nextCurrent === SyncState.Error ? 'error' : 'warning',
+          data: { previous: nextPrevious },
+        });
+        Sentry.metrics.count('sable.sync.degraded', 1, {
+          attributes: { state: nextCurrent },
+        });
+      }
     }, [])
   );
 

@@ -11,6 +11,7 @@ export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/
 
 export const AUDIO_MIME_TYPES = [
   'audio/mp4',
+  'audio/x-m4a',
   'audio/webm',
   'audio/aac',
   'audio/mpeg',

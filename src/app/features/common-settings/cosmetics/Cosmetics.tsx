@@ -56,7 +56,8 @@ import { ImageEditor } from '$components/image-editor';
 import { stopPropagation } from '$utils/keyboard';
 import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
-import { PronounEditor, PronounSet } from '$features/settings/account/PronounEditor';
+import { PronounEditor } from '$features/settings/account/PronounEditor';
+import { PronounSet } from '$utils/pronouns';
 
 const log = createLogger('Cosmetics');
 

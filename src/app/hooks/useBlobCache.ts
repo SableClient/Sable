@@ -5,6 +5,10 @@ import { getFromMediaCache, putInMediaCache } from '$utils/mediaCache';
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
 
+export function getBlobCacheStats(): { cacheSize: number; inflightCount: number } {
+  return { cacheSize: imageBlobCache.size, inflightCount: inflightRequests.size };
+}
+
 export function useBlobCache(url?: string, accessToken?: string | null): string | undefined {
   const [cacheState, setCacheState] = useState<{ sourceUrl?: string; blobUrl?: string }>({
     sourceUrl: url,

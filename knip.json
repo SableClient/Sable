@@ -8,8 +8,9 @@
   "ignoreFiles": ["crates/**/*", "src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
-    "@element-hq/element-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm"
+    "@sableclient/sable-call-embedded",
+    "@matrix-org/matrix-sdk-crypto-wasm",
+    "@testing-library/user-event"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

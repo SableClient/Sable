@@ -21,6 +21,7 @@ import { FALLBACK_MIMETYPE, getBlobSafeMimeType } from '$utils/mimeTypes';
 import { parseGeoUri, scaleYDimension } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
@@ -109,8 +110,23 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     const forwardMeta = content['moe.sable.message.forward'];
     return typeof forwardMeta === 'object';
   }, [content]);
+
+  /**
+   * For the unwrapping of per-message profile fallbacks, we look for <strong> tags with the data-mx-profile-fallback attribute
+   */
+  const unwrappedPerMessageProfileMessage = useMemo(
+    () => customBody?.replace(/<strong[^>]*data-mx-profile-fallback[^>]*>(.*?):\s*<\/strong>/i, ''),
+    [customBody]
+  );
+
   const isJumbo = useMemo(() => {
     if (!trimmedBody || trimmedBody.length >= 500) return false;
+    if (
+      (unwrappedPerMessageProfileMessage ?? safeCustomBody)?.match(
+        /^(<img[^>]*data-mx-emoticon[^>]*\/>){1,20}$/i
+      )
+    )
+      return true;
     if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
@@ -119,12 +135,29 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     }
 
     return true;
-  }, [trimmedBody, safeCustomBody]);
+  }, [unwrappedPerMessageProfileMessage, trimmedBody, safeCustomBody]);
 
-  if (!body) return <BrokenContent body={customBody ?? body} />;
+  if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+
+  if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
+    // unwrap per-message profile fallback if present
+    return (
+      <MessageTextBody
+        preWrap={typeof customBody !== 'string'}
+        style={style}
+        jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
+      >
+        {renderBody({
+          body: trimmedBody,
+          customBody: unwrappedPerMessageProfileMessage,
+        })}
+        {edited && <MessageEditedContent />}
+      </MessageTextBody>
+    );
+  }
 
   if (isForwarded && unwrappedForwardedContent) {
     return (

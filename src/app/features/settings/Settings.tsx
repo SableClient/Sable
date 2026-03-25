@@ -27,6 +27,8 @@ import { nameInitials } from '$utils/common';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { Notifications } from './notifications';
 import { Devices } from './devices';
 import { EmojisStickers } from './emojis-stickers';
@@ -38,10 +40,12 @@ import { Cosmetics } from './cosmetics/Cosmetics';
 import { Experimental } from './experimental/Experimental';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
 import { Desktop } from './desktop';
+import { PerMessageProfilePage } from './Persona/ProfilesPage';
 
 export enum SettingsPages {
   GeneralPage,
   AccountPage,
+  PerMessageProfilesPage,
   NotificationPage,
   DevicesPage,
   DesktopPage,
@@ -60,9 +64,9 @@ type SettingsMenuItem = {
   activeIcon?: IconSrc;
 };
 
-const useSettingsMenuItems = (): SettingsMenuItem[] =>
-  useMemo(
-    () => [
+const useSettingsMenuItems = (showPersona: boolean): SettingsMenuItem[] =>
+  useMemo(() => {
+    const items: SettingsMenuItem[] = [
       {
         page: SettingsPages.GeneralPage,
         name: 'General',
@@ -123,9 +127,18 @@ const useSettingsMenuItems = (): SettingsMenuItem[] =>
         name: 'Keyboard Shortcuts',
         icon: Icons.BlockCode,
       },
-    ],
-    []
-  );
+    ];
+
+    if (showPersona) {
+      items.splice(2, 0, {
+        page: SettingsPages.PerMessageProfilesPage,
+        name: 'Persona',
+        icon: Icons.User,
+      });
+    }
+
+    return items;
+  }, [showPersona]);
 
 type SettingsProps = {
   initialPage?: SettingsPages;
@@ -141,12 +154,18 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
     ? (mxcUrlToHttp(mx, profile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
+  const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+
   const screenSize = useScreenSizeContext();
   const [activePage, setActivePage] = useState<SettingsPages | undefined>(() => {
+    if (initialPage === SettingsPages.PerMessageProfilesPage && !showPersona) {
+      return SettingsPages.GeneralPage;
+    }
     if (initialPage) return initialPage;
     return screenSize === ScreenSize.Mobile ? undefined : SettingsPages.GeneralPage;
   });
-  const menuItems = useSettingsMenuItems();
+
+  const menuItems = useSettingsMenuItems(showPersona);
 
   const handlePageRequestClose = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -258,6 +277,9 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
       )}
       {activePage === SettingsPages.AccountPage && (
         <Account requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SettingsPages.PerMessageProfilesPage && showPersona && (
+        <PerMessageProfilePage requestClose={handlePageRequestClose} />
       )}
       {activePage === SettingsPages.CosmeticsPage && (
         <Cosmetics requestClose={handlePageRequestClose} />

@@ -55,6 +55,7 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
+import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -167,7 +168,19 @@ export function Search({ requestClose }: SearchProps) {
   );
 
   const [result, search, resetSearch] = useAsyncSearch(targetRooms, getTargetStr, SEARCH_OPTIONS);
-  const roomsToRender = result ? result.items : topActiveRooms;
+  const selectedSpaceId = useSelectedSpace();
+
+  const roomsToRender = useMemo(() => {
+    const items = result ? result.items : topActiveRooms;
+    if (!selectedSpaceId) return items;
+
+    return [...items].sort((a, b) => {
+      const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
+      const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
+      return bInSpace - aInSpace;
+    });
+  }, [result, topActiveRooms, selectedSpaceId, roomToParents]);
+
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
 
   const queryHighlighRegex = result?.query
@@ -407,6 +420,8 @@ export function Search({ requestClose }: SearchProps) {
               <Text size="T200" priority="300">
                 Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
                 <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+                {' / '}
+                <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
               </Text>
             </Box>
           </Modal>
@@ -423,7 +438,7 @@ export function SearchModalRenderer() {
     window,
     useCallback(
       (event) => {
-        if (isKeyHotkey('mod+k', event)) {
+        if (isKeyHotkey('mod+k', event) || isKeyHotkey('mod+f', event)) {
           event.preventDefault();
           if (opened) {
             setOpen(false);

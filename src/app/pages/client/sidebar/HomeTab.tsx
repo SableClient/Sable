@@ -14,11 +14,10 @@ import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
 import { useHomeSelected } from '$hooks/router/useHomeSelected';
-import { UnreadBadge } from '$components/unread-badge';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
@@ -109,18 +108,10 @@ export function HomeTab() {
         )}
       </SidebarItemTooltip>
       {homeUnread && (
-        <SidebarItemBadge
-          hasCount={homeUnread.total > 0}
-          style={{
-            left: homeUnread.total > 0 ? toRem(-6) : toRem(-2),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={homeUnread.highlight > 0}
-            count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={homeUnread.highlight > 0}
+          count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}
+        />
       )}
       {menuAnchor && (
         <PopOut

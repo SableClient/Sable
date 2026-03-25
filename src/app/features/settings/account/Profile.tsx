@@ -23,7 +23,6 @@ import {
   Header,
   config,
   Spinner,
-  Switch,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useSetAtom } from 'jotai';
@@ -47,13 +46,12 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
 import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
+import { AnimalCosmetics } from './AnimalCosmetics';
 
 type PronounSet = {
   summary: string;
@@ -64,7 +62,7 @@ type ProfileProps = {
   profile: UserProfile;
   userId: string;
 };
-function ProfileAvatar({ profile, userId }: ProfileProps) {
+function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const capabilities = useCapabilities();
@@ -218,7 +216,7 @@ function ProfileAvatar({ profile, userId }: ProfileProps) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ProfileBanner({ profile, userId }: ProfileProps) {
+function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [alertRemove, setAlertRemove] = useState(false);
@@ -387,7 +385,7 @@ function ProfileBanner({ profile, userId }: ProfileProps) {
   );
 }
 
-function ProfileDisplayName({ profile, userId }: ProfileProps) {
+function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const capabilities = useCapabilities();
   const disableSetDisplayname = capabilities['m.set_displayname']?.enabled === false;
@@ -479,7 +477,7 @@ function ProfileDisplayName({ profile, userId }: ProfileProps) {
   );
 }
 
-function ProfileExtended({ profile, userId }: ProfileProps) {
+function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
 
@@ -488,12 +486,12 @@ function ProfileExtended({ profile, userId }: ProfileProps) {
   const currentStatus = presence?.status || '';
 
   // Keys we don't render here nor handle seperately but still need to exclude
-  const EXCLUDED_KEYS = ['kitty.meow.is_cat', 'kitty.meow.has_cats'];
+  const EXCLUDED_KEYS = new Set(['kitty.meow.is_cat', 'kitty.meow.has_cats']);
 
   // Unknown fields / unimplemented non-matrix-spec fields
   // Only renders them, can't edit or set
   const extendedFields = Object.entries(profile.extended || {}).filter(
-    ([key]) => !EXCLUDED_KEYS.includes(key)
+    ([key]) => !EXCLUDED_KEYS.has(key)
   );
 
   const handleSaveField = useCallback(
@@ -585,7 +583,7 @@ function ProfileExtended({ profile, userId }: ProfileProps) {
           onSave={(htmlBio) => {
             handleSaveField('moe.sable.app.bio', htmlBio);
 
-            const cleanedHtml = htmlBio.replace(/<br\/><\/blockquote>/g, '</blockquote>');
+            const cleanedHtml = htmlBio.replaceAll('<br/></blockquote>', '</blockquote>');
             handleSaveField('chat.commet.profile_bio', {
               format: 'org.matrix.custom.html',
               formatted_body: cleanedHtml,
@@ -634,70 +632,6 @@ function ProfileExtended({ profile, userId }: ProfileProps) {
             </SequenceCard>
           );
         })}
-    </Box>
-  );
-}
-
-type AnimalCosmeticsProps = {
-  profile: UserProfile;
-  userId: string;
-};
-function AnimalCosmetics({ profile, userId }: AnimalCosmeticsProps) {
-  const mx = useMatrixClient();
-  const setGlobalProfiles = useSetAtom(profilesCacheAtom);
-  const [renderAnimals, setRenderAnimals] = useSetting(settingsAtom, 'renderAnimals');
-
-  const isCat = profile.isCat || profile.extended?.['kitty.meow.is_cat'] === true;
-  const hasCats = profile.hasCats || profile.extended?.['kitty.meow.has_cats'] === true;
-
-  const handleSaveField = useCallback(
-    async (key: string, value: boolean) => {
-      await mx.setExtendedProfileProperty?.(key, value);
-      setGlobalProfiles((prev) => {
-        const newCache = { ...prev };
-        delete newCache[userId];
-        return newCache;
-      });
-    },
-    [mx, userId, setGlobalProfiles]
-  );
-
-  return (
-    <Box direction="Column" gap="100">
-      <Text size="L400">Animal Identity</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Render Animals"
-          description="Render animals as animals as opposed to normal humans."
-          after={<Switch variant="Primary" value={renderAnimals} onChange={setRenderAnimals} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Is Cat"
-          description="Marks you as a cat."
-          after={
-            <Switch
-              variant="Primary"
-              value={isCat}
-              onChange={() => handleSaveField('kitty.meow.is_cat', !isCat)}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Has Cats"
-          description="Marks that you have cats."
-          after={
-            <Switch
-              variant="Primary"
-              value={hasCats}
-              onChange={() => handleSaveField('kitty.meow.has_cats', !hasCats)}
-            />
-          }
-        />
-      </SequenceCard>
     </Box>
   );
 }

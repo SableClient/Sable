@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import * as Sentry from '@sentry/react';
 import { RoomStateEvent } from 'matrix-js-sdk';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
@@ -7,6 +8,9 @@ import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import RingtoneSound from '$public/sound/ringtone.webm';
 import { useMatrixClient } from './useMatrixClient';
+import { createDebugLogger } from '../utils/debugLogger';
+
+const debugLog = createDebugLogger('CallSignaling');
 
 type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
 
@@ -28,6 +32,13 @@ export function useCallSignaling() {
 
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
+
+  // Stable refs so volatile values (mutedRoomId, ring callbacks) don't force
+  // the listener registration effect to re-run — which would cause the
+  // SessionEnded and RoomState.events listeners to accumulate when muting
+  // or when call state changes rapidly during a sync retry cycle.
+  const mutedRoomIdRef = useRef(mutedRoomId);
+  mutedRoomIdRef.current = mutedRoomId;
 
   useEffect(() => {
     const inc = new Audio(RingtoneSound);
@@ -72,6 +83,16 @@ export function useCallSignaling() {
     [setIncomingCall]
   );
 
+  // Must be declared after the callbacks above so the initial useRef(value) call
+  // sees their current identity. Updated on every render so the effect closure
+  // always calls the latest version without needing them in the dep array.
+  const playRingingRef = useRef(playRinging);
+  playRingingRef.current = playRinging;
+  const stopRingingRef = useRef(stopRinging);
+  stopRingingRef.current = stopRinging;
+  const playOutgoingRingingRef = useRef(playOutgoingRinging);
+  playOutgoingRingingRef.current = playOutgoingRinging;
+
   useEffect(() => {
     if (!mx || !mx.matrixRTC) return undefined;
 
@@ -81,7 +102,7 @@ export function useCallSignaling() {
 
       const signal = Array.from(mDirects).reduce<SignalState>(
         (acc, roomId) => {
-          if (acc.incoming || mutedRoomId === roomId) return acc;
+          if (acc.incoming || mutedRoomIdRef.current === roomId) return acc;
 
           const room = mx.getRoom(roomId);
           if (!room) return acc;
@@ -104,12 +125,32 @@ export function useCallSignaling() {
 
           // being called
           if (remoteMembers.length > 0 && !isSelfInCall) {
+            if (currentPhase !== 'RINGING_IN') {
+              debugLog.info('call', 'Incoming call detected', {
+                roomId,
+                remoteCount: remoteMembers.length,
+              });
+              Sentry.addBreadcrumb({
+                category: 'call.signal',
+                message: 'Incoming call ringing',
+                data: { roomId },
+              });
+            }
             callPhaseRef.current[roomId] = 'RINGING_IN';
             return { ...acc, incoming: roomId };
           }
 
           // multiple people no ringtone
           if (isSelfInCall && remoteMembers.length > 0) {
+            if (currentPhase !== 'ACTIVE') {
+              debugLog.info('call', 'Call became active', { roomId });
+              Sentry.addBreadcrumb({
+                category: 'call.signal',
+                message: 'Call active',
+                data: { roomId },
+              });
+              Sentry.metrics.count('sable.call.active', 1);
+            }
             callPhaseRef.current[roomId] = 'ACTIVE';
             return acc;
           }
@@ -118,6 +159,15 @@ export function useCallSignaling() {
           if (isSelfInCall && remoteMembers.length === 0) {
             // Check if post call
             if (currentPhase === 'ACTIVE' || currentPhase === 'ENDED') {
+              if (currentPhase !== 'ENDED') {
+                debugLog.info('call', 'Call ended', { roomId });
+                Sentry.addBreadcrumb({
+                  category: 'call.signal',
+                  message: 'Call ended',
+                  data: { roomId },
+                });
+                Sentry.metrics.count('sable.call.ended', 1);
+              }
               callPhaseRef.current[roomId] = 'ENDED';
               return acc;
             }
@@ -127,10 +177,20 @@ export function useCallSignaling() {
               if (!outgoingStartRef.current) outgoingStartRef.current = now;
 
               if (now - outgoingStartRef.current < 30000) {
+                if (currentPhase !== 'RINGING_OUT') {
+                  debugLog.info('call', 'Outgoing call ringing', { roomId });
+                  Sentry.addBreadcrumb({
+                    category: 'call.signal',
+                    message: 'Outgoing call ringing',
+                    data: { roomId },
+                  });
+                }
                 callPhaseRef.current[roomId] = 'RINGING_OUT';
                 return { ...acc, outgoing: roomId };
               }
 
+              debugLog.info('call', 'Outgoing call timed out (unanswered)', { roomId });
+              Sentry.metrics.count('sable.call.timeout', 1);
               callPhaseRef.current[roomId] = 'ENDED';
             }
           }
@@ -141,11 +201,11 @@ export function useCallSignaling() {
       );
 
       if (signal.incoming) {
-        playRinging(signal.incoming);
+        playRingingRef.current(signal.incoming);
       } else if (signal.outgoing) {
-        playOutgoingRinging(signal.outgoing);
+        playOutgoingRingingRef.current(signal.outgoing);
       } else {
-        stopRinging();
+        stopRingingRef.current();
         if (!signal.outgoing) outgoingStartRef.current = null;
       }
     };
@@ -155,7 +215,7 @@ export function useCallSignaling() {
     const handleUpdate = () => checkDMsForActiveCalls();
 
     const handleSessionEnded = (roomId: string) => {
-      if (mutedRoomId === roomId) setMutedRoomId(null);
+      if (mutedRoomIdRef.current === roomId) setMutedRoomId(null);
       callPhaseRef.current[roomId] = 'IDLE';
       checkDMsForActiveCalls();
     };
@@ -171,9 +231,9 @@ export function useCallSignaling() {
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, handleUpdate);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
       mx.off(RoomStateEvent.Events, handleUpdate);
-      stopRinging();
+      stopRingingRef.current();
     };
-  }, [mx, mDirects, playRinging, stopRinging, mutedRoomId, setMutedRoomId, playOutgoingRinging]);
+  }, [mx, mDirects, setMutedRoomId]); // stable: volatile deps accessed via refs above
 
   return null;
 }

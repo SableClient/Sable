@@ -53,7 +53,7 @@ export function DescriptionEditor({
   imagePackRooms,
   onSave,
   onCancel,
-}: DescriptionEditorProps) {
+}: Readonly<DescriptionEditorProps>) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');

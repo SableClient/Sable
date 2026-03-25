@@ -23,6 +23,7 @@ import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Appearance } from './Themes';
+import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
@@ -165,6 +166,7 @@ function IdentityCosmetics() {
     'legacyUsernameColor'
   );
   const [showPronouns, setShowPronouns] = useSetting(settingsAtom, 'showPronouns');
+  const [parsePronouns, setParsePronouns] = useSetting(settingsAtom, 'parsePronouns');
   const [renderGlobalColors, setRenderGlobalColors] = useSetting(
     settingsAtom,
     'renderGlobalNameColors'
@@ -194,6 +196,13 @@ function IdentityCosmetics() {
           title="Show Pronoun Pills"
           description="Display user pronouns in the message timeline."
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Pronoun Pills for All"
+          description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
+          after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
@@ -232,23 +241,6 @@ function IdentityCosmetics() {
   );
 }
 
-function VideoCosmetics() {
-  const [allowPipVideos, setPipVideos] = useSetting(settingsAtom, 'allowPipVideos');
-
-  return (
-    <Box direction="Column" gap="100">
-      <Text size="L400">Video</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Picture in Picture Videos"
-          description="If your browser has it enabled, allows you to pop out the videos in the video call interface. Does not apply retroactively to current joined voice rooms."
-          after={<Switch variant="Primary" value={allowPipVideos} onChange={setPipVideos} />}
-        />
-      </SequenceCard>
-    </Box>
-  );
-}
-
 type CosmeticsProps = {
   requestClose: () => void;
 };
@@ -278,7 +270,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
               <IdentityCosmetics />
               <JumboEmoji />
               <Privacy />
-              <VideoCosmetics />
+              <LanguageSpecificPronouns />
             </Box>
           </PageContent>
         </Scroll>

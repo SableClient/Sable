@@ -22,6 +22,7 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
+import * as Sentry from '@sentry/react';
 import {
   useVerificationRequestPhase,
   useVerificationRequestReceived,
@@ -245,6 +246,18 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
   const handleStart = useCallback(async () => {
     await request.startVerification(VerificationMethod.Sas);
   }, [request]);
+
+  useEffect(() => {
+    if (phase === VerificationPhase.Done) {
+      Sentry.metrics.count('sable.crypto.verification_outcome', 1, {
+        attributes: { outcome: 'completed' },
+      });
+    } else if (phase === VerificationPhase.Cancelled) {
+      Sentry.metrics.count('sable.crypto.verification_outcome', 1, {
+        attributes: { outcome: 'cancelled' },
+      });
+    }
+  }, [phase]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>

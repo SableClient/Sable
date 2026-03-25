@@ -25,6 +25,8 @@
 }
 
 .dark-theme,
+.black-theme,
+.cinny-dark-theme,
 .butter-theme {
   --tc-link: hsl(213deg 100% 80%);
 
@@ -193,6 +195,7 @@ pre {
 
 body.reduced-motion * {
   animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
 

@@ -11,11 +11,16 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      git_tag:
+        description: 'Git tag to deploy (e.g. v1.2.3). Leave empty to deploy current HEAD.'
+        required: false
+        type: string
 
 env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.event.head_commit.message || github.sha }}
+  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}
   TF_VAR_account_id: ${{ secrets.TF_VAR_ACCOUNT_ID }}
   TF_VAR_zone_id: ${{ secrets.TF_VAR_ZONE_ID }}
   TF_HTTP_ADDRESS: ${{ secrets.TF_HTTP_ADDRESS }}
@@ -49,6 +54,15 @@ jobs:
 
       - name: Prepare OpenTofu deployment
         uses: ./.github/actions/prepare-tofu
+        with:
+          is_release_tag: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.git_tag != '') }}
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: production
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Comment PR plan
         uses: dflook/tofu-plan@3f5dc358343fb58cd60f83b019e810315aa8258f # v2.2.3
@@ -57,7 +71,7 @@ jobs:
           label: production
 
   apply:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/sable/v')) || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -69,9 +83,19 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || '' }}
 
       - name: Prepare OpenTofu deployment
         uses: ./.github/actions/prepare-tofu
+        with:
+          is_release_tag: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.git_tag != '') }}
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: production
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Plan infrastructure
         run: tofu plan -input=false -no-color

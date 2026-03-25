@@ -57,7 +57,7 @@ type EditPowerProps = {
   onSave: (power: number, tag: MemberPowerTag) => void;
   onClose: () => void;
 };
-function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
+function EditPower({ maxPower, power, tag, onSave, onClose }: Readonly<EditPowerProps>) {
   const mx = useMatrixClient();
   const room = useRoom();
   const roomToParents = useAtomValue(roomToParentsAtom);
@@ -103,7 +103,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
     const nameInput = target?.nameInput as HTMLInputElement | undefined;
     if (!powerInput || !nameInput) return;
 
-    const tagPower = parseInt(powerInput.value, 10);
+    const tagPower = Number.parseInt(powerInput.value, 10);
     if (Number.isNaN(tagPower)) return;
 
     const tagName = nameInput.value.trim();
@@ -307,7 +307,7 @@ type PowersEditorProps = {
   powerLevels: IPowerLevels;
   requestClose: () => void;
 };
-export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
+export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEditorProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();

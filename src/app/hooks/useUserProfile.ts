@@ -27,7 +27,7 @@ export type UserProfile = {
 };
 
 const normalizeInfo = (info: any): UserProfile => {
-  const knownKeys = [
+  const knownKeys = new Set([
     'avatar_url',
     'displayname',
     'io.fsky.nyx.pronouns',
@@ -40,11 +40,11 @@ const normalizeInfo = (info: any): UserProfile => {
     'moe.sable.app.name_color',
     'kitty.meow.has_cats',
     'kitty.meow.is_cat',
-  ];
+  ]);
 
   const extended: Record<string, any> = {};
   Object.entries(info).forEach(([key, value]) => {
-    if (!knownKeys.includes(key)) {
+    if (!knownKeys.has(key)) {
       extended[key] = value;
     }
   });
@@ -68,10 +68,11 @@ const normalizeInfo = (info: any): UserProfile => {
 const isValidHex = (c: any): string | undefined => {
   if (typeof c !== 'string') return undefined;
   // silly tuwunel smh
-  const cleaned = c.replace(/["']/g, '').trim();
-  return /^#([0-9A-F]{3,6})$/i.test(cleaned) ? cleaned : undefined;
+  const cleaned = c.replaceAll(/["']/g, '').trim();
+  // Strictly allow only 3 or 6 digit hex codes, aka no opacity
+  return /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(cleaned) ? cleaned : undefined;
 };
-const sanitizeFont = (f: string) => f.replace(/[;{}<>]/g, '').slice(0, 32);
+const sanitizeFont = (f: string) => f.replaceAll(/[;{}<>]/g, '').slice(0, 32);
 
 export const useUserProfile = (
   userId: string,

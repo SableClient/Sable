@@ -8,7 +8,7 @@ import {
   type IWidgetApiErrorResponseDataDetails,
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
-  type UpdateDelayedEventAction,
+  UpdateDelayedEventAction,
   OpenIDRequestState,
   SimpleObservable,
   IOpenIDUpdate,
@@ -164,6 +164,18 @@ export class CallWidgetDriver extends WidgetDriver {
     if (!client) throw new Error('Not in a room or not attached to a client');
 
     await client._unstable_updateDelayedEvent(delayId, action);
+  }
+
+  public async cancelScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Cancel);
+  }
+
+  public async restartScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Restart);
+  }
+
+  public async sendScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Send);
   }
 
   public async sendToDevice(

@@ -27,16 +27,16 @@ export const resolveWidgetUrl = (
   const theme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
 
   let resolved = url
-    .replace(/\$matrix_user_id/g, encodeURIComponent(userId))
-    .replace(/\$matrix_room_id/g, encodeURIComponent(roomId))
-    .replace(/\$matrix_display_name/g, encodeURIComponent(displayName))
-    .replace(/\$matrix_avatar_url/g, encodeURIComponent(avatarUrl))
-    .replace(/\$matrix_widget_id/g, encodeURIComponent(widgetId))
-    .replace(/\$org\.matrix\.msc2873\.client_id/g, encodeURIComponent(clientId))
-    .replace(/\$org\.matrix\.msc2873\.client_theme/g, encodeURIComponent(theme))
-    .replace(/\$org\.matrix\.msc2873\.client_language/g, encodeURIComponent(lang))
-    .replace(/\$org\.matrix\.msc3819\.matrix_device_id/g, encodeURIComponent(deviceId))
-    .replace(/\$org\.matrix\.msc4039\.matrix_base_url/g, encodeURIComponent(baseUrl));
+    .replaceAll('$matrix_user_id', encodeURIComponent(userId))
+    .replaceAll('$matrix_room_id', encodeURIComponent(roomId))
+    .replaceAll('$matrix_display_name', encodeURIComponent(displayName))
+    .replaceAll('$matrix_avatar_url', encodeURIComponent(avatarUrl))
+    .replaceAll('$matrix_widget_id', encodeURIComponent(widgetId))
+    .replaceAll('$org.matrix.msc2873.client_id', encodeURIComponent(clientId))
+    .replaceAll('$org.matrix.msc2873.client_theme', encodeURIComponent(theme))
+    .replaceAll('$org.matrix.msc2873.client_language', encodeURIComponent(lang))
+    .replaceAll('$org.matrix.msc3819.matrix_device_id', encodeURIComponent(deviceId))
+    .replaceAll('$org.matrix.msc4039.matrix_base_url', encodeURIComponent(baseUrl));
 
   try {
     const u = new URL(resolved);
@@ -112,7 +112,7 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
 
     return events.reduce<RoomWidget[]>((widgets, event) => {
       const content = event.getContent();
-      if (!content || !content.url || Object.keys(content).length === 0) return widgets;
+      if (!content?.url || Object.keys(content).length === 0) return widgets;
 
       const stateKey = event.getStateKey();
       if (!stateKey) return widgets;

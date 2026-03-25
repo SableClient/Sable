@@ -19,13 +19,17 @@ import { getRoomAvatarUrl } from '$utils/room';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
+import * as Sentry from '@sentry/react';
 import { useAtom, useSetAtom } from 'jotai';
 import {
   autoJoinCallIntentAtom,
   incomingCallRoomIdAtom,
   mutedCallRoomIdAtom,
 } from '$state/callEmbed';
+import { createDebugLogger } from '$utils/debugLogger';
 import { RoomAvatar } from './room-avatar';
+
+const debugLog = createDebugLogger('IncomingCall');
 
 type IncomingCallInternalProps = {
   room: any;
@@ -41,6 +45,13 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
   const handleAnswer = () => {
+    debugLog.info('call', 'Incoming call answered', { roomId: room.roomId });
+    Sentry.addBreadcrumb({
+      category: 'call.signal',
+      message: 'Incoming call answered',
+      data: { roomId: room.roomId },
+    });
+    Sentry.metrics.count('sable.call.answered', 1);
     setMutedRoomId(room.roomId);
     setAutoJoinIntent(room.roomId);
     onClose();
@@ -48,6 +59,13 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
   };
 
   const handleDecline = async () => {
+    debugLog.info('call', 'Incoming call declined', { roomId: room.roomId });
+    Sentry.addBreadcrumb({
+      category: 'call.signal',
+      message: 'Incoming call declined',
+      data: { roomId: room.roomId },
+    });
+    Sentry.metrics.count('sable.call.declined', 1);
     setMutedRoomId(room.roomId);
     onClose();
   };

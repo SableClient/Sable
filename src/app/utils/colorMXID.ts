@@ -6,11 +6,11 @@ function hashCode(str?: string): number {
     return hash;
   }
   for (let i = 0; i < str.length; i += 1) {
-    const chr = str.charCodeAt(i);
+    const chr = str.codePointAt(i) ?? 0;
     // eslint-disable-next-line no-bitwise
     hash = (hash << 5) - hash + chr;
-    // eslint-disable-next-line no-bitwise
-    hash |= 0;
+
+    hash = Math.trunc(hash);
   }
   return Math.abs(hash);
 }

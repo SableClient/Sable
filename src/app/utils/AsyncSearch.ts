@@ -27,12 +27,12 @@ export type TerminateAsyncSearch = () => void;
 export const normalize = (str: string, options?: NormalizeOption) => {
   let nStr = str.normalize((options?.normalizeUnicode ?? true) ? 'NFKC' : 'NFC');
   if (!options?.caseSensitive) nStr = nStr.toLocaleLowerCase();
-  if (options?.ignoreWhitespace ?? true) nStr = nStr.replace(/\s/g, '');
+  if (options?.ignoreWhitespace ?? true) nStr = nStr.replaceAll(/\s/g, '');
   return nStr;
 };
 
 export const matchQuery = (item: string, query: string, options?: MatchQueryOption): boolean => {
-  if (options?.contain) return item.indexOf(query) !== -1;
+  if (options?.contain) return item.includes(query);
   return item.startsWith(query);
 };
 
@@ -46,7 +46,7 @@ export const AsyncSearch = <TSearchItem extends object | string | number>(
 
   let searchIndex = 0;
   let sessionStartTimestamp = 0;
-  let sessionScheduleId: number | undefined;
+  let sessionScheduleId: ReturnType<typeof setTimeout> | undefined;
 
   const terminateSearch: TerminateAsyncSearch = () => {
     resultList = [];
@@ -62,7 +62,7 @@ export const AsyncSearch = <TSearchItem extends object | string | number>(
     // return if find session got reset
     if (sessionTimestamp !== sessionStartTimestamp) return;
 
-    sessionStartTimestamp = window.performance.now();
+    sessionStartTimestamp = globalThis.performance.now();
     for (; searchIndex < list.length; searchIndex += 1) {
       if (match(list[searchIndex], query)) {
         resultList.push(list[searchIndex]);
@@ -71,14 +71,14 @@ export const AsyncSearch = <TSearchItem extends object | string | number>(
         }
       }
 
-      const matchFinishTime = window.performance.now();
+      const matchFinishTime = globalThis.performance.now();
       if (matchFinishTime - sessionStartTimestamp > 8) {
         const currentFindingCount = resultList.length;
         const thisSessionTimestamp = sessionStartTimestamp;
         if (findingCount !== currentFindingCount) onResult(resultList, query);
 
         searchIndex += 1;
-        sessionScheduleId = window.setTimeout(() => find(query, thisSessionTimestamp), 1);
+        sessionScheduleId = globalThis.setTimeout(() => find(query, thisSessionTimestamp), 1);
         return;
       }
     }

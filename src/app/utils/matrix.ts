@@ -18,6 +18,7 @@ import to from 'await-to-js';
 import { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
+import * as Sentry from '@sentry/react';
 import { getEventReactions, getReactionContent, getStateEvent } from './room';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
@@ -163,6 +164,7 @@ export const uploadContent = async (
 ) => {
   const { name, fileType, hideFilename, onProgress, onPromise, onSuccess, onError } = options;
 
+  const uploadStart = performance.now();
   const uploadPromise = mx.uploadContent(file, {
     name,
     type: fileType,
@@ -173,9 +175,25 @@ export const uploadContent = async (
   try {
     const data = await uploadPromise;
     const mxc = data.content_uri;
-    if (mxc) onSuccess(mxc);
-    else onError(new MatrixError(data));
+    if (mxc) {
+      const mediaType = file.type.split('/')[0] || 'unknown';
+      Sentry.metrics.distribution(
+        'sable.media.upload_latency_ms',
+        performance.now() - uploadStart,
+        {
+          attributes: { type: mediaType },
+        }
+      );
+      Sentry.metrics.distribution('sable.media.upload_bytes', file.size, {
+        attributes: { type: mediaType },
+      });
+      onSuccess(mxc);
+    } else {
+      Sentry.metrics.count('sable.media.upload_error', 1, { attributes: { reason: 'no_uri' } });
+      onError(new MatrixError(data));
+    }
   } catch (e: any) {
+    Sentry.metrics.count('sable.media.upload_error', 1, { attributes: { reason: 'exception' } });
     const error = typeof e?.message === 'string' ? e.message : undefined;
     const errcode = typeof e?.name === 'string' ? e.message : undefined;
     onError(new MatrixError({ error, errcode }));

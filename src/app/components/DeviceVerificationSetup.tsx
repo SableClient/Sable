@@ -70,7 +70,7 @@ function makeUIAAction<T>(
 type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
 };
-function SetupVerification({ onComplete }: SetupVerificationProps) {
+function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -227,7 +227,7 @@ function SetupVerification({ onComplete }: SetupVerificationProps) {
 type RecoveryKeyDisplayProps = {
   recoveryKey: string;
 };
-function RecoveryKeyDisplay({ recoveryKey }: RecoveryKeyDisplayProps) {
+function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) {
   const [show, setShow] = useState(false);
 
   const handleCopy = () => {
@@ -241,7 +241,7 @@ function RecoveryKeyDisplay({ recoveryKey }: RecoveryKeyDisplayProps) {
     FileSaver.saveAs(blob, 'recovery-key.txt');
   };
 
-  const safeToDisplayKey = show ? recoveryKey : recoveryKey.replace(/[^\s]/g, '*');
+  const safeToDisplayKey = show ? recoveryKey : recoveryKey.replaceAll(/[^\s]/g, '*');
 
   return (
     <Box direction="Column" gap="400">

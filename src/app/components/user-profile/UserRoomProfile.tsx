@@ -65,7 +65,7 @@ function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
-}: UserExtendedSectionProps) {
+}: Readonly<UserExtendedSectionProps>) {
   const clamp = (str: any, len: number) => {
     const stringified = String(str ?? '');
     return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
@@ -95,7 +95,7 @@ function UserExtendedSection({
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];
 
   const pronouns = filterPronounsByLanguage(
-    profile.pronouns!,
+    profile.pronouns,
     languageFilterEnabled,
     languagesToFilterFor
   )
@@ -108,7 +108,7 @@ function UserExtendedSection({
       return new Intl.DateTimeFormat([], {
         hour: 'numeric',
         minute: '2-digit',
-        timeZone: profile.timezone.replace(/^["']|["']$/g, ''),
+        timeZone: profile.timezone.replaceAll(/^["']|["']$/g, ''),
       }).format(new Date());
     } catch {
       return null;
@@ -133,7 +133,7 @@ function UserExtendedSection({
 
     const safetyTrim = rawBio.length > 2048 ? rawBio.slice(0, 2048) : rawBio;
 
-    const visibleText = safetyTrim.replace(/<[^>]*>?/gm, '');
+    const visibleText = safetyTrim.replaceAll(/<[^>]*>?/gm, '');
     const VISIBLE_LIMIT = 1024;
 
     if (visibleText.length <= VISIBLE_LIMIT) {
@@ -163,7 +163,7 @@ function UserExtendedSection({
             <Box alignItems="Center" gap="100">
               <Icon size="50" src={Icons.Clock} style={{ opacity: 0.5 }} />
               <Text size="T200" priority="400">
-                {localTime} ({profile.timezone.replace(/^["']|["']$/g, '')})
+                {localTime} ({profile.timezone.replaceAll(/^["']|["']$/g, '')})
               </Text>
             </Box>
           )}
@@ -252,7 +252,7 @@ type UserRoomProfileProps = {
   userId: string;
   initialProfile?: Partial<UserProfile>;
 };
-export function UserRoomProfile({ userId, initialProfile }: UserRoomProfileProps) {
+export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomProfileProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
@@ -296,7 +296,7 @@ export function UserRoomProfile({ userId, initialProfile }: UserRoomProfileProps
 
   const parsedBanner =
     typeof extendedProfile.bannerUrl === 'string'
-      ? extendedProfile.bannerUrl.replace(/^"|"$/g, '')
+      ? extendedProfile.bannerUrl.replaceAll(/^"|"$/g, '')
       : undefined;
 
   const bannerHttpUrl = parsedBanner

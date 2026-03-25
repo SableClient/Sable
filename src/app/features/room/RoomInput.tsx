@@ -3,7 +3,6 @@ import {
   KeyboardEventHandler,
   MouseEvent,
   RefObject,
-  ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -14,6 +13,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import {
   EventType,
   IContent,
+  MatrixEvent,
   MsgType,
   RelationType,
   Room,
@@ -24,6 +24,7 @@ import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
 import {
   Box,
+  color,
   config,
   Dialog,
   Icon,
@@ -41,13 +42,6 @@ import {
   Text,
   toRem,
 } from 'folds';
-
-import parse from 'html-react-parser';
-import {
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  scaleSystemEmoji,
-} from '$plugins/react-custom-html-parser';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
@@ -81,7 +75,6 @@ import {
   TUploadContent,
   encryptFile,
   getImageInfo,
-  getMxIdLocalPart,
   mxcUrlToHttp,
   toggleReaction,
 } from '$utils/matrix';
@@ -111,26 +104,21 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import {
-  getMemberDisplayName,
-  getMentionContent,
-  trimReplyFromBody,
-  trimReplyFromFormattedBody,
-} from '$utils/room';
+import { getMentionContent, reactionOrEditEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
-import { ReplyLayout, ThreadIndicator } from '$components/message';
+import { Reply, ThreadIndicator } from '$components/message';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useComposingCheck } from '$hooks/useComposingCheck';
-import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
 import { useQueryClient } from '@tanstack/react-query';
+import * as Sentry from '@sentry/react';
 import {
   delayedEventsSupportedAtom,
   roomIdToScheduledTimeAtomFamily,
@@ -149,6 +137,13 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import {
+  convertPerMessageProfileToBeeperFormat,
+  getCurrentlyUsedPerMessageProfileForRoom,
+} from '$hooks/usePerMessageProfile';
+import { Microphone, Stop } from '@phosphor-icons/react';
+import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -158,8 +153,39 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
+import {
+  AudioMessageRecorder,
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
 
-const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation => {
+// Returns the event ID of the most recent non-reaction/non-edit event in a thread,
+// falling back to the thread root if no replies exist yet.
+const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
+  const thread = room.getThread(threadRootId);
+  const threadEvents: MatrixEvent[] = thread?.events ?? [];
+  const filtered = threadEvents.filter(
+    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+  );
+  if (filtered.length > 0) {
+    return filtered[filtered.length - 1].getId() ?? threadRootId;
+  }
+  // Fall back to the live timeline if the Thread object hasn't been registered yet
+  const liveEvents = room
+    .getUnfilteredTimelineSet()
+    .getLiveTimeline()
+    .getEvents()
+    .filter(
+      (ev) =>
+        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    );
+  if (liveEvents.length > 0) {
+    return liveEvents[liveEvents.length - 1].getId() ?? threadRootId;
+  }
+  return threadRootId;
+};
+
+const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEventRelation => {
   if (!replyDraft) return {};
 
   const relatesTo: IEventRelation = {};
@@ -172,13 +198,19 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined): IEventRelation =>
     // Check if this is a reply to a specific message in the thread
     // (replyDraft.body being empty means it's just a seeded thread draft)
     if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
-      // This is a reply to a message within the thread
+      // Explicit reply to a specific message — per spec, is_falling_back must be false
       relatesTo['m.in_reply_to'] = {
         event_id: replyDraft.eventId,
       };
       relatesTo.is_falling_back = false;
     } else {
-      // This is just a regular thread message
+      // Regular thread message — per spec, include fallback m.in_reply_to pointing to the
+      // most recent thread message so unthreaded clients can display it as a reply chain
+      const threadRootId = replyDraft.relation.event_id ?? replyDraft.eventId;
+      const latestEventId = room ? getLatestThreadEventId(room, threadRootId) : threadRootId;
+      relatesTo['m.in_reply_to'] = {
+        event_id: latestEventId,
+      };
       relatesTo.is_falling_back = true;
     }
   } else {
@@ -203,9 +235,10 @@ interface RoomInputProps {
   roomId: string;
   room: Room;
   threadRootId?: string;
+  onEditLastMessage?: () => void;
 }
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
-  ({ editor, fileDropContainerRef, roomId, room, threadRootId }, ref) => {
+  ({ editor, fileDropContainerRef, roomId, room, threadRootId, onEditLastMessage }, ref) => {
     // When in thread mode, isolate drafts by thread root ID so thread replies
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
@@ -214,9 +247,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
+    const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const commands = useCommands(mx, room);
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
+    const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
+    /**
+     * Nickname someone set for another user
+     * this nickname should be treated as private
+     */
     const nicknames = useAtomValue(nicknamesAtom);
 
     const powerLevels = usePowerLevelsContext();
@@ -226,12 +265,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
-    const replyUserID = replyDraft?.userId;
-
-    const { color: replyUsernameColor, font: replyUsernameFont } = useSableCosmetics(
-      replyUserID ?? '',
-      room
-    );
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -246,6 +279,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
     const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
+    const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+    const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
+    const micHoldStartRef = useRef<number>(0);
+    const HOLD_THRESHOLD_MS = 400;
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
@@ -255,7 +292,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [inputKey, setInputKey] = useState(0);
 
     const handleFiles = useCallback(
-      async (files: File[]) => {
+      async (files: File[], audioMeta?: { waveform: number[]; audioDuration: number }) => {
         setUploadBoard(true);
         const safeFiles = files.map(safeFile);
         const fileItems: TUploadItem[] = [];
@@ -269,6 +306,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               ...ef,
               metadata: {
                 markedAsSpoiler: false,
+                waveform: audioMeta?.waveform,
+                audioDuration: audioMeta?.audioDuration,
               },
             })
           );
@@ -280,6 +319,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               encInfo: undefined,
               metadata: {
                 markedAsSpoiler: false,
+                waveform: audioMeta?.waveform,
+                audioDuration: audioMeta?.audioDuration,
               },
             })
           );
@@ -306,7 +347,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
-    const [silentReply, setSilentReply] = useState(false);
+    const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const isEncrypted = room.hasEncryptionStateEvent();
 
@@ -316,38 +357,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const replyEvent = replyDraft ? room.findEventById(replyDraft.eventId) : undefined;
-    const {
-      body: replyBody,
-      formatted_body: replyFormattedBody,
-      format: replyFormat,
-    } = replyEvent?.getContent() ?? {};
-
-    // Prefer the live event content; fall back to what was snapshotted in the
-    // draft when the user hit Reply (the event may not be in SDK state if it
-    // was redacted or evicted, but the draft always carries the original body).
-    const htmlBody =
-      replyFormat === 'org.matrix.custom.html' ? replyFormattedBody : replyDraft?.formattedBody;
-    const plainBody = replyBody ?? replyDraft?.body;
-
-    let replyBodyJSX: ReactNode = replyDraft ? trimReplyFromBody(replyDraft.body) : null;
-
-    if (htmlBody) {
-      const strippedHtml = trimReplyFromFormattedBody(htmlBody)
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replaceAll(/<\/?p[^>]*>/gi, '')
-        .replaceAll(/(?:\r\n|\r|\n)/g, ' ')
-        .trim();
-      const parserOpts = getReactCustomHtmlParser(mx, roomId, {
-        linkifyOpts: LINKIFY_OPTS,
-        useAuthentication,
-        nicknames,
-      });
-      replyBodyJSX = parse(strippedHtml, parserOpts);
-    } else if (plainBody) {
-      const strippedBody = trimReplyFromBody(plainBody).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
-      replyBodyJSX = scaleSystemEmoji(strippedBody);
-    }
 
     // Seed the reply draft with the thread relation whenever we're in thread
     // mode (e.g. on first render or when the thread root changes). We use the
@@ -389,9 +398,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     useEffect(() => {
       if (replyDraft !== undefined) {
-        setSilentReply(replyDraft.userId === mx.getUserId());
+        setSilentReply(replyDraft.userId === mx.getUserId() || !mentionInReplies);
       }
-    }, [mx, replyDraft]);
+    }, [mentionInReplies, mx, replyDraft]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -425,6 +434,35 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       [setSelectedFiles, selectedFiles]
     );
 
+    const handleAudioRecordingComplete = useCallback(
+      (payload: AudioRecordingCompletePayload) => {
+        const extension = getSupportedAudioExtension(payload.audioCodec);
+        const file = new File(
+          [payload.audioBlob],
+          `sable-audio-message-${Date.now()}.${extension}`,
+          {
+            type: payload.audioCodec,
+          }
+        );
+        handleFiles([file], {
+          waveform: payload.waveform,
+          audioDuration: payload.audioLength,
+        });
+        setShowAudioRecorder(false);
+      },
+      [handleFiles]
+    );
+
+    const audioRecorder = showAudioRecorder ? (
+      <AudioMessageRecorder
+        ref={audioRecorderRef}
+        onRequestClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+        onAudioLengthUpdate={() => {}}
+        onWaveformUpdate={() => {}}
+      />
+    ) : undefined;
+
     const handleCancelUpload = (uploads: Upload[]) => {
       uploads.forEach((upload) => {
         if (upload.status === UploadStatus.Loading) {
@@ -455,8 +493,29 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleCancelUpload(uploads);
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
 
+      /**
+       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+       */
+      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+
+      if (perMessageProfile) {
+        contents.forEach((c) => {
+          // We intentionally mutate the objects here to avoid unnecessary copying
+          // mutating should be unproblematic here, since contents isn't a react component,
+          // or used for rendering
+          // eslint-disable-next-line no-param-reassign
+          c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+            perMessageProfile,
+            false
+          );
+        });
+      }
+
       if (contents.length > 0) {
-        const replyContent = plainText?.length === 0 ? getReplyContent(replyDraft) : undefined;
+        const replyContent =
+          plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
         if (replyContent) contents[0]['m.relates_to'] = replyContent;
         if (threadRootId) {
           setReplyDraft({
@@ -470,28 +529,74 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
       }
 
-      await Promise.all(
-        contents.map((content) =>
-          mx
-            .sendMessage(roomId, threadRootId ?? null, content as any)
-            .then((res) => {
-              debugLog.info('message', 'Uploaded file message sent', {
-                roomId,
-                eventId: res.event_id,
-                msgtype: content.msgtype,
-              });
-              return res;
+      const invalidate = () =>
+        queryClient.invalidateQueries({ queryKey: ['delayedEvents', roomId] });
+
+      if (scheduledTime) {
+        try {
+          const delayMs = computeDelayMs(scheduledTime);
+          if (editingScheduledDelayId) {
+            await cancelDelayedEvent(mx, editingScheduledDelayId);
+          }
+
+          await Promise.all(
+            contents.map((content) => {
+              if (isEncrypted) {
+                return sendDelayedMessageE2EE(mx, roomId, room, content, delayMs);
+              }
+              return sendDelayedMessage(mx, roomId, content, delayMs);
             })
-            .catch((error: unknown) => {
-              debugLog.error('message', 'Failed to send uploaded file message', {
-                roomId,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              log.error('failed to send uploaded message', { roomId }, error);
-              throw error;
-            })
-        )
-      );
+          );
+
+          invalidate();
+          setEditingScheduledDelayId(null);
+          setScheduledTime(null);
+        } catch (error) {
+          debugLog.error('message', 'Failed to schedule uploaded file message', {
+            roomId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          log.error('failed to schedule uploaded message', { roomId }, error);
+          throw error;
+        }
+      } else {
+        if (editingScheduledDelayId) {
+          try {
+            await cancelDelayedEvent(mx, editingScheduledDelayId);
+            invalidate();
+            setEditingScheduledDelayId(null);
+          } catch {
+            debugLog.error(
+              'message',
+              'Failed to cancel scheduled event before immediate file send',
+              { roomId }
+            );
+          }
+        }
+
+        await Promise.all(
+          contents.map((content) =>
+            mx
+              .sendMessage(roomId, threadRootId ?? null, content as any)
+              .then((res: { event_id: string }) => {
+                debugLog.info('message', 'Uploaded file message sent', {
+                  roomId,
+                  eventId: res.event_id,
+                  msgtype: content.msgtype,
+                });
+                return res;
+              })
+              .catch((error: unknown) => {
+                debugLog.error('message', 'Failed to send uploaded file message', {
+                  roomId,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+                log.error('failed to send uploaded message', { roomId }, error);
+                throw error;
+              })
+          )
+        );
+      }
     };
 
     const handleCloseAutocomplete = useCallback(() => {
@@ -533,12 +638,65 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       uploadBoardHandlers.current?.handleSend();
 
       const commandName = getBeginCommand(editor);
-      let plainText = toPlainText(editor.children, isMarkdown).trim();
+      /**
+       * a map of regex patterns to replace nicknames with,
+       * used when stripNickname is true in toMatrixCustomHTML
+       * during HTML generation for the message content.
+       * This is necessary because the HTML generation needs to know
+       * which nicknames to strip in order to generate the correct formatted_body,
+       * and the plain text generation needs to replace those same nicknames with
+       * the original user IDs so that the message content remains consistent and
+       * mentions are correctly processed by the server and clients.
+       */
+      const nicknameReplacement = new Map<RegExp, string>();
+      if (replyEvent) {
+        /**
+         * the id of the user being replied to,
+         * whose nickname (if any) should be stripped
+         * from the message content and replaced with their
+         * user ID for correct mention processing
+         */
+        const senderId = replyEvent.getSender();
+        if (senderId) {
+          const nick = nicknames[senderId];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(senderId)?.rawDisplayName ?? senderId
+            );
+          }
+        }
+      }
+      /**
+       * any other users mentioned in the message being replied to,
+       * whose nicknames should also be stripped and replaced with user IDs
+       */
+      const mentions = getMentions(mx, roomId, editor);
+      if (mentions?.users) {
+        mentions.users.forEach((id) => {
+          const nick = nicknames[id];
+          if (typeof nick === 'string' && nick.length > 0) {
+            nicknameReplacement.set(
+              new RegExp(`@?${nick}`, 'g'),
+              room.getMember(id)?.rawDisplayName ?? id
+            );
+          }
+        });
+      }
+      /**
+       * the plain text we will send
+       */
+      let plainText = toPlainText(editor.children, isMarkdown, true, nicknameReplacement).trim();
+      /**
+       * the html we will send
+       */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(editor.children, {
           allowTextFormatting: true,
           allowBlockMarkdown: isMarkdown,
           allowInlineMarkdown: isMarkdown,
+          stripNickname: true,
+          nickNameReplacement: nicknameReplacement,
         })
       );
       let msgType = MsgType.Text;
@@ -599,8 +757,48 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         content.format = 'org.matrix.custom.html';
         content.formatted_body = formattedBody;
       }
+
+      /**
+       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+       */
+      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+
+      if (perMessageProfile) {
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          perMessageProfile.name.trim() !== ''
+        );
+
+        if (perMessageProfile.name.trim() !== '') {
+          // if a per-message profile is used, it must per spec include a fallback
+          const prefix = `${perMessageProfile.name}: `;
+
+          if (!content.body.startsWith(prefix)) {
+            // to prevent double-prefixing when the fallback is already present
+            content.body = prefix + content.body;
+          }
+
+          /**
+           * html escaped version of the display name
+           */
+          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+
+          if (content.formatted_body && !content.formatted_body.startsWith(htmlPrefix)) {
+            content.formatted_body = htmlPrefix + content.formatted_body;
+          } else {
+            // we don't have a formatted body, but we need one
+            content.format = 'org.matrix.custom.html';
+            content.formatted_body = `${htmlPrefix}${plainText}`;
+          }
+        }
+      }
+
       if (replyDraft) {
-        content['m.relates_to'] = getReplyContent(replyDraft);
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
       }
       const invalidate = () =>
         queryClient.invalidateQueries({ queryKey: ['delayedEvents', roomId] });
@@ -660,47 +858,106 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // Cancel failed — leave state intact for retry
         }
       } else {
+        const msgSendStart = performance.now();
         resetInput();
         debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
-        mx.sendMessage(roomId, threadRootId ?? null, content as any)
-          .then((res) => {
+        Sentry.startSpan(
+          {
+            name: 'message.send',
+            op: 'matrix.message',
+            attributes: { encrypted: String(isEncrypted) },
+          },
+          () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
+        )
+          .then((res: { event_id: string }) => {
             debugLog.info('message', 'Message sent successfully', {
               roomId,
               eventId: res.event_id,
             });
+            Sentry.metrics.distribution(
+              'sable.message.send_latency_ms',
+              performance.now() - msgSendStart,
+              { attributes: { encrypted: String(isEncrypted) } }
+            );
           })
           .catch((error: unknown) => {
             debugLog.error('message', 'Failed to send message', {
               roomId,
               error: error instanceof Error ? error.message : String(error),
             });
+            Sentry.metrics.count('sable.message.send_error', 1, {
+              attributes: { encrypted: String(isEncrypted) },
+            });
             log.error('failed to send message', { roomId }, error);
           });
       }
     }, [
       editor,
+      replyEvent,
       isMarkdown,
       canSendReaction,
       mx,
       roomId,
-      threadRootId,
       replyDraft,
       silentReply,
       scheduledTime,
       editingScheduledDelayId,
+      nicknames,
       handleQuickReact,
       commands,
       sendTypingStatus,
+      room,
       queryClient,
+      threadRootId,
       setReplyDraft,
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
-      room,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
+        const autocompleteMenu = document.querySelector('[data-autocomplete-menu]');
+        const isMenuVisible = !!(autocompleteQuery && autocompleteMenu);
+
+        if (isMenuVisible) {
+          if (isKeyHotkey('arrowdown', evt)) {
+            evt.preventDefault();
+            autocompleteMenu.dispatchEvent(
+              new CustomEvent('autocomplete-navigate', { detail: { direction: 1 } })
+            );
+            return;
+          }
+          if (isKeyHotkey('arrowup', evt)) {
+            evt.preventDefault();
+            autocompleteMenu.dispatchEvent(
+              new CustomEvent('autocomplete-navigate', { detail: { direction: -1 } })
+            );
+            return;
+          }
+
+          if ((isKeyHotkey('enter', evt) || isKeyHotkey('tab', evt)) && !isComposing(evt)) {
+            const selectedItem =
+              autocompleteMenu.querySelector<HTMLButtonElement>('button[data-selected="true"]') ??
+              autocompleteMenu.querySelector<HTMLButtonElement>('button');
+
+            if (selectedItem) {
+              evt.preventDefault();
+              selectedItem.click();
+              return;
+            }
+          }
+        }
+
+        if (isKeyHotkey('arrowup', evt) && isEmptyEditor(editor)) {
+          const { selection } = editor;
+          if (selection && Editor.isStart(editor, selection.anchor, [])) {
+            evt.preventDefault();
+            onEditLastMessage?.();
+            return;
+          }
+        }
+
         if (
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
@@ -709,9 +966,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           submit().catch((error) => {
             log.error('submit failed', { roomId }, error);
           });
+          return;
         }
         if (isKeyHotkey('escape', evt)) {
           evt.preventDefault();
+          if (showAudioRecorder) {
+            audioRecorderRef.current?.cancel();
+            return;
+          }
           if (autocompleteQuery) {
             setAutocompleteQuery(undefined);
             return;
@@ -719,7 +981,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setReplyDraft(undefined);
         }
       },
-      [submit, roomId, setReplyDraft, enterForNewline, autocompleteQuery, isComposing]
+      [
+        submit,
+        roomId,
+        setReplyDraft,
+        enterForNewline,
+        autocompleteQuery,
+        isComposing,
+        showAudioRecorder,
+        editor,
+        onEditLastMessage,
+      ]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -781,13 +1053,28 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent = {
         body: label,
         url: mxc,
         info,
       };
+
+      /**
+       * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
+       * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
+       * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
+       */
+      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+
+      if (perMessageProfile) {
+        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
+          perMessageProfile,
+          false
+        );
+      }
+
       if (replyDraft) {
-        content['m.relates_to'] = getReplyContent(replyDraft);
+        content['m.relates_to'] = getReplyContent(replyDraft, room);
         if (threadRootId) {
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -925,6 +1212,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          responsiveAfter={audioRecorder}
+          forceMultilineLayout={showAudioRecorder}
           top={
             <>
               {scheduledTime && (
@@ -998,25 +1287,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         grow="Yes"
                         style={{ minWidth: 0 }}
                       >
-                        {replyDraft.relation?.rel_type === RelationType.Thread && (
+                        {replyDraft.relation?.rel_type === RelationType.Thread && !threadRootId && (
                           <ThreadIndicator />
                         )}
-                        <ReplyLayout
-                          userColor={replyUsernameColor}
-                          username={
-                            <Text size="T300" truncate style={{ fontFamily: replyUsernameFont }}>
-                              <b>
-                                {getMemberDisplayName(room, replyDraft.userId, nicknames) ??
-                                  getMxIdLocalPart(replyDraft.userId) ??
-                                  replyDraft.userId}
-                              </b>
-                            </Text>
-                          }
-                        >
-                          <Text size="T300" truncate>
-                            {replyBodyJSX}
-                          </Text>
-                        </ReplyLayout>
+                        <Reply room={room} replyEventId={replyDraft.eventId} />
                       </Box>
                       <IconButton
                         variant="SurfaceVariant"
@@ -1054,6 +1328,58 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           after={
             <>
+              {/* ── Mic button — always present; icon swaps to Stop while recording ── */}
+              <IconButton
+                ref={micBtnRef}
+                variant={showAudioRecorder ? 'Critical' : 'SurfaceVariant'}
+                size="300"
+                radii="300"
+                title={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
+                aria-label={showAudioRecorder ? 'Stop recording' : 'Record audio message'}
+                aria-pressed={showAudioRecorder}
+                onClick={() => {
+                  if (mobileOrTablet() && !showAudioRecorder) return;
+                  if (showAudioRecorder) {
+                    audioRecorderRef.current?.stop();
+                  } else {
+                    setShowAudioRecorder(true);
+                  }
+                }}
+                onPointerDown={() => {
+                  if (!mobileOrTablet()) return;
+                  if (showAudioRecorder) return;
+                  micHoldStartRef.current = Date.now();
+                  setShowAudioRecorder(true);
+
+                  let cleanup: () => void;
+                  const onUp = () => {
+                    cleanup();
+                    const held = Date.now() - micHoldStartRef.current;
+                    if (held >= HOLD_THRESHOLD_MS) {
+                      setTimeout(() => {
+                        audioRecorderRef.current?.stop();
+                      }, 50);
+                    } else {
+                      setTimeout(() => {
+                        audioRecorderRef.current?.cancel();
+                      }, 50);
+                    }
+                  };
+                  cleanup = () => {
+                    window.removeEventListener('pointerup', onUp);
+                    window.removeEventListener('pointercancel', cleanup);
+                  };
+                  window.addEventListener('pointerup', onUp);
+                  window.addEventListener('pointercancel', cleanup);
+                }}
+              >
+                {showAudioRecorder ? (
+                  <Stop size={20} weight="fill" style={{ color: color.Critical.Main }} />
+                ) : (
+                  <Microphone size={20} />
+                )}
+              </IconButton>
+
               <IconButton
                 variant="SurfaceVariant"
                 size="300"

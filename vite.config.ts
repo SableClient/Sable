@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import buildConfig from './build.config';
 
 const packageJson = JSON.parse(
@@ -59,7 +60,7 @@ const isReleaseTag = (() => {
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
   try {
     const tag = execSync('git describe --exact-match --tags HEAD 2>/dev/null').toString().trim();
-    return tag.startsWith('sable/v');
+    return tag.startsWith('v');
   } catch {
     return false;
   }
@@ -68,7 +69,7 @@ const isReleaseTag = (() => {
 const copyFiles = {
   targets: [
     {
-      src: 'node_modules/@element-hq/element-call-embedded/dist/*',
+      src: 'node_modules/@sableclient/sable-call-embedded/dist/*',
       dest: 'public/element-call',
     },
     {
@@ -85,7 +86,15 @@ const copyFiles = {
       dest: '',
     },
     {
-      src: 'public/res/android',
+      src: 'public/res/logo-maskable',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/logo',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/svg',
       dest: 'public/',
     },
     {
@@ -119,7 +128,7 @@ function serverMatrixSdkCryptoWasm() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   clearScreen: false,
   appType: 'spa',
   publicDir: false,
@@ -160,6 +169,7 @@ export default defineConfig({
     watch: {
       ignored: ['**/src-tauri/**'],
     },
+    allowedHosts: command === 'serve' ? true : undefined,
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..'],
@@ -222,6 +232,26 @@ export default defineConfig({
           }),
         ]
       : []),
+    // Sentry source map upload — only active when credentials are provided at build time
+    ...(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            sourcemaps: {
+              filesToDeleteAfterUpload: ['dist/**/*.map'],
+            },
+            release: {
+              name: appVersion,
+            },
+            // Annotate React components with data-sentry-* attributes at build
+            // time so Sentry can show component names in breadcrumbs, spans,
+            // and replay search instead of raw CSS selectors.
+            reactComponentAnnotation: { enabled: true },
+          }),
+        ]
+      : []),
   ],
   optimizeDeps: {
     // Include service worker entry so worker-only imports are discovered during startup.
@@ -260,7 +290,7 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('pdfjs-dist')) return 'pdf';
-          if (id.includes('@element-hq/element-call-embedded')) return 'element-call';
+          if (id.includes('@sableclient/sable-call-embedded')) return 'element-call';
           if (id.includes('@matrix-org') || id.includes('matrix-js-sdk')) return 'matrix';
           if (id.includes('react-prism') || id.includes('prism')) return 'prism';
           return undefined;
@@ -268,4 +298,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

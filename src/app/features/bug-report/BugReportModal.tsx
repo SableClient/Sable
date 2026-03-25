@@ -18,9 +18,12 @@ import {
   Spinner,
   Text,
   TextArea,
+  Checkbox,
 } from 'folds';
+import * as Sentry from '@sentry/react';
 import { useCloseBugReportModal, useBugReportModalOpen } from '$state/hooks/bugReportModal';
 import { stopPropagation } from '$utils/keyboard';
+import { getDebugLogger } from '$utils/debugLogger';
 
 type ReportType = 'bug' | 'feature';
 
@@ -84,6 +87,7 @@ export function buildGitHubUrl(
 
 function BugReportModal() {
   const close = useCloseBugReportModal();
+  const sentryEnabled = Sentry.isInitialized();
   const [type, setType] = useState<ReportType>('bug');
   const [title, setTitle] = useState('');
 
@@ -99,6 +103,12 @@ function BugReportModal() {
 
   // Shared optional field
   const [context, setContext] = useState('');
+
+  // Sentry integration options
+  const [sendToSentry, setSendToSentry] = useState(true);
+  const [includeDebugLogs, setIncludeDebugLogs] = useState(true);
+  // When Sentry is enabled, GitHub is opt-in; when disabled, GitHub is always used
+  const [openOnGitHub, setOpenOnGitHub] = useState(!sentryEnabled);
 
   const [similarIssues, setSimilarIssues] = useState<SimilarIssue[]>([]);
   const [searching, setSearching] = useState(false);
@@ -141,12 +151,74 @@ function BugReportModal() {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+
     const fields: Record<string, string> =
       type === 'bug'
         ? { description, reproduction, 'expected-behavior': expectedBehavior, context }
         : { problem, solution, alternatives, context };
-    const url = buildGitHubUrl(type, title.trim(), fields);
-    window.open(url, '_blank', 'noopener,noreferrer');
+
+    // Send to Sentry if bug report and option is enabled
+    if (sendToSentry && type === 'bug') {
+      const debugLogger = getDebugLogger();
+
+      // Attach recent logs if user opted in
+      if (includeDebugLogs) {
+        debugLogger.attachLogsToSentry(100);
+      }
+
+      const version = `v${APP_VERSION}${IS_RELEASE_TAG ? '' : '-dev'}${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`;
+
+      // Build a fully self-contained message so all fields are visible
+      // directly in the Sentry issue detail without digging into sub-sections.
+      const sentryMessage = [
+        `[Bug Report] ${title.trim()}`,
+        '',
+        `Description:\n${description}`,
+        reproduction ? `\nSteps to Reproduce:\n${reproduction}` : '',
+        expectedBehavior ? `\nExpected Behavior:\n${expectedBehavior}` : '',
+        context ? `\nAdditional Context:\n${context}` : '',
+        `\nEnvironment: ${version} · ${navigator.platform}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const eventId = Sentry.captureMessage(sentryMessage, {
+        level: 'info',
+        // Group all user bug reports together in Sentry Issues
+        fingerprint: ['bug-report-modal'],
+        tags: {
+          source: 'bug-report-modal',
+          reportType: type,
+        },
+        extra: {
+          title: title.trim(),
+          description,
+          reproduction: reproduction || '(not provided)',
+          expectedBehavior: expectedBehavior || '(not provided)',
+          context: context || '(not provided)',
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          version,
+        },
+      });
+
+      // Also send as User Feedback so it appears in the Sentry Feedback section
+      if (eventId) {
+        Sentry.captureFeedback({
+          message: sentryMessage,
+          name: 'User Bug Report',
+          associatedEventId: eventId,
+        });
+      }
+    }
+
+    // Feature requests always go to GitHub; bugs go to GitHub only when Sentry
+    // is unavailable or the user explicitly opts in.
+    const shouldOpenGitHub = type === 'feature' || !sentryEnabled || openOnGitHub;
+    if (shouldOpenGitHub) {
+      const url = buildGitHubUrl(type, title.trim(), fields);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
     close();
   };
 
@@ -352,6 +424,63 @@ function BugReportModal() {
                     />
                   </Box>
 
+                  {/* Sentry integration options (only for bug reports when Sentry is configured) */}
+                  {type === 'bug' && sentryEnabled && (
+                    <Box direction="Column" gap="200">
+                      <Text size="L400">Error Tracking</Text>
+                      <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
+                        <Checkbox
+                          variant="Primary"
+                          checked={sendToSentry}
+                          onClick={() => setSendToSentry((v) => !v)}
+                        />
+                        <Box direction="Column" gap="100" grow="Yes">
+                          <Text size="T300">
+                            Send anonymous report to Sentry for error tracking
+                          </Text>
+                          <Text size="T200" style={{ opacity: 0.7 }}>
+                            Helps developers identify and fix issues faster. No personal data is
+                            sent.
+                          </Text>
+                        </Box>
+                      </Box>
+                      {sendToSentry && (
+                        <Box
+                          as="label"
+                          gap="200"
+                          alignItems="Center"
+                          style={{ cursor: 'pointer', paddingLeft: config.space.S400 }}
+                        >
+                          <Checkbox
+                            variant="Primary"
+                            checked={includeDebugLogs}
+                            onClick={() => setIncludeDebugLogs((v) => !v)}
+                          />
+                          <Box direction="Column" gap="100" grow="Yes">
+                            <Text size="T300">Include recent debug logs (last 100 entries)</Text>
+                            <Text size="T200" style={{ opacity: 0.7 }}>
+                              Provides additional context to help diagnose the issue. Logs are
+                              filtered for sensitive data.
+                            </Text>
+                          </Box>
+                        </Box>
+                      )}
+                      <Box as="label" gap="200" alignItems="Center" style={{ cursor: 'pointer' }}>
+                        <Checkbox
+                          variant="Primary"
+                          checked={openOnGitHub}
+                          onClick={() => setOpenOnGitHub((v) => !v)}
+                        />
+                        <Box direction="Column" gap="100" grow="Yes">
+                          <Text size="T300">Also create a GitHub issue</Text>
+                          <Text size="T200" style={{ opacity: 0.7 }}>
+                            Opens a pre-filled GitHub issue in addition to the Sentry report.
+                          </Text>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
+
                   {/* Actions */}
                   <Box gap="300" justifyContent="End">
                     <Button size="400" variant="Secondary" fill="None" radii="400" onClick={close}>
@@ -365,7 +494,9 @@ function BugReportModal() {
                       onClick={handleSubmit}
                       after={<Icon src={Icons.ArrowRight} size="100" />}
                     >
-                      <Text size="B400">Open on GitHub</Text>
+                      <Text size="B400">
+                        {sentryEnabled && type === 'bug' ? 'Submit Report' : 'Open on GitHub'}
+                      </Text>
                     </Button>
                   </Box>
                 </Box>

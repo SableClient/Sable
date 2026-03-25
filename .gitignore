@@ -1,5 +1,6 @@
 experiment
 dist
+coverage
 node_modules
 devAssets
 
@@ -18,6 +19,7 @@ devAssets
 *.tfbackend
 !*.tfbackend.example
 crash.log
+build.sh
 
 # the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
 .lh

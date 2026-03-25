@@ -1,4 +1,12 @@
-const MATRIX_TO_BASE = 'https://matrix.to';
+let MATRIX_TO_BASE = 'https://matrix.to';
+
+/**
+ * Override the default matrix.to base URL (configurable per deployment).
+ * Must be called before any getMatrixTo* functions are used.
+ */
+export const setMatrixToBase = (baseUrl?: string): void => {
+  MATRIX_TO_BASE = baseUrl ? baseUrl.replace(/\/$/, '') : 'https://matrix.to';
+};
 
 export const getMatrixToUser = (userId: string): string => `${MATRIX_TO_BASE}/#/${userId}`;
 
@@ -38,23 +46,49 @@ export type MatrixToRoomEvent = MatrixToRoom & {
   eventId: string;
 };
 
-const MATRIX_TO = /^https?:\/\/matrix\.to\S*$/;
-export const testMatrixTo = (href: string): boolean => MATRIX_TO.test(href);
+const escapeForRegex = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const MATRIX_TO_USER = /^https?:\/\/matrix\.to\/#\/(@[^:\s]+:[^?/\s]+)\/?$/;
-const MATRIX_TO_ROOM = /^https?:\/\/matrix\.to\/#\/([#!][^?/\s]+)\/?(\?[\S]*)?$/;
-const MATRIX_TO_ROOM_EVENT =
-  /^https?:\/\/matrix\.to\/#\/([#!][^?/\s]+)\/(\$[^?/\s]+)\/?(\?[\S]*)?$/;
+// Lazily cached regex set; rebuilt if MATRIX_TO_BASE changes.
+let cachedRegexBase = '';
+let cachedRegexes: {
+  any: RegExp;
+  user: RegExp;
+  room: RegExp;
+  event: RegExp;
+} | null = null;
+
+/**
+ * Returns regexes that match BOTH https://matrix.to (for cross-client links
+ * received from standard clients) and the configured custom base URL (if any).
+ */
+const getMatchRegexes = () => {
+  if (cachedRegexBase === MATRIX_TO_BASE && cachedRegexes) return cachedRegexes;
+  cachedRegexBase = MATRIX_TO_BASE;
+  // Use https? so both http:// and https://matrix.to are accepted (original behaviour).
+  const standard = `https?://${escapeForRegex('matrix.to')}`;
+  const b =
+    MATRIX_TO_BASE !== 'https://matrix.to'
+      ? `(?:${standard}|${escapeForRegex(MATRIX_TO_BASE)})`
+      : standard;
+  cachedRegexes = {
+    any: new RegExp(`^${b}\\S*$`),
+    user: new RegExp(`^${b}/#/(@[^:\\s]+:[^?/\\s]+)\\/?$`),
+    room: new RegExp(`^${b}/#/([#!][^?/\\s]+)\\/?(\\?[\\S]*)?$`),
+    event: new RegExp(`^${b}/#/([#!][^?/\\s]+)/(\\$[^?/\\s]+)\\/?([?\\S]*)?$`),
+  };
+  return cachedRegexes;
+};
+
+export const testMatrixTo = (href: string): boolean => getMatchRegexes().any.test(href);
 
 export const parseMatrixToUser = (href: string): string | undefined => {
-  const match = href.match(MATRIX_TO_USER);
+  const match = href.match(getMatchRegexes().user);
   if (!match) return undefined;
-  const userId = match[1];
-  return userId;
+  return match[1];
 };
 
 export const parseMatrixToRoom = (href: string): MatrixToRoom | undefined => {
-  const match = href.match(MATRIX_TO_ROOM);
+  const match = href.match(getMatchRegexes().room);
   if (!match) return undefined;
 
   const roomIdOrAlias = match[1];
@@ -68,7 +102,7 @@ export const parseMatrixToRoom = (href: string): MatrixToRoom | undefined => {
 };
 
 export const parseMatrixToRoomEvent = (href: string): MatrixToRoomEvent | undefined => {
-  const match = href.match(MATRIX_TO_ROOM_EVENT);
+  const match = href.match(getMatchRegexes().event);
   if (!match) return undefined;
 
   const roomIdOrAlias = match[1];

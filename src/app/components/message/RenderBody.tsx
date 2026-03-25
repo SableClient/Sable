@@ -19,12 +19,13 @@ export function RenderBody({
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
-}: RenderBodyProps) {
-  if (body === '') return <MessageEmptyContent />;
+}: Readonly<RenderBodyProps>) {
   if (customBody) {
     if (customBody === '') return <MessageEmptyContent />;
     return parse(sanitizeCustomHtml(customBody), htmlReactParserOptions);
   }
+  if (body === '') return <MessageEmptyContent />;
+
   return (
     <Linkify options={linkifyOpts}>
       {highlightRegex

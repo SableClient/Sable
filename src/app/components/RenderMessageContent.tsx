@@ -27,8 +27,8 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder } from './url-preview';
-import { Image, MediaControl, Video } from './media';
+import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
+import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
@@ -43,10 +43,12 @@ type RenderMessageContentProps = {
   getContent: <T>() => T;
   mediaAutoLoad?: boolean;
   urlPreview?: boolean;
+  clientUrlPreview?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
+  hideCaption?: boolean;
 };
 
 const getMediaType = (url: string) => {
@@ -67,10 +69,12 @@ function RenderMessageContentInternal({
   getContent,
   mediaAutoLoad,
   urlPreview,
+  clientUrlPreview,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
   outlineAttachment,
+  hideCaption,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent<any>(), [getContent]);
 
@@ -110,18 +114,27 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => (
-            <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
-          ))}
+          {toRender.map(({ url, type }) => {
+            if (type) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+            }
+            if (clientUrlPreview && youtubeUrl(url)) {
+              return <ClientPreview url={url} />;
+            }
+            if (urlPreview) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+            }
+            return null;
+          })}
         </UrlPreviewHolder>
       );
     },
-    [ts]
+    [ts, clientUrlPreview, urlPreview]
   );
 
   const renderCaption = () => {
     const hasCaption = content.body && content.body.trim().length > 0;
-    if (captionPosition === CaptionPosition.Hidden) return null;
+    if (captionPosition === CaptionPosition.Hidden || hideCaption) return null;
     if (hasCaption && content.filename && content.filename !== content.body) {
       if (captionPosition !== CaptionPosition.Inline)
         return (
@@ -321,7 +334,7 @@ function RenderMessageContentInternal({
                       )
                     : undefined
                 }
-                renderVideo={(p) => <Video {...p} />}
+                renderVideo={(p) => <PersistedVolumeVideo {...p} />}
               />
             )}
             outlined={outlineAttachment}

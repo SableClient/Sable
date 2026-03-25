@@ -18,11 +18,11 @@ export function NameColorEditor({
   current,
   onSave,
   disabled,
-}: NameColorEditorProps) {
+}: Readonly<NameColorEditorProps>) {
   const stripQuotes = (str?: string) => {
     if (!str) return '';
     // to solve the silly tuwunel
-    return str.replace(/^["']|["']$/g, '');
+    return str.replaceAll(/^["']|["']$/g, '');
   };
 
   const [tempColor, setTempColor] = useState(stripQuotes(current) || '#FFFFFF');

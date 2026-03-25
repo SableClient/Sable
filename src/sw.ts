@@ -25,6 +25,10 @@ const { handlePushNotificationPushData } = createPushNotifications(self, () => (
 const SW_SETTINGS_CACHE = 'sable-sw-settings-v1';
 const SW_SETTINGS_URL = '/sw-settings-meta';
 
+/** Cache key used to persist the active session so push-event fetches work after SW restart. */
+const SW_SESSION_CACHE = 'sable-sw-session-v1';
+const SW_SESSION_URL = '/sw-session-meta';
+
 async function persistSettings() {
   try {
     const cache = await self.caches.open(SW_SETTINGS_CACHE);
@@ -63,15 +67,65 @@ async function loadPersistedSettings() {
   }
 }
 
+async function persistSession(session: SessionInfo): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_SESSION_CACHE);
+    await cache.put(
+      SW_SESSION_URL,
+      new Response(JSON.stringify(session), { headers: { 'Content-Type': 'application/json' } })
+    );
+  } catch {
+    // Ignore — caches may be unavailable in some environments.
+  }
+}
+
+async function clearPersistedSession(): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_SESSION_CACHE);
+    await cache.delete(SW_SESSION_URL);
+  } catch {
+    // Ignore.
+  }
+}
+
+async function loadPersistedSession(): Promise<SessionInfo | undefined> {
+  try {
+    const cache = await self.caches.open(SW_SESSION_CACHE);
+    const response = await cache.match(SW_SESSION_URL);
+    if (!response) return undefined;
+    const s = await response.json();
+    if (typeof s.accessToken === 'string' && typeof s.baseUrl === 'string') {
+      return {
+        accessToken: s.accessToken,
+        baseUrl: s.baseUrl,
+        userId: typeof s.userId === 'string' ? s.userId : undefined,
+      };
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;
+  /** Matrix user ID of the account, used to identify which account a push belongs to. */
+  userId?: string;
 };
 
 /**
  * Store session per client (tab)
  */
 const sessions = new Map<string, SessionInfo>();
+
+/**
+ * Session pre-loaded from cache on SW activation. Acts as an immediate
+ * fallback so media fetches don't 401 during the window between SW restart
+ * and the first live setSession message from the page.
+ * Cleared as soon as any real setSession call comes in.
+ */
+let preloadedSession: SessionInfo | undefined;
 
 const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
 const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
@@ -89,14 +143,25 @@ async function cleanupDeadClients() {
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown) {
+function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
-    sessions.set(clientId, { accessToken, baseUrl });
+    const info: SessionInfo = {
+      accessToken,
+      baseUrl,
+      userId: typeof userId === 'string' ? userId : undefined,
+    };
+    sessions.set(clientId, info);
+    // A real session has arrived — discard the preloaded fallback.
+    preloadedSession = undefined;
     console.debug('[SW] setSession: stored', clientId, baseUrl);
+    // Persist so push-event fetches work after iOS restarts the SW.
+    persistSession(info).catch(() => undefined);
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
+    preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
+    clearPersistedSession().catch(() => undefined);
   }
 
   const resolveSession = clientToResolve.get(clientId);
@@ -144,6 +209,260 @@ async function requestSessionWithTimeout(
   return Promise.race([sessionPromise, timeout]);
 }
 
+// ---------------------------------------------------------------------------
+// Encrypted push — decryption relay
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape returned by the client tab after decrypting an encrypted push event.
+ * Also used as a partial pushData object for handlePushNotificationPushData.
+ */
+type DecryptionResult = {
+  eventId: string;
+  success: boolean;
+  eventType?: string;
+  content?: unknown;
+  sender_display_name?: string;
+  room_name?: string;
+  /** document.visibilityState reported by the responding app tab. */
+  visibilityState?: string;
+};
+
+/** Pending decryption requests keyed by event_id. */
+const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
+
+/**
+ * Fetch a single raw Matrix event from the homeserver.
+ * Returns undefined on error (e.g. network failure, auth error, redacted event).
+ */
+async function fetchRawEvent(
+  baseUrl: string,
+  accessToken: string,
+  roomId: string,
+  eventId: string
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/event/${encodeURIComponent(eventId)}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      console.warn('[SW fetchRawEvent] HTTP', res.status, 'for', eventId);
+      return undefined;
+    }
+    return (await res.json()) as Record<string, unknown>;
+  } catch (err) {
+    console.warn('[SW fetchRawEvent] error', err);
+    return undefined;
+  }
+}
+
+/**
+ * Fetch the m.room.name state event from the homeserver.
+ * Returns undefined when not set (DMs and many encrypted rooms have no explicit name).
+ */
+async function fetchRoomName(
+  baseUrl: string,
+  accessToken: string,
+  roomId: string
+): Promise<string | undefined> {
+  try {
+    const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.name`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as Record<string, unknown>;
+    const { name } = data;
+    return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Fetch a room member's displayname from homeserver member state.
+ * Returns undefined if the member has no displayname or the request fails.
+ */
+async function fetchMemberDisplayName(
+  baseUrl: string,
+  accessToken: string,
+  roomId: string,
+  userId: string
+): Promise<string | undefined> {
+  try {
+    const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(userId)}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as Record<string, unknown>;
+    const name = data.displayname;
+    return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Return the first any-session we have stored (used for push fetches where we
+ * don't have a client ID, e.g. when the app is backgrounded but still loaded).
+ */
+function getAnyStoredSession(): SessionInfo | undefined {
+  return sessions.values().next().value;
+}
+
+/**
+ * Extract the MXID localpart (@user:server → user) for fallback display names.
+ */
+function mxidLocalpart(userId: string): string {
+  return userId.match(/^@([^:]+):/)?.[1] ?? userId;
+}
+
+/**
+ * Post a decryptPushEvent request to one of the open window clients and wait
+ * up to 5 s for the pushDecryptResult reply.
+ */
+async function requestDecryptionFromClient(
+  windowClients: readonly Client[],
+  rawEvent: Record<string, unknown>
+): Promise<DecryptionResult | undefined> {
+  const eventId = rawEvent.event_id as string;
+
+  // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
+  return Array.from(windowClients).reduce(
+    async (prevPromise, client) => {
+      const prev = await prevPromise;
+      if (prev?.success) return prev;
+
+      const promise = new Promise<DecryptionResult>((resolve) => {
+        decryptionPendingMap.set(eventId, resolve);
+      });
+
+      const timeout = new Promise<undefined>((resolve) => {
+        setTimeout(() => {
+          decryptionPendingMap.delete(eventId);
+          console.warn('[SW decryptRelay] timed out waiting for client', client.id);
+          resolve(undefined);
+        }, 5000);
+      });
+
+      try {
+        (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+      } catch (err) {
+        decryptionPendingMap.delete(eventId);
+        console.warn('[SW decryptRelay] postMessage error', err);
+        return undefined;
+      }
+
+      return Promise.race([promise, timeout]);
+    },
+    Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
+  );
+}
+
+/**
+ * Handle a minimal push payload (event_id_only format).
+ * Fetches the event from the homeserver and shows a notification.
+ * For encrypted events, attempts to relay decryption to an open app tab.
+ */
+async function handleMinimalPushPayload(
+  roomId: string,
+  eventId: string,
+  windowClients: readonly Client[]
+): Promise<void> {
+  // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
+  // Map.  Fall back to the Cache Storage copy that was written when the user last opened
+  // the app (same pattern as settings persistence).
+  const session = getAnyStoredSession() ?? (await loadPersistedSession());
+
+  if (!session) {
+    // No session anywhere — app was never opened since install, or the user logged out.
+    // Show a minimal actionable notification so the user can tap through to the room.
+    console.debug('[SW push] minimal payload: no session, showing generic notification');
+    await self.registration.showNotification('New Message', {
+      body: undefined,
+      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+      tag: `room-${roomId}`,
+      renotify: true,
+      data: { room_id: roomId, event_id: eventId },
+    } as NotificationOptions);
+    return;
+  }
+
+  // Fetch the raw event and room name state in parallel — both need only roomId.
+  const [rawEvent, roomNameFromState] = await Promise.all([
+    fetchRawEvent(session.baseUrl, session.accessToken, roomId, eventId),
+    fetchRoomName(session.baseUrl, session.accessToken, roomId),
+  ]);
+
+  if (!rawEvent) {
+    await self.registration.showNotification('New Message', {
+      body: undefined,
+      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+      tag: `room-${roomId}`,
+      renotify: true,
+      data: { room_id: roomId, event_id: eventId, user_id: session.userId },
+    } as NotificationOptions);
+    return;
+  }
+
+  const eventType = rawEvent.type as string | undefined;
+  const sender = rawEvent.sender as string | undefined;
+  // Fetch sender's display name from room member state; fall back to MXID localpart.
+  const senderDisplay =
+    (sender
+      ? await fetchMemberDisplayName(session.baseUrl, session.accessToken, roomId, sender)
+      : undefined) ?? (sender ? mxidLocalpart(sender) : 'Someone');
+  // For DMs (no m.room.name state), use the sender's display name as the room name.
+  const resolvedRoomName = roomNameFromState ?? senderDisplay;
+  const baseData = {
+    room_id: roomId,
+    event_id: eventId,
+    user_id: session.userId,
+  };
+
+  if (eventType === 'm.room.encrypted') {
+    // Try to relay decryption to an open app tab.
+    const result =
+      windowClients.length > 0
+        ? await requestDecryptionFromClient(windowClients, rawEvent)
+        : undefined;
+
+    // If the relay responded and the app is currently visible, the in-app UI is already
+    // displaying the message — skip the OS notification entirely.
+    if (result?.visibilityState === 'visible') return;
+
+    if (result?.success) {
+      // App was backgrounded but not frozen — decryption succeeded.
+      await handlePushNotificationPushData({
+        ...baseData,
+        type: result.eventType,
+        content: result.content,
+        sender_display_name: result.sender_display_name ?? senderDisplay,
+        // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.
+        room_name: result.room_name || resolvedRoomName,
+      });
+    } else {
+      // App is frozen or fully closed — show "Encrypted message" fallback.
+      await handlePushNotificationPushData({
+        ...baseData,
+        type: 'm.room.encrypted',
+        content: {},
+        sender_display_name: senderDisplay,
+        room_name: resolvedRoomName,
+      });
+    }
+  } else {
+    // Unencrypted event — we have the plaintext, show it.
+    await handlePushNotificationPushData({
+      ...baseData,
+      type: eventType,
+      content: rawEvent.content,
+      sender_display_name: senderDisplay,
+      room_name: resolvedRoomName,
+    });
+  }
+}
+
 self.addEventListener('install', (event: ExtendableEvent) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -153,6 +472,15 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
     (async () => {
       await self.clients.claim();
       await cleanupDeadClients();
+      // Pre-load the persisted session into memory so that media fetches arriving
+      // before the first setSession message from the page are immediately
+      // authenticated rather than falling through to a 3-second timeout.
+      preloadedSession = await loadPersistedSession();
+      // Proactively request sessions from all window clients so the sessions Map
+      // is pre-populated after a SW restart, rather than waiting for the first
+      // media fetch to trigger requestSessionWithTimeout.
+      const windowClients = await self.clients.matchAll({ type: 'window' });
+      windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
     })()
   );
 });
@@ -166,11 +494,22 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
   const { data } = event;
   if (!data || typeof data !== 'object') return;
-  const { type, accessToken, baseUrl } = data as Record<string, unknown>;
+  const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl);
+    setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
+  }
+  if (type === 'pushDecryptResult') {
+    // Resolve a pending decryption request from handleMinimalPushPayload
+    const { eventId } = data as { eventId?: string };
+    if (typeof eventId === 'string') {
+      const resolve = decryptionPendingMap.get(eventId);
+      if (resolve) {
+        decryptionPendingMap.delete(eventId);
+        resolve(data as DecryptionResult);
+      }
+    }
   }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
@@ -261,7 +600,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (method !== 'GET' || !mediaPath(url)) return;
 
   const { clientId } = event;
-  if (!clientId) return;
 
   // For browser sub-resource loads (images, video, audio, etc.), 'follow' is
   // the correct mode: the auth header is sent to the Matrix server which owns
@@ -270,18 +608,57 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // the browser cannot render as an <img>/<video>/etc.
   const redirect: RequestRedirect = 'follow';
 
-  const session = sessions.get(clientId);
-  if (session) {
-    if (validMediaRequest(url, session.baseUrl)) {
-      event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
-    }
+  const session = clientId ? sessions.get(clientId) : undefined;
+  if (session && validMediaRequest(url, session.baseUrl)) {
+    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    return;
+  }
+
+  // Since widgets like element call have their own client ids,
+  // we need this logic. We just go through the sessions list and get a session
+  // with the right base url. Media requests to a homeserver simply are fine with any account
+  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
+  // If you have two tabs for different users on the same homeserver, it might authenticate
+  // as the wrong one.
+  // Thus any logic in the future which cares about which user is authenticating the request
+  // might break this. Also, again, it is technically wrong.
+  // Also checks preloadedSession — populated from cache at SW activate — for the window
+  // between SW restart and the first live setSession arriving from the page.
+  const byBaseUrl =
+    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
+    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
+      ? preloadedSession
+      : undefined);
+  if (byBaseUrl) {
+    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    return;
+  }
+
+  // No clientId: the fetch came from a context not associated with a specific
+  // window (e.g. a prerender). Fall back to the persisted session directly.
+  if (!clientId) {
+    event.respondWith(
+      loadPersistedSession().then((persisted) => {
+        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
+          return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+        }
+        return fetch(event.request);
+      })
+    );
     return;
   }
 
   event.respondWith(
-    requestSessionWithTimeout(clientId).then((s) => {
+    requestSessionWithTimeout(clientId).then(async (s) => {
+      // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
         return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+      }
+      // Fallback: try the persisted session (helps when SW restarts on iOS and
+      // the client window hasn't responded to requestSession yet).
+      const persisted = await loadPersistedSession();
+      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
+        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
       console.warn(
         '[SW fetch] No valid session for media request',
@@ -293,14 +670,23 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
+// Detect a minimal (event_id_only) payload: has room_id + event_id but no
+// event type field — meaning the homeserver stripped the event content.
+function isMinimalPushPayload(data: unknown): data is { room_id: string; event_id: string } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return typeof d.room_id === 'string' && typeof d.event_id === 'string' && !d.type;
+}
+
 const onPushNotification = async (event: PushEvent) => {
   if (!event?.data) return;
 
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
-  const [, clients] = await Promise.all([
+  const [, , clients] = await Promise.all([
     loadPersistedSettings(),
+    loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
@@ -347,8 +733,20 @@ const onPushNotification = async (event: PushEvent) => {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
   }
 
+  // event_id_only format: fetch the event ourselves and (for E2EE rooms) try
+  // to relay decryption to an open app tab.
+  if (isMinimalPushPayload(pushData)) {
+    console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    return;
+  }
+
   await handlePushNotificationPushData(pushData);
 };
+
+// ---------------------------------------------------------------------------
+// Push handler
+// ---------------------------------------------------------------------------
 
 self.addEventListener('push', (event: PushEvent) => event.waitUntil(onPushNotification(event)));
 

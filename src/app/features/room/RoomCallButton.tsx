@@ -4,6 +4,7 @@ import { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useCallPreferences } from '$state/hooks/callPreferences';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -14,13 +15,14 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
   const callEmbed = useAtomValue(callEmbedAtom);
   const joined = useCallJoined(callEmbed);
   const mx = useMatrixClient();
+  const { microphone, video, sound } = useCallPreferences();
 
   const isJoinedInThisRoom = joined && callEmbed?.roomId === room.roomId;
 
   if (isJoinedInThisRoom) return null;
 
   const handleStartCall = async () => {
-    startCall(room);
+    startCall(room, { microphone, video, sound });
     try {
       const now = Date.now();
       // TODO not use as any one day someday i swear

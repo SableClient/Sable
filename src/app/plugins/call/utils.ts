@@ -18,6 +18,8 @@ export function getCallCapabilities(
   capabilities.add(MatrixCapabilities.MSC3846TurnServers);
   capabilities.add(MatrixCapabilities.MSC4157SendDelayedEvent);
   capabilities.add(MatrixCapabilities.MSC4157UpdateDelayedEvent);
+  capabilities.add('moe.sable.thumbnails');
+  capabilities.add('moe.sable.media_proxy');
   capabilities.add(`org.matrix.msc2762.timeline:${roomId}`);
   capabilities.add(`org.matrix.msc2762.state:${roomId}`);
 
@@ -78,13 +80,6 @@ export function getCallCapabilities(
     WidgetEventCapability.forStateEvent(EventDirection.Receive, EventType.RoomCreate).raw
   );
 
-  capabilities.add(
-    WidgetEventCapability.forRoomEvent(
-      EventDirection.Receive,
-      'org.matrix.msc4075.rtc.notification'
-    ).raw
-  );
-
   [
     'io.element.call.encryption_keys',
     'org.matrix.rageshake_request',
@@ -92,6 +87,9 @@ export function getCallCapabilities(
     EventType.RoomRedaction,
     'io.element.call.reaction',
     'org.matrix.msc4310.rtc.decline',
+    'org.matrix.msc4075.call.notify',
+    'org.matrix.msc4075.rtc.notification',
+    'org.matrix.msc4143.rtc.member',
   ].forEach((type) => {
     capabilities.add(WidgetEventCapability.forRoomEvent(EventDirection.Send, type).raw);
     capabilities.add(WidgetEventCapability.forRoomEvent(EventDirection.Receive, type).raw);

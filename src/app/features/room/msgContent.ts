@@ -59,8 +59,6 @@ export const getImageMsgContent = async (
     msgtype: MsgType.Image,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (imgEl) {
@@ -101,8 +99,6 @@ export const getVideoMsgContent = async (
     msgtype: MsgType.Video,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (videoEl) {
@@ -143,26 +139,66 @@ export const getVideoMsgContent = async (
   return content;
 };
 
-export const getAudioMsgContent = (item: TUploadItem, mxc: string): IContent => {
-  const { file, encInfo } = item;
-  const content: IContent = {
+export type AudioMsgContent = IContent & {
+  waveform?: number[];
+  audioLength?: number;
+};
+
+export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgContent => {
+  const { file, encInfo, metadata } = item;
+  const { waveform, audioDuration, markedAsSpoiler } = metadata;
+  let content: IContent = {
     msgtype: MsgType.Audio,
     filename: file.name,
-    body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
+    body: item.body && item.body.length > 0 ? item.body : 'a voice message',
     info: {
       mimetype: file.type,
       size: file.size,
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
     },
+
+    // Element-compatible unstable extensible-event keys
+    'org.matrix.msc1767.audio': {
+      waveform: waveform?.map((v) => Math.round(v * 1024)),
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
+    },
+    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : 'a voice message',
+    'org.matrix.msc3245.voice.v2': {
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration,
+      waveform: waveform?.map((v) => Math.round(v * 1024)),
+    },
+    // for element compat
+    'org.matrix.msc3245.voice': {},
   };
   if (encInfo) {
     content.file = {
       ...encInfo,
       url: mxc,
     };
+    content = {
+      ...content,
+
+      // Element-compatible unstable extensible-event keys
+      'org.matrix.msc1767.file': {
+        name: file.name,
+        mimetype: file.type,
+        size: file.size,
+        file: content.file,
+      },
+    };
   } else {
     content.url = mxc;
+    content = {
+      ...content,
+
+      // Element-compatible unstable extensible-event keys
+      'org.matrix.msc1767.file': {
+        name: file.name,
+        mimetype: file.type,
+        size: file.size,
+        url: content.url,
+      },
+    };
   }
   if (item.body && item.body.length > 0) content.body = item.body;
   if (item.formatted_body && item.formatted_body.length > 0) {
@@ -178,8 +214,6 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     msgtype: MsgType.File,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     info: {
       mimetype: file.type,
       size: file.size,

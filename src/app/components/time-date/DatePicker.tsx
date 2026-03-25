@@ -33,7 +33,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
       const currentDate = dateFor(selectedYear, selectedMonth, selectedDay);
       const time = value - currentDate;
 
-      const newDate = dateFor(year, month, mDays < selectedDay ? mDays : selectedDay);
+      const newDate = dateFor(year, month, Math.min(mDays, selectedDay));
 
       const newValue = newDate + time;
       handleSubmit(newValue);
@@ -60,7 +60,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
       <Menu className={css.PickerMenu} ref={ref}>
         <Box direction="Row" gap="200" className={css.PickerContainer}>
           <PickerColumn title="Day">
-            {Array.from(Array(daysInMonth(selectedMonth, selectedYear)).keys())
+            {Array.from(new Array(daysInMonth(selectedMonth, selectedYear)).keys())
               .map((i) => i + 1)
               .map((day) => (
                 <Chip
@@ -81,7 +81,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
               ))}
           </PickerColumn>
           <PickerColumn title="Month">
-            {Array.from(Array(12).keys())
+            {Array.from(new Array(12).keys())
               .map((i) => i + 1)
               .map((month) => (
                 <Chip
@@ -106,7 +106,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
               ))}
           </PickerColumn>
           <PickerColumn title="Year">
-            {Array.from(Array(yearsRange).keys())
+            {Array.from(new Array(yearsRange).keys())
               .map((i) => minYear + i)
               .map((year) => (
                 <Chip

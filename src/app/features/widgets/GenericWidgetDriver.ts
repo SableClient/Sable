@@ -30,7 +30,7 @@ import {
 
 export type CapabilityApprovalCallback = (requested: Set<Capability>) => Promise<Set<Capability>>;
 
-// Unlike SmallWidgetDriver which auto-grants all capabilities for Element Call,
+// Unlike CallWidgetDriver which auto-grants all capabilities for Element Call,
 // this driver provides a capability approval mechanism for untrusted widgets.
 export class GenericWidgetDriver extends WidgetDriver {
   private readonly mxClient: MatrixClient;
@@ -162,6 +162,18 @@ export class GenericWidgetDriver extends WidgetDriver {
     action: UpdateDelayedEventAction
   ): Promise<void> {
     await this.mxClient._unstable_updateDelayedEvent(delayId, action);
+  }
+
+  public async cancelScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Cancel);
+  }
+
+  public async restartScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Restart);
+  }
+
+  public async sendScheduledDelayedEvent(delayId: string): Promise<void> {
+    await this.updateDelayedEvent(delayId, UpdateDelayedEventAction.Send);
   }
 
   public async sendToDevice(

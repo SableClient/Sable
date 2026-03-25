@@ -26,6 +26,10 @@ import * as css from '$features/room/message/styles.css';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { getStateEvents } from '$utils/room';
 import { StateEvent } from '$types/matrix/room';
+import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
+
+const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component
 export const MessageForwardItem = as<'button', MessageForwardItemProps>(
@@ -105,7 +109,7 @@ export function MessageForwardInternal({
   const [isTargetSelected, setIsTargetSelected] = useState(false);
   const [isForwardSuccess, setIsForwardSuccess] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
-  const [isForwardError, setIsForwardError] = useState(false);
+  const [forwardError, setForwardError] = useState<string | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string | null>(null);
 
   // detect if it's a public room or not
@@ -263,12 +267,34 @@ export function MessageForwardInternal({
       };
     }
 
+    const msgtype = String(originalContent.msgtype ?? 'unknown');
+    debugLog.info('ui', 'Forwarding message', {
+      sourceRoomId: room.roomId,
+      targetRoomId: targetRoom.roomId,
+      msgtype,
+      isPrivate,
+    });
+    Sentry.metrics.count('sable.message.forward.attempt', 1, { attributes: { msgtype } });
     mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent)
-      .then(() => setIsForwardSuccess(true))
-      .catch(() => {
+      .then(() => {
+        debugLog.info('ui', 'Message forwarded successfully', {
+          sourceRoomId: room.roomId,
+          targetRoomId: targetRoom.roomId,
+        });
+        Sentry.metrics.count('sable.message.forward.success', 1);
+        setIsForwardSuccess(true);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        debugLog.error('ui', 'Message forward failed', {
+          sourceRoomId: room.roomId,
+          targetRoomId: targetRoom.roomId,
+          error: message,
+        });
+        Sentry.metrics.count('sable.message.forward.error', 1);
         setIsForwarding(false);
         setIsForwardSuccess(false);
-        setIsForwardError(true);
+        setForwardError(message);
       });
   };
 
@@ -323,9 +349,9 @@ export function MessageForwardInternal({
             <Text>Forward to {getRoom(targetRoomId)?.name}</Text>
           </Button>
         )}
-        {isForwardError && (
+        {forwardError && (
           <Text size="T300" color="Critical600" style={{ margin: config.space.S300 }}>
-            Failed to forward message. Please try again.
+            Failed to forward: {forwardError}
           </Text>
         )}
       </Box>

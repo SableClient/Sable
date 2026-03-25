@@ -1,14 +1,41 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
+import { Box, Text, IconButton, Icon, Icons, Scroll, Switch } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { InfoCard } from '$components/info-card';
-import { LanguageSpecificPronouns } from '../cosmetics/LanguageSpecificPronouns';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
+import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { SettingTile } from '$components/setting-tile';
+import { SequenceCard } from '$components/sequence-card';
 import { Sync } from '../general';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
+import { MSC4268HistoryShare } from './MSC4268HistoryShare';
+
+function PersonaToggle() {
+  const [showPersonaSetting, setShowPersonaSetting] = useSetting(
+    settingsAtom,
+    'showPersonaSetting'
+  );
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Personas (Per-Message Profiles)</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Personas Tab"
+          description="Enables the personas tab in the settings menu for per-message profiles"
+          after={
+            <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
 
 type ExperimentalProps = {
   requestClose: () => void;
 };
-export function Experimental({ requestClose }: ExperimentalProps) {
+export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
   return (
     <Page>
       <PageHeader outlined={false}>
@@ -33,8 +60,8 @@ export function Experimental({ requestClose }: ExperimentalProps) {
               variant="Warning"
               description={
                 <>
-                  The features listed below may be unstable or incomplete,
-                  <strong> use at your own risk</strong>.
+                  The features listed below may be unstable or incomplete,{' '}
+                  <strong>use at your own risk</strong>.
                   <br />
                   Please report any new issues potentially caused by these features!
                 </>
@@ -43,8 +70,9 @@ export function Experimental({ requestClose }: ExperimentalProps) {
             <br />
             <Box direction="Column" gap="700">
               <Sync />
-              <LanguageSpecificPronouns />
+              <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
+              <PersonaToggle />
             </Box>
           </PageContent>
         </Scroll>

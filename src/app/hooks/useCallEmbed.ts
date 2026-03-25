@@ -2,8 +2,7 @@ import { createContext, RefObject, useCallback, useContext, useEffect, useState 
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import { MatrixClient, Room } from 'matrix-js-sdk';
 import { useSetAtom } from 'jotai';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import * as Sentry from '@sentry/react';
 import {
   CallEmbed,
   ElementCallThemeKind,
@@ -17,6 +16,9 @@ import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
 import { useCallMembersChange, useCallSession } from './useCall';
 import { CallPreferences } from '../state/callPreferences';
+import { createDebugLogger } from '../utils/debugLogger';
+
+const debugLog = createDebugLogger('useCallEmbed');
 
 const CallEmbedContext = createContext<CallEmbed | undefined>(undefined);
 
@@ -50,7 +52,7 @@ export const createCallEmbed = (
   const ongoing =
     MatrixRTCSession.sessionMembershipsForRoom(room, rtcSession.sessionDescription).length > 0;
 
-  const intent = CallEmbed.getIntent(dm, ongoing);
+  const intent = CallEmbed.getIntent(dm, ongoing, pref?.video);
   const widget = CallEmbed.getWidget(mx, room, intent, themeKind);
   const controlState = pref && new CallControlState(pref.microphone, pref.video, pref.sound);
 
@@ -69,11 +71,29 @@ export const useCallStart = (dm = false) => {
     (room: Room, pref?: CallPreferences) => {
       const container = callEmbedRef.current;
       if (!container) {
+        debugLog.error('call', 'Failed to start call — no embed container', {
+          roomId: room.roomId,
+        });
+        Sentry.metrics.count('sable.call.start.error', 1, {
+          attributes: { reason: 'no_container' },
+        });
         throw new Error('Failed to start call, No embed container element found!');
       }
-      const callEmbed = createCallEmbed(mx, room, dm, theme.kind, container, pref);
-
-      setCallEmbed(callEmbed);
+      try {
+        debugLog.info('call', 'Starting call', { roomId: room.roomId, dm });
+        Sentry.metrics.count('sable.call.start.attempt', 1, { attributes: { dm: String(dm) } });
+        const callEmbed = createCallEmbed(mx, room, dm, theme.kind, container, pref);
+        setCallEmbed(callEmbed);
+      } catch (err) {
+        debugLog.error('call', 'Call embed creation failed', {
+          roomId: room.roomId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        Sentry.metrics.count('sable.call.start.error', 1, {
+          attributes: { reason: 'embed_create_failed' },
+        });
+        throw err;
+      }
     },
     [mx, dm, theme, setCallEmbed, callEmbedRef]
   );
@@ -83,19 +103,6 @@ export const useCallStart = (dm = false) => {
 
 export const useCallJoined = (embed?: CallEmbed): boolean => {
   const [joined, setJoined] = useState(embed?.joined ?? false);
-  const [allowPip] = useSetting(settingsAtom, 'allowPipVideos');
-
-  if (embed && allowPip) {
-    const removeDisablePictureInPicture = (mutated: any) => {
-      mutated.forEach((event: any) => {
-        Array.from(event.target.getElementsByTagName('video')).forEach((video: any) => {
-          video.removeAttribute('disablepictureinpicture');
-        });
-      });
-    };
-    const pipObserver = new MutationObserver(removeDisablePictureInPicture);
-    pipObserver.observe(embed.iframe.contentDocument!, { subtree: true, childList: true });
-  }
 
   useClientWidgetApiEvent(
     embed?.call,

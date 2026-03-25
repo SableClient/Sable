@@ -1,0 +1,231 @@
+name: Sentry Preview Error Triage
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to triage'
+        required: true
+        type: number
+
+jobs:
+  triage:
+    # Only run for PRs from the same repo (not forks) or manual dispatch
+    if: >
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Triage Sentry preview errors
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const sentryToken = process.env.SENTRY_AUTH_TOKEN;
+            const sentryOrg = process.env.SENTRY_ORG;
+            const sentryProject = process.env.SENTRY_PROJECT;
+            const prNumber = Number(process.env.PR_NUMBER);
+
+            if (!prNumber) {
+              core.info('No PR number available — skipping triage.');
+              return;
+            }
+            if (!sentryToken || !sentryOrg || !sentryProject) {
+              core.warning('Sentry credentials not configured — skipping triage.');
+              return;
+            }
+
+            const COMMENT_MARKER = '<!-- sentry-preview-triage -->';
+            const { owner, repo } = context.repo;
+
+            // Create a label if it doesn't already exist
+            async function ensureLabel(name, description, color) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch {
+                try {
+                  await github.rest.issues.createLabel({ owner, repo, name, description, color });
+                } catch (err) {
+                  core.warning(`Could not create label "${name}": ${err.message}`);
+                }
+              }
+            }
+
+            // Find an existing GitHub issue that tracks a given Sentry issue ID
+            async function findExistingGhIssue(sentryIssueId) {
+              const marker = `sentry-id:${sentryIssueId}`;
+              const result = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${owner}/${repo} is:issue label:sentry-preview "${marker}" in:body`,
+              });
+              return result.data.total_count > 0 ? result.data.items[0] : null;
+            }
+
+            // Create or update the sticky PR comment with the triage summary table
+            async function upsertPrComment(rows) {
+              const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
+              let body;
+
+              if (rows.length === 0) {
+                body = [
+                  COMMENT_MARKER,
+                  '## Sentry Preview Error Triage',
+                  '',
+                  `No Sentry errors found for this PR's preview deployment as of ${now}.`,
+                  '',
+                  '_This comment updates automatically after each push._',
+                ].join('\n');
+              } else {
+                const tableRows = rows.map(
+                  (r) =>
+                    `| [${r.title.slice(0, 70)}](${r.permalink}) | ${r.count} | ${new Date(r.firstSeen).toLocaleDateString()} | #${r.ghIssueNumber} |`
+                );
+                body = [
+                  COMMENT_MARKER,
+                  '## Sentry Preview Error Triage',
+                  '',
+                  `**${rows.length} error type(s)** detected in this PR's preview deployment:`,
+                  '',
+                  '| Error | Events | First seen | Issue |',
+                  '| ----- | ------ | ---------- | ----- |',
+                  ...tableRows,
+                  '',
+                  `_Last checked: ${now}. Exclude these from your issues view with \`-label:sentry-preview\`._`,
+                ].join('\n');
+              }
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: prNumber,
+              });
+              const existing = comments.find(
+                (c) => c.user.type === 'Bot' && c.body.includes(COMMENT_MARKER)
+              );
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  body,
+                });
+              }
+            }
+
+            // Query Sentry for unresolved issues tagged with this PR number in the preview env
+            const query = encodeURIComponent(`is:unresolved pr:${prNumber}`);
+            const sentryUrl =
+              `https://sentry.io/api/0/projects/${sentryOrg}/${sentryProject}/issues/` +
+              `?query=${query}&environment=preview&limit=100`;
+
+            let sentryIssues;
+            try {
+              const resp = await fetch(sentryUrl, {
+                headers: { Authorization: `Bearer ${sentryToken}` },
+              });
+              if (!resp.ok) {
+                const msg = await resp.text();
+                core.warning(`Sentry API returned ${resp.status}: ${msg.slice(0, 200)}`);
+                return;
+              }
+              sentryIssues = await resp.json();
+            } catch (err) {
+              core.warning(`Sentry API unreachable: ${err.message}`);
+              return;
+            }
+
+            if (!Array.isArray(sentryIssues) || sentryIssues.length === 0) {
+              await upsertPrComment([]);
+              return;
+            }
+
+            // Ensure the shared and PR-specific labels exist
+            await ensureLabel('sentry-preview', 'Automated Sentry preview error', 'e4e669');
+            await ensureLabel(`pr-${prNumber}`, `Preview errors from PR #${prNumber}`, 'fbca04');
+
+            const rows = [];
+            for (const issue of sentryIssues) {
+              const {
+                id: sentryId,
+                title,
+                culprit,
+                permalink,
+                count,
+                userCount,
+                firstSeen,
+                lastSeen,
+              } = issue;
+              const displayTitle = (title || culprit || 'Unknown error').trim();
+              const sentryMarker = `sentry-id:${sentryId}`;
+
+              const existing = await findExistingGhIssue(sentryId);
+              let ghIssueNumber;
+
+              if (existing) {
+                ghIssueNumber = existing.number;
+                // Reopen if it was closed (e.g. after a previous fix that regressed)
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: ghIssueNumber,
+                    state: 'open',
+                  });
+                  core.info(`Reopened GH issue #${ghIssueNumber} for Sentry issue ${sentryId}`);
+                }
+              } else {
+                const issueBody = [
+                  `<!-- ${sentryMarker} -->`,
+                  `## Sentry Error — PR #${prNumber} Preview`,
+                  '',
+                  `**Error:** [${displayTitle}](${permalink})`,
+                  `**First seen:** ${new Date(firstSeen).toUTCString()}`,
+                  `**Last seen:** ${new Date(lastSeen).toUTCString()}`,
+                  `**Events:** ${count} | **Affected users:** ${userCount}`,
+                  '',
+                  `This issue was automatically created from a Sentry error detected in the preview deployment for PR #${prNumber}.`,
+                  '',
+                  '> [!NOTE]',
+                  '> To exclude automated preview issues from your issues view, filter with: `-label:sentry-preview`',
+                ].join('\n');
+
+                const created = await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: `[Sentry] ${displayTitle.slice(0, 120)}`,
+                  body: issueBody,
+                  labels: ['sentry-preview', `pr-${prNumber}`],
+                });
+                ghIssueNumber = created.data.number;
+                core.info(`Created GH issue #${ghIssueNumber} for Sentry issue ${sentryId}`);
+              }
+
+              rows.push({ title: displayTitle, permalink, count, firstSeen, ghIssueNumber });
+            }
+
+            await upsertPrComment(rows);
+            core.info(`Triage complete: ${rows.length} Sentry issue(s) processed for PR #${prNumber}.`);

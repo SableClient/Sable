@@ -1,4 +1,11 @@
-import { KeyboardEventHandler, MouseEventHandler, useCallback, useEffect, useState } from 'react';
+import {
+  KeyboardEventHandler,
+  MouseEventHandler,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   Box,
   Chip,
@@ -22,8 +29,8 @@ import {
   ReplacementEvent,
   RelationType,
   Room,
-  RoomMessageEventContent,
   RoomMessageTextEventContent,
+  MsgType,
 } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import {
@@ -49,7 +56,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
 } from '$components/editor';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { CaptionPosition, settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -58,6 +65,14 @@ import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '$
 import { mobileOrTablet } from '$utils/user-agent';
 import { useComposingCheck } from '$hooks/useComposingCheck';
 import { floatingEditor } from '$styles/overrides/Composer.css';
+import { RenderMessageContent } from '$components/RenderMessageContent';
+import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
+import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { HTMLReactParserOptions } from 'html-react-parser';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { Opts as LinkifyOpts } from 'linkifyjs';
+import { GetContentCallback } from '$types/matrix/room';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 
 type MessageEditorProps = {
   roomId: string;
@@ -91,9 +106,32 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         evtTimeline && getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet());
 
       const content: IContent = editedEvent?.getContent()['m.new_content'] ?? mEvent.getContent();
-      const { body, formatted_body: customHtml }: Record<string, unknown> = content;
-
+      let { body, formatted_body: customHtml }: Record<string, unknown> = content;
       const mMentions: IMentions | undefined = content['m.mentions'];
+
+      const rawPmp = content['com.beeper.per_message_profile'];
+      const pmpDisplayname =
+        rawPmp !== null &&
+        typeof rawPmp === 'object' &&
+        'displayname' in rawPmp &&
+        typeof rawPmp.displayname === 'string' &&
+        rawPmp.displayname.length > 0
+          ? (rawPmp.displayname as string)
+          : undefined;
+
+      if (pmpDisplayname && typeof body === 'string') {
+        const bodyPrefix = `${pmpDisplayname}: `;
+        if (body.startsWith(bodyPrefix)) {
+          body = body.slice(bodyPrefix.length);
+        }
+      }
+
+      if (pmpDisplayname && typeof customHtml === 'string') {
+        customHtml = customHtml.replace(
+          /^<strong\s+data-mx-profile-fallback[^>]*>.*?<\/strong>/,
+          ''
+        );
+      }
 
       return [
         typeof body === 'string' ? body : undefined,
@@ -104,8 +142,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
     const [saveState, save] = useAsyncCallback(
       useCallback(async () => {
-        const plainText = toPlainText(editor.children, isMarkdown).trim();
-        const customHtml = trimCustomHtml(
+        const oldContent = mEvent.getContent();
+        let plainText = toPlainText(editor.children, isMarkdown).trim();
+        let customHtml = trimCustomHtml(
           toMatrixCustomHTML(editor.children, {
             allowTextFormatting: true,
             allowBlockMarkdown: isMarkdown,
@@ -134,13 +173,47 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
         const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
 
-        const newContent: RoomMessageTextEventContent = {
+        const newContent: IContent = {
           msgtype,
           body: plainText,
         };
 
-        const contentBody: RoomMessageTextEventContent &
-          Omit<ReplacementEvent<RoomMessageEventContent>, 'm.relates_to'> = {
+        const evtId = mEvent.getId();
+        const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+        const editedEvent =
+          evtTimeline && evtId
+            ? getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet())
+            : undefined;
+
+        const rawPmp =
+          editedEvent?.getContent()?.['m.new_content']?.['com.beeper.per_message_profile'] ??
+          mEvent.getContent()?.['com.beeper.per_message_profile'];
+
+        const pmpDisplayname =
+          rawPmp !== null &&
+          typeof rawPmp === 'object' &&
+          'displayname' in rawPmp &&
+          typeof rawPmp.displayname === 'string' &&
+          rawPmp.displayname.length > 0
+            ? (rawPmp.displayname as string)
+            : undefined;
+
+        if (pmpDisplayname) {
+          const bodyPrefix = `${pmpDisplayname}: `;
+          if (!plainText.startsWith(bodyPrefix)) {
+            plainText = bodyPrefix + plainText;
+          }
+
+          const escapedName = sanitizeCustomHtml(pmpDisplayname);
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+          if (!customHtml.startsWith(htmlPrefix)) {
+            customHtml = htmlPrefix + customHtml;
+          }
+
+          newContent['com.beeper.per_message_profile'] = rawPmp;
+        }
+
+        const contentBody: IContent & Omit<ReplacementEvent<IContent>, 'm.relates_to'> = {
           msgtype,
           body: `* ${plainText}`,
           'm.new_content': newContent,
@@ -163,16 +236,36 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           contentBody.formatted_body = `* ${customHtml}`;
         }
 
-        const content: RoomMessageEventContent = {
-          ...contentBody,
+        const content: IContent = {
+          ...oldContent,
           'm.relates_to': {
             event_id: eventId,
             rel_type: RelationType.Replace,
           },
         };
+        content.body = contentBody.body;
+        content.format = contentBody.format;
+        content.formatted_body = contentBody.formatted_body;
+        content['m.new_content'] = newContent;
+        if (oldContent.info !== undefined && oldContent.filename?.length > 0) {
+          content.filename = oldContent.filename;
+          content['m.new_content'].filename = oldContent.filename;
+          content.info = oldContent.info;
+          content['m.new_content'].info = oldContent.info;
 
-        return mx.sendMessage(roomId, content);
-      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody])
+          if (oldContent.file !== undefined) content['m.new_content'].file = oldContent.file;
+          if (oldContent.url !== undefined) content['m.new_content'].url = oldContent.url;
+
+          if (oldContent['page.codeberg.everypizza.msc4193.spoiler'] !== undefined) {
+            content['page.codeberg.everypizza.msc4193.spoiler'] =
+              oldContent['page.codeberg.everypizza.msc4193.spoiler'];
+            content['m.new_content']['page.codeberg.everypizza.msc4193.spoiler'] =
+              oldContent['page.codeberg.everypizza.msc4193.spoiler'];
+          }
+        }
+
+        return mx.sendMessage(roomId, content as any);
+      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])
     );
 
     const handleSave = useCallback(() => {
@@ -187,6 +280,13 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
         ) {
+          const prevWordRange = getPrevWorldRange(editor);
+          if (
+            prevWordRange &&
+            getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
+          )
+            return;
+
           evt.preventDefault();
           handleSave();
         }
@@ -195,7 +295,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           onCancel();
         }
       },
-      [onCancel, handleSave, enterForNewline, isComposing]
+      [enterForNewline, isComposing, editor, handleSave, onCancel]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -247,6 +347,27 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       }
     }, [saveState, onCancel]);
 
+    const useAuthentication = useMediaAuthentication();
+    const linkifyOpts = useMemo<LinkifyOpts>(() => ({ ...LINKIFY_OPTS }), []);
+    const spoilerClickHandler = useSpoilerClickHandler();
+    const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
+      () =>
+        getReactCustomHtmlParser(mx, mEvent.getRoomId(), {
+          linkifyOpts,
+          useAuthentication,
+          handleSpoilerClick: spoilerClickHandler,
+        }),
+      [linkifyOpts, mEvent, mx, spoilerClickHandler, useAuthentication]
+    );
+    const getContent = (() => mEvent.getContent()) as GetContentCallback;
+    const msgType = mEvent.getContent().msgtype;
+    const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+    const captionPositionMap = {
+      [CaptionPosition.Above]: 'column-reverse',
+      [CaptionPosition.Below]: 'column',
+      [CaptionPosition.Inline]: 'row',
+      [CaptionPosition.Hidden]: 'row',
+    } satisfies Record<CaptionPosition, React.CSSProperties['flexDirection']>;
     return (
       <div {...props} ref={ref} className={`${props.className || ''} ${floatingEditor}`.trim()}>
         {autocompleteQuery?.prefix === AutocompletePrefix.RoomMention && (
@@ -273,100 +394,147 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             requestClose={handleCloseAutocomplete}
           />
         )}
-        <CustomEditor
-          editor={editor}
-          placeholder="Edit message..."
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          bottom={
-            <>
-              <Box
-                style={{ padding: config.space.S200, paddingTop: 0 }}
-                alignItems="End"
-                justifyContent="SpaceBetween"
-                gap="100"
-              >
-                <Box gap="Inherit">
-                  <Chip
-                    onClick={handleSave}
-                    variant="Primary"
-                    radii="Pill"
-                    disabled={saveState.status === AsyncStatus.Loading}
-                    outlined
-                    before={
-                      saveState.status === AsyncStatus.Loading ? (
-                        <Spinner variant="Primary" fill="Soft" size="100" />
-                      ) : undefined
-                    }
+        <Box
+          style={{
+            display: 'flex',
+            flexDirection: captionPositionMap[captionPosition],
+          }}
+        >
+          {(msgType === MsgType.Image ||
+            msgType === MsgType.Video ||
+            msgType === MsgType.Audio ||
+            msgType === MsgType.File) && (
+            <RenderMessageContent
+              displayName={mEvent.sender?.name ?? ''}
+              msgType={mEvent.getContent().msgtype ?? ''}
+              ts={mEvent.getTs()}
+              getContent={getContent}
+              htmlReactParserOptions={htmlReactParserOptions}
+              hideCaption
+              linkifyOpts={linkifyOpts}
+            />
+          )}
+          <Box
+            style={
+              captionPosition !== CaptionPosition.Inline
+                ? {
+                    marginTop:
+                      msgType === MsgType.Image ||
+                      msgType === MsgType.Video ||
+                      msgType === MsgType.Audio ||
+                      msgType === MsgType.File
+                        ? config.space.S400
+                        : undefined,
+                    width: '100%',
+                  }
+                : {
+                    padding: config.space.S200,
+                    wordBreak: 'break-word',
+                    maxWidth: '100%',
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    flexShrink: 1,
+                  }
+            }
+          >
+            <CustomEditor
+              editor={editor}
+              placeholder="Edit message..."
+              onKeyDown={handleKeyDown}
+              onKeyUp={handleKeyUp}
+              bottom={
+                <>
+                  <Box
+                    style={{ padding: config.space.S200, paddingTop: 0 }}
+                    alignItems="End"
+                    justifyContent="SpaceBetween"
+                    gap="100"
                   >
-                    <Text size="B300">Save</Text>
-                  </Chip>
-                  <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
-                    <Text size="B300">Cancel</Text>
-                  </Chip>
-                </Box>
-                <Box gap="Inherit">
-                  <IconButton
-                    variant="SurfaceVariant"
-                    size="300"
-                    radii="300"
-                    onClick={() => setToolbar(!toolbar)}
-                  >
-                    <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-                  </IconButton>
-                  <UseStateProvider initial={undefined}>
-                    {(anchor: RectCords | undefined, setAnchor) => (
-                      <PopOut
-                        anchor={anchor}
-                        alignOffset={-8}
-                        position="Top"
-                        align="End"
-                        content={
-                          <EmojiBoard
-                            imagePackRooms={imagePackRooms ?? []}
-                            returnFocusOnDeactivate={false}
-                            onEmojiSelect={handleEmoticonSelect}
-                            onCustomEmojiSelect={handleEmoticonSelect}
-                            requestClose={() => {
-                              setAnchor((v) => {
-                                if (v) {
-                                  if (!mobileOrTablet()) ReactEditor.focus(editor);
-                                  return undefined;
-                                }
-                                return v;
-                              });
-                            }}
-                          />
+                    <Box gap="Inherit">
+                      <Chip
+                        onClick={handleSave}
+                        variant="Primary"
+                        radii="Pill"
+                        disabled={saveState.status === AsyncStatus.Loading}
+                        outlined
+                        before={
+                          saveState.status === AsyncStatus.Loading ? (
+                            <Spinner variant="Primary" fill="Soft" size="100" />
+                          ) : undefined
                         }
                       >
-                        <IconButton
-                          aria-pressed={anchor !== undefined}
-                          onClick={
-                            ((evt) =>
-                              setAnchor(
-                                evt.currentTarget.getBoundingClientRect()
-                              )) as MouseEventHandler<HTMLButtonElement>
-                          }
-                          variant="SurfaceVariant"
-                          size="300"
-                          radii="300"
-                        >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
-                        </IconButton>
-                      </PopOut>
-                    )}
-                  </UseStateProvider>
-                </Box>
-              </Box>
-              {toolbar && (
-                <div>
-                  <Line variant="SurfaceVariant" size="300" />
-                  <Toolbar />
-                </div>
-              )}
-            </>
-          }
-        />
+                        <Text size="B300">Save</Text>
+                      </Chip>
+                      <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
+                        <Text size="B300">Cancel</Text>
+                      </Chip>
+                    </Box>
+                    <Box gap="Inherit">
+                      <IconButton
+                        variant="SurfaceVariant"
+                        size="300"
+                        radii="300"
+                        onClick={() => setToolbar(!toolbar)}
+                      >
+                        <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                      </IconButton>
+                      <UseStateProvider initial={undefined}>
+                        {(anchor: RectCords | undefined, setAnchor) => (
+                          <PopOut
+                            anchor={anchor}
+                            alignOffset={-8}
+                            position="Top"
+                            align="End"
+                            content={
+                              <EmojiBoard
+                                imagePackRooms={imagePackRooms ?? []}
+                                returnFocusOnDeactivate={false}
+                                onEmojiSelect={handleEmoticonSelect}
+                                onCustomEmojiSelect={handleEmoticonSelect}
+                                requestClose={() => {
+                                  setAnchor((v) => {
+                                    if (v) {
+                                      if (!mobileOrTablet()) ReactEditor.focus(editor);
+                                      return undefined;
+                                    }
+                                    return v;
+                                  });
+                                }}
+                              />
+                            }
+                          >
+                            <IconButton
+                              aria-pressed={anchor !== undefined}
+                              onClick={
+                                ((evt) =>
+                                  setAnchor(
+                                    evt.currentTarget.getBoundingClientRect()
+                                  )) as MouseEventHandler<HTMLButtonElement>
+                              }
+                              variant="SurfaceVariant"
+                              size="300"
+                              radii="300"
+                            >
+                              <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                            </IconButton>
+                          </PopOut>
+                        )}
+                      </UseStateProvider>
+                    </Box>
+                  </Box>
+                  {toolbar && (
+                    <div>
+                      <Line variant="SurfaceVariant" size="300" />
+                      <Toolbar />
+                    </div>
+                  )}
+                </>
+              }
+            />
+          </Box>
+        </Box>
       </div>
     );
   }

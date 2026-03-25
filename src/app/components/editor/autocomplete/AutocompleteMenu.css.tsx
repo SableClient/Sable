@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 import { DefaultReset, color, config } from 'folds';
 
 export const AutocompleteMenuBase = style([
@@ -38,3 +38,11 @@ export const AutocompleteNotice = style([
   AutocompleteMenuHeader,
   { color: color.SurfaceVariant.OnContainer },
 ]);
+
+export const AutocompleteMenuItems = style({});
+
+globalStyle(`${AutocompleteMenuItems} button[data-selected='true']`, {
+  backgroundColor: color.SurfaceVariant.ContainerHover,
+  outline: `2px solid ${color.Primary.Main}`,
+  outlineOffset: -2,
+});

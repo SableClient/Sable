@@ -90,7 +90,7 @@ type SearchProps = {
   onSearch: (term: string) => void;
   onReset: () => void;
 };
-function Search({ active, loading, searchInputRef, onSearch, onReset }: SearchProps) {
+function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly<SearchProps>) {
   const handleSearchSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
     const { searchInput } = evt.target as HTMLFormElement & {
@@ -149,10 +149,10 @@ const DEFAULT_INSTANCE_NAME = 'Matrix';
 function ThirdPartyProtocolsSelector({
   instanceId,
   onChange,
-}: {
+}: Readonly<{
   instanceId?: string;
   onChange: (instanceId?: string) => void;
-}) {
+}>) {
   const mx = useMatrixClient();
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
@@ -251,7 +251,7 @@ type LimitButtonProps = {
   limit: number;
   onLimitChange: (limit: string) => void;
 };
-function LimitButton({ limit, onLimitChange }: LimitButtonProps) {
+function LimitButton({ limit, onLimitChange }: Readonly<LimitButtonProps>) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleLimitSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
@@ -360,7 +360,7 @@ export function PublicRooms() {
   const currentLimit: number = useMemo(() => {
     const limitParam = serverSearchParams.limit;
     if (!limitParam) return FALLBACK_ROOMS_LIMIT;
-    return parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
+    return Number.parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
   }, [serverSearchParams.limit]);
 
   const resetScroll = useCallback(() => {
@@ -371,7 +371,7 @@ export function PublicRooms() {
   const fetchPublicRooms = useCallback(() => {
     const limit =
       typeof serverSearchParams.limit === 'string'
-        ? parseInt(serverSearchParams.limit, 10)
+        ? Number.parseInt(serverSearchParams.limit, 10)
         : FALLBACK_ROOMS_LIMIT;
     const roomType: string | null | undefined =
       serverSearchParams.type === 'null' ? null : serverSearchParams.type;
@@ -387,7 +387,7 @@ export function PublicRooms() {
         since: serverSearchParams.since,
         filter: {
           generic_search_term: serverSearchParams.term,
-          room_types: roomType !== undefined ? [roomType] : undefined,
+          room_types: roomType === undefined ? undefined : [roomType],
         },
         third_party_instance_id: serverSearchParams.instance,
       }
@@ -574,7 +574,7 @@ export function PublicRooms() {
                   </Box>
                   {isLoading && (
                     <RoomCardGrid>
-                      {[...Array(currentLimit).keys()].map((item) => (
+                      {[...new Array(currentLimit).keys()].map((item) => (
                         <RoomCardBase key={item} style={{ minHeight: toRem(260) }} />
                       ))}
                     </RoomCardGrid>
@@ -599,6 +599,7 @@ export function PublicRooms() {
                               topic={chunkRoom.topic}
                               memberCount={chunkRoom.num_joined_members}
                               roomType={chunkRoom.room_type}
+                              joinRule={chunkRoom.join_rule}
                               onView={
                                 chunkRoom.room_type === RoomType.Space
                                   ? navigateSpace

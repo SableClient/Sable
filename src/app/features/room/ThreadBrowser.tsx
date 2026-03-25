@@ -185,6 +185,7 @@ function ThreadPreview({ room, thread, onClick }: ThreadPreviewProps) {
             room={room}
             replyEventId={rootEvent.replyEventId}
             threadRootId={rootEvent.threadRootId}
+            mentions={rootEvent.getContent()['m.mentions']}
             onClick={handleJumpClick}
           />
         )}

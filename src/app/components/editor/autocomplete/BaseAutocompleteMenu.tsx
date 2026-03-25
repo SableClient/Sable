@@ -7,7 +7,9 @@ type BaseAutocompleteMenuProps = {
 export function BaseAutocompleteMenu({ children }: BaseAutocompleteMenuProps) {
   return (
     <div className={css.AutocompleteMenuBase}>
-      <div className={css.AutocompleteMenuContainer}>{children}</div>
+      <div className={css.AutocompleteMenuContainer} data-autocomplete-menu="true">
+        {children}
+      </div>
     </div>
   );
 }

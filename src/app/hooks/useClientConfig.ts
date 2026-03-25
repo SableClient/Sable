@@ -42,6 +42,8 @@ export type ClientConfig = {
   };
 
   hashRouter?: HashRouterConfig;
+
+  matrixToBaseUrl?: string;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

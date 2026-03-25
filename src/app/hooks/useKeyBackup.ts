@@ -6,6 +6,7 @@ import {
   KeyBackupInfo,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { useMatrixClient } from './useMatrixClient';
 import { useAlive } from './useAlive';
 
@@ -92,6 +93,15 @@ export const useKeyBackupSync = (): [number, string | undefined] => {
   useKeyBackupFailedChange(
     useCallback((f) => {
       if (typeof f === 'string') {
+        Sentry.addBreadcrumb({
+          category: 'crypto',
+          message: 'Key backup failed',
+          level: 'error',
+          data: { errcode: f },
+        });
+        Sentry.metrics.count('sable.crypto.key_backup_failures', 1, {
+          attributes: { errcode: f },
+        });
         setFailure(f);
         setRemaining(0);
       }

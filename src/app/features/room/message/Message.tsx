@@ -14,7 +14,6 @@ import {
   as,
   config,
 } from 'folds';
-
 import {
   MouseEventHandler,
   MouseEvent,
@@ -35,6 +34,9 @@ import {
   Room,
   Relations,
   RoomPinnedEventsEventContent,
+  MatrixEventEvent,
+  RoomEvent,
+  IRoomTimelineData,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -49,7 +51,7 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
+import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
@@ -80,12 +82,16 @@ import { MessageSourceCodeItem } from '$components/message/modals/MessageSource'
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
-import { filterPronounsByLanguage } from '$utils/pronouns';
+import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
 } from '$utils/addStickerToDefaultStickerPack';
+import {
+  convertBeeperFormatToOurPerMessageProfile,
+  PerMessageProfileBeeperFormat,
+} from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 
@@ -281,6 +287,10 @@ function useMobileDoubleTap(callback: () => void, delay = 300) {
   );
 }
 
+/**
+ * Component to render pronouns in the chat timeline.
+ * It also filters them.
+ */
 const Pronouns = as<
   'span',
   {
@@ -296,6 +306,13 @@ const Pronouns = as<
     .map((lang) => lang.trim().toLowerCase())
     .filter(Boolean);
 
+  /**
+   * filter the pronouns based on the user's language settings.
+   * If filtering is enabled, only show pronouns that match the selected languages.
+   * If filtering is disabled, show all pronouns but still apply the language filter to determine which pronouns to show if there are multiple sets of pronouns for different languages.
+   * If there are multiple sets of pronouns and filtering is enabled, only show the ones that match the selected languages.
+   * If there are no pronouns that match the selected languages, show all pronouns.
+   */
   const visiblePronouns = filterPronounsByLanguage(
     pronouns,
     languageFilterEnabled,
@@ -367,21 +384,81 @@ function MessageInternal(
   const useAuthentication = useMediaAuthentication();
   const mediaToken = useMediaDownloadToken();
 
-  const pmp = useMemo(
-    () =>
-      mEvent.event.content?.['com.beeper.per_message_profile'] as
-        | {
-            avatar_url: string | undefined;
-            displayname: string | undefined;
-            id: string | undefined;
-          }
-        | undefined,
-    [mEvent]
-  );
+  const [contentVersion, setContentVersion] = useState(0);
 
+  useEffect(() => {
+    const triggerTimelineRegroup = () => {
+      room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
+        liveEvent: true,
+      } as IRoomTimelineData);
+    };
+
+    const onUpdate = () => {
+      setContentVersion((v) => v + 1);
+      triggerTimelineRegroup();
+    };
+
+    if (mEvent.getClearContent()) {
+      setContentVersion((v) => (v === 0 ? 1 : v));
+      triggerTimelineRegroup();
+    }
+
+    mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
+    mEvent.on(MatrixEventEvent.Replaced, onUpdate);
+    return () => {
+      mEvent.off(MatrixEventEvent.Decrypted, onUpdate);
+      mEvent.off(MatrixEventEvent.Replaced, onUpdate);
+    };
+  }, [mEvent, room]);
+
+  /**
+   * We read the per-message profile from the event content here.
+   * We have to do this in the message component because the per-message profile can be different for each message, and we need to read it for each message individually.
+   * We also want to avoid reading and parsing the per-message profile in a parent component like the timeline, because that would be inefficient and would cause unnecessary re-renders of the entire timeline whenever a per-message profile changes.
+   */
+  const pmp: PerMessageProfileBeeperFormat | undefined = useMemo(() => {
+    const evtId = mEvent.getId();
+    const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+    const editedEvent =
+      evtTimeline && evtId
+        ? getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet())
+        : undefined;
+
+    const resolvedContent = editedEvent
+      ? editedEvent.getContent()['m.new_content']
+      : mEvent.getContent();
+
+    return resolvedContent?.['com.beeper.per_message_profile'] as
+      | PerMessageProfileBeeperFormat
+      | undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mEvent, room, contentVersion]);
+
+  /**
+   * We convert the per-message profile from the Beeper format to our internal format here in the message component
+   */
+  const parsedPMPContent = useMemo(() => {
+    if (!pmp) return undefined;
+    return convertBeeperFormatToOurPerMessageProfile(pmp);
+  }, [pmp]);
+
+  /**
+   * boolean to indicate wheather we should indicate to the user that it is a pmp
+   * We want to not show it, when the name is unset, or whitespace only
+   */
+  const showPmPInfo = parsedPMPContent?.name && parsedPMPContent.name?.trim() !== '';
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
   const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);
+
+  /**
+   * If there is a per-message profile, we want to use the per message pronouns,
+   * otherwise we fall back to the profile pronouns.
+   * This allows users to set pronouns on a per-message basis, while still falling back to their profile pronouns if they don't set any for a specific message.
+   */
+  const pronouns = parsedPMPContent?.pronouns ?? profile.pronouns;
+
+  const [highlightMentions] = useSetting(settingsAtom, 'highlightMentions');
 
   // Avatars
   // Prefer the room-scoped member avatar (m.room.member) over the global profile
@@ -391,11 +468,6 @@ function MessageInternal(
     const mxc = pmp?.avatar_url || getMemberAvatarMxc(room, senderId) || profile.avatarUrl;
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
   }, [pmp, collapse, profile.avatarUrl, senderId, mx, room, useAuthentication]);
-
-  const displayName = useMemo(
-    () => pmp?.displayname || senderDisplayName,
-    [pmp, senderDisplayName]
-  );
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined, mediaToken);
 
@@ -425,8 +497,32 @@ function MessageInternal(
 
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
+
   const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
+  const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
+
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
+  const { cleanedDisplayName, inlinePronoun } = useMemo(() => {
+    const rawName = pmp?.displayname || senderDisplayName || '';
+    return getParsedPronouns(rawName, parsePronouns);
+  }, [pmp, senderDisplayName, parsePronouns]);
+
+  const mergedPronouns = useMemo(() => {
+    const existing = pronouns ? [...pronouns] : [];
+
+    if (inlinePronoun) {
+      const isDupe = existing.some((p) => p.summary?.toLowerCase() === inlinePronoun);
+
+      if (!isDupe) {
+        existing.push({
+          summary: inlinePronoun,
+          language: 'en',
+        });
+      }
+    }
+
+    return existing;
+  }, [pronouns, inlinePronoun]);
 
   useEffect(() => {
     if (!mobileOptionsOpen) return undefined;
@@ -459,11 +555,31 @@ function MessageInternal(
           onClick={onUsernameClick}
         >
           <Text as="span" size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'} truncate>
-            <UsernameBold>{displayName}</UsernameBold>
+            <UsernameBold>{cleanedDisplayName}</UsernameBold>
           </Text>
         </Username>
         {showPronouns && (
-          <Pronouns pronouns={profile.pronouns} tagColor={usernameColor ?? 'currentColor'} />
+          <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
+        )}
+        {showPmPInfo && (
+          <Box>
+            <Text as="span">
+              <Text
+                as="span"
+                style={{ paddingLeft: 0, paddingRight: 5, fontWeight: 100, fontSize: 11 }}
+              >
+                via
+              </Text>
+              <Text
+                as="span"
+                size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
+                style={{ fontSize: 11 }}
+                truncate
+              >
+                <UsernameBold>{senderDisplayName}</UsernameBold>
+              </Text>
+            </Text>
+          </Box>
         )}
         {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
       </Box>
@@ -502,7 +618,7 @@ function MessageInternal(
         <UserAvatar
           userId={senderId}
           src={cachedAvatar}
-          alt={displayName}
+          alt={cleanedDisplayName}
           renderFallback={() => <Icon size="200" src={Icons.User} filled />}
         />
       </Avatar>
@@ -609,7 +725,7 @@ function MessageInternal(
         <MessageEditor
           style={{
             maxWidth: '100%',
-            width: '100vw',
+            width: '100%',
           }}
           roomId={room.roomId}
           room={room}
@@ -727,7 +843,7 @@ function MessageInternal(
       space={messageSpacing}
       collapse={collapse}
       highlight={highlight}
-      notifyHighlight={notifyHighlight}
+      notifyHighlight={highlightMentions ? notifyHighlight : undefined}
       selected={!!menuAnchor || !!emojiBoardAnchor}
       {...props}
       {...hoverProps}
@@ -978,7 +1094,7 @@ function MessageInternal(
                                 autoFocus
                                 value={nickDraft}
                                 onChange={(e) => setNickDraft(e.target.value)}
-                                placeholder={displayName}
+                                placeholder={cleanedDisplayName}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     setNickname(senderId, nickDraft || undefined, mx);
@@ -1128,6 +1244,7 @@ export type EventProps = {
   messageSpacing: MessageSpacing;
   hideReadReceipts?: boolean;
   showDeveloperTools?: boolean;
+  collapse?: boolean;
 };
 export const Event = as<'div', EventProps>(
   (
@@ -1137,6 +1254,7 @@ export const Event = as<'div', EventProps>(
       mEvent,
       highlight,
       notifyHighlight,
+      collapse,
       canDelete,
       onReplyClick,
       messageSpacing,
@@ -1152,6 +1270,7 @@ export const Event = as<'div', EventProps>(
 
     const [menuAnchor, setMenuAnchor] = useState<RectCords>();
     const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
+    const [highlightMentions] = useSetting(settingsAtom, 'highlightMentions');
 
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (mobileOrTablet()) {
@@ -1226,9 +1345,9 @@ export const Event = as<'div', EventProps>(
         className={classNames(css.MessageBase, className)}
         tabIndex={0}
         space={messageSpacing}
-        autoCollapse
+        collapse={collapse}
         highlight={highlight}
-        notifyHighlight={notifyHighlight}
+        notifyHighlight={highlightMentions ? notifyHighlight : undefined}
         selected={!!menuAnchor}
         {...props}
         {...hoverProps}
@@ -1258,6 +1377,25 @@ export const Event = as<'div', EventProps>(
                       >
                         <Menu {...props} ref={ref}>
                           <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
+                            <MenuItem
+                              size="300"
+                              after={<Icon size="100" src={Icons.ReplyArrow} />}
+                              radii="300"
+                              data-event-id={mEvent.getId()}
+                              onClick={(evt: any) => {
+                                onReplyClick(evt);
+                                closeMenu();
+                              }}
+                            >
+                              <Text
+                                className={css.MessageMenuItemText}
+                                as="span"
+                                size="T300"
+                                truncate
+                              >
+                                Reply
+                              </Text>
+                            </MenuItem>
                             {!hideReadReceipts && (
                               <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
                             )}

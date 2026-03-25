@@ -90,6 +90,12 @@ jobs:
         env:
           VITE_BUILD_HASH: ${{ steps.vars.outputs.short_sha }}
           VITE_IS_RELEASE_TAG: ${{ steps.release_tag.outputs.is_release }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: ${{ (steps.release_tag.outputs.is_release == 'true' || github.ref == 'refs/heads/dev') && 'production' || 'preview' }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
           NODE_OPTIONS=--max_old_space_size=4096 pnpm run build
 

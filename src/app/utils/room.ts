@@ -291,8 +291,14 @@ type UnreadInfoOptions = {
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
   const userId = room.client.getUserId();
   if (userId && options?.applyFixup) {
-    // Reconcile known notification-count drift (notably with Sliding Sync / mixed receipts).
-    room.fixupNotifications(userId);
+    // Only apply fixup for rooms the user has visited (read receipt / fully-read marker
+    // present). For unvisited rooms, fixupNotifications() re-derives the notification count
+    // from the limited sliding sync list timeline (timeline_limit=1, so 1 event) and
+    // overwrites the server-supplied notification_count, causing every unvisited-room badge
+    // to show "1" instead of the true unread count.
+    if (room.getEventReadUpTo(userId)) {
+      room.fixupNotifications(userId);
+    }
   }
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);

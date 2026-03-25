@@ -6,7 +6,6 @@
   "permissions": [
     "core:default",
     "deep-link:default",
-    "splashscreen:allow-close",
     "notifications:default",
     "notifications:allow-register-for-unified-push",
     "notifications:allow-unregister-from-unified-push",

@@ -5,7 +5,7 @@
     "interface": true,
     "type": true
   },
-  "ignoreFiles": ["crates/**/*", "src/app/generated/**/*"],
+  "ignoreFiles": ["src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",

@@ -210,9 +210,6 @@ importers:
       slate-react:
         specifier: ^0.123.0
         version: 0.123.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(slate-dom@0.123.0(slate@0.123.0))(slate@0.123.0)
-      tauri-plugin-splashscreen-api:
-        specifier: file:./crates/tauri-plugin-splashscreen
-        version: file:crates/tauri-plugin-splashscreen
       ua-parser-js:
         specifier: ^1.0.41
         version: 1.0.41
@@ -5321,9 +5318,6 @@ packages:
 
   tar-mini@0.2.0:
     resolution: {integrity: sha512-+qfUHz700DWnRutdUsxRRVZ38G1Qr27OetwaMYTdg8hcPxf46U0S1Zf76dQMWRBmusOt2ZCK5kbIaiLkoGO7WQ==}
-
-  tauri-plugin-splashscreen-api@file:crates/tauri-plugin-splashscreen:
-    resolution: {directory: crates/tauri-plugin-splashscreen, type: directory}
 
   temp-dir@2.0.0:
     resolution: {integrity: sha512-aoBAniQmmwtcKp/7BzsH8Cxzv8OL736p7v1ihGb5e9DJ9kTwGWHrQrVB5+lfVDzfGrdRzXch+ig7LHaY1JTOrg==}
@@ -11459,10 +11453,6 @@ snapshots:
   tapable@2.3.0: {}
 
   tar-mini@0.2.0: {}
-
-  tauri-plugin-splashscreen-api@file:crates/tauri-plugin-splashscreen:
-    dependencies:
-      '@tauri-apps/api': 2.10.1
 
   temp-dir@2.0.0: {}
 

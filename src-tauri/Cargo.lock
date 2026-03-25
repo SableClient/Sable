@@ -3980,7 +3980,6 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-os",
  "tauri-plugin-single-instance",
- "tauri-plugin-splashscreen",
  "tauri-plugin-window-state",
  "tauri-typegen",
  "tokio",
@@ -4864,16 +4863,6 @@ dependencies = [
  "tracing",
  "windows-sys 0.60.2",
  "zbus",
-]
-
-[[package]]
-name = "tauri-plugin-splashscreen"
-version = "0.1.0"
-dependencies = [
- "serde",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.18",
 ]
 
 [[package]]

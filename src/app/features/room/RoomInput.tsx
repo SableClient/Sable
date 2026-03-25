@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
@@ -160,6 +161,7 @@ import {
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { sanitizeCustomHtml } from '$utils/sanitize';
+import { PluralKitCommandMessageHandler } from '$plugins/pluralkit-handler/pluralkitMessageHandler';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -259,6 +261,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const commands = useCommands(mx, room);
+    /**
+     * handle pluralkit-style messages
+     */
+    const pluralkitCmdMessageHandler = useMemo(
+      () => new PluralKitCommandMessageHandler(mx, room),
+      [mx, room]
+    );
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -709,6 +718,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
+      if (PluralKitCommandMessageHandler.isPKCommand(plainText)) {
+        pluralkitCmdMessageHandler.handleMessage(plainText);
+      }
+
       if (commandName) {
         plainText = trimCommand(commandName, plainText);
         customHtml = trimCommand(commandName, customHtml);
@@ -892,19 +905,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     }, [
       editor,
       replyEvent,
-      isMarkdown,
-      canSendReaction,
       mx,
       roomId,
+      isMarkdown,
+      canSendReaction,
       replyDraft,
       silentReply,
       scheduledTime,
       editingScheduledDelayId,
       nicknames,
+      room,
       handleQuickReact,
+      pluralkitCmdMessageHandler,
       commands,
       sendTypingStatus,
-      room,
       queryClient,
       threadRootId,
       setReplyDraft,

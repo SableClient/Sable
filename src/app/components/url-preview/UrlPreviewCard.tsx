@@ -43,10 +43,10 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
         if (isDirect) return Promise.resolve(null);
         const cached = previewRequestCache.get(url);
         if (cached !== undefined) return cached;
-        const promise = mx.getUrlPreview(url, ts);
-        previewRequestCache.set(url, promise);
-        promise.catch(() => previewRequestCache.delete(url));
-        return promise;
+        const urlPreview = mx.getUrlPreview(url, ts);
+        previewRequestCache.set(url, urlPreview);
+        urlPreview.catch(() => previewRequestCache.delete(url));
+        return urlPreview;
       }, [url, ts, mx, isDirect])
     );
 

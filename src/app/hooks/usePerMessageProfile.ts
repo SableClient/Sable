@@ -50,6 +50,7 @@ export type PerMessageProfileBeeperFormat = {
    * using the unstable prefix for pronouns, under which it is also stored in profiles
    */
   'io.fsky.nyx.pronouns'?: PronounSet[];
+  has_fallback: boolean;
 };
 
 /**
@@ -67,6 +68,7 @@ export function convertPerMessageProfileToBeeperFormat(
     displayname: profile.name,
     avatar_url: profile.avatarUrl,
     'io.fsky.nyx.pronouns': profile.pronouns,
+    has_fallback: true,
   };
 }
 

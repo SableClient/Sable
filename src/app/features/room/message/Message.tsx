@@ -401,6 +401,10 @@ function MessageInternal(
     return convertBeeperFormatToOurPerMessageProfile(pmp);
   }, [pmp]);
 
+  /**
+   * boolean to indicate wheather we should indicate to the user that it is a pmp
+   */
+  const showPmPInfo = pmp !== undefined;
   // Profiles and Colors
   const profile = useUserProfile(senderId, room);
   const { color: usernameColor, font: usernameFont } = useSableCosmetics(senderId, room);
@@ -514,6 +518,26 @@ function MessageInternal(
         </Username>
         {showPronouns && (
           <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
+        )}
+        {showPmPInfo && (
+          <Box>
+            <Text as="span">
+              <Text
+                as="span"
+                style={{ paddingLeft: 0, paddingRight: 5, fontWeight: 100, fontSize: 11 }}
+              >
+                via
+              </Text>
+              <Text
+                as="span"
+                size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
+                style={{ fontSize: 11 }}
+                truncate
+              >
+                <UsernameBold>{senderDisplayName}</UsernameBold>
+              </Text>
+            </Text>
+          </Box>
         )}
         {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
       </Box>

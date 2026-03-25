@@ -109,7 +109,7 @@ export function MessageForwardInternal({
   const [isTargetSelected, setIsTargetSelected] = useState(false);
   const [isForwardSuccess, setIsForwardSuccess] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
-  const [isForwardError, setIsForwardError] = useState(false);
+  const [forwardError, setForwardError] = useState<string | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string | null>(null);
 
   // detect if it's a public room or not
@@ -285,15 +285,16 @@ export function MessageForwardInternal({
         setIsForwardSuccess(true);
       })
       .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
         debugLog.error('ui', 'Message forward failed', {
           sourceRoomId: room.roomId,
           targetRoomId: targetRoom.roomId,
-          error: err instanceof Error ? err.message : String(err),
+          error: message,
         });
         Sentry.metrics.count('sable.message.forward.error', 1);
         setIsForwarding(false);
         setIsForwardSuccess(false);
-        setIsForwardError(true);
+        setForwardError(message);
       });
   };
 
@@ -348,9 +349,9 @@ export function MessageForwardInternal({
             <Text>Forward to {getRoom(targetRoomId)?.name}</Text>
           </Button>
         )}
-        {isForwardError && (
+        {forwardError && (
           <Text size="T300" color="Critical600" style={{ margin: config.space.S300 }}>
-            Failed to forward message. Please try again.
+            Failed to forward: {forwardError}
           </Text>
         )}
       </Box>

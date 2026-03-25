@@ -35,6 +35,8 @@ import {
   Relations,
   RoomPinnedEventsEventContent,
   MatrixEventEvent,
+  RoomEvent,
+  IRoomTimelineData,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -383,10 +385,20 @@ function MessageInternal(
   const [contentVersion, setContentVersion] = useState(0);
 
   useEffect(() => {
-    const onUpdate = () => setContentVersion((v) => v + 1);
+    const triggerTimelineRegroup = () => {
+      room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
+        liveEvent: true,
+      } as IRoomTimelineData);
+    };
+
+    const onUpdate = () => {
+      setContentVersion((v) => v + 1);
+      triggerTimelineRegroup();
+    };
 
     if (mEvent.getClearContent()) {
       setContentVersion((v) => (v === 0 ? 1 : v));
+      triggerTimelineRegroup();
     }
 
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
@@ -395,7 +407,7 @@ function MessageInternal(
       mEvent.off(MatrixEventEvent.Decrypted, onUpdate);
       mEvent.off(MatrixEventEvent.Replaced, onUpdate);
     };
-  }, [mEvent]);
+  }, [mEvent, room]);
 
   /**
    * We read the per-message profile from the event content here.

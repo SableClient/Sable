@@ -1,7 +1,6 @@
 import { generatePath, Path } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
 import { HashRouterConfig } from '$hooks/useClientConfig';
-import { SettingsSectionId } from '$features/settings/routes';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
@@ -162,7 +161,7 @@ export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
 
-export const getSettingsPath = (section?: SettingsSectionId, focus?: string): string => {
+export const getSettingsPath = (section?: string, focus?: string): string => {
   const basePath = generatePath(SETTINGS_PATH, { section: section ?? null });
   const path = basePath.endsWith('/') ? basePath : `${basePath}/`;
   if (!focus) return path;

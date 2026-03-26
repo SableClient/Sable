@@ -54,6 +54,7 @@ import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
+import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -835,10 +836,16 @@ function PresenceFeature() {
   return null;
 }
 
+function SettingsSyncFeature() {
+  useSettingsSyncEffect();
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
+      <SettingsSyncFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

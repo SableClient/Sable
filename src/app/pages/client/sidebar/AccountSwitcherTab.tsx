@@ -30,7 +30,7 @@ import {
   SidebarItem,
   SidebarItemTooltip,
   SidebarAvatar,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
 } from '$components/sidebar';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
@@ -287,12 +287,10 @@ export function AccountSwitcherTab() {
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (
-        <SidebarItemBadge hasCount style={{ left: toRem(-6), right: 'auto' }}>
-          <UnreadBadge
-            highlight={anyBackgroundHighlight}
-            count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={anyBackgroundHighlight}
+          count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}
+        />
       )}
 
       <PopOut

@@ -14,9 +14,9 @@ export const SidebarItem = as<'div', css.SidebarItemVariants>(
 );
 
 export const SidebarItemBadge = as<'div', css.SidebarItemBadgeVariants>(
-  ({ as: AsSidebarBadgeBox = 'div', className, hasCount, ...props }, ref) => (
+  ({ as: AsSidebarBadgeBox = 'div', className, mode, ...props }, ref) => (
     <AsSidebarBadgeBox
-      className={classNames(css.SidebarItemBadge({ hasCount }), className)}
+      className={classNames(css.SidebarItemBadge({ mode }), className)}
       {...props}
       ref={ref}
     />

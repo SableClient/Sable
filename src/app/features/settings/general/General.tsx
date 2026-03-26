@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import dayjs from 'dayjs';
+import { useAtomValue, useSetAtom } from 'jotai';
 import {
   Box,
   Button,
@@ -26,7 +27,6 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { useAtomValue, useSetAtom } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
@@ -57,6 +57,8 @@ import {
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
+import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
+import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -1166,6 +1168,82 @@ type GeneralProps = {
   requestClose: () => void;
 };
 
+function SettingsSyncSection() {
+  const [syncEnabled, setSyncEnabled] = useSetting(settingsAtom, 'settingsSyncEnabled');
+  const lastSynced = useAtomValue(settingsSyncLastSyncedAtom);
+  const syncStatus = useAtomValue(settingsSyncStatusAtom);
+  const fullSettings = useAtomValue(settingsAtom);
+  const setSettings = useSetAtom(settingsAtom);
+
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    setImportError(null);
+    const merged = await importSettingsFromJson(fullSettings);
+    if (merged === null) {
+      setImportError('Could not import — file was invalid or you cancelled.');
+      return;
+    }
+    setSettings(merged);
+  };
+
+  const syncStatusLabel: Record<typeof syncStatus, string> = {
+    idle: lastSynced
+      ? `Last synced at ${dayjs(lastSynced).format('HH:mm:ss')}`
+      : 'Not yet synced this session',
+    syncing: 'Syncing…',
+    error: 'Sync failed — will retry on next change',
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Settings Sync & Backup</Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Sync across devices"
+          description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
+          after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
+        />
+        {syncEnabled && (
+          <SettingTile title="Sync status" description={syncStatusLabel[syncStatus]} />
+        )}
+      </SequenceCard>
+      <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.Download} size="100" />}
+          onClick={() => exportSettingsAsJson(fullSettings)}
+        >
+          <Text size="B300">Export Settings</Text>
+        </Button>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.ArrowTop} size="100" />}
+          onClick={handleImport}
+        >
+          <Text size="B300">Import Settings</Text>
+        </Button>
+      </Box>
+      {importError && (
+        <Text size="T200" style={{ color: 'var(--mx-color-critical-container-on)' }}>
+          {importError}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 function DiagnosticsAndPrivacy() {
   const [sentryEnabled, setSentryEnabled] = useState(getSentryEnabled());
   const [sessionReplayEnabled, setSessionReplayEnabled] = useState(getSentryReplayEnabled());
@@ -1282,6 +1360,7 @@ export function General({ requestClose }: Readonly<GeneralProps>) {
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
               <Calls />
+              <SettingsSyncSection />
               <DiagnosticsAndPrivacy />
             </Box>
           </PageContent>

@@ -19,6 +19,7 @@ import { SettingsRoute } from './SettingsRoute';
 import { SettingsShallowRouteRenderer } from './SettingsShallowRouteRenderer';
 import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
+import { useOpenSettings } from './useOpenSettings';
 import { useSettingsFocus } from './useSettingsFocus';
 
 const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
@@ -151,6 +152,19 @@ function HomePage() {
   );
 }
 
+function OpenSettingsHomePage() {
+  const openSettings = useOpenSettings();
+
+  return (
+    <div>
+      <h1>Home route</h1>
+      <button type="button" onClick={() => openSettings('devices')}>
+        Open devices settings
+      </button>
+    </div>
+  );
+}
+
 function renderClientShell(
   screenSize: ScreenSize,
   options?: { initialEntries?: string[]; initialIndex?: number }
@@ -163,6 +177,23 @@ function renderClientShell(
         <Routes>
           <Route element={<ClientRouteOutlet />}>
             <Route path={getHomePath()} element={<HomePage />} />
+            <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+          </Route>
+        </Routes>
+        <SettingsShallowRouteRenderer />
+      </ScreenSizeProvider>
+    </MemoryRouter>
+  );
+}
+
+function renderClientShellWithOpenSettings(screenSize: ScreenSize) {
+  return render(
+    <MemoryRouter initialEntries={[getHomePath()]}>
+      <ScreenSizeProvider value={screenSize}>
+        <LocationProbe />
+        <Routes>
+          <Route element={<ClientRouteOutlet />}>
+            <Route path={getHomePath()} element={<OpenSettingsHomePage />} />
             <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
           </Route>
         </Routes>
@@ -316,6 +347,20 @@ describe('SettingsRoute', () => {
 });
 
 describe('Settings shallow route shell', () => {
+  it('opens device settings through route navigation and keeps the desktop background mounted', async () => {
+    const user = userEvent.setup();
+
+    renderClientShellWithOpenSettings(ScreenSize.Desktop);
+
+    await user.click(screen.getByRole('button', { name: 'Open devices settings' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath('devices'))
+    );
+    expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
   it('keeps the desktop background route mounted when settings opens shallow', async () => {
     const user = userEvent.setup();
 

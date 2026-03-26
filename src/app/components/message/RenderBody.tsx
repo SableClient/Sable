@@ -75,7 +75,11 @@ export function buildAbbrReplaceTextNode(
       <>
         {segments.map((seg) =>
           seg.termKey !== undefined ? (
-            <AbbreviationTerm key={seg.id} text={seg.text} definition={abbrMap.get(seg.termKey) ?? ''} />
+            <AbbreviationTerm
+              key={seg.id}
+              text={seg.text}
+              definition={abbrMap.get(seg.termKey) ?? ''}
+            />
           ) : (
             seg.text
           )
@@ -116,9 +120,7 @@ export function RenderBody({
           {segments.map((seg) => {
             if (seg.termKey !== undefined) {
               const definition = abbrMap.get(seg.termKey) ?? '';
-              return (
-                <AbbreviationTerm key={seg.id} text={seg.text} definition={definition} />
-              );
+              return <AbbreviationTerm key={seg.id} text={seg.text} definition={definition} />;
             }
             return (
               <Linkify key={seg.id} options={linkifyOpts}>

@@ -44,14 +44,18 @@ export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>)
   const segments: TextSegment[] = [];
   let lastIndex = 0;
 
-  for (const match of text.matchAll(pattern)) {
-    const matchIndex = match.index!;
+  Array.from(text.matchAll(pattern)).forEach((match) => {
+    const matchIndex = match.index;
     if (matchIndex > lastIndex) {
       segments.push({ id: `txt-${segments.length}`, text: text.slice(lastIndex, matchIndex) });
     }
-    segments.push({ id: `txt-${segments.length}`, text: match[0], termKey: match[0].toLowerCase() });
+    segments.push({
+      id: `txt-${segments.length}`,
+      text: match[0],
+      termKey: match[0].toLowerCase(),
+    });
     lastIndex = matchIndex + match[0].length;
-  }
+  });
 
   if (lastIndex < text.length) {
     segments.push({ id: `txt-${segments.length}`, text: text.slice(lastIndex) });

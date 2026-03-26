@@ -65,7 +65,9 @@ describe('splitByAbbreviations', () => {
   });
 
   it('returns a single plain segment when there are no matches', () => {
-    expect(splitByAbbreviations('hello world', map)).toEqual([{ id: 'txt-0', text: 'hello world' }]);
+    expect(splitByAbbreviations('hello world', map)).toEqual([
+      { id: 'txt-0', text: 'hello world' },
+    ]);
   });
 
   it('returns a single plain segment for an empty string', () => {
@@ -114,7 +116,9 @@ describe('splitByAbbreviations', () => {
   it('does not match a term that is a prefix of a longer word (word boundary)', () => {
     // OSS is in the map, but should not match inside FOSS because the F provides no boundary
     const ossOnlyMap = buildAbbreviationsMap([{ term: 'OSS', definition: 'Open Source Software' }]);
-    expect(splitByAbbreviations('FOSS rocks', ossOnlyMap)).toEqual([{ id: 'txt-0', text: 'FOSS rocks' }]);
+    expect(splitByAbbreviations('FOSS rocks', ossOnlyMap)).toEqual([
+      { id: 'txt-0', text: 'FOSS rocks' },
+    ]);
   });
 
   it('does not match a term embedded inside a longer word', () => {

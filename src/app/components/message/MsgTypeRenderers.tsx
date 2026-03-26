@@ -97,7 +97,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     [customBody, body]
   );
 
-  const safeCustomBody = useMemo(() => {
+  let safeCustomBody = useMemo(() => {
     if (!customBody) return undefined;
     if (customBody.length > 8000) {
       const imageTags = customBody.match(/<img[^>]*>/g);
@@ -141,6 +141,11 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+
+  safeCustomBody = safeCustomBody?.replace(
+    /(<|&lt;)<a data-md href="(.+)">(.+)<\/a>(>|&gt;)/g,
+    '<a data-md href="$2">$3</a>'
+  );
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present

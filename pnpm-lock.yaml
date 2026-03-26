@@ -37,8 +37,8 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@sableclient/tauri-plugin-notifications-api':
-        specifier: git+https://github.com/SableClient/tauri-plugin-notifications.git#9f162c62f89f9f7e1e17c71893faa51d140f18fd
-        version: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9f162c62f89f9f7e1e17c71893faa51d140f18fd
+        specifier: git+https://github.com/SableClient/tauri-plugin-notifications.git#9d15b2b2c8798dc29ce723d743f0f3b4921d6a54
+        version: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54
       '@sentry/react':
         specifier: ^10.43.0
         version: 10.43.0(react@18.3.1)
@@ -2452,8 +2452,8 @@ packages:
   '@sableclient/sable-call-embedded@1.1.4':
     resolution: {integrity: sha512-XLRcbUPcn7i3QKZAPjIfUkUEXP0E4DOr0dyRoVCWMjHWj28kq+T7jeB2fRr5lB77olBwNHMjIuoTwrv02xiepQ==}
 
-  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9f162c62f89f9f7e1e17c71893faa51d140f18fd':
-    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9f162c62f89f9f7e1e17c71893faa51d140f18fd}
+  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54':
+    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54}
     version: 0.4.3
 
   '@sentry-internal/browser-utils@10.43.0':
@@ -8220,7 +8220,7 @@ snapshots:
 
   '@sableclient/sable-call-embedded@1.1.4': {}
 
-  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9f162c62f89f9f7e1e17c71893faa51d140f18fd':
+  '@sableclient/tauri-plugin-notifications-api@https://codeload.github.com/SableClient/tauri-plugin-notifications/tar.gz/9d15b2b2c8798dc29ce723d743f0f3b4921d6a54':
     dependencies:
       '@tauri-apps/api': 2.10.1
 

@@ -5,12 +5,51 @@ mod desktop_tray;
 
 #[cfg(desktop)]
 use tauri_plugin_window_state::StateFlags;
+use tauri::{AppHandle, Manager};
 
 // Runtime selection: CEF or Wry
 #[cfg(feature = "cef")]
 use tauri::Cef as BrowserEngine;
 #[cfg(all(not(feature = "cef"), feature = "wry"))]
 use tauri::Wry as BrowserEngine;
+
+pub const MAIN_WINDOW_LABEL: &str = "main";
+
+pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        #[cfg(desktop)]
+        {
+            window.unminimize()?;
+            window.show()?;
+            window.set_focus()?;
+        }
+
+        return Ok(());
+    }
+
+    log::info!("Main window not found, creating a new one.");
+
+    let builder = tauri::WebviewWindowBuilder::new(
+        app,
+        MAIN_WINDOW_LABEL,
+        tauri::WebviewUrl::default(),
+    );
+
+    #[cfg(desktop)]
+    let builder = builder
+        .title(app.package_info().name.clone())
+        .resizable(true)
+        .fullscreen(false)
+        .inner_size(1280.0, 720.0)
+        .visible(false);
+
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
+
+    builder.build()?;
+    Ok(())
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -33,10 +72,10 @@ pub fn run() {
 
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-        let _ = desktop_tray::show_or_create_main_window(app);
+        let _ = show_or_create_main_window(app);
     }));
 
-    #[cfg(target_os = "android")]
+    #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_notifications::init());
 
     builder
@@ -50,11 +89,10 @@ pub fn run() {
                 app.deep_link().register_all()?;
             }
 
+            show_or_create_main_window(app.handle())?;
+
             #[cfg(desktop)]
-            {
-                desktop_tray::show_or_create_main_window(app.handle())?;
-                desktop_tray::create_system_tray(app.handle())?;
-            }
+            desktop_tray::create_system_tray(app.handle())?;
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(

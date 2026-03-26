@@ -29,4 +29,3 @@ export interface SetCloseToTrayEnabledParams {
   [key: string]: unknown;
 }
 
-

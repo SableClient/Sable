@@ -1,4 +1,4 @@
-package moe.sable.app
+package moe.sable.client
 
 import android.graphics.Bitmap
 import android.os.Bundle

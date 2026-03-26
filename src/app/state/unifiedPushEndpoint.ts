@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import type { UnifiedPushRegistrationStatus } from '$features/settings/notifications/UnifiedPushTransport';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,
@@ -7,9 +8,20 @@ import {
 
 const UP_ENDPOINT_KEY = 'unifiedPushEndpoint';
 
-type UnifiedPushState = {
-  endpoint: string;
-  instance: string;
+export type UnifiedPushState = {
+  endpoint?: string;
+  instance?: string;
+  appId?: string;
+  gatewayUrl?: string;
+  status?: UnifiedPushRegistrationStatus;
+  distributor?: string;
+  error?: string;
+  permissionState?: 'granted' | 'denied' | 'default';
+  distributors?: string[];
+  pubKeySet?: {
+    pubKey: string;
+    auth: string;
+  };
 } | null;
 
 const baseAtom = atomWithLocalStorage<UnifiedPushState>(

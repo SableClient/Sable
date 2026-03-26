@@ -1,5 +1,10 @@
 import { atom } from 'jotai';
 import { mobileOrTablet } from '$utils/user-agent';
+import type {
+  NotificationTransportMode,
+  NotificationTransportProvider,
+  PushTransportOverrides,
+} from '$features/settings/notifications/NotificationTransport';
 
 const STORAGE_KEY = 'settings';
 export type DateFormat = 'D MMM YYYY' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | '';
@@ -63,6 +68,10 @@ export interface Settings {
   showMessageContentInNotifications: boolean;
   showMessageContentInEncryptedNotifications: boolean;
   clearNotificationsOnRead: boolean;
+  backgroundPushEnabled: boolean;
+  backgroundPushProvider: NotificationTransportProvider | null;
+  pushTransportMode: NotificationTransportMode;
+  pushTransportOverride: PushTransportOverrides;
 
   hour24Clock: boolean;
   dateFormatString: string;
@@ -160,6 +169,10 @@ const defaultSettings: Settings = {
   showMessageContentInNotifications: false,
   showMessageContentInEncryptedNotifications: false,
   clearNotificationsOnRead: false,
+  backgroundPushEnabled: mobileOrTablet(),
+  backgroundPushProvider: null,
+  pushTransportMode: 'auto',
+  pushTransportOverride: {},
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',

@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     menu::{Menu, MenuEvent, MenuItem},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Manager, RunEvent,
 };
 
-pub const MAIN_WINDOW_LABEL: &str = "main";
 const TRAY_MENU_SHOW_ID: &str = "tray_show";
 const TRAY_MENU_QUIT_ID: &str = "tray_quit";
 
@@ -73,11 +72,11 @@ fn close_to_tray_enabled(app: &AppHandle<crate::BrowserEngine>) -> bool {
 }
 
 fn main_window_exists(app: &AppHandle<crate::BrowserEngine>) -> bool {
-    app.get_webview_window(MAIN_WINDOW_LABEL).is_some()
+    app.get_webview_window(crate::MAIN_WINDOW_LABEL).is_some()
 }
 
 fn close_main_window(app: &AppHandle<crate::BrowserEngine>) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+    if let Some(window) = app.get_webview_window(crate::MAIN_WINDOW_LABEL) {
         let _ = window.close();
     }
 }
@@ -104,7 +103,7 @@ fn handle_exit_request(
 fn handle_tray_double_click(app: &AppHandle<crate::BrowserEngine>, event: &TrayIconEvent) {
     match tray_double_click_action(main_window_exists(app), event) {
         TrayDoubleClickAction::ShowOrCreateMainWindow => {
-            let _ = show_or_create_main_window(app);
+            let _ = crate::show_or_create_main_window(app);
         }
         TrayDoubleClickAction::CloseMainWindow => {
             close_main_window(app);
@@ -119,31 +118,6 @@ pub fn handle_run_event(app: &AppHandle<crate::BrowserEngine>, event: RunEvent) 
     }
 }
 
-pub fn show_or_create_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-        return Ok(());
-    }
-
-    log::info!("Main window not found, creating a new one.");
-
-    let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::default())
-        .title(app.package_info().name.clone())
-        .resizable(true)
-        .fullscreen(false)
-        .inner_size(1280.0, 720.0)
-        .visible(false);
-
-    #[cfg(target_os = "windows")]
-    let builder = builder.decorations(false);
-
-    builder.build()?;
-
-    Ok(())
-}
-
 pub fn create_system_tray(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, TRAY_MENU_SHOW_ID, "Show", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, TRAY_MENU_QUIT_ID, "Quit", true, None::<&str>)?;
@@ -154,7 +128,7 @@ pub fn create_system_tray(app: &AppHandle<crate::BrowserEngine>) -> tauri::Resul
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event: MenuEvent| match event.id().as_ref() {
             TRAY_MENU_SHOW_ID => {
-                let _ = show_or_create_main_window(app);
+                let _ = crate::show_or_create_main_window(app);
             }
             TRAY_MENU_QUIT_ID => {
                 app.exit(0);

@@ -274,7 +274,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       pluralkitProxyMessageHandler.init();
     }, [pluralkitProxyMessageHandler]);
 
-    const pkCompatEnable = useSetting(settingsAtom, 'pkCompat');
+    const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
+    const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -789,11 +790,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
        */
       const perMessageProfile =
-        pkCompatEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText)
+        pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText)
           ? await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText)
           : await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
-      if (pkCompatEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
+      if (pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
         plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
       if (perMessageProfile) {
         content['com.beeper.per_message_profile'] =
@@ -925,9 +926,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isMarkdown,
       canSendReaction,
       pkCompatEnable,
-      pluralkitProxyMessageHandler,
       replyDraft,
       silentReply,
+      pmpProxyingEnable,
+      pluralkitProxyMessageHandler,
       scheduledTime,
       editingScheduledDelayId,
       nicknames,

@@ -1,6 +1,7 @@
 import {
   addOrUpdatePerMessageProfile,
   associateProxyWithProfile,
+  dropProxyAssociationForPMP,
   getAllPerMessageProfiles,
   getPerMessageProfileById,
   PerMessageProfile,
@@ -10,11 +11,15 @@ import { MatrixClient, Room } from 'matrix-js-sdk';
 
 const pkMemberRenameRegex = /^(pk;member)\s+"?([\w\s]+)"?\s*rename\s+"?([\w\s]+)"?$/;
 const pkMemberNewRegex = /^(pk;member)\s+new\s+"?([\w\s]+)"?$/;
-const pkMemberNewProxy = /^(pk;member)\s+"?([\w\s]+)"?\s+proxy\s+(.*text.*)$/;
+const pkMemberNewProxy = /^(pk;member)\s+"?([\w\s]+)"?\s+proxy(\s+add)?\s+(.*text.*)$/;
+const pkMemberRemoveProxy = /^(pk;member)\s+"?([\w\s]+)"?\s+proxy\s+remove\s+(.*text.*)$/;
 
 const helpTextPkMemberNew = 'To create a new persona: pk;member new Yumi';
 const helpTextPkMemberRename = 'To rename a persona: pk;member "Rain Deer" rename "Micky Mouse"';
-const helpTextPkMemberNewProxy = 'To create a persona: pk;member Yumi proxy [text]';
+const helpTextPkMemberNewProxy = 'To add a shorthand to a persona: pk;member Yumi proxy [text]';
+const helpTextPkMemberRemoveProxy =
+  'To remove a shorthand from a persona: pk;member Yumi proxy remove [text]';
+const helpTextPkMember = `Available 'pk;member' commands:\n${helpTextPkMemberNew}\n${helpTextPkMemberRename}\n${helpTextPkMemberNewProxy}\n${helpTextPkMemberRemoveProxy}`;
 
 /**
  * build a regex to recognize proxies
@@ -37,15 +42,32 @@ function buildRegex(template: string): RegExp {
  * @author Rye
  */
 export class PKitCommandMessageHandler {
+  /**
+   * the matrix client we use, is set in the constructor
+   *
+   * @private
+   * @type {MatrixClient}
+   * @memberof PKitCommandMessageHandler
+   */
   private readonly mx: MatrixClient;
 
   private message = '';
 
   private readonly room: Room;
 
+  /**
+   * flag to interpret the name given as id
+   *
+   * @private
+   * @type {boolean}
+   * @memberof PKitCommandMessageHandler
+   */
+  private useIdInsteadOfNameWherePossible: boolean;
+
   public constructor(mx: MatrixClient, room: Room) {
     this.mx = mx;
     this.room = room;
+    this.useIdInsteadOfNameWherePossible = false;
   }
 
   /**
@@ -127,15 +149,41 @@ export class PKitCommandMessageHandler {
         this.mx.getSafeUserId()
       );
       addOrUpdatePerMessageProfile(this.mx, pmp);
+    } else if (pkMemberRemoveProxy.test(this.message)) {
+      const cmdParts = pkMemberRemoveProxy.exec(this.message);
+      if (!cmdParts) return;
+      const name = cmdParts[2];
+      const matchAgainst = cmdParts[3];
+      const pmpId = this.useIdInsteadOfNameWherePossible
+        ? name
+        : (await getAllPerMessageProfiles(this.mx)).find((pmp) => pmp.name === name)?.id;
+      if (!pmpId) {
+        sendFeedback(
+          `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
+
+      dropProxyAssociationForPMP(this.mx, matchAgainst);
+
+      sendFeedback(
+        `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" (${pmpId}) is now no longer associated with ${matchAgainst}`,
+        this.room,
+        this.mx.getSafeUserId()
+      );
     } else if (pkMemberNewProxy.test(this.message)) {
       const cmdParts = pkMemberNewProxy.exec(this.message);
       if (!cmdParts) return;
       const name = cmdParts[2];
-      const matchAgainst = cmdParts[3];
-      const pmpId = (await getAllPerMessageProfiles(this.mx)).find((pmp) => pmp.name === name)?.id;
+      const matchAgainst = cmdParts[4];
+      const pmpId = this.useIdInsteadOfNameWherePossible
+        ? name
+        : (await getAllPerMessageProfiles(this.mx)).find((pmp) => pmp.name === name)?.id;
       if (!pmpId) {
         sendFeedback(
-          `Persona with name "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
+          `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
           this.room,
           this.mx.getSafeUserId()
         );
@@ -144,7 +192,7 @@ export class PKitCommandMessageHandler {
       const matchAgainstRegExp = buildRegex(matchAgainst);
       associateProxyWithProfile(this.mx, pmpId, matchAgainst, matchAgainstRegExp, false);
       sendFeedback(
-        `Persona with name "${name}" (${pmpId}) is now associated with ${matchAgainst}`,
+        `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" (${pmpId}) is now associated with ${matchAgainst}`,
         this.room,
         this.mx.getSafeUserId()
       );
@@ -155,7 +203,7 @@ export class PKitCommandMessageHandler {
         .map((pmp: PerMessageProfile) => `${pmp.id}: ${pmp.name ? pmp.name : '(empty name)'}`)
         .join('\n');
       sendFeedback(
-        `You currently have the following persona set up:\n${stringListOfProfiles}\n\n${helpTextPkMemberNew}\n${helpTextPkMemberRename}\n${helpTextPkMemberNewProxy}`,
+        `If you see this, you have messed up a command\n\nYou currently have the following persona set up:\n${stringListOfProfiles}\n\n${helpTextPkMember}`,
         this.room,
         this.mx.getSafeUserId()
       );
@@ -176,9 +224,18 @@ export class PKitCommandMessageHandler {
    * @param message the message we want to handle
    * @returns void
    */
-  public async handleMessage(message: string): Promise<void> {
+  public async handleMessage(message: string, useId?: boolean): Promise<void> {
     this.message = message;
-    if (!this.message.startsWith('pk')) return;
-    if (this.message.startsWith('pk;member')) await this.memberHandler();
+    this.useIdInsteadOfNameWherePossible = useId ?? false;
+    if (!this.message.startsWith('pk;')) return;
+    if (this.message.startsWith('pk;member')) {
+      await this.memberHandler();
+      return;
+    }
+    sendFeedback(
+      `Command currently not supported, right now compatibility is limited and only a subset of pk;member is supported\n\n${helpTextPkMember}`,
+      this.room,
+      this.mx.getSafeUserId()
+    );
   }
 }

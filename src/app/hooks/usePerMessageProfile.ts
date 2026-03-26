@@ -420,6 +420,18 @@ export async function getAllPerMessageProfileProxies(
   return parr;
 }
 
+export async function dropProxyAssociationForPMP(mx: MatrixClient, proxy: string) {
+  const associations = getProxyAssociationMap(
+    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as any)?.getContent()
+  );
+  if (!associations) return;
+  associations.delete(proxy);
+  mx.setAccountData(
+    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as any,
+    { associations: proxyAssociationsMapToObject(associations) } as any
+  );
+}
+
 /**
  *
  * drops all room associations for a profile, used when deleting a profile to make sure there are no dangling associations left that point to a non existing profile, which could cause issues when trying to apply the profile to a message in a room that still has an association for the deleted profile.

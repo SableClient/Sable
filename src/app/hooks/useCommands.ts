@@ -32,6 +32,7 @@ import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { createRoomEncryptionState } from '$components/create-room';
 import { parsePronounsInput } from '$utils/pronouns';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
+import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { useRoomNavigate } from './useRoomNavigate';
 import { enrichWidgetUrl } from './useRoomWidgets';
 import { useUserProfile } from './useUserProfile';
@@ -241,6 +242,7 @@ export enum Command {
   AddPerMessageProfileToAccount = 'addpmp',
   DeletePerMessageProfileFromAccount = 'delpmp',
   UsePerMessageProfile = 'usepmp',
+  AssociateProxyPerMessageProfile = 'pmpproxy',
   Pronoun = 'pronoun',
   SPronoun = 'spronoun',
   Rainbow = 'rainbow',
@@ -276,6 +278,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
   const { navigateRoom } = useRoomNavigate();
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
   const [enableMSC4268CMD] = useSetting(settingsAtom, 'enableMSC4268CMD');
+  // helper for pkit commands
+  const pkitcmdHandler = useMemo(() => new PKitCommandMessageHandler(mx, room), [mx, room]);
   const profile = useUserProfile(mx.getSafeUserId());
   const openBugReport = useOpenBugReportModal();
 
@@ -599,6 +603,15 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
                 mx.getSafeUserId()
               );
             });
+        },
+      },
+      [Command.AssociateProxyPerMessageProfile]: {
+        name: Command.AssociateProxyPerMessageProfile,
+        description: 'Associate proxy with a profile. Example /pmpproxy id ✨:text',
+        exe: async (payload) => {
+          const pid: string = splitWithSpace(payload)[0];
+          const proxy: string = splitWithSpace(payload)[1];
+          pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
         },
       },
       [Command.MyRoomAvatar]: {
@@ -1437,6 +1450,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       room,
       profile.displayName,
       profile.avatarUrl,
+      pkitcmdHandler,
       developerTools,
       enableMSC4268CMD,
       openBugReport,

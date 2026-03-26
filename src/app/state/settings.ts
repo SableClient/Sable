@@ -103,6 +103,7 @@ export interface Settings {
    * whether to enable pk compat
    */
   pkCompat: boolean;
+  pmpProxying: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -187,6 +188,7 @@ const defaultSettings: Settings = {
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
+  pmpProxying: false,
 
   // furry stuff
   renderAnimals: true,

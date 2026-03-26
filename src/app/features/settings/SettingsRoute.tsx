@@ -46,12 +46,7 @@ export function SettingsRoute() {
   if (shouldRedirectToIndex) return null;
 
   const requestClose = () => {
-    if (activeSection === null) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(getSettingsPath(), { replace: true });
+    navigate(-1);
   };
 
   const handleSelectSection = (nextSection: SettingsSectionId) => {

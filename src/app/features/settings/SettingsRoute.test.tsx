@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingTile } from '$components/setting-tile';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
@@ -105,17 +105,24 @@ function FocusFixture() {
 
 function LocationProbe() {
   const location = useLocation();
+  const navigationType = useNavigationType();
   return (
     <div data-testid="location-probe">
       {location.pathname}
       {location.search}
+      {navigationType}
     </div>
   );
 }
 
-function renderSettingsRoute(path: string, screenSize: ScreenSize) {
+function renderSettingsRoute(
+  path: string,
+  screenSize: ScreenSize,
+  options?: { initialEntries?: string[]; initialIndex?: number }
+) {
+  const initialEntries = options?.initialEntries ?? [path];
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
       <ScreenSizeProvider value={screenSize}>
         <LocationProbe />
         <Routes>
@@ -200,16 +207,17 @@ describe('SettingsRoute', () => {
     expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
   });
 
-  it('returns to /settings when a section back button is clicked', async () => {
+  it('uses history back semantics when a section back button is clicked', async () => {
     const user = userEvent.setup();
 
-    renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
+    renderSettingsRoute('/settings/devices', ScreenSize.Mobile, {
+      initialEntries: ['/settings/', '/settings/devices/'],
+      initialIndex: 1,
+    });
 
     await user.click(screen.getByRole('button', { name: 'Back' }));
 
-    await waitFor(() =>
-      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
-    );
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('POP'));
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 });

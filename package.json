@@ -42,7 +42,7 @@
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@fontsource-variable/nunito": "5.2.7",
     "@fontsource/space-mono": "5.2.9",
-    "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#9f162c62f89f9f7e1e17c71893faa51d140f18fd",
+    "@sableclient/tauri-plugin-notifications-api": "git+https://github.com/SableClient/tauri-plugin-notifications.git#9d15b2b2c8798dc29ce723d743f0f3b4921d6a54",
     "@phosphor-icons/react": "^2.1.10",
     "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",

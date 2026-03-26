@@ -43,4 +43,3 @@ export async function setCloseToTrayEnabled(params: types.SetCloseToTrayEnabledP
   return invoke('set_close_to_tray_enabled', params);
 }
 
-

@@ -253,8 +253,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                         <>
                           {entries.map((entry, index) => (
                             <SequenceCard
-                              // eslint-disable-next-line react/no-array-index-key
-                              key={`room-${index}`}
+                              key={entry.term}
                               className={SequenceCardStyle}
                               variant="SurfaceVariant"
                               direction="Row"
@@ -287,10 +286,9 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
                           ))}
                           {!isSpace &&
                             ancestorGroups.flatMap(({ spaceId, spaceName, entries: spEntries }) =>
-                              spEntries.map((entry, index) => (
+                              spEntries.map((entry) => (
                                 <SequenceCard
-                                  // eslint-disable-next-line react/no-array-index-key
-                                  key={`${spaceId}-${index}`}
+                                  key={`${spaceId}-${entry.term}`}
                                   className={SequenceCardStyle}
                                   variant="SurfaceVariant"
                                   direction="Row"

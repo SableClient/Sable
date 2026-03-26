@@ -26,13 +26,14 @@ export const buildAbbreviationsMap = (entries: AbbreviationEntry[]): Map<string,
  * plain segments and is the lowercase lookup key for abbreviation segments.
  */
 export type TextSegment = {
+  id: string;
   text: string;
   /** Undefined for plain text; the lowercase map key for an abbreviation. */
   termKey?: string;
 };
 
 export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>): TextSegment[] => {
-  if (abbrMap.size === 0) return [{ text }];
+  if (abbrMap.size === 0) return [{ id: 'txt-0', text }];
 
   // Build a regex that matches any of the terms at word boundaries.
   // Sort longest first so "HTTP/2" matches before "HTTP".
@@ -42,20 +43,19 @@ export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>)
 
   const segments: TextSegment[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
 
-  // eslint-disable-next-line no-cond-assign
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ text: text.slice(lastIndex, match.index) });
+  for (const match of text.matchAll(pattern)) {
+    const matchIndex = match.index!;
+    if (matchIndex > lastIndex) {
+      segments.push({ id: `txt-${segments.length}`, text: text.slice(lastIndex, matchIndex) });
     }
-    segments.push({ text: match[0], termKey: match[0].toLowerCase() });
-    lastIndex = match.index + match[0].length;
+    segments.push({ id: `txt-${segments.length}`, text: match[0], termKey: match[0].toLowerCase() });
+    lastIndex = matchIndex + match[0].length;
   }
 
   if (lastIndex < text.length) {
-    segments.push({ text: text.slice(lastIndex) });
+    segments.push({ id: `txt-${segments.length}`, text: text.slice(lastIndex) });
   }
 
-  return segments.length > 0 ? segments : [{ text }];
+  return segments.length > 0 ? segments : [{ id: 'txt-0', text }];
 };

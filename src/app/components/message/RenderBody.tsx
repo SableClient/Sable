@@ -73,10 +73,9 @@ export function buildAbbrReplaceTextNode(
     if (!segments.some((s) => s.termKey !== undefined)) return undefined;
     return (
       <>
-        {segments.map((seg, i) =>
+        {segments.map((seg) =>
           seg.termKey !== undefined ? (
-            // eslint-disable-next-line react/no-array-index-key
-            <AbbreviationTerm key={i} text={seg.text} definition={abbrMap.get(seg.termKey) ?? ''} />
+            <AbbreviationTerm key={seg.id} text={seg.text} definition={abbrMap.get(seg.termKey) ?? ''} />
           ) : (
             seg.text
           )
@@ -114,17 +113,15 @@ export function RenderBody({
     if (segments.some((s) => s.termKey !== undefined)) {
       return (
         <>
-          {segments.map((seg, i) => {
+          {segments.map((seg) => {
             if (seg.termKey !== undefined) {
               const definition = abbrMap.get(seg.termKey) ?? '';
               return (
-                // eslint-disable-next-line react/no-array-index-key
-                <AbbreviationTerm key={i} text={seg.text} definition={definition} />
+                <AbbreviationTerm key={seg.id} text={seg.text} definition={definition} />
               );
             }
             return (
-              // eslint-disable-next-line react/no-array-index-key
-              <Linkify key={i} options={linkifyOpts}>
+              <Linkify key={seg.id} options={linkifyOpts}>
                 {highlightRegex
                   ? highlightText(highlightRegex, scaleSystemEmoji(seg.text))
                   : scaleSystemEmoji(seg.text)}

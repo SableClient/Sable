@@ -93,9 +93,9 @@ type ForwardMeta = {
 
 // see https://github.com/hummlbach/matrix-doc/blob/acea0854a1c9489599295a858b068ce02a6b2b20/proposals/2723-add-forward-info.md
 type MSC2723ForwardMeta = {
-  event_id: string;
-  room_id: string;
-  sender: string | null; // we won't set this field
+  event_id?: string;
+  room_id?: string;
+  sender?: string; // we won't set this field
   origin_server_ts: number;
 };
 
@@ -205,9 +205,9 @@ export function MessageForwardInternal({
       newBodyPlain = originalBody.length > 0 ? `${bodyModifText}\n\n${quotedBody}` : bodyModifText;
 
       const safeHtml =
-        originalFormattedBody !== undefined
-          ? sanitizeCustomHtml(originalFormattedBody)
-          : sanitizeCustomHtml(originalBody).replaceAll('\n', '<br>');
+        originalFormattedBody === undefined
+          ? sanitizeCustomHtml(originalBody).replaceAll('\n', '<br>')
+          : sanitizeCustomHtml(originalFormattedBody);
 
       newBodyHtml =
         `<div data-forward-marker>` +
@@ -241,6 +241,9 @@ export function MessageForwardInternal({
           original_timestamp: mEvent.getTs(),
           original_event_private: true,
         } satisfies ForwardMeta,
+        'com.famedly.app.forwarded': {
+          origin_server_ts: mEvent.getTs(),
+        } satisfies MSC2723ForwardMeta,
       };
     } else {
       content = {
@@ -261,7 +264,6 @@ export function MessageForwardInternal({
         'com.famedly.app.forwarded': {
           event_id: eventId,
           room_id: room.roomId,
-          sender: null, // we won't set this field, as a design decision to avoid potential privacy issues and since the sender can be inferred from the event_id and room_id if needed
           origin_server_ts: mEvent.getTs(),
         } satisfies MSC2723ForwardMeta,
       };

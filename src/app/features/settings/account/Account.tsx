@@ -1,5 +1,6 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Scroll } from 'folds';
+import { PageContent } from '$components/page';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { MatrixId } from './MatrixId';
 import { Profile } from './Profile';
 import { ContactInformation } from './ContactInfo';
@@ -10,21 +11,7 @@ type AccountProps = {
 };
 export function Account({ requestClose }: AccountProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Account
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Account" requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -37,6 +24,6 @@ export function Account({ requestClose }: AccountProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

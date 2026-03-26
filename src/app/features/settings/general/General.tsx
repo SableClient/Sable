@@ -27,7 +27,7 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import {
@@ -53,6 +53,7 @@ import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -1342,21 +1343,7 @@ function DiagnosticsAndPrivacy() {
 
 export function General({ requestClose }: Readonly<GeneralProps>) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              General
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="General" requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -1372,6 +1359,6 @@ export function General({ requestClose }: Readonly<GeneralProps>) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

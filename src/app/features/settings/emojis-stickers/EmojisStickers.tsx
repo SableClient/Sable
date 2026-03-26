@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Scroll } from 'folds';
+import { PageContent } from '$components/page';
 import { ImagePack } from '$plugins/custom-emoji';
 import { ImagePackView } from '$components/image-pack-view';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';
 
@@ -21,21 +22,7 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
   }
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Emojis & Stickers
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Emojis & Stickers" requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -46,6 +33,6 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

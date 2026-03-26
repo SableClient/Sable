@@ -4,7 +4,6 @@ import {
   Button,
   config,
   Icon,
-  IconButton,
   Icons,
   Menu,
   MenuItem,
@@ -15,13 +14,14 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import { JumboEmojiSize, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 
@@ -247,21 +247,7 @@ type CosmeticsProps = {
 
 export function Cosmetics({ requestClose }: CosmeticsProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Appearance
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Appearance" requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -275,6 +261,6 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

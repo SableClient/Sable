@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import CinnySVG from '$public/res/svg/cinny-logo.svg';
@@ -9,6 +9,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();
@@ -151,21 +152,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
   const openBugReport = useOpenBugReportModal();
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              About
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="About" requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -428,6 +415,6 @@ export function About({ requestClose }: Readonly<AboutProps>) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

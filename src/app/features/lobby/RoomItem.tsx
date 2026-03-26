@@ -24,7 +24,6 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { HierarchyItem } from '$hooks/useSpaceHierarchy';
-import { millify } from '$plugins/millify';
 import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -35,6 +34,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { formatCompactNumber } from '$utils/formatCompactNumber';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
@@ -261,7 +261,10 @@ function RoomProfile({
         <Box gap="200" alignItems="Center">
           {memberCount && (
             <Box shrink="No" gap="200">
-              <Text size="T200" priority="300">{`${millify(memberCount)} Members`}</Text>
+              <Text
+                size="T200"
+                priority="300"
+              >{`${formatCompactNumber(memberCount)} Members`}</Text>
             </Box>
           )}
           {memberCount && topic && (

@@ -73,7 +73,6 @@
     "linkifyjs": "^4.3.2",
     "matrix-js-sdk": "^38.4.0",
     "matrix-widget-api": "^1.16.1",
-    "millify": "^6.1.0",
     "pdfjs-dist": "^5.4.624",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",

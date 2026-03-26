@@ -62,7 +62,7 @@ export function SettingsRoute() {
   const handleSelectSection = (nextSection: SettingsSectionId) => {
     if (nextSection === activeSection) return;
 
-    navigate(getSettingsPath(nextSection));
+    navigate(getSettingsPath(nextSection), { state: location.state });
   };
 
   return (

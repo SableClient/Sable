@@ -338,6 +338,18 @@ describe('Settings shallow route shell', () => {
     expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
   });
 
+  it('keeps the desktop background route mounted while switching shallow settings sections', async () => {
+    const user = userEvent.setup();
+
+    renderClientShell(ScreenSize.Desktop);
+
+    await user.click(screen.getByRole('button', { name: 'Open settings' }));
+    await user.click(screen.getByRole('button', { name: 'Devices' }));
+
+    expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
   it('renders desktop direct entry settings as a full page without retaining the background outlet', () => {
     renderClientShell(ScreenSize.Desktop, {
       initialEntries: [getSettingsPath('devices')],

@@ -58,6 +58,8 @@ import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
+import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
@@ -451,6 +453,8 @@ export function RoomTimeline({
     [mx, room.roomId, mentionClickHandler, nicknames]
   );
 
+  const abbrMap = useRoomAbbreviationsContext();
+
   const htmlReactParserOptions = useMemo(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
@@ -460,6 +464,7 @@ export function RoomTimeline({
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
       }),
     [
       mx,
@@ -470,6 +475,7 @@ export function RoomTimeline({
       nicknames,
       mediaAuthentication,
       spoilerClickHandler,
+      abbrMap,
     ]
   );
 

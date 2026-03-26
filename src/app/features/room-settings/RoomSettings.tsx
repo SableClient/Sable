@@ -19,6 +19,7 @@ import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
 import { Permissions } from './permissions';
 import { General } from './general';
+import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
@@ -50,6 +51,11 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
         name: 'Cosmetics',
         icon: Icons.Alphabet,
         activeIcon: Icons.AlphabetUnderline,
+      },
+      {
+        page: RoomSettingsPage.AbbreviationsPage,
+        name: 'Abbreviations',
+        icon: Icons.Info,
       },
       {
         page: RoomSettingsPage.EmojisStickersPage,
@@ -195,6 +201,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
         )}
         {activePage === RoomSettingsPage.DeveloperToolsPage && (
           <DeveloperTools requestClose={handlePageRequestClose} />
+        )}
+        {activePage === RoomSettingsPage.AbbreviationsPage && (
+          <RoomAbbreviations requestClose={handlePageRequestClose} />
         )}
       </PageRoot>
     </SwipeableOverlayWrapper>

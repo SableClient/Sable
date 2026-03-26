@@ -562,13 +562,13 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       [Command.UsePerMessageProfile]: {
         name: Command.UsePerMessageProfile,
         description:
-          'Use a per message profile for this room once, or until reset. Example: /usepmp profileId [once,reset,or duration like 1h30m]',
+          'Use a per message profile for this room once, or until reset. Example: /usepmp [profileId,reset]',
         exe: async (payload) => {
           // this command doesn't need to do anything, the composer will pick it up and apply the profile to the message being composed
           const profileId: string = splitWithSpace(payload)[0];
           const durationStr: string | undefined = splitWithSpace(payload)[1];
           let validUntil: number | undefined;
-          if (durationStr === 'reset') {
+          if (profileId.normalize() === 'reset') {
             setCurrentlyUsedPerMessageProfileIdForRoom(mx, room.roomId, undefined, undefined, true)
               .then(() => {
                 sendFeedback('Per message profile reset for this room.', room, mx.getSafeUserId());

@@ -7,6 +7,11 @@ import { settingsAtom } from '$state/settings';
 import { Settings } from './Settings';
 import { isSettingsSectionId, type SettingsSectionId } from './routes';
 
+type SettingsRouteState = {
+  backgroundLocation?: unknown;
+  redirectedFromDesktopRoot?: boolean;
+};
+
 function resolveSettingsSection(
   section: string | undefined,
   screenSize: ScreenSize,
@@ -33,24 +38,38 @@ export function SettingsRoute() {
   const location = useLocation();
   const screenSize = useScreenSizeContext();
   const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const routeState = location.state as SettingsRouteState | null;
   const shallowBackgroundState =
-    screenSize !== ScreenSize.Mobile &&
-    Boolean((location.state as { backgroundLocation?: unknown } | null)?.backgroundLocation);
+    screenSize !== ScreenSize.Mobile && Boolean(routeState?.backgroundLocation);
 
   const activeSection = resolveSettingsSection(section, screenSize, showPersona);
+  const shouldRedirectToGeneral = section === undefined && screenSize !== ScreenSize.Mobile;
   const shouldRedirectToIndex = section !== undefined && activeSection === null;
 
   useEffect(() => {
+    if (shouldRedirectToGeneral) {
+      navigate(getSettingsPath('general'), {
+        replace: true,
+        state: routeState?.backgroundLocation ? routeState : { redirectedFromDesktopRoot: true },
+      });
+      return;
+    }
+
     if (!shouldRedirectToIndex) return;
 
-    navigate(getSettingsPath(), { replace: true, state: location.state });
-  }, [location.state, navigate, shouldRedirectToIndex]);
+    navigate(getSettingsPath(), { replace: true, state: routeState });
+  }, [navigate, routeState, shouldRedirectToGeneral, shouldRedirectToIndex]);
 
-  if (shouldRedirectToIndex) return null;
+  if (shouldRedirectToGeneral || shouldRedirectToIndex) return null;
 
   const requestClose = () => {
+    if (section !== undefined && routeState?.redirectedFromDesktopRoot) {
+      navigate(getHomePath(), { replace: true });
+      return;
+    }
+
     if (section !== undefined && location.key === 'default') {
-      navigate(getSettingsPath(), { replace: true, state: location.state });
+      navigate(getSettingsPath(), { replace: true, state: routeState });
       return;
     }
 

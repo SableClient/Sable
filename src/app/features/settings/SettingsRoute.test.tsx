@@ -273,11 +273,29 @@ describe('SettingsRoute', () => {
     expect(screen.queryByRole('heading', { name: 'General section' })).not.toBeInTheDocument();
   });
 
-  it('shows the general section by default on desktop /settings without mutating the URL', () => {
+  it('redirects desktop /settings to /settings/general', async () => {
     renderSettingsRoute('/settings', ScreenSize.Desktop);
 
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath('general'))
+    );
     expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings');
+  });
+
+  it('falls back to /home when the redirected desktop general page is closed from a direct root entry', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings', ScreenSize.Desktop);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath('general'))
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
   });
 
   it('renders the requested section at /settings/devices', () => {

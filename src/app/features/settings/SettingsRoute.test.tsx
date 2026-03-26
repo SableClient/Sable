@@ -1,11 +1,22 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingTile } from '$components/setting-tile';
+import { ClientRouteOutlet } from '$pages/client/ClientRouteOutlet';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { getHomePath, getSettingsPath } from '$pages/pathUtils';
+import { SETTINGS_PATH } from '$pages/paths';
 import { SettingsRoute } from './SettingsRoute';
+import { SettingsShallowRouteRenderer } from './SettingsShallowRouteRenderer';
 import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
 import { useSettingsFocus } from './useSettingsFocus';
@@ -47,6 +58,10 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
 
 vi.mock('$state/hooks/settings', () => ({
   useSetting: mockUseSetting,
+}));
+
+vi.mock('$components/Modal500', () => ({
+  Modal500: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('./general', () => ({
@@ -115,6 +130,48 @@ function LocationProbe() {
   );
 }
 
+function HomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  return (
+    <div>
+      <h1>Home route</h1>
+      <button
+        type="button"
+        onClick={() =>
+          navigate(getSettingsPath('notifications'), {
+            state: { backgroundLocation: location },
+          })
+        }
+      >
+        Open settings
+      </button>
+    </div>
+  );
+}
+
+function renderClientShell(
+  screenSize: ScreenSize,
+  options?: { initialEntries?: string[]; initialIndex?: number }
+) {
+  const initialEntries = options?.initialEntries ?? [getHomePath()];
+  return render(
+    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
+      <ScreenSizeProvider value={screenSize}>
+        <LocationProbe />
+        <Routes>
+          <Route element={<ClientRouteOutlet />}>
+            <Route path={getHomePath()} element={<HomePage />} />
+            <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+          </Route>
+        </Routes>
+        <SettingsShallowRouteRenderer />
+      </ScreenSizeProvider>
+    </MemoryRouter>
+  );
+}
+
 function renderSettingsRoute(
   path: string,
   screenSize: ScreenSize,
@@ -126,7 +183,7 @@ function renderSettingsRoute(
       <ScreenSizeProvider value={screenSize}>
         <LocationProbe />
         <Routes>
-          <Route path="/settings/:section?/" element={<SettingsRoute />} />
+          <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         </Routes>
       </ScreenSizeProvider>
     </MemoryRouter>
@@ -255,6 +312,39 @@ describe('SettingsRoute', () => {
 
     await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('POP'));
     expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+});
+
+describe('Settings shallow route shell', () => {
+  it('keeps the desktop background route mounted when settings opens shallow', async () => {
+    const user = userEvent.setup();
+
+    renderClientShell(ScreenSize.Desktop);
+
+    await user.click(screen.getByRole('button', { name: 'Open settings' }));
+
+    expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
+  });
+
+  it('renders mobile settings as a full page without retaining the background outlet', async () => {
+    const user = userEvent.setup();
+
+    renderClientShell(ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Open settings' }));
+
+    expect(screen.queryByRole('heading', { name: 'Home route' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
+  });
+
+  it('renders desktop direct entry settings as a full page without retaining the background outlet', () => {
+    renderClientShell(ScreenSize.Desktop, {
+      initialEntries: [getSettingsPath('devices')],
+    });
+
+    expect(screen.queryByRole('heading', { name: 'Home route' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
   });
 });
 

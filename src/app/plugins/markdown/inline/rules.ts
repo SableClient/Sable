@@ -107,6 +107,10 @@ export const LinkRule: InlineMDRule = {
   match: (text) => text.match(LINK_REG_1),
   html: (parse, match) => {
     const [, g1, g2] = match;
+    // Checks for < and > since text comes sanitized to the parser
+    // Puts the < > outside of the object for client compatibility purposes
+    if (g2.startsWith('&lt;') && g2.endsWith('&gt;'))
+      return `<<a data-md href="${g2.substring(4, g2.lastIndexOf('&gt;'))}">${parse(g1)}</a>>`;
     return `<a data-md href="${g2}">${parse(g1)}</a>`;
   },
 };

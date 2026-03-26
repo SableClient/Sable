@@ -139,16 +139,22 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
+  // move the < > inside of the []() in order to make the matching easier
+  trimmedBody = trimmedBody?.replace(/(<|&lt;)\[(.+)\]\((https?:\/\/(.+))\)(>|&gt;)/, '[$2](<$3>)');
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  if (urls != null && urls !== undefined && urls.length > 0) {
-    // remove < > tagged urls from the preview list
-    urls = urls.filter((url) => !url.match(/(<|&lt;)(.+)(>|$gt;)/));
-    // remove the < > tags from links that are meant to be hidden from urls that are not to be shown
-    trimmedBody = trimmedBody?.replace(/(<|&lt;)http(s?):\/\/(.+)(>|&gt;)/, 'http$2://$3');
+  const urlStrings = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  const urls = urlStrings?.filter((url) => !url.startsWith('<') && !url.endsWith('>'));
+  // strip the < > tags visually if needed
+  if (urlStrings?.length !== urls?.length) {
+    trimmedBody = trimmedBody?.replace(/<http(s?):\/\/(.+?)>/g, 'http$1://$2');
+    trimmedBody = trimmedBody?.replace(/<\[(.+?)\]\(http(s?):\/\/(.+)\)>/g, '[$1](http$2://$3)');
     safeCustomBody = safeCustomBody?.replace(
-      /<a data-md href="(<|&lt;)(.+)(>|&gt;)">(.+)<\/a>/,
-      '<a data-md href="$2">$4</a>'
+      /<<a data-md href="(.+?)">(.+?)<\/a>>/g,
+      '<a data-md href="$1">$2</a>'
+    );
+    safeCustomBody = safeCustomBody?.replace(
+      /<a data-md href="&lt;(.+?)&gt;">(.+?)<\/a>/g,
+      '<a data-md href="$1">$2</a>'
     );
   }
 

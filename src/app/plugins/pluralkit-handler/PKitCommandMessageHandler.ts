@@ -1,5 +1,6 @@
 import {
   addOrUpdatePerMessageProfile,
+  associateProxyWithProfile,
   getAllPerMessageProfiles,
   getPerMessageProfileById,
   PerMessageProfile,
@@ -9,9 +10,24 @@ import { MatrixClient, Room } from 'matrix-js-sdk';
 
 const pkMemberRenameRegex = /^(pk;member)\s+"?([\w\s]+)"?\s*rename\s+"?([\w\s]+)"?$/;
 const pkMemberNewRegex = /^(pk;member)\s+new\s+"?([\w\s]+)"?$/;
+const pkMemberNewProxy = /^(pk;member)\s+"?([\w\s]+)"?\s+proxy\s+(.*text.*)$/;
 
 const helpTextPkMemberNew = 'To create a new persona: pk;member new Yumi';
 const helpTextPkMemberRename = 'To rename a persona: pk;member "Rain Deer" rename "Micky Mouse"';
+const helpTextPkMemberNewProxy = 'To create a persona: pk;member Yumi proxy [text]';
+
+/**
+ * build a regex to recognize proxies
+ * a template can be for example `[text]` or `f:text`
+ *
+ * @param {string} template
+ * @return {*}  {RegExp}
+ */
+function buildRegex(template: string): RegExp {
+  const [before, after] = template.split('text');
+  const pattern = `${RegExp.escape(before)}(.+)${RegExp.escape(after)}`;
+  return new RegExp(`^${pattern}$`);
+}
 
 /**
  * a class to use as PluralKit command message handler
@@ -20,7 +36,7 @@ const helpTextPkMemberRename = 'To rename a persona: pk;member "Rain Deer" renam
  * @class PluralKitCommandMessageHandler
  * @author Rye
  */
-export class PluralKitCommandMessageHandler {
+export class PKitCommandMessageHandler {
   private readonly mx: MatrixClient;
 
   private message = '';
@@ -46,9 +62,14 @@ export class PluralKitCommandMessageHandler {
       }
       const memberName = cmdParts[2];
       const generatedID = crypto.randomUUID();
+      sendFeedback(
+        `adding new member has been created with id: ${generatedID} and name ${memberName}`,
+        this.room,
+        this.mx.getSafeUserId()
+      );
       addOrUpdatePerMessageProfile(this.mx, { id: generatedID, name: memberName });
       sendFeedback(
-        `new member has been created with id: ${generatedID} and name ${memberName}`,
+        `added new member has been created with id: ${generatedID} and name ${memberName}`,
         this.room,
         this.mx.getSafeUserId()
       );
@@ -80,7 +101,7 @@ export class PluralKitCommandMessageHandler {
       )?.id;
       if (!pmpId) {
         sendFeedback(
-          `Persona with name "${oldName}" doesn't exist in your records, ${helpTextPkMemberRename}`,
+          `Persona with name "${oldName}" doesn't exist in your records, ${helpTextPkMemberNew}`,
           this.room,
           this.mx.getSafeUserId()
         );
@@ -106,6 +127,27 @@ export class PluralKitCommandMessageHandler {
         this.mx.getSafeUserId()
       );
       addOrUpdatePerMessageProfile(this.mx, pmp);
+    } else if (pkMemberNewProxy.test(this.message)) {
+      const cmdParts = pkMemberNewProxy.exec(this.message);
+      if (!cmdParts) return;
+      const name = cmdParts[2];
+      const matchAgainst = cmdParts[3];
+      const pmpId = (await getAllPerMessageProfiles(this.mx)).find((pmp) => pmp.name === name)?.id;
+      if (!pmpId) {
+        sendFeedback(
+          `Persona with name "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
+      const matchAgainstRegExp = buildRegex(matchAgainst);
+      associateProxyWithProfile(this.mx, pmpId, matchAgainst, matchAgainstRegExp, false);
+      sendFeedback(
+        `Persona with name "${name}" (${pmpId}) is now associated with ${matchAgainst}`,
+        this.room,
+        this.mx.getSafeUserId()
+      );
     } else {
       // default to looking up member info
       const listOfProfiles: PerMessageProfile[] = await getAllPerMessageProfiles(this.mx);
@@ -113,7 +155,7 @@ export class PluralKitCommandMessageHandler {
         .map((pmp: PerMessageProfile) => `${pmp.id}: ${pmp.name ? pmp.name : '(empty name)'}`)
         .join('\n');
       sendFeedback(
-        `You currently have the following persona set up:\n${stringListOfProfiles}\n\n${helpTextPkMemberNew}\n${helpTextPkMemberRename}`,
+        `You currently have the following persona set up:\n${stringListOfProfiles}\n\n${helpTextPkMemberNew}\n${helpTextPkMemberRename}\n${helpTextPkMemberNewProxy}`,
         this.room,
         this.mx.getSafeUserId()
       );
@@ -129,7 +171,12 @@ export class PluralKitCommandMessageHandler {
     return message.startsWith('pk;');
   }
 
-  public async handleMessage(message: string) {
+  /**
+   * handle a message, which might be a pk command
+   * @param message the message we want to handle
+   * @returns void
+   */
+  public async handleMessage(message: string): Promise<void> {
     this.message = message;
     if (!this.message.startsWith('pk')) return;
     if (this.message.startsWith('pk;member')) await this.memberHandler();

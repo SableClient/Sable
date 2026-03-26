@@ -161,7 +161,8 @@ import {
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { sanitizeCustomHtml } from '$utils/sanitize';
-import { PluralKitCommandMessageHandler } from '$plugins/pluralkit-handler/pluralkitMessageHandler';
+import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
+import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -265,9 +266,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
      * handle pluralkit-style messages
      */
     const pluralkitCmdMessageHandler = useMemo(
-      () => new PluralKitCommandMessageHandler(mx, room),
+      () => new PKitCommandMessageHandler(mx, room),
       [mx, room]
     );
+    const pluralkitProxyMessageHandler = useMemo(() => new PKitProxyMessageHandler(mx), [mx]);
+    useEffect(() => {
+      pluralkitProxyMessageHandler.init();
+    }, [pluralkitProxyMessageHandler]);
+
+    const pkCompatEnable = useSetting(settingsAtom, 'pkCompat');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -718,7 +725,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
-      if (PluralKitCommandMessageHandler.isPKCommand(plainText)) {
+      // check if its a pk command
+      if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
         pluralkitCmdMessageHandler.handleMessage(plainText);
       }
 
@@ -778,8 +786,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
        * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
        */
-      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+      const perMessageProfile =
+        pkCompatEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText)
+          ? await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText)
+          : await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
+      if (pkCompatEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
+        plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
       if (perMessageProfile) {
         content['com.beeper.per_message_profile'] =
           convertPerMessageProfileToBeeperFormat(perMessageProfile);
@@ -909,6 +922,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       roomId,
       isMarkdown,
       canSendReaction,
+      pkCompatEnable,
+      pluralkitProxyMessageHandler,
       replyDraft,
       silentReply,
       scheduledTime,

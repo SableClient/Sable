@@ -21,6 +21,9 @@ export enum AccountDataEvent {
   // Sable account data
   SableNicknames = 'moe.sable.app.nicknames',
   SablePinStatus = 'moe.sable.app.pins_read_marker',
+
+  // because of a mistake hasn't been renamed in time
+  SablePerProfileMessageProfiles = 'fyi.cisnt.permessageprofile',
 }
 
 export type MDirectContent = Record<string, string[]>;
@@ -48,6 +51,24 @@ export type SecretContent = {
   iv: string;
   ciphertext: string;
   mac: string;
+};
+
+/**
+ * type to save compatibility information
+ */
+export type AccountDataCompatVersion = {
+  /**
+   * a simple version number, for example 1
+   */
+  version: number;
+  /**
+   * the date where it was added
+   */
+  compatDate: string;
+  /**
+   * version number which is the oldest compatible, this attribute is optional
+   */
+  incompatBefore?: number;
 };
 
 export type SecretAccountData = {

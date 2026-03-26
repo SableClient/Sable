@@ -99,6 +99,10 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  /**
+   * whether to enable pk compat
+   */
+  pkCompat: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -182,6 +186,7 @@ const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  pkCompat: false,
 
   // furry stuff
   renderAnimals: true,

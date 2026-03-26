@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'rea
 import { describe, expect, it, vi } from 'vitest';
 import { SettingTile } from '$components/setting-tile';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
-import { getSettingsPath } from '$pages/pathUtils';
+import { getHomePath, getSettingsPath } from '$pages/pathUtils';
 import { SettingsRoute } from './SettingsRoute';
 import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
@@ -192,6 +192,31 @@ describe('SettingsRoute', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
+  it('falls back to /settings when a direct section entry is closed', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
+    );
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('falls back to /home when the root settings page is closed from a direct entry', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings', ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Close settings' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
+  });
+
   it('navigates when a menu item is clicked', async () => {
     const user = userEvent.setup();
 
@@ -205,6 +230,17 @@ describe('SettingsRoute', () => {
       )
     );
     expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
+  });
+
+  it('does not push history when the active section is reselected', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings/notifications', ScreenSize.Desktop);
+
+    await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/notifications');
+    expect(screen.getByTestId('location-probe')).not.toHaveTextContent('PUSH');
   });
 
   it('uses history back semantics when a section back button is clicked', async () => {

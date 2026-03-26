@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { getSettingsPath } from '$pages/pathUtils';
+import { getHomePath, getSettingsPath } from '$pages/pathUtils';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Settings } from './Settings';
@@ -46,10 +46,22 @@ export function SettingsRoute() {
   if (shouldRedirectToIndex) return null;
 
   const requestClose = () => {
+    if (section !== undefined && location.key === 'default') {
+      navigate(getSettingsPath(), { replace: true, state: location.state });
+      return;
+    }
+
+    if (section === undefined && location.key === 'default') {
+      navigate(getHomePath(), { replace: true });
+      return;
+    }
+
     navigate(-1);
   };
 
   const handleSelectSection = (nextSection: SettingsSectionId) => {
+    if (nextSection === activeSection) return;
+
     navigate(getSettingsPath(nextSection));
   };
 

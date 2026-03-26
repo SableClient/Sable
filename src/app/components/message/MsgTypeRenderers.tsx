@@ -91,7 +91,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
   const customBody =
     typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
 
-  const trimmedBody = useMemo(() => trimReplyFromBody(body), [body]);
+  let trimmedBody = useMemo(() => trimReplyFromBody(body), [body]);
   const unwrappedForwardedContent = useMemo(
     () => unwrapForwardedContent(customBody ?? body),
     [customBody, body]
@@ -141,11 +141,17 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-
-  safeCustomBody = safeCustomBody?.replace(
-    /(<|&lt;)<a data-md href="(.+)">(.+)<\/a>(>|&gt;)/g,
-    '<a data-md href="$2">$3</a>'
-  );
+  if (urls != null && urls !== undefined && urls.length > 0) {
+    trimmedBody = trimmedBody?.replace(/(<|&lt;)http(s?):\/\/(.+)(>|&gt;)/, 'http$2://$3');
+    trimmedBody = trimmedBody?.replace(
+      /(<|&lt;)\[(.+)?\]\(http(s?):\/\/(.+)\)(>|&gt;)/,
+      '[$2](http$3://$4)'
+    );
+    safeCustomBody = safeCustomBody?.replace(
+      /(<|&lt;)<a data-md href="(.+)">(.+)<\/a>(>|&gt;)/,
+      '<a data-md href="$2">$3</a>'
+    );
+  }
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present

@@ -33,6 +33,9 @@ export function SettingsRoute() {
   const location = useLocation();
   const screenSize = useScreenSizeContext();
   const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const shallowBackgroundState =
+    screenSize !== ScreenSize.Mobile &&
+    Boolean((location.state as { backgroundLocation?: unknown } | null)?.backgroundLocation);
 
   const activeSection = resolveSettingsSection(section, screenSize, showPersona);
   const shouldRedirectToIndex = section !== undefined && activeSection === null;
@@ -62,7 +65,10 @@ export function SettingsRoute() {
   const handleSelectSection = (nextSection: SettingsSectionId) => {
     if (nextSection === activeSection) return;
 
-    navigate(getSettingsPath(nextSection), { state: location.state });
+    navigate(getSettingsPath(nextSection), {
+      replace: shallowBackgroundState,
+      state: location.state,
+    });
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { getSettingsPath } from '$pages/pathUtils';
+import { SETTINGS_PATH } from '$pages/paths';
 import type { SettingsSectionId } from './routes';
 
 export function useOpenSettings() {
@@ -9,8 +10,12 @@ export function useOpenSettings() {
 
   return useCallback(
     (section?: SettingsSectionId, focus?: string) => {
+      const settingsState = matchPath(SETTINGS_PATH, location.pathname)
+        ? undefined
+        : { backgroundLocation: location };
+
       navigate(getSettingsPath(section, focus), {
-        state: { backgroundLocation: location },
+        state: settingsState,
       });
     },
     [location, navigate]

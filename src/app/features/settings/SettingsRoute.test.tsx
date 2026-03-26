@@ -186,11 +186,26 @@ function renderClientShell(
   );
 }
 
-function renderClientShellWithOpenSettings(screenSize: ScreenSize) {
+function SidebarSettingsShortcut() {
+  const openSettings = useOpenSettings();
+
+  return (
+    <button type="button" onClick={() => openSettings('devices')}>
+      Sidebar devices shortcut
+    </button>
+  );
+}
+
+function renderClientShellWithOpenSettings(
+  screenSize: ScreenSize,
+  options?: { initialEntries?: string[]; initialIndex?: number }
+) {
+  const initialEntries = options?.initialEntries ?? [getHomePath()];
   return render(
-    <MemoryRouter initialEntries={[getHomePath()]}>
+    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
       <ScreenSizeProvider value={screenSize}>
         <LocationProbe />
+        <SidebarSettingsShortcut />
         <Routes>
           <Route element={<ClientRouteOutlet />}>
             <Route path={getHomePath()} element={<OpenSettingsHomePage />} />
@@ -359,6 +374,24 @@ describe('Settings shallow route shell', () => {
     );
     expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
+  it('does not create a nested shallow settings view when opened from full-page settings', async () => {
+    const user = userEvent.setup();
+
+    renderClientShellWithOpenSettings(ScreenSize.Desktop, {
+      initialEntries: [getSettingsPath('notifications')],
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Sidebar devices shortcut' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath('devices'))
+    );
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Notifications section' })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the desktop background route mounted when settings opens shallow', async () => {

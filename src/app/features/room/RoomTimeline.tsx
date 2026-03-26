@@ -207,6 +207,9 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
+  // firing within the window) cannot cancel it via useLayoutEffect cleanup.
+  const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
@@ -273,15 +276,30 @@ export function RoomTimeline({
       vListRef.current
     ) {
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-      const t = setTimeout(() => {
-        vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+      // Store in a ref rather than a local so subsequent eventsLength changes
+      // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
+      // cancel this timer through the useLayoutEffect cleanup.
+      initialScrollTimerRef.current = setTimeout(() => {
+        initialScrollTimerRef.current = undefined;
+        if (processedEventsRef.current.length > 0) {
+          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+        }
         setIsReady(true);
       }, 80);
       hasInitialScrolledRef.current = true;
-      return () => clearTimeout(t);
     }
-    return () => {};
+    // No cleanup return — the timer must survive eventsLength fluctuations.
+    // It is cancelled on unmount by the dedicated effect below.
   }, [timelineSync.eventsLength, eventId, room.roomId]);
+
+  // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
+  // intentionally does not cancel it when deps change).
+  useEffect(
+    () => () => {
+      if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
+    },
+    []
+  );
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -355,6 +373,11 @@ export function RoomTimeline({
 
   useEffect(() => {
     if (eventId) return;
+    // Guard: once the timeline is visible to the user, do not override their
+    // scroll position. Without this, a later timeline refresh (e.g. the
+    // onLifecycle reset delivering a new linkedTimelines reference) can fire
+    // this effect after isReady and snap the view back to the read marker.
+    if (isReady) return;
     const { readUptoEventId, inLiveTimeline, scrollTo } = unreadInfo ?? {};
     if (readUptoEventId && inLiveTimeline && scrollTo) {
       const evtTimeline = getEventTimeline(room, readUptoEventId);
@@ -366,12 +389,16 @@ export function RoomTimeline({
           )
         : undefined;
 
-      if (absoluteIndex !== undefined && vListRef.current) {
+      if (absoluteIndex !== undefined) {
         const processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
-        if (processedIndex !== undefined) {
+        if (processedIndex !== undefined && vListRef.current) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'start' });
-          setUnreadInfo((prev) => (prev ? { ...prev, scrollTo: false } : prev));
         }
+        // Always consume the scroll intent once the event is located in the
+        // linked timelines, even if its processedIndex is undefined (filtered
+        // event). Without this, each linkedTimelines reference change retries
+        // the scroll indefinitely.
+        setUnreadInfo((prev) => (prev ? { ...prev, scrollTo: false } : prev));
       }
     }
   }, [
@@ -379,6 +406,7 @@ export function RoomTimeline({
     unreadInfo,
     timelineSync.timeline.linkedTimelines,
     eventId,
+    isReady,
     getRawIndexToProcessedIndex,
   ]);
 

@@ -1,11 +1,97 @@
-import { act, render, screen } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingTile } from '$components/setting-tile';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
+import { getSettingsPath } from '$pages/pathUtils';
+import { SettingsRoute } from './SettingsRoute';
 import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
 import { useSettingsFocus } from './useSettingsFocus';
+
+const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
+  const mockSettingsHook = vi.fn(() => [true, vi.fn()] as const);
+
+  const createMockSection = (title: string) =>
+    function MockSection({ requestClose }: { requestClose: () => void }) {
+      return (
+        <div>
+          <h1>{title}</h1>
+          <button type="button" onClick={requestClose}>
+            Back
+          </button>
+        </div>
+      );
+    };
+
+  return {
+    mockMatrixClient: { getUserId: () => '@alice:server' },
+    mockProfile: { displayName: 'Alice', avatarUrl: undefined },
+    mockUseSetting: mockSettingsHook,
+    createSectionMock: createMockSection,
+  };
+});
+
+vi.mock('$hooks/useMatrixClient', () => ({
+  useMatrixClient: () => mockMatrixClient,
+}));
+
+vi.mock('$hooks/useUserProfile', () => ({
+  useUserProfile: () => mockProfile,
+}));
+
+vi.mock('$hooks/useMediaAuthentication', () => ({
+  useMediaAuthentication: () => false,
+}));
+
+vi.mock('$state/hooks/settings', () => ({
+  useSetting: mockUseSetting,
+}));
+
+vi.mock('./general', () => ({
+  General: createSectionMock('General section'),
+}));
+
+vi.mock('./account', () => ({
+  Account: createSectionMock('Account section'),
+}));
+
+vi.mock('./cosmetics/Cosmetics', () => ({
+  Cosmetics: createSectionMock('Appearance section'),
+}));
+
+vi.mock('./notifications', () => ({
+  Notifications: createSectionMock('Notifications section'),
+}));
+
+vi.mock('./devices', () => ({
+  Devices: createSectionMock('Devices section'),
+}));
+
+vi.mock('./emojis-stickers', () => ({
+  EmojisStickers: createSectionMock('Emojis & Stickers section'),
+}));
+
+vi.mock('./developer-tools/DevelopTools', () => ({
+  DeveloperTools: createSectionMock('Developer Tools section'),
+}));
+
+vi.mock('./experimental/Experimental', () => ({
+  Experimental: createSectionMock('Experimental section'),
+}));
+
+vi.mock('./about', () => ({
+  About: createSectionMock('About section'),
+}));
+
+vi.mock('./keyboard-shortcuts', () => ({
+  KeyboardShortcuts: createSectionMock('Keyboard Shortcuts section'),
+}));
+
+vi.mock('./Persona/ProfilesPage', () => ({
+  PerMessageProfilePage: createSectionMock('Persona section'),
+}));
 
 function FocusFixture() {
   useSettingsFocus();
@@ -19,7 +105,25 @@ function FocusFixture() {
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.search}</div>;
+  return (
+    <div data-testid="location-probe">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+}
+
+function renderSettingsRoute(path: string, screenSize: ScreenSize) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <ScreenSizeProvider value={screenSize}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/settings/:section?/" element={<SettingsRoute />} />
+        </Routes>
+      </ScreenSizeProvider>
+    </MemoryRouter>
+  );
 }
 
 describe('SettingsSectionPage', () => {
@@ -50,6 +154,66 @@ describe('SettingsSectionPage', () => {
   });
 });
 
+describe('SettingsRoute', () => {
+  it('renders the menu index on mobile /settings', () => {
+    renderSettingsRoute('/settings', ScreenSize.Mobile);
+
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'General section' })).not.toBeInTheDocument();
+  });
+
+  it('shows the general section by default on desktop /settings without mutating the URL', () => {
+    renderSettingsRoute('/settings', ScreenSize.Desktop);
+
+    expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings');
+  });
+
+  it('renders the requested section at /settings/devices', () => {
+    renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
+
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
+  it('redirects invalid sections back to /settings', async () => {
+    renderSettingsRoute('/settings/not-a-real-section', ScreenSize.Mobile);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
+    );
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('navigates when a menu item is clicked', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings', ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(
+        getSettingsPath('notifications')
+      )
+    );
+    expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
+  });
+
+  it('returns to /settings when a section back button is clicked', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
+    );
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+});
+
 describe('useSettingsFocus', () => {
   it('highlights a focus target from the query string', async () => {
     vi.useFakeTimers();
@@ -77,7 +241,7 @@ describe('useSettingsFocus', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/appearance');
       expect(target).not.toHaveClass(focusedSettingTile);
     } finally {
       vi.useRealTimers();

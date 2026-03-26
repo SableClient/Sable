@@ -1,18 +1,4 @@
-import { MatrixClient } from '$types/matrix-sdk';
-import { ClientConfig } from '$hooks/useClientConfig';
-import {
-  registerForUnifiedPush,
-  unregisterFromUnifiedPush,
-  getUnifiedPushDistributors,
-  saveUnifiedPushDistributor,
-  getUnifiedPushDistributor,
-  onUnifiedPushMessage,
-  onUnifiedPushEndpoint,
-  sendNotification,
-  removeActive,
-  createChannel,
-  Importance,
-} from '@sableclient/tauri-plugin-notifications-api';
+import { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
 import type {
   MessagingStyleMessage,
   MessagingStylePerson,
@@ -21,11 +7,25 @@ import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import { resolveNotificationPreviewText } from '$utils/notificationStyle';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
+import { createDebugLogger } from '$utils/debugLogger';
 import { StateEvent } from '$types/matrix/room';
+import {
+  getUnifiedPushDistributor,
+  getUnifiedPushDistributors,
+  registerUnifiedPushTransport,
+  saveUnifiedPushDistributor,
+  type UnifiedPushRegistrationResult,
+  unregisterUnifiedPushTransport,
+} from './UnifiedPushTransport';
+import { createUnifiedPushMessageListener } from './UnifiedPushMessageListener';
+import type { PushTransportConfig } from './NotificationTransport';
+import { getTauriNotificationsApi } from './TauriNotificationsApiClient';
 
 export { getUnifiedPushDistributors, getUnifiedPushDistributor, saveUnifiedPushDistributor };
 
 const UP_PUBLIC_GATEWAY = 'https://matrix.gateway.unifiedpush.org/_matrix/push/v1/notify';
+export const DEFAULT_UNIFIED_PUSH_APP_ID = 'moe.sable.up';
+const unifiedPushLog = createDebugLogger('unifiedpush');
 
 /**
  * Probes the UP endpoint for a Matrix-compatible push gateway.
@@ -55,32 +55,77 @@ async function discoverGateway(upEndpoint: string, unifiedPushGateway?: string):
 
 const UP_REGISTER_TIMEOUT_MS = 30_000;
 
-export async function enableUnifiedPush(
-  mx: MatrixClient,
-  clientConfig: ClientConfig
-): Promise<{ endpoint: string; instance: string }> {
-  await createChannel({
-    id: 'messages',
-    name: 'Messages',
-    description: 'Matrix message and invite notifications',
-    importance: Importance.Default,
-    vibration: true,
-  });
+export type UnifiedPushTransportConfigInput = Pick<
+  PushTransportConfig,
+  'unifiedPushGatewayUrl' | 'unifiedPushAppID'
+>;
 
+type UnifiedPushPusherConfig = {
+  appId: string;
+  gatewayUrl?: string;
+};
+
+function trimConfigValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function resolveUnifiedPushPusherConfig(
+  config?: UnifiedPushTransportConfigInput
+): UnifiedPushPusherConfig {
+  return {
+    appId: trimConfigValue(config?.unifiedPushAppID) ?? DEFAULT_UNIFIED_PUSH_APP_ID,
+    gatewayUrl: trimConfigValue(config?.unifiedPushGatewayUrl),
+  };
+}
+
+export type EnableUnifiedPushResult =
+  | {
+      status: 'registered';
+      endpoint: string;
+      instance: string;
+      distributor: string;
+      pubKeySet?: {
+        pubKey: string;
+        auth: string;
+      };
+    }
+  | Exclude<UnifiedPushRegistrationResult, { status: 'registered' }>;
+
+async function registerUnifiedPushWithTimeout(): Promise<UnifiedPushRegistrationResult> {
   const timeout = new Promise<never>((_, reject) => {
     const id = setTimeout(() => {
       reject(new Error('UnifiedPush registration timed out'));
       clearTimeout(id);
     }, UP_REGISTER_TIMEOUT_MS);
   });
-  const { endpoint, instance, pubKeySet } = await Promise.race([registerForUnifiedPush(), timeout]);
 
-  const appId = clientConfig.pushNotificationDetails?.unifiedPushAppID ?? 'moe.sable.up';
+  return Promise.race([registerUnifiedPushTransport(), timeout]);
+}
 
-  // Don't fall back to pushNotifyUrl (Sygnal) — it cannot forward to UP endpoints.
-  const unifiedPushGateway = clientConfig.pushNotificationDetails?.unifiedPushGatewayUrl;
+export async function tryEnableUnifiedPush(
+  mx: MatrixClient,
+  config?: UnifiedPushTransportConfigInput
+): Promise<EnableUnifiedPushResult> {
+  const notificationsApi = await getTauriNotificationsApi();
 
-  const gatewayUrl = await discoverGateway(endpoint, unifiedPushGateway);
+  await notificationsApi.createChannel({
+    id: 'messages',
+    name: 'Messages',
+    description: 'Matrix message and invite notifications',
+    importance: notificationsApi.Importance.Default,
+    vibration: true,
+  });
+
+  const registration = await registerUnifiedPushWithTimeout();
+
+  if (registration.status !== 'registered') {
+    return registration;
+  }
+
+  const { endpoint, instance, pubKeySet } = registration;
+  const resolvedConfig = resolveUnifiedPushPusherConfig(config);
+  const gatewayUrl = await discoverGateway(endpoint, resolvedConfig.gatewayUrl);
 
   const pusherData: Record<string, string> = {
     url: gatewayUrl,
@@ -94,7 +139,7 @@ export async function enableUnifiedPush(
 
   await mx.setPusher({
     kind: 'http',
-    app_id: appId,
+    app_id: resolvedConfig.appId,
     pushkey: endpoint,
     app_display_name: 'Sable (UnifiedPush)',
     device_display_name:
@@ -104,25 +149,102 @@ export async function enableUnifiedPush(
     append: false,
   } as any);
 
-  return { endpoint, instance };
+  return {
+    status: 'registered',
+    endpoint,
+    instance,
+    distributor: registration.distributor,
+    pubKeySet,
+  };
 }
+
+export async function enableUnifiedPush(
+  mx: MatrixClient,
+  config?: UnifiedPushTransportConfigInput
+): Promise<{ endpoint: string; instance: string }> {
+  const result = await tryEnableUnifiedPush(mx, config);
+  if (result.status !== 'registered') {
+    throw new Error(result.error ?? 'UnifiedPush registration failed');
+  }
+
+  return {
+    endpoint: result.endpoint,
+    instance: result.instance,
+  };
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+async function getCurrentDeviceUnifiedPushPushkeys(
+  mx: MatrixClient,
+  appId: string
+): Promise<string[]> {
+  const deviceId = mx.getDeviceId() ?? '';
+  if (!deviceId) {
+    return [];
+  }
+
+  const currentDevice = await mx.getDevice(deviceId);
+  const deviceDisplayName = currentDevice?.display_name;
+  if (!deviceDisplayName) {
+    return [];
+  }
+
+  const response = await mx.getPushers();
+  const pushers = response.pushers ?? [];
+  return pushers
+    .filter(
+      (pusher) =>
+        pusher.app_id === appId &&
+        pusher.device_display_name === deviceDisplayName &&
+        pusher.kind === 'http' &&
+        isNonEmptyString(pusher.pushkey)
+    )
+    .map((pusher) => pusher.pushkey);
+}
+
+async function getUnifiedPushCleanupPushkeys(
+  mx: MatrixClient,
+  appId: string,
+  pushkey?: string
+): Promise<string[]> {
+  const pushkeys = new Set<string>();
+
+  if (isNonEmptyString(pushkey)) {
+    pushkeys.add(pushkey);
+  }
+
+  const currentDevicePushkeys = await getCurrentDeviceUnifiedPushPushkeys(mx, appId);
+  currentDevicePushkeys.forEach((candidate) => pushkeys.add(candidate));
+
+  return Array.from(pushkeys);
+}
+
+export type DisableUnifiedPushOptions = {
+  config?: UnifiedPushTransportConfigInput;
+  pushkey?: string;
+};
 
 export async function disableUnifiedPush(
   mx: MatrixClient,
-  clientConfig: ClientConfig,
-  pushkey?: string
+  options: DisableUnifiedPushOptions = {}
 ): Promise<void> {
-  const appId = clientConfig.pushNotificationDetails?.unifiedPushAppID ?? 'moe.sable.up';
+  const { appId } = resolveUnifiedPushPusherConfig(options.config);
+  const pushkeys = await getUnifiedPushCleanupPushkeys(mx, appId, options.pushkey);
 
-  if (pushkey) {
-    await mx.setPusher({
-      kind: null,
-      app_id: appId,
-      pushkey,
-    } as any);
-  }
+  await Promise.allSettled(
+    pushkeys.map((pushkey) =>
+      mx.setPusher({
+        kind: null,
+        app_id: appId,
+        pushkey,
+      } as unknown as IPusherRequest)
+    )
+  );
 
-  await unregisterFromUnifiedPush();
+  await unregisterUnifiedPushTransport();
 }
 
 type NotificationSettings = {
@@ -190,13 +312,15 @@ function getOrCreateRoomCache(roomId: string, roomName: string): RoomNotifCache 
 export async function clearRoomNotification(roomId: string) {
   roomNotifCaches.delete(roomId);
   try {
-    await removeActive([{ id: roomNotifId(roomId) }]);
+    const notificationsApi = await getTauriNotificationsApi();
+    await notificationsApi.removeActive([{ id: roomNotifId(roomId) }]);
   } catch {
     // already dismissed
   }
   if (roomNotifCaches.size <= 1) {
     try {
-      await removeActive([{ id: SUMMARY_NOTIF_ID }]);
+      const notificationsApi = await getTauriNotificationsApi();
+      await notificationsApi.removeActive([{ id: SUMMARY_NOTIF_ID }]);
     } catch {
       // ignore
     }
@@ -212,11 +336,12 @@ async function postRoomNotification(
   extra: Record<string, unknown>,
   authToken?: string | null
 ) {
+  const notificationsApi = await getTauriNotificationsApi();
   const { messages, roomName, isGroupConversation } = cache;
   const latestMsg = messages[messages.length - 1];
   const latestBody = latestMsg ? `${latestMsg.sender?.name ?? 'You'}: ${latestMsg.text}` : '';
 
-  await sendNotification({
+  await notificationsApi.sendNotification({
     id: roomNotifId(roomId),
     title: roomName,
     body: latestBody,
@@ -253,7 +378,7 @@ async function postRoomNotification(
         inboxLines.push(`${c.roomName}: ${latest.sender?.name ?? 'You'}: ${latest.text}`);
       }
     });
-    await sendNotification({
+    await notificationsApi.sendNotification({
       id: SUMMARY_NOTIF_ID,
       title: summaryText,
       body: '',
@@ -305,7 +430,8 @@ async function handleRichPushPayload(
       };
 
       if (!roomId) {
-        await sendNotification({
+        const notificationsApi = await getTauriNotificationsApi();
+        await notificationsApi.sendNotification({
           title: roomName,
           body: senderName ? `${senderName}: ${previewText}` : previewText,
           channelId: 'messages',
@@ -370,7 +496,8 @@ async function handleRichPushPayload(
       else if (senderName) body = `from ${senderName}`;
       else if (roomName) body = `to ${roomName}`;
 
-      await sendNotification({
+      const notificationsApi = await getTauriNotificationsApi();
+      await notificationsApi.sendNotification({
         title: 'New Invitation',
         body,
         channelId: 'messages',
@@ -515,15 +642,28 @@ async function handleUnifiedPushPayload(
 }
 
 export function listenForUnifiedPushMessages(getSettings: () => NotificationSettings) {
-  return onUnifiedPushMessage((data: Record<string, unknown>) => {
-    handleUnifiedPushPayload(data, getSettings);
-  });
+  return getTauriNotificationsApi().then((notificationsApi) =>
+    notificationsApi.onUnifiedPushMessage(
+      createUnifiedPushMessageListener(
+        (data) => handleUnifiedPushPayload(data, getSettings),
+        (error) => {
+          unifiedPushLog.error(
+            'notification',
+            'UnifiedPush payload handling failed',
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
+      )
+    )
+  );
 }
 
 export function listenForUnifiedPushEndpointChanges(
   onEndpointChanged: (endpoint: string, instance: string) => void
 ) {
-  return onUnifiedPushEndpoint(({ endpoint, instance }) => {
-    onEndpointChanged(endpoint, instance);
-  });
+  return getTauriNotificationsApi().then((notificationsApi) =>
+    notificationsApi.onUnifiedPushEndpoint(({ endpoint, instance }) => {
+      onEndpointChanged(endpoint, instance);
+    })
+  );
 }

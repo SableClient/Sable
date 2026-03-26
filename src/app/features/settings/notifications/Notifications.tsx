@@ -1,11 +1,9 @@
 import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
-import { isTauri } from '@tauri-apps/api/core';
 import { SystemNotification } from './SystemNotification';
 import { AllMessagesNotifications } from './AllMessages';
 import { SpecialMessagesNotifications } from './SpecialMessages';
 import { KeywordMessagesNotifications } from './KeywordMessages';
-import UnifiedPushNotificationSetting from './UnifiedPushNotificationSetting';
 
 type NotificationsProps = {
   requestClose: () => void;
@@ -32,7 +30,6 @@ export function Notifications({ requestClose }: NotificationsProps) {
           <PageContent>
             <Box direction="Column" gap="700">
               <SystemNotification />
-              {isTauri() && <UnifiedPushNotificationSetting />}
               <AllMessagesNotifications />
               <SpecialMessagesNotifications />
               <KeywordMessagesNotifications />

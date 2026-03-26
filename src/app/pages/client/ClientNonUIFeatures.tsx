@@ -53,13 +53,24 @@ import { NotificationBanner } from '$components/notification-banner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import {
+  NotificationTransportRuntime,
+  type NotificationTransportRuntimeContext,
+} from '../../features/settings/notifications/NotificationTransportRuntime';
+import {
+  normalizeNotificationTransportMode,
+  resolvePreferredNotificationTransportProvider,
+  type NotificationTransportPlatform,
+} from '../../features/settings/notifications/NotificationTransport';
 
 const pushRelayLog = createDebugLogger('push-relay');
+const transportLog = createDebugLogger('push-transport');
 
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
@@ -837,9 +848,20 @@ function PresenceFeature() {
   return null;
 }
 
-function UnifiedPushManager() {
+function getNotificationTransportRuntimePlatform(): NotificationTransportPlatform {
+  if (!isTauri()) return 'web';
+
+  const platform = osType();
+  if (platform === 'android') return 'android';
+  if (platform === 'ios') return 'ios';
+  return 'desktop';
+}
+
+function NotificationTransportRuntimeFeature() {
   const mx = useMatrixClient();
-  const [useUP] = useSetting(settingsAtom, 'useUnifiedPush');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
+  const [backgroundPushProvider] = useSetting(settingsAtom, 'backgroundPushProvider');
+  const [pushTransportMode] = useSetting(settingsAtom, 'pushTransportMode');
   const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
@@ -848,35 +870,57 @@ function UnifiedPushManager() {
   );
   const [useInAppNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
 
-  useEffect(() => {
-    if (!isTauri() || !useUP) return undefined;
-
-    let cleanup: (() => void) | undefined;
-
-    (async () => {
-      const { listenForUnifiedPushMessages } =
-        await import('$features/settings/notifications/UnifiedPushNotifications');
-      const listener = await listenForUnifiedPushMessages(() => ({
-        mx,
-        showMessageContent,
-        showEncryptedMessageContent,
-        notificationSoundEnabled: isNotificationSounds,
-        useInAppNotifications,
-      }));
-      cleanup = () => listener.unregister();
-    })();
-
-    return () => {
-      cleanup?.();
-    };
-  }, [
+  const runtimeRef = useRef<NotificationTransportRuntime | null>(null);
+  const contextRef = useRef<NotificationTransportRuntimeContext>({
     mx,
-    useUP,
-    isNotificationSounds,
     showMessageContent,
     showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
     useInAppNotifications,
-  ]);
+  });
+  contextRef.current = {
+    mx,
+    showMessageContent,
+    showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
+    useInAppNotifications,
+  };
+
+  if (!runtimeRef.current) {
+    runtimeRef.current = new NotificationTransportRuntime();
+  }
+
+  useEffect(() => {
+    if (!isTauri()) return undefined;
+
+    const runtimePlatform = getNotificationTransportRuntimePlatform();
+    const normalizedMode = normalizeNotificationTransportMode(pushTransportMode, runtimePlatform);
+    const provider = backgroundPushEnabled
+      ? (backgroundPushProvider ??
+        resolvePreferredNotificationTransportProvider(normalizedMode, runtimePlatform))
+      : null;
+    const runtime = runtimeRef.current;
+    if (!runtime) return undefined;
+
+    const syncPromise = runtime.sync(provider, () => contextRef.current);
+    syncPromise.catch((error) => {
+      transportLog.error(
+        'notification',
+        'Notification transport runtime failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+    return () => {
+      const cleanupPromise = runtime.dispose();
+      cleanupPromise.catch((error) => {
+        transportLog.error(
+          'notification',
+          'Notification transport runtime cleanup failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
+      });
+    };
+  }, [backgroundPushEnabled, backgroundPushProvider, pushTransportMode]);
 
   return null;
 }
@@ -899,7 +943,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
-      <UnifiedPushManager />
+      <NotificationTransportRuntimeFeature />
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />

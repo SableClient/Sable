@@ -79,6 +79,13 @@ export class PKitProxyMessageHandler {
     return getPerMessageProfileById(this.mx, profileId);
   }
 
+  /**
+   * this runs synchronously, so it needs to be inited beforehand
+   *
+   * @param {string} message the message you want to extract from
+   * @return {*}  {(string | undefined)} the message without the proxy
+   * @memberof PKitProxyMessageHandler
+   */
   public stripProxyFromMessage(message: string): string | undefined {
     if (!this.succInit) throw new Error('PK proxy message handler is not initialized');
     let m;

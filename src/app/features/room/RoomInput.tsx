@@ -728,6 +728,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       // check if its a pk command
       if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
         pluralkitCmdMessageHandler.handleMessage(plainText);
+        resetEditor(editor); // clear the editor
+        return; // don't do anything besides handling the command
       }
 
       if (commandName) {

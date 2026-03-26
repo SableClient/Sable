@@ -140,16 +140,15 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
   const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   if (urls != null && urls !== undefined && urls.length > 0) {
+    // remove < > tagged urls from the preview list
+    urls = urls.filter((url) => !url.match(/(<|&lt;)(.+)(>|$gt;)/));
+    // remove the < > tags from links that are meant to be hidden from urls that are not to be shown
     trimmedBody = trimmedBody?.replace(/(<|&lt;)http(s?):\/\/(.+)(>|&gt;)/, 'http$2://$3');
-    trimmedBody = trimmedBody?.replace(
-      /(<|&lt;)\[(.+)?\]\(http(s?):\/\/(.+)\)(>|&gt;)/,
-      '[$2](http$3://$4)'
-    );
     safeCustomBody = safeCustomBody?.replace(
-      /(<|&lt;)<a data-md href="(.+)">(.+)<\/a>(>|&gt;)/,
-      '<a data-md href="$2">$3</a>'
+      /<a data-md href="(<|&lt;)(.+)(>|&gt;)">(.+)<\/a>/,
+      '<a data-md href="$2">$4</a>'
     );
   }
 

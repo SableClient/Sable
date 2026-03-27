@@ -1326,7 +1326,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Html]: {
         name: Command.Html,
-        description: 'Send a message with HTML content',
+        description:
+          'Send a message with HTML content. Example: /html <span data-mx-color="#ff0000">Red</span>',
         exe: async (payload) => {
           await mx.sendMessage(room.roomId, {
             msgtype: MsgType.Text,

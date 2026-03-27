@@ -7,14 +7,13 @@ import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { MSC1767Text } from '$types/matrix/common';
 import { useMatrixClient } from './useMatrixClient';
 
 const inFlightProfiles = new Map<string, Promise<any>>();
 
 export type MSC4440Bio = {
-  body: string;
-  format: string;
-  formatted_body: string;
+  'm.text': Array<MSC1767Text>;
 };
 
 export type UserProfile = {
@@ -62,7 +61,7 @@ const normalizeInfo = (info: any): UserProfile => {
     pronouns: info['io.fsky.nyx.pronouns'],
     timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
     bio:
-      (info['gay.fomx.biography'] satisfies MSC4440Bio).formatted_body ||
+      (info['gay.fomx.biography'] satisfies MSC4440Bio)['m.text'][0].body ||
       info['moe.sable.app.bio'] ||
       info['chat.commet.profile_bio'],
     status: info['chat.commet.profile_status'],

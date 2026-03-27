@@ -46,13 +46,13 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
 import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
-import { toPlainText } from '$components/editor';
 
 type PronounSet = {
   summary: string;
@@ -582,17 +582,20 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
             profile.extended?.['chat.commet.profile_bio'] ||
             profile.bio
           }
-          onSave={(htmlBio) => {
+          onSave={(htmlBio, plainTextBio) => {
             handleSaveField('moe.sable.app.bio', htmlBio);
 
             // MSC4440
             handleSaveField('gay.fomx.biography', {
-              body: htmlBio
-                .replaceAll('<br>', '\n')
-                .replaceAll('<li>', '\n- ')
-                .replaceAll(/<[^>]*>/g, ''),
-              format: 'org.matrix.custom.html',
-              formatted_body: htmlBio,
+              'm.text': [
+                {
+                  body: htmlBio,
+                  mimetype: 'text/html',
+                } satisfies MSC1767Text,
+                {
+                  body: plainTextBio,
+                } satisfies MSC1767Text,
+              ],
             } satisfies MSC4440Bio);
 
             const cleanedHtml = htmlBio.replaceAll('<br/></blockquote>', '</blockquote>');

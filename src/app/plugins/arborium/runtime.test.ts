@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { HighlightCodeInput, HighlightResult } from '.';
+import type { HighlightResult } from '.';
 
-type ArboriumModule =
-  NonNullable<HighlightCodeInput['loadModule']> extends () => Promise<infer T> ? T : never;
+type ArboriumModule = typeof import('@arborium/arborium');
 
 afterEach(() => {
   vi.resetModules();
@@ -27,12 +26,14 @@ describe('highlightCode', () => {
 
     const { highlightCode } = await import('.');
 
-    const result: HighlightResult = await highlightCode({
-      code: 'const value = 1;',
-      language: 'ts',
-      allowDetect: false,
-      loadModule,
-    });
+    const result: HighlightResult = await highlightCode(
+      {
+        code: 'const value = 1;',
+        language: 'ts',
+        allowDetect: false,
+      },
+      { loadModule }
+    );
 
     expect(result).toEqual({
       mode: 'highlighted',
@@ -57,17 +58,19 @@ describe('highlightCode', () => {
 
     const { highlightCode } = await import('.');
 
-    const result: HighlightResult = await highlightCode({
-      code: '<b>hello</b>',
-      allowDetect: false,
-      loadModule,
-    });
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<b>hello</b>',
+        allowDetect: false,
+      },
+      { loadModule }
+    );
 
     expect(result).toEqual({
       mode: 'plain',
       html: '&lt;b&gt;hello&lt;/b&gt;',
-      language: null,
     });
+    expect(result.language).toBeUndefined();
     expect(normalizeLanguage).not.toHaveBeenCalled();
     expect(detectLanguage).not.toHaveBeenCalled();
     expect(highlight).not.toHaveBeenCalled();
@@ -90,11 +93,13 @@ describe('highlightCode', () => {
 
     const { highlightCode } = await import('.');
 
-    const result: HighlightResult = await highlightCode({
-      code: 'const value = 1;',
-      allowDetect: true,
-      loadModule,
-    });
+    const result: HighlightResult = await highlightCode(
+      {
+        code: 'const value = 1;',
+        allowDetect: true,
+      },
+      { loadModule }
+    );
 
     expect(result).toEqual({
       mode: 'highlighted',
@@ -113,17 +118,52 @@ describe('highlightCode', () => {
 
     const { highlightCode } = await import('.');
 
-    const result: HighlightResult = await highlightCode({
-      code: '<span class="x">hi</span>',
-      language: 'typescript',
-      allowDetect: false,
-      loadModule,
-    });
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<span class="x">hi</span>',
+        language: 'typescript',
+        allowDetect: false,
+      },
+      { loadModule }
+    );
 
     expect(result).toEqual({
       mode: 'plain',
       html: '&lt;span class=&quot;x&quot;&gt;hi&lt;/span&gt;',
-      language: null,
+      language: 'typescript',
     });
+  });
+
+  it('returns plain escaped code with the resolved language when highlighting fails', async () => {
+    const normalizeLanguage = vi.fn((language: string) =>
+      language === 'ts' ? 'typescript' : language
+    );
+    const detectLanguage = vi.fn(() => null);
+    const highlight = vi.fn(async () => {
+      throw new Error('bad highlight');
+    });
+    const module = {
+      normalizeLanguage,
+      detectLanguage,
+      highlight,
+    } as unknown as ArboriumModule;
+    const loadModule = vi.fn(async () => module);
+
+    const { highlightCode } = await import('.');
+
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<span>',
+        language: 'ts',
+      },
+      { loadModule }
+    );
+
+    expect(result).toEqual({
+      mode: 'plain',
+      html: '&lt;span&gt;',
+      language: 'typescript',
+    });
+    expect(highlight).toHaveBeenCalledWith('typescript', '<span>');
   });
 });

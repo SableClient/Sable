@@ -4,13 +4,14 @@ export interface HighlightCodeInput {
   code: string;
   language?: string | null;
   allowDetect?: boolean;
-  loadModule?: () => Promise<ArboriumModule>;
 }
 
-export interface HighlightResult {
-  mode: 'highlighted' | 'plain';
-  html: string;
-  language: string | null;
+export type HighlightResult =
+  | { mode: 'plain'; html: string; language?: string }
+  | { mode: 'highlighted'; html: string; language: string };
+
+export interface HighlightCodeDeps {
+  loadModule?: () => Promise<ArboriumModule>;
 }
 
 let arboriumModulePromise: Promise<ArboriumModule | null> | null = null;
@@ -23,12 +24,17 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function plainResult(code: string): HighlightResult {
-  return {
+function plainResult(code: string, language?: string): HighlightResult {
+  const result: HighlightResult = {
     mode: 'plain',
     html: escapeHtml(code),
-    language: null,
   };
+
+  if (language !== undefined) {
+    result.language = language;
+  }
+
+  return result;
 }
 
 async function loadArborium(
@@ -49,15 +55,14 @@ async function loadArborium(
   return arboriumModulePromise;
 }
 
-export async function highlightCode({
-  code,
-  language,
-  allowDetect = false,
-  loadModule,
-}: HighlightCodeInput): Promise<HighlightResult> {
+export async function highlightCode(
+  { code, language, allowDetect = false }: HighlightCodeInput,
+  deps?: HighlightCodeDeps
+): Promise<HighlightResult> {
+  const { loadModule } = deps ?? {};
   const arborium = await loadArborium(loadModule);
   if (!arborium) {
-    return plainResult(code);
+    return plainResult(code, language ?? undefined);
   }
 
   let resolvedLanguage: string | null = null;
@@ -66,7 +71,7 @@ export async function highlightCode({
     try {
       resolvedLanguage = arborium.normalizeLanguage(language);
     } catch {
-      return plainResult(code);
+      return plainResult(code, language ?? undefined);
     }
   } else if (allowDetect) {
     try {
@@ -75,12 +80,12 @@ export async function highlightCode({
         resolvedLanguage = arborium.normalizeLanguage(detectedLanguage);
       }
     } catch {
-      return plainResult(code);
+      return plainResult(code, language ?? undefined);
     }
   }
 
   if (!resolvedLanguage) {
-    return plainResult(code);
+    return plainResult(code, language ?? undefined);
   }
 
   try {
@@ -91,6 +96,6 @@ export async function highlightCode({
       language: resolvedLanguage,
     };
   } catch {
-    return plainResult(code);
+    return plainResult(code, resolvedLanguage);
   }
 }

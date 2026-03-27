@@ -11,6 +11,12 @@ import { useMatrixClient } from './useMatrixClient';
 
 const inFlightProfiles = new Map<string, Promise<any>>();
 
+export type MSC4440Bio = {
+  body: string;
+  format: string;
+  formatted_body: string;
+};
+
 export type UserProfile = {
   avatarUrl?: string;
   displayName?: string;
@@ -35,6 +41,7 @@ const normalizeInfo = (info: any): UserProfile => {
     'm.tz',
     'moe.sable.app.bio',
     'chat.commet.profile_bio',
+    'gay.fomx.biography',
     'chat.commet.profile_banner',
     'chat.commet.profile_status',
     'moe.sable.app.name_color',
@@ -54,7 +61,10 @@ const normalizeInfo = (info: any): UserProfile => {
     displayName: info.displayname,
     pronouns: info['io.fsky.nyx.pronouns'],
     timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
-    bio: info['moe.sable.app.bio'] || info['chat.commet.profile_bio'],
+    bio:
+      (info['gay.fomx.biography'] satisfies MSC4440Bio).formatted_body ||
+      info['moe.sable.app.bio'] ||
+      info['chat.commet.profile_bio'],
     status: info['chat.commet.profile_status'],
     bannerUrl: info['chat.commet.profile_banner'],
     nameColor: info['moe.sable.app.name_color'],

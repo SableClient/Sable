@@ -244,8 +244,8 @@ const getCodeBlockLanguage = (
   children: ChildNode[],
   attribs?: Record<string, string | undefined>
 ): string | undefined => {
-  const code = children[0];
-  const codeAttribs = code instanceof Element && code.name === 'code' ? code.attribs : undefined;
+  const code = children.find((child) => child instanceof Element && child.name === 'code');
+  const codeAttribs = code instanceof Element ? code.attribs : undefined;
 
   return (
     codeAttribs?.['data-lang'] ??
@@ -477,7 +477,7 @@ export const getReactCustomHtmlParser = (
         if (name === 'code') {
           if (parent && 'name' in parent && parent.name === 'pre') {
             const language = getCodeBlockLanguage(
-              [domNode],
+              parent instanceof Element ? parent.children : [],
               parent instanceof Element ? parent.attribs : undefined
             );
             return (

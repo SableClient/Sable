@@ -117,6 +117,16 @@ describe('sanitizeCustomHtml – code block class handling', () => {
     expect(result).toContain('class="language-typescript"');
   });
 
+  it('preserves data-lang on code blocks', () => {
+    const result = sanitizeCustomHtml('<code data-lang="typescript">const x = 1;</code>');
+    expect(result).toContain('data-lang="typescript"');
+  });
+
+  it('preserves data-lang on pre blocks', () => {
+    const result = sanitizeCustomHtml('<pre data-lang="rust"><code>fn main() {}</code></pre>');
+    expect(result).toContain('data-lang="rust"');
+  });
+
   it('strips arbitrary classes not matching language-*', () => {
     const result = sanitizeCustomHtml('<code class="evil-class">code</code>');
     expect(result).not.toContain('evil-class');

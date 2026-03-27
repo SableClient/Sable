@@ -21,6 +21,10 @@ const helpTextPkMemberRemoveProxy =
   'To remove a shorthand from a persona: pk;member Yumi proxy remove [text]';
 const helpTextPkMember = `Available 'pk;member' commands:\n${helpTextPkMemberNew}\n${helpTextPkMemberRename}\n${helpTextPkMemberNewProxy}\n${helpTextPkMemberRemoveProxy}`;
 
+function regexEscapeFallBackFunc(template: string): string {
+  return template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * build a regex to recognize proxies
  * a template can be for example `[text]` or `f:text`
@@ -30,7 +34,10 @@ const helpTextPkMember = `Available 'pk;member' commands:\n${helpTextPkMemberNew
  */
 function buildRegex(template: string): RegExp {
   const [before, after] = template.split('text');
-  const pattern = `${RegExp.escape(before)}(.+)${RegExp.escape(after)}`;
+  // RegExp.escape is baseline since May 2025
+  // @ts-ignore TS2322
+  const escape = RegExp.escape ?? regexEscapeFallBackFunc;
+  const pattern = `${escape(before)}(.+)${escape(after)}`;
   return new RegExp(`^${pattern}$`);
 }
 

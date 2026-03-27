@@ -252,6 +252,7 @@ export enum Command {
   SetExt = 'setext',
   DelExt = 'delext',
   DiscardSession = 'discardsession',
+  Html = 'html',
   // Cute Events
   Hug = 'hug',
   Cuddle = 'cuddle',
@@ -1321,6 +1322,18 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           } catch (e: any) {
             sendFeedback(`Failed to discard session: ${e.message}`, room, userId);
           }
+        },
+      },
+      [Command.Html]: {
+        name: Command.Html,
+        description: 'Send a message with HTML content',
+        exe: async (payload) => {
+          await mx.sendMessage(room.roomId, {
+            msgtype: MsgType.Text,
+            body: payload,
+            format: 'org.matrix.custom.html',
+            formatted_body: payload,
+          });
         },
       },
       // Sharing E2EE History of a room with a user

@@ -51,6 +51,9 @@ const FLAG_PAT = String.raw`(?:^|\s)-(\w+)\b`;
 const FLAG_REG = new RegExp(FLAG_PAT);
 const FLAG_REG_G = new RegExp(FLAG_PAT, 'g');
 
+const ADDPMP_REGEX = /(\w+) (name=)?"?([\w\s]*)"? (avatar=)?([\w.:/]+)/;
+const USEPMP_REGEX = /^(\w+)\s*(-g)?(-o)?(-u)?\s*(\d+)?$/;
+
 export const splitPayloadContentAndFlags = (payload: string): [string, string | undefined] => {
   const flagMatch = new RegExp(FLAG_REG).exec(payload);
 
@@ -493,26 +496,19 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           'Add or update a per message profile to your account. Example: /addpmp profileId name=Profile Name avatar=mxc://xyzabc',
         exe: async (payload) => {
           // Parse key=value pairs
-          const parts = payload.split(' ');
-          let avatarUrl: string | undefined;
-          let name: string | undefined;
-          parts.forEach((part, index) => {
-            const [key, value] = part.split('=');
-            if (key && value) {
-              if (key === 'name' || key === 'avatar') {
-                if (key === 'name') {
-                  name = parts
-                    .slice(index)
-                    .map((p) => p.split('=')[1])
-                    .join(' ');
-                  return;
-                }
-                if (key === 'avatar') avatarUrl = value;
-              }
-            }
-          });
+          const args = ADDPMP_REGEX.exec(payload);
+          if (!args) {
+            sendFeedback(`invalid payload`, room, mx.getSafeUserId());
+            return;
+          }
+          const avatarUrl: string | undefined = args[5];
+          const name: string | undefined = args[3];
+          const profileId = args[1];
 
-          const profileId = parts[0]; // profileId is positional (before any key=)
+          if (!avatarUrl || !name || !profileId) {
+            sendFeedback(`invalid payload`, room, mx.getSafeUserId());
+            return;
+          }
 
           const pmp: PerMessageProfile = {
             id: profileId,
@@ -568,10 +564,25 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         description:
           'Use a per message profile for this room once, or until reset. Example: /usepmp [profileId,reset]',
         exe: async (payload) => {
-          // this command doesn't need to do anything, the composer will pick it up and apply the profile to the message being composed
-          const profileId: string = splitWithSpace(payload)[0];
-          const durationStr: string | undefined = splitWithSpace(payload)[1];
-          let validUntil: number | undefined;
+          const args = USEPMP_REGEX.exec(payload);
+          if (!args) {
+            sendFeedback(`invalid payload`, room, mx.getSafeUserId());
+            return;
+          }
+          const profileId = args[1];
+          const globalFlag = args[2] !== undefined;
+          const onceFlag = args[3] !== undefined;
+          // const untilFlag = args[4] !== undefined;
+          const validUntil = Number.parseInt(args[5], 10);
+          if (onceFlag || globalFlag) {
+            sendFeedback(
+              'Currently not implemented, consider using shorthands, with /pmpproxy id ✨:text',
+              room,
+              mx.getSafeUserId()
+            );
+            return;
+          }
+
           if (profileId.normalize() === 'reset') {
             setCurrentlyUsedPerMessageProfileIdForRoom(mx, room.roomId, undefined, undefined, true)
               .then(() => {
@@ -590,7 +601,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             .then(() => {
               sendFeedback(
                 `Per message profile "${profileId}" will be used for messages in this room for the until ${
-                  durationStr ?? 'reset'
+                  validUntil ?? 'reset'
                 }. Use \`/usepmp reset\` to reset it at any time.`,
                 room,
                 mx.getSafeUserId()

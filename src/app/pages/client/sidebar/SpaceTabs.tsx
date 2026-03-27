@@ -51,7 +51,7 @@ import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathU
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
   SidebarStack,
   SidebarStackSeparator,
@@ -60,7 +60,6 @@ import {
 } from '$components/sidebar';
 import { RoomUnreadProvider, RoomsUnreadProvider } from '$components/RoomUnreadProvider';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
-import { UnreadBadge } from '$components/unread-badge';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
@@ -465,18 +464,10 @@ function SpaceTab({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge
-              hasCount={unread.total > 0}
-              style={{
-                left: unread.total > 0 ? toRem(-6) : toRem(-4),
-                right: 'auto',
-              }}
-            >
-              <UnreadBadge
-                highlight={unread.highlight > 0}
-                count={unread.highlight > 0 ? unread.highlight : unread.total}
-              />
-            </SidebarItemBadge>
+            <SidebarUnreadBadge
+              highlight={unread.highlight > 0}
+              count={unread.highlight > 0 ? unread.highlight : unread.total}
+            />
           )}
           {menuAnchor && (
             <PopOut
@@ -606,18 +597,10 @@ function ClosedSpaceFolder({
             )}
           </SidebarItemTooltip>
           {unread && (
-            <SidebarItemBadge
-              hasCount={unread.total > 0}
-              style={{
-                left: unread.total > 0 ? toRem(-6) : toRem(-4),
-                right: 'auto',
-              }}
-            >
-              <UnreadBadge
-                highlight={unread.highlight > 0}
-                count={unread.highlight > 0 ? unread.highlight : unread.total}
-              />
-            </SidebarItemBadge>
+            <SidebarUnreadBadge
+              highlight={unread.highlight > 0}
+              count={unread.highlight > 0 ? unread.highlight : unread.total}
+            />
           )}
         </SidebarItem>
       )}

@@ -22,7 +22,8 @@ const Shake = keyframes({
 export const Container = style([
   DefaultReset,
   {
-    flexGrow: 1,
+    width: '100%',
+    maxWidth: toRem(280),
     minWidth: 0,
     overflow: 'hidden',
     touchAction: 'pan-y',
@@ -56,6 +57,7 @@ export const WaveformContainer = style([
     height: 22,
     overflow: 'hidden',
     minWidth: 0,
+    flexGrow: 1,
   },
 ]);
 

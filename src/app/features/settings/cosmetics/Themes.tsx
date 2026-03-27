@@ -343,6 +343,52 @@ function ThemeSettings() {
   );
 }
 
+function SubnestedSpaceLinkDepthInput() {
+  const [subspaceHierarchyLimit, setSubspaceHierarchyLimit] = useSetting(
+    settingsAtom,
+    'subspaceHierarchyLimit'
+  );
+  const [inputValue, setInputValue] = useState(subspaceHierarchyLimit.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 2 && parsed <= 10) {
+      setSubspaceHierarchyLimit(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(subspaceHierarchyLimit.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={parseInt(inputValue, 10) === subspaceHierarchyLimit ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="1"
+      max="10"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      outlined
+    />
+  );
+}
+
 function PageZoomInput() {
   const [pageZoom, setPageZoom] = useSetting(settingsAtom, 'pageZoom');
   const [currentZoom, setCurrentZoom] = useState(`${pageZoom}`);
@@ -388,6 +434,7 @@ function PageZoomInput() {
 }
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
+  const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
 
   return (
     <Box direction="Column" gap="700">
@@ -405,7 +452,23 @@ export function Appearance() {
         </SequenceCard>
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Show Easter Eggs"
+            description="Lets the interface keep a little mischief turned on."
+            after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile title="Page Zoom" after={<PageZoomInput />} />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Subspace Hierarchy Limit"
+            description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
+            after={<SubnestedSpaceLinkDepthInput />}
+          />
         </SequenceCard>
       </Box>
     </Box>

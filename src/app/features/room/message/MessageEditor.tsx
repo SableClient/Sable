@@ -72,6 +72,7 @@ import { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { GetContentCallback } from '$types/matrix/room';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 
 type MessageEditorProps = {
   roomId: string;
@@ -105,9 +106,32 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         evtTimeline && getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet());
 
       const content: IContent = editedEvent?.getContent()['m.new_content'] ?? mEvent.getContent();
-      const { body, formatted_body: customHtml }: Record<string, unknown> = content;
-
+      let { body, formatted_body: customHtml }: Record<string, unknown> = content;
       const mMentions: IMentions | undefined = content['m.mentions'];
+
+      const rawPmp = content['com.beeper.per_message_profile'];
+      const pmpDisplayname =
+        rawPmp !== null &&
+        typeof rawPmp === 'object' &&
+        'displayname' in rawPmp &&
+        typeof rawPmp.displayname === 'string' &&
+        rawPmp.displayname.length > 0
+          ? (rawPmp.displayname as string)
+          : undefined;
+
+      if (pmpDisplayname && typeof body === 'string') {
+        const bodyPrefix = `${pmpDisplayname}: `;
+        if (body.startsWith(bodyPrefix)) {
+          body = body.slice(bodyPrefix.length);
+        }
+      }
+
+      if (pmpDisplayname && typeof customHtml === 'string') {
+        customHtml = customHtml.replace(
+          /^<strong\s+data-mx-profile-fallback[^>]*>.*?<\/strong>/,
+          ''
+        );
+      }
 
       return [
         typeof body === 'string' ? body : undefined,
@@ -119,8 +143,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const [saveState, save] = useAsyncCallback(
       useCallback(async () => {
         const oldContent = mEvent.getContent();
-        const plainText = toPlainText(editor.children, isMarkdown).trim();
-        const customHtml = trimCustomHtml(
+        let plainText = toPlainText(editor.children, isMarkdown).trim();
+        let customHtml = trimCustomHtml(
           toMatrixCustomHTML(editor.children, {
             allowTextFormatting: true,
             allowBlockMarkdown: isMarkdown,
@@ -153,6 +177,41 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           msgtype,
           body: plainText,
         };
+
+        const evtId = mEvent.getId();
+        const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+        const editedEvent =
+          evtTimeline && evtId
+            ? getEditedEvent(evtId, mEvent, evtTimeline.getTimelineSet())
+            : undefined;
+
+        const rawPmp =
+          editedEvent?.getContent()?.['m.new_content']?.['com.beeper.per_message_profile'] ??
+          mEvent.getContent()?.['com.beeper.per_message_profile'];
+
+        const pmpDisplayname =
+          rawPmp !== null &&
+          typeof rawPmp === 'object' &&
+          'displayname' in rawPmp &&
+          typeof rawPmp.displayname === 'string' &&
+          rawPmp.displayname.length > 0
+            ? (rawPmp.displayname as string)
+            : undefined;
+
+        if (pmpDisplayname) {
+          const bodyPrefix = `${pmpDisplayname}: `;
+          if (!plainText.startsWith(bodyPrefix)) {
+            plainText = bodyPrefix + plainText;
+          }
+
+          const escapedName = sanitizeCustomHtml(pmpDisplayname);
+          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
+          if (!customHtml.startsWith(htmlPrefix)) {
+            customHtml = htmlPrefix + customHtml;
+          }
+
+          newContent['com.beeper.per_message_profile'] = rawPmp;
+        }
 
         const contentBody: IContent & Omit<ReplacementEvent<IContent>, 'm.relates_to'> = {
           msgtype,
@@ -206,7 +265,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         }
 
         return mx.sendMessage(roomId, content as any);
-      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody])
+      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])
     );
 
     const handleSave = useCallback(() => {
@@ -221,6 +280,13 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
         ) {
+          const prevWordRange = getPrevWorldRange(editor);
+          if (
+            prevWordRange &&
+            getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
+          )
+            return;
+
           evt.preventDefault();
           handleSave();
         }
@@ -229,7 +295,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           onCancel();
         }
       },
-      [onCancel, handleSave, enterForNewline, isComposing]
+      [enterForNewline, isComposing, editor, handleSave, onCancel]
     );
 
     const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -351,7 +417,16 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           <Box
             style={
               captionPosition !== CaptionPosition.Inline
-                ? { marginTop: config.space.S400, width: '100%' }
+                ? {
+                    marginTop:
+                      msgType === MsgType.Image ||
+                      msgType === MsgType.Video ||
+                      msgType === MsgType.Audio ||
+                      msgType === MsgType.File
+                        ? config.space.S400
+                        : undefined,
+                    width: '100%',
+                  }
                 : {
                     padding: config.space.S200,
                     wordBreak: 'break-word',

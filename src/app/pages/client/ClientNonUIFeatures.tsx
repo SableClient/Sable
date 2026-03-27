@@ -14,7 +14,7 @@ import parse from 'html-react-parser';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import LogoSVG from '$public/res/svg/cinny.svg';
+import LogoSVG from '$public/res/svg/cinny-logo.svg';
 import LogoUnreadSVG from '$public/res/svg/cinny-unread.svg';
 import LogoHighlightSVG from '$public/res/svg/cinny-highlight.svg';
 import NotificationSound from '$public/sound/notification.ogg';
@@ -54,6 +54,7 @@ import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
+import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -835,10 +836,16 @@ function PresenceFeature() {
   return null;
 }
 
+function SettingsSyncFeature() {
+  useSettingsSyncEffect();
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
+      <SettingsSyncFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

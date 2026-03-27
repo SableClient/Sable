@@ -13,6 +13,28 @@ export const Editor = style([
   },
 ]);
 
+export const EditorRow = style({
+  gridTemplateColumns: 'auto 1fr auto',
+  alignItems: 'center',
+});
+
+export const EditorRowMultiline = style({
+  gridTemplateColumns: 'auto 1fr',
+  gridTemplateAreas: `
+    "before textarea"
+    "before after"
+  `,
+  alignItems: 'start',
+});
+
+export const EditorRowMultilineWithResponsiveAfter = style({
+  gridTemplateColumns: 'auto 1fr auto',
+  gridTemplateAreas: `
+    "before textarea textarea"
+    "before responsive-after after"
+  `,
+});
+
 export const EditorOptions = style([
   DefaultReset,
   {
@@ -20,14 +42,30 @@ export const EditorOptions = style([
   },
 ]);
 
-export const EditorTextareaScroll = style({});
+export const EditorOptionsMultiline = style({
+  gridArea: 'before',
+  alignSelf: 'end',
+});
+
+export const EditorOptionsAfterMultiline = style({
+  gridArea: 'after',
+  justifySelf: 'end',
+});
+
+export const EditorTextareaScroll = style({
+  minWidth: 0,
+});
+
+export const EditorTextareaScrollMultiline = style({
+  gridArea: 'textarea',
+});
 
 export const EditorTextarea = style([
   DefaultReset,
   {
     flexGrow: 1,
-    height: '100%',
-    padding: `${toRem(13)} ${toRem(1)}`,
+    height: 'auto',
+    padding: `${toRem(13)} 0 0`,
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
@@ -39,6 +77,15 @@ export const EditorTextarea = style([
         outline: 'none',
       },
     },
+  },
+]);
+
+export const EditorResponsiveAfterMultiline = style([
+  EditorOptions,
+  {
+    gridArea: 'responsive-after',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
 ]);
 
@@ -57,6 +104,11 @@ export const EditorPlaceholderTextVisual = style([
     display: 'block',
     paddingTop: toRem(13),
     paddingLeft: toRem(1),
+    selectors: {
+      [`${EditorTextareaScroll}:first-child &`]: {
+        paddingLeft: toRem(13),
+      },
+    },
   },
 ]);
 

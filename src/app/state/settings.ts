@@ -44,12 +44,16 @@ export interface Settings {
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
   hideNickAvatarEvents: boolean;
-  mediaAutoLoad: boolean;
-  urlPreview: boolean;
-  encUrlPreview: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
   legacyUsernameColor: boolean;
+
+  mediaAutoLoad: boolean;
+  urlPreview: boolean;
+  encUrlPreview: boolean;
+  clientUrlPreview: boolean;
+  encClientUrlPreview: boolean;
+  clientPreviewYoutube: boolean;
 
   usePushNotifications: boolean;
   useInAppNotifications: boolean;
@@ -64,6 +68,7 @@ export interface Settings {
 
   developerTools: boolean;
   enableMSC4268CMD: boolean;
+  settingsSyncEnabled: boolean;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -88,6 +93,7 @@ export interface Settings {
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
   showPingCounts: boolean;
+  showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
   underlineLinks: boolean;
@@ -96,6 +102,7 @@ export interface Settings {
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
   saveStickerEmojiBandwidth: boolean;
+  subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
@@ -104,6 +111,8 @@ export interface Settings {
    */
   pkCompat: boolean;
   pmpProxying: boolean;
+  mentionInReplies: boolean;
+  showPersonaSetting: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -133,6 +142,9 @@ const defaultSettings: Settings = {
   mediaAutoLoad: true,
   urlPreview: true,
   encUrlPreview: false,
+  clientUrlPreview: false,
+  encClientUrlPreview: false,
+  clientPreviewYoutube: false,
   showHiddenEvents: false,
   showTombstoneEvents: false,
   legacyUsernameColor: false,
@@ -154,6 +166,7 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+  settingsSyncEnabled: false,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -176,6 +189,7 @@ const defaultSettings: Settings = {
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
   showPingCounts: true,
+  showEasterEggs: true,
   hideReads: false,
   emojiSuggestThreshold: 2,
   underlineLinks: false,
@@ -184,11 +198,14 @@ const defaultSettings: Settings = {
   autoplayStickers: true,
   autoplayEmojis: true,
   saveStickerEmojiBandwidth: false,
+  subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
   pmpProxying: false,
+  mentionInReplies: true,
+  showPersonaSetting: false,
 
   // furry stuff
   renderAnimals: true,

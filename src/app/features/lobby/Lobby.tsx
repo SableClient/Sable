@@ -1,6 +1,26 @@
-import { MouseEventHandler, useCallback, useMemo, useRef, useState } from 'react';
-import { Box, Chip, Icon, IconButton, Icons, Line, Scroll, Spinner, Text, config } from 'folds';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+  MouseEventHandler,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Box,
+  Chip,
+  Icon,
+  IconButton,
+  Icons,
+  Line,
+  Scroll,
+  Spinner,
+  Text,
+  color,
+  config,
+} from 'folds';
+import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -28,7 +48,7 @@ import {
   useRoomsPowerLevels,
 } from '$hooks/usePowerLevels';
 import { mDirectAtom } from '$state/mDirectList';
-import { makeLobbyCategoryId } from '$state/closedLobbyCategories';
+import { makeLobbyCategoryId, getLobbyCategoryIdParts } from '$state/closedLobbyCategories';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
@@ -52,10 +72,11 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
-import { SpaceHierarchy } from './SpaceHierarchy';
+import { SpaceHierarchyItem } from './SpaceHierarchyItem';
 import { CanDropCallback, useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
+import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
 
 const useCanDropLobbyItem = (
   space: Room,
@@ -73,6 +94,11 @@ const useCanDropLobbyItem = (
       }
 
       const containerSpaceId = space.roomId;
+
+      // only allow to be dropped in parent space
+      if (item.parentId !== container.item.roomId && item.parentId !== container.item.parentId) {
+        return false;
+      }
 
       const powerLevels = roomsPowerLevels.get(containerSpaceId) ?? {};
       const creators = getRoomCreatorsForRoomId(mx, containerSpaceId);
@@ -167,6 +193,7 @@ export function Lobby() {
   const screenSize = useScreenSizeContext();
   const [onTop, setOnTop] = useState(true);
   const [closedCategories, setClosedCategories] = useAtom(useClosedLobbyCategoriesAtom());
+  const roomToParents = useAtomValue(roomToParentsAtom);
   const [sidebarItems] = useSidebarItems(
     useOrphanSpaces(mx, allRoomsAtom, useAtomValue(roomToParentsAtom))
   );
@@ -188,16 +215,100 @@ export function Lobby() {
 
   const getRoom = useGetRoom(allJoinedRooms);
 
+  const closedCategoriesCache = useRef(new Map());
+  useEffect(() => {
+    closedCategoriesCache.current.clear();
+  }, [closedCategories, roomToParents, getRoom]);
+
+  /**
+   * Recursively checks if a given parentId (or all its ancestors) is in a closed category.
+   *
+   * @param spaceId - The root space ID.
+   * @param parentId - The parent space ID to start the check from.
+   * @param previousId - The last ID checked, only used to ignore root collapse state.
+   * @param visited - Set used to prevent recursion errors.
+   * @returns True if parentId or all ancestors is in a closed category.
+   */
+  const getInClosedCategories = useCallback(
+    (
+      spaceId: string,
+      parentId: string,
+      previousId?: string,
+      visited: Set<string> = new Set()
+    ): boolean => {
+      // Ignore root space being collapsed if in a subspace,
+      // this is due to many spaces dumping all rooms in the top-level space.
+      if (parentId === spaceId && previousId) {
+        if (spaceRooms.has(previousId) || getRoom(previousId)?.isSpaceRoom()) {
+          return false;
+        }
+      }
+
+      const categoryId = makeLobbyCategoryId(spaceId, parentId);
+
+      // Prevent infinite recursion
+      if (visited.has(categoryId)) return false;
+      visited.add(categoryId);
+
+      if (closedCategoriesCache.current.has(categoryId)) {
+        return closedCategoriesCache.current.get(categoryId);
+      }
+
+      if (closedCategories.has(categoryId)) {
+        closedCategoriesCache.current.set(categoryId, true);
+        return true;
+      }
+
+      const parentParentIds = roomToParents.get(parentId);
+      if (!parentParentIds || parentParentIds.size === 0) {
+        closedCategoriesCache.current.set(categoryId, false);
+        return false;
+      }
+
+      // As a subspace can be in multiple spaces,
+      // only return true if all parent spaces are closed.
+      const allClosed = !Array.from(parentParentIds).some(
+        (id) => !getInClosedCategories(spaceId, id, parentId, visited)
+      );
+      visited.delete(categoryId);
+      closedCategoriesCache.current.set(categoryId, allClosed);
+      return allClosed;
+    },
+    [closedCategories, getRoom, roomToParents, spaceRooms]
+  );
+
+  /**
+   * Determines whether all parent categories are collapsed.
+   *
+   * @param spaceId - The root space ID.
+   * @param roomId - The room ID to start the check from.
+   * @returns True if every parent category is collapsed; false otherwise.
+   */
+  const getAllAncestorsCollapsed = (spaceId: string, roomId: string): boolean => {
+    const parentIds = roomToParents.get(roomId);
+
+    if (!parentIds || parentIds.size === 0) {
+      return false;
+    }
+
+    return !Array.from(parentIds).some((id) => !getInClosedCategories(spaceId, id, roomId));
+  };
+
+  const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
   const [draggingItem, setDraggingItem] = useState<HierarchyItem>();
   const hierarchy = useSpaceHierarchy(
     space.roomId,
     spaceRooms,
     getRoom,
     useCallback(
+      (_childId, _spaceId, depth) => depth >= subspaceHierarchyLimit,
+      [subspaceHierarchyLimit]
+    ),
+    useCallback(
       (childId) =>
-        closedCategories.has(makeLobbyCategoryId(space.roomId, childId)) ||
+        getInClosedCategories(space.roomId, childId) ||
         (draggingItem ? 'space' in draggingItem : false),
-      [closedCategories, space.roomId, draggingItem]
+      [draggingItem, getInClosedCategories, space.roomId]
     )
   );
 
@@ -298,7 +409,7 @@ export function Lobby() {
 
         // remove from current space
         if (item.parentId !== containerParentId) {
-          mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as any, {}, item.roomId);
+          await mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as any, {}, item.roomId);
         }
 
         if (
@@ -317,7 +428,7 @@ export function Lobby() {
               joinRuleContent.allow?.filter((allowRule) => allowRule.room_id !== item.parentId) ??
               [];
             allow.push({ type: RestrictedAllowType.RoomMembership, room_id: containerParentId });
-            mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as any, {
+            await mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as any, {
               ...joinRuleContent,
               allow,
             });
@@ -403,9 +514,18 @@ export function Lobby() {
     [setSpaceRooms]
   );
 
-  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
-    closedCategories.has(categoryId)
-  );
+  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) => {
+    const collapsed = closedCategories.has(categoryId);
+    const [spaceId, roomId] = getLobbyCategoryIdParts(categoryId);
+
+    // Prevent collapsing if all parents are collapsed
+    const toggleable = !getAllAncestorsCollapsed(spaceId, roomId);
+
+    if (toggleable) {
+      return collapsed;
+    }
+    return !collapsed;
+  });
 
   const handleOpenRoom: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const rId = evt.currentTarget.getAttribute('data-room-id');
@@ -424,6 +544,77 @@ export function Lobby() {
       mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
     },
     [mx, sidebarItems, sidebarSpaces]
+  );
+
+  const getPaddingTop = (vItem: VirtualItem) => {
+    if (vItem.index === 0) return 0;
+    const prevDepth = hierarchy[vItem.index - 1]?.space.depth ?? 0;
+    const { depth } = hierarchy[vItem.index].space;
+    if (depth !== 1 && depth >= prevDepth) return config.space.S200;
+    return config.space.S500;
+  };
+
+  const getConnectorSVG = useCallback(
+    (virtualizedItems: VirtualItem[]): ReactElement => {
+      const PADDING_LEFT_DEPTH_OFFSET = 15.75;
+      const PADDING_LEFT_DEPTH_OFFSET_START = -15;
+
+      let aY = 0;
+      // Holder for the paths
+      const pathHolder: ReactElement[] = [];
+      virtualizedItems.forEach((vItem) => {
+        const { depth } = hierarchy[vItem.index].space ?? {};
+
+        // We will render spaces at a level above their normal depth, since we want their children to be "under" them
+        // for the root items, we are not doing anything with it.
+        if (depth < 1) {
+          return;
+        }
+        // for the sub-root items, we will not draw any arcs from root to it.
+        // however, we should capture the aX and aY to draw starter arcs for next depths.
+        if (depth === 1) {
+          aY = vItem.end;
+          return;
+        }
+
+        const pathStrings: string[] = [];
+
+        for (let iDepth = 0; iDepth < depth; iDepth += 1) {
+          const X = iDepth * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START;
+
+          const bY = vItem.end;
+
+          pathStrings.push(`M ${X} ${aY} L ${X} ${bY}`);
+        }
+
+        pathHolder.push(
+          <path
+            d={pathStrings.join(' ')}
+            fill="none"
+            stroke={color.Surface.ContainerLine}
+            strokeWidth={config.borderWidth.B300}
+            display="block"
+          />
+        );
+
+        aY = vItem.end;
+      });
+
+      return (
+        <svg
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        >
+          {pathHolder}
+        </svg>
+      );
+    },
+    [hierarchy]
   );
 
   return (
@@ -467,45 +658,69 @@ export function Lobby() {
                       const item = hierarchy[vItem.index];
                       if (!item) return null;
                       const nextSpaceId = hierarchy[vItem.index + 1]?.space.roomId;
-
                       const categoryId = makeLobbyCategoryId(space.roomId, item.space.roomId);
+                      const inClosedCategory = getInClosedCategories(
+                        space.roomId,
+                        item.space.roomId
+                      );
+
+                      const paddingLeft = `calc((${item.space.depth} - 1) * ${config.space.S400})`;
 
                       return (
                         <VirtualTile
                           virtualItem={vItem}
                           style={{
-                            paddingTop: vItem.index === 0 ? 0 : config.space.S500,
+                            paddingTop: getPaddingTop(vItem),
+                            paddingLeft,
                           }}
                           ref={virtualizer.measureElement}
                           key={vItem.index}
                         >
-                          <SpaceHierarchy
-                            spaceItem={item.space}
-                            summary={spacesItems.get(item.space.roomId)}
-                            roomItems={item.rooms}
-                            allJoinedRooms={allJoinedRooms}
-                            mDirects={mDirects}
-                            roomsPowerLevels={roomsPowerLevels}
-                            categoryId={categoryId}
-                            closed={
-                              closedCategories.has(categoryId) ||
-                              (draggingItem ? 'space' in draggingItem : false)
-                            }
-                            handleClose={handleCategoryClick}
-                            draggingItem={draggingItem}
-                            onDragging={setDraggingItem}
-                            canDrop={canDrop}
-                            disabledReorder={reordering}
-                            nextSpaceId={nextSpaceId}
-                            getRoom={getRoom}
-                            pinned={sidebarSpaces.has(item.space.roomId)}
-                            togglePinToSidebar={togglePinToSidebar}
-                            onSpacesFound={handleSpacesFound}
-                            onOpenRoom={handleOpenRoom}
-                          />
+                          {item.space.depth !== subspaceHierarchyLimit ? (
+                            <SpaceHierarchyItem
+                              spaceItem={item.space}
+                              roomItems={item.rooms}
+                              summary={spacesItems.get(item.space.roomId)}
+                              allJoinedRooms={allJoinedRooms}
+                              mDirects={mDirects}
+                              roomsPowerLevels={roomsPowerLevels}
+                              categoryId={categoryId}
+                              closed={
+                                inClosedCategory || (draggingItem ? 'space' in draggingItem : false)
+                              }
+                              handleClose={handleCategoryClick}
+                              draggingItem={draggingItem}
+                              onDragging={setDraggingItem}
+                              canDrop={canDrop}
+                              disabledReorder={reordering}
+                              nextSpaceId={nextSpaceId}
+                              getRoom={getRoom}
+                              pinned={sidebarSpaces.has(item.space.roomId)}
+                              togglePinToSidebar={togglePinToSidebar}
+                              onSpacesFound={handleSpacesFound}
+                              onOpenRoom={handleOpenRoom}
+                            />
+                          ) : (
+                            <SpaceHierarchyNavItem
+                              spaceItem={item.space}
+                              summary={spacesItems.get(item.space.roomId)}
+                              allJoinedRooms={allJoinedRooms}
+                              roomsPowerLevels={roomsPowerLevels}
+                              categoryId={categoryId}
+                              draggingItem={draggingItem}
+                              onDragging={setDraggingItem}
+                              canDrop={canDrop}
+                              disabledReorder={reordering}
+                              nextSpaceId={nextSpaceId}
+                              pinned={sidebarSpaces.has(item.space.roomId)}
+                              togglePinToSidebar={togglePinToSidebar}
+                              getRoom={getRoom}
+                            />
+                          )}
                         </VirtualTile>
                       );
                     })}
+                    {getConnectorSVG(vItems)}
                   </div>
                   {reordering && (
                     <Box

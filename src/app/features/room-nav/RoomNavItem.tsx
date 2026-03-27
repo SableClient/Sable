@@ -343,6 +343,9 @@ export function RoomNavItem({
   };
 
   const optionsVisible = hover || !!menuAnchor;
+  const isMutedRoom = notificationMode === RoomNotificationMode.Mute;
+  const shouldShowUnreadIndicator = !isMutedRoom && (!!unread || hasRoomUnread);
+
   let unreadCount = 0;
   if (unread) {
     unreadCount = unread.highlight > 0 ? unread.highlight : unread.total;
@@ -368,7 +371,7 @@ export function RoomNavItem({
       <NavItem
         variant="Background"
         radii="400"
-        highlight={unread !== undefined || hasRoomUnread}
+        highlight={shouldShowUnreadIndicator}
         aria-selected={selected}
         data-hover={!!menuAnchor}
         onContextMenu={handleContextMenu}
@@ -425,7 +428,7 @@ export function RoomNavItem({
                   <TypingIndicator size="300" disableAnimation />
                 </Badge>
               )}
-              {!optionsVisible && (unread || hasRoomUnread) && (
+              {!optionsVisible && shouldShowUnreadIndicator && (
                 <UnreadBadgeCenter>
                   <UnreadBadge
                     highlight={!!unread && unread.highlight > 0}

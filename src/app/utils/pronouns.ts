@@ -4,8 +4,9 @@ export type PronounSet = {
   grammatical_gender?: string;
 };
 
-// helper function to convert a comma-separated pronouns string into an array of objects with summary and optional language
-export function parsePronounsInput(pronouns: string): { summary: string; language?: string }[] {
+export function parsePronounsInput(
+  pronouns?: string | null
+): { summary: string; language?: string }[] {
   if (!pronouns || typeof pronouns !== 'string') return [];
 
   return pronouns
@@ -17,61 +18,51 @@ export function parsePronounsInput(pronouns: string): { summary: string; languag
 
       if (parts.length === 1) {
         return {
-          summary: (parts[0] || '').slice(0, 16),
+          summary: (parts[0] ?? '').trim().slice(0, 16),
           language: 'en',
         };
       }
 
       const [language, summary] = parts;
-
       return {
-        language: (language || 'en').trim() || 'en',
-        summary: (summary || '').trim().slice(0, 16),
+        language: (language ?? 'en').trim().toLowerCase() || 'en',
+        summary: (summary ?? '').trim().slice(0, 16),
       };
     });
 }
 
-export function parsePronounsStringToPronounsSetArray(pronouns: string): PronounSet[] {
-  return parsePronounsInput(pronouns) as unknown as PronounSet[];
+export function parsePronounsStringToPronounsSetArray(pronouns?: string | null): PronounSet[] {
+  return parsePronounsInput(pronouns) as PronounSet[];
 }
 
-// helper function to filter a list of pronouns based on the user's language settings
 export function filterPronounsByLanguage(
-  pronouns: { summary: string; language?: string }[],
-  enabled: boolean,
-  languages: string[]
+  pronouns?: { summary: string; language?: string }[] | null,
+  enabled?: boolean,
+  languages?: (string | null | undefined)[]
 ): { summary: string; language?: string }[] {
   if (!Array.isArray(pronouns)) return [];
 
+  const sanitize = (p: { summary: string; language?: string }) => ({
+    ...p,
+    summary: (p?.summary ?? '').slice(0, 16),
+  });
+
   if (!enabled) {
-    return pronouns.map((p) => ({
-      ...p,
-      summary: (p?.summary || '').slice(0, 16),
-    }));
+    return pronouns.map(sanitize);
   }
 
-  const normalizedLanguages = (languages || [])
-    .filter(Boolean)
+  const normalizedLanguages = (languages ?? [])
+    .filter((lang): lang is string => typeof lang === 'string')
     .map((lang) => lang.trim().toLowerCase());
 
   const filteredPronouns = pronouns
     .filter((p) => {
-      const lang = (p?.language || 'en').trim().toLowerCase();
+      const lang = (p?.language ?? 'en').trim().toLowerCase();
       return normalizedLanguages.includes(lang);
     })
-    .map((p) => ({
-      ...p,
-      summary: (p?.summary || '').slice(0, 16),
-    }));
+    .map(sanitize);
 
-  if (filteredPronouns.length === 0) {
-    return pronouns.map((p) => ({
-      ...p,
-      summary: (p?.summary || '').slice(0, 16),
-    }));
-  }
-
-  return filteredPronouns;
+  return filteredPronouns.length > 0 ? filteredPronouns : pronouns.map(sanitize);
 }
 
 const pronounParseCache = new Map<
@@ -79,32 +70,32 @@ const pronounParseCache = new Map<
   { cleanedDisplayName: string; inlinePronoun: string | null }
 >();
 
-export function getParsedPronouns(rawName: string, parseSetting: boolean) {
-  if (!parseSetting || !rawName) {
-    return { cleanedDisplayName: rawName, inlinePronoun: null };
+export function getParsedPronouns(rawName?: string | null, parseSetting?: boolean) {
+  if (!parseSetting || !rawName || typeof rawName !== 'string') {
+    return { cleanedDisplayName: rawName ?? '', inlinePronoun: null };
   }
 
-  if (pronounParseCache.has(rawName)) {
-    return pronounParseCache.get(rawName)!;
-  }
+  const cached = pronounParseCache.get(rawName);
+  if (cached) return cached;
 
-  // match text like (she/her) or [he/they/them] but not (hi)
-  const regex = /[([]?([a-zA-Z]+\/[a-zA-Z]+(?:\/[a-zA-Z]+)?)[)\]]?/;
+  const regex =
+    /(?:\(([a-zA-Z]+\/[a-zA-Z]+(?:\/[a-zA-Z]+)?)\)|\[([a-zA-Z]+\/[a-zA-Z]+(?:\/[a-zA-Z]+)?)\])/;
   const match = rawName.match(regex);
 
   let result: { cleanedDisplayName: string; inlinePronoun: string | null } = {
-    cleanedDisplayName: rawName,
+    cleanedDisplayName: rawName.trim(),
     inlinePronoun: null,
   };
 
   if (match) {
-    let strippedName = rawName.replace(match[0], '').trim();
-    if (!strippedName || strippedName === '') {
-      strippedName = rawName;
-    }
+    const fullMatch = match[0];
+    const capturedPronoun = (match[1] ?? match[2] ?? '').toLowerCase().slice(0, 16);
+
+    const strippedName = rawName.replace(fullMatch, '').trim();
+
     result = {
-      cleanedDisplayName: strippedName,
-      inlinePronoun: match[1].toLowerCase().slice(0, 16),
+      cleanedDisplayName: strippedName || rawName,
+      inlinePronoun: capturedPronoun || null,
     };
   }
 

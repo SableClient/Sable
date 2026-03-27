@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="2451.377"
+   height="2451.377"
+   viewBox="0 0 2451.377 2451.377"
+   version="1.1"
+   xml:space="preserve"
+   style="clip-rule:evenodd;fill-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5"
+   id="svg2"
+   sodipodi:docname="apple-touch-icon.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+   id="namedview1"
+   pagecolor="#ffffff"
+   bordercolor="#000000"
+   borderopacity="0.25"
+   inkscape:showpageshadow="2"
+   inkscape:pageopacity="0.0"
+   inkscape:pagecheckerboard="0"
+   inkscape:deskcolor="#d1d1d1"
+   inkscape:zoom="0.47932245"
+   inkscape:cx="1225.6885"
+   inkscape:cy="1380.0731"
+   inkscape:window-width="2560"
+   inkscape:window-height="1377"
+   inkscape:window-x="0"
+   inkscape:window-y="0"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="layer1" /><defs
+   id="defs2" />
+    <g
+   inkscape:groupmode="layer"
+   id="layer1"
+   inkscape:label="background"
+   style="clip-rule:evenodd;fill-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;display:inline"
+   transform="translate(-4.9778005e-6)"><rect
+     style="clip-rule:evenodd;fill-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;fill:#1a1c28;stroke-width:1.00157"
+     id="rect1"
+     width="2530.6555"
+     height="2539.0002"
+     x="-58.415791"
+     y="-66.760902"
+     transform="translate(4.9778005e-6)" /></g><g
+   id="Layer1"
+   style="display:inline"
+   transform="translate(-91.78964,-37.013267)">
+        
+        <g
+   transform="matrix(4.26739,0,0,4.26739,-3874.25,-3551.54)"
+   id="g2">
+            <path
+   d="m 1048.38,1342.19 c -121.447,14.2738 -231.68198,2.0248 -231.68198,-84.6652 0,-13.91 61.20018,-117.1054 130.63298,-169.8648 25.029,-16.21 47.575,-28.28 68.139,-42.84 38.87,-27.54 38.87,-87.474 115.01,-87.474 58.31,0 79,37.463 129.58,69.654 35.6,22.65 92.2,13.47 226.32,85.85 l 0.01,0.08 c -139.04,-51.92 -221.72,-53.49 -237.67,-50.3 -32.39,6.48 -92.02,49.61 -83.44,140.17 6.14,64.88 -39.29,124.88 -116.9,139.39 z m 105.61,-358.258 c -9.78,0 -17.72,7.939 -17.72,17.718 0,9.78 7.94,17.72 17.72,17.72 9.77,0 17.71,-7.94 17.71,-17.72 0,-9.779 -7.94,-17.718 -17.71,-17.718 z"
+   style="fill:#ad9eff;fill-opacity:1"
+   id="path1" />
+        </g>
+    </g>
+</svg>

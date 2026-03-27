@@ -38,6 +38,8 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nicknamesAtom } from '$state/nicknames';
 import { MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
@@ -255,6 +257,7 @@ function ThreadMessage({
             room={room}
             timelineSet={timelineSet}
             replyEventId={replyEventId}
+            mentions={baseContent['m.mentions']}
             onClick={onReferenceClick}
           />
         )
@@ -393,6 +396,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     [mx, room, mentionClickHandler, nicknames]
   );
 
+  const abbrMap = useRoomAbbreviationsContext();
+
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
@@ -401,8 +406,18 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
       }),
-    [mx, room, linkifyOpts, spoilerClickHandler, mentionClickHandler, useAuthentication, nicknames]
+    [
+      mx,
+      room,
+      linkifyOpts,
+      spoilerClickHandler,
+      mentionClickHandler,
+      useAuthentication,
+      nicknames,
+      abbrMap,
+    ]
   );
 
   // Power levels & permissions
@@ -428,13 +443,25 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const rootEvent = room.findEventById(threadRootId);
 
-  // When the drawer is opened with classic sync, room.createThread() may have
-  // been called with empty initialEvents so thread.events only has the root.
-  // Backfill events from the main room timeline into the Thread object so the
-  // authoritative source is populated for subsequent renders and receipts.
+  // When the drawer is opened with classic sync (no server-side thread support),
+  // room.createThread() may have been called with empty initialEvents so
+  // thread.events only has the root.  Backfill events from the main room
+  // timeline so the authoritative source is populated for subsequent renders.
+  //
+  // IMPORTANT: skip this backfill when server-side thread support is active
+  // (initialEventsFetched starts false).  In that case the SDK will call
+  // updateThreadMetadata() → resetLiveTimeline() + paginateEventTimeline()
+  // automatically.  Calling thread.addEvents() ourselves first would trigger
+  // that same cascade prematurely and cause a flood of
+  // "EventTimelineSet.addEventToTimeline: Ignoring event=…" warnings because
+  // canContain() fails while the timeline is in the middle of being reset and
+  // repopulated.
   useEffect(() => {
     const thread = room.getThread(threadRootId);
     if (!thread) return;
+    // initialEventsFetched === false  ↔  Thread.hasServerSideSupport is set.
+    // The SDK handles initialization itself; our manual backfill must not run.
+    if (!thread.initialEventsFetched) return;
     const hasRepliesInThread = thread.events.some(
       (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );

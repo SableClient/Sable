@@ -53,6 +53,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
           gap="400"
           {...props}
           ref={ref}
+          style={{ zIndex: 9 }}
         >
           <TypingIndicator />
           <Text className={css.TypingText} size="T300" truncate>

@@ -24,6 +24,7 @@ export enum AccountDataEvent {
 
   // because of a mistake hasn't been renamed in time
   SablePerProfileMessageProfiles = 'fyi.cisnt.permessageprofile',
+  SableSettings = 'moe.sable.app.settings',
 }
 
 export type MDirectContent = Record<string, string[]>;

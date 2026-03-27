@@ -25,6 +25,8 @@
 }
 
 .dark-theme,
+.black-theme,
+.cinny-dark-theme,
 .butter-theme {
   --tc-link: hsl(213deg 100% 80%);
 

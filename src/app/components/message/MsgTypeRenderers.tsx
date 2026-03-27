@@ -121,6 +121,12 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
 
   const isJumbo = useMemo(() => {
     if (!trimmedBody || trimmedBody.length >= 500) return false;
+    if (
+      (unwrappedPerMessageProfileMessage ?? safeCustomBody)?.match(
+        /^(<img[^>]*data-mx-emoticon[^>]*\/>){1,20}$/i
+      )
+    )
+      return true;
     if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
@@ -129,7 +135,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     }
 
     return true;
-  }, [trimmedBody, safeCustomBody]);
+  }, [unwrappedPerMessageProfileMessage, trimmedBody, safeCustomBody]);
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
@@ -139,7 +145,11 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
     return (
-      <MessageTextBody preWrap={typeof customBody !== 'string'} style={style}>
+      <MessageTextBody
+        preWrap={typeof customBody !== 'string'}
+        style={style}
+        jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
+      >
         {renderBody({
           body: trimmedBody,
           customBody: unwrappedPerMessageProfileMessage,

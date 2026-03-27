@@ -83,7 +83,6 @@ describe('filterPronounsByLanguage', () => {
   });
 
   it('returns empty array for non-array input', () => {
-    // @ts-expect-error — testing runtime safety
     expect(filterPronounsByLanguage(null, true, ['en'])).toEqual([]);
   });
 });

@@ -27,7 +27,7 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder } from './url-preview';
+import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -43,6 +43,7 @@ type RenderMessageContentProps = {
   getContent: <T>() => T;
   mediaAutoLoad?: boolean;
   urlPreview?: boolean;
+  clientUrlPreview?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
@@ -68,6 +69,7 @@ function RenderMessageContentInternal({
   getContent,
   mediaAutoLoad,
   urlPreview,
+  clientUrlPreview,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
@@ -112,13 +114,22 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => (
-            <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />
-          ))}
+          {toRender.map(({ url, type }) => {
+            if (type) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+            }
+            if (clientUrlPreview && youtubeUrl(url)) {
+              return <ClientPreview url={url} />;
+            }
+            if (urlPreview) {
+              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+            }
+            return null;
+          })}
         </UrlPreviewHolder>
       );
     },
-    [ts]
+    [ts, clientUrlPreview, urlPreview]
   );
 
   const renderCaption = () => {

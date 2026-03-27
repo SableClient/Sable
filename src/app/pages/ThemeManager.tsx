@@ -12,6 +12,9 @@ import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 
+const getPrismCompatibilityClass = (kind: ThemeKind) =>
+  kind === ThemeKind.Dark ? 'prism-dark' : 'prism-light';
+
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
@@ -24,6 +27,7 @@ export function UnAuthRouteThemeManager() {
     if (systemThemeKind === ThemeKind.Light) {
       document.body.classList.add(...LightTheme.classNames);
     }
+    document.body.classList.add(getPrismCompatibilityClass(systemThemeKind));
   }, [systemThemeKind]);
 
   return <ArboriumThemeBridge kind={systemThemeKind} />;
@@ -39,6 +43,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
     document.body.classList.add(...activeTheme.classNames);
+    document.body.classList.add(getPrismCompatibilityClass(activeTheme.kind));
 
     if (underlineLinks) {
       document.body.classList.add('force-underline-links');

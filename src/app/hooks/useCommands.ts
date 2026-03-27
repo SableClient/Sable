@@ -562,7 +562,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       [Command.UsePerMessageProfile]: {
         name: Command.UsePerMessageProfile,
         description:
-          'Use a per message profile for this room once, or until reset. Example: /usepmp [profileId,reset]',
+          'Use a per message profile for this room once, or until reset. Example: /usepmp (profileId,reset) [-o,-u,-g] [ts]',
         exe: async (payload) => {
           const args = USEPMP_REGEX.exec(payload);
           if (!args) {

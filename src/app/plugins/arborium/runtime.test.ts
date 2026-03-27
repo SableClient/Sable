@@ -45,6 +45,103 @@ describe('highlightCode', () => {
     expect(highlight).toHaveBeenCalledWith('typescript', 'const value = 1;');
   });
 
+  it('maps jsx to tsx when Arborium supports tsx', async () => {
+    const normalizeLanguage = vi.fn((language: string) => language);
+    const detectLanguage = vi.fn(() => null);
+    const highlight = vi.fn(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
+    const module = {
+      normalizeLanguage,
+      detectLanguage,
+      highlight,
+      availableLanguages: ['tsx', 'html'],
+    } as unknown as ArboriumModule;
+    const loadModule = vi.fn(async () => module);
+
+    const { highlightCode } = await import('.');
+
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<div />',
+        language: 'jsx',
+        allowDetect: false,
+      },
+      { loadModule }
+    );
+
+    expect(result).toEqual({
+      mode: 'highlighted',
+      html: '<pre data-language="tsx"><div /></pre>',
+      language: 'tsx',
+    });
+    expect(normalizeLanguage).toHaveBeenCalledWith('tsx');
+    expect(detectLanguage).not.toHaveBeenCalled();
+    expect(highlight).toHaveBeenCalledWith('tsx', '<div />');
+  });
+
+  it('maps markup to html when Arborium supports html', async () => {
+    const normalizeLanguage = vi.fn((language: string) => language);
+    const detectLanguage = vi.fn(() => null);
+    const highlight = vi.fn(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
+    const module = {
+      normalizeLanguage,
+      detectLanguage,
+      highlight,
+      availableLanguages: ['tsx', 'html'],
+    } as unknown as ArboriumModule;
+    const loadModule = vi.fn(async () => module);
+
+    const { highlightCode } = await import('.');
+
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<p>hello</p>',
+        language: 'markup',
+        allowDetect: false,
+      },
+      { loadModule }
+    );
+
+    expect(result).toEqual({
+      mode: 'highlighted',
+      html: '<pre data-language="html"><p>hello</p></pre>',
+      language: 'html',
+    });
+    expect(normalizeLanguage).toHaveBeenCalledWith('html');
+    expect(detectLanguage).not.toHaveBeenCalled();
+    expect(highlight).toHaveBeenCalledWith('html', '<p>hello</p>');
+  });
+
+  it.each(['txt', 'plaintext', 'plain', 'text', 'log', 'csv', 'makefile', 'make'])(
+    'returns plain fallback for %s without loading Arborium',
+    async (language) => {
+      const loadModule = vi.fn(async () => {
+        throw new Error('should not load');
+      });
+
+      const { highlightCode } = await import('.');
+
+      const result: HighlightResult = await highlightCode(
+        {
+          code: 'hello, world',
+          language,
+          allowDetect: false,
+        },
+        { loadModule }
+      );
+
+      expect(result).toEqual({
+        mode: 'plain',
+        html: 'hello, world',
+        language,
+      });
+      expect(loadModule).not.toHaveBeenCalled();
+    }
+  );
+
   it('does not detect a language when allowDetect is false', async () => {
     const normalizeLanguage = vi.fn((language: string) => language);
     const detectLanguage = vi.fn(() => 'javascript');

@@ -1,4 +1,24 @@
 type ArboriumModule = typeof import('@arborium/arborium');
+type ArboriumModuleWithAvailability = ArboriumModule & {
+  availableLanguages?: string[];
+  isLanguageAvailable?: (language: string) => boolean | Promise<boolean>;
+};
+
+const PLAIN_LANGUAGES = new Set([
+  'txt',
+  'plaintext',
+  'plain',
+  'text',
+  'log',
+  'csv',
+  'makefile',
+  'make',
+]);
+
+const LANGUAGE_COMPATIBILITY: Record<string, string> = {
+  jsx: 'tsx',
+  markup: 'html',
+};
 
 export interface HighlightCodeInput {
   code: string;
@@ -37,6 +57,35 @@ function plainResult(code: string, language?: string): HighlightResult {
   return result;
 }
 
+function resolveCompatibleLanguage(language: string): string | null {
+  const lowerLanguage = language.toLowerCase();
+
+  if (PLAIN_LANGUAGES.has(lowerLanguage)) {
+    return null;
+  }
+
+  return LANGUAGE_COMPATIBILITY[lowerLanguage] ?? language;
+}
+
+async function isLanguageAvailable(
+  arborium: ArboriumModuleWithAvailability,
+  language: string
+): Promise<boolean> {
+  if (Array.isArray(arborium.availableLanguages)) {
+    return arborium.availableLanguages.includes(language);
+  }
+
+  if (typeof arborium.isLanguageAvailable === 'function') {
+    try {
+      return await arborium.isLanguageAvailable(language);
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 async function loadArborium(
   loadModule?: () => Promise<ArboriumModule>
 ): Promise<ArboriumModule | null> {
@@ -60,6 +109,43 @@ export async function highlightCode(
   deps?: HighlightCodeDeps
 ): Promise<HighlightResult> {
   const { loadModule } = deps ?? {};
+  if (language) {
+    const compatibleLanguage = resolveCompatibleLanguage(language);
+    if (!compatibleLanguage) {
+      return plainResult(code, language);
+    }
+
+    const arborium = await loadArborium(loadModule);
+    if (!arborium) {
+      return plainResult(code, language);
+    }
+
+    let resolvedLanguage: string;
+    try {
+      resolvedLanguage = arborium.normalizeLanguage(compatibleLanguage);
+    } catch {
+      return plainResult(code, language);
+    }
+
+    if (!(await isLanguageAvailable(arborium, resolvedLanguage))) {
+      return plainResult(code, language);
+    }
+
+    try {
+      const html = await arborium.highlight(resolvedLanguage, code);
+      if (html === escapeHtml(code)) {
+        return plainResult(code, resolvedLanguage);
+      }
+      return {
+        mode: 'highlighted',
+        html,
+        language: resolvedLanguage,
+      };
+    } catch {
+      return plainResult(code, resolvedLanguage);
+    }
+  }
+
   const arborium = await loadArborium(loadModule);
   if (!arborium) {
     return plainResult(code, language ?? undefined);
@@ -67,13 +153,7 @@ export async function highlightCode(
 
   let resolvedLanguage: string | null = null;
 
-  if (language) {
-    try {
-      resolvedLanguage = arborium.normalizeLanguage(language);
-    } catch {
-      return plainResult(code, language ?? undefined);
-    }
-  } else if (allowDetect) {
+  if (allowDetect) {
     try {
       const detectedLanguage = arborium.detectLanguage(code);
       if (detectedLanguage) {

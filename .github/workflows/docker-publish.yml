@@ -70,9 +70,14 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            # dev/integration branch or manual dispatch without a tag: short commit SHA + latest
+            # dev/integration branch or manual dispatch without a tag: short commit SHA
             type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/integration' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/integration' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
+
+            # dev branch or manual dispatch without a tag: latest tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && inputs.git_tag == '') }}
+
+            # integration branch: stable integration tag
+            type=raw,value=integration,enable=${{ github.ref == 'refs/heads/integration' }}
 
             # git tags (push or manual dispatch with a tag): semver breakdown
             type=semver,pattern={{version}},value=${{ steps.release_tag.outputs.value }},enable=${{ steps.release_tag.outputs.is_release == 'true' }}

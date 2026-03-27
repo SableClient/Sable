@@ -1,13 +1,5 @@
 /* eslint-disable jsx-a11y/alt-text */
-import {
-  ComponentPropsWithoutRef,
-  lazy,
-  ReactEventHandler,
-  ReactNode,
-  Suspense,
-  useMemo,
-  useState,
-} from 'react';
+import { ComponentPropsWithoutRef, ReactEventHandler, ReactNode, useMemo, useState } from 'react';
 import {
   attributesToProps,
   domToReact,
@@ -20,7 +12,6 @@ import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
 import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
-import { ErrorBoundary } from 'react-error-boundary';
 import { ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
 import {
@@ -37,6 +28,7 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
@@ -44,8 +36,6 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
-
-const ReactPrism = lazy(() => import('./react-prism/ReactPrism'));
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
 
@@ -241,20 +231,40 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
   return text;
 };
 
+const getLanguageFromClassName = (className?: string): string | undefined => {
+  if (!className) return undefined;
+
+  return className
+    .split(/\s+/)
+    .find((token) => token.startsWith('language-'))
+    ?.replace('language-', '');
+};
+
+const getCodeBlockLanguage = (
+  children: ChildNode[],
+  attribs?: Record<string, string | undefined>
+): string | undefined => {
+  const code = children[0];
+  const codeAttribs = code instanceof Element && code.name === 'code' ? code.attribs : undefined;
+
+  return (
+    codeAttribs?.['data-lang'] ??
+    attribs?.['data-lang'] ??
+    getLanguageFromClassName(codeAttribs?.class) ??
+    getLanguageFromClassName(attribs?.class)
+  );
+};
+
 export function CodeBlock({
   children,
+  attribs,
   opts,
 }: {
   children: ChildNode[];
+  attribs?: Record<string, string | undefined>;
   opts: HTMLReactParserOptions;
 }) {
-  const code = children[0];
-  const languageClass =
-    code instanceof Element && code.name === 'code' ? code.attribs.class : undefined;
-  const language =
-    languageClass && languageClass.startsWith('language-')
-      ? languageClass.replace('language-', '')
-      : languageClass;
+  const language = getCodeBlockLanguage(children, attribs);
 
   const LINE_LIMIT = 14;
   const largeCodeBlock = useMemo(
@@ -434,7 +444,11 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'pre') {
-          return <CodeBlock opts={opts}>{children}</CodeBlock>;
+          return (
+            <CodeBlock attribs={attribs} opts={opts}>
+              {children}
+            </CodeBlock>
+          );
         }
 
         if (name === 'blockquote') {
@@ -462,33 +476,25 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'code') {
           if (parent && 'name' in parent && parent.name === 'pre') {
-            const codeReact = renderChildren();
-            if (typeof codeReact === 'string') {
-              let lang = typeof props.className === 'string' ? props.className : undefined;
-              if (lang === 'language-rs') lang = 'language-rust';
-              else if (lang === 'language-js') lang = 'language-javascript';
-              else if (lang === 'language-ts') lang = 'language-typescript';
-              return (
-                <ErrorBoundary fallback={<code {...props}>{codeReact}</code>}>
-                  <Suspense fallback={<code {...props}>{codeReact}</code>}>
-                    <ReactPrism>
-                      {(ref) => (
-                        <code ref={ref} {...props} className={lang}>
-                          {codeReact}
-                        </code>
-                      )}
-                    </ReactPrism>
-                  </Suspense>
-                </ErrorBoundary>
-              );
-            }
-          } else {
+            const language = getCodeBlockLanguage(
+              [domNode],
+              parent instanceof Element ? parent.attribs : undefined
+            );
             return (
-              <Text as="code" size="T300" className={css.Code} {...props}>
-                {renderChildren()}
-              </Text>
+              <CodeHighlightRenderer
+                code={extractTextFromChildren(children)}
+                language={language}
+                allowDetect={false}
+                className={typeof props.className === 'string' ? props.className : undefined}
+              />
             );
           }
+
+          return (
+            <Text as="code" size="T300" className={css.Code} {...props}>
+              {renderChildren()}
+            </Text>
+          );
         }
 
         if (name === 'a' && typeof props.href === 'string') {

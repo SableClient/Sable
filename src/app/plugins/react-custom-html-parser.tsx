@@ -476,13 +476,18 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'code') {
           if (parent && 'name' in parent && parent.name === 'pre') {
+            const codeContent = renderChildren();
+            if (typeof codeContent !== 'string') {
+              return undefined;
+            }
+
             const language = getCodeBlockLanguage(
               parent instanceof Element ? parent.children : [],
               parent instanceof Element ? parent.attribs : undefined
             );
             return (
               <CodeHighlightRenderer
-                code={extractTextFromChildren(children)}
+                code={codeContent}
                 language={language}
                 allowDetect={false}
                 className={typeof props.className === 'string' ? props.className : undefined}

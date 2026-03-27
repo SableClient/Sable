@@ -50,7 +50,7 @@ const renderMessage = (html: string) =>
 
 describe('getReactCustomHtmlParser code blocks', () => {
   it('renders the Arborium renderer inside the existing code block shell for explicit data-lang metadata', () => {
-    renderMessage(
+    const { container } = renderMessage(
       `<pre>\n  <code data-lang="rust">fn main() {\nlet value = 1;\nlet next = 2;\nlet third = 3;\nlet fourth = 4;\nlet fifth = 5;\nlet sixth = 6;\nlet seventh = 7;\nlet eighth = 8;\nlet ninth = 9;\nlet tenth = 10;\nlet eleventh = 11;\nlet twelfth = 12;\nlet thirteenth = 13;\nlet fourteenth = 14;\nlet fifteenth = 15;\n}</code>\n</pre>`
     );
 
@@ -58,7 +58,8 @@ describe('getReactCustomHtmlParser code blocks', () => {
     expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Expand' })).toBeInTheDocument();
 
-    const arboriumCode = screen.getByTestId('arborium-code');
+    const arboriumCode = container.querySelector('[data-testid="arborium-code"]');
+    expect(arboriumCode).toBeInTheDocument();
     expect(arboriumCode).toHaveTextContent('fn main()');
     expect(arboriumCode).toHaveAttribute('data-language', 'rust');
     expect(arboriumCode).toHaveAttribute('data-allow-detect', 'false');
@@ -70,6 +71,27 @@ describe('getReactCustomHtmlParser code blocks', () => {
       }),
       expect.anything()
     );
+  });
+
+  it('preserves nested code children instead of routing them through Arborium', () => {
+    const { container } = renderMessage(`<pre>\n  <code>alpha<br />beta</code>\n</pre>`);
+
+    expect(screen.getByText('Code')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(CodeHighlightRenderer).not.toHaveBeenCalled();
+    expect(container.querySelector('br')).toBeInTheDocument();
+    expect(container.querySelector('code')).toHaveTextContent('alphabeta');
+  });
+
+  it('uses data-lang on the pre element when the nested code element has no metadata', () => {
+    renderMessage(`<pre data-lang="rust"><code>fn main() {}</code></pre>`);
+
+    expect(screen.getByText('rust')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+
+    const shell = screen.getByTestId('arborium-code');
+    expect(shell).toHaveTextContent('fn main() {}');
+    expect(shell).toHaveAttribute('data-language', 'rust');
   });
 
   it('falls back to the language class when no explicit data-lang metadata is present', () => {

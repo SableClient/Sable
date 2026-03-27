@@ -4,17 +4,6 @@ type ArboriumModuleWithAvailability = ArboriumModule & {
   isLanguageAvailable?: (language: string) => boolean | Promise<boolean>;
 };
 
-const PLAIN_LANGUAGES = new Set([
-  'txt',
-  'plaintext',
-  'plain',
-  'text',
-  'log',
-  'csv',
-  'makefile',
-  'make',
-]);
-
 const LANGUAGE_COMPATIBILITY: Record<string, string> = {
   jsx: 'tsx',
   markup: 'html',
@@ -57,14 +46,8 @@ function plainResult(code: string, language?: string): HighlightResult {
   return result;
 }
 
-function resolveCompatibleLanguage(language: string): string | null {
-  const lowerLanguage = language.toLowerCase();
-
-  if (PLAIN_LANGUAGES.has(lowerLanguage)) {
-    return null;
-  }
-
-  return LANGUAGE_COMPATIBILITY[lowerLanguage] ?? language;
+function resolveCompatibleLanguage(language: string): string {
+  return LANGUAGE_COMPATIBILITY[language.toLowerCase()] ?? language;
 }
 
 async function isLanguageAvailable(
@@ -111,10 +94,6 @@ export async function highlightCode(
   const { loadModule } = deps ?? {};
   if (language) {
     const compatibleLanguage = resolveCompatibleLanguage(language);
-    if (!compatibleLanguage) {
-      return plainResult(code, language);
-    }
-
     const arborium = await loadArborium(loadModule);
     if (!arborium) {
       return plainResult(code, language);
@@ -165,6 +144,10 @@ export async function highlightCode(
   }
 
   if (!resolvedLanguage) {
+    return plainResult(code, language ?? undefined);
+  }
+
+  if (!(await isLanguageAvailable(arborium, resolvedLanguage))) {
     return plainResult(code, language ?? undefined);
   }
 

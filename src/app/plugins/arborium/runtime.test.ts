@@ -116,11 +116,29 @@ describe('highlightCode', () => {
   });
 
   it.each(['txt', 'plaintext', 'plain', 'text', 'log', 'csv', 'makefile', 'make'])(
-    'returns plain fallback for %s without loading Arborium',
+    'returns plain fallback for %s when Arborium reports it unavailable',
     async (language) => {
-      const loadModule = vi.fn(async () => {
-        throw new Error('should not load');
+      const normalizeLanguage = vi.fn((nextLanguage: string) => {
+        if (nextLanguage === 'txt' || nextLanguage === 'plaintext' || nextLanguage === 'plain') {
+          return 'text';
+        }
+        if (nextLanguage === 'makefile') {
+          return 'make';
+        }
+        return nextLanguage;
       });
+      const detectLanguage = vi.fn(() => null);
+      const highlight = vi.fn(async () => '<pre data-language="unexpected"></pre>');
+      const isLanguageAvailable = vi.fn(
+        async (nextLanguage: string) => !['text', 'log', 'csv', 'make'].includes(nextLanguage)
+      );
+      const module = {
+        normalizeLanguage,
+        detectLanguage,
+        highlight,
+        isLanguageAvailable,
+      } as unknown as ArboriumModule;
+      const loadModule = vi.fn(async () => module);
 
       const { highlightCode } = await import('.');
 
@@ -138,7 +156,9 @@ describe('highlightCode', () => {
         html: 'hello, world',
         language,
       });
-      expect(loadModule).not.toHaveBeenCalled();
+      expect(loadModule).toHaveBeenCalledOnce();
+      expect(normalizeLanguage).toHaveBeenCalledWith(language);
+      expect(highlight).not.toHaveBeenCalled();
     }
   );
 

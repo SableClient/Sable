@@ -23,9 +23,9 @@ type ArboriumThemeBridgeProps = {
   children?: ReactNode;
 };
 
-const baseHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/themes/base-rustdoc.css`;
-const darkHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/themes/one-dark.css`;
-const lightHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/themes/github-light.css`;
+const baseHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/base-rustdoc.css`;
+const darkHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/one-dark.css`;
+const lightHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/github-light.css`;
 
 const baseLinkId = 'arborium-base';
 const themeLinkId = 'arborium-theme';

@@ -32,14 +32,12 @@ describe('TextViewer', () => {
       <TextViewer name="notes.txt" text={'line 1\nline 2'} langName="txt" requestClose={vi.fn()} />
     );
 
-    expect(CodeHighlightRenderer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: 'line 1\nline 2',
-        language: 'txt',
-        allowDetect: true,
-      }),
-      {}
-    );
+    expect(CodeHighlightRenderer).toHaveBeenCalled();
+    expect(CodeHighlightRenderer.mock.calls[0]?.[0]).toMatchObject({
+      code: 'line 1\nline 2',
+      language: 'txt',
+      allowDetect: true,
+    });
 
     await user.click(screen.getByText('Copy All'));
 

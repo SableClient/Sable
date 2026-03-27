@@ -1,4 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CodeHighlightRenderer } from '.';
 
@@ -11,6 +13,18 @@ vi.mock('$plugins/arborium', () => ({
   highlightCode,
   useArboriumThemeStatus,
 }));
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -84,5 +98,51 @@ describe('CodeHighlightRenderer', () => {
     });
 
     expect(code?.innerHTML).toBe('const value = 1;');
+  });
+
+  it('renders plain new code immediately while a new highlight request is pending', async () => {
+    const firstHighlight = deferred<{
+      mode: 'highlighted';
+      html: string;
+      language: string;
+    }>();
+    const secondHighlight = deferred<{
+      mode: 'highlighted';
+      html: string;
+      language: string;
+    }>();
+
+    highlightCode
+      .mockReturnValueOnce(firstHighlight.promise)
+      .mockReturnValueOnce(secondHighlight.promise);
+    useArboriumThemeStatus.mockReturnValue({ ready: true });
+
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+
+    flushSync(() => {
+      root.render(<CodeHighlightRenderer code="const alpha = 1;" language="ts" allowDetect />);
+    });
+
+    firstHighlight.resolve({
+      mode: 'highlighted',
+      html: '<span class="token keyword">const</span> alpha = 1;',
+      language: 'typescript',
+    });
+
+    await waitFor(() => {
+      expect(host.querySelector('code')?.innerHTML).toContain('alpha');
+    });
+
+    flushSync(() => {
+      root.render(<CodeHighlightRenderer code="const beta = 2;" language="ts" allowDetect />);
+    });
+
+    expect(host.querySelector('code')?.innerHTML).toBe('const beta = 2;');
+    expect(host.querySelector('code')).not.toContainHTML('alpha');
+
+    root.unmount();
+    host.remove();
   });
 });

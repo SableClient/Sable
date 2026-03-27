@@ -9,10 +9,16 @@ type CodeHighlightRendererProps = {
   className?: string;
 };
 
-type RenderResult = HighlightResult;
+type RenderState = {
+  key: string;
+  result: HighlightResult;
+};
 
-const createPlainResult = (code: string, language?: string): RenderResult => {
-  const result: RenderResult = {
+const createRequestKey = (code: string, language?: string, allowDetect = false) =>
+  JSON.stringify([code, language ?? null, allowDetect]);
+
+const createPlainResult = (code: string, language?: string): HighlightResult => {
+  const result: HighlightResult = {
     mode: 'plain',
     html: code,
   };
@@ -31,35 +37,40 @@ export function CodeHighlightRenderer({
   className,
 }: CodeHighlightRendererProps) {
   const { ready } = useArboriumThemeStatus();
-  const [result, setResult] = useState<RenderResult>(() => createPlainResult(code, language));
+  const requestKey = createRequestKey(code, language, allowDetect);
+  const [state, setState] = useState<RenderState>(() => ({
+    key: requestKey,
+    result: createPlainResult(code, language),
+  }));
 
   useEffect(() => {
     let cancelled = false;
 
-    setResult(createPlainResult(code, language));
+    setState({
+      key: requestKey,
+      result: createPlainResult(code, language),
+    });
 
-    highlightCode({ code, language, allowDetect })
-      .then((next) => {
-        if (!cancelled) {
-          setResult(next);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResult(createPlainResult(code, language));
-        }
-      });
+    highlightCode({ code, language, allowDetect }).then((next) => {
+      if (!cancelled) {
+        setState({
+          key: requestKey,
+          result: next,
+        });
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [code, language, allowDetect]);
+  }, [code, language, allowDetect, requestKey]);
 
-  if (!ready || result.mode === 'plain') {
+  const currentResult = state.key === requestKey ? state.result : createPlainResult(code, language);
+
+  if (!ready || currentResult.mode === 'plain') {
     return <code className={className}>{code}</code>;
   }
 
-  // Arborium HTML is only rendered after both highlight and theme CSS are ready.
   /* eslint-disable-next-line react/no-danger */
-  return <code className={className} dangerouslySetInnerHTML={{ __html: result.html }} />;
+  return <code className={className} dangerouslySetInnerHTML={{ __html: currentResult.html }} />;
 }

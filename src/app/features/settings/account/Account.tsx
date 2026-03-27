@@ -7,11 +7,12 @@ import { ContactInformation } from './ContactInfo';
 import { IgnoredUserList } from './IgnoredUserList';
 
 type AccountProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Account({ requestClose }: AccountProps) {
+export function Account({ requestBack, requestClose }: AccountProps) {
   return (
-    <SettingsSectionPage title="Account" requestClose={requestClose}>
+    <SettingsSectionPage title="Account" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>

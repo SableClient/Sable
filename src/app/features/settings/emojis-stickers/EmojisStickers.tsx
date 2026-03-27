@@ -8,9 +8,10 @@ import { GlobalPacks } from './GlobalPacks';
 import { UserPack } from './UserPack';
 
 type EmojisStickersProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function EmojisStickers({ requestClose }: EmojisStickersProps) {
+export function EmojisStickers({ requestBack, requestClose }: EmojisStickersProps) {
   const [imagePack, setImagePack] = useState<ImagePack>();
 
   const handleImagePackViewClose = () => {
@@ -22,7 +23,11 @@ export function EmojisStickers({ requestClose }: EmojisStickersProps) {
   }
 
   return (
-    <SettingsSectionPage title="Emojis & Stickers" requestClose={requestClose}>
+    <SettingsSectionPage
+      title="Emojis & Stickers"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>

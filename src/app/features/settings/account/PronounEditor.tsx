@@ -32,6 +32,7 @@ export function PronounEditor({ title, current, onSave, disabled }: PronounEdito
   return (
     <SettingTile
       title={title}
+      focusId="pronouns"
       // let people specify multiple sets of pronouns for different languages
       // the input is a comma separated list of pronoun sets, each set can have an optional language tag (e.g. "en:they/them, de:sie/ihr")
       description="Separate sets with commas (e.g. 'en:they/them, en:it/its, de:sie/ihr')."

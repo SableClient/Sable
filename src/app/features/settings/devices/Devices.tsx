@@ -34,9 +34,10 @@ function DevicesPlaceholder() {
 }
 
 type DevicesProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Devices({ requestClose }: DevicesProps) {
+export function Devices({ requestBack, requestClose }: DevicesProps) {
   const mx = useMatrixClient();
   const crypto = mx.getCrypto();
   const crossSigningActive = useCrossSigningActive();
@@ -62,7 +63,7 @@ export function Devices({ requestClose }: DevicesProps) {
   );
 
   return (
-    <SettingsSectionPage title="Devices" requestClose={requestClose}>
+    <SettingsSectionPage title="Devices" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -77,6 +78,7 @@ export function Devices({ requestClose }: DevicesProps) {
                 >
                   <SettingTile
                     title="Device Verification"
+                    focusId="device-verification"
                     description="To verify device identity and grant access to encrypted messages."
                     after={
                       <>

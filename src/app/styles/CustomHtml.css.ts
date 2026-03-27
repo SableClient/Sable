@@ -171,6 +171,18 @@ export const Mention = recipe({
   },
 });
 
+export const SettingsMention = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: config.space.S100,
+  padding: `0 ${config.space.S100}`,
+});
+
+export const SettingsMentionIcon = style({
+  display: 'inline-flex',
+  flexShrink: 0,
+});
+
 export const Command = recipe({
   base: [
     DefaultReset,

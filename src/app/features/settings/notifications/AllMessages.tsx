@@ -109,6 +109,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Direct Messages"
+          focusId="direct-messages"
           description="Includes 1-to-1, group DMs, and bridged conversations."
           after={<AllMessagesModeSwitcher pushRules={pushRules} ruleId={RuleId.DM} oneToOne />}
         />
@@ -121,6 +122,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Direct Messages (Encrypted)"
+          focusId="direct-messages-encrypted"
           description="Includes 1-to-1, group DMs, and bridged conversations."
           after={
             <AllMessagesModeSwitcher
@@ -140,6 +142,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Rooms"
+          focusId="rooms"
           after={<AllMessagesModeSwitcher pushRules={pushRules} ruleId={RuleId.Message} />}
         />
       </SequenceCard>
@@ -151,6 +154,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Rooms (Encrypted)"
+          focusId="rooms-encrypted"
           after={
             <AllMessagesModeSwitcher
               pushRules={pushRules}

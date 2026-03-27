@@ -16,9 +16,10 @@ import { DebugLogViewer } from './DebugLogViewer';
 import { SentrySettings } from './SentrySettings';
 
 type DeveloperToolsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
+export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProps) {
   const mx = useMatrixClient();
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
@@ -49,7 +50,11 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
   }
 
   return (
-    <SettingsSectionPage title="Developer Tools" requestClose={requestClose}>
+    <SettingsSectionPage
+      title="Developer Tools"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -64,6 +69,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                 >
                   <SettingTile
                     title="Enable Developer Tools"
+                    focusId="enable-developer-tools"
                     after={
                       <Switch
                         variant="Primary"
@@ -82,6 +88,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                   >
                     <SettingTile
                       title="Access Token"
+                      focusId="access-token"
                       description="Copy access token to clipboard."
                       after={
                         <Button

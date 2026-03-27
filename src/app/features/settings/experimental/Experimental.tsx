@@ -23,6 +23,7 @@ function PersonaToggle() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Personas Tab"
+          focusId="show-personas-tab"
           description="Enables the personas tab in the settings menu for per-message profiles"
           after={
             <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
@@ -34,11 +35,12 @@ function PersonaToggle() {
 }
 
 type ExperimentalProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
+export function Experimental({ requestBack, requestClose }: Readonly<ExperimentalProps>) {
   return (
-    <SettingsSectionPage title="Experimental" requestClose={requestClose}>
+    <SettingsSectionPage title="Experimental" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>

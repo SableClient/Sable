@@ -40,7 +40,10 @@ import { KeyboardShortcuts } from './keyboard-shortcuts';
 import { Notifications } from './notifications';
 import { PerMessageProfilePage } from './Persona/ProfilesPage';
 import { settingsSections, type SettingsSectionId } from './routes';
+import { settingsHeader } from './styles.css';
 import { useSettingsFocus } from './useSettingsFocus';
+import { SettingsPermalinkProvider } from './SettingsPermalinkContext';
+import { useSettingsLinkBaseUrl } from './useSettingsLinkBaseUrl';
 
 export enum SettingsPages {
   GeneralPage,
@@ -110,7 +113,7 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestClose: () => void }) => JSX.Element
+  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
 > = {
   general: General,
   account: Account,
@@ -128,25 +131,29 @@ const settingsSectionComponents: Record<
 type ControlledSettingsProps = {
   activeSection?: SettingsSectionId | null;
   onSelectSection?: (section: SettingsSectionId) => void;
+  onBack?: () => void;
   requestClose: () => void;
   initialPage?: SettingsPages;
 };
 
 function SettingsSectionViewport({
   section,
+  requestBack,
   requestClose,
 }: {
   section: SettingsSectionId;
+  requestBack?: () => void;
   requestClose: () => void;
 }) {
   useSettingsFocus();
   const Section = settingsSectionComponents[section];
-  return <Section requestClose={requestClose} />;
+  return <Section requestBack={requestBack} requestClose={requestClose} />;
 }
 
 export function Settings({
   activeSection,
   onSelectSection,
+  onBack,
   requestClose,
   initialPage,
 }: ControlledSettingsProps) {
@@ -160,6 +167,7 @@ export function Settings({
     : undefined;
 
   const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const screenSize = useScreenSizeContext();
   const isControlled = activeSection !== undefined;
 
@@ -220,12 +228,30 @@ export function Settings({
     requestClose();
   };
 
+  const handleRequestBack = () => {
+    if (isControlled) {
+      onBack?.();
+      return;
+    }
+
+    if (screenSize === ScreenSize.Mobile) {
+      setLegacyActivePage(undefined);
+      return;
+    }
+
+    setLegacyActivePage(SettingsPages.GeneralPage);
+  };
+
+  const shouldShowSectionBack =
+    visibleSection !== null && (screenSize === ScreenSize.Mobile || visibleSection !== 'general');
+  const sectionRequestBack = shouldShowSectionBack ? handleRequestBack : undefined;
+
   return (
     <PageRoot
       nav={
         screenSize === ScreenSize.Mobile && visibleSection !== null ? undefined : (
           <PageNav size="300">
-            <PageNavHeader outlined={false}>
+            <PageNavHeader className={settingsHeader}>
               <Box grow="Yes" gap="200">
                 <Avatar size="200" radii="300">
                   <UserAvatar
@@ -239,7 +265,7 @@ export function Settings({
                 </Text>
               </Box>
               <Box shrink="No">
-                {screenSize === ScreenSize.Mobile && (
+                {visibleSection === null && (
                   <IconButton
                     aria-label="Close settings"
                     onClick={handleRequestClose}
@@ -264,7 +290,11 @@ export function Settings({
                         radii="400"
                         aria-pressed={visibleSection === item.id}
                         before={
-                          <Icon src={currentIcon} size="100" filled={visibleSection === item.id} />
+                          <Icon
+                            src={currentIcon}
+                            size={screenSize === ScreenSize.Mobile ? '200' : '100'}
+                            filled={visibleSection === item.id}
+                          />
                         }
                         onClick={() => handleSelectSection(item.id)}
                       >
@@ -273,7 +303,7 @@ export function Settings({
                             fontWeight:
                               visibleSection === item.id ? config.fontWeight.W600 : undefined,
                           }}
-                          size="T300"
+                          size={screenSize === ScreenSize.Mobile ? 'T400' : 'T300'}
                           truncate
                         >
                           {item.name}
@@ -322,7 +352,15 @@ export function Settings({
       }
     >
       {visibleSection && (
-        <SettingsSectionViewport section={visibleSection} requestClose={handleRequestClose} />
+        <SettingsPermalinkProvider
+          value={{ section: visibleSection, baseUrl: settingsLinkBaseUrl }}
+        >
+          <SettingsSectionViewport
+            section={visibleSection}
+            requestBack={sectionRequestBack}
+            requestClose={handleRequestClose}
+          />
+        </SettingsPermalinkProvider>
       )}
     </PageRoot>
   );

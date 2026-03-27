@@ -47,6 +47,7 @@ export function TimezoneEditor({ current, onSave }: TimezoneEditorProps) {
   return (
     <SettingTile
       title="Timezone"
+      focusId="timezone"
       description="Set manually or sync with your system."
       after={
         <Box gap="200" alignItems="Center">

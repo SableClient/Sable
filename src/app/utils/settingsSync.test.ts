@@ -30,6 +30,7 @@ describe('NON_SYNCABLE_KEYS', () => {
       'isPeopleDrawer',
       'isWidgetDrawer',
       'memberSortFilterIndex',
+      'settingsLinkBaseUrlOverride',
       'developerTools',
       'settingsSyncEnabled',
     ] as const;

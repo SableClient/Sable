@@ -10,28 +10,56 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { Text } from 'folds';
+import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { ClientConfigProvider } from '$hooks/useClientConfig';
+import { ClientLayout } from '$pages/client';
 import { ClientRouteOutlet } from '$pages/client/ClientRouteOutlet';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
+import * as pageCss from '$components/page/style.css';
+import { messageJumpHighlight } from '$components/message/layout/layout.css';
 import { getHomePath, getSettingsPath } from '$pages/pathUtils';
 import { SETTINGS_PATH } from '$pages/paths';
 import { SettingsRoute } from './SettingsRoute';
 import { SettingsShallowRouteRenderer } from './SettingsShallowRouteRenderer';
 import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
+import * as settingsCss from './styles.css';
 import { useOpenSettings } from './useOpenSettings';
 import { useSettingsFocus } from './useSettingsFocus';
+
+type RouterInitialEntry =
+  | string
+  | {
+      pathname: string;
+      search?: string;
+      hash?: string;
+      state?: unknown;
+      key?: string;
+    };
 
 const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
   const mockSettingsHook = vi.fn(() => [true, vi.fn()] as const);
 
   const createMockSection = (title: string) =>
-    function MockSection({ requestClose }: { requestClose: () => void }) {
+    function MockSection({
+      requestBack,
+      requestClose,
+    }: {
+      requestBack?: () => void;
+      requestClose: () => void;
+    }) {
       return (
         <div>
           <h1>{title}</h1>
+          {requestBack && (
+            <button type="button" onClick={requestBack}>
+              Back
+            </button>
+          )}
           <button type="button" onClick={requestClose}>
-            Back
+            Close
           </button>
         </div>
       );
@@ -66,7 +94,28 @@ vi.mock('$components/Modal500', () => ({
 }));
 
 vi.mock('./general', () => ({
-  General: createSectionMock('General section'),
+  General: ({
+    requestBack,
+    requestClose,
+  }: {
+    requestBack?: () => void;
+    requestClose: () => void;
+  }) => (
+    <div>
+      <h1>General section</h1>
+      <SequenceCard variant="SurfaceVariant" direction="Column">
+        <SettingTile focusId="message-layout">Message Layout</SettingTile>
+      </SequenceCard>
+      {requestBack && (
+        <button type="button" onClick={requestBack}>
+          Back
+        </button>
+      )}
+      <button type="button" onClick={requestClose}>
+        Close
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('./account', () => ({
@@ -114,7 +163,9 @@ function FocusFixture() {
 
   return (
     <div>
-      <SettingTile focusId="message-link-preview">focus target</SettingTile>
+      <SequenceCard variant="SurfaceVariant" direction="Column">
+        <SettingTile focusId="message-link-preview">focus target</SettingTile>
+      </SequenceCard>
     </div>
   );
 }
@@ -167,22 +218,24 @@ function OpenSettingsHomePage() {
 
 function renderClientShell(
   screenSize: ScreenSize,
-  options?: { initialEntries?: string[]; initialIndex?: number }
+  options?: { initialEntries?: RouterInitialEntry[]; initialIndex?: number }
 ) {
   const initialEntries = options?.initialEntries ?? [getHomePath()];
   return render(
-    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
-      <ScreenSizeProvider value={screenSize}>
-        <LocationProbe />
-        <Routes>
-          <Route element={<ClientRouteOutlet />}>
-            <Route path={getHomePath()} element={<HomePage />} />
-            <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
-          </Route>
-        </Routes>
-        <SettingsShallowRouteRenderer />
-      </ScreenSizeProvider>
-    </MemoryRouter>
+    <ClientConfigProvider value={{}}>
+      <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
+        <ScreenSizeProvider value={screenSize}>
+          <LocationProbe />
+          <Routes>
+            <Route element={<ClientRouteOutlet />}>
+              <Route path={getHomePath()} element={<HomePage />} />
+              <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+            </Route>
+          </Routes>
+          <SettingsShallowRouteRenderer />
+        </ScreenSizeProvider>
+      </MemoryRouter>
+    </ClientConfigProvider>
   );
 }
 
@@ -198,53 +251,92 @@ function SidebarSettingsShortcut() {
 
 function renderClientShellWithOpenSettings(
   screenSize: ScreenSize,
-  options?: { initialEntries?: string[]; initialIndex?: number }
+  options?: { initialEntries?: RouterInitialEntry[]; initialIndex?: number }
 ) {
   const initialEntries = options?.initialEntries ?? [getHomePath()];
   return render(
-    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
-      <ScreenSizeProvider value={screenSize}>
-        <LocationProbe />
-        <SidebarSettingsShortcut />
-        <Routes>
-          <Route element={<ClientRouteOutlet />}>
-            <Route path={getHomePath()} element={<OpenSettingsHomePage />} />
-            <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
-          </Route>
-        </Routes>
-        <SettingsShallowRouteRenderer />
-      </ScreenSizeProvider>
-    </MemoryRouter>
+    <ClientConfigProvider value={{}}>
+      <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
+        <ScreenSizeProvider value={screenSize}>
+          <LocationProbe />
+          <SidebarSettingsShortcut />
+          <Routes>
+            <Route element={<ClientRouteOutlet />}>
+              <Route path={getHomePath()} element={<OpenSettingsHomePage />} />
+              <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+            </Route>
+          </Routes>
+          <SettingsShallowRouteRenderer />
+        </ScreenSizeProvider>
+      </MemoryRouter>
+    </ClientConfigProvider>
+  );
+}
+
+function renderClientLayoutShell(
+  screenSize: ScreenSize,
+  options?: { initialEntries?: RouterInitialEntry[]; initialIndex?: number }
+) {
+  const initialEntries = options?.initialEntries ?? [getHomePath()];
+  return render(
+    <ClientConfigProvider value={{}}>
+      <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
+        <ScreenSizeProvider value={screenSize}>
+          <LocationProbe />
+          <Routes>
+            <Route
+              element={
+                <ClientLayout nav={<div>App sidebar</div>}>
+                  <ClientRouteOutlet />
+                </ClientLayout>
+              }
+            >
+              <Route path={getHomePath()} element={<HomePage />} />
+              <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+            </Route>
+          </Routes>
+          <SettingsShallowRouteRenderer />
+        </ScreenSizeProvider>
+      </MemoryRouter>
+    </ClientConfigProvider>
   );
 }
 
 function renderSettingsRoute(
   path: string,
   screenSize: ScreenSize,
-  options?: { initialEntries?: string[]; initialIndex?: number }
+  options?: { initialEntries?: RouterInitialEntry[]; initialIndex?: number }
 ) {
   const initialEntries = options?.initialEntries ?? [path];
   return render(
-    <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
-      <ScreenSizeProvider value={screenSize}>
-        <LocationProbe />
-        <Routes>
-          <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
-        </Routes>
-      </ScreenSizeProvider>
-    </MemoryRouter>
+    <ClientConfigProvider value={{}}>
+      <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
+        <ScreenSizeProvider value={screenSize}>
+          <LocationProbe />
+          <Routes>
+            <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+          </Routes>
+        </ScreenSizeProvider>
+      </MemoryRouter>
+    </ClientConfigProvider>
   );
 }
 
 describe('SettingsSectionPage', () => {
-  it('shows a back affordance on mobile section pages', () => {
+  it('reuses the message jump highlight class without adding a separate radius override', () => {
+    expect(focusedSettingTile).toBe(messageJumpHighlight);
+  });
+
+  it('shows back on the left and close on the right for mobile section pages', () => {
     render(
       <ScreenSizeProvider value={ScreenSize.Mobile}>
-        <SettingsSectionPage title="Devices" requestClose={vi.fn()} />
+        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
       </ScreenSizeProvider>
     );
 
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
+    ).toEqual(['Back', 'Close']);
   });
 
   it('supports custom title semantics and close label', () => {
@@ -254,13 +346,50 @@ describe('SettingsSectionPage', () => {
           title="Keyboard Shortcuts"
           titleAs="h1"
           actionLabel="Close keyboard shortcuts"
+          requestBack={vi.fn()}
           requestClose={vi.fn()}
         />
       </ScreenSizeProvider>
     );
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Keyboard Shortcuts');
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close keyboard shortcuts' })).toBeInTheDocument();
+  });
+
+  it('uses the default outlined page header treatment', () => {
+    render(
+      <ScreenSizeProvider value={ScreenSize.Desktop}>
+        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+      </ScreenSizeProvider>
+    );
+
+    expect(screen.getByText('Devices').closest('header')).toHaveClass(pageCss.PageHeader({}));
+  });
+
+  it('matches the main settings header title size', () => {
+    const rootRender = renderSettingsRoute('/settings', ScreenSize.Mobile);
+    const mainHeaderClassName = screen.getByText('Settings').className;
+
+    rootRender.unmount();
+
+    render(
+      <ScreenSizeProvider value={ScreenSize.Mobile}>
+        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+      </ScreenSizeProvider>
+    );
+
+    expect(screen.getByText('Devices').className).toBe(mainHeaderClassName);
+  });
+
+  it('uses settings header spacing that matches the main settings shell', () => {
+    render(
+      <ScreenSizeProvider value={ScreenSize.Mobile}>
+        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+      </ScreenSizeProvider>
+    );
+
+    expect(screen.getByText('Devices').closest('header')).toHaveClass(settingsCss.settingsHeader);
   });
 });
 
@@ -271,6 +400,27 @@ describe('SettingsRoute', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'General section' })).not.toBeInTheDocument();
+  });
+
+  it('uses the default outlined nav header treatment for the settings menu', () => {
+    renderSettingsRoute('/settings', ScreenSize.Mobile);
+
+    expect(screen.getByText('Settings').closest('header')).toHaveClass(pageCss.PageNavHeader({}));
+  });
+
+  it('uses larger nav labels on mobile settings', () => {
+    const referenceRender = render(
+      <Text size="T400" truncate>
+        Reference
+      </Text>
+    );
+    const mobileClassName = screen.getByText('Reference').className;
+
+    referenceRender.unmount();
+
+    renderSettingsRoute('/settings', ScreenSize.Mobile);
+
+    expect(screen.getByText('Notifications').className).toBe(mobileClassName);
   });
 
   it('redirects desktop /settings to /settings/general', async () => {
@@ -291,10 +441,47 @@ describe('SettingsRoute', () => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath('general'))
     );
 
-    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
 
     await waitFor(() =>
       expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
+  });
+
+  it('closes to the stored background route instead of stepping through prior settings entries', async () => {
+    const user = userEvent.setup();
+    const backgroundLocation = {
+      pathname: getHomePath(),
+      search: '',
+      hash: '',
+      state: null,
+      key: 'home',
+    };
+
+    renderSettingsRoute(getSettingsPath('devices'), ScreenSize.Desktop, {
+      initialEntries: [
+        getHomePath(),
+        {
+          pathname: getSettingsPath('notifications'),
+          state: { backgroundLocation },
+          key: 'settings-notifications',
+        },
+        {
+          pathname: getSettingsPath('devices'),
+          state: { backgroundLocation },
+          key: 'settings-devices',
+        },
+      ],
+      initialIndex: 2,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
+    expect(screen.getByTestId('location-probe')).not.toHaveTextContent(
+      getSettingsPath('notifications')
     );
   });
 
@@ -302,6 +489,30 @@ describe('SettingsRoute', () => {
     renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
 
     expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
+  it('focuses and highlights a real general setting tile from the URL', async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderSettingsRoute('/settings/general?focus=message-layout', ScreenSize.Mobile);
+
+      const target = document.querySelector('[data-settings-focus="message-layout"]');
+      const highlightTarget = target?.parentElement;
+
+      expect(target).not.toHaveClass(focusedSettingTile);
+      expect(highlightTarget).toHaveClass(focusedSettingTile);
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-layout');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(highlightTarget).not.toHaveClass(focusedSettingTile);
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/general');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('redirects invalid sections back to /settings', async () => {
@@ -324,6 +535,18 @@ describe('SettingsRoute', () => {
       expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
     );
     expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('falls back to /home when a direct section entry is closed', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsRoute('/settings/devices', ScreenSize.Mobile);
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
   });
 
   it('falls back to /home when the root settings page is closed from a direct entry', async () => {
@@ -446,7 +669,7 @@ describe('Settings shallow route shell', () => {
     expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
   });
 
-  it('closes a desktop shallow settings flow in one step after switching sections', async () => {
+  it('returns to general settings when desktop section back is clicked', async () => {
     const user = userEvent.setup();
 
     renderClientShell(ScreenSize.Desktop);
@@ -454,6 +677,20 @@ describe('Settings shallow route shell', () => {
     await user.click(screen.getByRole('button', { name: 'Open settings' }));
     await user.click(screen.getByRole('button', { name: 'Devices' }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Devices section' })).not.toBeInTheDocument();
+  });
+
+  it('closes a desktop shallow settings flow in one step after switching sections', async () => {
+    const user = userEvent.setup();
+
+    renderClientShell(ScreenSize.Desktop);
+
+    await user.click(screen.getByRole('button', { name: 'Open settings' }));
+    await user.click(screen.getByRole('button', { name: 'Devices' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Devices section' })).not.toBeInTheDocument();
@@ -469,6 +706,15 @@ describe('Settings shallow route shell', () => {
     });
 
     expect(screen.queryByRole('heading', { name: 'Home route' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+  });
+
+  it('hides the client sidebar when desktop settings renders as a full page', () => {
+    renderClientLayoutShell(ScreenSize.Desktop, {
+      initialEntries: [getSettingsPath('devices')],
+    });
+
+    expect(screen.queryByText('App sidebar')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
   });
 });
@@ -488,20 +734,24 @@ describe('useSettingsFocus', () => {
       );
 
       const target = document.querySelector('[data-settings-focus="message-link-preview"]');
-      expect(target).toHaveClass(focusedSettingTile);
+      const highlightTarget = target?.parentElement;
+      expect(target).not.toHaveClass(focusedSettingTile);
+      expect(highlightTarget).toHaveClass(focusedSettingTile);
+      expect(highlightTarget).toHaveClass(messageJumpHighlight);
       expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-link-preview');
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2999);
       });
       expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-link-preview');
-      expect(target).toHaveClass(focusedSettingTile);
+      expect(highlightTarget).toHaveClass(focusedSettingTile);
+      expect(highlightTarget).toHaveClass(messageJumpHighlight);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/appearance');
-      expect(target).not.toHaveClass(focusedSettingTile);
+      expect(highlightTarget).not.toHaveClass(focusedSettingTile);
     } finally {
       vi.useRealTimers();
     }

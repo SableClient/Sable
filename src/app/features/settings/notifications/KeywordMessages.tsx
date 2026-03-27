@@ -6,6 +6,7 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import {
   getNotificationModeActions,
   NotificationMode,
@@ -183,6 +184,7 @@ export function KeywordMessagesNotifications() {
       >
         <SettingTile
           title="Select Keyword"
+          focusId="select-keyword"
           description="Set a notification preference for message containing given keyword."
         >
           <KeywordInput />
@@ -198,6 +200,9 @@ export function KeywordMessagesNotifications() {
         >
           <SettingTile
             title={`"${pushRule.pattern}"`}
+            focusId={`keyword-${toSettingsFocusIdPart(
+              pushRule.pattern ?? pushRule.rule_id ?? 'custom-keyword'
+            )}`}
             before={<KeywordCross pushRule={pushRule} />}
             after={<KeywordModeSwitcher pushRule={pushRule} />}
           />

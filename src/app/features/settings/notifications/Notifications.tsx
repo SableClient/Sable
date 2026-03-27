@@ -7,11 +7,16 @@ import { SpecialMessagesNotifications } from './SpecialMessages';
 import { KeywordMessagesNotifications } from './KeywordMessages';
 
 type NotificationsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Notifications({ requestClose }: NotificationsProps) {
+export function Notifications({ requestBack, requestClose }: NotificationsProps) {
   return (
-    <SettingsSectionPage title="Notifications" requestClose={requestClose}>
+    <SettingsSectionPage
+      title="Notifications"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>

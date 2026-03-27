@@ -3,6 +3,7 @@ import { Box, Text, Switch, Button } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { getDebugLogger, LogCategory } from '$utils/debugLogger';
 
 const ALL_CATEGORIES: LogCategory[] = [
@@ -87,14 +88,17 @@ export function SentrySettings() {
           >
             <SettingTile
               title="Traces &amp; Profiles"
+              focusId="traces-profiles"
               description={`Current environment: ${environment}. Sample rate: ${traceSampleRate}`}
             />
             <SettingTile
               title="Session Replay"
+              focusId="session-replay"
               description={`Session sample rate: ${replaySampleRate} · On-error rate: 100%`}
             />
             <SettingTile
               title="Session Error Budget"
+              focusId="session-error-budget"
               description="At most 50 error events are forwarded to Sentry per page load to prevent quota exhaustion."
             />
           </SequenceCard>
@@ -113,6 +117,7 @@ export function SentrySettings() {
             {ALL_CATEGORIES.map((cat) => (
               <SettingTile
                 key={cat}
+                focusId={`sentry-category-${toSettingsFocusIdPart(cat)}`}
                 title={cat.charAt(0).toUpperCase() + cat.slice(1)}
                 after={
                   <Switch
@@ -134,10 +139,12 @@ export function SentrySettings() {
           >
             <SettingTile
               title="Session Activity"
+              focusId="session-activity"
               description={`Errors captured: ${sentryStats.errors} · Warnings captured: ${sentryStats.warnings} (updates every 5 s)`}
             />
             <SettingTile
               title="Export Debug Logs"
+              focusId="export-debug-logs"
               description="Download the current in-memory debug log buffer as a JSON file for offline analysis."
               after={
                 <Button variant="Secondary" size="300" onClick={handleExportLogs}>

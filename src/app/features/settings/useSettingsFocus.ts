@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { focusedSettingTile } from './styles.css';
 
+const focusedSettingTileClasses = focusedSettingTile.split(' ').filter(Boolean);
+const getHighlightTarget = (target: HTMLElement): HTMLElement =>
+  target.closest<HTMLElement>('[data-sequence-card="true"]') ?? target.parentElement ?? target;
+
 export function useSettingsFocus() {
   const [searchParams, setSearchParams] = useSearchParams();
   const focusId = searchParams.get('focus');
@@ -14,7 +18,7 @@ export function useSettingsFocus() {
         window.clearTimeout(timeoutRef.current);
         timeoutRef.current = undefined;
       }
-      activeTargetRef.current?.classList.remove(focusedSettingTile);
+      activeTargetRef.current?.classList.remove(...focusedSettingTileClasses);
       activeTargetRef.current = null;
     },
     []
@@ -27,8 +31,10 @@ export function useSettingsFocus() {
         document.querySelector<HTMLElement>(`[data-settings-focus="${focusId}"]`);
 
       if (target) {
-        if (activeTargetRef.current && activeTargetRef.current !== target) {
-          activeTargetRef.current.classList.remove(focusedSettingTile);
+        const highlightTarget = getHighlightTarget(target);
+
+        if (activeTargetRef.current && activeTargetRef.current !== highlightTarget) {
+          activeTargetRef.current.classList.remove(...focusedSettingTileClasses);
         }
         if (timeoutRef.current !== undefined) {
           window.clearTimeout(timeoutRef.current);
@@ -36,12 +42,12 @@ export function useSettingsFocus() {
         }
 
         target.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-        target.classList.add(focusedSettingTile);
-        activeTargetRef.current = target;
+        highlightTarget.classList.add(...focusedSettingTileClasses);
+        activeTargetRef.current = highlightTarget;
 
         timeoutRef.current = window.setTimeout(() => {
-          target.classList.remove(focusedSettingTile);
-          if (activeTargetRef.current === target) {
+          highlightTarget.classList.remove(...focusedSettingTileClasses);
+          if (activeTargetRef.current === highlightTarget) {
             activeTargetRef.current = null;
           }
           timeoutRef.current = undefined;

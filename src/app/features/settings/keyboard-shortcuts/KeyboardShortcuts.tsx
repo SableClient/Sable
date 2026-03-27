@@ -107,14 +107,16 @@ function ShortcutRow({ keys, description }: ShortcutEntry) {
 }
 
 type KeyboardShortcutsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function KeyboardShortcuts({ requestClose }: KeyboardShortcutsProps) {
+export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcutsProps) {
   return (
     <SettingsSectionPage
       title="Keyboard Shortcuts"
       titleAs="h1"
       actionLabel="Close keyboard shortcuts"
+      requestBack={requestBack}
       requestClose={requestClose}
     >
       <Box grow="Yes">

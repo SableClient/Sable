@@ -4,12 +4,13 @@ import { SettingsSectionPage } from '../SettingsSectionPage';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
 
 type PerMessageProfilePageProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
 
-export function PerMessageProfilePage({ requestClose }: PerMessageProfilePageProps) {
+export function PerMessageProfilePage({ requestBack, requestClose }: PerMessageProfilePageProps) {
   return (
-    <SettingsSectionPage title="Persona" requestClose={requestClose}>
+    <SettingsSectionPage title="Persona" requestBack={requestBack} requestClose={requestClose}>
       <PageNavContent>
         <Box
           grow="Yes"

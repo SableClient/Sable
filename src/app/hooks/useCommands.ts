@@ -1331,7 +1331,14 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           await mx.sendMessage(room.roomId, {
             msgtype: MsgType.Text,
-            body: payload,
+            body: payload
+              .replaceAll('<br>', '\n')
+              .replaceAll('<li>', '\n- ')
+              .replaceAll(
+                /<a(.*?)href="(?<link>(.*?))"(.*?)>(?<text>(.*?))<\/a>/g,
+                '[$<text>]($<link>)'
+              )
+              .replaceAll(/<[^>]*>/g, ''),
             format: 'org.matrix.custom.html',
             formatted_body: payload,
           });

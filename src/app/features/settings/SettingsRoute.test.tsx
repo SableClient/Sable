@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   MemoryRouter,
   Route,
@@ -170,6 +170,19 @@ function FocusFixture() {
   );
 }
 
+function FocusFixtureToggle() {
+  const [visible, setVisible] = useState(true);
+
+  return (
+    <div>
+      <button type="button" onClick={() => setVisible((current) => !current)}>
+        Toggle focus fixture
+      </button>
+      {visible && <FocusFixture />}
+    </div>
+  );
+}
+
 function LocationProbe() {
   const location = useLocation();
   const navigationType = useNavigationType();
@@ -211,6 +224,9 @@ function OpenSettingsHomePage() {
       <h1>Home route</h1>
       <button type="button" onClick={() => openSettings('devices')}>
         Open devices settings
+      </button>
+      <button type="button" onClick={() => openSettings('general', 'message-layout')}>
+        Open focused general settings
       </button>
     </div>
   );
@@ -432,6 +448,16 @@ describe('SettingsRoute', () => {
     expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
   });
 
+  it('canonicalizes legacy trailing-slash settings section routes', async () => {
+    renderSettingsRoute('/settings/general/', ScreenSize.Mobile);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/general')
+    );
+    expect(screen.getByTestId('location-probe')).not.toHaveTextContent('/settings/general/');
+    expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
+  });
+
   it('falls back to /home when the redirected desktop general page is closed from a direct root entry', async () => {
     const user = userEvent.setup();
 
@@ -591,7 +617,7 @@ describe('SettingsRoute', () => {
     const user = userEvent.setup();
 
     renderSettingsRoute('/settings/devices', ScreenSize.Mobile, {
-      initialEntries: ['/settings/', '/settings/devices/'],
+      initialEntries: [getSettingsPath(), getSettingsPath('devices')],
       initialIndex: 1,
     });
 
@@ -603,6 +629,31 @@ describe('SettingsRoute', () => {
 });
 
 describe('Settings shallow route shell', () => {
+  it('keeps desktop settings shallow after the focus highlight completes', async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderClientShellWithOpenSettings(ScreenSize.Desktop);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open focused general settings' }));
+
+      expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-layout');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/general');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-layout');
+      expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens device settings through route navigation and keeps the desktop background mounted', async () => {
     const user = userEvent.setup();
 
@@ -750,7 +801,56 @@ describe('useSettingsFocus', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
-      expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/appearance');
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(
+        '/settings/appearance?focus=message-link-preview'
+      );
+      expect(highlightTarget).not.toHaveClass(focusedSettingTile);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not re-highlight when the same focus entry remounts', async () => {
+    vi.useFakeTimers();
+
+    try {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/settings/appearance',
+              search: '?focus=message-link-preview',
+              key: 'focus-entry',
+            },
+          ]}
+        >
+          <ScreenSizeProvider value={ScreenSize.Mobile}>
+            <LocationProbe />
+            <FocusFixtureToggle />
+          </ScreenSizeProvider>
+        </MemoryRouter>
+      );
+
+      let target = document.querySelector('[data-settings-focus="message-link-preview"]');
+      let highlightTarget = target?.parentElement;
+
+      expect(highlightTarget).toHaveClass(focusedSettingTile);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(highlightTarget).not.toHaveClass(focusedSettingTile);
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(
+        '/settings/appearance?focus=message-link-preview'
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle focus fixture' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle focus fixture' }));
+
+      target = document.querySelector('[data-settings-focus="message-link-preview"]');
+      highlightTarget = target?.parentElement;
+
       expect(highlightTarget).not.toHaveClass(focusedSettingTile);
     } finally {
       vi.useRealTimers();

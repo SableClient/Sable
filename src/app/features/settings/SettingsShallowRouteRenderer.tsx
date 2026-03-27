@@ -1,4 +1,4 @@
-import { Route, Routes, useNavigate, useLocation } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
 import { Modal500 } from '$components/Modal500';
 import { isShallowSettingsRoute } from '$pages/client/ClientRouteOutlet';
@@ -11,8 +11,11 @@ export function SettingsShallowRouteRenderer() {
   const location = useLocation();
   const screenSize = useScreenSizeContext();
   const routeState = location.state as SettingsRouteState | null;
+  const routeMatch = matchPath(SETTINGS_PATH, location.pathname);
 
-  if (!isShallowSettingsRoute(location.pathname, location.state, screenSize)) return null;
+  if (!isShallowSettingsRoute(location.pathname, location.state, screenSize) || !routeMatch) {
+    return null;
+  }
 
   const handleRequestClose = () => {
     const closeTarget = getSettingsCloseTarget(routeState);
@@ -21,9 +24,7 @@ export function SettingsShallowRouteRenderer() {
 
   return (
     <Modal500 requestClose={handleRequestClose}>
-      <Routes>
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
-      </Routes>
+      <SettingsRoute routeSection={routeMatch.params.section} />
     </Modal500>
   );
 }

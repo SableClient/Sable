@@ -11,10 +11,10 @@ describe('settingsLink', () => {
   it('builds settings permalinks for plain and hash-router base urls', () => {
     expect(
       buildSettingsPermalink('https://app.example', 'appearance', 'message-link-preview')
-    ).toBe('https://app.example/settings/appearance/?focus=message-link-preview');
+    ).toBe('https://app.example/settings/appearance?focus=message-link-preview');
     expect(
       buildSettingsPermalink('https://app.example/#/app', 'appearance', 'message-link-preview')
-    ).toBe('https://app.example/#/app/settings/appearance/?focus=message-link-preview');
+    ).toBe('https://app.example/#/app/settings/appearance?focus=message-link-preview');
   });
 
   it('resolves the settings link base URL from built-in default, config, and override', () => {
@@ -35,12 +35,18 @@ describe('settingsLink', () => {
     expect(
       parseSettingsPermalink(
         'https://app.example',
+        'https://app.example/settings/appearance?focus=message-link-preview'
+      )
+    ).toEqual({ section: 'appearance', focus: 'message-link-preview' });
+    expect(
+      parseSettingsPermalink(
+        'https://app.example',
         'https://app.example/settings/appearance/?focus=message-link-preview'
       )
     ).toEqual({ section: 'appearance', focus: 'message-link-preview' });
 
     expect(
-      parseSettingsPermalink('https://app.example', 'https://other.example/settings/appearance/')
+      parseSettingsPermalink('https://app.example', 'https://other.example/settings/appearance')
     ).toBeUndefined();
     expect(
       parseSettingsPermalink('https://app.example', 'https://app.example/home/')
@@ -51,7 +57,7 @@ describe('settingsLink', () => {
     expect(
       parseSettingsPermalink(
         'https://app.example/#/app',
-        'https://app.example/#/wrong/settings/appearance/?focus=message-link-preview'
+        'https://app.example/#/wrong/settings/appearance?focus=message-link-preview'
       )
     ).toBeUndefined();
   });
@@ -60,7 +66,7 @@ describe('settingsLink', () => {
     expect(
       parseSettingsPermalink(
         'https://app.example/#/app',
-        'https://app.example/#/ap/settings/appearance/?focus=message-link-preview'
+        'https://app.example/#/ap/settings/appearance?focus=message-link-preview'
       )
     ).toBeUndefined();
   });

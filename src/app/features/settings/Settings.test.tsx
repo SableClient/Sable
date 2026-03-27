@@ -162,7 +162,7 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://config.example/settings/appearance/?focus=message-link-preview'
+        'https://config.example/settings/appearance?focus=message-link-preview'
       );
     });
   });
@@ -183,7 +183,7 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://override.example/settings/appearance/?focus=message-link-preview'
+        'https://override.example/settings/appearance?focus=message-link-preview'
       );
     });
   });

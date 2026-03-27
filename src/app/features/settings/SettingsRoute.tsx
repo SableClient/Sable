@@ -4,6 +4,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { getSettingsPath } from '$pages/pathUtils';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { trimTrailingSlash } from '$utils/common';
 import { getSettingsCloseTarget, type SettingsRouteState } from './navigation';
 import { Settings } from './Settings';
 import { isSettingsSectionId, type SettingsSectionId } from './routes';
@@ -28,8 +29,13 @@ function resolveSettingsSection(
   return section;
 }
 
-export function SettingsRoute() {
-  const { section } = useParams<{ section?: string }>();
+type SettingsRouteProps = {
+  routeSection?: string;
+};
+
+export function SettingsRoute({ routeSection }: SettingsRouteProps) {
+  const { section: paramsSection } = useParams<{ section?: string }>();
+  const section = routeSection ?? paramsSection;
   const navigate = useNavigate();
   const location = useLocation();
   const screenSize = useScreenSizeContext();
@@ -37,6 +43,10 @@ export function SettingsRoute() {
   const routeState = location.state as SettingsRouteState | null;
   const shallowBackgroundState =
     screenSize !== ScreenSize.Mobile && Boolean(routeState?.backgroundLocation);
+  const canonicalPathname = trimTrailingSlash(location.pathname);
+  const shouldCanonicalizeTrailingSlash =
+    location.pathname.length > canonicalPathname.length &&
+    canonicalPathname.startsWith('/settings');
   const browserHistoryIndex =
     typeof window !== 'undefined' && typeof window.history.state?.idx === 'number'
       ? window.history.state.idx
@@ -50,6 +60,18 @@ export function SettingsRoute() {
   const shouldRedirectToIndex = section !== undefined && activeSection === null;
 
   useEffect(() => {
+    if (shouldCanonicalizeTrailingSlash) {
+      navigate(
+        {
+          pathname: canonicalPathname,
+          search: location.search,
+          hash: location.hash,
+        },
+        { replace: true, state: routeState }
+      );
+      return;
+    }
+
     if (shouldRedirectToGeneral) {
       navigate(getSettingsPath('general'), {
         replace: true,
@@ -61,9 +83,20 @@ export function SettingsRoute() {
     if (!shouldRedirectToIndex) return;
 
     navigate(getSettingsPath(), { replace: true, state: routeState });
-  }, [navigate, routeState, shouldRedirectToGeneral, shouldRedirectToIndex]);
+  }, [
+    canonicalPathname,
+    location.hash,
+    location.search,
+    navigate,
+    routeState,
+    shouldCanonicalizeTrailingSlash,
+    shouldRedirectToGeneral,
+    shouldRedirectToIndex,
+  ]);
 
-  if (shouldRedirectToGeneral || shouldRedirectToIndex) return null;
+  if (shouldCanonicalizeTrailingSlash || shouldRedirectToGeneral || shouldRedirectToIndex) {
+    return null;
+  }
 
   const requestBack = () => {
     if (section === undefined) return;

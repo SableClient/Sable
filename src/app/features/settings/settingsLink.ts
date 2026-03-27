@@ -65,7 +65,7 @@ export const parseSettingsPermalink = (
     if (!appPath.startsWith('/settings/')) return undefined;
 
     const [pathname, search = ''] = appPath.split('?');
-    const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/$/);
+    const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/?$/);
     if (!sectionMatch) return undefined;
 
     const section = sectionMatch[1];

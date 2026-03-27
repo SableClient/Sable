@@ -40,9 +40,9 @@ describe('react custom html parser', () => {
         {renderLink({
           tagName: 'a',
           attributes: {
-            href: 'https://app.example/settings/appearance/?focus=message-link-preview',
+            href: 'https://app.example/settings/appearance?focus=message-link-preview',
           },
-          content: 'https://app.example/settings/appearance/?focus=message-link-preview',
+          content: 'https://app.example/settings/appearance?focus=message-link-preview',
         } as never)}
       </div>
     );
@@ -57,13 +57,13 @@ describe('react custom html parser', () => {
 
   it('renders same-origin settings permalinks as internal app links with settings metadata', () => {
     render(
-      <Subject body='<a href="https://app.example/settings/appearance/?focus=message-link-preview">Appearance</a>' />
+      <Subject body='<a href="https://app.example/settings/appearance?focus=message-link-preview">Appearance</a>' />
     );
 
     const link = screen.getByRole('link', { name: 'Appearance' });
     expect(link).toHaveAttribute(
       'href',
-      'https://app.example/settings/appearance/?focus=message-link-preview'
+      'https://app.example/settings/appearance?focus=message-link-preview'
     );
     expect(link).toHaveAttribute('data-settings-link-section', 'appearance');
     expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');

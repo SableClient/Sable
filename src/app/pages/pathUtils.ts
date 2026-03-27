@@ -162,8 +162,7 @@ export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
 
 export const getSettingsPath = (section?: string, focus?: string): string => {
-  const basePath = generatePath(SETTINGS_PATH, { section: section ?? null });
-  const path = basePath.endsWith('/') ? basePath : `${basePath}/`;
+  const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));
   if (!focus) return path;
 
   const params: SettingsPathSearchParams = { focus };

@@ -44,7 +44,7 @@ describe('SettingTile', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://settings.example/settings/appearance/?focus=message-link-preview'
+        'https://settings.example/settings/appearance?focus=message-link-preview'
       );
     });
     expect(screen.getByRole('button', { name: /copied settings permalink/i })).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('SettingTile', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://settings.example/settings/appearance/?focus=message-link-preview'
+        'https://settings.example/settings/appearance?focus=message-link-preview'
       );
     });
     expect(screen.getByRole('button', { name: /copy settings permalink/i })).toBeInTheDocument();

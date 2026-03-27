@@ -31,6 +31,7 @@
   "author": "7w1",
   "license": "AGPL-3.0-only",
   "dependencies": {
+    "@arborium/arborium": "^2.16.0",
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^1.4.0",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",

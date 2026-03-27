@@ -83,6 +83,12 @@ if ('serviceWorker' in navigator) {
     pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
   };
 
+  // Push the session synchronously before React renders so the SW has a fresh
+  // token before any <img> fetch events arrive. If navigator.serviceWorker.controller
+  // is already set (normal page reload), this eliminates the race where
+  // preloadedSession (potentially stale) would be used for early thumbnail fetches.
+  sendSessionToSW();
+
   navigator.serviceWorker
     .register(swUrl)
     .then(sendSessionToSW)

@@ -134,6 +134,35 @@ describe('highlightCode', () => {
     });
   });
 
+  it('treats escaped Arborium output as plain fallback', async () => {
+    const normalizeLanguage = vi.fn((language: string) => language);
+    const detectLanguage = vi.fn(() => null);
+    const highlight = vi.fn(async () => '&lt;span&gt;');
+    const module = {
+      normalizeLanguage,
+      detectLanguage,
+      highlight,
+    } as unknown as ArboriumModule;
+    const loadModule = vi.fn(async () => module);
+
+    const { highlightCode } = await import('.');
+
+    const result: HighlightResult = await highlightCode(
+      {
+        code: '<span>',
+        language: 'typescript',
+      },
+      { loadModule }
+    );
+
+    expect(result).toEqual({
+      mode: 'plain',
+      html: '&lt;span&gt;',
+      language: 'typescript',
+    });
+    expect(highlight).toHaveBeenCalledWith('typescript', '<span>');
+  });
+
   it('returns plain escaped code with the resolved language when highlighting fails', async () => {
     const normalizeLanguage = vi.fn((language: string) =>
       language === 'ts' ? 'typescript' : language

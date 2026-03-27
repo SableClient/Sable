@@ -90,6 +90,9 @@ export async function highlightCode(
 
   try {
     const html = await arborium.highlight(resolvedLanguage, code);
+    if (html === escapeHtml(code)) {
+      return plainResult(code, resolvedLanguage);
+    }
     return {
       mode: 'highlighted',
       html,

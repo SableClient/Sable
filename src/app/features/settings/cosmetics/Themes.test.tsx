@@ -8,6 +8,8 @@ type SettingsShape = {
   useSystemTheme: boolean;
   lightThemeId?: string;
   darkThemeId?: string;
+  useSystemArboriumTheme: boolean;
+  arboriumThemeId?: string;
   arboriumLightTheme?: string;
   arboriumDarkTheme?: string;
   saturationLevel: number;
@@ -48,11 +50,21 @@ vi.mock('$hooks/useTheme', async () => {
 
 beforeEach(() => {
   setters.clear();
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  });
   currentSettings = {
     themeId: 'silver-theme',
     useSystemTheme: true,
     lightThemeId: 'cinny-light-theme',
     darkThemeId: 'black-theme',
+    useSystemArboriumTheme: true,
+    arboriumThemeId: 'dracula',
     arboriumLightTheme: 'github-light',
     arboriumDarkTheme: 'one-dark',
     saturationLevel: 100,
@@ -70,6 +82,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const clickLatestButton = (name: string) => {
@@ -78,7 +91,7 @@ const clickLatestButton = (name: string) => {
 };
 
 describe('Appearance settings', () => {
-  it('renders shared selector-backed theme controls and Arborium code block selectors', () => {
+  it('renders shared selector-backed theme controls and code block system/manual selectors', () => {
     render(<Appearance />);
 
     expect(screen.getByRole('button', { name: 'Silver' })).toBeInTheDocument();
@@ -86,12 +99,14 @@ describe('Appearance settings', () => {
     expect(screen.getByRole('button', { name: 'Black' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'One Dark' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dracula' })).toBeDisabled();
   });
 
-  it('updates the manual and Arborium theme settings when selections change', () => {
+  it('updates the manual app and code block theme settings when system theme is disabled', () => {
     currentSettings = {
       ...currentSettings,
       useSystemTheme: false,
+      useSystemArboriumTheme: false,
     };
 
     render(<Appearance />);
@@ -99,15 +114,11 @@ describe('Appearance settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Silver' }));
     clickLatestButton('Dark');
 
-    fireEvent.click(screen.getByRole('button', { name: 'GitHub Light' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dracula' }));
     clickLatestButton('Ayu Light');
 
-    fireEvent.click(screen.getByRole('button', { name: 'One Dark' }));
-    clickLatestButton('Dracula');
-
     expect(getSetter('themeId')).toHaveBeenCalledWith('dark-theme');
-    expect(getSetter('arboriumLightTheme')).toHaveBeenCalledWith('ayu-light');
-    expect(getSetter('arboriumDarkTheme')).toHaveBeenCalledWith('dracula');
+    expect(getSetter('arboriumThemeId')).toHaveBeenCalledWith('ayu-light');
   });
 
   it('updates the system theme settings when the chip selectors change', () => {
@@ -123,6 +134,19 @@ describe('Appearance settings', () => {
     expect(getSetter('darkThemeId')).toHaveBeenCalledWith('dark-theme');
   });
 
+  it('updates the system code block theme settings when the chip selectors change', () => {
+    render(<Appearance />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'GitHub Light' }));
+    clickLatestButton('Ayu Light');
+
+    fireEvent.click(screen.getByRole('button', { name: 'One Dark' }));
+    clickLatestButton('Dracula');
+
+    expect(getSetter('arboriumLightTheme')).toHaveBeenCalledWith('ayu-light');
+    expect(getSetter('arboriumDarkTheme')).toHaveBeenCalledWith('dracula');
+  });
+
   it('falls back to light theme ids when the stored app theme ids are invalid', () => {
     currentSettings = {
       ...currentSettings,
@@ -133,6 +157,18 @@ describe('Appearance settings', () => {
     render(<Appearance />);
 
     expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
+  });
+
+  it('falls back to the active code block system theme when the stored manual theme id is invalid', () => {
+    currentSettings = {
+      ...currentSettings,
+      useSystemArboriumTheme: false,
+      arboriumThemeId: 'not-a-theme',
+    };
+
+    render(<Appearance />);
+
+    expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
   });
 
   it('falls back to the default light and dark theme ids for invalid system theme values', () => {

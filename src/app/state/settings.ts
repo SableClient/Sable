@@ -28,6 +28,8 @@ export interface Settings {
   useSystemTheme: boolean;
   lightThemeId?: string;
   darkThemeId?: string;
+  useSystemArboriumTheme: boolean;
+  arboriumThemeId?: string;
   arboriumLightTheme?: string;
   arboriumDarkTheme?: string;
   saturationLevel?: number;
@@ -120,6 +122,8 @@ const defaultSettings: Settings = {
   useSystemTheme: true,
   lightThemeId: undefined,
   darkThemeId: undefined,
+  useSystemArboriumTheme: true,
+  arboriumThemeId: 'one-dark',
   arboriumLightTheme: 'github-light',
   arboriumDarkTheme: 'one-dark',
   saturationLevel: 100,

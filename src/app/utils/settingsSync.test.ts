@@ -45,6 +45,8 @@ describe('NON_SYNCABLE_KEYS', () => {
       'twitterEmoji',
       'messageLayout',
       'urlPreview',
+      'useSystemArboriumTheme',
+      'arboriumThemeId',
       'arboriumLightTheme',
       'arboriumDarkTheme',
     ] as const;

@@ -40,8 +40,17 @@ afterEach(() => {
 });
 
 describe('ArboriumThemeBridge', () => {
-  it('injects the base stylesheet once and swaps the theme stylesheet from dark to light', () => {
-    const { rerender } = renderWithSettings(ThemeKind.Dark);
+  it('injects the base stylesheet once and swaps the theme stylesheet from dark to light in system mode', () => {
+    const store = createStore();
+    store.set(settingsAtom, getSettings());
+
+    const { rerender } = render(
+      <Provider store={store}>
+        <ArboriumThemeBridge kind={ThemeKind.Dark}>
+          <StatusProbe />
+        </ArboriumThemeBridge>
+      </Provider>
+    );
 
     const baseLink = document.getElementById('arborium-base');
     const themeLink = document.getElementById('arborium-theme');
@@ -62,7 +71,7 @@ describe('ArboriumThemeBridge', () => {
     expect(screen.getByTestId('arborium-status')).toHaveTextContent('ready');
 
     rerender(
-      <Provider store={createStore()}>
+      <Provider store={store}>
         <ArboriumThemeBridge kind={ThemeKind.Light}>
           <StatusProbe />
         </ArboriumThemeBridge>
@@ -83,10 +92,11 @@ describe('ArboriumThemeBridge', () => {
     expect(screen.getByTestId('arborium-status')).toHaveTextContent('loading');
   });
 
-  it('uses the configured Arborium theme ids from settings', () => {
+  it('uses the configured Arborium theme ids from settings in system mode', () => {
     const settings = {
       ...getSettings(),
-      arboriumLightTheme: 'nord',
+      useSystemArboriumTheme: true,
+      arboriumLightTheme: 'ayu-light',
       arboriumDarkTheme: 'dracula',
     };
 
@@ -94,6 +104,44 @@ describe('ArboriumThemeBridge', () => {
 
     const themeLink = document.getElementById('arborium-theme');
     expect(themeLink).toHaveAttribute('href', getArboriumThemeHref('dracula'));
+  });
+
+  it('uses the configured manual Arborium theme id when system mode is disabled', () => {
+    const settings = {
+      ...getSettings(),
+      useSystemArboriumTheme: false,
+      arboriumThemeId: 'dracula',
+      arboriumLightTheme: 'ayu-light',
+      arboriumDarkTheme: 'one-dark',
+    };
+    const store = createStore();
+    store.set(settingsAtom, settings);
+
+    const { rerender } = render(
+      <Provider store={store}>
+        <ArboriumThemeBridge kind={ThemeKind.Light}>
+          <StatusProbe />
+        </ArboriumThemeBridge>
+      </Provider>
+    );
+
+    expect(document.getElementById('arborium-theme')).toHaveAttribute(
+      'href',
+      getArboriumThemeHref('dracula')
+    );
+
+    rerender(
+      <Provider store={store}>
+        <ArboriumThemeBridge kind={ThemeKind.Dark}>
+          <StatusProbe />
+        </ArboriumThemeBridge>
+      </Provider>
+    );
+
+    expect(document.getElementById('arborium-theme')).toHaveAttribute(
+      'href',
+      getArboriumThemeHref('dracula')
+    );
   });
 
   it('keeps readiness false when the theme stylesheet errors', () => {

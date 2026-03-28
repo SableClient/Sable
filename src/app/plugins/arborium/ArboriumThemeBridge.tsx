@@ -66,18 +66,24 @@ const clearLinkLoaded = (link: HTMLLinkElement) => {
 };
 
 export function ArboriumThemeBridge({ kind, children }: ArboriumThemeBridgeProps) {
+  const [useSystemArboriumTheme] = useSetting(settingsAtom, 'useSystemArboriumTheme');
+  const [arboriumThemeId] = useSetting(settingsAtom, 'arboriumThemeId');
   const [arboriumLightTheme] = useSetting(settingsAtom, 'arboriumLightTheme');
   const [arboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
   const [baseReady, setBaseReady] = useState(false);
   const [themeReady, setThemeReady] = useState(false);
-  const selectedThemeId = kind === ThemeKind.Dark ? arboriumDarkTheme : arboriumLightTheme;
-  let themeId = DEFAULT_ARBORIUM_LIGHT_THEME;
+  const selectedSystemThemeId = kind === ThemeKind.Dark ? arboriumDarkTheme : arboriumLightTheme;
+  let resolvedSystemThemeId = DEFAULT_ARBORIUM_LIGHT_THEME;
   if (kind === ThemeKind.Dark) {
-    themeId = DEFAULT_ARBORIUM_DARK_THEME;
+    resolvedSystemThemeId = DEFAULT_ARBORIUM_DARK_THEME;
   }
-  if (selectedThemeId && isArboriumThemeId(selectedThemeId)) {
-    themeId = selectedThemeId;
+  if (selectedSystemThemeId && isArboriumThemeId(selectedSystemThemeId)) {
+    resolvedSystemThemeId = selectedSystemThemeId;
   }
+  const themeId =
+    !useSystemArboriumTheme && arboriumThemeId && isArboriumThemeId(arboriumThemeId)
+      ? arboriumThemeId
+      : resolvedSystemThemeId;
   const themeHref = getArboriumThemeHref(themeId);
 
   useEffect(() => {

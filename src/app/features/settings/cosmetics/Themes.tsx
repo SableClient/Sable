@@ -16,6 +16,7 @@ import {
   LightTheme,
   Theme,
   ThemeKind,
+  useActiveTheme,
   useSystemThemeKind,
   useThemeNames,
   useThemes,
@@ -28,6 +29,17 @@ function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
   return themes.map((theme) => ({
     value: theme.id,
     label: themeNames[theme.id] ?? theme.id,
+  }));
+}
+
+function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
+  const themes = kind
+    ? getArboriumThemeOptions(kind)
+    : [...getArboriumThemeOptions('light'), ...getArboriumThemeOptions('dark')];
+
+  return themes.map((theme) => ({
+    value: theme.id,
+    label: getArboriumThemeLabel(theme.id),
   }));
 }
 
@@ -135,61 +147,130 @@ function SystemThemePreferences() {
   );
 }
 
-function CodeBlockThemePreferences() {
+function SelectCodeBlockTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
+  const activeTheme = useActiveTheme();
+  const [arboriumThemeId, setArboriumThemeId] = useSetting(settingsAtom, 'arboriumThemeId');
+  const [arboriumLightTheme] = useSetting(settingsAtom, 'arboriumLightTheme');
+  const [arboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
+
+  const arboriumThemeOptions = makeArboriumThemeOptions();
+  const selectedSystemThemeId =
+    activeTheme.kind === ThemeKind.Dark
+      ? (makeArboriumThemeOptions('dark').find((theme) => theme.value === arboriumDarkTheme)
+          ?.value ?? DEFAULT_ARBORIUM_DARK_THEME)
+      : (makeArboriumThemeOptions('light').find((theme) => theme.value === arboriumLightTheme)
+          ?.value ?? DEFAULT_ARBORIUM_LIGHT_THEME);
+  const selectedArboriumThemeId =
+    arboriumThemeOptions.find((theme) => theme.value === arboriumThemeId)?.value ??
+    selectedSystemThemeId;
+
+  return (
+    <SettingMenuSelector
+      value={selectedArboriumThemeId}
+      options={arboriumThemeOptions}
+      onSelect={setArboriumThemeId}
+      disabled={disabled}
+    />
+  );
+}
+
+function CodeBlockSystemThemePreferences() {
+  const activeTheme = useActiveTheme();
   const [arboriumLightTheme, setArboriumLightTheme] = useSetting(
     settingsAtom,
     'arboriumLightTheme'
   );
   const [arboriumDarkTheme, setArboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
 
-  const arboriumLightThemes = getArboriumThemeOptions('light');
-  const arboriumDarkThemes = getArboriumThemeOptions('dark');
-
+  const arboriumLightThemeOptions = makeArboriumThemeOptions('light');
+  const arboriumDarkThemeOptions = makeArboriumThemeOptions('dark');
   const selectedArboriumLightTheme =
-    arboriumLightThemes.find((theme) => theme.id === arboriumLightTheme)?.id ??
+    arboriumLightThemeOptions.find((theme) => theme.value === arboriumLightTheme)?.value ??
     DEFAULT_ARBORIUM_LIGHT_THEME;
   const selectedArboriumDarkTheme =
-    arboriumDarkThemes.find((theme) => theme.id === arboriumDarkTheme)?.id ??
+    arboriumDarkThemeOptions.find((theme) => theme.value === arboriumDarkTheme)?.value ??
     DEFAULT_ARBORIUM_DARK_THEME;
 
   return (
-    <SequenceCard
-      className={SequenceCardStyle}
-      variant="SurfaceVariant"
-      direction="Column"
-      gap="400"
-    >
-      <Box direction="Column" gap="400">
+    <Box wrap="Wrap" gap="400">
+      <SettingTile
+        title="Light Theme:"
+        after={
+          <SettingMenuSelector
+            value={selectedArboriumLightTheme}
+            options={arboriumLightThemeOptions}
+            onSelect={setArboriumLightTheme}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={activeTheme.kind === ThemeKind.Light}
+                disabled={disabled}
+              />
+            )}
+          />
+        }
+      />
+      <SettingTile
+        title="Dark Theme:"
+        after={
+          <SettingMenuSelector
+            value={selectedArboriumDarkTheme}
+            options={arboriumDarkThemeOptions}
+            onSelect={setArboriumDarkTheme}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={activeTheme.kind === ThemeKind.Dark}
+                disabled={disabled}
+              />
+            )}
+          />
+        }
+      />
+    </Box>
+  );
+}
+
+function CodeBlockThemeSettings() {
+  const [useSystemArboriumTheme, setUseSystemArboriumTheme] = useSetting(
+    settingsAtom,
+    'useSystemArboriumTheme'
+  );
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Code Block Theme</Text>
+
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
         <SettingTile
-          title="Code Block Light Theme"
-          description="Used for highlighted code when the app theme is light."
+          title="System Theme"
+          description="Sync highlighted code with the app's active light/dark theme."
           after={
-            <SettingMenuSelector
-              value={selectedArboriumLightTheme}
-              options={arboriumLightThemes.map((theme) => ({
-                value: theme.id,
-                label: getArboriumThemeLabel(theme.id),
-              }))}
-              onSelect={setArboriumLightTheme}
+            <Switch
+              variant="Primary"
+              value={useSystemArboriumTheme}
+              onChange={setUseSystemArboriumTheme}
             />
           }
         />
+        {useSystemArboriumTheme && <CodeBlockSystemThemePreferences />}
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Code Block Dark Theme"
-          description="Used for highlighted code when the app theme is dark."
-          after={
-            <SettingMenuSelector
-              value={selectedArboriumDarkTheme}
-              options={arboriumDarkThemes.map((theme) => ({
-                value: theme.id,
-                label: getArboriumThemeLabel(theme.id),
-              }))}
-              onSelect={setArboriumDarkTheme}
-            />
-          }
+          title="Manual Theme"
+          description="Active when System Theme is disabled."
+          after={<SelectCodeBlockTheme disabled={useSystemArboriumTheme} />}
         />
-      </Box>
-    </SequenceCard>
+      </SequenceCard>
+    </Box>
   );
 }
 
@@ -228,7 +309,7 @@ function ThemeSettings() {
         />
       </SequenceCard>
 
-      <CodeBlockThemePreferences />
+      <CodeBlockThemeSettings />
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile

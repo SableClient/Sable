@@ -92,6 +92,19 @@ type ReplyProps = {
   replyIcon?: JSX.Element;
 };
 
+export const sanitizeReplyFormattedPreview = (formattedBody: string): string => {
+  const safeFormattedBody = sanitizeCustomHtml(formattedBody);
+  const strippedHtml = trimReplyFromFormattedBody(safeFormattedBody)
+    .replaceAll(/<br\s*\/?>/gi, ' ')
+    .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
+    .replaceAll(/<\/?p[^>]*>/gi, '')
+    .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
+    .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
+    .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+
+  return strippedHtml;
+};
+
 export const Reply = as<'div', ReplyProps>(
   (
     { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
@@ -159,21 +172,14 @@ export const Reply = as<'div', ReplyProps>(
     );
 
     if (format === 'org.matrix.custom.html' && formattedBody) {
-      const safeFormattedBody = sanitizeCustomHtml(formattedBody);
-      const strippedHtml = trimReplyFromFormattedBody(safeFormattedBody)
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replaceAll(/<\/?p[^>]*>/gi, '')
-        .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
-        .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
-        .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+      const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
         linkifyOpts: replyLinkifyOpts,
         useAuthentication,
         nicknames,
         handleMentionClick: mentionClickHandler,
       });
-      bodyJSX = parse(strippedHtml, parserOpts) as JSX.Element;
+      bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
     } else if (body) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);

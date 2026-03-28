@@ -55,6 +55,7 @@ const permittedTagToAttributes = {
 const permittedHtmlAttributes = Array.from(new Set(Object.values(permittedTagToAttributes).flat()));
 
 const allowedLinkSchemes = new Set(['https', 'http', 'ftp', 'mailto', 'magnet']);
+const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option', 'noscript'];
 
 const codeLanguageClassRegex = /^language-[A-Za-z0-9_-]+$/;
 const orderedListStartRegex = /^-?\d+$/;
@@ -224,7 +225,7 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
     ALLOW_DATA_ATTR: true,
     FORBID_ATTR: ['style'],
     FORBID_TAGS: ['mx-reply'],
-    FORBID_CONTENTS: ['mx-reply'],
+    FORBID_CONTENTS: forbiddenContentTags,
     KEEP_CONTENT: true,
     ALLOWED_URI_REGEXP: allowedUriRegex,
     RETURN_DOM_FRAGMENT: true,

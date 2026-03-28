@@ -91,9 +91,19 @@ const clickLatestButton = (name: string) => {
 };
 
 describe('Appearance settings', () => {
-  it('renders shared selector-backed theme controls and code block system/manual selectors', () => {
+  it('renders Theme, Code Block Theme, and Visual Tweaks as separate sections', () => {
     render(<Appearance />);
 
+    const themeHeading = screen.getByText('Theme');
+    const codeBlockThemeHeading = screen.getByText('Code Block Theme');
+    const visualTweaksHeading = screen.getByText('Visual Tweaks');
+
+    expect(themeHeading.compareDocumentPosition(codeBlockThemeHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(codeBlockThemeHeading.compareDocumentPosition(visualTweaksHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
     expect(screen.getByRole('button', { name: 'Silver' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cinny Light' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Black' })).toBeInTheDocument();

@@ -309,8 +309,6 @@ function ThemeSettings() {
         />
       </SequenceCard>
 
-      <CodeBlockThemeSettings />
-
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Saturation"
@@ -474,6 +472,7 @@ export function Appearance() {
   return (
     <Box direction="Column" gap="700">
       <ThemeSettings />
+      <CodeBlockThemeSettings />
 
       <Box direction="Column" gap="100">
         <Text size="L400">Visual Tweaks</Text>

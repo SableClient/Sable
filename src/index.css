@@ -78,17 +78,11 @@
 html {
   height: 100%;
   overflow: hidden;
-
-  --sable-inset-top: env(safe-area-inset-top, 0px);
-  --sable-inset-bottom: env(safe-area-inset-bottom, 0px);
-  --sable-inset-left: env(safe-area-inset-left, 0px);
-  --sable-inset-right: env(safe-area-inset-right, 0px);
 }
 
 body {
   margin: 0;
-  padding: var(--sable-inset-top) var(--sable-inset-right) var(--sable-inset-bottom)
-    var(--sable-inset-left);
+  padding: 0;
   height: 100%;
   font-family: var(--font-secondary);
   font-size: 16px;

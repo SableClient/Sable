@@ -78,6 +78,9 @@ pub fn run() {
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_notifications::init());
 
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_edge_to_edge::init());
+
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())

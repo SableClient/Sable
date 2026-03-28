@@ -4147,6 +4147,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",
+ "tauri-plugin-edge-to-edge",
  "tauri-plugin-log",
  "tauri-plugin-notifications",
  "tauri-plugin-opener",
@@ -4993,6 +4994,17 @@ dependencies = [
  "url",
  "windows-registry",
  "windows-result 0.3.4",
+]
+
+[[package]]
+name = "tauri-plugin-edge-to-edge"
+version = "0.3.3"
+source = "git+https://github.com/SableClient/tauri-plugin-edge-to-edge.git?rev=33c6116c27be28c06df5a9d02231ecc5fdeb93c5#33c6116c27be28c06df5a9d02231ecc5fdeb93c5"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

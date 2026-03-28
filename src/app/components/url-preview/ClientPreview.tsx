@@ -167,10 +167,14 @@ function parseYoutubeLink(url: string): YoutubeLink | null {
     const split = path.split('?');
     [videoId] = split;
     params = split[1]?.split('&');
-  } else {
+  } else if (url.includes('/shorts/')) {
+    const split = path.split('/shorts/');
+    [videoId] = split;
+    params = split[1]?.split('shorts');
+  } else if (url.includes('youtube.com')) {
     params = path.split('?')[1].split('&');
     videoId = params.find((s) => s.startsWith('v='), params)?.split('v=')[1];
-  }
+  } else return null;
 
   if (!videoId) return null;
 

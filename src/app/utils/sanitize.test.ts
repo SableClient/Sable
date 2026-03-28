@@ -1,7 +1,7 @@
 // Tests for sanitizeCustomHtml — security-critical: strips dangerous content from
 // user-supplied Matrix message HTML before rendering.
 import { describe, it, expect } from 'vitest';
-import { sanitizeCustomHtml } from './sanitize';
+import { sanitizeCustomHtml, sanitizeText } from './sanitize';
 
 describe('sanitizeCustomHtml – tag allowlist', () => {
   it('passes through permitted tags', () => {
@@ -74,12 +74,14 @@ describe('sanitizeCustomHtml – image transformer', () => {
     expect(result).toContain('src="mxc://example.com/abc"');
   });
 
-  it('converts <img> with https:// src to a safe <a> link', () => {
+  it('falls back to alt text in a span for https:// src', () => {
     const result = sanitizeCustomHtml('<img src="https://example.com/image.jpg" alt="photo" />');
     expect(result).not.toContain('<img');
-    expect(result).toContain('<a');
-    expect(result).toContain('https://example.com/image.jpg');
-    expect(result).toContain('rel="noreferrer noopener"');
+    // Non-mxc images are replaced with a span containing the alt text
+    expect(result).toContain('<span');
+    expect(result).toContain('photo');
+    // The remote URL must NOT appear in the output (privacy/security)
+    expect(result).not.toContain('https://example.com/image.jpg');
   });
 });
 
@@ -120,5 +122,105 @@ describe('sanitizeCustomHtml – code block class handling', () => {
   it('strips arbitrary classes not matching language-*', () => {
     const result = sanitizeCustomHtml('<code class="evil-class">code</code>');
     expect(result).not.toContain('evil-class');
+  });
+});
+
+// ── Matrix spec v1.18 table elements ─────────────────────────────────────────
+
+describe('sanitizeCustomHtml – Matrix spec v1.18 table elements', () => {
+  it('passes through a well-formed table', () => {
+    const html =
+      '<table><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>';
+    const result = sanitizeCustomHtml(html);
+    expect(result).toContain('<table>');
+    expect(result).toContain('<thead>');
+    expect(result).toContain('<tbody>');
+    expect(result).toContain('<th>A</th>');
+    expect(result).toContain('<td>B</td>');
+    expect(result).toContain('<tr>');
+  });
+
+  it('passes through <caption>', () => {
+    const result = sanitizeCustomHtml(
+      '<table><caption>My table</caption><tr><td>cell</td></tr></table>'
+    );
+    expect(result).toContain('<caption>My table</caption>');
+  });
+
+  it('passes through <sup> and <sub>', () => {
+    expect(sanitizeCustomHtml('x<sup>2</sup>')).toContain('<sup>2</sup>');
+    expect(sanitizeCustomHtml('H<sub>2</sub>O')).toContain('<sub>2</sub>');
+  });
+
+  it('passes through <hr>', () => {
+    expect(sanitizeCustomHtml('before<hr>after')).toContain('<hr>');
+  });
+});
+
+// ── Inline styles on non-span tags ───────────────────────────────────────────
+
+describe('sanitizeCustomHtml – inline style on spec-allowed tags', () => {
+  it('preserves hex color style on <b>', () => {
+    const result = sanitizeCustomHtml('<b style="color: #abcdef">bold</b>');
+    expect(result).toMatch(/color:\s*#abcdef/);
+  });
+
+  it('preserves hex background-color style on <th>', () => {
+    const result = sanitizeCustomHtml(
+      '<table><tr><th style="background-color: #123456">H</th></tr></table>'
+    );
+    expect(result).toMatch(/background-color:\s*#123456/);
+  });
+
+  it('strips non-hex color values on <b>', () => {
+    const result = sanitizeCustomHtml('<b style="color: red">bold</b>');
+    expect(result).not.toContain('color: red');
+  });
+
+  it('strips disallowed CSS properties on <p>', () => {
+    const result = sanitizeCustomHtml('<p style="font-size: 99px; color: #ff0000">text</p>');
+    expect(result).not.toContain('font-size');
+    expect(result).toMatch(/color:\s*#ff0000/);
+  });
+});
+
+// ── image transformer – disallowed protocols ─────────────────────────────────
+
+describe('sanitizeCustomHtml – image transformer protocol checks', () => {
+  it('falls back to alt text for javascript: src', () => {
+    // eslint-disable-next-line no-script-url
+    const result = sanitizeCustomHtml('<img src="javascript:alert(1)" alt="bad" />');
+    expect(result).not.toContain('<img');
+    expect(result).toContain('bad');
+  });
+
+  it('falls back to empty span for data: src with no alt', () => {
+    const result = sanitizeCustomHtml('<img src="data:image/png;base64,abc" />');
+    expect(result).not.toContain('<img');
+    expect(result).not.toContain('data:');
+  });
+});
+
+// ── sanitizeText ─────────────────────────────────────────────────────────────
+
+describe('sanitizeText', () => {
+  it('escapes & to &amp;', () => {
+    expect(sanitizeText('foo & bar')).toBe('foo &amp; bar');
+  });
+
+  it('escapes < and > to HTML entities', () => {
+    expect(sanitizeText('<b>text</b>')).toBe('&lt;b&gt;text&lt;/b&gt;');
+  });
+
+  it('escapes double quotes', () => {
+    expect(sanitizeText('"hello"')).toBe('&quot;hello&quot;');
+  });
+
+  it('escapes single quotes', () => {
+    expect(sanitizeText("it's")).toBe('it&#39;s');
+  });
+
+  it('leaves plain text unchanged', () => {
+    expect(sanitizeText('hello world')).toBe('hello world');
   });
 });

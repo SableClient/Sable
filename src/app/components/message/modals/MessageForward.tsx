@@ -29,6 +29,7 @@ import { StateEvent } from '$types/matrix/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 
+
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component
@@ -60,8 +61,6 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
     );
   }
 );
-
-import { sanitizeCustomHtml } from '$utils/sanitize';
 
 export const unwrapForwardedContent = (content: string) => {
   // unwrap the content of a forwarded message if it was wrapped in a blockquote with the data-forward-marker attribute

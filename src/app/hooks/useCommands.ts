@@ -169,9 +169,13 @@ const getAllTextNodes = (root: Node): Node[] =>
         []
       );
 
+import { sanitizeCustomHtml } from '$utils/sanitize';
+
 export const rainbowify = (htmlInput: string): string => {
+  // Always sanitize input before processing
+  const safeInput = sanitizeCustomHtml(htmlInput);
   const div = document.createElement('div');
-  div.innerHTML = htmlInput;
+  div.innerHTML = safeInput;
   const textNodes = getAllTextNodes(div);
   const totalTextLen = textNodes.reduce((acc, node) => {
     const text = node.textContent || '';

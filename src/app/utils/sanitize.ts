@@ -2,34 +2,33 @@ import sanitizeHtml, { Transformer } from 'sanitize-html';
 
 const MAX_TAG_NESTING = 100;
 
+// Allowed tags per Matrix spec v1.18 (https://spec.matrix.org/v1.18/client-server-api/#mroommessage-msgtypes)
 const permittedHtmlTags = [
-  'font',
+  'a',
+  'b',
+  'i',
+  'u',
+  'strong',
+  'em',
   'del',
+  'blockquote',
+  'code',
+  'pre',
+  'p',
+  'span',
+  'br',
+  'ul',
+  'ol',
+  'li',
+  'sup',
+  'sub',
   'h1',
   'h2',
   'h3',
   'h4',
   'h5',
   'h6',
-  'blockquote',
-  'p',
-  'a',
-  'ul',
-  'ol',
-  'sup',
-  'sub',
-  'li',
-  'b',
-  'i',
-  'u',
-  'strong',
-  'em',
-  'strike',
-  's',
-  'code',
   'hr',
-  'br',
-  'div',
   'table',
   'thead',
   'tbody',
@@ -37,93 +36,115 @@ const permittedHtmlTags = [
   'th',
   'td',
   'caption',
-  'pre',
-  'span',
   'img',
-  'details',
-  'summary',
 ];
 
-const urlSchemes = ['https', 'http', 'ftp', 'mailto', 'magnet'];
+// Only allow http, https, matrix, mxc for href/src
+const urlSchemes = ['https', 'http', 'matrix', 'mxc'];
 
+// Allowed attributes per tag, per Matrix spec v1.18
 const permittedTagToAttributes = {
-  font: ['style', 'data-mx-bg-color', 'data-mx-color', 'color'],
+  a: ['href'],
+  img: ['src', 'alt', 'title'],
+  code: ['class'],
   span: [
-    'style',
+    'data-mx-spoiler',
+    'data-mx-pill',
+    'data-mx-maths',
     'data-mx-bg-color',
     'data-mx-color',
-    'data-mx-spoiler',
-    'data-mx-maths',
-    'data-mx-pill',
-    'data-mx-ping',
-    'data-md',
+    'style', // Only color/background-color allowed
   ],
-  div: ['data-mx-maths'],
-  blockquote: ['data-md'],
-  h1: ['data-md'],
-  h2: ['data-md'],
-  h3: ['data-md'],
-  h4: ['data-md'],
-  h5: ['data-md'],
-  h6: ['data-md'],
-  pre: ['data-md', 'class'],
-  ol: ['start', 'type', 'data-md'],
-  ul: ['data-md'],
-  a: ['name', 'target', 'href', 'rel', 'data-md'],
-  img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'],
-  code: ['class', 'data-md'],
-  strong: ['data-md'],
-  i: ['data-md'],
-  em: ['data-md'],
-  u: ['data-md'],
-  s: ['data-md'],
-  del: ['data-md'],
-  sub: ['data-md'],
-  hr: ['data-md'],
+  // Allow style/color on b, i, u, strong, em, del, blockquote, p, h1-h6, li, th, td, caption, pre, sup, sub, hr, table, thead, tbody, tr
+  b: ['style'],
+  i: ['style'],
+  u: ['style'],
+  strong: ['style'],
+  em: ['style'],
+  del: ['style'],
+  blockquote: ['style'],
+  p: ['style'],
+  h1: ['style'],
+  h2: ['style'],
+  h3: ['style'],
+  h4: ['style'],
+  h5: ['style'],
+  h6: ['style'],
+  li: ['style'],
+  th: ['style'],
+  td: ['style'],
+  caption: ['style'],
+  pre: ['style'],
+  sup: ['style'],
+  sub: ['style'],
+  hr: ['style'],
+  table: ['style'],
+  thead: ['style'],
+  tbody: ['style'],
+  tr: ['style'],
 };
 
-const transformFontTag: Transformer = (tagName, attribs) => ({
-  tagName,
-  attribs: {
-    ...attribs,
-    style: `background-color: ${attribs['data-mx-bg-color']}; color: ${attribs['data-mx-color']}`,
-  },
-});
+// Remove font tag support (not in spec)
+// Only allow color/background-color in style, and only if valid hex or named color
+const transformSpanTag: Transformer = (tagName, attribs) => {
+  const allowedStyles: Record<string, string> = {};
+  if (attribs.style) {
+    // Only allow color/background-color
+    const style = attribs.style.split(';').map((s) => s.trim());
+    style.forEach((s) => {
+      if (s.startsWith('color:')) allowedStyles.color = s.split(':')[1].trim();
+      if (s.startsWith('background-color:'))
+        allowedStyles['background-color'] = s.split(':')[1].trim();
+    });
+  }
+  // Prefer data-mx-color/bg-color if present
+  if (attribs['data-mx-color']) allowedStyles.color = attribs['data-mx-color'];
+  if (attribs['data-mx-bg-color']) allowedStyles['background-color'] = attribs['data-mx-bg-color'];
+  return {
+    tagName,
+    attribs: {
+      ...attribs,
+      style: Object.entries(allowedStyles)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('; '),
+    },
+  };
+};
 
-const transformSpanTag: Transformer = (tagName, attribs) => ({
-  tagName,
-  attribs: {
-    ...attribs,
-    style: `background-color: ${attribs['data-mx-bg-color']}; color: ${attribs['data-mx-color']}`,
-  },
-});
-
-const transformATag: Transformer = (tagName, attribs) => ({
-  tagName,
-  attribs: {
-    ...attribs,
-    rel: 'noreferrer noopener',
-    target: '_blank',
-  },
-});
+const transformATag: Transformer = (tagName, attribs) => {
+  // Only allow http, https, matrix: links
+  const href = attribs.href || '';
+  if (!href.match(/^(https?:|matrix:)/)) {
+    // attribs must include all possible keys as strings
+    return { tagName: 'span', attribs: { href: '', rel: '', target: '' }, text: href };
+  }
+  return {
+    tagName,
+    attribs: {
+      href: href || '',
+      rel: 'noreferrer noopener',
+      target: '_blank',
+    },
+  };
+};
 
 const transformImgTag: Transformer = (tagName, attribs) => {
-  const { src } = attribs;
-  if (typeof src === 'string' && src.startsWith('mxc://') === false) {
+  // Only allow mxc:// URLs for src
+  const src = typeof attribs.src === 'string' ? attribs.src : '';
+  if (!src.startsWith('mxc://')) {
+    // Replace with alt text or nothing
     return {
-      tagName: 'a',
-      attribs: {
-        href: src,
-        rel: 'noreferrer noopener',
-        target: '_blank',
-      },
-      text: attribs.alt || src,
+      tagName: 'span',
+      attribs: { src: '', alt: '', title: '' },
+      text: typeof attribs.alt === 'string' ? attribs.alt : '',
     };
   }
   return {
     tagName,
     attribs: {
-      ...attribs,
+      src: src || '',
+      alt: typeof attribs.alt === 'string' ? attribs.alt : '',
+      title: typeof attribs.title === 'string' ? attribs.title : '',
     },
   };
 };
@@ -136,8 +157,9 @@ export const sanitizeCustomHtml = (customHtml: string): string =>
     allowedSchemes: urlSchemes,
     allowedSchemesByTag: {
       a: urlSchemes,
+      img: ['mxc'],
     },
-    allowedSchemesAppliedToAttributes: ['href'],
+    allowedSchemesAppliedToAttributes: ['href', 'src'],
     allowProtocolRelative: false,
     allowedClasses: {
       code: ['language-*'],
@@ -149,7 +171,6 @@ export const sanitizeCustomHtml = (customHtml: string): string =>
       },
     },
     transformTags: {
-      font: transformFontTag,
       span: transformSpanTag,
       a: transformATag,
       img: transformImgTag,

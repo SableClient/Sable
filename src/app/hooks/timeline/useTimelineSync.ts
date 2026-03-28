@@ -192,12 +192,13 @@ const useTimelinePagination = (
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
-            const checkTimeline = backwards ? freshLTimelines[0] : freshLTimelines[freshLTimelines.length - 1];
+            const checkTimeline = backwards
+              ? freshLTimelines[0]
+              : freshLTimelines[freshLTimelines.length - 1];
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
-              typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(
-                checkDirection
-              ) === 'string';
+              typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
+              'string';
             if (stillHasToken) {
               // Release lock so inner paginate can claim it, then mark continuing
               // so the finally block below does NOT reset it after inner claims.

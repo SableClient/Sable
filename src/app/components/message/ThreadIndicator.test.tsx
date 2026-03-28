@@ -44,8 +44,7 @@ describe('ThreadIndicator visibility in compose strip', () => {
 
 describe('sanitizeReplyFormattedPreview', () => {
   it('removes mx-reply quote block content and keeps message text', () => {
-    const html =
-      '<mx-reply><blockquote>quoted</blockquote></mx-reply><p>Visible message</p>';
+    const html = '<mx-reply><blockquote>quoted</blockquote></mx-reply><p>Visible message</p>';
 
     const result = sanitizeReplyFormattedPreview(html);
 
@@ -55,13 +54,13 @@ describe('sanitizeReplyFormattedPreview', () => {
 
   it('sanitizes dangerous HTML before parse', () => {
     const html =
-      '<mx-reply><blockquote>old</blockquote></mx-reply><p>safe<script>alert(1)</script></p><a href="javascript:alert(1)">x</a>';
+      '<mx-reply><blockquote>old</blockquote></mx-reply><p>safe<script>alert(1)</script></p><a href="https://example.org" onclick="alert(1)">x</a>';
 
     const result = sanitizeReplyFormattedPreview(html);
 
     expect(result).not.toContain('<script');
     expect(result).not.toContain('alert(1)');
-    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('onclick=');
     expect(result).toContain('safe');
   });
 });

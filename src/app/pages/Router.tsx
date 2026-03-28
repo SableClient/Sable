@@ -95,7 +95,10 @@ const getFirstSession = () => {
   return getFallbackSession();
 };
 
-export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
+export const createRouter = (
+  clientConfig: ClientConfig,
+  screenSize: ScreenSize
+): ReturnType<typeof createBrowserRouter> => {
   const { hashRouter } = clientConfig;
   const mobile = screenSize === ScreenSize.Mobile;
 

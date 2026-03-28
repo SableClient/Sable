@@ -1,36 +1,15 @@
 {
-  "compilerOptions": {
-    "sourceMap": true,
-    "jsx": "react-jsx",
-    "target": "ES2022",
-    "module": "ES2022",
-    "allowJs": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "$hooks/*": ["src/app/hooks/*"],
-      "$plugins/*": ["src/app/plugins/*"],
-      "$components/*": ["src/app/components/*"],
-      "$features/*": ["src/app/features/*"],
-      "$state/*": ["src/app/state/*"],
-      "$styles/*": ["src/app/styles/*"],
-      "$utils/*": ["src/app/utils/*"],
-      "$pages/*": ["src/app/pages/*"],
-      "$types/*": ["src/types/*"],
-      "$public/*": ["public/*"],
-      "$client/*": ["src/client/*"]
-    },
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "outDir": "dist",
-    "skipLibCheck": true,
-    "lib": ["ES2022", "DOM"]
+  "typeAcquisition": {
+    "enable": false
   },
-  "exclude": ["node_modules", "dist"],
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "exclude": ["node_modules", "dist", "coverage", "public"],
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.web.json"
+    }
+  ]
 }

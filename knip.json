@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
+  "entry": ["src/sw.ts"],
+  "ignore": ["src/ext.d.ts", "src/types/matrix-sdk-events.d.ts"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true

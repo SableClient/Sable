@@ -1,26 +1,13 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
-import path from 'path';
 
 // Standalone Vitest config — intentionally excludes Cloudflare, PWA, compression,
 // and other production-only Vite plugins that don't apply to unit tests.
 export default defineConfig({
   plugins: [react(), vanillaExtractPlugin()],
   resolve: {
-    alias: {
-      $hooks: path.resolve(__dirname, 'src/app/hooks'),
-      $plugins: path.resolve(__dirname, 'src/app/plugins'),
-      $components: path.resolve(__dirname, 'src/app/components'),
-      $features: path.resolve(__dirname, 'src/app/features'),
-      $state: path.resolve(__dirname, 'src/app/state'),
-      $styles: path.resolve(__dirname, 'src/app/styles'),
-      $utils: path.resolve(__dirname, 'src/app/utils'),
-      $pages: path.resolve(__dirname, 'src/app/pages'),
-      $types: path.resolve(__dirname, 'src/types'),
-      $public: path.resolve(__dirname, 'public'),
-      $client: path.resolve(__dirname, 'src/client'),
-    },
+    tsconfigPaths: true,
   },
   define: {
     APP_VERSION: JSON.stringify('test'),
@@ -31,7 +18,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.{test,spec}.{js,ts}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

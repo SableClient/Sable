@@ -1,9 +1,11 @@
 import path from 'node:path';
 
+import e18ePlugin from '@e18e/eslint-plugin';
 import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import { configs, helpers, plugins } from 'eslint-config-airbnb-extended';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import { rules as prettierConfigRules } from 'eslint-config-prettier';
 import prettierPlugin from 'eslint-plugin-prettier';
 import reactPlugin from 'eslint-plugin-react';
@@ -66,10 +68,53 @@ const prettierConfig = defineConfig([
   },
 ]);
 
+const e18eConfig = defineConfig([
+  {
+    name: 'e18e/scripts',
+    files: ['scripts/**/*.js'],
+    plugins: {
+      e18e: e18ePlugin,
+    },
+    rules: {
+      'e18e/prefer-array-at': 'error',
+      'e18e/prefer-array-some': 'error',
+      'e18e/prefer-array-to-sorted': 'error',
+      'e18e/prefer-spread-syntax': 'error',
+    },
+  },
+]);
+
+const scriptOverrides = defineConfig([
+  {
+    name: 'project/script-overrides',
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-await-in-loop': 'off',
+      'no-bitwise': 'off',
+      'no-continue': 'off',
+      'no-restricted-syntax': 'off',
+      'prefer-destructuring': 'off',
+    },
+  },
+]);
+
 const projectOverrides = defineConfig([
   {
     name: 'project/rule-overrides',
     files: [...jsFiles, ...tsFiles],
+    settings: {
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({
+          alwaysTryTypes: true,
+          project: ['tsconfig.web.json', 'tsconfig.node.json'],
+        }),
+      ],
+    },
     languageOptions: {
       globals: {
         JSX: 'readonly',
@@ -110,6 +155,12 @@ const projectOverrides = defineConfig([
   {
     name: 'project/typescript-rule-overrides',
     files: tsFiles,
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       // disabled for now to get eslint to pass
       '@typescript-eslint/consistent-type-definitions': 'off',
@@ -138,6 +189,8 @@ export default defineConfig([
   ...jsConfig,
   ...reactConfig,
   ...typescriptConfig,
+  ...e18eConfig,
+  ...scriptOverrides,
   ...prettierConfig,
   ...projectOverrides,
 ]);

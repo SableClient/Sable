@@ -287,6 +287,7 @@ export function DeviceTile({
     <>
       <SettingTile
         focusId={`device-${toSettingsFocusIdPart(device.device_id)}`}
+        showSettingLinkAction={false}
         before={
           <IconButton
             variant={deleted ? 'Critical' : 'Secondary'}

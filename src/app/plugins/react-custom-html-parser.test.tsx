@@ -28,7 +28,7 @@ function Subject({ body }: { body: string }) {
 }
 
 describe('react custom html parser', () => {
-  it('renders same-origin raw settings permalinks as mention-style chips through the factory link render path', () => {
+  it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {
     const renderLink = factoryRenderLinkifyWithMention(
       settingsLinkBaseUrl,
       () => undefined,
@@ -56,7 +56,7 @@ describe('react custom html parser', () => {
     expect(link).not.toHaveTextContent('Settings:');
   });
 
-  it('renders same-origin settings permalinks as internal app links with settings metadata', () => {
+  it('renders same-origin settings links as internal app links with settings metadata', () => {
     render(
       <Subject body='<a href="https://app.example/settings/appearance?focus=message-link-preview">Appearance</a>' />
     );

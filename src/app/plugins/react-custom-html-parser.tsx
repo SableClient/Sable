@@ -36,7 +36,7 @@ import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { parseSettingsPermalink } from '$features/settings/settingsLink';
+import { parseSettingsLink } from '$features/settings/settingsLink';
 import { settingsSections } from '$features/settings/routes';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import {
@@ -171,24 +171,24 @@ const settingsSectionLabel = Object.fromEntries(
   settingsSections.map((section) => [section.id, section.label])
 ) as Record<(typeof settingsSections)[number]['id'], string>;
 
-const humanizeSettingsPermalinkPart = (value: string): string =>
+const humanizeSettingsLinkPart = (value: string): string =>
   value
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const getSettingsPermalinkLabel = (
+const getSettingsLinkLabel = (
   section: keyof typeof settingsSectionLabel,
   focus?: string
 ): string => {
   const sectionLabel = settingsSectionLabel[section];
-  const focusLabel = focus ? humanizeSettingsPermalinkPart(focus) : undefined;
+  const focusLabel = focus ? humanizeSettingsLinkPart(focus) : undefined;
 
   return focusLabel ? `${sectionLabel} / ${focusLabel}` : sectionLabel;
 };
 
-const getSettingsPermalinkChildren = ({
+const getSettingsLinkChildren = ({
   href,
   section,
   focus,
@@ -202,13 +202,13 @@ const getSettingsPermalinkChildren = ({
   fallbackChildren?: ReactNode;
 }): ReactNode => {
   if (!content || content === href || content === safeDecodeUrl(href)) {
-    return getSettingsPermalinkLabel(section, focus);
+    return getSettingsLinkLabel(section, focus);
   }
 
   return fallbackChildren ?? content;
 };
 
-const renderSettingsPermalink = ({
+const renderSettingsLink = ({
   href,
   section,
   focus,
@@ -233,7 +233,7 @@ const renderSettingsPermalink = ({
     <span aria-hidden="true" className={css.MentionIcon}>
       <Icon size="50" src={Icons.Setting} />
     </span>
-    {getSettingsPermalinkChildren({ href, section, focus, content, fallbackChildren })}
+    {getSettingsLinkChildren({ href, section, focus, content, fallbackChildren })}
   </a>
 );
 
@@ -256,10 +256,10 @@ export const factoryRenderLinkifyWithMention = (
     }
 
     if (tagName === 'a' && decodedHref) {
-      const settingsPermalink = parseSettingsPermalink(settingsLinkBaseUrl, decodedHref);
-      if (settingsPermalink) {
-        const { section, focus } = settingsPermalink;
-        return renderSettingsPermalink({
+      const settingsLink = parseSettingsLink(settingsLinkBaseUrl, decodedHref);
+      if (settingsLink) {
+        const { section, focus } = settingsLink;
+        return renderSettingsLink({
           href: decodedHref,
           section,
           focus,
@@ -603,13 +603,10 @@ export const getReactCustomHtmlParser = (
           }
 
           if (decodedHref) {
-            const settingsPermalink = parseSettingsPermalink(
-              params.settingsLinkBaseUrl,
-              decodedHref
-            );
-            if (settingsPermalink) {
-              const { section, focus } = settingsPermalink;
-              return renderSettingsPermalink({
+            const settingsLink = parseSettingsLink(params.settingsLinkBaseUrl, decodedHref);
+            if (settingsLink) {
+              const { section, focus } = settingsLink;
+              return renderSettingsLink({
                 href: decodedHref,
                 section,
                 focus,

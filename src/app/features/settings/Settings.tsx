@@ -42,7 +42,7 @@ import { PerMessageProfilePage } from './Persona/ProfilesPage';
 import { settingsSections, type SettingsSectionId } from './routes';
 import { settingsHeader } from './styles.css';
 import { useSettingsFocus } from './useSettingsFocus';
-import { SettingsPermalinkProvider } from './SettingsPermalinkContext';
+import { SettingsLinkProvider } from './SettingsLinkContext';
 import { useSettingsLinkBaseUrl } from './useSettingsLinkBaseUrl';
 
 export enum SettingsPages {
@@ -352,15 +352,13 @@ export function Settings({
       }
     >
       {visibleSection && (
-        <SettingsPermalinkProvider
-          value={{ section: visibleSection, baseUrl: settingsLinkBaseUrl }}
-        >
+        <SettingsLinkProvider value={{ section: visibleSection, baseUrl: settingsLinkBaseUrl }}>
           <SettingsSectionViewport
             section={visibleSection}
             requestBack={sectionRequestBack}
             requestClose={handleRequestClose}
           />
-        </SettingsPermalinkProvider>
+        </SettingsLinkProvider>
       )}
     </PageRoot>
   );

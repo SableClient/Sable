@@ -2,7 +2,7 @@ import type { ClientConfig } from '$hooks/useClientConfig';
 import { getAppPathFromHref, getSettingsPath, withOriginBaseUrl } from '$pages/pathUtils';
 import { isSettingsSectionId, type SettingsSectionId } from './routes';
 
-export type SettingsPermalink = {
+export type SettingsLink = {
   section: SettingsSectionId;
   focus?: string;
 };
@@ -38,16 +38,13 @@ export const getEffectiveSettingsLinkBaseUrl = (
 ): string =>
   normalizeSettingsLinkBaseUrl(override) ?? getConfiguredSettingsLinkBaseUrl(clientConfig);
 
-export const buildSettingsPermalink = (
+export const buildSettingsLink = (
   baseUrl: string,
   section: SettingsSectionId,
   focus?: string
 ): string => withOriginBaseUrl(baseUrl, getSettingsPath(section, focus));
 
-export const parseSettingsPermalink = (
-  baseUrl: string,
-  href: string
-): SettingsPermalink | undefined => {
+export const parseSettingsLink = (baseUrl: string, href: string): SettingsLink | undefined => {
   try {
     const base = new URL(baseUrl);
     const target = new URL(href);

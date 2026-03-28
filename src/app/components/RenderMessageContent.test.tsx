@@ -31,7 +31,7 @@ function renderMessage(body: string, settingsLinkBaseUrl = 'https://app.sable.mo
 }
 
 describe('RenderMessageContent', () => {
-  it('does not render url previews for settings permalinks', () => {
+  it('does not render url previews for settings links', () => {
     renderMessage('https://app.sable.moe/settings/account?focus=status');
 
     expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();

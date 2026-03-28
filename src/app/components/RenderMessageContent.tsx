@@ -1,6 +1,6 @@
 import { memo, useMemo, useCallback } from 'react';
 import { MsgType } from '$types/matrix-sdk';
-import { parseSettingsPermalink } from '$features/settings/settingsLink';
+import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
@@ -105,7 +105,7 @@ function RenderMessageContentInternal({
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
       const filteredUrls = urls.filter(
-        (url) => !testMatrixTo(url) && !parseSettingsPermalink(settingsLinkBaseUrl, url)
+        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
       );
       if (filteredUrls.length === 0) return undefined;
 

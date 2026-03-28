@@ -8,9 +8,9 @@ export const settingTileTitleRow = style({
   minWidth: 0,
 });
 
-const permalinkActionBase = style({});
+const settingLinkActionBase = style({});
 
-export const settingTilePermalinkActionTransparentBackground = style({
+export const settingTileSettingLinkActionTransparentBackground = style({
   backgroundColor: 'transparent',
   selectors: {
     '&[aria-pressed=true]': {
@@ -28,8 +28,8 @@ export const settingTilePermalinkActionTransparentBackground = style({
   },
 });
 
-export const settingTilePermalinkAction = style([
-  permalinkActionBase,
+export const settingTileSettingLinkAction = style([
+  settingLinkActionBase,
   {
     minWidth: 0,
     minHeight: 0,
@@ -39,8 +39,8 @@ export const settingTilePermalinkAction = style([
   },
 ]);
 
-export const settingTilePermalinkActionDesktopHidden = style([
-  permalinkActionBase,
+export const settingTileSettingLinkActionDesktopHidden = style([
+  settingLinkActionBase,
   {
     opacity: 0,
     pointerEvents: 'none',
@@ -57,8 +57,8 @@ export const settingTilePermalinkActionDesktopHidden = style([
   },
 ]);
 
-export const settingTilePermalinkActionMobileVisible = style([
-  permalinkActionBase,
+export const settingTileSettingLinkActionMobileVisible = style([
+  settingLinkActionBase,
   {
     opacity: 1,
   },

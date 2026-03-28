@@ -40,7 +40,7 @@ describe('useMentionClickHandler', () => {
     mockOpenSettings.mockReset();
   });
 
-  it('routes settings permalinks through openSettings with section and focus', () => {
+  it('routes settings links through openSettings with section and focus', () => {
     const { result } = renderHook(() => useMentionClickHandler('!room:example.org'), {
       wrapper: Wrapper,
     });

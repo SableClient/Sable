@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS_LINK_BASE_URL,
-  buildSettingsPermalink,
+  buildSettingsLink,
   getEffectiveSettingsLinkBaseUrl,
-  parseSettingsPermalink,
+  parseSettingsLink,
   toSettingsFocusIdPart,
 } from './settingsLink';
 
 describe('settingsLink', () => {
-  it('builds settings permalinks for plain and hash-router base urls', () => {
+  it('builds settings links for plain and hash-router base urls', () => {
+    expect(buildSettingsLink('https://app.example', 'appearance', 'message-link-preview')).toBe(
+      'https://app.example/settings/appearance?focus=message-link-preview'
+    );
     expect(
-      buildSettingsPermalink('https://app.example', 'appearance', 'message-link-preview')
-    ).toBe('https://app.example/settings/appearance?focus=message-link-preview');
-    expect(
-      buildSettingsPermalink('https://app.example/#/app', 'appearance', 'message-link-preview')
+      buildSettingsLink('https://app.example/#/app', 'appearance', 'message-link-preview')
     ).toBe('https://app.example/#/app/settings/appearance?focus=message-link-preview');
   });
 
@@ -31,40 +31,38 @@ describe('settingsLink', () => {
     ).toBe('https://override.example');
   });
 
-  it('parses settings permalinks from the same app origin only', () => {
+  it('parses settings links from the same app origin only', () => {
     expect(
-      parseSettingsPermalink(
+      parseSettingsLink(
         'https://app.example',
         'https://app.example/settings/appearance?focus=message-link-preview'
       )
     ).toEqual({ section: 'appearance', focus: 'message-link-preview' });
     expect(
-      parseSettingsPermalink(
+      parseSettingsLink(
         'https://app.example',
         'https://app.example/settings/appearance/?focus=message-link-preview'
       )
     ).toEqual({ section: 'appearance', focus: 'message-link-preview' });
 
     expect(
-      parseSettingsPermalink('https://app.example', 'https://other.example/settings/appearance')
+      parseSettingsLink('https://app.example', 'https://other.example/settings/appearance')
     ).toBeUndefined();
-    expect(
-      parseSettingsPermalink('https://app.example', 'https://app.example/home/')
-    ).toBeUndefined();
+    expect(parseSettingsLink('https://app.example', 'https://app.example/home/')).toBeUndefined();
   });
 
-  it('rejects a same-origin hash permalink that does not match the configured app base', () => {
+  it('rejects a same-origin hash settings link that does not match the configured app base', () => {
     expect(
-      parseSettingsPermalink(
+      parseSettingsLink(
         'https://app.example/#/app',
         'https://app.example/#/wrong/settings/appearance?focus=message-link-preview'
       )
     ).toBeUndefined();
   });
 
-  it('rejects a same-origin hash permalink that only shares the configured base as a prefix', () => {
+  it('rejects a same-origin hash settings link that only shares the configured base as a prefix', () => {
     expect(
-      parseSettingsPermalink(
+      parseSettingsLink(
         'https://app.example/#/app',
         'https://app.example/#/ap/settings/appearance?focus=message-link-preview'
       )

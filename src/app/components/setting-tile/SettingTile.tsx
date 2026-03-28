@@ -1,23 +1,24 @@
 import { ReactNode } from 'react';
 import { Box, Icon, IconButton, Icons, Text } from 'folds';
 import { BreakWord } from '$styles/Text.css';
-import { buildSettingsPermalink } from '$features/settings/settingsLink';
+import { buildSettingsLink } from '$features/settings/settingsLink';
 import { copyToClipboard } from '$utils/dom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { useSettingsPermalinkContext } from '$features/settings/SettingsPermalinkContext';
+import { useSettingsLinkContext } from '$features/settings/SettingsLinkContext';
 import { type SettingsSectionId } from '$features/settings/routes';
 import {
-  settingTilePermalinkAction,
-  settingTilePermalinkActionDesktopHidden,
-  settingTilePermalinkActionMobileVisible,
-  settingTilePermalinkActionTransparentBackground,
+  settingTileSettingLinkAction,
+  settingTileSettingLinkActionDesktopHidden,
+  settingTileSettingLinkActionMobileVisible,
+  settingTileSettingLinkActionTransparentBackground,
   settingTileRoot,
   settingTileTitleRow,
 } from './SettingTile.css';
 
 type SettingTileProps = {
   focusId?: string;
+  showSettingLinkAction?: boolean;
   className?: string;
   title?: ReactNode;
   description?: ReactNode;
@@ -26,7 +27,7 @@ type SettingTileProps = {
   children?: ReactNode;
 };
 
-function SettingTilePermalinkAction({
+function SettingTileSettingLinkAction({
   baseUrl,
   section,
   focusId,
@@ -37,17 +38,17 @@ function SettingTilePermalinkAction({
 }) {
   const screenSize = useScreenSizeContext();
   const [copied, setCopied] = useTimeoutToggle();
-  const copyPath = buildSettingsPermalink(baseUrl, section, focusId);
+  const copyPath = buildSettingsLink(baseUrl, section, focusId);
 
   return (
     <IconButton
-      aria-label={copied ? 'Copied settings permalink' : 'Copy settings permalink'}
+      aria-label={copied ? 'Copied settings link' : 'Copy settings link'}
       className={[
-        settingTilePermalinkAction,
-        settingTilePermalinkActionTransparentBackground,
+        settingTileSettingLinkAction,
+        settingTileSettingLinkActionTransparentBackground,
         screenSize === ScreenSize.Desktop
-          ? settingTilePermalinkActionDesktopHidden
-          : settingTilePermalinkActionMobileVisible,
+          ? settingTileSettingLinkActionDesktopHidden
+          : settingTileSettingLinkActionMobileVisible,
       ].join(' ')}
       onClick={async () => {
         if (await copyToClipboard(copyPath)) setCopied();
@@ -64,6 +65,7 @@ function SettingTilePermalinkAction({
 
 export function SettingTile({
   focusId,
+  showSettingLinkAction = true,
   className,
   title,
   description,
@@ -71,12 +73,12 @@ export function SettingTile({
   after,
   children,
 }: SettingTileProps) {
-  const settingsPermalink = useSettingsPermalinkContext();
+  const settingsLink = useSettingsLinkContext();
   const copyAction =
-    settingsPermalink && focusId ? (
-      <SettingTilePermalinkAction
-        baseUrl={settingsPermalink.baseUrl}
-        section={settingsPermalink.section}
+    settingsLink && focusId && showSettingLinkAction ? (
+      <SettingTileSettingLinkAction
+        baseUrl={settingsLink.baseUrl}
+        section={settingsLink.section}
         focusId={focusId}
       />
     ) : null;

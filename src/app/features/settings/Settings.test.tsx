@@ -147,7 +147,7 @@ afterEach(() => {
 });
 
 describe('Settings', () => {
-  it('uses the configured settings link base URL for copied settings permalinks', async () => {
+  it('uses the configured settings link base URL for copied settings links', async () => {
     writeText.mockResolvedValueOnce(undefined);
 
     render(
@@ -158,7 +158,7 @@ describe('Settings', () => {
       </ClientConfigProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /copy settings permalink/i }));
+    fireEvent.click(screen.getByRole('button', { name: /copy settings link/i }));
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
@@ -179,7 +179,7 @@ describe('Settings', () => {
       </ClientConfigProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /copy settings permalink/i }));
+    fireEvent.click(screen.getByRole('button', { name: /copy settings link/i }));
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(

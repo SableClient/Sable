@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TextViewer } from './TextViewer';
+import * as css from './TextViewer.css';
 
 const { copyToClipboard, CodeHighlightRenderer } = vi.hoisted(() => ({
   copyToClipboard: vi.fn(),
@@ -43,5 +44,6 @@ describe('TextViewer', () => {
 
     expect(copyToClipboard).toHaveBeenCalledWith('line 1\nline 2');
     expect(screen.getByTestId('highlight')).toHaveTextContent('line 1 line 2');
+    expect(screen.getByTestId('highlight').closest('pre')).toHaveClass(css.TextViewerPre);
   });
 });

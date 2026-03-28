@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import { createStore, Provider } from 'jotai';
+import { pluginVersion } from '@arborium/arborium';
 
 import { ThemeKind } from '$hooks/useTheme';
+import { getSettings, settingsAtom } from '$state/settings';
 
 import { ArboriumThemeBridge, useArboriumThemeStatus } from './ArboriumThemeBridge';
+import {
+  DEFAULT_ARBORIUM_DARK_THEME,
+  DEFAULT_ARBORIUM_LIGHT_THEME,
+  getArboriumThemeHref,
+} from './themes';
 
 function StatusProbe() {
   const { ready } = useArboriumThemeStatus();
@@ -11,10 +19,20 @@ function StatusProbe() {
   return <div data-testid="arborium-status">{ready ? 'ready' : 'loading'}</div>;
 }
 
-const pluginVersion = '2.16.0';
 const baseHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/base-rustdoc.css`;
-const darkHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/one-dark.css`;
-const lightHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/github-light.css`;
+
+function renderWithSettings(kind: ThemeKind, settings = getSettings()) {
+  const store = createStore();
+  store.set(settingsAtom, settings);
+
+  return render(
+    <Provider store={store}>
+      <ArboriumThemeBridge kind={kind}>
+        <StatusProbe />
+      </ArboriumThemeBridge>
+    </Provider>
+  );
+}
 
 afterEach(() => {
   document.getElementById('arborium-base')?.remove();
@@ -23,11 +41,7 @@ afterEach(() => {
 
 describe('ArboriumThemeBridge', () => {
   it('injects the base stylesheet once and swaps the theme stylesheet from dark to light', () => {
-    const { rerender } = render(
-      <ArboriumThemeBridge kind={ThemeKind.Dark}>
-        <StatusProbe />
-      </ArboriumThemeBridge>
-    );
+    const { rerender } = renderWithSettings(ThemeKind.Dark);
 
     const baseLink = document.getElementById('arborium-base');
     const themeLink = document.getElementById('arborium-theme');
@@ -35,7 +49,7 @@ describe('ArboriumThemeBridge', () => {
     expect(baseLink).toBeInstanceOf(HTMLLinkElement);
     expect(themeLink).toBeInstanceOf(HTMLLinkElement);
     expect(baseLink).toHaveAttribute('href', baseHref);
-    expect(themeLink).toHaveAttribute('href', darkHref);
+    expect(themeLink).toHaveAttribute('href', getArboriumThemeHref(DEFAULT_ARBORIUM_DARK_THEME));
     expect(document.head.querySelectorAll('#arborium-base')).toHaveLength(1);
     expect(document.head.querySelectorAll('#arborium-theme')).toHaveLength(1);
     expect(screen.getByTestId('arborium-status')).toHaveTextContent('loading');
@@ -48,9 +62,11 @@ describe('ArboriumThemeBridge', () => {
     expect(screen.getByTestId('arborium-status')).toHaveTextContent('ready');
 
     rerender(
-      <ArboriumThemeBridge kind={ThemeKind.Light}>
-        <StatusProbe />
-      </ArboriumThemeBridge>
+      <Provider store={createStore()}>
+        <ArboriumThemeBridge kind={ThemeKind.Light}>
+          <StatusProbe />
+        </ArboriumThemeBridge>
+      </Provider>
     );
 
     const nextBaseLink = document.getElementById('arborium-base');
@@ -60,7 +76,37 @@ describe('ArboriumThemeBridge', () => {
     expect(nextThemeLink).toBe(themeLink);
     expect(document.head.querySelectorAll('#arborium-base')).toHaveLength(1);
     expect(nextBaseLink).toHaveAttribute('href', baseHref);
-    expect(nextThemeLink).toHaveAttribute('href', lightHref);
+    expect(nextThemeLink).toHaveAttribute(
+      'href',
+      getArboriumThemeHref(DEFAULT_ARBORIUM_LIGHT_THEME)
+    );
+    expect(screen.getByTestId('arborium-status')).toHaveTextContent('loading');
+  });
+
+  it('uses the configured Arborium theme ids from settings', () => {
+    const settings = {
+      ...getSettings(),
+      arboriumLightTheme: 'nord',
+      arboriumDarkTheme: 'dracula',
+    };
+
+    renderWithSettings(ThemeKind.Dark, settings);
+
+    const themeLink = document.getElementById('arborium-theme');
+    expect(themeLink).toHaveAttribute('href', getArboriumThemeHref('dracula'));
+  });
+
+  it('keeps readiness false when the theme stylesheet errors', () => {
+    renderWithSettings(ThemeKind.Dark);
+
+    const baseLink = document.getElementById('arborium-base');
+    const themeLink = document.getElementById('arborium-theme');
+
+    act(() => {
+      baseLink?.dispatchEvent(new Event('load'));
+      themeLink?.dispatchEvent(new Event('error'));
+    });
+
     expect(screen.getByTestId('arborium-status')).toHaveTextContent('loading');
   });
 });

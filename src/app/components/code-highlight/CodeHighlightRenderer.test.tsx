@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CodeHighlightRenderer } from '.';
+import * as css from './CodeHighlightRenderer.css';
 
 const { highlightCode, useArboriumThemeStatus } = vi.hoisted(() => ({
   highlightCode: vi.fn(),
@@ -45,6 +46,7 @@ describe('CodeHighlightRenderer', () => {
 
     const code = container.querySelector('code');
     expect(code).toHaveClass('code');
+    expect(code).toHaveClass(css.CodeHighlightCode);
 
     await waitFor(() => {
       expect(code?.innerHTML).toContain('<span class="token keyword">const</span>');
@@ -76,6 +78,7 @@ describe('CodeHighlightRenderer', () => {
       expect(code).toHaveTextContent('const value = 1;');
     });
 
+    expect(code).toHaveClass(css.CodeHighlightCode);
     expect(code?.innerHTML).toBe('const value = 1;');
   });
 

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as css from '$styles/CustomHtml.css';
 
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from './react-custom-html-parser';
 
@@ -63,6 +64,7 @@ describe('getReactCustomHtmlParser code blocks', () => {
     expect(arboriumCode).toHaveTextContent('fn main()');
     expect(arboriumCode).toHaveAttribute('data-language', 'rust');
     expect(arboriumCode).toHaveAttribute('data-allow-detect', 'false');
+    expect(container.querySelector('#code-block-content')).toHaveClass(css.CodeBlockInternal);
     expect(CodeHighlightRenderer).toHaveBeenCalledWith(
       expect.objectContaining({
         code: expect.stringContaining('let fifteenth = 15;'),

@@ -78,16 +78,16 @@ afterEach(() => {
 });
 
 describe('ThemeManager', () => {
-  it('does not add Prism compatibility classes for unauthenticated routes', () => {
+  it('applies the system theme classes for unauthenticated routes', () => {
     systemThemeKind = ThemeKind.Dark;
 
     render(<UnAuthRouteThemeManager />);
 
-    expect(document.body).not.toHaveClass('prism-dark');
-    expect(document.body).not.toHaveClass('prism-light');
+    expect(document.body).toHaveClass('test-dark-theme');
+    expect(document.body).not.toHaveClass('test-light-theme');
   });
 
-  it('does not add Prism compatibility classes for authenticated routes', () => {
+  it('applies the active theme classes for authenticated routes', () => {
     activeTheme = {
       id: 'test-dark',
       kind: ThemeKind.Dark,
@@ -100,7 +100,7 @@ describe('ThemeManager', () => {
       </AuthRouteThemeManager>
     );
 
-    expect(document.body).not.toHaveClass('prism-dark');
-    expect(document.body).not.toHaveClass('prism-light');
+    expect(document.body).toHaveClass('test-dark-theme');
+    expect(document.body).not.toHaveClass('test-light-theme');
   });
 });

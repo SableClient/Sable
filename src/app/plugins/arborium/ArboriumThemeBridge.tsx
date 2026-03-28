@@ -1,7 +1,16 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { pluginVersion } from '@arborium/arborium';
 
 import { ThemeKind } from '$hooks/useTheme';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+
+import {
+  ARBORIUM_CDN_VERSION,
+  DEFAULT_ARBORIUM_DARK_THEME,
+  DEFAULT_ARBORIUM_LIGHT_THEME,
+  getArboriumThemeHref,
+  isArboriumThemeId,
+} from './themes';
 
 type ArboriumThemeStatus = {
   ready: boolean;
@@ -23,9 +32,7 @@ type ArboriumThemeBridgeProps = {
   children?: ReactNode;
 };
 
-const baseHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/base-rustdoc.css`;
-const darkHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/one-dark.css`;
-const lightHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${pluginVersion}/dist/themes/github-light.css`;
+const baseHref = `https://cdn.jsdelivr.net/npm/@arborium/arborium@${ARBORIUM_CDN_VERSION}/dist/themes/base-rustdoc.css`;
 
 const baseLinkId = 'arborium-base';
 const themeLinkId = 'arborium-theme';
@@ -59,8 +66,19 @@ const clearLinkLoaded = (link: HTMLLinkElement) => {
 };
 
 export function ArboriumThemeBridge({ kind, children }: ArboriumThemeBridgeProps) {
+  const [arboriumLightTheme] = useSetting(settingsAtom, 'arboriumLightTheme');
+  const [arboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
   const [baseReady, setBaseReady] = useState(false);
   const [themeReady, setThemeReady] = useState(false);
+  const selectedThemeId = kind === ThemeKind.Dark ? arboriumDarkTheme : arboriumLightTheme;
+  let themeId = DEFAULT_ARBORIUM_LIGHT_THEME;
+  if (kind === ThemeKind.Dark) {
+    themeId = DEFAULT_ARBORIUM_DARK_THEME;
+  }
+  if (selectedThemeId && isArboriumThemeId(selectedThemeId)) {
+    themeId = selectedThemeId;
+  }
+  const themeHref = getArboriumThemeHref(themeId);
 
   useEffect(() => {
     const baseLink = getOrCreateLink(baseLinkId);
@@ -87,9 +105,8 @@ export function ArboriumThemeBridge({ kind, children }: ArboriumThemeBridgeProps
 
   useEffect(() => {
     const themeLink = getOrCreateLink(themeLinkId);
-    const href = kind === ThemeKind.Dark ? darkHref : lightHref;
-    const hrefChanged = themeLink.getAttribute('href') !== href;
-    setLinkHref(themeLink, href);
+    const hrefChanged = themeLink.getAttribute('href') !== themeHref;
+    setLinkHref(themeLink, themeHref);
     if (hrefChanged) {
       clearLinkLoaded(themeLink);
     }
@@ -111,7 +128,7 @@ export function ArboriumThemeBridge({ kind, children }: ArboriumThemeBridgeProps
       themeLink.removeEventListener('load', handleThemeLoad);
       themeLink.removeEventListener('error', handleThemeError);
     };
-  }, [kind]);
+  }, [themeHref]);
 
   const status = useMemo(() => ({ ready: baseReady && themeReady }), [baseReady, themeReady]);
 

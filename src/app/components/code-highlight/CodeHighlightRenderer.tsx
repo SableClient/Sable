@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { highlightCode, type HighlightResult, useArboriumThemeStatus } from '$plugins/arborium';
+import * as css from './CodeHighlightRenderer.css';
 
 type CodeHighlightRendererProps = {
   code: string;
@@ -66,11 +67,14 @@ export function CodeHighlightRenderer({
   }, [code, language, allowDetect, requestKey]);
 
   const currentResult = state.key === requestKey ? state.result : createPlainResult(code, language);
+  const codeClassName = [css.CodeHighlightCode, className].filter(Boolean).join(' ');
 
   if (!ready || currentResult.mode === 'plain') {
-    return <code className={className}>{code}</code>;
+    return <code className={codeClassName}>{code}</code>;
   }
 
-  /* eslint-disable-next-line react/no-danger */
-  return <code className={className} dangerouslySetInnerHTML={{ __html: currentResult.html }} />;
+  return (
+    // eslint-disable-next-line react/no-danger
+    <code className={codeClassName} dangerouslySetInnerHTML={{ __html: currentResult.html }} />
+  );
 }

@@ -1,0 +1,14 @@
+{
+  "typeAcquisition": {
+    "enable": false
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.json"
+    }
+  ]
+}

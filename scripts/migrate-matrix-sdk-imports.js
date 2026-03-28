@@ -56,12 +56,12 @@ function parseArgs(argv) {
 }
 
 function loadProgram(projectRoot) {
-  const tsconfigPath = path.join(projectRoot, 'tsconfig.web.json');
+  const tsconfigPath = path.join(projectRoot, 'tsconfig.json');
   const configResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
 
   if (configResult.error) {
     const message = ts.flattenDiagnosticMessageText(configResult.error.messageText, '\n');
-    throw new Error(`Failed to read tsconfig.web.json: ${message}`);
+    throw new Error(`Failed to read tsconfig.json: ${message}`);
   }
 
   const parsedConfig = ts.parseJsonConfigFileContent(
@@ -76,7 +76,7 @@ function loadProgram(projectRoot) {
     const message = parsedConfig.errors
       .map((error) => ts.flattenDiagnosticMessageText(error.messageText, '\n'))
       .join('\n');
-    throw new Error(`Failed to parse tsconfig.web.json:\n${message}`);
+    throw new Error(`Failed to parse tsconfig.json:\n${message}`);
   }
 
   return ts.createProgram({

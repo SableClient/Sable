@@ -9,6 +9,8 @@ on:
       - 'package-lock.json'
       - 'vite.config.ts'
       - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'tsconfig.node.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
   push:
@@ -21,6 +23,8 @@ on:
       - 'package-lock.json'
       - 'vite.config.ts'
       - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'tsconfig.node.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
 

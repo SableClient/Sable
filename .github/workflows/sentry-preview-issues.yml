@@ -9,6 +9,8 @@ on:
       - 'package.json'
       - 'vite.config.ts'
       - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'tsconfig.node.json'
   workflow_dispatch:
     inputs:
       pr_number:

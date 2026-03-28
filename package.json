@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b tsconfig.build.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

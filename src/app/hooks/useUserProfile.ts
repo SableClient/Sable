@@ -61,7 +61,10 @@ const normalizeInfo = (info: any): UserProfile => {
     displayName: info.displayname,
     pronouns: info['io.fsky.nyx.pronouns'],
     timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
-    bio: msc4440Bio?.['m.text']?.[0]?.body || info['moe.sable.app.bio'] || info['chat.commet.profile_bio'],
+    bio:
+      msc4440Bio?.['m.text']?.[0]?.body ||
+      info['moe.sable.app.bio'] ||
+      info['chat.commet.profile_bio'],
     status: info['chat.commet.profile_status'],
     bannerUrl: info['chat.commet.profile_banner'],
     nameColor: info['moe.sable.app.name_color'],

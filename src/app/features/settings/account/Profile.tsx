@@ -29,7 +29,7 @@ import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import { UserProfile, useUserProfile, MSC4440Bio } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -47,6 +47,7 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
@@ -578,12 +579,26 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
       >
         <BioEditor
           value={
+            (profile.extended?.['gay.fomx.biography'] satisfies MSC4440Bio)?.formatted_body ||
             profile.extended?.['moe.sable.app.bio'] ||
             profile.extended?.['chat.commet.profile_bio'] ||
             profile.bio
           }
-          onSave={(htmlBio) => {
+          onSave={(htmlBio, plainTextBio) => {
             handleSaveField('moe.sable.app.bio', htmlBio);
+
+            // MSC4440
+            handleSaveField('gay.fomx.biography', {
+              'm.text': [
+                {
+                  body: htmlBio,
+                  mimetype: 'text/html',
+                } satisfies MSC1767Text,
+                {
+                  body: plainTextBio,
+                } satisfies MSC1767Text,
+              ],
+            } satisfies MSC4440Bio);
 
             const cleanedHtml = htmlBio.replaceAll('<br/></blockquote>', '</blockquote>');
             handleSaveField('chat.commet.profile_bio', {

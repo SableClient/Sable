@@ -39,6 +39,8 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import { nicknamesAtom } from '$state/nicknames';
 import { MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
@@ -399,6 +401,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
 
+  const abbrMap = useRoomAbbreviationsContext();
+
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
@@ -408,6 +412,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
       }),
     [
       mx,
@@ -418,6 +423,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       useAuthentication,
       nicknames,
       settingsLinkBaseUrl,
+      abbrMap,
     ]
   );
 

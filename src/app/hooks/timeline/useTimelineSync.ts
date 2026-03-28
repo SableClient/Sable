@@ -147,6 +147,13 @@ const useTimelinePagination = (
         (backwards ? setBackwardStatus : setForwardStatus)('loading');
       }
 
+      // `continuing` tracks whether we hand the fetchingRef lock to a recursive
+      // continuation call below.  The finally block must NOT reset the lock if
+      // the recursive call has already claimed it, otherwise there is a brief
+      // window where fetchingRef is false while the recursive paginate is in
+      // flight, allowing a third overlapping call to start on sparse pages.
+      let continuing = false;
+
       try {
         const countBefore = getTimelinesEventsCount(lTimelines);
 
@@ -172,25 +179,45 @@ const useTimelinePagination = (
         }
 
         if (alive()) {
-          recalibratePagination(lTimelines);
+          // Re-read linkedTimelines after the await: a sliding sync reset may have
+          // replaced lTimelines[0] (via resetLiveTimeline) while pagination was in
+          // flight, making the captured lTimelines stale.  Using the fresh ref
+          // ensures recalibratePagination rebuilds from the current live chain and
+          // that countAfter/stillHasToken comparisons are meaningful.
+          const freshLTimelines = timelineRef.current.linkedTimelines;
+          recalibratePagination(freshLTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
-          const countAfter = getTimelinesEventsCount(getLinkedTimelines(lTimelines[0]));
+          const countAfter = getTimelinesEventsCount(getLinkedTimelines(freshLTimelines[0]));
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
+            const checkTimeline = backwards
+              ? freshLTimelines[0]
+              : freshLTimelines[freshLTimelines.length - 1];
+            const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
-              typeof getLinkedTimelines(lTimelines[0])[0]?.getPaginationToken(
-                Direction.Backward
-              ) === 'string';
+              typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
+              'string';
             if (stillHasToken) {
+              // Release lock so inner paginate can claim it, then mark continuing
+              // so the finally block below does NOT reset it after inner claims.
               fetchingRef.current[directionKey] = false;
+              continuing = true;
               paginate(backwards);
+              // At this point the inner paginate has synchronously set
+              // fetchingRef.current[directionKey] = true before hitting its own
+              // await.  The finally below will skip the reset.
             }
           }
         }
       } finally {
-        fetchingRef.current[directionKey] = false;
+        // Only release the lock if we did NOT hand it to a recursive continuation.
+        // If `continuing` is true the recursive call owns the lock and will release
+        // it in its own finally block.
+        if (!continuing) {
+          fetchingRef.current[directionKey] = false;
+        }
       }
     };
   }, [mx, alive, setTimeline, limit, setBackwardStatus, setForwardStatus]);
@@ -547,6 +574,24 @@ export function useTimelineSync({
     if (getLiveTimeline(room).getEvents().length === 0) return;
     setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
   }, [eventId, room, timeline.linkedTimelines.length]);
+
+  // When navigating between rooms, reset the timeline state to the new room's
+  // initial linked timelines.  Without this, the component's timeline state
+  // retains stale data from the previous room, causing liveTimelineLinked to be
+  // false until a TimelineReset event fires.  For revisited rooms with up-to-date
+  // data (no initial:true in the sliding sync response), that event may never
+  // arrive — leaving the initial-scroll guard permanently blocked and the room
+  // invisible.
+  const prevRoomIdRef = useRef(room.roomId);
+  useEffect(() => {
+    if (prevRoomIdRef.current === room.roomId) return;
+    prevRoomIdRef.current = room.roomId;
+    if (eventId) return;
+    setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+    // Intentionally only depends on room: we want this to fire when the room
+    // identity changes, not on every eventId change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room]);
 
   return {
     timeline,

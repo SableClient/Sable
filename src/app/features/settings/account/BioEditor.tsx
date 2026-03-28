@@ -44,7 +44,7 @@ type BioEditorProps = {
   value?: string | any;
   isSaving?: boolean;
   imagePackRooms?: any[];
-  onSave: (htmlContent: string) => void;
+  onSave: (htmlContent: string, plainText: string) => void;
 };
 
 const BIO_LIMIT = 1024;
@@ -81,7 +81,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
       })
     );
 
-    onSave(customHtml || plainText);
+    onSave(customHtml || plainText, plainText);
     setHasChanged(false);
   }, [editor, isMarkdown, onSave]);
 

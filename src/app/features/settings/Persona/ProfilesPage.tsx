@@ -2,6 +2,7 @@ import { PageNavContent } from '$components/page';
 import { Box } from 'folds';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
+import { PKCompatSettings } from './PKCompat';
 
 type PerMessageProfilePageProps = {
   requestBack?: () => void;
@@ -25,6 +26,7 @@ export function PerMessageProfilePage({ requestBack, requestClose }: PerMessageP
           direction="Column"
           shrink="No"
         >
+          <PKCompatSettings />
           <PerMessageProfileOverview />
         </Box>
       </PageNavContent>

@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { MouseEventHandler, useCallback, ReactNode } from 'react';
 import { IconSrc, Icons, Text } from 'folds';
 import { MatrixEvent, Room } from '$types/matrix-sdk';
 import { IMemberContent, Membership } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
+import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSableCosmetics } from './useSableCosmetics';
 import { useMatrixClient } from './useMatrixClient';
 
@@ -17,8 +18,19 @@ function DecoratedUser({ roomId, userId, userName }: DecoratedUserProps) {
   const mx = useMatrixClient();
   const room = mx.getRoom(roomId);
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
+
+  const openUserRoomProfile = useOpenUserRoomProfile();
+  const handleUserClick: MouseEventHandler = useCallback(
+    (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      openUserRoomProfile(roomId, undefined, userId, evt.currentTarget.getBoundingClientRect());
+    },
+    [roomId, userId, openUserRoomProfile]
+  );
+
   return (
-    <Text truncate>
+    <Text as="a" onClick={handleUserClick} truncate>
       <b style={{ color, font }}>{userName ?? userId} </b>
     </Text>
   );

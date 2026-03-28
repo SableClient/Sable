@@ -22,18 +22,14 @@ export const getFirstLinkedTimeline = (
   return current;
 };
 
-const collectTimelines = (
-  tl: EventTimeline | null,
-  dir: Direction,
-  acc: EventTimeline[] = []
-): EventTimeline[] => {
-  if (!tl) return acc;
-  return collectTimelines(tl.getNeighbouringTimeline(dir), dir, [...acc, tl]);
-};
-
 export const getLinkedTimelines = (timeline: EventTimeline): EventTimeline[] => {
-  const firstTimeline = getFirstLinkedTimeline(timeline, Direction.Backward);
-  return collectTimelines(firstTimeline, Direction.Forward);
+  const result: EventTimeline[] = [];
+  let current: EventTimeline | null = getFirstLinkedTimeline(timeline, Direction.Backward);
+  while (current) {
+    result.push(current);
+    current = current.getNeighbouringTimeline(Direction.Forward);
+  }
+  return result;
 };
 
 export const timelineToEventsCount = (t: EventTimeline) => {

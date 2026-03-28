@@ -25,6 +25,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { StateEvent, MessageEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 import { useTranslation } from 'react-i18next';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -90,6 +91,18 @@ type ReplyProps = {
   mentions?: IMentions;
   onClick?: MouseEventHandler;
   replyIcon?: JSX.Element;
+};
+
+export const sanitizeReplyFormattedPreview = (formattedBody: string): string => {
+  const strippedHtml = trimReplyFromFormattedBody(formattedBody)
+    .replaceAll(/<br\s*\/?>/gi, ' ')
+    .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
+    .replaceAll(/<\/?p[^>]*>/gi, '')
+    .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
+    .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
+    .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+
+  return sanitizeCustomHtml(strippedHtml);
 };
 
 export const Reply = as<'div', ReplyProps>(
@@ -163,13 +176,7 @@ export const Reply = as<'div', ReplyProps>(
     );
 
     if (format === 'org.matrix.custom.html' && formattedBody) {
-      const strippedHtml = trimReplyFromFormattedBody(formattedBody)
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replaceAll(/<\/?p[^>]*>/gi, '')
-        .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
-        .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
-        .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+      const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
         settingsLinkBaseUrl,
         linkifyOpts: replyLinkifyOpts,
@@ -177,7 +184,7 @@ export const Reply = as<'div', ReplyProps>(
         nicknames,
         handleMentionClick: mentionClickHandler,
       });
-      bodyJSX = parse(strippedHtml, parserOpts) as JSX.Element;
+      bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
     } else if (body) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);

@@ -14,6 +14,11 @@ export type IImageInfo = {
   [MATRIX_BLUR_HASH_PROPERTY_NAME]?: string;
 };
 
+export type MSC1767Text = {
+  body: string;
+  mimetype?: string;
+};
+
 export type IVideoInfo = {
   w?: number;
   h?: number;

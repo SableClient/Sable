@@ -71,14 +71,20 @@ export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
 }
 
 type YoutubeElementProps = {
-  videoId: string;
+  videoInfo: YoutubeLink;
   embedData: OEmbed;
 };
 
-export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedData }) => {
-  const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-  const iframeSrc = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1`;
-  const videoUrl = `https://youtube.com/watch?v=${videoId}`;
+export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embedData }) => {
+  const thumbnailUrl = `https://i.ytimg.com/vi/${videoInfo.videoId}/hqdefault.jpg`;
+
+  const timestamp = videoInfo.timestamp ? `&start=${videoInfo.timestamp}` : '';
+  const playlist = videoInfo.playlist ? `&${videoInfo.playlist}` : '';
+
+  const iframeSrc = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoInfo.videoId)}?autoplay=1${timestamp}`;
+  const videoUrl = videoInfo.isMusic
+    ? `https://music.youtube.com/watch?v=${videoInfo.videoId}${timestamp}${playlist}`
+    : `https://youtube.com/watch?v=${videoInfo.videoId}${timestamp}${playlist}`;
 
   const [blurHash, setBlurHash] = useState<string | undefined>();
 
@@ -141,7 +147,46 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoId, embedDa
 });
 
 export const youtubeUrl = (url: string) =>
-  url.match(/(https:\/\/)(www\.|m\.|)(youtube\.com|youtu\.be)\//);
+  url.match(/(https:\/\/)(www\.|music\.|m\.|)(youtube\.com|youtu\.be)\//);
+
+type YoutubeLink = {
+  videoId: string;
+  timestamp?: string;
+  playlist?: string;
+  isMusic: boolean;
+};
+
+function parseYoutubeLink(url: string): YoutubeLink | null {
+  const urlsplit = url.split('/');
+  const path = urlsplit[urlsplit.length - 1];
+
+  let videoId: string | undefined;
+  let params: string[];
+
+  if (url.includes('youtu.be')) {
+    const split = path.split('?');
+    [videoId] = split;
+    params = split[1]?.split('&');
+  } else {
+    params = path.split('?')[1].split('&');
+    videoId = params.find((s) => s.startsWith('v='), params)?.split('v=')[1];
+  }
+
+  if (!videoId) return null;
+
+  // playlist is not used for the embed, it can be appended as is
+  const playlist = params ? params.find((s) => s.startsWith('list='), params) : undefined;
+  const timestamp = params
+    ? params.find((s) => s.startsWith('t='), params)?.split('t=')[1]
+    : undefined;
+
+  return {
+    videoId,
+    timestamp,
+    playlist,
+    isMusic: url.includes('music.youtube.com'),
+  };
+}
 
 export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref) => {
   const [showYoutube] = useSetting(settingsAtom, 'clientPreviewYoutube');
@@ -149,11 +194,11 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
   // this component is overly complicated, because it was designed to support more embed types than just youtube
   // i'm leaving this mess here to support later expansion
   const isYoutube = !!youtubeUrl(url);
-  const videoId = isYoutube ? url.match(/(?:shorts\/|watch\?v=|youtu\.be\/)(.{11})/)?.[1] : null;
+  const videoInfo = isYoutube ? parseYoutubeLink(url) : null;
 
   const fetchUrl =
-    isYoutube && videoId
-      ? `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${videoId}`)}`
+    isYoutube && videoInfo
+      ? `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${videoInfo.videoId}`)}`
       : url;
 
   const [embedStatus, loadEmbed] = useAsyncCallback(
@@ -168,12 +213,12 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
 
   let previewContent;
 
-  if (isYoutube && videoId) {
+  if (videoInfo) {
     if (showYoutube) {
       if (embedStatus.status === AsyncStatus.Error) return null;
 
       if (embedStatus.status === AsyncStatus.Success && embedStatus.data) {
-        previewContent = <YoutubeElement videoId={videoId} embedData={embedStatus.data} />;
+        previewContent = <YoutubeElement videoInfo={videoInfo} embedData={embedStatus.data} />;
       } else {
         previewContent = (
           <Box grow="Yes" alignItems="Center" justifyContent="Center">

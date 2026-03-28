@@ -49,6 +49,7 @@ export enum StateEvent {
   RoomCosmeticsColor = 'moe.sable.room.cosmetics.color',
   RoomCosmeticsFont = 'moe.sable.room.cosmetics.font',
   RoomCosmeticsPronouns = 'moe.sable.room.cosmetics.pronouns',
+  RoomAbbreviations = 'moe.sable.room.abbreviations',
 }
 
 export enum MessageEvent {

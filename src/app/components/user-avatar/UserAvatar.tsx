@@ -1,5 +1,5 @@
 import { AvatarFallback, AvatarImage, color } from 'folds';
-import { ReactEventHandler, ReactNode, useState } from 'react';
+import { ReactEventHandler, ReactNode, useEffect, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';
 import * as css from './UserAvatar.css';
@@ -13,6 +13,10 @@ type UserAvatarProps = {
 };
 export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');

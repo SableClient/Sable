@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RelationType } from '$types/matrix-sdk';
-import { ThreadIndicator } from './Reply';
+import { sanitizeReplyFormattedPreview, ThreadIndicator } from './Reply';
 
 function Subject({ relType, threadRootId }: { relType?: string; threadRootId?: string }) {
   return <>{relType === RelationType.Thread && !threadRootId && <ThreadIndicator />}</>;
@@ -39,5 +39,29 @@ describe('ThreadIndicator visibility in compose strip', () => {
   it('is hidden for a non-thread relation type', () => {
     render(<Subject relType="m.in_reply_to" />);
     expect(screen.queryByText('Thread')).not.toBeInTheDocument();
+  });
+});
+
+describe('sanitizeReplyFormattedPreview', () => {
+  it('removes mx-reply quote block content and keeps message text', () => {
+    const html =
+      '<mx-reply><blockquote>quoted</blockquote></mx-reply><p>Visible message</p>';
+
+    const result = sanitizeReplyFormattedPreview(html);
+
+    expect(result).not.toContain('quoted');
+    expect(result).toContain('Visible message');
+  });
+
+  it('sanitizes dangerous HTML before parse', () => {
+    const html =
+      '<mx-reply><blockquote>old</blockquote></mx-reply><p>safe<script>alert(1)</script></p><a href="javascript:alert(1)">x</a>';
+
+    const result = sanitizeReplyFormattedPreview(html);
+
+    expect(result).not.toContain('<script');
+    expect(result).not.toContain('alert(1)');
+    expect(result).not.toContain('javascript:');
+    expect(result).toContain('safe');
   });
 });

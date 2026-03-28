@@ -23,12 +23,16 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && (github.base_ref == 'dev' && 'production' || github.base_ref == 'integration' && 'preview' || 'preview') || github.ref == 'refs/heads/dev' && 'production' || github.ref == 'refs/heads/integration' && 'preview' || 'preview' }}
     permissions:
       contents: read
       packages: write
       attestations: write
       artifact-metadata: write
       id-token: write
+    env:
+      CLIENT_CONFIG_OVERRIDES_JSON: ${{ vars.CLIENT_CONFIG_OVERRIDES_JSON }}
+      CLIENT_CONFIG_OVERRIDES_STRICT: ${{ vars.CLIENT_CONFIG_OVERRIDES_STRICT || 'false' }}
 
     steps:
       - name: Checkout repository

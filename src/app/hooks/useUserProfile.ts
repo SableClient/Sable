@@ -105,9 +105,7 @@ export const useUserProfile = (
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
 
   const hasOnlyFetchedMarker =
-    cached?._fetched === true &&
-    Object.keys(cached ?? {}).every((key) => key === '_fetched');
-
+    cached?._fetched === true && Object.keys(cached ?? {}).every((key) => key === '_fetched');
   const needsFetch =
     !!userId && userId !== 'undefined' && (!cached?._fetched || hasOnlyFetchedMarker);
 

@@ -11,6 +11,7 @@ import {
   settingTilePermalinkAction,
   settingTilePermalinkActionDesktopHidden,
   settingTilePermalinkActionMobileVisible,
+  settingTilePermalinkActionTransparentBackground,
   settingTileRoot,
   settingTileTitleRow,
 } from './SettingTile.css';
@@ -43,6 +44,7 @@ function SettingTilePermalinkAction({
       aria-label={copied ? 'Copied settings permalink' : 'Copy settings permalink'}
       className={[
         settingTilePermalinkAction,
+        settingTilePermalinkActionTransparentBackground,
         screenSize === ScreenSize.Desktop
           ? settingTilePermalinkActionDesktopHidden
           : settingTilePermalinkActionMobileVisible,

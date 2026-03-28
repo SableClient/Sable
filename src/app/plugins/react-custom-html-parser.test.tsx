@@ -51,7 +51,8 @@ describe('react custom html parser', () => {
     expect(link).toHaveAttribute('data-settings-link-section', 'appearance');
     expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');
     expect(link.className).toContain(customHtmlCss.Mention({}));
-    expect(link.className).toContain(customHtmlCss.SettingsMention);
+    expect(link.className).not.toContain(customHtmlCss.Mention({ highlight: true }));
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
     expect(link).not.toHaveTextContent('Settings:');
   });
 
@@ -69,7 +70,8 @@ describe('react custom html parser', () => {
     expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');
     expect(link).not.toHaveAttribute('data-mention-id');
     expect(link.className).toContain(customHtmlCss.Mention({}));
-    expect(link.className).toContain(customHtmlCss.SettingsMention);
+    expect(link.className).not.toContain(customHtmlCss.Mention({ highlight: true }));
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
   });
 
   it('renders matrix message permalinks with an icon instead of the Message prefix', () => {
@@ -91,7 +93,7 @@ describe('react custom html parser', () => {
     expect(link).toHaveAttribute('data-mention-id', '!room:example.org');
     expect(link).toHaveAttribute('data-mention-event-id', '$event123');
     expect(link.className).toContain(customHtmlCss.Mention({}));
-    expect(link.className).toContain(customHtmlCss.SettingsMention);
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
     expect(link).not.toHaveTextContent('Message:');
     expect(link.querySelector('[aria-hidden="true"]')).not.toBeNull();
   });

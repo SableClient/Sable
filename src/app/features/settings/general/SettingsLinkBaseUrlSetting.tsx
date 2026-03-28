@@ -51,7 +51,7 @@ export function SettingsLinkBaseUrlSetting() {
 
   return (
     <SettingTile
-      title="Settings Link Base URL"
+      title="Settings Link Base Url"
       focusId="settings-link-base-url"
       description={`Copied settings links use this URL. Default: ${configuredBaseUrl}`}
     >

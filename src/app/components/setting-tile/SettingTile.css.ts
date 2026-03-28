@@ -1,5 +1,4 @@
 import { style } from '@vanilla-extract/css';
-import { config } from 'folds';
 
 export const settingTileRoot = style({
   minWidth: 0,
@@ -9,9 +8,24 @@ export const settingTileTitleRow = style({
   minWidth: 0,
 });
 
-const permalinkActionBase = style({
-  transition:
-    'opacity 150ms ease, transform 150ms ease, color 150ms ease, background-color 150ms ease',
+const permalinkActionBase = style({});
+
+export const settingTilePermalinkActionTransparentBackground = style({
+  backgroundColor: 'transparent',
+  selectors: {
+    '&[aria-pressed=true]': {
+      backgroundColor: 'transparent',
+    },
+    '&:hover': {
+      backgroundColor: 'transparent',
+    },
+    '&:focus-visible': {
+      backgroundColor: 'transparent',
+    },
+    '&:active': {
+      backgroundColor: 'transparent',
+    },
+  },
 });
 
 export const settingTilePermalinkAction = style([
@@ -30,16 +44,13 @@ export const settingTilePermalinkActionDesktopHidden = style([
   {
     opacity: 0,
     pointerEvents: 'none',
-    transform: `translateX(${config.space.S100})`,
     selectors: {
       [`${settingTileRoot}:hover &`]: {
         opacity: 1,
-        transform: 'translateX(0)',
         pointerEvents: 'auto',
       },
       [`${settingTileRoot}:focus-within &`]: {
         opacity: 1,
-        transform: 'translateX(0)',
         pointerEvents: 'auto',
       },
     },

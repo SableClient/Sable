@@ -150,13 +150,13 @@ export const renderMatrixMention = (
           css.Mention({
             highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
           }),
-          css.SettingsMention
+          css.MentionWithIcon
         )}
         data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
         data-mention-event-id={eventId}
         data-mention-via={viaServers?.join(',')}
       >
-        <span aria-hidden="true" className={css.SettingsMentionIcon}>
+        <span aria-hidden="true" className={css.MentionIcon}>
           <Icon size="50" src={Icons.Message} />
         </span>
         {customProps.children ? customProps.children : fallbackContent}
@@ -226,11 +226,11 @@ const renderSettingsPermalink = ({
   <a
     href={href}
     {...makeMentionCustomProps(handleMentionClick, content)}
-    className={classNames(css.Mention({}), css.SettingsMention)}
+    className={classNames(css.Mention({}), css.MentionWithIcon)}
     data-settings-link-section={section}
     data-settings-link-focus={focus}
   >
-    <span aria-hidden="true" className={css.SettingsMentionIcon}>
+    <span aria-hidden="true" className={css.MentionIcon}>
       <Icon size="50" src={Icons.Setting} />
     </span>
     {getSettingsPermalinkChildren({ href, section, focus, content, fallbackChildren })}

@@ -171,14 +171,13 @@ export const Mention = recipe({
   },
 });
 
-export const SettingsMention = style({
+export const MentionWithIcon = style({
   display: 'inline-flex',
   alignItems: 'center',
-  gap: config.space.S100,
-  padding: `0 ${config.space.S100}`,
+  gap: toRem(2),
 });
 
-export const SettingsMentionIcon = style({
+export const MentionIcon = style({
   display: 'inline-flex',
   flexShrink: 0,
 });

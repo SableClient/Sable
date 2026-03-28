@@ -28,6 +28,12 @@ describe('SettingsLinkBaseUrlSetting', () => {
     setSettingsLinkBaseUrlOverride.mockReset();
   });
 
+  it('uses Url casing in the visible setting title', () => {
+    renderSetting('https://config.example');
+
+    expect(screen.getByText('Settings Link Base Url')).toBeInTheDocument();
+  });
+
   it('shows the configured default in the input and no separate reset button', () => {
     renderSetting('https://config.example');
 

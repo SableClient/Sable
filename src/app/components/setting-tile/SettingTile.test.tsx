@@ -7,6 +7,7 @@ import { SettingTile } from './SettingTile';
 import {
   settingTilePermalinkActionDesktopHidden,
   settingTilePermalinkActionMobileVisible,
+  settingTilePermalinkActionTransparentBackground,
 } from './SettingTile.css';
 
 const writeText = vi.fn();
@@ -81,6 +82,12 @@ describe('SettingTile', () => {
 
     expect(screen.getByText('Appearance').parentElement).toContainElement(
       screen.getByRole('button', { name: /copy settings permalink/i })
+    );
+    expect(screen.getByRole('button', { name: /copy settings permalink/i })).toHaveClass(
+      settingTilePermalinkActionTransparentBackground,
+      {
+        exact: false,
+      }
     );
     expect(screen.getByRole('button', { name: /copy settings permalink/i })).toHaveClass(
       settingTilePermalinkActionDesktopHidden

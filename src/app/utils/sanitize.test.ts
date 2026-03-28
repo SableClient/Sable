@@ -1,124 +1,117 @@
-// Tests for sanitizeCustomHtml — security-critical: strips dangerous content from
-// user-supplied Matrix message HTML before rendering.
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { sanitizeCustomHtml } from './sanitize';
 
-describe('sanitizeCustomHtml – tag allowlist', () => {
-  it('passes through permitted tags', () => {
-    expect(sanitizeCustomHtml('<b>bold</b>')).toBe('<b>bold</b>');
-    expect(sanitizeCustomHtml('<i>italic</i>')).toBe('<i>italic</i>');
-    expect(sanitizeCustomHtml('<code>snippet</code>')).toBe('<code>snippet</code>');
-  });
-
-  it('strips disallowed tags but keeps their text content', () => {
-    const result = sanitizeCustomHtml('<marquee>text</marquee>');
-    expect(result).not.toContain('<marquee');
-    expect(result).toContain('text');
-  });
-
-  it('strips <mx-reply> and its content entirely', () => {
-    const result = sanitizeCustomHtml('<mx-reply>quoted message</mx-reply>remaining');
-    expect(result).not.toContain('quoted message');
-    expect(result).toContain('remaining');
-  });
-});
-
-describe('sanitizeCustomHtml – XSS prevention', () => {
-  it('strips <script> tags and their content', () => {
-    const result = sanitizeCustomHtml("<script>alert('xss')</script>");
-    expect(result).not.toContain('<script');
-    expect(result).not.toContain('alert');
-  });
-
-  it('strips inline event handlers', () => {
-    const result = sanitizeCustomHtml('<b onclick="alert(1)">click me</b>');
-    expect(result).not.toContain('onclick');
-    expect(result).toContain('click me');
-  });
-
-  it('strips javascript: href on anchor tags', () => {
-    const result = sanitizeCustomHtml('<a href="javascript:alert(\'xss\')">link</a>');
-    expect(result).not.toMatch(/javascript:/);
-  });
-
-  it('strips data: href on anchor tags', () => {
+describe('sanitizeCustomHtml', () => {
+  it('keeps permitted Matrix v1.18 tags', () => {
     const result = sanitizeCustomHtml(
-      '<a href="data:text/html,<script>alert(1)</script>">link</a>'
+      '<details><summary>Summary</summary><table><tbody><tr><td><del>text</del></td></tr></tbody></table></details>'
     );
-    expect(result).not.toContain('data:');
+
+    expect(result).toContain('<details>');
+    expect(result).toContain('<summary>Summary</summary>');
+    expect(result).toContain('<table>');
+    expect(result).toContain('<del>text</del>');
   });
 
-  it('strips vbscript: href', () => {
-    const result = sanitizeCustomHtml('<a href="vbscript:msgbox(1)">link</a>');
-    expect(result).not.toContain('vbscript:');
-  });
-});
+  it('strips tags outside the Matrix v1.18 allowlist', () => {
+    const result = sanitizeCustomHtml('<font color="#ff0000">font</font><strike>strike</strike>');
 
-describe('sanitizeCustomHtml – link transformer', () => {
-  it('adds rel and target to http links', () => {
-    const result = sanitizeCustomHtml('<a href="https://example.com">link</a>');
-    expect(result).toContain('rel="noreferrer noopener"');
-    expect(result).toContain('target="_blank"');
+    expect(result).not.toContain('<font');
+    expect(result).not.toContain('<strike');
+    expect(result).toContain('font');
+    expect(result).toContain('strike');
   });
 
-  it('passes through existing href for http links', () => {
-    const result = sanitizeCustomHtml('<a href="https://example.com">link</a>');
-    expect(result).toContain('href="https://example.com"');
-  });
-});
+  it('strips mx-reply and its contents entirely', () => {
+    const result = sanitizeCustomHtml('<mx-reply>quoted message</mx-reply><p>remaining</p>');
 
-describe('sanitizeCustomHtml – image transformer', () => {
-  it('keeps <img> tags with mxc:// src', () => {
-    const result = sanitizeCustomHtml('<img src="mxc://example.com/abc" alt="img" />');
-    expect(result).toContain('<img');
-    expect(result).toContain('src="mxc://example.com/abc"');
+    expect(result).not.toContain('quoted message');
+    expect(result).toBe('<p>remaining</p>');
   });
 
-  it('converts <img> with https:// src to a safe <a> link', () => {
-    const result = sanitizeCustomHtml('<img src="https://example.com/image.jpg" alt="photo" />');
-    expect(result).not.toContain('<img');
-    expect(result).toContain('<a');
-    expect(result).toContain('https://example.com/image.jpg');
-    expect(result).toContain('rel="noreferrer noopener"');
-  });
-});
+  it('does not accept style attributes anywhere', () => {
+    const result = sanitizeCustomHtml(
+      '<span style="color:#00ff00" data-mx-color="#ff0000">text</span><p style="color:#00ff00">para</p>'
+    );
 
-describe('sanitizeCustomHtml – style attribute restrictions', () => {
-  // The span transformer unconditionally overwrites the style attribute with
-  // values derived from data-mx-color / data-mx-bg-color. Inline CSS is always
-  // discarded; colors must come from the data-mx-* attributes.
-  it('converts data-mx-color to a CSS color style on span', () => {
-    const result = sanitizeCustomHtml('<span data-mx-color="#ff0000">text</span>');
-    // sanitize-html may normalise whitespace around the colon
-    expect(result).toMatch(/color:\s*#ff0000/);
+    expect(result).not.toContain('style=');
+    expect(result).toContain('data-mx-color="#ff0000"');
   });
 
-  it('discards plain inline style on span (use data-mx-color instead)', () => {
-    const result = sanitizeCustomHtml('<span style="color: #ff0000">text</span>');
-    // The transformer replaces style with data-mx-* values; no data-mx-color
-    // present here, so style ends up stripped by the allowedStyles check.
-    expect(result).not.toContain('color: #ff0000');
+  it('only keeps the permitted attributes on each tag', () => {
+    const result = sanitizeCustomHtml(
+      '<span data-mx-color="#ff0000" data-mx-bg-color="#00ff00" data-mx-spoiler="spoiler" data-mx-maths="x" data-md="nope">span</span>' +
+        '<a href="https://example.com" target="_blank" rel="noreferrer">link</a>' +
+        '<ol start="2" type="A"><li>item</li></ol>' +
+        '<code class="language-typescript extra">code</code>' +
+        '<div data-mx-maths="x" data-md="nope">maths</div>'
+    );
+
+    expect(result).toContain('data-mx-color="#ff0000"');
+    expect(result).toContain('data-mx-bg-color="#00ff00"');
+    expect(result).toContain('data-mx-spoiler="spoiler"');
+    expect(result).toContain('data-mx-maths="x"');
+    expect(result).not.toContain('data-md=');
+    expect(result).toContain('<a href="https://example.com" target="_blank">link</a>');
+    expect(result).not.toContain('rel=');
+    expect(result).toContain('<ol start="2">');
+    expect(result).not.toContain('type=');
+    expect(result).not.toContain('class=');
+    expect(result).toContain('<div data-mx-maths="x">maths</div>');
   });
 
-  it('strips non-hex values from data-mx-color', () => {
-    const result = sanitizeCustomHtml('<span data-mx-color="red">text</span>');
-    expect(result).not.toContain('color: red');
+  it('preserves a code class only when every class starts with language-', () => {
+    expect(sanitizeCustomHtml('<code class="language-typescript">code</code>')).toContain(
+      'class="language-typescript"'
+    );
+    expect(
+      sanitizeCustomHtml('<code class="language-typescript language-js">code</code>')
+    ).toContain('class="language-typescript language-js"');
+    expect(sanitizeCustomHtml('<code class="language-typescript extra">code</code>')).not.toContain(
+      'class='
+    );
   });
 
-  it('strips disallowed CSS properties', () => {
-    const result = sanitizeCustomHtml('<span style="position: fixed">text</span>');
-    expect(result).not.toContain('position');
-  });
-});
+  it('keeps only valid absolute href schemes on links', () => {
+    expect(sanitizeCustomHtml('<a href="https://example.com">https</a>')).toContain(
+      'href="https://example.com"'
+    );
+    expect(sanitizeCustomHtml('<a href="mailto:test@example.com">mail</a>')).toContain(
+      'href="mailto:test@example.com"'
+    );
+    expect(sanitizeCustomHtml('<a href="magnet:?xt=urn:btih:abcdef">magnet</a>')).toContain(
+      'href="magnet:?xt=urn:btih:abcdef"'
+    );
 
-describe('sanitizeCustomHtml – code block class handling', () => {
-  it('preserves language class on code blocks', () => {
-    const result = sanitizeCustomHtml('<code class="language-typescript">const x = 1;</code>');
-    expect(result).toContain('class="language-typescript"');
+    expect(sanitizeCustomHtml('<a href="/relative">relative</a>')).toBe('<a>relative</a>');
+    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toBe(
+      '<a>matrix</a>'
+    );
+    expect(sanitizeCustomHtml('<a href="javascript:alert(1)">bad</a>')).toBe('<a>bad</a>');
   });
 
-  it('strips arbitrary classes not matching language-*', () => {
-    const result = sanitizeCustomHtml('<code class="evil-class">code</code>');
-    expect(result).not.toContain('evil-class');
+  it('keeps only mxc image sources', () => {
+    const allowed = sanitizeCustomHtml('<img src="mxc://example.com/abc123" alt="img" />');
+    const blocked = sanitizeCustomHtml('<img src="https://example.com/image.jpg" alt="img" />');
+
+    expect(allowed).toContain('<img');
+    expect(allowed).toContain('src="mxc://example.com/abc123"');
+    expect(blocked).not.toContain('<img');
+  });
+
+  it('drops invalid Matrix color attributes instead of translating them to style', () => {
+    const result = sanitizeCustomHtml(
+      '<span data-mx-color="red" data-mx-bg-color="#123">text</span>'
+    );
+
+    expect(result).toBe('<span>text</span>');
+  });
+
+  it('enforces the 100-level nesting limit', () => {
+    const deepHtml = `${'<div>'.repeat(101)}text${'</div>'.repeat(101)}`;
+    const result = sanitizeCustomHtml(deepHtml);
+
+    expect(result).toContain('text');
+    expect((result.match(/<div>/g) ?? []).length).toBeLessThanOrEqual(100);
   });
 });

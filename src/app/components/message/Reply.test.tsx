@@ -1,0 +1,109 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { Reply } from './Reply';
+
+const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
+  mockUseRoomEvent: vi.fn(),
+  mockInvalidateQueries: vi.fn(),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    invalidateQueries: mockInvalidateQueries,
+  }),
+}));
+
+vi.mock('jotai', async (importActual) => {
+  const actual = await importActual<typeof import('jotai')>();
+  return {
+    ...actual,
+    useAtomValue: () => ({}),
+  };
+});
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
+vi.mock('$hooks/useRoomEvent', () => ({
+  useRoomEvent: (...args: unknown[]) => mockUseRoomEvent(...args),
+}));
+
+vi.mock('$hooks/useSableCosmetics', () => ({
+  useSableCosmetics: () => ({ color: undefined, font: undefined }),
+}));
+
+vi.mock('$hooks/useMediaAuthentication', () => ({
+  useMediaAuthentication: () => false,
+}));
+
+vi.mock('$hooks/useIgnoredUsers', () => ({
+  useIgnoredUsers: () => [],
+}));
+
+vi.mock('$hooks/useMatrixClient', () => ({
+  useMatrixClient: () =>
+    ({
+      getRoom: () => undefined,
+      getUserId: () => '@me:example.com',
+      mxcUrlToHttp: () => null,
+    }) as any,
+}));
+
+vi.mock('$hooks/useMemberEventParser', () => ({
+  useMemberEventParser: () => vi.fn(),
+}));
+
+vi.mock('$hooks/useMentionClickHandler', () => ({
+  useMentionClickHandler: () => undefined,
+}));
+
+vi.mock('$utils/room', async (importActual) => {
+  const actual = await importActual<typeof import('$utils/room')>();
+  return {
+    ...actual,
+    getMemberDisplayName: () => 'Alice',
+  };
+});
+
+const createReplyEvent = (formattedBody: string) =>
+  ({
+    getContent: () => ({
+      body: 'fallback body',
+      format: 'org.matrix.custom.html',
+      formatted_body: formattedBody,
+      msgtype: 'm.text',
+    }),
+    getSender: () => '@alice:example.com',
+    getType: () => 'm.room.message',
+    isRedacted: () => false,
+    isEncrypted: () => false,
+    isDecryptionFailure: () => false,
+    getClearContent: () => ({}),
+  }) as any;
+
+describe('Reply', () => {
+  it('sanitizes formatted_body before trimming and parsing the reply preview', () => {
+    mockUseRoomEvent.mockReturnValue(
+      createReplyEvent(
+        '<mx-reply><blockquote>quoted<script>alert(1)</script></blockquote></mx-reply>' +
+          '<span data-mx-color="#ff0000" style="color:#00ff00">visible</span>' +
+          '<img src="https://example.com/not-allowed.png" alt="blocked image" />'
+      )
+    );
+
+    render(
+      <Reply
+        room={{ roomId: '!room:example.com', getMember: () => undefined } as any}
+        replyEventId="$reply:example.com"
+      />
+    );
+
+    expect(screen.getByText('visible')).toBeInTheDocument();
+    expect(screen.queryByText('quoted')).not.toBeInTheDocument();
+    expect(screen.queryByText('alert(1)')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('blocked image')).not.toBeInTheDocument();
+  });
+});

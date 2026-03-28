@@ -8,6 +8,7 @@ import { useAtomValue } from 'jotai';
 import { getMemberDisplayName, trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { randomNumberBetween } from '$utils/common';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   getReactCustomHtmlParser,
   scaleSystemEmoji,
@@ -158,7 +159,8 @@ export const Reply = as<'div', ReplyProps>(
     );
 
     if (format === 'org.matrix.custom.html' && formattedBody) {
-      const strippedHtml = trimReplyFromFormattedBody(formattedBody)
+      const safeFormattedBody = sanitizeCustomHtml(formattedBody);
+      const strippedHtml = trimReplyFromFormattedBody(safeFormattedBody)
         .replaceAll(/<br\s*\/?>/gi, ' ')
         .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
         .replaceAll(/<\/?p[^>]*>/gi, '')

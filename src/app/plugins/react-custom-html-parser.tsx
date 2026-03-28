@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text */
 import {
+  CSSProperties,
   ComponentPropsWithoutRef,
   lazy,
   ReactEventHandler,
@@ -35,6 +36,7 @@ import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
+import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import {
@@ -66,6 +68,42 @@ export const safeDecodeUrl = (url: string) => {
   } catch {
     return url;
   }
+};
+
+const getMatrixColorStyle = (attribs: Record<string, string>): CSSProperties | undefined => {
+  const color = attribs['data-mx-color'];
+  const backgroundColor = attribs['data-mx-bg-color'];
+
+  const style: CSSProperties = {};
+
+  if (typeof color === 'string' && isMatrixHexColor(color)) {
+    style.color = color;
+  }
+
+  if (typeof backgroundColor === 'string' && isMatrixHexColor(backgroundColor)) {
+    style.backgroundColor = backgroundColor;
+  }
+
+  return Object.keys(style).length > 0 ? style : undefined;
+};
+
+const stripIncomingStyle = (
+  attribs: Record<string, string>
+): Omit<ReturnType<typeof attributesToProps>, 'style'> => {
+  const { style, ...props } = attributesToProps(attribs);
+
+  return props;
+};
+
+const ensureNoopenerRel = (rel: unknown): string => {
+  if (typeof rel !== 'string') return 'noopener';
+
+  const parts = rel.split(/\s+/).filter(Boolean);
+  if (!parts.includes('noopener')) {
+    parts.push('noopener');
+  }
+
+  return parts.join(' ');
 };
 
 export const makeMentionCustomProps = (
@@ -363,7 +401,8 @@ export const getReactCustomHtmlParser = (
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
         const renderChildren = () => domToReact(children as any, opts);
-        const props = attributesToProps(attribs);
+        const props = stripIncomingStyle(attribs);
+        const matrixColorStyle = getMatrixColorStyle(attribs);
 
         if (name === 'h1') {
           return (
@@ -494,8 +533,13 @@ export const getReactCustomHtmlParser = (
         if (name === 'a' && typeof props.href === 'string') {
           const encodedHref = props.href;
           const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
+          const anchorProps = {
+            ...props,
+            rel: ensureNoopenerRel(props.rel),
+          };
+
           if (!decodedHref || !testMatrixTo(decodedHref)) {
-            return undefined;
+            return <a {...anchorProps}>{renderChildren()}</a>;
           }
 
           const content = children.find((child) => !(child instanceof DOMText))
@@ -523,8 +567,16 @@ export const getReactCustomHtmlParser = (
               onClick={params.handleSpoilerClick}
               className={css.Spoiler()}
               aria-pressed
-              style={{ cursor: 'pointer' }}
+              style={{ ...matrixColorStyle, cursor: 'pointer' }}
             >
+              {renderChildren()}
+            </span>
+          );
+        }
+
+        if (name === 'span' && matrixColorStyle) {
+          return (
+            <span {...props} style={matrixColorStyle}>
               {renderChildren()}
             </span>
           );

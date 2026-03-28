@@ -85,7 +85,7 @@ const permittedTagToAttributes = {
 };
 
 // Remove font tag support (not in spec)
-// Only allow color/background-color in style, and only if valid hex or named color
+// Only allow color/background-color in style
 const transformSpanTag: Transformer = (tagName, attribs) => {
   const allowedStyles: Record<string, string> = {};
   if (attribs.style) {

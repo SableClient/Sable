@@ -179,15 +179,21 @@ const useTimelinePagination = (
         }
 
         if (alive()) {
-          recalibratePagination(lTimelines);
+          // Re-read linkedTimelines after the await: a sliding sync reset may have
+          // replaced lTimelines[0] (via resetLiveTimeline) while pagination was in
+          // flight, making the captured lTimelines stale.  Using the fresh ref
+          // ensures recalibratePagination rebuilds from the current live chain and
+          // that countAfter/stillHasToken comparisons are meaningful.
+          const freshLTimelines = timelineRef.current.linkedTimelines;
+          recalibratePagination(freshLTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
-          const countAfter = getTimelinesEventsCount(getLinkedTimelines(lTimelines[0]));
+          const countAfter = getTimelinesEventsCount(getLinkedTimelines(freshLTimelines[0]));
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
             const stillHasToken =
-              typeof getLinkedTimelines(lTimelines[0])[0]?.getPaginationToken(
+              typeof getLinkedTimelines(freshLTimelines[0])[0]?.getPaginationToken(
                 Direction.Backward
               ) === 'string';
             if (stillHasToken) {
@@ -565,6 +571,24 @@ export function useTimelineSync({
     if (getLiveTimeline(room).getEvents().length === 0) return;
     setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
   }, [eventId, room, timeline.linkedTimelines.length]);
+
+  // When navigating between rooms, reset the timeline state to the new room's
+  // initial linked timelines.  Without this, the component's timeline state
+  // retains stale data from the previous room, causing liveTimelineLinked to be
+  // false until a TimelineReset event fires.  For revisited rooms with up-to-date
+  // data (no initial:true in the sliding sync response), that event may never
+  // arrive — leaving the initial-scroll guard permanently blocked and the room
+  // invisible.
+  const prevRoomIdRef = useRef(room.roomId);
+  useEffect(() => {
+    if (prevRoomIdRef.current === room.roomId) return;
+    prevRoomIdRef.current = room.roomId;
+    if (eventId) return;
+    setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+    // Intentionally only depends on room: we want this to fire when the room
+    // identity changes, not on every eventId change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room]);
 
   return {
     timeline,

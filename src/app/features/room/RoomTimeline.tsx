@@ -210,6 +210,11 @@ export function RoomTimeline({
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Set to true when the 80 ms timer fires but processedEvents is still empty
+  // (e.g. the onLifecycle reset cleared the timeline before events refilled it).
+  // A recovery useLayoutEffect watches for processedEvents becoming non-empty
+  // and performs the final scroll + setIsReady when this flag is set.
+  const pendingReadyRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
@@ -218,6 +223,7 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
+    pendingReadyRef.current = false;
     setIsReady(false);
   }
 
@@ -273,6 +279,12 @@ export function RoomTimeline({
       !eventId &&
       !hasInitialScrolledRef.current &&
       timelineSync.eventsLength > 0 &&
+      // Guard: only scroll once the timeline reflects the current room's live
+      // timeline. Without this, a render with stale data from the previous room
+      // (before the room-change reset propagates) fires the scroll at the wrong
+      // position and marks hasInitialScrolledRef = true, preventing the correct
+      // scroll when the right data arrives.
+      timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
@@ -283,14 +295,20 @@ export function RoomTimeline({
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
           vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          // Only mark ready once we've successfully scrolled.  If processedEvents
+          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
+          // timeline within the 80 ms window), defer setIsReady until the recovery
+          // effect below fires once events repopulate.
+          setIsReady(true);
+        } else {
+          pendingReadyRef.current = true;
         }
-        setIsReady(true);
       }, 80);
       hasInitialScrolledRef.current = true;
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, eventId, room.roomId]);
+  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -695,6 +713,18 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
+  // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
+  // events repopulate.  Fires on every processedEvents.length change but is
+  // guarded by pendingReadyRef so it only acts once per initial-scroll attempt.
+  useLayoutEffect(() => {
+    if (!pendingReadyRef.current) return;
+    if (processedEvents.length === 0) return;
+    pendingReadyRef.current = false;
+    vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    setIsReady(true);
+  }, [processedEvents.length]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

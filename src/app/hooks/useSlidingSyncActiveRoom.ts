@@ -24,16 +24,7 @@ export const useSlidingSyncActiveRoom = (): void => {
     const manager = getSlidingSyncManager(mx);
     if (!manager) return undefined;
 
-    // Wait for the room to be initialized from list sync before subscribing
-    // with the full timeline limit. This prevents timeline ordering issues where
-    // the room might be receiving events from list expansion while we're also
-    // trying to load a large timeline, causing events to be added out of order.
-    const timeoutId = setTimeout(() => {
-      manager.subscribeToRoom(roomId);
-    }, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    manager.subscribeToRoom(roomId);
+    return undefined;
   }, [mx, roomId]);
 };

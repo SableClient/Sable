@@ -563,9 +563,6 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
   });
   manager.attach();
-  // Begin background spidering so all rooms are eventually indexed.
-  // Not awaited — this runs incrementally in the background.
-  manager.startSpidering(100, 50);
   slidingSyncByClient.set(mx, manager);
   syncTransportByClient.set(mx, {
     transport: 'sliding',

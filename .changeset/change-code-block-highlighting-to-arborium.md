@@ -2,4 +2,4 @@
 default: minor
 ---
 
-Change code block highlighting to Arborium and add separate light and dark code block theme options.
+Improve code blocks with faster, more accurate syntax highlighting, broader language support, and separate light and dark theme options.

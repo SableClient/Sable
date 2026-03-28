@@ -106,6 +106,11 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  /**
+   * whether to enable pk compat
+   */
+  pkCompat: boolean;
+  pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
 
@@ -197,6 +202,8 @@ const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  pkCompat: false,
+  pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
 

@@ -161,7 +161,7 @@ export const Reply = as<'div', ReplyProps>(
       // Always sanitize before parsing
       const sanitizedHtml = sanitizeCustomHtml(formattedBody);
       const strippedHtml = trimReplyFromFormattedBody(sanitizedHtml)
-        .replaceAll(/<br\s*\/?>(gi, ' ')
+        .replaceAll(/<br\s*\/?>/gi, ' ')
         .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
         .replaceAll(/<\/?p[^>]*>/gi, '')
         .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')

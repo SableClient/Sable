@@ -188,7 +188,6 @@ describe('sanitizeCustomHtml – inline style on spec-allowed tags', () => {
 
 describe('sanitizeCustomHtml – image transformer protocol checks', () => {
   it('falls back to alt text for javascript: src', () => {
-    // eslint-disable-next-line no-script-url
     const result = sanitizeCustomHtml('<img src="javascript:alert(1)" alt="bad" />');
     expect(result).not.toContain('<img');
     expect(result).toContain('bad');

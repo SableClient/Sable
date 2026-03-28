@@ -224,6 +224,10 @@ export function RoomTimeline({
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
     setIsReady(false);
   }
 

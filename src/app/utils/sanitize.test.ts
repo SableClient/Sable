@@ -65,6 +65,19 @@ describe('sanitizeCustomHtml – link transformer', () => {
     const result = sanitizeCustomHtml('<a href="https://example.com">link</a>');
     expect(result).toContain('href="https://example.com"');
   });
+
+  it('passes through mxc: href links (Matrix pills)', () => {
+    const result = sanitizeCustomHtml('<a href="mxc://example.com/abc">pill</a>');
+    expect(result).toContain('href="mxc://example.com/abc"');
+    expect(result).not.toContain('<span');
+  });
+
+  it('strips disallowed href protocols but keeps link text', () => {
+    const result = sanitizeCustomHtml('<a href="javascript:alert(1)">click</a>');
+    expect(result).not.toMatch(/javascript:/);
+    // The visible link text should be preserved as a span
+    expect(result).toContain('click');
+  });
 });
 
 describe('sanitizeCustomHtml – image transformer', () => {
@@ -74,14 +87,14 @@ describe('sanitizeCustomHtml – image transformer', () => {
     expect(result).toContain('src="mxc://example.com/abc"');
   });
 
-  it('falls back to alt text in a span for https:// src', () => {
+  it('converts non-mxc https:// img to a safe clickable link', () => {
     const result = sanitizeCustomHtml('<img src="https://example.com/image.jpg" alt="photo" />');
     expect(result).not.toContain('<img');
-    // Non-mxc images are replaced with a span containing the alt text
-    expect(result).toContain('<span');
+    // Non-mxc https images are converted to a safe link with rel/target
+    expect(result).toContain('<a');
+    expect(result).toContain('href="https://example.com/image.jpg"');
+    expect(result).toContain('rel="noreferrer noopener"');
     expect(result).toContain('photo');
-    // The remote URL must NOT appear in the output (privacy/security)
-    expect(result).not.toContain('https://example.com/image.jpg');
   });
 });
 

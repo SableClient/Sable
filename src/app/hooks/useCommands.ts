@@ -41,6 +41,7 @@ import {
   PerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 
 export const SHRUG = String.raw`¯\_(ツ)_/¯`;
 export const TABLEFLIP = '(╯°□°)╯︵ ┻━┻';
@@ -169,8 +170,6 @@ const getAllTextNodes = (root: Node): Node[] =>
         []
       );
 
-import { sanitizeCustomHtml } from '$utils/sanitize';
-
 export const rainbowify = (htmlInput: string): string => {
   // Always sanitize input before processing
   const safeInput = sanitizeCustomHtml(htmlInput);
@@ -188,23 +187,24 @@ export const rainbowify = (htmlInput: string): string => {
     if (!text.trim()) return currentGlobalIdx;
 
     const chars = Array.from(text);
+    const fragment = document.createDocumentFragment();
+    let charsProcessed = 0;
 
-    const { html: newHtml, count: charsProcessed } = chars.reduce(
-      (acc, char) => {
-        if (char.trim().length === 0) {
-          return { html: acc.html + char, count: acc.count };
-        }
-        const hue = ((currentGlobalIdx + acc.count) / totalTextLen) * (5 / 6);
-        const color = hslToHex(hue, 1.0, 0.5);
-        const coloredChar = `<span data-mx-color="${color}">${char}</span>`;
-        return { html: acc.html + coloredChar, count: acc.count + 1 };
-      },
-      { html: '', count: 0 }
-    );
+    chars.forEach((char) => {
+      if (char.trim().length === 0) {
+        fragment.appendChild(document.createTextNode(char));
+        return;
+      }
+      const hue = ((currentGlobalIdx + charsProcessed) / totalTextLen) * (5 / 6);
+      const charColor = hslToHex(hue, 1.0, 0.5);
+      const charSpan = document.createElement('span');
+      charSpan.setAttribute('data-mx-color', charColor);
+      charSpan.textContent = char;
+      fragment.appendChild(charSpan);
+      charsProcessed += 1;
+    });
 
-    const span = document.createElement('span');
-    span.innerHTML = newHtml;
-    node.parentNode?.replaceChild(span, node);
+    node.parentNode?.replaceChild(fragment, node);
     return currentGlobalIdx + charsProcessed;
   }, 0);
 

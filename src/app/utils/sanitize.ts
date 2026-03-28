@@ -44,7 +44,7 @@ const urlSchemes = ['https', 'http', 'matrix', 'mxc'];
 
 // Allowed attributes per tag, per Matrix spec v1.18
 const permittedTagToAttributes = {
-  a: ['href'],
+  a: ['href', 'rel', 'target'],
   img: ['src', 'alt', 'title'],
   code: ['class'],
   span: [
@@ -85,7 +85,7 @@ const permittedTagToAttributes = {
 };
 
 // Remove font tag support (not in spec)
-// Only allow color/background-color in style
+// Only allow color/background-color in style, and only if valid hex
 const transformSpanTag: Transformer = (tagName, attribs) => {
   const allowedStyles: Record<string, string> = {};
   if (attribs.style) {
@@ -112,11 +112,11 @@ const transformSpanTag: Transformer = (tagName, attribs) => {
 };
 
 const transformATag: Transformer = (tagName, attribs) => {
-  // Only allow http, https, matrix: links
+  // Only allow http, https, matrix, mxc: links
   const href = attribs.href || '';
-  if (!href.match(/^(https?:|matrix:)/)) {
-    // attribs must include all possible keys as strings
-    return { tagName: 'span', attribs: { href: '', rel: '', target: '' }, text: href };
+  if (!href.match(/^(https?:|matrix:|mxc:)/)) {
+    // Disallowed href: strip the link but keep inner content
+    return { tagName: 'span', attribs: {} as Record<string, string> };
   }
   return {
     tagName,
@@ -131,19 +131,24 @@ const transformATag: Transformer = (tagName, attribs) => {
 const transformImgTag: Transformer = (tagName, attribs) => {
   // Only allow mxc:// URLs for src
   const src = typeof attribs.src === 'string' ? attribs.src : '';
+  const alt = typeof attribs.alt === 'string' ? attribs.alt : '';
   if (!src.startsWith('mxc://')) {
-    // Replace with alt text or nothing
-    return {
-      tagName: 'span',
-      attribs: { src: '', alt: '', title: '' },
-      text: typeof attribs.alt === 'string' ? attribs.alt : '',
-    };
+    // For https:// images, convert to a safe link rather than embedding
+    if (src.match(/^https?:\/\//)) {
+      return {
+        tagName: 'a',
+        attribs: { href: src, rel: 'noreferrer noopener', target: '_blank' },
+        text: alt || src,
+      };
+    }
+    // All other non-mxc src (javascript:, data:, etc.): show alt text only
+    return { tagName: 'span', attribs: {} as Record<string, string>, text: alt };
   }
   return {
     tagName,
     attribs: {
-      src: src || '',
-      alt: typeof attribs.alt === 'string' ? attribs.alt : '',
+      src,
+      alt,
       title: typeof attribs.title === 'string' ? attribs.title : '',
     },
   };

@@ -8,6 +8,7 @@ import { useAtomValue } from 'jotai';
 import { getMemberDisplayName, trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { randomNumberBetween } from '$utils/common';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   getReactCustomHtmlParser,
   scaleSystemEmoji,

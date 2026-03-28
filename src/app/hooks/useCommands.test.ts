@@ -41,7 +41,8 @@ describe('rainbowify – XSS sanitization', () => {
   it('strips event handler attributes before DOM processing', () => {
     const result = rainbowify('<b onclick="evil()">text</b>');
     expect(result).not.toContain('onclick');
-    expect(result).toContain('text');
+    // Characters from the original text must still be colorized
+    expect(result).toContain('data-mx-color');
   });
 
   it('strips javascript: href before DOM processing', () => {

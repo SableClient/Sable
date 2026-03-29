@@ -33,15 +33,34 @@
         "esbenp.prettier-vscode",
         "webpro.vscode-knip",
         "ms-vscode.vscode-typescript-next",
+        "usernamehw.errorlens",
+        "christian-kohler.path-intellisense",
+        "styled-components.vscode-styled-components",
+        "bradlc.vscode-tailwindcss",
+        // React/TypeScript
+        "dsznajder.es7-react-js-snippets",
+        "formulahendry.auto-rename-tag",
+        "wix.vscode-import-cost",
+        // i18n
+        "lokalise.i18n-ally",
+        // Testing
+        "vitest.explorer",
         // Git & GitHub
         "github.vscode-pull-request-github",
         "eamodio.gitlens",
+        // Infrastructure
+        "hashicorp.terraform",
+        "zamerick.vscode-caddyfile-syntax",
         // Docs (Zola / TOML / Markdown)
         "tamasfe.even-better-toml",
         "yzhang.markdown-all-in-one",
         "eliostruyf.vscode-front-matter",
+        "streetsidesoftware.code-spell-checker",
+        "davidanson.vscode-markdownlint",
         // Misc
-        "EditorConfig.EditorConfig"
+        "EditorConfig.EditorConfig",
+        "gruntfuggly.todo-tree",
+        "wayou.vscode-todo-highlight"
       ],
       "settings": {
         "editor.formatOnSave": true,

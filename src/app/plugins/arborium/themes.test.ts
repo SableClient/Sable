@@ -20,7 +20,7 @@ const arboriumThemesDir = dirname(
 describe('Arborium theme registry', () => {
   it('exposes the default light and dark themes', () => {
     expect(DEFAULT_ARBORIUM_LIGHT_THEME).toBe('github-light');
-    expect(DEFAULT_ARBORIUM_DARK_THEME).toBe('one-dark');
+    expect(DEFAULT_ARBORIUM_DARK_THEME).toBe('dracula');
   });
 
   it('groups themes by kind and keeps the defaults available', () => {

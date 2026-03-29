@@ -48,7 +48,7 @@ export type ArboriumTheme = {
 };
 
 export const DEFAULT_ARBORIUM_LIGHT_THEME: ArboriumThemeId = 'github-light';
-export const DEFAULT_ARBORIUM_DARK_THEME: ArboriumThemeId = 'github-dark';
+export const DEFAULT_ARBORIUM_DARK_THEME: ArboriumThemeId = 'dracula';
 
 const ARBORIUM_THEMES: ArboriumTheme[] = [...ARBORIUM_THEME_DEFINITIONS];
 

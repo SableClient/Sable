@@ -66,7 +66,7 @@ beforeEach(() => {
     useSystemArboriumTheme: true,
     arboriumThemeId: 'dracula',
     arboriumLightTheme: 'github-light',
-    arboriumDarkTheme: 'one-dark',
+    arboriumDarkTheme: 'dracula',
     saturationLevel: 100,
     underlineLinks: false,
     reducedMotion: false,
@@ -90,6 +90,9 @@ const clickLatestButton = (name: string) => {
   fireEvent.click(nodes.at(-1)!);
 };
 
+const getFirstEnabledButton = (name: string) =>
+  screen.getAllByRole('button', { name }).find((node) => !node.hasAttribute('disabled'));
+
 describe('Appearance settings', () => {
   it('renders Theme, Code Block Theme, and Visual Tweaks as separate sections', () => {
     render(<Appearance />);
@@ -108,8 +111,8 @@ describe('Appearance settings', () => {
     expect(screen.getByRole('button', { name: 'Cinny Light' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Black' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'One Dark' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dracula' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Dracula' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Dracula' }).at(-1)).toBeDisabled();
   });
 
   it('updates the manual app and code block theme settings when system theme is disabled', () => {
@@ -150,11 +153,11 @@ describe('Appearance settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'GitHub Light' }));
     clickLatestButton('Ayu Light');
 
-    fireEvent.click(screen.getByRole('button', { name: 'One Dark' }));
-    clickLatestButton('Dracula');
+    fireEvent.click(getFirstEnabledButton('Dracula')!);
+    clickLatestButton('One Dark');
 
     expect(getSetter('arboriumLightTheme')).toHaveBeenCalledWith('ayu-light');
-    expect(getSetter('arboriumDarkTheme')).toHaveBeenCalledWith('dracula');
+    expect(getSetter('arboriumDarkTheme')).toHaveBeenCalledWith('one-dark');
   });
 
   it('falls back to light theme ids when the stored app theme ids are invalid', () => {

@@ -15,6 +15,7 @@
  *    instant (matching Element Web's model).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
     off: vi.fn(),
     removeListener: vi.fn(),
     ...overrides,
-  } as unknown as import('$types/matrix-sdk').MatrixClient;
+  } as unknown as MatrixClient;
 }
 
 function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {

@@ -574,7 +574,7 @@ export function PublicRooms() {
                   </Box>
                   {isLoading && (
                     <RoomCardGrid>
-                      {[...new Array(currentLimit).keys()].map((item) => (
+                      {Array.from(new Array(currentLimit).keys(), (item) => (
                         <RoomCardBase key={item} style={{ minHeight: toRem(260) }} />
                       ))}
                     </RoomCardGrid>

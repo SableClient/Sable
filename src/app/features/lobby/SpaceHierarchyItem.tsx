@@ -95,7 +95,7 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
       getRoomPermissionsAPI(parentCreators, parentPowerLevels);
 
     useEffect(() => {
-      onSpacesFound(Array.from(subspaces.values()));
+      onSpacesFound([...subspaces.values()]);
     }, [subspaces, onSpacesFound]);
 
     let childItems: HierarchyItemRoom[] | undefined = roomItems?.filter(

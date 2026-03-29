@@ -5,7 +5,7 @@ export const useRoomAccountData = (room: Room): Map<string, object> => {
   const getAccountData = useCallback((): Map<string, object> => {
     const accountData = new Map<string, object>();
 
-    Array.from(room.accountData.entries()).forEach(([type, mEvent]) => {
+    [...room.accountData.entries()].forEach(([type, mEvent]) => {
       const content = mEvent.getContent();
       accountData.set(type, content);
     });

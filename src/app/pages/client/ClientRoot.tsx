@@ -330,8 +330,7 @@ export function ClientRoot({ children }: ClientRootProps) {
         'SHA-256',
         new TextEncoder().encode(matrixUserId)
       );
-      const hashHex = Array.from(new Uint8Array(hashBuffer))
-        .map((b) => b.toString(16).padStart(2, '0'))
+      const hashHex = Array.from(new Uint8Array(hashBuffer), (b) => b.toString(16).padStart(2, '0'))
         .join('')
         .slice(0, 16);
       // Include the homeserver domain as a custom attribute — it is not PII (it is the

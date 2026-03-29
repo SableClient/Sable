@@ -142,7 +142,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
     getRoomNameStr,
     SEARCH_OPTS
   );
-  const rooms = Array.from(searchResult?.items ?? roomList).sort(factoryRoomIdByAtoZ(mx));
+  const rooms = (searchResult?.items ?? roomList).toSorted(factoryRoomIdByAtoZ(mx));
 
   const virtualizer = useVirtualizer({
     count: rooms.length,

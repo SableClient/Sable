@@ -48,6 +48,12 @@ import { useMessageSpacingItems } from '$hooks/useMessageSpacing';
 import { useDateFormatItems } from '$hooks/useDateFormat';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
+import {
+  getSentryEnabled,
+  getSentryReplayEnabled,
+  setSentryEnabled as persistSentryEnabled,
+  setSentryReplayEnabled,
+} from '$state/sentryStorage';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
@@ -1239,33 +1245,21 @@ function SettingsSyncSection() {
 }
 
 function DiagnosticsAndPrivacy() {
-  const [sentryEnabled, setSentryEnabled] = useState(
-    localStorage.getItem('sable_sentry_enabled') === 'true'
-  );
-  const [sessionReplayEnabled, setSessionReplayEnabled] = useState(
-    localStorage.getItem('sable_sentry_replay_enabled') === 'true'
-  );
+  const [sentryEnabled, setSentryEnabled] = useState(getSentryEnabled());
+  const [sessionReplayEnabled, setSessionReplayEnabled] = useState(getSentryReplayEnabled());
   const [needsRefresh, setNeedsRefresh] = useState(false);
 
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
 
   const handleSentryToggle = (enabled: boolean) => {
     setSentryEnabled(enabled);
-    if (enabled) {
-      localStorage.setItem('sable_sentry_enabled', 'true');
-    } else {
-      localStorage.setItem('sable_sentry_enabled', 'false');
-    }
+    persistSentryEnabled(enabled);
     setNeedsRefresh(true);
   };
 
   const handleReplayToggle = (enabled: boolean) => {
     setSessionReplayEnabled(enabled);
-    if (enabled) {
-      localStorage.setItem('sable_sentry_replay_enabled', 'true');
-    } else {
-      localStorage.removeItem('sable_sentry_replay_enabled');
-    }
+    setSentryReplayEnabled(enabled);
     setNeedsRefresh(true);
   };
 

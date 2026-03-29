@@ -320,7 +320,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
   const alive = useAlive();
   const [usedPowers, maxPower] = useMemo(() => {
     const up = getUsedPowers(powerLevels);
-    return [up, Math.max(...Array.from(up))];
+    return [up, Math.max(...[...up])];
   }, [powerLevels]);
 
   const powerLevelTags = usePowerLevelTags(room, powerLevels);

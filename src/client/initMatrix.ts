@@ -230,7 +230,7 @@ export const clearMismatchedStores = async (): Promise<void> => {
     allDbs.map(async ({ name }) => {
       if (!name) return;
 
-      const containsKnownUser = Array.from(knownUserIds).some((uid) => name.includes(uid));
+      const containsKnownUser = [...knownUserIds].some((uid) => name.includes(uid));
       const looksLikeUserDb = name.includes('@');
       if (looksLikeUserDb && !containsKnownUser && !knownStoreNames.has(name)) {
         log.warn(`clearMismatchedStores: "${name}" has unknown user — deleting`);

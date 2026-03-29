@@ -16,14 +16,14 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
   const mx = useMatrixClient();
   const [accountDataTypes, setAccountDataKeys] = useState<string[]>(() =>
     // TODO: tighten this once account data event typing is standardized.
-    Array.from(mx.store.accountData.keys())
+    [...mx.store.accountData.keys()]
   );
 
   useAccountDataCallback(
     mx,
     useCallback(() => {
       // TODO: tighten this once account data event typing is standardized.
-      setAccountDataKeys(Array.from(mx.store.accountData.keys()));
+      setAccountDataKeys([...mx.store.accountData.keys()]);
     }, [mx])
   );
 

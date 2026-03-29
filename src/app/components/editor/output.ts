@@ -10,7 +10,7 @@ import {
 import { findAndReplace } from '$utils/findAndReplace';
 import { sanitizeForRegex } from '$utils/regex';
 import { isUserId } from '$utils/matrix';
-import { type CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import { BlockType } from './types';
 
 export type OutputOptions = {

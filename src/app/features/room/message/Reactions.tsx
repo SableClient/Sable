@@ -71,7 +71,7 @@ export const Reactions = as<'div', ReactionsProps>(
         ref={ref}
       >
         {reactions.map(([key, events]) => {
-          const rEvents = Array.from(events);
+          const rEvents = [...events];
           if (rEvents.length === 0 || typeof key !== 'string') return null;
           const myREvent = myUserId ? rEvents.find(factoryEventSentBy(myUserId)) : undefined;
           const isPressed = !!myREvent?.getRelation();

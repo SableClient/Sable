@@ -173,7 +173,7 @@ const useNotificationTimeline = (
         if (currentTimeline.nextToken === from) {
           return {
             nextToken: data.next_token,
-            groups: from ? currentTimeline.groups.concat(groups) : groups,
+            groups: from ? [...currentTimeline.groups, ...groups] : groups,
           };
         }
         return currentTimeline;
@@ -762,7 +762,7 @@ export function Notifications() {
 
                 {timelineState.status === AsyncStatus.Loading && (
                   <Box direction="Column" gap="100">
-                    {[...new Array(8).keys()].map((key) => (
+                    {Array.from(new Array(8).keys(), (key) => (
                       <SequenceCard
                         variant="SurfaceVariant"
                         key={key}

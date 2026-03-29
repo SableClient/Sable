@@ -176,7 +176,7 @@ export const getRoomToParents = (mx: MatrixClient): RoomToParents => {
 
 export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): string[] => {
   const parents = getAllParents(roomToParents, roomId);
-  return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
+  return [...parents].filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
 export const isMutedRule = (rule: IPushRule) =>
@@ -264,7 +264,7 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
     return false;
   }
 
-  const latestEvent = liveEvents[liveEvents.length - 1];
+  const latestEvent = liveEvents.at(-1);
 
   if (latestEvent?.getSender() === userId) {
     return false;
@@ -316,8 +316,8 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       const liveEvents = room.getLiveTimeline().getEvents();
       // Exclude the user's own messages: own sent events are always "read" (hasUserReadEvent
       // returns true for them), which would cause the clamp to fire incorrectly.
-      const latestNotification = [...liveEvents]
-        .reverse()
+      const latestNotification = liveEvents
+        .toReversed()
         .find(
           (event) =>
             !event.isSending() &&
@@ -538,7 +538,7 @@ export const getMemberSearchStr = (
   mxIdToName: (mxId: string) => string
 ): string[] => [
   member.rawDisplayName === member.userId ? mxIdToName(member.userId) : member.rawDisplayName,
-  query.startsWith('@') || query.indexOf(':') > -1 ? member.userId : mxIdToName(member.userId),
+  query.startsWith('@') || query.includes(':') ? member.userId : mxIdToName(member.userId),
 ];
 
 export const getMemberAvatarMxc = (room: Room, userId: string): string | undefined => {
@@ -745,7 +745,7 @@ export const guessPerfectParent = (
         }
       });
 
-    return Array.from(specialUsers);
+    return [...specialUsers];
   };
 
   let perfectParent: string | undefined;

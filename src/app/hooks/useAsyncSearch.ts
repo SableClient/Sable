@@ -52,7 +52,7 @@ export const orderSearchItems = <TSearchItem extends object | string | number>(
   getItemStr: SearchItemStrGetter<TSearchItem>,
   options?: UseAsyncSearchOptions
 ): TSearchItem[] => {
-  const orderedItems: TSearchItem[] = Array.from(items);
+  const orderedItems: TSearchItem[] = [...items];
 
   // we will consider "_" as word boundary char.
   // because in more use-cases it is used. (like: emojishortcode)

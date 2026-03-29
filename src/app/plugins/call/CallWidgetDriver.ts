@@ -53,7 +53,7 @@ export class CallWidgetDriver extends WidgetDriver {
   }
 
   public async validateCapabilities(requested: Set<Capability>): Promise<Set<Capability>> {
-    const allow = Array.from(requested).filter((cap) => this.allowedCapabilities.has(cap));
+    const allow = [...requested].filter((cap) => this.allowedCapabilities.has(cap));
     return new Set(allow);
   }
 

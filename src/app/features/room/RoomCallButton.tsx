@@ -6,9 +6,9 @@ import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
 
-interface RoomCallButtonProps {
+type RoomCallButtonProps = {
   room: Room;
-}
+};
 
 export function RoomCallButton({ room }: RoomCallButtonProps) {
   const startCall = useCallStart();

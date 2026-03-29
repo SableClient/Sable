@@ -13,7 +13,7 @@ import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
 import { createMentionElement, isEmptyEditor, moveCursor } from '$components/editor';
 
-export interface UseTimelineActionsOptions {
+export type UseTimelineActionsOptions = {
   room: Room;
   mx: MatrixClient;
   editor: Editor;
@@ -36,7 +36,7 @@ export interface UseTimelineActionsOptions {
   setEditId: (editId: string | undefined) => void;
   onEditorReset?: () => void;
   handleOpenEvent: (eventId: string) => void;
-}
+};
 
 export function useTimelineActions({
   room,

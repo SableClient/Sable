@@ -53,7 +53,7 @@ export class ImagePack {
       return this.stickerMemo;
     }
 
-    const images = Array.from(this.images.collection.values()).filter((image) => {
+    const images = [...this.images.collection.values()].filter((image) => {
       const usg = image.usage ?? this.meta.usage;
       return usg.includes(usage);
     });

@@ -2,9 +2,9 @@ import { useMemo, useState, useEffect, type ChangeEvent } from 'react';
 import { Box, IconButton, Button, Icon, Icons, Input, Text } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 
-interface IntlWithSupportedValues {
+type IntlWithSupportedValues = {
   supportedValuesOf(key: 'timeZone' | string): string[];
-}
+};
 
 type TimezoneEditorProps = {
   current?: string;

@@ -10,9 +10,9 @@ import {
 } from '$types/matrix-sdk';
 
 // Grab types needed for encryption
-interface EncryptableBackend {
+type EncryptableBackend = {
   encryptEvent(event: MatrixEvent, room: Room): Promise<void>;
-}
+};
 
 export async function supportsDelayedEvents(mx: MatrixClient): Promise<boolean> {
   try {

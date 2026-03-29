@@ -8,7 +8,8 @@ type MemberSpeakingProps = {
   speakers: Set<string>;
 };
 export function MemberSpeaking({ room, speakers }: MemberSpeakingProps) {
-  const speakingNames = Array.from(speakers).map(
+  const speakingNames = Array.from(
+    speakers,
     (userId) => getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId) ?? userId
   );
   return (

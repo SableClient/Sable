@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { type MatrixClient } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
-export interface IntegrationManager {
+export type IntegrationManager = {
   apiUrl: string;
   uiUrl: string;
-}
+};
 
 const DEFAULT_MANAGERS: IntegrationManager[] = [
   {

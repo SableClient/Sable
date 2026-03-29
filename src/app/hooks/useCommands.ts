@@ -164,10 +164,7 @@ const hslToHex = (h: number, s: number, l: number): string => {
 const getAllTextNodes = (root: Node): Node[] =>
   root.nodeType === Node.TEXT_NODE
     ? [root]
-    : Array.from(root.childNodes).reduce<Node[]>(
-        (acc, child) => acc.concat(getAllTextNodes(child)),
-        []
-      );
+    : [...root.childNodes].reduce<Node[]>((acc, child) => [...acc, ...getAllTextNodes(child)], []);
 
 export const rainbowify = (htmlInput: string): string => {
   const div = document.createElement('div');
@@ -175,7 +172,7 @@ export const rainbowify = (htmlInput: string): string => {
   const textNodes = getAllTextNodes(div);
   const totalTextLen = textNodes.reduce((acc, node) => {
     const text = node.textContent || '';
-    const cleanLen = Array.from(text).filter((c) => c.trim().length > 0).length;
+    const cleanLen = [...text].filter((c) => c.trim().length > 0).length;
     return acc + cleanLen;
   }, 0);
 
@@ -183,7 +180,7 @@ export const rainbowify = (htmlInput: string): string => {
     const text = node.textContent || '';
     if (!text.trim()) return currentGlobalIdx;
 
-    const chars = Array.from(text);
+    const chars = [...text];
 
     const { html: newHtml, count: charsProcessed } = chars.reduce(
       (acc, char) => {
@@ -447,7 +444,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const rawIds = splitWithSpace(payload);
           const userIds = rawIds.filter((id) => isUserId(id));
           if (userIds.length > 0) {
-            let ignoredUsers = mx.getIgnoredUsers().concat(userIds);
+            let ignoredUsers = [...mx.getIgnoredUsers(), ...userIds];
             ignoredUsers = [...new Set(ignoredUsers)];
             await mx.setIgnoredUsers(ignoredUsers);
           }
@@ -614,7 +611,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           if (newAvatar.length === 0) {
             // no avatar, reset to global
             newAvatar = profile.avatarUrl;
-          } else if (!newAvatar.match(/^mxc:\/\/\S+$/)) {
+          } else if (!/^mxc:\/\/\S+$/.test(newAvatar)) {
             // bad mxc
             return;
           }

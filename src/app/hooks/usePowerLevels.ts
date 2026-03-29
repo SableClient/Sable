@@ -109,7 +109,7 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
           roomId &&
           event.getType() === StateEvent.RoomPowerLevels &&
           event.getStateKey() === '' &&
-          rooms.find((r) => r.roomId === roomId)
+          rooms.some((r) => r.roomId === roomId)
         ) {
           setRoomToPowerLevels(getRoomsPowerLevels());
         }

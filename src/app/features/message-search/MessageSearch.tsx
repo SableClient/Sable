@@ -113,7 +113,7 @@ export function MessageSearch({
   const groups = useMemo(() => data?.pages.flatMap((result) => result.groups) ?? [], [data]);
   const highlights = useMemo(() => {
     const mixed = data?.pages.flatMap((result) => result.highlights);
-    return Array.from(new Set(mixed));
+    return [...new Set(mixed)];
   }, [data]);
 
   const virtualizer = useVirtualizer({
@@ -253,7 +253,7 @@ export function MessageSearch({
       {((msgSearchParams.term && status === 'pending') ||
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
-          {[...new Array(8).keys()].map((key) => (
+          {Array.from(new Array(8).keys(), (key) => (
             <SequenceCard variant="SurfaceVariant" key={key} style={{ minHeight: toRem(80) }} />
           ))}
         </Box>

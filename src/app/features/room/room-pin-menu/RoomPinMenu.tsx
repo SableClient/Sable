@@ -310,7 +310,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
     );
 
     const pinnedEvents = useRoomPinnedEvents(room);
-    const sortedPinnedEvent = useMemo(() => Array.from(pinnedEvents).reverse(), [pinnedEvents]);
+    const sortedPinnedEvent = useMemo(() => pinnedEvents.toReversed(), [pinnedEvents]);
     const useAuthentication = useMediaAuthentication();
     const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
     const [urlPreview] = useSetting(settingsAtom, 'urlPreview');

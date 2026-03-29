@@ -81,9 +81,9 @@ function GlobalPackSelector({
 
   const addSelected = (adds: PackAddress[]) => {
     setSelected((addresses) => {
-      const newAddresses = Array.from(addresses);
+      const newAddresses = [...addresses];
       adds.forEach((address) => {
-        if (newAddresses.find((addr) => packAddressEqual(addr, address))) {
+        if (newAddresses.some((addr) => packAddressEqual(addr, address))) {
           return;
         }
         newAddresses.push(address);
@@ -95,7 +95,7 @@ function GlobalPackSelector({
   const removeSelected = (adds: PackAddress[]) => {
     setSelected((addresses) => {
       const newAddresses = addresses.filter(
-        (addr) => !adds.find((address) => packAddressEqual(addr, address))
+        (addr) => !adds.some((address) => packAddressEqual(addr, address))
       );
       return newAddresses;
     });
@@ -134,7 +134,7 @@ function GlobalPackSelector({
               paddingRight: config.space.S100,
             }}
           >
-            {Array.from(roomToPacks.entries()).map(([roomId, roomPacks]) => {
+            {Array.from(roomToPacks.entries(), ([roomId, roomPacks]) => {
               const room = mx.getRoom(roomId);
               if (!room) return null;
               const roomPackAddresses = roomPacks
@@ -174,7 +174,7 @@ function GlobalPackSelector({
                     const { address } = pack;
                     if (!address) return null;
 
-                    const added = !!selected.find((addr) => packAddressEqual(addr, address));
+                    const added = selected.some((addr) => packAddressEqual(addr, address));
                     return (
                       <SequenceCard
                         key={pack.id}
@@ -269,7 +269,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
   const nonGlobalPacks = useMemo(
     () =>
       roomsImagePack.filter(
-        (pack) => !globalPacks.find((p) => packAddressEqual(pack.address, p.address))
+        (pack) => !globalPacks.some((p) => packAddressEqual(pack.address, p.address))
       ),
     [roomsImagePack, globalPacks]
   );
@@ -280,7 +280,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
   const unselectedGlobalPacks = useMemo(
     () =>
       nonGlobalPacks.filter(
-        (pack) => !selectedPacks.find((addr) => packAddressEqual(pack.address, addr))
+        (pack) => !selectedPacks.some((addr) => packAddressEqual(pack.address, addr))
       ),
     [selectedPacks, nonGlobalPacks]
   );
@@ -347,7 +347,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
     const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
     const { address } = pack;
     if (!address) return null;
-    const removed = !!removedPacks.find((addr) => packAddressEqual(addr, address));
+    const removed = removedPacks.some((addr) => packAddressEqual(addr, address));
 
     return (
       <SequenceCard
@@ -482,7 +482,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
         </SequenceCard>
         {globalPacks.map(renderPack)}
         {nonGlobalPacks
-          .filter((pack) => !!selectedPacks.find((addr) => packAddressEqual(pack.address, addr)))
+          .filter((pack) => selectedPacks.some((addr) => packAddressEqual(pack.address, addr)))
           .map(renderPack)}
       </Box>
       {hasChanges && (

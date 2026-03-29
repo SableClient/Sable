@@ -15,11 +15,11 @@ import { UserAvatar } from '../../components/user-avatar';
 import { getMouseEventCords } from '../../utils/dom';
 import * as css from './styles.css';
 
-interface MemberWithMembershipData {
+type MemberWithMembershipData = {
   membershipData?: SessionMembershipData & {
     'm.call.intent': 'video' | 'audio';
   };
-}
+};
 
 type CallMemberCardProps = {
   member: CallMembership;

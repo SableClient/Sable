@@ -271,7 +271,7 @@ export function Lobby() {
 
       // As a subspace can be in multiple spaces,
       // only return true if all parent spaces are closed.
-      const allClosed = !Array.from(parentParentIds).some(
+      const allClosed = ![...parentParentIds].some(
         (id) => !getInClosedCategories(spaceId, id, parentId, visited)
       );
       visited.delete(categoryId);
@@ -295,7 +295,7 @@ export function Lobby() {
       return false;
     }
 
-    return !Array.from(parentIds).some((id) => !getInClosedCategories(spaceId, id, roomId));
+    return ![...parentIds].some((id) => !getInClosedCategories(spaceId, id, roomId));
   };
 
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
@@ -439,9 +439,9 @@ export function Lobby() {
           }
         }
 
-        const itemSpaces = Array.from(
-          hierarchy?.find((i) => i.space.roomId === containerParentId)?.rooms ?? []
-        );
+        const itemSpaces = [
+          ...(hierarchy?.find((i) => i.space.roomId === containerParentId)?.rooms ?? []),
+        ];
 
         const beforeItem: HierarchyItem | undefined =
           'space' in containerItem ? undefined : containerItem;

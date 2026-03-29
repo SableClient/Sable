@@ -498,7 +498,7 @@ export const getReactCustomHtmlParser = (
             return undefined;
           }
 
-          const content = children.find((child) => !(child instanceof DOMText))
+          const content = children.some((child) => !(child instanceof DOMText))
             ? undefined
             : children.map((c) => (c instanceof DOMText ? c.data : '')).join();
 

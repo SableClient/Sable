@@ -1,9 +1,9 @@
 import { useCallback, useRef } from 'react';
 
-export interface DebounceOptions {
+export type DebounceOptions = {
   wait?: number;
   immediate?: boolean;
-}
+};
 export type DebounceCallback<T extends unknown[]> = (...args: T) => void;
 
 export function useDebounce<T extends unknown[]>(

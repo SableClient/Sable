@@ -305,7 +305,7 @@ export class SlidingSyncManager {
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
     const lists = buildLists(listPageSize, includeInviteList);
-    this.listKeys = Array.from(lists.keys());
+    this.listKeys = [...lists.keys()];
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
     // Register the presence extension so m.presence events from the server are fed

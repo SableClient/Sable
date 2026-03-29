@@ -98,10 +98,7 @@ export function Members({ requestClose }: MembersProps) {
 
   const sortedMembers = useMemo(
     () =>
-      Array.from(members)
-        .filter(membershipFilter.filterFn)
-        .sort(memberSort.sortFn)
-        .sort(memberPowerSort),
+      [...members].filter(membershipFilter.filterFn).sort(memberSort.sortFn).sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
   );
 

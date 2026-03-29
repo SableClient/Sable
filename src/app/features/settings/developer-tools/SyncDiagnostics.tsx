@@ -77,8 +77,10 @@ const getUnreadDriftRooms = (mx: ReturnType<typeof useMatrixClient>): UnreadDrif
       if (sdkTotal <= 0 && sdkHighlight <= 0) return driftRooms;
       if (reconciledUnread.total <= 0 && reconciledUnread.highlight <= 0) return driftRooms;
 
-      const latestNotificationEvent = [...room.getLiveTimeline().getEvents()]
-        .reverse()
+      const latestNotificationEvent = room
+        .getLiveTimeline()
+        .getEvents()
+        .toReversed()
         .find((event) => !event.isSending() && isNotificationEvent(event));
       const latestNotificationEventId = latestNotificationEvent?.getId() ?? null;
       if (!latestNotificationEventId) return driftRooms;

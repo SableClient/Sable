@@ -39,7 +39,7 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
     const [savedMeta, setSavedMeta] = useState<PackMetaReader>();
     const currentMeta = savedMeta ?? imagePack.meta;
 
-    const images = useMemo(() => Array.from(imagePack.images.collection.values()), [imagePack]);
+    const images = useMemo(() => [...imagePack.images.collection.values()], [imagePack]);
     const [files, setFiles] = useState<File[]>([]);
     const [uploadedImages, setUploadedImages] = useState<PackImageReader[]>([]);
     const [imagesEditing, setImagesEditing] = useState<Set<string>>(new Set());
@@ -50,11 +50,9 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
       (shortcode: string): boolean => {
         const hasInPack = imagePack.images.collection.has(shortcode);
         if (hasInPack) return true;
-        const hasInUploaded =
-          uploadedImages.find((img) => img.shortcode === shortcode) !== undefined;
+        const hasInUploaded = uploadedImages.some((img) => img.shortcode === shortcode);
         if (hasInUploaded) return true;
-        const hasInSaved =
-          Array.from(savedImages).find(([, img]) => img.shortcode === shortcode) !== undefined;
+        const hasInSaved = [...savedImages].some(([, img]) => img.shortcode === shortcode);
         return hasInSaved;
       },
       [imagePack, savedImages, uploadedImages]

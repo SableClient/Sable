@@ -13,6 +13,8 @@ const WAVEFORM_POINT_COUNT = 100;
 
 let sharedAudioContext: AudioContext | null = null;
 
+const createSilenceLevels = (count: number): number[] => Array<number>(count).fill(0.15);
+
 function getSharedAudioContext(): AudioContext {
   if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
     sharedAudioContext = new AudioContext();
@@ -22,7 +24,7 @@ function getSharedAudioContext(): AudioContext {
 
 // downsample an array of samples to a target count by averaging blocks of samples together
 function downsampleWaveform(samples: number[], targetCount: number): number[] {
-  if (samples.length === 0) return Array.from({ length: targetCount }, () => 0.15);
+  if (samples.length === 0) return createSilenceLevels(targetCount);
   if (samples.length <= targetCount) {
     const step = (samples.length - 1) / (targetCount - 1);
     return Array.from({ length: targetCount }, (_, i) => {
@@ -60,9 +62,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [levels, setLevels] = useState<number[]>(() =>
-    Array.from({ length: BAR_COUNT }, () => 0.15)
-  );
+  const [levels, setLevels] = useState<number[]>(() => createSilenceLevels(BAR_COUNT));
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -460,7 +460,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         audioContextRef.current.suspend().catch(() => {});
       }
 
-      setLevels(Array.from({ length: BAR_COUNT }, () => 0.15));
+      setLevels(createSilenceLevels(BAR_COUNT));
     } catch {
       setError('Error pausing recording');
     }
@@ -831,7 +831,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     setSeconds(0);
     pausedTimeRef.current = 0;
     startTimeRef.current = null;
-    setLevels(Array.from({ length: BAR_COUNT }, () => 0.15));
+    setLevels(createSilenceLevels(BAR_COUNT));
     previousChunksRef.current = [];
     chunksRef.current = [];
     waveformSamplesRef.current = [];
@@ -873,7 +873,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     setSeconds(0);
     pausedTimeRef.current = 0;
     startTimeRef.current = null;
-    setLevels(Array.from({ length: BAR_COUNT }, () => 0.15));
+    setLevels(createSilenceLevels(BAR_COUNT));
     previousChunksRef.current = [];
     chunksRef.current = [];
     isResumingRef.current = false;

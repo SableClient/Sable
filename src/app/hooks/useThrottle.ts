@@ -1,9 +1,9 @@
 import { useCallback, useRef } from 'react';
 
-export interface ThrottleOptions {
+export type ThrottleOptions = {
   wait?: number;
   immediate?: boolean;
-}
+};
 
 export type ThrottleCallback<T extends unknown[]> = (...args: T) => void;
 

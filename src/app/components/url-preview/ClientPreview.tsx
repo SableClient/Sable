@@ -10,7 +10,7 @@ import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 
-interface OEmbed {
+type OEmbed = {
   type: 'photo' | 'video' | 'link' | 'rich';
   version: '1.0';
   title?: string;
@@ -26,7 +26,7 @@ interface OEmbed {
   html?: string;
   width?: number;
   height?: number;
-}
+};
 
 async function oEmbedData(url: string): Promise<OEmbed> {
   const data = await fetch(url).then((resp) => resp.json());
@@ -158,18 +158,21 @@ type YoutubeLink = {
 
 function parseYoutubeLink(url: string): YoutubeLink | null {
   const urlsplit = url.split('/');
-  const path = urlsplit[urlsplit.length - 1];
+  const path = urlsplit.at(-1);
+
+  if (!path) return null;
 
   let videoId: string | undefined;
   let params: string[];
 
   if (url.includes('youtu.be')) {
-    const split = path.split('?');
-    [videoId] = split;
-    params = split[1].split('&');
+    const [shortVideoId, query = ''] = path.split('?');
+    videoId = shortVideoId;
+    params = query ? query.split('&') : [];
   } else {
-    params = path.split('?')[1].split('&');
-    videoId = params.find((s) => s.startsWith('v='), params)?.split('v=')[1];
+    const [, query = ''] = path.split('?');
+    params = query ? query.split('&') : [];
+    videoId = params.find((s) => s.startsWith('v='))?.split('v=')[1];
   }
 
   if (!videoId) return null;

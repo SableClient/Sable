@@ -9,13 +9,13 @@ import {
   Transforms,
 } from 'slate';
 import { BlockType, MarkType } from './types';
-import {
-  type CommandElement,
-  type EmoticonElement,
-  type FormattedText,
-  type HeadingLevel,
-  type LinkElement,
-  type MentionElement,
+import type {
+  CommandElement,
+  EmoticonElement,
+  FormattedText,
+  HeadingLevel,
+  LinkElement,
+  MentionElement,
 } from './slate';
 
 const ALL_MARK_TYPE: MarkType[] = [
@@ -34,7 +34,7 @@ export const isMarkActive = (editor: Editor, format: MarkType) => {
 
 export const isAnyMarkActive = (editor: Editor) => {
   const marks = Editor.marks(editor);
-  return marks && !!ALL_MARK_TYPE.find((type) => marks[type] === true);
+  return marks && ALL_MARK_TYPE.some((type) => marks[type] === true);
 };
 
 export const toggleMark = (editor: Editor, format: MarkType) => {
@@ -229,10 +229,10 @@ export const moveCursor = (editor: Editor, withSpace?: boolean) => {
   Transforms.collapse(editor, { edge: 'end' });
 };
 
-interface PointUntilCharOptions {
+type PointUntilCharOptions = {
   match: (char: string) => boolean;
   reverse?: boolean;
-}
+};
 export const getPointUntilChar = (
   editor: Editor,
   cursorPoint: BasePoint,

@@ -43,7 +43,7 @@ function toArrayBufferView(data: Uint8Array): Uint8Array<ArrayBuffer> {
 function encodeBase64(uint8Array: Uint8Array): string {
   // Misinterpt the Uint8Array as Latin-1.
   // window.btoa expects a unicode string with codepoints in the range 0-255.
-  const latin1String = String.fromCodePoint.apply(null, Array.from(uint8Array));
+  const latin1String = String.fromCodePoint(...[...uint8Array]);
   // Use the builtin base64 encoder.
   return globalThis.btoa(latin1String);
 }

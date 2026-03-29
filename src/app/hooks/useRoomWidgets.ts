@@ -6,10 +6,10 @@ import { getStateEvents } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
 
-export interface RoomWidget extends IWidget {
+export type RoomWidget = {
   eventId?: string;
   sender?: string;
-}
+} & IWidget;
 
 export const resolveWidgetUrl = (
   url: string,

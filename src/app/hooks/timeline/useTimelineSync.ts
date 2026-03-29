@@ -326,7 +326,7 @@ const useThreadUpdate = (room: Room, onUpdate: () => void) => {
   }, [room]);
 };
 
-export interface UseTimelineSyncOptions {
+export type UseTimelineSyncOptions = {
   room: Room;
   mx: MatrixClient;
   eventId?: string;
@@ -337,7 +337,7 @@ export interface UseTimelineSyncOptions {
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
-}
+};
 
 export function useTimelineSync({
   room,

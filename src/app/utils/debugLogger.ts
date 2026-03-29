@@ -20,14 +20,14 @@ export type LogCategory =
   | 'error'
   | 'general';
 
-export interface LogEntry {
+export type LogEntry = {
   timestamp: number;
   level: LogLevel;
   category: LogCategory;
   namespace: string;
   message: string;
   data?: unknown;
-}
+};
 
 type LogListener = (entry: LogEntry) => void;
 
@@ -136,7 +136,7 @@ class DebugLoggerService {
     } else {
       this.disabledBreadcrumbCategories.add(category);
     }
-    const disabledArray = Array.from(this.disabledBreadcrumbCategories);
+    const disabledArray = [...this.disabledBreadcrumbCategories];
     if (disabledArray.length > 0) {
       localStorage.setItem(BREADCRUMB_DISABLED_KEY, JSON.stringify(disabledArray));
     } else {

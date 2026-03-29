@@ -578,7 +578,7 @@ function SpamInvites({
   );
 
   const ignoredUsers = useIgnoredUsers();
-  const unignoredUsers = Array.from(new Set(invites.map((invite) => invite.senderId))).filter(
+  const unignoredUsers = [...new Set(invites.map((invite) => invite.senderId))].filter(
     (user) => !ignoredUsers.includes(user)
   );
   const [blockAllStatus, blockAll] = useAsyncCallback(

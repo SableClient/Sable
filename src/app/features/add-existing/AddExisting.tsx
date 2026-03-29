@@ -108,7 +108,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
         return true;
       }
 
-      return Array.from(parentIds).some((id) => isAncestor(sourceId, id, visited));
+      return [...parentIds].some((id) => isAncestor(sourceId, id, visited));
     },
     [roomIdToParents]
   );

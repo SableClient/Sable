@@ -417,8 +417,8 @@ export function EmojiBoard({
 
   const searchList = useMemo(() => {
     let list: Array<PackImageReader | IEmoji> = [];
-    list = list.concat(imagePacks.flatMap((pack) => pack.getImages(usage)));
-    if (emojiTab) list = list.concat(emojis);
+    list = [...list, ...imagePacks.flatMap((pack) => pack.getImages(usage))];
+    if (emojiTab) list = [...list, ...emojis];
     return list;
   }, [emojiTab, usage, imagePacks]);
 

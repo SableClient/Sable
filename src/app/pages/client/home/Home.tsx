@@ -207,7 +207,7 @@ export function Home() {
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   const sortedRooms = useMemo(() => {
-    const items = Array.from(rooms).sort(
+    const items = rooms.toSorted(
       closedCategories.has(DEFAULT_CATEGORY_ID)
         ? factoryRoomIdByActivity(mx)
         : factoryRoomIdByAtoZ(mx)

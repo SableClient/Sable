@@ -198,7 +198,7 @@ async function getRoomsUsingProfile(mx: MatrixClient, profileId: string): Promis
   const content: PerMessageProfileRoomAssociationWrapper | undefined = accountData?.getContent();
   const associations = getAssociationsMap(content);
   const roomsUsingProfile: string[] = [];
-  Array.from(associations.entries()).forEach(([roomId, assoc]) => {
+  [...associations.entries()].forEach(([roomId, assoc]) => {
     if (assoc?.profileId === profileId) roomsUsingProfile.push(roomId);
   });
   return roomsUsingProfile;

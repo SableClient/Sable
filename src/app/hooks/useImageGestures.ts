@@ -30,7 +30,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
     setCursor('grabbing');
 
     if (activePointers.current.size === 2) {
-      const points = Array.from(activePointers.current.values());
+      const points = [...activePointers.current.values()];
       initialDist.current = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
     }
   };
@@ -42,7 +42,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
       activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       if (activePointers.current.size === 2) {
-        const points = Array.from(activePointers.current.values());
+        const points = [...activePointers.current.values()];
         const currentDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 
         const delta = currentDist / initialDist.current;

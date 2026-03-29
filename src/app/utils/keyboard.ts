@@ -1,7 +1,7 @@
 import { isKeyHotkey } from 'is-hotkey';
 import { type KeyboardEventHandler } from 'react';
 
-export interface KeyboardEventLike {
+export type KeyboardEventLike = {
   key: string;
   which: number;
   altKey: boolean;
@@ -9,7 +9,7 @@ export interface KeyboardEventLike {
   metaKey: boolean;
   shiftKey: boolean;
   preventDefault(): void;
-}
+};
 
 export const onTabPress = (evt: KeyboardEventLike, callback: () => void) => {
   if (isKeyHotkey('tab', evt)) {

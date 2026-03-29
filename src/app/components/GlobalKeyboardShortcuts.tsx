@@ -62,7 +62,7 @@ export function GlobalKeyboardShortcuts() {
       } else {
         const parents = roomToParents.get(roomId);
         if (parents && parents.size > 0) {
-          const spaceId = Array.from(parents)[0];
+          const spaceId = [...parents][0];
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, spaceId);
           navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAliasToNav));
         } else {
@@ -80,7 +80,7 @@ export function GlobalKeyboardShortcuts() {
   const handleNextUnreadKeyDown = useCallback(
     (evt: KeyboardEvent) => {
       if (!isKeyHotkey('alt+n', evt)) return;
-      const unreadEntries = Array.from(roomToUnread.entries())
+      const unreadEntries = [...roomToUnread.entries()]
         .filter(([id, u]) => u.total > 0 && id !== currentRoom?.roomId)
         .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;
@@ -98,7 +98,7 @@ export function GlobalKeyboardShortcuts() {
       const isDown = isKeyHotkey('alt+shift+down', evt);
       const isUp = isKeyHotkey('alt+shift+up', evt);
       if (!isDown && !isUp) return;
-      const unreadEntries = Array.from(roomToUnread.entries())
+      const unreadEntries = [...roomToUnread.entries()]
         .filter(([, u]) => u.total > 0)
         .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;

@@ -13,6 +13,14 @@ import globals from 'globals';
 
 const gitignorePath = path.resolve('.', '.gitignore');
 const { jsFiles, tsFiles } = helpers.extensions;
+const recommendedConfig = e18ePlugin.configs?.recommended;
+const e18eRecommendedRules =
+  recommendedConfig &&
+  !Array.isArray(recommendedConfig) &&
+  'rules' in recommendedConfig &&
+  recommendedConfig.rules
+    ? recommendedConfig.rules
+    : {};
 
 const jsConfig = defineConfig([
   // ESLint recommended config
@@ -70,16 +78,15 @@ const prettierConfig = defineConfig([
 
 const e18eConfig = defineConfig([
   {
-    name: 'e18e/scripts',
-    files: ['scripts/**/*.js'],
+    name: 'e18e/recommended',
+    files: ['src/**/*.{js,jsx,ts,tsx}', 'scripts/**/*.js'],
+    ignores: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}', 'src/**/*.d.ts'],
     plugins: {
       e18e: e18ePlugin,
     },
     rules: {
-      'e18e/prefer-array-at': 'error',
-      'e18e/prefer-array-some': 'error',
-      'e18e/prefer-array-to-sorted': 'error',
-      'e18e/prefer-spread-syntax': 'error',
+      ...e18eRecommendedRules,
+      'e18e/prefer-static-regex': 'off',
     },
   },
 ]);
@@ -163,8 +170,11 @@ const projectOverrides = defineConfig([
       },
     },
     rules: {
-      // disabled for now to get eslint to pass
-      '@typescript-eslint/consistent-type-definitions': 'off',
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
       '@typescript-eslint/no-unsafe-enum-comparison': 'off',
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/array-type': 'off',
@@ -181,6 +191,34 @@ const projectOverrides = defineConfig([
       ],
       '@typescript-eslint/no-shadow': 'error',
       'no-undef': 'off',
+    },
+  },
+  {
+    name: 'project/no-direct-localstorage-in-ui',
+    files: ['src/app/components/**/*.{ts,tsx}', 'src/app/features/**/*.{ts,tsx}'],
+    ignores: ['src/app/components/**/*.test.{ts,tsx}', 'src/app/features/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'localStorage',
+          message:
+            'Direct localStorage access is not allowed in components or features. Use an atom (atomWithLocalStorage) or a storage utility from src/app/state/ instead.',
+        },
+        {
+          object: 'window',
+          property: 'localStorage',
+          message:
+            'Direct localStorage access is not allowed in components or features. Use an atom (atomWithLocalStorage) or a storage utility from src/app/state/ instead.',
+        },
+      ],
+    },
+  },
+  {
+    name: 'project/typescript-definition-files',
+    files: ['**/*.d.ts'],
+    rules: {
+      '@typescript-eslint/consistent-type-definitions': 'off',
     },
   },
 ]);

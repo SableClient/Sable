@@ -2,9 +2,9 @@ import { useCallback, useEffect } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { lastCompositionEndAtom } from '$state/lastCompositionEnd';
 
-interface TimeStamped {
+type TimeStamped = {
   readonly timeStamp: number;
-}
+};
 
 export function useCompositionEndTracking(): void {
   const setLastCompositionEnd = useSetAtom(lastCompositionEndAtom);
@@ -24,13 +24,13 @@ export function useCompositionEndTracking(): void {
   });
 }
 
-interface IsComposingLike {
+type IsComposingLike = {
   readonly timeStamp: number;
   readonly keyCode: number;
   readonly nativeEvent: {
     readonly isComposing?: boolean;
   };
-}
+};
 
 export function useComposingCheck({
   compositionEndThreshold = 500,

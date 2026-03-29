@@ -37,7 +37,7 @@ const groupSearchResult = (results: ISearchResult[]): ResultGroup[] => {
       context: item.context,
     };
 
-    const lastAddedGroup: ResultGroup | undefined = groups[groups.length - 1];
+    const lastAddedGroup: ResultGroup | undefined = groups.at(-1);
     if (lastAddedGroup && roomId === lastAddedGroup.roomId) {
       lastAddedGroup.items.push(resultItem);
       return;

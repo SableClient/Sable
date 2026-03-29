@@ -64,7 +64,7 @@ export const TimePicker = forwardRef<HTMLDivElement, TimePickerProps>(
         <Box direction="Row" gap="200" className={css.PickerContainer}>
           <PickerColumn title="Hour">
             {hour24Clock
-              ? Array.from(new Array(24).keys()).map((hour) => (
+              ? Array.from(new Array(24).keys(), (hour) => (
                   <Chip
                     key={hour}
                     size="500"
@@ -78,31 +78,29 @@ export const TimePicker = forwardRef<HTMLDivElement, TimePickerProps>(
                     <Text size="T300">{hour < 10 ? `0${hour}` : hour}</Text>
                   </Chip>
                 ))
-              : Array.from(new Array(12).keys())
-                  .map((i) => {
-                    if (i === 0) return 12;
-                    return i;
-                  })
-                  .map((hour) => (
-                    <Chip
-                      key={hour}
-                      size="500"
-                      variant={hour === selectedHour ? 'Primary' : 'Background'}
-                      fill="None"
-                      radii="300"
-                      aria-selected={hour === selectedHour}
-                      onClick={() => handleHour(hour)}
-                      disabled={
-                        (minDay && hour12to24(hour, selectedPM) < minHour24) ||
-                        (maxDay && hour12to24(hour, selectedPM) > maxHour24)
-                      }
-                    >
-                      <Text size="T300">{hour < 10 ? `0${hour}` : hour}</Text>
-                    </Chip>
-                  ))}
+              : Array.from(new Array(12).keys(), (i) => {
+                  if (i === 0) return 12;
+                  return i;
+                }).map((hour) => (
+                  <Chip
+                    key={hour}
+                    size="500"
+                    variant={hour === selectedHour ? 'Primary' : 'Background'}
+                    fill="None"
+                    radii="300"
+                    aria-selected={hour === selectedHour}
+                    onClick={() => handleHour(hour)}
+                    disabled={
+                      (minDay && hour12to24(hour, selectedPM) < minHour24) ||
+                      (maxDay && hour12to24(hour, selectedPM) > maxHour24)
+                    }
+                  >
+                    <Text size="T300">{hour < 10 ? `0${hour}` : hour}</Text>
+                  </Chip>
+                ))}
           </PickerColumn>
           <PickerColumn title="Minutes">
-            {Array.from(new Array(60).keys()).map((minute) => (
+            {Array.from(new Array(60).keys(), (minute) => (
               <Chip
                 key={minute}
                 size="500"

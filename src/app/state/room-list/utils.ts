@@ -22,7 +22,7 @@ export const useBindRoomsWithMembershipsAtom = (
 
   useEffect(() => {
     const satisfyMembership = (room: Room): boolean =>
-      !!memberships.find((membership) => membership === room.getMyMembership());
+      memberships.some((membership) => membership === room.getMyMembership());
     setRoomsAtom({
       type: 'INITIALIZE',
       rooms: mx

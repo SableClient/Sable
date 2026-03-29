@@ -70,7 +70,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
   type SpaceEntryGroup = { spaceId: string; spaceName: string; entries: AbbreviationEntry[] };
   const ancestorGroups = useMemo(
     (): SpaceEntryGroup[] =>
-      Array.from(getAllParents(roomToParents, room.roomId)).reduce<SpaceEntryGroup[]>(
+      [...getAllParents(roomToParents, room.roomId)].reduce<SpaceEntryGroup[]>(
         (groups, parentId) => {
           const parentRoom = mx.getRoom(parentId);
           if (!parentRoom) return groups;

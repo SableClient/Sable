@@ -95,7 +95,7 @@ export const usePowerLevelTags = (room: Room, powerLevels: IPowerLevels): PowerL
     const powerToTags: PowerLevelTags = { ...content };
 
     const powers = getUsedPowers(powerLevels);
-    Array.from(powers).forEach((power) => {
+    [...powers].forEach((power) => {
       if (powerToTags[power]?.name === undefined) {
         powerToTags[power] = DEFAULT_TAGS[power] ?? generateFallbackTag(DEFAULT_TAGS, power);
       }

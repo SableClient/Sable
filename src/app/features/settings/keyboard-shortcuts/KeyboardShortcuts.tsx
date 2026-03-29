@@ -19,7 +19,7 @@ type ShortcutCategory = {
 
 function formatKey(key: string): string {
   const isMac =
-    typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC');
   return key
     .replace(/\bmod\b/g, isMac ? '⌘' : 'Ctrl')
     .replace(/\balt\b/gi, isMac ? '⌥' : 'Alt')

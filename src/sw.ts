@@ -133,7 +133,7 @@ async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
   const activeIds = new Set(activeClients.map((c) => c.id));
 
-  Array.from(sessions.keys()).forEach((id) => {
+  [...sessions.keys()].forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
       clientToResolve.delete(id);
@@ -370,7 +370,7 @@ async function requestDecryptionFromClient(
   const eventId = rawEvent.event_id as string;
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
+  return [...windowClients].reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;

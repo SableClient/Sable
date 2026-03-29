@@ -97,6 +97,112 @@ jobs:
       - name: Run tests
         run: pnpm run test:run
 
+  coverage:
+    name: Coverage thresholds
+    runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
+  missing-tests:
+    name: Check for missing tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.head_ref != 'release'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check changed logic files for missing tests
+        id: check
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          changed=$(git diff --name-only "$BASE" "$HEAD" -- 'src/**/*.ts' 'src/**/*.tsx' \
+            | grep -v '\.test\.' | grep -v '\.spec\.' | grep -v '\.d\.ts' \
+            | grep -v 'src/index\.tsx' | grep -v 'src/sw' | grep -v 'src/instrument' \
+            | grep -v 'src/test/' || true)
+          missing=""
+          for f in $changed; do
+            base="${f%.*}"
+            if ! ls "${base}.test."* "${base}.spec."* 2>/dev/null | grep -q .; then
+              missing="$missing\n- $f"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+            printf 'files<<EOF\n%b\nEOF\n' "$missing" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update PR comment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        continue-on-error: true
+        with:
+          script: |
+            const marker = '<!-- missing-tests-advisory -->';
+            const missing = '${{ steps.check.outputs.missing }}' === 'true';
+            const files = `${{ steps.check.outputs.files }}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+
+            if (!missing) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+              return;
+            }
+
+            const body = [
+              marker,
+              '## ⚠️ Logic changes without tests',
+              '',
+              'The following changed files have no corresponding `.test.` file.',
+              'Consider adding tests, or note in your PR description why tests are not needed for these changes.',
+              '',
+              files,
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
   build:
     name: Build
     runs-on: ubuntu-latest

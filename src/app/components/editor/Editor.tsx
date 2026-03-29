@@ -25,7 +25,7 @@ import { withHistory } from 'slate-history';
 import { mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
-import { type CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
 

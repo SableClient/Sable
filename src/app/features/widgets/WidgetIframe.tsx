@@ -20,12 +20,12 @@ import { GenericWidgetDriver, type CapabilityApprovalCallback } from './GenericW
 
 const log = createLogger('WidgetIframe');
 
-interface WidgetIframeProps {
+type WidgetIframeProps = {
   widget: IWidget;
   roomId: string;
   mx: MatrixClient;
   onCapabilityRequest?: CapabilityApprovalCallback;
-}
+};
 
 export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: WidgetIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -84,7 +84,7 @@ export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: Widget
         return;
       }
       const stateEvents = state.events?.get(type);
-      Array.from(stateEvents?.values() ?? []).forEach((eventObject: MatrixEvent) => {
+      [...(stateEvents?.values() ?? [])].forEach((eventObject: MatrixEvent) => {
         events.push(eventObject.event);
       });
       messaging.transport.reply(ev.detail, { events });
@@ -93,7 +93,7 @@ export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: Widget
     const readUpToMap: Record<string, string> = {};
     mx.getRooms().forEach((room) => {
       const roomEvents = room.getLiveTimeline()?.getEvents() || [];
-      const last = roomEvents[roomEvents.length - 1];
+      const last = roomEvents.at(-1);
       if (last) {
         const id = last.getId();
         if (id) readUpToMap[room.roomId] = id;

@@ -279,7 +279,7 @@ export const addRoomIdToMDirect = async (
   });
 
   const roomIds = userIdToRoomIds[userId] || [];
-  if (roomIds.indexOf(roomId) === -1) {
+  if (!roomIds.includes(roomId)) {
     roomIds.push(roomId);
   }
   userIdToRoomIds[userId] = roomIds;
@@ -415,7 +415,7 @@ export const toggleReaction = (
   );
   const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
   const [, reactionsSet] = allReactions.find(([k]: [string, any]) => k === key) ?? [];
-  const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
+  const reactions: MatrixEvent[] = reactionsSet ? [...reactionsSet] : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
   if (myReaction && !!(myReaction as any)?.isRelation()) {

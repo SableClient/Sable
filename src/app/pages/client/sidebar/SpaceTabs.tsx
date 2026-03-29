@@ -678,14 +678,14 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               if (typeof containerItem === 'string') {
                 const folder: ISidebarFolder = {
                   id: randomStr(),
-                  content: [containerItem].concat(child),
+                  content: [...[containerItem], ...child],
                 };
                 newItems.push(folder);
                 return;
               }
               newItems.push({
                 ...containerItem.folder,
-                content: containerItem.folder.content.concat(child),
+                content: [...containerItem.folder.content, ...child],
               });
               return;
             }

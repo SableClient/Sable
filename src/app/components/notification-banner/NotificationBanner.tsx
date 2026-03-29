@@ -65,7 +65,7 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     setDismissing(true);
-    dismissAnimTimerRef.current = setTimeout(() => onDismiss(notification.id), 200);
+    dismissAnimTimerRef.current = setTimeout(onDismiss, 200, notification.id);
   }, [notification.id, onDismiss]);
 
   // Auto-dismiss timer — only runs when not paused.

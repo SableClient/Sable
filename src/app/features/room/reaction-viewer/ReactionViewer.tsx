@@ -62,7 +62,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
     const getReactionsForKey = (key: string): MatrixEvent[] => {
       const reactSet = reactions.find(([k]) => k === key)?.[1];
       if (!reactSet) return [];
-      return Array.from(reactSet);
+      return [...reactSet];
     };
 
     const selectedReactions = getReactionsForKey(selectedKey);

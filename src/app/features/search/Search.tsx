@@ -87,10 +87,10 @@ const useTopActiveRooms = (
       return spaces;
     }
     if (searchRoomType === SearchRoomType.Directs) {
-      return [...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return directs.toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
     if (searchRoomType === SearchRoomType.Rooms) {
-      return [...rooms].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return rooms.toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
     return [...rooms, ...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
   }, [mx, rooms, directs, spaces, searchRoomType]);
@@ -178,7 +178,7 @@ export function Search({ requestClose }: SearchProps) {
     const items = result ? result.items : topActiveRooms;
     if (!selectedSpaceId) return items;
 
-    return [...items].sort((a, b) => {
+    return items.toSorted((a, b) => {
       const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
       const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
       return bInSpace - aInSpace;
@@ -328,7 +328,7 @@ export function Search({ requestClose }: SearchProps) {
 
                       const exactParents = roomToParents.get(roomId);
                       const perfectParent =
-                        exactParents && guessPerfectParent(mx, roomId, Array.from(exactParents));
+                        exactParents && guessPerfectParent(mx, roomId, [...exactParents]);
 
                       const unread = roomToUnread.get(roomId);
 

@@ -212,7 +212,7 @@ export function Direct() {
   }, [mx, directs]);
 
   const sortedDirects = useMemo(() => {
-    const items = Array.from(directs).sort(factoryRoomIdByActivity(mx));
+    const items = directs.toSorted(factoryRoomIdByActivity(mx));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
       return !!unread && (unread.total > 0 || unread.highlight > 0);

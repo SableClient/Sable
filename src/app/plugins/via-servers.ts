@@ -69,5 +69,5 @@ export const getViaServers = (room: Room): string[] => {
   if (mostPop3.includes(via[0])) {
     mostPop3.splice(mostPop3.indexOf(via[0]), 1);
   }
-  return via.concat(mostPop3.slice(0, 2));
+  return [...via, ...mostPop3.slice(0, 2)];
 };

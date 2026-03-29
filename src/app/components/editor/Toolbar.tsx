@@ -25,7 +25,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 import { floatingToolbar } from '$styles/overrides/Composer.css';
-import { type HeadingLevel } from './slate';
+import type { HeadingLevel } from './slate';
 import { BlockType, MarkType } from './types';
 import * as css from './Editor.css';
 import {

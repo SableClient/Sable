@@ -11,20 +11,20 @@ import {
 } from '$plugins/matrix-to';
 import { escapeMarkdownInlineSequences, escapeMarkdownBlockSequences } from '$plugins/markdown';
 import { BlockType, MarkType } from './types';
-import {
-  type BlockQuoteElement,
-  type CodeBlockElement,
-  type CodeLineElement,
-  type EmoticonElement,
-  type HeadingElement,
-  type HeadingLevel,
-  type HorizontalRuleElement,
-  type InlineElement,
-  type MentionElement,
-  type OrderedListElement,
-  type ParagraphElement,
-  type SmallElement,
-  type UnorderedListElement,
+import type {
+  BlockQuoteElement,
+  CodeBlockElement,
+  CodeLineElement,
+  EmoticonElement,
+  HeadingElement,
+  HeadingLevel,
+  HorizontalRuleElement,
+  InlineElement,
+  MentionElement,
+  OrderedListElement,
+  ParagraphElement,
+  SmallElement,
+  UnorderedListElement,
 } from './slate';
 import { createEmoticonElement, createMentionElement } from './utils';
 
@@ -450,7 +450,7 @@ export const domToEditorInput = (
         return;
       }
 
-      if (node.name.match(/^h[123456]$/)) {
+      if (/^h[123456]$/.test(node.name)) {
         appendLine();
         children.push(parseHeadingNode(node, processText));
         return;

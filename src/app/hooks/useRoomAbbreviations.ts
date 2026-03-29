@@ -54,7 +54,7 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
   );
 
   return useMemo(() => {
-    const allParentIds = Array.from(getAllParents(roomToParents, room.roomId));
+    const allParentIds = [...getAllParents(roomToParents, room.roomId)];
     const ancestorEntries = allParentIds.flatMap((parentId) => {
       const parentRoom = mx.getRoom(parentId);
       if (!parentRoom) return [];

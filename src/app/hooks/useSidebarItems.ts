@@ -48,13 +48,13 @@ export const parseSidebar = (
       typeof item === 'object' &&
       typeof item.id === 'string' &&
       Array.isArray(item.content) &&
-      !items.find((i) => (typeof i === 'string' ? false : i.id === item.id))
+      !items.some((i) => (typeof i === 'string' ? false : i.id === item.id))
     ) {
       const safeContent = item.content.filter(safeToAdd);
       safeContent.forEach((i) => orphans.delete(i));
       items.push({
         ...item,
-        content: Array.from(new Set(safeContent)),
+        content: [...new Set(safeContent)],
       });
     }
   });

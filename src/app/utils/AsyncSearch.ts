@@ -78,7 +78,7 @@ export const AsyncSearch = <TSearchItem extends object | string | number>(
         if (findingCount !== currentFindingCount) onResult(resultList, query);
 
         searchIndex += 1;
-        sessionScheduleId = globalThis.setTimeout(() => find(query, thisSessionTimestamp), 1);
+        sessionScheduleId = globalThis.setTimeout(find, 1, query, thisSessionTimestamp);
         return;
       }
     }

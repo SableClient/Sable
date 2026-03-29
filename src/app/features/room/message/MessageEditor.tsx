@@ -225,7 +225,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           mentionData.users.add(prevMentionId);
         });
 
-        const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
+        const mMentions = getMentionContent([...mentionData.users], mentionData.room);
         newContent['m.mentions'] = mMentions;
         contentBody['m.mentions'] = mMentions;
 

@@ -83,6 +83,12 @@ if ('serviceWorker' in navigator) {
     pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
   };
 
+  // Push the session synchronously before React renders so the SW has a fresh
+  // token before any <img> fetch events arrive. If navigator.serviceWorker.controller
+  // is already set (normal page reload), this eliminates the race where
+  // preloadedSession (potentially stale) would be used for early thumbnail fetches.
+  sendSessionToSW();
+
   navigator.serviceWorker
     .register(swUrl)
     .then(sendSessionToSW)
@@ -157,10 +163,20 @@ window.addEventListener('error', (event) => {
       // Increment retry count and reload
       sessionStorage.setItem(CHUNK_RETRY_KEY, String(retryCount + 1));
       log.warn(`Chunk load failed, reloading (attempt ${retryCount + 1}/${MAX_CHUNK_RETRIES})`);
-      window.location.reload();
 
-      // Prevent default error handling since we're reloading
+      // Prevent default error handling synchronously before any async work
       event.preventDefault();
+
+      // If the SW is not yet controlling the page (dead after force-kill), wait for
+      // it to activate so the retry is served from the precache, not the network.
+      // This eliminates the white-screen flash caused by a blank reload mid-SW-init.
+      if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready
+          .then(() => window.location.reload())
+          .catch(() => window.location.reload());
+      } else {
+        window.location.reload();
+      }
     } else {
       // Max retries exceeded, clear counter and let error bubble up
       sessionStorage.removeItem(CHUNK_RETRY_KEY);

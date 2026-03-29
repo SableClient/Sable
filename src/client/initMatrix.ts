@@ -267,7 +267,10 @@ export const clearMismatchedStores = async (): Promise<void> => {
   );
 };
 
-const buildClient = async (session: Session): Promise<MatrixClient> => {
+const buildClient = async (
+  session: Session,
+  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
+): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
 
   const indexedDBStore = new IndexedDBStore({
@@ -277,6 +280,11 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
   });
 
   const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
+
+  // Pre-allocate a slot for the MatrixClient reference used by tokenRefreshFunction.
+  // The refresh function is only ever invoked after startClient, so mxRef is always
+  // assigned before it is called.
+  let mxRef!: MatrixClient;
 
   const mx = createClient({
     baseUrl: session.baseUrl,
@@ -288,13 +296,32 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     timelineSupport: true,
     cryptoCallbacks: cryptoCallbacks as any,
     verificationMethods: ['m.sas.v1'],
+    ...(session.refreshToken && {
+      refreshToken: session.refreshToken,
+      tokenRefreshFunction: async (oldRefreshToken: string) => {
+        const res = await mxRef.refreshToken(oldRefreshToken);
+        onTokenRefresh?.(res.access_token, res.refresh_token);
+        return {
+          accessToken: res.access_token,
+          refreshToken: res.refresh_token ?? oldRefreshToken,
+          expiry:
+            typeof res.expires_in_ms === 'number'
+              ? new Date(Date.now() + res.expires_in_ms)
+              : undefined,
+        };
+      },
+    }),
   });
 
+  mxRef = mx;
   await indexedDBStore.startup();
   return mx;
 };
 
-export const initClient = async (session: Session): Promise<MatrixClient> => {
+export const initClient = async (
+  session: Session,
+  onTokenRefresh?: (newAccessToken: string, newRefreshToken?: string) => void
+): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
   debugLog.info('sync', 'Initializing Matrix client', {
     userId: session.userId,
@@ -338,7 +365,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
 
   let mx: MatrixClient;
   try {
-    mx = await buildClient(session);
+    mx = await buildClient(session, onTokenRefresh);
   } catch (err) {
     if (!isMismatch(err)) {
       debugLog.error('sync', 'Failed to build client', { error: err });
@@ -347,7 +374,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     log.warn('initClient: mismatch on buildClient — wiping and retrying:', err);
     debugLog.warn('sync', 'Client build mismatch - wiping stores and retrying', { error: err });
     await wipeAllStores();
-    mx = await buildClient(session);
+    mx = await buildClient(session, onTokenRefresh);
   }
 
   try {
@@ -361,7 +388,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     debugLog.warn('sync', 'Crypto init mismatch - wiping stores and retrying', { error: err });
     mx.stopClient();
     await wipeAllStores();
-    mx = await buildClient(session);
+    mx = await buildClient(session, onTokenRefresh);
     await mx.initRustCrypto({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
   }
 
@@ -538,13 +565,40 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     const v = slidingConfig?.probeTimeoutMs;
     return typeof v === 'number' && !Number.isNaN(v) && v > 0 ? Math.round(v) : 5000;
   })();
-  const supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
+
+  // Cache successful probe results for 10 minutes to avoid a full network round-trip
+  // (300–5000ms) on every cold start. Only positive results are cached; a failed probe
+  // is always re-attempted next session to recover from transient outages.
+  const SS_PROBE_CACHE_KEY = `sable_ss_probe_v1_${resolvedProxyBaseUrl}`;
+  const SS_PROBE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+  let supported: boolean;
+  let probeFromCache = false;
+  try {
+    const raw = localStorage.getItem(SS_PROBE_CACHE_KEY);
+    const cached = raw ? (JSON.parse(raw) as { result: boolean; ts: number }) : null;
+    if (cached?.result === true && Date.now() - cached.ts < SS_PROBE_CACHE_TTL_MS) {
+      supported = true;
+      probeFromCache = true;
+    } else {
+      supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
+      if (supported) {
+        localStorage.setItem(SS_PROBE_CACHE_KEY, JSON.stringify({ result: true, ts: Date.now() }));
+      } else {
+        localStorage.removeItem(SS_PROBE_CACHE_KEY);
+      }
+    }
+  } catch {
+    supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
+  }
+
   log.log('startClient sliding probe result', {
     userId: mx.getUserId(),
     requestedEnabled: slidingRequested,
     hasSlidingProxy,
     proxyBaseUrl: resolvedProxyBaseUrl,
     supported,
+    probeFromCache,
   });
   if (!supported) {
     log.warn('Sliding Sync unavailable, falling back to classic sync for', mx.getUserId());

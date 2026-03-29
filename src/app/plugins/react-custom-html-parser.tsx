@@ -589,6 +589,8 @@ export const getReactCustomHtmlParser = (
           if (!props.src) return null;
 
           const htmlSrc = mxcUrlToHttp(mx, props.src, params.useAuthentication) ?? undefined;
+          const fallbackLabel = props.alt || props.title || '[media]';
+          const failedToResolveMxc = props.src.startsWith('mxc://') && !htmlSrc;
 
           // Non-mxc images were already converted to <a> links by the sanitiser,
           // but handle the edge case defensively here too.
@@ -680,6 +682,14 @@ export const getReactCustomHtmlParser = (
                     />
                   )}
                 </span>
+              </span>
+            );
+          }
+
+          if (failedToResolveMxc) {
+            return (
+              <span title={`Failed to load media${props.alt ? `: ${props.alt}` : ''}`}>
+                {fallbackLabel}
               </span>
             );
           }

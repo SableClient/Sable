@@ -106,4 +106,24 @@ describe('Reply', () => {
     expect(screen.queryByText('alert(1)')).not.toBeInTheDocument();
     expect(screen.queryByAltText('blocked image')).not.toBeInTheDocument();
   });
+
+  it('does not render unresolved mxc images as raw browser img tags in reply previews', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    mockUseRoomEvent.mockReturnValue(
+      createReplyEvent(
+        '<img data-mx-emoticon src="mxc://mozilla.org/ca2ed58example" alt="blobcat" title="blobcat" height="32" />'
+      )
+    );
+
+    const { container } = render(
+      <Reply
+        room={{ roomId: '!room:example.com', getMember: () => undefined } as any}
+        replyEventId="$reply:example.com"
+      />
+    );
+
+    expect(container.querySelector('img[src^="mxc://"]')).toBeNull();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });

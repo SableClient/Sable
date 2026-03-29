@@ -99,6 +99,27 @@ describe('sanitizeCustomHtml', () => {
     expect(blocked).not.toContain('<img');
   });
 
+  it('preserves legacy MSC2545 custom-emote markers on mxc images', () => {
+    const result = sanitizeCustomHtml(
+      '<img data-mx-emoticon src="mxc://example.com/abc123" alt="blobcat" title="blobcat" height="32" />'
+    );
+
+    expect(result).toContain('data-mx-emoticon');
+    expect(result).toContain('src="mxc://example.com/abc123"');
+    expect(result).toContain('alt="blobcat"');
+  });
+
+  it('restores only one validated image src after masking duplicate image source attributes', () => {
+    const result = sanitizeCustomHtml(
+      '<img src="mxc://example.com/primary" src="mxc://example.com/secondary" srcset="mxc://example.com/secondary 1x" alt="img" />'
+    );
+
+    expect(result).toContain('src="mxc://example.com/primary"');
+    expect(result).not.toContain('mxc://example.com/secondary');
+    expect(result).not.toContain('srcset=');
+    expect(result.match(/\ssrc=/g)).toHaveLength(1);
+  });
+
   it('drops invalid Matrix color attributes instead of translating them to style', () => {
     const result = sanitizeCustomHtml(
       '<span data-mx-color="red" data-mx-bg-color="#123">text</span>'

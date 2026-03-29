@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { isMatrixHexColor } from './matrixHtml';
 
 const MAX_TAG_NESTING = 100;
+const INTERNAL_IMG_SRC_ATTR = 'data-sable-img-src';
 
 const permittedHtmlTags = [
   'del',
@@ -46,7 +47,7 @@ const permittedHtmlTags = [
 const permittedTagToAttributes = {
   span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths'],
   a: ['target', 'href'],
-  img: ['width', 'height', 'alt', 'title', 'src'],
+  img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'], // data-mx-emoticon is for MSC2545
   ol: ['start'],
   code: ['class'],
   div: ['data-mx-maths'],
@@ -153,6 +154,66 @@ function getValidatedAttributeValue(
   return attrValue;
 }
 
+function getValidatedProtectedImageSource(
+  sourceId: string | null,
+  protectedSources?: Map<string, string>
+): string | undefined {
+  const rawSrc = sourceId ? protectedSources?.get(sourceId) : undefined;
+
+  return typeof rawSrc === 'string' ? getValidatedAttributeValue('img', 'src', rawSrc) : undefined;
+}
+
+function protectImageSources(customHtml: string): {
+  protectedHtml: string;
+  protectedSources: Map<string, string>;
+} {
+  const protectedSources = new Map<string, string>();
+  const protectedHtml = customHtml.replace(/<img\b[^>]*>/gi, (imgTag) => {
+    let protectedSourceId: string | undefined;
+
+    const strippedTag = imgTag.replace(
+      /\s(src|srcset)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi,
+      (_match, attrName: string, _value, doubleQuoted, singleQuoted, bareValue) => {
+        if (attrName.toLowerCase() !== 'src') {
+          return '';
+        }
+
+        if (protectedSourceId !== undefined) {
+          return '';
+        }
+
+        const rawSrc = doubleQuoted ?? singleQuoted ?? bareValue ?? '';
+        protectedSourceId = `${protectedSources.size}`;
+        protectedSources.set(protectedSourceId, rawSrc);
+
+        return ` ${INTERNAL_IMG_SRC_ATTR}="${protectedSourceId}"`;
+      }
+    );
+
+    return strippedTag;
+  });
+
+  return {
+    protectedHtml,
+    protectedSources,
+  };
+}
+
+function restoreProtectedImageSources(
+  sanitizedHtml: string,
+  protectedSources: Map<string, string>
+): string {
+  return sanitizedHtml.replace(
+    new RegExp(`\\s${INTERNAL_IMG_SRC_ATTR}="([^"]+)"`, 'g'),
+    (_match, sourceId: string) => {
+      const validatedSrc = getValidatedProtectedImageSource(sourceId, protectedSources);
+      if (!validatedSrc) return '';
+
+      return ` src="${sanitizeText(validatedSrc)}"`;
+    }
+  );
+}
+
 const enforceNestingLimit = (fragment: DocumentFragment): void => {
   const overlyNestedElements: Array<{ depth: number; element: Element }> = [];
 
@@ -179,9 +240,17 @@ const enforceNestingLimit = (fragment: DocumentFragment): void => {
     });
 };
 
-const pruneInvalidEmptyElements = (fragment: DocumentFragment): void => {
+const pruneInvalidEmptyElements = (
+  fragment: DocumentFragment,
+  protectedSources?: Map<string, string>
+): void => {
   fragment.querySelectorAll('img').forEach((img) => {
-    if (!img.getAttribute('src')) {
+    const validatedProtectedSource = getValidatedProtectedImageSource(
+      img.getAttribute(INTERNAL_IMG_SRC_ATTR),
+      protectedSources
+    );
+
+    if (!img.getAttribute('src') && !validatedProtectedSource) {
       img.remove();
     }
   });
@@ -192,11 +261,25 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
     return sanitizeText(customHtml);
   }
 
+  const { protectedHtml, protectedSources } = protectImageSources(customHtml);
   const purify = DOMPurify(window);
+  const allowedHtmlAttributes = [...permittedHtmlAttributes, INTERNAL_IMG_SRC_ATTR];
 
   purify.addHook('uponSanitizeAttribute', (currentNode, hookEvent) => {
     const tagName = currentNode.tagName.toLowerCase();
     const attrName = hookEvent.attrName.toLowerCase();
+
+    if (tagName === 'img' && attrName === INTERNAL_IMG_SRC_ATTR) {
+      if (!protectedSources.has(hookEvent.attrValue)) {
+        // eslint-disable-next-line no-param-reassign
+        hookEvent.keepAttr = false;
+        return;
+      }
+
+      // eslint-disable-next-line no-param-reassign
+      hookEvent.forceKeepAttr = true;
+      return;
+    }
 
     if (!tagAllowsAttribute(tagName, attrName)) {
       // DOMPurify exposes attribute decisions by mutating the hook event.
@@ -218,9 +301,9 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
     hookEvent.forceKeepAttr = true;
   });
 
-  const sanitizedNode = purify.sanitize(customHtml, {
+  const sanitizedNode = purify.sanitize(protectedHtml, {
     ALLOWED_TAGS: [...permittedHtmlTags],
-    ALLOWED_ATTR: permittedHtmlAttributes,
+    ALLOWED_ATTR: allowedHtmlAttributes,
     ALLOW_ARIA_ATTR: false,
     ALLOW_DATA_ATTR: true,
     FORBID_ATTR: ['style'],
@@ -237,9 +320,9 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
 
   const fragment = sanitizedNode;
   enforceNestingLimit(fragment);
-  pruneInvalidEmptyElements(fragment);
+  pruneInvalidEmptyElements(fragment, protectedSources);
 
   const container = document.createElement('div');
   container.append(fragment);
-  return container.innerHTML;
+  return restoreProtectedImageSources(container.innerHTML, protectedSources);
 };

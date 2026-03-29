@@ -139,6 +139,9 @@ export const Reply = as<'div', ReplyProps>(
 
     const badEncryption = replyEvent?.getContent().msgtype === 'm.bad.encrypted';
     const mentionClickHandler = useMentionClickHandler(room.roomId);
+    const isFormattedReply =
+      format === 'org.matrix.custom.html' && typeof formattedBody === 'string';
+    const hasPlainTextReply = typeof body === 'string' && body !== '';
 
     // An encrypted event that hasn't been decrypted yet (keys pending) has an
     // empty result from getClearContent().  Treat it as still-loading rather
@@ -171,7 +174,7 @@ export const Reply = as<'div', ReplyProps>(
       [mx, room.roomId, mentionClickHandler, nicknames]
     );
 
-    if (format === 'org.matrix.custom.html' && formattedBody) {
+    if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
         linkifyOpts: replyLinkifyOpts,
@@ -180,7 +183,7 @@ export const Reply = as<'div', ReplyProps>(
         handleMentionClick: mentionClickHandler,
       });
       bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
-    } else if (body) {
+    } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);
     } else if (eventType === StateEvent.RoomMember && !!replyEvent) {
@@ -238,6 +241,13 @@ export const Reply = as<'div', ReplyProps>(
         </>
       );
     }
+    let replyContent = bodyJSX;
+    if (isBlockedSender) {
+      replyContent = <MessageBlockedContent />;
+    } else if (badEncryption) {
+      replyContent = <MessageBadEncryptedContent />;
+    }
+
     return (
       <Box direction="Row" gap="200" alignItems="Center" {...props} ref={ref}>
         {threadRootId && (
@@ -262,11 +272,7 @@ export const Reply = as<'div', ReplyProps>(
         >
           {replyEvent !== undefined && !isPendingDecrypt ? (
             <Text size="T300" truncate>
-              {(() => {
-                if (isBlockedSender) return <MessageBlockedContent />;
-                if (badEncryption) return <MessageBadEncryptedContent />;
-                return bodyJSX;
-              })()}
+              {replyContent}
             </Text>
           ) : (
             (isRedacted && <MessageDeletedContent />) || (

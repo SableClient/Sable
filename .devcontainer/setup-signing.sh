@@ -39,17 +39,8 @@ else
     read -p "Press Enter after adding the key to GitHub..." 
   fi
   
-  # Start ssh-agent if not already running and add the key
-  if [ -z "${SSH_AUTH_SOCK:-}" ] || ! ssh-add -l &>/dev/null; then
-    echo "   Starting SSH agent and loading key..."
-    eval "$(ssh-agent -s)" > /dev/null
-    ssh-add "$CODESPACE_KEY" 2>/dev/null
-    # Persist SSH_AUTH_SOCK for future shells
-    echo "export SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$HOME/.bashrc"
-    echo "export SSH_AGENT_PID=$SSH_AGENT_PID" >> "$HOME/.bashrc"
-  fi
-  
-  SIGNING_KEY=$(cat "${CODESPACE_KEY}.pub")
+  # Use the private key file directly (git supports this without ssh-agent)
+  SIGNING_KEY="$CODESPACE_KEY"
   echo "   Using Codespace key: ${CODESPACE_KEY}"
 fi
 
@@ -67,7 +58,17 @@ if [ -n "$USER_EMAIL" ]; then
     grep -v "^$USER_EMAIL " "$ALLOWED_SIGNERS_FILE" > "${ALLOWED_SIGNERS_FILE}.tmp" || true
     mv "${ALLOWED_SIGNERS_FILE}.tmp" "$ALLOWED_SIGNERS_FILE"
   fi
-  echo "$USER_EMAIL namespaces=\"git\" $SIGNING_KEY" >> "$ALLOWED_SIGNERS_FILE"
+  
+  # For allowed_signers, always use the public key (even if signing with private key file)
+  if [ -f "$CODESPACE_KEY" ]; then
+    # MODE 2: read public key from file
+    PUBLIC_KEY=$(cat "${CODESPACE_KEY}.pub")
+  else
+    # MODE 1: already have public key in $SIGNING_KEY
+    PUBLIC_KEY="$SIGNING_KEY"
+  fi
+  
+  echo "$USER_EMAIL namespaces=\"git\" $PUBLIC_KEY" >> "$ALLOWED_SIGNERS_FILE"
   git config --global gpg.ssh.allowedSignersFile "$ALLOWED_SIGNERS_FILE"
   echo "✓  SSH commit signing configured for <$USER_EMAIL>"
 else

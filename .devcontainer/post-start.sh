@@ -24,24 +24,25 @@ CODESPACE_KEY="$HOME/.ssh/codespace_signing_ed25519"
 if [ "$(git config --global gpg.format 2>/dev/null)" != "ssh" ]; then
   bash "$SABLE_DIR/.devcontainer/setup-signing.sh" || true
 else
-  # Verify the key still exists in the agent
+  # Verify the signing key is still accessible
   CONFIGURED_KEY=$(git config --global user.signingkey 2>/dev/null || echo "")
   if [ -n "$CONFIGURED_KEY" ]; then
-    if ! ssh-add -L 2>/dev/null | grep -qF "$CONFIGURED_KEY"; then
-      # In web Codespace mode, reload the key into a fresh agent
-      if [ -f "$CODESPACE_KEY" ]; then
-        echo "  ↻  Reloading Codespace signing key into SSH agent..."
-        if [ -z "${SSH_AUTH_SOCK:-}" ] || ! ssh-add -l &>/dev/null; then
-          eval "$(ssh-agent -s)" > /dev/null
-          echo "export SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$HOME/.bashrc"
-          echo "export SSH_AGENT_PID=$SSH_AGENT_PID" >> "$HOME/.bashrc"
-        fi
-        ssh-add "$CODESPACE_KEY" 2>/dev/null && echo "  ✓  Commit signing ready"
+    # If it's a file path (MODE 2), check file exists
+    if [[ "$CONFIGURED_KEY" == /* ]]; then
+      if [ -f "$CONFIGURED_KEY" ]; then
+        echo "  ✓  Commit signing ready (private key file)"
       else
-        echo "  ⚠  Signing key not found. YubiKey present or re-run: bash .devcontainer/setup-signing.sh"
+        echo "  ⚠  Signing key file not found: $CONFIGURED_KEY"
+        echo "     Re-run: bash .devcontainer/setup-signing.sh"
       fi
+    # If it's a public key string (MODE 1), check agent
     else
-      echo "  ✓  Commit signing ready"
+      if ssh-add -L 2>/dev/null | grep -qF "$CONFIGURED_KEY"; then
+        echo "  ✓  Commit signing ready (forwarded agent)"
+      else
+        echo "  ⚠  Signing key not in SSH agent. YubiKey present?"
+        echo "     Re-run: bash .devcontainer/setup-signing.sh"
+      fi
     fi
   fi
 fi

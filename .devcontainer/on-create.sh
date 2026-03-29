@@ -4,7 +4,7 @@
 set -euo pipefail
 
 echo "==> [on-create] Enabling corepack (pnpm)..."
-corepack enable
+sudo corepack enable
 corepack prepare pnpm@latest --activate
 
 echo "==> [on-create] Configuring pnpm global store..."

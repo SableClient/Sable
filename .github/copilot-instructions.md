@@ -7,6 +7,7 @@ These rules apply to every chat and agent session in this workspace. Follow all 
 ## Git & Branching
 
 - **Never commit directly to `dev` or `integration`.** All work goes on a dedicated branch (`fix/…`, `feat/…`, `chore/…`, etc.).
+  - When creating a branch, always sync `upstream/dev` to `origin/dev` and `dev`, and build the branch from `dev`
 - Before building `integration`, always **force-update `dev` from `upstream/dev`**:
   ```
   git fetch upstream && git checkout dev && git reset --hard upstream/dev

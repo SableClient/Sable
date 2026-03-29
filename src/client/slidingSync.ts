@@ -8,6 +8,7 @@ import {
   MSC3575List,
   MSC3575RoomData,
   MSC3575RoomSubscription,
+  MSC3575SlidingSyncResponse,
   MSC3575_WILDCARD,
   RoomMemberEvent,
   SlidingSync,
@@ -123,6 +124,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
+  ['moe.sable.room.abbreviations', ''],
 ];
 
 // For an active encrypted room: fetch everything so the client can decrypt all events.
@@ -348,6 +350,27 @@ export class SlidingSyncManager {
       if (this.disposed) {
         debugLog.warn('sync', 'Sync lifecycle called after disposal', { state });
         return;
+      }
+
+      // Before room data is processed, reset live timelines for active rooms that
+      // are receiving a full refresh (initial: true) or a post-gap update
+      // (limited: true). The SDK deliberately does not call resetLiveTimeline() for
+      // sliding sync, so events from previous visits accumulate in the live
+      // timeline alongside new events. Resetting here — before the SDK's
+      // onRoomData listener runs — ensures the fresh batch lands on a clean
+      // timeline with a correct backward pagination token.
+      if (state === SlidingSyncState.RequestFinished && resp && !err) {
+        const rooms = (resp as MSC3575SlidingSyncResponse).rooms ?? {};
+        Object.entries(rooms)
+          .filter(([, roomData]) => roomData.initial || roomData.limited)
+          .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
+          .forEach(([roomId]) => {
+            const room = this.mx.getRoom(roomId);
+            if (!room) return;
+            const timelineSet = room.getUnfilteredTimelineSet();
+            if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
+            timelineSet.resetLiveTimeline();
+          });
       }
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;

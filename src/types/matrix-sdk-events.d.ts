@@ -14,5 +14,6 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     'im.ponies.user_emotes': PackContent;
     'im.ponies.emote_rooms': EmoteRoomsContent;
     'moe.sable.app.nicknames': Record<string, string>;
+    'moe.sable.app.settings': Record<string, unknown>;
   }
 }

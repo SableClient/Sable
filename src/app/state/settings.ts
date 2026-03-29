@@ -68,6 +68,7 @@ export interface Settings {
 
   developerTools: boolean;
   enableMSC4268CMD: boolean;
+  settingsSyncEnabled: boolean;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -92,6 +93,7 @@ export interface Settings {
   showUnreadCounts: boolean;
   badgeCountDMsOnly: boolean;
   showPingCounts: boolean;
+  showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
   underlineLinks: boolean;
@@ -104,6 +106,11 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  /**
+   * whether to enable pk compat
+   */
+  pkCompat: boolean;
+  pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
 
@@ -159,6 +166,7 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+  settingsSyncEnabled: false,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -181,6 +189,7 @@ const defaultSettings: Settings = {
   showUnreadCounts: false,
   badgeCountDMsOnly: true,
   showPingCounts: true,
+  showEasterEggs: true,
   hideReads: false,
   emojiSuggestThreshold: 2,
   underlineLinks: false,
@@ -193,6 +202,8 @@ const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  pkCompat: false,
+  pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
 

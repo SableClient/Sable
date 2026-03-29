@@ -8,6 +8,7 @@ export enum RoomSettingsPage {
   DeveloperToolsPage,
   // Sable pages
   CosmeticsPage,
+  AbbreviationsPage,
 }
 
 export type RoomSettingsState = {

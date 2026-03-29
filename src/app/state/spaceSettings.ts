@@ -8,6 +8,7 @@ export enum SpaceSettingsPage {
   DeveloperToolsPage,
   // Sable pages
   CosmeticsPage,
+  AbbreviationsPage,
 }
 
 export type SpaceSettingsState = {

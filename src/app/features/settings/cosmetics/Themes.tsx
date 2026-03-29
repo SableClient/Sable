@@ -434,6 +434,7 @@ function PageZoomInput() {
 }
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
+  const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
 
   return (
     <Box direction="Column" gap="700">
@@ -447,6 +448,14 @@ export function Appearance() {
             title="Twitter Emoji"
             description="Use Twitter-style emojis instead of system native ones."
             after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Show Easter Eggs"
+            description="Lets the interface keep a little mischief turned on."
+            after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
           />
         </SequenceCard>
 

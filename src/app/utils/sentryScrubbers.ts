@@ -92,6 +92,17 @@ export function scrubMatrixUrl(url: string): string {
       .replace(/\/%23[^/?#\s]*/gi, '/[ROOM_ALIAS]')
       // URL-encoded event IDs as bare path segments: /%24eventId  (%24 = $)
       .replace(/\/%24[^/?#\s]*/gi, '/[EVENT_ID]')
+      //  Opaque Matrix IDs with percent-encoded colon (%3A)
+      // Catches device IDs, filter tokens, and other bare Matrix IDs that lack a sigil
+      // prefix but still follow the localpart%3Aserver pattern in URL paths.
+      // e.g. /Gj3Wy2D8gAi8jTIyR%3Asable.moe  (decoded: Gj3Wy2D8gAi8jTIyR:sable.moe)
+      .replace(/\/[A-Za-z0-9+_-]{5,}%3A[A-Za-z0-9._-]+[^/?#\s]*/gi, '/[MATRIX_ID]')
+      // ── Long opaque base64url path segments (access tokens, crypto keys, push tokens) ─
+      // Catches 30+ character base64url strings that appear as standalone path segments.
+      // These are typically Curve25519 keys, MSC3575 session tokens, or push endpoints.
+      // e.g. /vI02CuiDNpaYEhUIVLbqE8vdKqm2ZwqIR5Y6NwNY_Rg/
+      // Runs last so earlier patterns already replaced known Matrix IDs.
+      .replace(/\/[A-Za-z0-9+_-]{30,}(\/|$)/g, '/[REDACTED]$1')
       // ── Preview URL endpoint ────────────────────────────────────────────────────────
       // The ?url= query parameter on preview_url contains the full external URL being
       // previewed — strip the entire query string so browsing habits cannot be inferred.

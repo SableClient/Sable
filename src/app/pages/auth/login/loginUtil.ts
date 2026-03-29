@@ -156,6 +156,8 @@ export const useLoginComplete = (data?: CustomLoginResponse) => {
         userId: loginRes.user_id,
         deviceId: loginRes.device_id,
         accessToken: loginRes.access_token,
+        ...(loginRes.refresh_token != null && { refreshToken: loginRes.refresh_token }),
+        ...(loginRes.expires_in_ms != null && { expiresInMs: loginRes.expires_in_ms }),
       };
       setSessions({ type: 'PUT', session: newSession });
       setActiveSessionId(loginRes.user_id);

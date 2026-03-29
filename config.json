@@ -20,6 +20,11 @@
         "vapidPublicKey": "BEBdK6VUiqYxcOauFCM1ZB38llgiODAs6pR5EEcC7YBoUh2YvrULagwo5t-Ms0Is0lEmKDhpdUoMiy_i7ArI3oE",
         "webPushAppID": "social.cloudhub.sable.web"
     },
+    "sessionSync": {
+        "phase1ForegroundResync": true,
+        "phase2VisibleHeartbeat": true,
+        "phase3AdaptiveBackoffJitter": false
+    },
     "slidingSync": {
         "enabled": "true"
     }

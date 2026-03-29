@@ -13,7 +13,7 @@ on:
       - '.github/actions/setup/**'
   push:
     branches:
-      - dev
+      - integration
     paths:
       - 'src/**'
       - 'index.html'

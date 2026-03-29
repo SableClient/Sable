@@ -1,0 +1,103 @@
+name: Cloudflare Worker Dev Deploy
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/cloudflare-dev-deploy.yml'
+      - '.github/actions/setup/**'
+
+concurrency:
+  group: cloudflare-worker-dev-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      CLIENT_CONFIG_OVERRIDES_JSON: ${{ vars.CLIENT_CONFIG_OVERRIDES_JSON }}
+      CLIENT_CONFIG_OVERRIDES_STRICT: ${{ vars.CLIENT_CONFIG_OVERRIDES_STRICT || 'false' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Prepare preview metadata
+        id: metadata
+        shell: bash
+        run: |
+          preview_message="$(git log -1 --pretty=%s)"
+          preview_message="$(printf '%s' "$preview_message" | head -c 100)"
+
+          {
+            echo 'preview_message<<EOF'
+            echo "$preview_message"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set Sentry build environment
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        shell: bash
+        run: |
+          echo "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" >> "$GITHUB_ENV"
+          echo "VITE_SENTRY_ENVIRONMENT=production" >> "$GITHUB_ENV"
+          echo "SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN" >> "$GITHUB_ENV"
+          echo "SENTRY_ORG=$SENTRY_ORG" >> "$GITHUB_ENV"
+          echo "SENTRY_PROJECT=$SENTRY_PROJECT" >> "$GITHUB_ENV"
+
+      - name: Setup app and build
+        uses: ./.github/actions/setup
+        with:
+          build: 'true'
+
+      - name: Upload Worker preview
+        id: deploy
+        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
+        env:
+          PREVIEW_MESSAGE: ${{ steps.metadata.outputs.preview_message }}
+        with:
+          apiToken: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
+          command: >
+            versions upload
+            -c dist/wrangler.json
+            --preview-alias dev
+            --message "$PREVIEW_MESSAGE"
+
+      - name: Publish summary
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          SHORT_SHA: ${{ github.sha }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const deploymentUrl = process.env.DEPLOYMENT_URL;
+            const shortSha = process.env.SHORT_SHA?.slice(0, 7);
+            const now = new Date().toUTCString().replace(':00 GMT', ' UTC');
+
+            const tableRow = "| ✅ Dev deployment successful! | <a href='" + deploymentUrl + "'>" + deploymentUrl + "</a> | " + shortSha + " | `dev` | " + now + " |";
+            const comment = [
+              `## Deploying with &nbsp;<a href="https://workers.dev"><img alt="Cloudflare Workers" src="https://workers.cloudflare.com/logo.svg" width="16"></a> &nbsp;Cloudflare Workers (dev → production config)`,
+              ``,
+              `| Status | URL | Commit | Alias | Updated (UTC) |`,
+              `| - | - | - | - | - |`,
+              tableRow,
+            ].join("\n");
+
+            await core.summary.addRaw(comment).write();

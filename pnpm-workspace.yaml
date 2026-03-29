@@ -12,19 +12,16 @@ minimumReleaseAgeExclude:
   - '@sableclient/sable-call-embedded'
 
 overrides:
-  brace-expansion: '>=1.1.12'
-  esbuild: '>=0.25.0'
-  flatted: '>=3.4.2'
-  lodash: '>=4.17.23'
-  minimatch: '>=10.2.3'
-  rollup: '>=4.59.0'
-  serialize-javascript: '>=7.0.3'
-  undici: '>=7.24.0'
+  serialize-javascript: '>=7.0.5'
+  picomatch: '>=4.0.4'
+  smol-toml: '>=1.6.1'
+  yaml: '>=2.8.3'
 
 peerDependencyRules:
   allowedVersions:
-    'folds>@vanilla-extract/css': '1.18.0'
-    'folds>@vanilla-extract/recipes': '0.5.7'
-    'folds>classnames': '2.5.1'
-    'folds>react': '18.3.1'
-    'folds>react-dom': '18.3.1'
+    'folds>@vanilla-extract/css': '^1.20.1'
+    'folds>@vanilla-extract/recipes': '^0.5.7'
+    'folds>classnames': '^2.5.1'
+    'folds>react': '^18.3.1'
+    'folds>react-dom': '^18.3.1'
+    'vite-plugin-pwa>vite': '^8.0.3'

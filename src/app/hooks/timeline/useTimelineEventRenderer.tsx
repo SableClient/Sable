@@ -219,6 +219,7 @@ export interface TimelineEventRendererOptions {
     dateFormatString: string;
     mediaAutoLoad: boolean;
     showUrlPreview: boolean;
+    showBundledPreview: boolean;
     showClientUrlPreview: boolean;
     autoplayStickers: boolean;
     hideMemberInReadOnly: boolean;
@@ -272,6 +273,7 @@ export function useTimelineEventRenderer({
     hour24Clock,
     dateFormatString,
     mediaAutoLoad,
+    showBundledPreview,
     showUrlPreview,
     showClientUrlPreview,
     autoplayStickers,
@@ -451,6 +453,7 @@ export function useTimelineEventRenderer({
                 getContent={getContent}
                 mediaAutoLoad={mediaAutoLoad}
                 urlPreview={showUrlPreview}
+                bundledPreview={showBundledPreview}
                 clientUrlPreview={showClientUrlPreview}
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
@@ -613,6 +616,7 @@ export function useTimelineEventRenderer({
                       edited={!!editedEvent}
                       getContent={getContent}
                       mediaAutoLoad={mediaAutoLoad}
+                      bundledPreview={showBundledPreview}
                       urlPreview={showUrlPreview}
                       clientUrlPreview={showClientUrlPreview}
                       htmlReactParserOptions={htmlReactParserOptions}

@@ -49,6 +49,7 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -140,6 +141,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,

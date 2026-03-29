@@ -42,6 +42,7 @@ type RenderMessageContentProps = {
   edited?: boolean;
   getContent: <T>() => T;
   mediaAutoLoad?: boolean;
+  bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
   highlightRegex?: RegExp;
@@ -68,6 +69,7 @@ function RenderMessageContentInternal({
   edited,
   getContent,
   mediaAutoLoad,
+  bundledPreview,
   urlPreview,
   clientUrlPreview,
   highlightRegex,
@@ -115,13 +117,13 @@ function RenderMessageContentInternal({
         <UrlPreviewHolder>
           {toRender.map(({ url, type }) => {
             if (type) {
-              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview url={url} />;
             }
             if (urlPreview) {
-              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             return null;
           })}
@@ -134,11 +136,16 @@ function RenderMessageContentInternal({
     (bundles: IPreviewUrlResponse[]) => (
       <UrlPreviewHolder>
         {bundles.map((bundle) => (
-          <UrlPreviewCard key={bundle['og:url']} url={bundle['og:url']} bundle={bundle} />
+          <UrlPreviewCard
+            urlPreview={urlPreview === true}
+            key={bundle['og:url']}
+            url={bundle['og:url']}
+            bundle={bundle}
+          />
         ))}
       </UrlPreviewHolder>
     ),
-    []
+    [urlPreview]
   );
 
   const renderCaption = () => {
@@ -153,7 +160,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
-            renderBundledPreviews={renderBundledPreviews}
+            renderBundledPreviews={bundledPreview ? renderBundledPreviews : undefined}
           />
         );
       return (
@@ -173,7 +180,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
-            renderBundledPreviews={renderBundledPreviews}
+            renderBundledPreviews={bundledPreview ? renderBundledPreviews : undefined}
           />
         </Box>
       );
@@ -236,8 +243,8 @@ function RenderMessageContentInternal({
         edited={edited}
         content={content}
         renderBody={renderBody}
-        renderUrlsPreview={renderUrlsPreview}
-        renderBundledPreviews={renderBundledPreviews}
+        renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderBundledPreviews={bundledPreview ? renderBundledPreviews : undefined}
       />
     );
   }
@@ -259,7 +266,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
-        renderBundledPreviews={renderBundledPreviews}
+        renderBundledPreviews={bundledPreview ? renderBundledPreviews : undefined}
       />
     );
   }
@@ -271,7 +278,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
-        renderBundledPreviews={renderBundledPreviews}
+        renderBundledPreviews={bundledPreview ? renderBundledPreviews : undefined}
       />
     );
   }

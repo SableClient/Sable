@@ -147,13 +147,11 @@ export function MText({
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
-  let urls: string[] | undefined;
-  let bundleContent: IPreviewUrlResponse[] | undefined;
-  if (!content['com.beeper.linkpreviews']) {
-    const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-    urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  } else if ((content['com.beeper.linkpreviews'] as Array<object>).length > 0)
-    bundleContent = content['com.beeper.linkpreviews'] as IPreviewUrlResponse[];
+  let bundleContent: object[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as object[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
@@ -184,7 +182,7 @@ export function MText({
           (renderBundledPreviews &&
             bundleContent &&
             bundleContent.length > 0 &&
-            renderBundledPreviews(bundleContent))}
+            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
       </MessageTextBody>
     );
   }
@@ -206,7 +204,7 @@ export function MText({
         (renderBundledPreviews &&
           bundleContent &&
           bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent))}
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }
@@ -236,13 +234,11 @@ export function MEmote({
   const trimmedBody = trimReplyFromBody(body);
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
-  let urls: string[] | undefined;
-  let bundleContent: IPreviewUrlResponse[] | undefined;
-  if (!content['com.beeper.linkpreviews']) {
-    const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-    urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  } else if ((content['com.beeper.linkpreviews'] as Array<object>).length > 0)
-    bundleContent = content['com.beeper.linkpreviews'] as IPreviewUrlResponse[];
+  let bundleContent: object[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as object[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
 
   return (
     <>
@@ -262,7 +258,7 @@ export function MEmote({
         (renderBundledPreviews &&
           bundleContent &&
           bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent))}
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }
@@ -288,15 +284,13 @@ export function MNotice({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  let urls: string[] | undefined;
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
-  let bundleContent: IPreviewUrlResponse[] | undefined;
-  if (!content['com.beeper.linkpreviews']) {
-    const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-    urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  } else if ((content['com.beeper.linkpreviews'] as Array<object>).length > 0)
-    bundleContent = content['com.beeper.linkpreviews'] as IPreviewUrlResponse[];
+  let bundleContent: object[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as object[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
 
   return (
     <>
@@ -315,7 +309,7 @@ export function MNotice({
         (renderBundledPreviews &&
           bundleContent &&
           bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent))}
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }

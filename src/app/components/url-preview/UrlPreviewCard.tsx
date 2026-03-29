@@ -43,8 +43,14 @@ const openMediaInNewTab = async (url: string | undefined) => {
 
 export const UrlPreviewCard = as<
   'div',
-  { url: string; ts?: number; mediaType?: string | null; bundle?: IPreviewUrlResponse }
->(({ url, ts, mediaType, bundle, ...props }, ref) => {
+  {
+    urlPreview: boolean;
+    url: string;
+    ts?: number;
+    mediaType?: string | null;
+    bundle?: IPreviewUrlResponse;
+  }
+>(({ urlPreview, url, ts, mediaType, bundle, ...props }, ref) => {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
@@ -54,14 +60,17 @@ export const UrlPreviewCard = as<
     useCallback(() => {
       if (isDirect) return Promise.resolve(null);
       if (!ts && !bundle) return Promise.resolve(null);
-      const clientCache = getClientCache(mx);
-      const cached = clientCache.get(url);
-      if (cached !== undefined) return cached;
-      const urlPreview = !bundle ? mx?.getUrlPreview(url, ts ?? -1) : Promise.resolve(bundle);
-      clientCache.set(url, urlPreview);
-      urlPreview.finally(() => clientCache.delete(url));
-      return urlPreview;
-    }, [isDirect, mx, url, ts, bundle])
+      if (urlPreview && ts) {
+        const clientCache = getClientCache(mx);
+        const cached = clientCache.get(url);
+        if (cached !== undefined) return cached;
+        const previewResult = mx?.getUrlPreview(url, ts);
+        clientCache.set(url, previewResult);
+        previewResult.finally(() => clientCache.delete(url));
+        return previewResult;
+      }
+      return Promise.resolve(bundle);
+    }, [isDirect, ts, bundle, urlPreview, mx, url])
   );
 
   useEffect(() => {

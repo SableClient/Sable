@@ -31,7 +31,7 @@ else
       # In web Codespace mode, reload the key into a fresh agent
       if [ -f "$CODESPACE_KEY" ]; then
         echo "  ↻  Reloading Codespace signing key into SSH agent..."
-        if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l &>/dev/null; then
+        if [ -z "${SSH_AUTH_SOCK:-}" ] || ! ssh-add -l &>/dev/null; then
           eval "$(ssh-agent -s)" > /dev/null
           echo "export SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$HOME/.bashrc"
           echo "export SSH_AGENT_PID=$SSH_AGENT_PID" >> "$HOME/.bashrc"

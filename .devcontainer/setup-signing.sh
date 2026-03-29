@@ -40,7 +40,7 @@ else
   fi
   
   # Start ssh-agent if not already running and add the key
-  if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l &>/dev/null; then
+  if [ -z "${SSH_AUTH_SOCK:-}" ] || ! ssh-add -l &>/dev/null; then
     echo "   Starting SSH agent and loading key..."
     eval "$(ssh-agent -s)" > /dev/null
     ssh-add "$CODESPACE_KEY" 2>/dev/null

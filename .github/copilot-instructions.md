@@ -1,6 +1,6 @@
 # Sable – GitHub Copilot Workspace Instructions
 
-These rules apply to every chat and agent session in this workspace.
+These rules apply to every chat and agent session in this workspace. Follow all rules that follow while responding to chat requests.
 
 ---
 
@@ -34,7 +34,7 @@ pnpm build
 ## Pull Requests
 
 - Use the upstream PR template ([`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)) in full — all checkboxes must be present.
-- Descriptions should be short, clear, and human-readable. No AI-generated explanations in the AI disclosure section.
+- Descriptions should be short, clear, and human-readable.
 - Each PR gets **one changeset line** (or one `fix:` + one `feat:` if both are genuinely present, though prefer separate PRs).
 - PRs must not target `dev` directly without a reviewed branch.
 - Before opening a PR, **search for related open and merged PRs on both `upstream` (SableClient/Sable or cinnyapp/cinny) and `origin`**. Review them to understand what else may be in flight that could affect the change. Summarise any findings and ask the user how to proceed if there is overlap or conflict.
@@ -51,7 +51,7 @@ pnpm build
 
 - Every user-visible new feature must be gated behind a **feature flag** in `config.json` / `useClientConfig`.
 - Flags default to `false` (opt-in) unless the feature is a bug fix or a non-breaking improvement with no regressions.
-- Document the flag in `docs/sample.env` and in the Sable-Docs documentation repo.
+- Document the flag in `config.json` and in the Sable-Docs documentation repo.
 
 ## Code Quality
 

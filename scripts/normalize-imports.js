@@ -13,6 +13,25 @@ import {
   toPosix,
 } from './utils/import-rewrites.js';
 
+/**
+ * @typedef {{
+ *   write: boolean;
+ *   roots: string[];
+ * }} CliArgs
+ */
+
+/**
+ * @typedef {{
+ *   file: string;
+ *   replacements: number;
+ *   edits: { from: string; to: string }[];
+ * }} FileResult
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {CliArgs}
+ */
 function parseArgs(argv) {
   let write = false;
   const roots = [];
@@ -101,6 +120,7 @@ async function main() {
     })
   );
 
+  /** @type {FileResult[]} */
   const changedFiles = fileResults.filter((result) => result !== null);
   const filesChanged = changedFiles.length;
   const importRewrites = changedFiles.reduce((total, result) => total + result.replacements, 0);

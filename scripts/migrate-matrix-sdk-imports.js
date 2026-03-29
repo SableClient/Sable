@@ -19,6 +19,40 @@ import {
 
 const MATRIX_BOUNDARY_SPECIFIER = '$types/matrix-sdk';
 
+/**
+ * @typedef {{
+ *   write: boolean;
+ *   roots: string[];
+ * }} CliArgs
+ */
+
+/**
+ * @typedef {{
+ *   importedName: string;
+ *   localName: string;
+ * }} ImportEntry
+ */
+
+/**
+ * @typedef {{
+ *   values: ImportEntry[];
+ *   types: ImportEntry[];
+ * }} MatrixImportGroup
+ */
+
+/**
+ * @typedef {{
+ *   start: number;
+ *   end: number;
+ *   original: string;
+ *   value: string;
+ * }} Replacement
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {CliArgs}
+ */
 function parseArgs(argv) {
   let write = false;
   const roots = [];
@@ -55,6 +89,10 @@ function parseArgs(argv) {
   };
 }
 
+/**
+ * @param {string} projectRoot
+ * @returns {import('typescript').Program}
+ */
 function loadProgram(projectRoot) {
   const tsconfigPath = path.join(projectRoot, 'tsconfig.json');
   const configResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
@@ -85,6 +123,11 @@ function loadProgram(projectRoot) {
   });
 }
 
+/**
+ * @param {string} filePath
+ * @param {string[]} rootPaths
+ * @returns {boolean}
+ */
 function isWithinRoots(filePath, rootPaths) {
   return rootPaths.some((rootPath) => {
     const relativePath = path.relative(rootPath, filePath);
@@ -94,6 +137,11 @@ function isWithinRoots(filePath, rootPaths) {
   });
 }
 
+/**
+ * @param {import('typescript').TypeChecker} checker
+ * @param {import('typescript').ImportSpecifier} specifier
+ * @returns {string | null}
+ */
 function getDeclarationModuleSpecifier(checker, specifier) {
   const importedSymbol = checker.getSymbolAtLocation(specifier.name);
   if (!importedSymbol) return null;
@@ -108,6 +156,10 @@ function getDeclarationModuleSpecifier(checker, specifier) {
   return getMatrixModuleSpecifierFromDeclarationFile(declaration.getSourceFile().fileName);
 }
 
+/**
+ * @param {import('typescript').ImportSpecifier} specifier
+ * @returns {ImportEntry}
+ */
 function getImportEntry(specifier) {
   return {
     importedName: specifier.propertyName?.text ?? specifier.name.text,
@@ -115,6 +167,11 @@ function getImportEntry(specifier) {
   };
 }
 
+/**
+ * @param {import('typescript').TypeChecker} checker
+ * @param {import('typescript').ImportDeclaration} importDeclaration
+ * @returns {string | null}
+ */
 function buildReplacementText(checker, importDeclaration) {
   const importClause = importDeclaration.importClause;
   if (
@@ -125,6 +182,7 @@ function buildReplacementText(checker, importDeclaration) {
     return null;
   }
 
+  /** @type {Map<string, MatrixImportGroup>} */
   const groups = new Map();
 
   for (const specifier of importClause.namedBindings.elements) {
@@ -142,9 +200,18 @@ function buildReplacementText(checker, importDeclaration) {
   return renderMatrixImportGroups(groups).join('\n');
 }
 
+/**
+ * @param {import('typescript').SourceFile} sourceFile
+ * @param {import('typescript').TypeChecker} checker
+ * @returns {Replacement[]}
+ */
 function collectReplacements(sourceFile, checker) {
+  /** @type {Replacement[]} */
   const replacements = [];
 
+  /**
+   * @param {import('typescript').Node} node
+   */
   function visit(node) {
     if (
       ts.isImportDeclaration(node) &&
@@ -156,6 +223,7 @@ function collectReplacements(sourceFile, checker) {
         replacements.push({
           start: node.getStart(sourceFile),
           end: node.getEnd(),
+          original: '',
           value: replacementText,
         });
       }

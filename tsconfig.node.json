@@ -1,17 +1,21 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
+    "module": "NodeNext",
     "lib": ["ESNext"],
     "types": ["node"],
     "allowJs": true,
     "checkJs": true,
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "NodeNext",
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
     "composite": true,
     "noEmit": true,
     "tsBuildInfoFile": "./.tsbuildinfo/tsconfig.node.tsbuildinfo"

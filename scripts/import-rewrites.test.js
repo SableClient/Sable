@@ -10,6 +10,7 @@ import {
   rewriteSourceImports,
 } from './utils/import-rewrites.js';
 
+/** @type {string[]} */
 const tempDirs = [];
 
 async function makeTempProject() {

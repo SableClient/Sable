@@ -11,6 +11,11 @@ import { PrefixedLogger, createTextHelpers } from './utils/console-style.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const VERSION = '0.22.3';
+/**
+ * @typedef {'linux-x64' | 'linux-arm64' | 'darwin-x64' | 'darwin-arm64' | 'win32-x64'} SupportedTargetKey
+ */
+
+/** @type {Record<SupportedTargetKey, string>} */
 const TARGETS = {
   'linux-x64': 'x86_64-unknown-linux-musl',
   'linux-arm64': 'aarch64-unknown-linux-musl',
@@ -19,11 +24,19 @@ const TARGETS = {
   'win32-x64': 'x86_64-pc-windows-msvc',
 };
 
+/**
+ * @param {string | null | undefined} output
+ * @returns {string | null}
+ */
 function parseKnopeVersion(output) {
   const version = output?.trim().replace(/^knope\s+/, '');
   return version || null;
 }
 
+/**
+ * @param {string} command
+ * @returns {string | null}
+ */
 function getKnopeVersion(command) {
   const result = spawnSync(command, ['--version'], { encoding: 'utf8' });
   if (result.status !== 0) {
@@ -32,17 +45,30 @@ function getKnopeVersion(command) {
   return parseKnopeVersion(result.stdout);
 }
 
+/**
+ * @param {Buffer} buffer
+ * @returns {string}
+ */
 function readNullTerminatedString(buffer) {
   const nulIndex = buffer.indexOf(0);
   const end = nulIndex === -1 ? buffer.length : nulIndex;
   return buffer.toString('utf8', 0, end);
 }
 
+/**
+ * @param {string} entryName
+ * @returns {string}
+ */
 function getTarBasename(entryName) {
   const segments = entryName.split('/').filter(Boolean);
   return segments.at(-1) ?? '';
 }
 
+/**
+ * @param {Buffer} tarBuffer
+ * @param {string} expectedBasename
+ * @returns {Buffer}
+ */
 function extractRegularFileFromTar(tarBuffer, expectedBasename) {
   let offset = 0;
   const regularEntries = [];
@@ -87,6 +113,9 @@ function extractRegularFileFromTar(tarBuffer, expectedBasename) {
   );
 }
 
+/**
+ * @returns {string | null}
+ */
 function getSystemKnopePath() {
   const which = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['knope'], {
     encoding: 'utf8',
@@ -102,7 +131,16 @@ function getSystemKnopePath() {
   );
 }
 
+/**
+ * @param {string} candidatePath
+ * @param {string} rootPath
+ * @returns {boolean}
+ */
 function isPathWithin(candidatePath, rootPath) {
+  /**
+   * @param {string} value
+   * @returns {string}
+   */
   const toComparablePath = (value) => {
     const resolved = resolve(value);
     return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
@@ -120,7 +158,10 @@ if (process.env.GITHUB_ACTIONS && process.env.CI) {
   process.exit(0);
 }
 
-const target = TARGETS[`${process.platform}-${process.arch}`];
+const targetKey = `${process.platform}-${process.arch}`;
+const target = Object.hasOwn(TARGETS, targetKey)
+  ? TARGETS[/** @type {SupportedTargetKey} */ (targetKey)]
+  : undefined;
 if (!target) {
   const supported = Object.keys(TARGETS).join(', ');
   logger.error(

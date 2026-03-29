@@ -1,14 +1,16 @@
 import { defineConfig } from 'vite';
 import type { ViteDevServer, PluginOption } from 'vite';
 import { execSync } from 'child_process';
+import type { RollupInjectOptions } from '@rollup/plugin-inject';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import { wasm } from '@rollup/plugin-wasm';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
-import inject from '@rollup/plugin-inject';
-import topLevelAwait from 'vite-plugin-top-level-await';
+import * as injectModule from '@rollup/plugin-inject';
+import * as topLevelAwaitModule from 'vite-plugin-top-level-await';
+import type { Options as TopLevelAwaitOptions } from 'vite-plugin-top-level-await';
 import { VitePWA } from 'vite-plugin-pwa';
 import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import { constants as zlibConstants } from 'zlib';
@@ -17,7 +19,12 @@ import path from 'path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
-import buildConfig from './build.config';
+import buildConfig from './build.config.ts';
+
+const inject = injectModule.default as unknown as (options?: RollupInjectOptions) => PluginOption;
+const topLevelAwait = topLevelAwaitModule.default as unknown as (
+  options?: TopLevelAwaitOptions
+) => PluginOption;
 
 const packageJson = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')
@@ -150,7 +157,7 @@ export default defineConfig(({ command }) => ({
       // The export name of top-level await promise for each chunk module
       promiseExportName: '__tla',
       // The function to generate import names of top-level await promise in each chunk module
-      promiseImportName: (i) => `__tla_${i}`,
+      promiseImportName: (i: number) => `__tla_${i}`,
     }),
     viteStaticCopy(copyFiles),
     vanillaExtractPlugin({ identifiers: 'debug' }),
@@ -237,7 +244,7 @@ export default defineConfig(({ command }) => ({
     sourcemap: true,
     copyPublicDir: false,
     rollupOptions: {
-      plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
+      plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
     },
   },
 }));

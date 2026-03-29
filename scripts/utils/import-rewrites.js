@@ -3,6 +3,36 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
+/**
+ * @typedef {{
+ *   alias: string;
+ *   absolutePath: string;
+ * }} AliasEntry
+ */
+
+/**
+ * @typedef {{
+ *   start: number;
+ *   end: number;
+ *   original: string;
+ *   value: string;
+ * }} TextReplacement
+ */
+
+/**
+ * @typedef {{
+ *   importedName: string;
+ *   localName: string;
+ * }} MatrixImportSpecifier
+ */
+
+/**
+ * @typedef {{
+ *   values: MatrixImportSpecifier[];
+ *   types: MatrixImportSpecifier[];
+ * }} MatrixImportGroup
+ */
+
 export const DEFAULT_ROOTS = ['src'];
 export const SKIP_DIRS = new Set(['.git', '.hg', '.svn', 'node_modules', 'dist', 'coverage']);
 export const SOURCE_EXTENSIONS = new Set([
@@ -20,18 +50,35 @@ export const MATRIX_IMPORT_BOUNDARY_FILES = new Set([
   path.normalize('src/types/matrix-sdk-events.d.ts'),
 ]);
 
+/**
+ * @param {string} inputPath
+ * @returns {string}
+ */
 export function toPosix(inputPath) {
   return inputPath.split(path.sep).join('/');
 }
 
+/**
+ * @param {string} pattern
+ * @returns {string}
+ */
 function normalizeAliasPattern(pattern) {
   return pattern.replace(/\/\*$/, '');
 }
 
+/**
+ * @param {import('typescript').Diagnostic} error
+ * @returns {string}
+ */
 function getConfigErrorMessage(error) {
   return ts.flattenDiagnosticMessageText(error.messageText, '\n');
 }
 
+/**
+ * @param {string} tsconfigPath
+ * @param {string} projectRoot
+ * @returns {Promise<AliasEntry[]>}
+ */
 export async function loadAliasMapFromTsconfig(tsconfigPath, projectRoot) {
   const configResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
   if (configResult.error) {
@@ -44,29 +91,35 @@ export async function loadAliasMapFromTsconfig(tsconfigPath, projectRoot) {
   const baseUrl = compilerOptions.baseUrl ?? '.';
   const paths = compilerOptions.paths ?? {};
 
-  const aliasMap = [
-    ...new Map(
-      Object.entries(paths)
-        .map(([aliasPattern, targets]) => {
-          if (!Array.isArray(targets) || targets.length === 0) return null;
+  /** @type {Map<string, AliasEntry>} */
+  const aliasEntries = new Map();
+  for (const [aliasPattern, targets] of Object.entries(paths)) {
+    if (!Array.isArray(targets) || targets.length === 0) continue;
 
-          const alias = normalizeAliasPattern(aliasPattern);
-          const targetPattern = normalizeAliasPattern(targets[0]);
-          const absolutePath = path.resolve(projectRoot, baseUrl, targetPattern);
+    const alias = normalizeAliasPattern(aliasPattern);
+    const targetPattern = normalizeAliasPattern(targets[0]);
+    const absolutePath = path.resolve(projectRoot, baseUrl, targetPattern);
+    aliasEntries.set(`${alias}:${absolutePath}`, { alias, absolutePath });
+  }
 
-          return [`${alias}:${absolutePath}`, { alias, absolutePath }];
-        })
-        .filter(Boolean)
-    ).values(),
-  ];
+  const aliasMap = [...aliasEntries.values()];
 
   aliasMap.sort((a, b) => b.absolutePath.length - a.absolutePath.length);
   return aliasMap;
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<string[]>}
+ */
 export async function collectSourceFiles(rootDir) {
+  /** @type {string[]} */
   const files = [];
 
+  /**
+   * @param {string} currentDir
+   * @returns {Promise<void>}
+   */
   async function walk(currentDir) {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
     await Promise.all(
@@ -90,6 +143,10 @@ export async function collectSourceFiles(rootDir) {
   return files;
 }
 
+/**
+ * @param {string} specifier
+ * @returns {{ bare: string; suffix: string }}
+ */
 function splitSpecifier(specifier) {
   const match = specifier.match(/^([^?#]+)([?#].*)?$/);
   if (!match) {
@@ -102,6 +159,11 @@ function splitSpecifier(specifier) {
   };
 }
 
+/**
+ * @param {string} absoluteTargetPath
+ * @param {AliasEntry[]} aliases
+ * @returns {AliasEntry | undefined}
+ */
 function findMatchingAlias(absoluteTargetPath, aliases) {
   return aliases.find(({ absolutePath }) => {
     const rel = path.relative(absolutePath, absoluteTargetPath);
@@ -109,6 +171,13 @@ function findMatchingAlias(absoluteTargetPath, aliases) {
   });
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} specifier
+ * @param {AliasEntry[]} aliases
+ * @param {string} projectRoot
+ * @returns {string | null}
+ */
 function getRewrittenSpecifier(filePath, specifier, aliases, projectRoot) {
   const normalizedFilePath = path.normalize(path.relative(projectRoot, filePath));
   const { bare, suffix } = splitSpecifier(specifier);
@@ -135,6 +204,14 @@ function getRewrittenSpecifier(filePath, specifier, aliases, projectRoot) {
   return `${aliasImport}${suffix}`;
 }
 
+/**
+ * @param {import('typescript').SourceFile} sourceFile
+ * @param {import('typescript').StringLiteral} literalNode
+ * @param {TextReplacement[]} replacements
+ * @param {AliasEntry[]} aliases
+ * @param {string} filePath
+ * @param {string} projectRoot
+ */
 function queueReplacement(sourceFile, literalNode, replacements, aliases, filePath, projectRoot) {
   const specifier = literalNode.text;
   const rewrittenSpecifier = getRewrittenSpecifier(filePath, specifier, aliases, projectRoot);
@@ -148,6 +225,11 @@ function queueReplacement(sourceFile, literalNode, replacements, aliases, filePa
   });
 }
 
+/**
+ * @param {string} sourceCode
+ * @param {TextReplacement[]} replacements
+ * @returns {string}
+ */
 export function applyTextReplacements(sourceCode, replacements) {
   return replacements.reduce(
     (code, replacement) =>
@@ -156,10 +238,20 @@ export function applyTextReplacements(sourceCode, replacements) {
   );
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} sourceCode
+ * @param {AliasEntry[]} aliases
+ * @param {string} projectRoot
+ */
 export function rewriteSourceImports(filePath, sourceCode, aliases, projectRoot) {
   const sourceFile = ts.createSourceFile(filePath, sourceCode, ts.ScriptTarget.Latest, true);
+  /** @type {TextReplacement[]} */
   const replacements = [];
 
+  /**
+   * @param {import('typescript').Node} node
+   */
   function visit(node) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       queueReplacement(
@@ -207,6 +299,7 @@ export function rewriteSourceImports(filePath, sourceCode, aliases, projectRoot)
     return { changed: false, updatedCode: sourceCode, replacements: 0, edits: [] };
   }
 
+  /** @type {TextReplacement[]} */
   const uniqueReplacements = [
     ...new Map(
       replacements.map((replacement) => [`${replacement.start}:${replacement.end}`, replacement])
@@ -226,6 +319,10 @@ export function rewriteSourceImports(filePath, sourceCode, aliases, projectRoot)
   };
 }
 
+/**
+ * @param {string} relativePath
+ * @returns {string}
+ */
 function stripDeclarationExtension(relativePath) {
   return relativePath
     .replace(/\.d\.[cm]?ts$/i, '')
@@ -233,6 +330,10 @@ function stripDeclarationExtension(relativePath) {
     .replace(/\.[cm]?js$/i, '');
 }
 
+/**
+ * @param {string} declarationFile
+ * @returns {string | null}
+ */
 export function getMatrixModuleSpecifierFromDeclarationFile(declarationFile) {
   const normalizedFile = toPosix(declarationFile);
   const marker = '/node_modules/matrix-js-sdk/';
@@ -244,17 +345,30 @@ export function getMatrixModuleSpecifierFromDeclarationFile(declarationFile) {
   return `matrix-js-sdk/${stripDeclarationExtension(relativePath)}`;
 }
 
+/**
+ * @param {MatrixImportSpecifier[]} specifiers
+ * @returns {MatrixImportSpecifier[]}
+ */
 function sortSpecifiers(specifiers) {
   return [...specifiers].toSorted((left, right) =>
     left.importedName.localeCompare(right.importedName)
   );
 }
 
+/**
+ * @param {MatrixImportSpecifier} specifier
+ * @returns {string}
+ */
 function formatSpecifier({ importedName, localName }) {
   return importedName === localName ? importedName : `${importedName} as ${localName}`;
 }
 
+/**
+ * @param {Map<string, MatrixImportGroup>} groups
+ * @returns {string[]}
+ */
 export function renderMatrixImportGroups(groups) {
+  /** @type {string[]} */
   const lines = [];
 
   [...groups.entries()]

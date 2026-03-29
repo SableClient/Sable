@@ -4,9 +4,11 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - 'config.json'
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/inject-client-config.js'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'
@@ -16,9 +18,11 @@ on:
       - integration
     paths:
       - 'src/**'
+      - 'config.json'
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/inject-client-config.js'
       - 'vite.config.ts'
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'

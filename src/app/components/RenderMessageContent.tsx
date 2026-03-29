@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import { MsgType } from '$types/matrix-sdk';
+import { IPreviewUrlResponse, MsgType } from '$types/matrix-sdk';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
@@ -111,7 +111,6 @@ function RenderMessageContentInternal({
 
       const mediaLinks = analyzed.filter((item) => item.type !== null);
       const toRender = mediaLinks.length > 0 ? mediaLinks : [analyzed[0]];
-
       return (
         <UrlPreviewHolder>
           {toRender.map(({ url, type }) => {
@@ -131,6 +130,16 @@ function RenderMessageContentInternal({
     },
     [ts, clientUrlPreview, urlPreview]
   );
+  const renderBundledPreviews = useCallback(
+    (bundles: IPreviewUrlResponse[]) => (
+      <UrlPreviewHolder>
+        {bundles.map((bundle) => (
+          <UrlPreviewCard key={bundle['og:url']} url={bundle['og:url']} bundle={bundle} />
+        ))}
+      </UrlPreviewHolder>
+    ),
+    []
+  );
 
   const renderCaption = () => {
     const hasCaption = content.body && content.body.trim().length > 0;
@@ -144,6 +153,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+            renderBundledPreviews={renderBundledPreviews}
           />
         );
       return (
@@ -163,6 +173,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+            renderBundledPreviews={renderBundledPreviews}
           />
         </Box>
       );
@@ -225,7 +236,8 @@ function RenderMessageContentInternal({
         edited={edited}
         content={content}
         renderBody={renderBody}
-        renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderUrlsPreview={renderUrlsPreview}
+        renderBundledPreviews={renderBundledPreviews}
       />
     );
   }
@@ -247,6 +259,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderBundledPreviews={renderBundledPreviews}
       />
     );
   }
@@ -258,6 +271,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderBundledPreviews={renderBundledPreviews}
       />
     );
   }

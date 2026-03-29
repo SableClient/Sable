@@ -1,6 +1,6 @@
 {
   "name": "Sable",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
 
   // Minimum 4 cores / 8 GB RAM so Vite builds and TypeScript checks don't crawl
   "hostRequirements": {

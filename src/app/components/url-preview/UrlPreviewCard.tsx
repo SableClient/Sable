@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IPreviewUrlResponse } from '$types/matrix-sdk';
+import { IPreviewUrlResponse, MatrixError } from '$types/matrix-sdk';
 import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,15 +20,33 @@ const linkStyles = { color: color.Success.Main };
 // Inner cache keyed by URL only (not ts) — the same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
-const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse>>>();
+const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse | null>>>();
 
-const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
+const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse | null>> => {
   let clientCache = previewRequestCache.get(mx);
   if (!clientCache) {
     clientCache = new Map();
     previewRequestCache.set(mx, clientCache);
   }
   return clientCache;
+};
+
+const normalizePreviewUrl = (input: string): string => {
+  const trimmed = input.trim().replace(/^<+/, '').replace(/>+$/, '');
+
+  try {
+    const parsed = new URL(trimmed);
+    parsed.pathname = parsed.pathname.replace(/(?:%60|`)+$/gi, '');
+    return parsed.toString();
+  } catch {
+    // Keep the original-ish value; URL preview fetch will fail gracefully.
+    return trimmed.replace(/(?:%60|`)+$/gi, '');
+  }
+};
+
+const isIgnorablePreviewError = (error: unknown): boolean => {
+  if (!(error instanceof MatrixError)) return false;
+  return error.httpStatus === 404 || error.httpStatus === 502;
 };
 
 const openMediaInNewTab = async (url: string | undefined) => {
@@ -45,25 +63,35 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
   ({ url, ts, mediaType, ...props }, ref) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const previewUrl = normalizePreviewUrl(url);
 
     const isDirect = !!mediaType;
 
     const [previewStatus, loadPreview] = useAsyncCallback(
-      useCallback(() => {
+      useCallback(async () => {
         if (isDirect) return Promise.resolve(null);
         const clientCache = getClientCache(mx);
-        const cached = clientCache.get(url);
+        const cached = clientCache.get(previewUrl);
         if (cached !== undefined) return cached;
-        const urlPreview = mx.getUrlPreview(url, ts);
-        clientCache.set(url, urlPreview);
-        urlPreview.finally(() => clientCache.delete(url));
+
+        const urlPreview = (async () => {
+          try {
+            return await mx.getUrlPreview(previewUrl, ts);
+          } catch (error) {
+            if (isIgnorablePreviewError(error)) return null;
+            throw error;
+          }
+        })();
+
+        clientCache.set(previewUrl, urlPreview);
+        urlPreview.finally(() => clientCache.delete(previewUrl));
         return urlPreview;
-      }, [url, ts, mx, isDirect])
+      }, [previewUrl, ts, mx, isDirect])
     );
 
     useEffect(() => {
       loadPreview();
-    }, [url, loadPreview]);
+    }, [previewUrl, loadPreview]);
 
     if (previewStatus.status === AsyncStatus.Error) return null;
 
@@ -117,14 +145,14 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
               style={linkStyles}
               truncate
               as="a"
-              href={url}
+              href={previewUrl}
               target="_blank"
               rel="noreferrer"
               size="T200"
               priority="300"
             >
               {typeof siteName === 'string' && `${siteName} | `}
-              {safeDecodeUrl(url)}
+              {safeDecodeUrl(previewUrl)}
             </Text>
             {title && (
               <Text truncate priority="400">
@@ -216,13 +244,13 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
             style={linkStyles}
             truncate
             as="a"
-            href={url}
+            href={previewUrl}
             target="_blank"
             rel="noreferrer"
             size="T200"
             priority="300"
           >
-            {safeDecodeUrl(url)}
+            {safeDecodeUrl(previewUrl)}
           </Text>
         </UrlPreviewContent>
       );

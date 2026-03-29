@@ -2,16 +2,16 @@
   "folders": [
     {
       "path": ".",
-      "name": "Sable"
+      "name": "Sable",
     },
     {
       "path": "../Sable-Docs",
-      "name": "Sable-Docs"
-    }
+      "name": "Sable-Docs",
+    },
   ],
   "settings": {
     "editor.formatOnSave": true,
-    "typescript.tsdk": "Sable/node_modules/typescript/lib"
+    "typescript.tsdk": "Sable/node_modules/typescript/lib",
   },
   "extensions": {
     "recommendations": [
@@ -21,7 +21,7 @@
       "tamasfe.even-better-toml",
       "yzhang.markdown-all-in-one",
       "github.vscode-pull-request-github",
-      "eamodio.gitlens"
-    ]
-  }
+      "eamodio.gitlens",
+    ],
+  },
 }

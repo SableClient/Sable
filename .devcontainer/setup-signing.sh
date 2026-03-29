@@ -39,6 +39,16 @@ else
     read -p "Press Enter after adding the key to GitHub..." 
   fi
   
+  # Start ssh-agent if not already running and add the key
+  if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l &>/dev/null; then
+    echo "   Starting SSH agent and loading key..."
+    eval "$(ssh-agent -s)" > /dev/null
+    ssh-add "$CODESPACE_KEY" 2>/dev/null
+    # Persist SSH_AUTH_SOCK for future shells
+    echo "export SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$HOME/.bashrc"
+    echo "export SSH_AGENT_PID=$SSH_AGENT_PID" >> "$HOME/.bashrc"
+  fi
+  
   SIGNING_KEY=$(cat "${CODESPACE_KEY}.pub")
   echo "   Using Codespace key: ${CODESPACE_KEY}"
 fi

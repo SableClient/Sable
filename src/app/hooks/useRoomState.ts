@@ -1,9 +1,9 @@
 import {
   Direction,
-  MatrixEvent,
-  Room,
+  type MatrixEvent,
+  type Room,
   RoomStateEvent,
-  RoomStateEventHandlerMap,
+  type RoomStateEventHandlerMap,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import { StateEvent } from '$types/matrix/room';

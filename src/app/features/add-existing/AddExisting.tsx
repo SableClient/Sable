@@ -20,8 +20,8 @@ import {
   Text,
 } from 'folds';
 import {
-  ChangeEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type MouseEventHandler,
   useCallback,
   useMemo,
   useRef,
@@ -29,7 +29,7 @@ import {
 } from 'react';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirects, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -43,7 +43,11 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import {
+  type SearchItemStrGetter,
+  useAsyncSearch,
+  type UseAsyncSearchOptions,
+} from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { StateEvent } from '$types/matrix/room';

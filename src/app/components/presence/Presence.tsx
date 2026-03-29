@@ -3,14 +3,14 @@ import {
   Badge,
   Box,
   color,
-  ContainerColor,
-  MainColor,
+  type ContainerColor,
+  type MainColor,
   Text,
   Tooltip,
   TooltipProvider,
   toRem,
 } from 'folds';
-import { ReactNode, useId } from 'react';
+import { type ReactNode, useId } from 'react';
 import { Presence, usePresenceLabel } from '$hooks/useUserPresence';
 import * as css from './styles.css';
 

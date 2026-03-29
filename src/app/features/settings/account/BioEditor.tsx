@@ -1,4 +1,4 @@
-import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
+import { type KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
 import {
   Box,
   Chip,
@@ -7,7 +7,7 @@ import {
   Icons,
   Line,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   config,
@@ -17,7 +17,7 @@ import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
+  type AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   Toolbar,

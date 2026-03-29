@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import { type MatrixEvent, type EventTimelineSet, type EventTimeline } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,

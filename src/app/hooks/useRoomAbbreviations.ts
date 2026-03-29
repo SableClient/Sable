@@ -1,8 +1,8 @@
 import { createContext, useContext, useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
-import { buildAbbreviationsMap, RoomAbbreviationsContent } from '$utils/abbreviations';
+import { buildAbbreviationsMap, type RoomAbbreviationsContent } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from './useMatrixClient';

@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
 import {
@@ -19,17 +19,17 @@ import {
   config,
   Line,
   PopOut,
-  RectCords,
+  type RectCords,
   Badge,
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import {
   EventTimeline,
-  Room,
+  type Room,
   ThreadEvent,
   RoomEvent,
-  MatrixEvent,
+  type MatrixEvent,
   NotificationCountType,
 } from '$types/matrix-sdk';
 

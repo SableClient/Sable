@@ -1,14 +1,14 @@
-import { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
-import { Editor } from 'slate';
+import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
+import { type Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
-import { JoinRule, MatrixClient } from '$types/matrix-sdk';
+import { JoinRule, type MatrixClient } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer, isRoomAlias } from '$utils/matrix';
-import { UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import { type UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { mDirectAtom } from '$state/mDirectList';
@@ -18,7 +18,7 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getViaServers } from '$plugins/via-servers';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import { AutocompleteQuery } from './autocompleteQuery';
+import { type AutocompleteQuery } from './autocompleteQuery';
 
 type MentionAutoCompleteHandler = (roomAliasOrId: string, name: string) => void;
 

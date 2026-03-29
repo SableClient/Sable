@@ -1,4 +1,4 @@
-import { MouseEventHandler, useState } from 'react';
+import { type MouseEventHandler, useState } from 'react';
 import {
   Box,
   Button,
@@ -8,7 +8,7 @@ import {
   Icons,
   Menu,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   toRem,
 } from 'folds';

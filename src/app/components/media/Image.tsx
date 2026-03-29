@@ -1,4 +1,4 @@
-import { ImgHTMLAttributes, forwardRef } from 'react';
+import { type ImgHTMLAttributes, forwardRef } from 'react';
 import classNames from 'classnames';
 import * as css from './media.css';
 

@@ -1,5 +1,5 @@
 import { replaceMatch } from '$plugins/markdown/internal';
-import { BlockMDParser, BlockMDRule } from './type';
+import { type BlockMDParser, type BlockMDRule } from './type';
 
 /**
  * Parses block-level markdown text into HTML using defined block rules.

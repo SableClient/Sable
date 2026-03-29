@@ -1,11 +1,11 @@
 import {
-  ICreateRoomOpts,
-  ICreateRoomStateEvent,
+  type ICreateRoomOpts,
+  type ICreateRoomStateEvent,
   JoinRule,
-  MatrixClient,
+  type MatrixClient,
   RestrictedAllowType,
-  Room,
-  RoomJoinRulesEventContent,
+  type Room,
+  type RoomJoinRulesEventContent,
 } from '$types/matrix-sdk';
 import { RoomType, StateEvent } from '$types/matrix/room';
 import { getViaServers } from '$plugins/via-servers';

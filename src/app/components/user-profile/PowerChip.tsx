@@ -15,12 +15,12 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
   toRem,
 } from 'folds';
-import { MouseEventHandler, useCallback, useState } from 'react';
+import { type MouseEventHandler, useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';

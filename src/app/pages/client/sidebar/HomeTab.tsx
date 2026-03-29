@@ -1,6 +1,17 @@
-import { MouseEventHandler, forwardRef, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import {
+  Box,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  PopOut,
+  type RectCords,
+  Text,
+  config,
+  toRem,
+} from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';

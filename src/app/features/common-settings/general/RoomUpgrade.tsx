@@ -16,19 +16,19 @@ import {
   Icons,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { MatrixError, Method, RoomTombstoneEventContent } from '$types/matrix-sdk';
+import { type MatrixError, Method, type RoomTombstoneEventContent } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { IRoomCreateContent, StateEvent } from '$types/matrix/room';
+import { type IRoomCreateContent, StateEvent } from '$types/matrix/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { stopPropagation } from '$utils/keyboard';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import {
   AdditionalCreatorInput,
   RoomVersionSelector,

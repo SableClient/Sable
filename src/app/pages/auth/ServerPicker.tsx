@@ -1,8 +1,8 @@
 import {
-  ChangeEventHandler,
-  FocusEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type FocusEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useEffect,
   useRef,
   useState,
@@ -16,7 +16,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   config,
 } from 'folds';

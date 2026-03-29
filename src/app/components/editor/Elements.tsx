@@ -1,7 +1,7 @@
 import { Scroll, Text } from 'folds';
 import {
-  RenderElementProps,
-  RenderLeafProps,
+  type RenderElementProps,
+  type RenderLeafProps,
   useFocused,
   useSelected,
   useSlate,
@@ -15,7 +15,12 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nicknamesAtom } from '$state/nicknames';
 import { BlockType } from './types';
 import { getBeginCommand } from './utils';
-import { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
+import {
+  type CommandElement,
+  type EmoticonElement,
+  type LinkElement,
+  type MentionElement,
+} from './slate';
 
 // Put this at the start and end of an inline component to work around this Chromium bug:
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1249405

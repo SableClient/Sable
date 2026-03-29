@@ -1,5 +1,5 @@
-import { FormEventHandler, MouseEvent, useCallback, useEffect } from 'react';
-import { Room, MatrixEvent } from '$types/matrix-sdk';
+import { type FormEventHandler, type MouseEvent, useCallback, useEffect } from 'react';
+import { type Room, type MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import {
   Box,

@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
@@ -14,7 +14,7 @@ import {
   Scroll,
   config,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import { type MatrixError } from '$types/matrix-sdk';
 import { Cursor } from '$plugins/text-area';
 import { syntaxErrorPosition } from '$utils/dom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

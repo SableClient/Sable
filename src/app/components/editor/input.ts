@@ -1,6 +1,6 @@
-import { Descendant, Text } from 'slate';
+import { type Descendant, Text } from 'slate';
 import parse from 'html-dom-parser';
-import { ChildNode, Element, isText, isTag } from 'domhandler';
+import { type ChildNode, type Element, isText, isTag } from 'domhandler';
 
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
@@ -12,19 +12,19 @@ import {
 import { escapeMarkdownInlineSequences, escapeMarkdownBlockSequences } from '$plugins/markdown';
 import { BlockType, MarkType } from './types';
 import {
-  BlockQuoteElement,
-  CodeBlockElement,
-  CodeLineElement,
-  EmoticonElement,
-  HeadingElement,
-  HeadingLevel,
-  HorizontalRuleElement,
-  InlineElement,
-  MentionElement,
-  OrderedListElement,
-  ParagraphElement,
-  SmallElement,
-  UnorderedListElement,
+  type BlockQuoteElement,
+  type CodeBlockElement,
+  type CodeLineElement,
+  type EmoticonElement,
+  type HeadingElement,
+  type HeadingLevel,
+  type HorizontalRuleElement,
+  type InlineElement,
+  type MentionElement,
+  type OrderedListElement,
+  type ParagraphElement,
+  type SmallElement,
+  type UnorderedListElement,
 } from './slate';
 import { createEmoticonElement, createMentionElement } from './utils';
 

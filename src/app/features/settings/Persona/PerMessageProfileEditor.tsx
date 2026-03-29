@@ -1,6 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
 import { Box, Button, Text, Avatar, config, Icon, IconButton, Icons, Input } from 'folds';
-import { MatrixClient } from 'matrix-js-sdk';
+import { type MatrixClient } from 'matrix-js-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useFilePicker } from '$hooks/useFilePicker';
@@ -14,7 +14,7 @@ import {
   deletePerMessageProfile,
   renamePerMessageProfile,
 } from '$hooks/usePerMessageProfile';
-import { parsePronounsStringToPronounsSetArray, PronounSet } from '$utils/pronouns';
+import { parsePronounsStringToPronounsSetArray, type PronounSet } from '$utils/pronouns';
 import { SequenceCardStyle } from '../styles.css';
 
 /**

@@ -1,14 +1,14 @@
 import { produce } from 'immer';
 import { atom, useAtomValue, useSetAtom } from 'jotai';
 import {
-  IRoomTimelineData,
-  MatrixClient,
-  MatrixEvent,
-  Room,
+  type IRoomTimelineData,
+  type MatrixClient,
+  type MatrixEvent,
+  type Room,
   RoomEvent,
   SyncState,
-  ReceiptContent,
-  ReceiptType,
+  type ReceiptContent,
+  type ReceiptType,
   EventType,
   ClientEvent,
 } from '$types/matrix-sdk';
@@ -16,9 +16,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   Membership,
   NotificationType,
-  RoomToUnread,
-  UnreadInfo,
-  Unread,
+  type RoomToUnread,
+  type UnreadInfo,
+  type Unread,
   StateEvent,
 } from '$types/matrix/room';
 import {

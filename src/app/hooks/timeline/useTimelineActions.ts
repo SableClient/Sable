@@ -1,6 +1,12 @@
-import { useCallback, MouseEventHandler } from 'react';
-import { MatrixClient, Room, MatrixEvent, EventStatus, IContent } from '$types/matrix-sdk';
-import { Editor } from 'slate';
+import { useCallback, type MouseEventHandler } from 'react';
+import {
+  type MatrixClient,
+  type Room,
+  type MatrixEvent,
+  EventStatus,
+  type IContent,
+} from '$types/matrix-sdk';
+import { type Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';

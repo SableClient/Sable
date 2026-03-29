@@ -1,6 +1,6 @@
-import { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
+import { type Room, type MatrixEvent, type MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { IWidget } from 'matrix-widget-api';
+import { type IWidget } from 'matrix-widget-api';
 import { StateEvent } from '$types/matrix/room';
 import { getStateEvents } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';

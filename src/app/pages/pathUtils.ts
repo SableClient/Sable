@@ -1,6 +1,6 @@
-import { generatePath, Path } from 'react-router-dom';
+import { generatePath, type Path } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
-import { HashRouterConfig } from '$hooks/useClientConfig';
+import { type HashRouterConfig } from '$hooks/useClientConfig';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,

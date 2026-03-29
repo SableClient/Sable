@@ -1,6 +1,10 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
-import { MatrixClient, RoomMemberEvent, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
+import {
+  type MatrixClient,
+  RoomMemberEvent,
+  type RoomMemberEventHandlerMap,
+} from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useSetting } from './hooks/settings';
 import { settingsAtom } from './settings';

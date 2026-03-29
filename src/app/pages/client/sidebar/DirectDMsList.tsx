@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectRoomPath } from '$pages/pathUtils';

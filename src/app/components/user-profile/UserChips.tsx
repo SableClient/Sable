@@ -1,6 +1,6 @@
 import {
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import {
   PopOut,
   Menu,
@@ -21,7 +21,7 @@ import {
   Chip,
   Icon,
   Icons,
-  RectCords,
+  type RectCords,
   Spinner,
   toRem,
   Box,

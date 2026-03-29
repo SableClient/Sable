@@ -1,4 +1,4 @@
-import { IconName, IconSrc } from 'folds';
+import { type IconName, type IconSrc } from 'folds';
 
 export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];

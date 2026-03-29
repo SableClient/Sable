@@ -7,12 +7,12 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Spinner,
   Text,
 } from 'folds';
-import { IPushRule } from '$types/matrix-sdk';
-import { MouseEventHandler, useMemo, useState } from 'react';
+import { type IPushRule } from '$types/matrix-sdk';
+import { type MouseEventHandler, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { NotificationMode, useNotificationActionsMode } from '$hooks/useNotificationMode';
 import { stopPropagation } from '$utils/keyboard';

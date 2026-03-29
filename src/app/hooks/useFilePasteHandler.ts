@@ -1,4 +1,4 @@
-import { useCallback, ClipboardEventHandler } from 'react';
+import { useCallback, type ClipboardEventHandler } from 'react';
 import { getDataTransferFiles } from '$utils/dom';
 
 export const useFilePasteHandler = (onPaste: (file: File[]) => void): ClipboardEventHandler =>

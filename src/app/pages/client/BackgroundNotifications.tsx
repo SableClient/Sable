@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   ClientEvent,
   createClient,
-  MatrixClient,
-  MatrixEvent,
+  type MatrixClient,
+  type MatrixEvent,
   MatrixEventEvent,
-  Room,
+  type Room,
   RoomEvent,
   SyncState,
   PushProcessor,
@@ -14,7 +14,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   sessionsAtom,
   activeSessionIdAtom,
-  Session,
+  type Session,
   pendingNotificationAtom,
   backgroundUnreadCountsAtom,
   inAppBannerAtom,

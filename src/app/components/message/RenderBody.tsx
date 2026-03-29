@@ -1,8 +1,8 @@
-import { MouseEventHandler, useEffect, useState } from 'react';
-import parse, { HTMLReactParserOptions } from 'html-react-parser';
+import { type MouseEventHandler, useEffect, useState } from 'react';
+import parse, { type HTMLReactParserOptions } from 'html-react-parser';
 import Linkify from 'linkify-react';
-import { Opts } from 'linkifyjs';
-import { PopOut, RectCords, Text, Tooltip, TooltipProvider, toRem } from 'folds';
+import { type Opts } from 'linkifyjs';
+import { PopOut, type RectCords, Text, Tooltip, TooltipProvider, toRem } from 'folds';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { highlightText, scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';

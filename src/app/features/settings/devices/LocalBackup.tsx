@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { Box, Button, color, Icon, Icons, Spinner, Text, toRem } from 'folds';
 import FileSaver from 'file-saver';
 import { SequenceCard } from '$components/sequence-card';

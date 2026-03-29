@@ -7,8 +7,8 @@ import { SettingTile } from '$components/setting-tile';
 import {
   applyPermissionPower,
   getPermissionPower,
-  IPowerLevels,
-  PermissionLocation,
+  type IPowerLevels,
+  type PermissionLocation,
 } from '$hooks/usePowerLevels';
 import { getPowerLevelTag, getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
@@ -18,7 +18,7 @@ import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { PermissionGroup } from './types';
+import { type PermissionGroup } from './types';
 
 const USER_DEFAULT_LOCATION: PermissionLocation = {
   user: true,

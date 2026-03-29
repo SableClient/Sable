@@ -1,34 +1,34 @@
-import { IconName, IconSrc } from 'folds';
+import { type IconName, type IconSrc } from 'folds';
 
 import {
   EventTimeline,
-  EventTimelineSet,
+  type EventTimelineSet,
   EventType,
-  IMentions,
-  IPowerLevelsContent,
-  IPushRule,
-  IPushRules,
+  type IMentions,
+  type IPowerLevelsContent,
+  type IPushRule,
+  type IPushRules,
   JoinRule,
-  MatrixClient,
-  MatrixEvent,
+  type MatrixClient,
+  type MatrixEvent,
   NotificationCountType,
   PushProcessor,
   RelationType,
-  Room,
-  RoomMember,
-  CryptoBackend,
+  type Room,
+  type RoomMember,
+  type CryptoBackend,
   MsgType,
 } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import { type AccountDataEvent } from '$types/matrix/accountData';
 import {
-  IRoomCreateContent,
+  type IRoomCreateContent,
   Membership,
   NotificationType,
-  RoomToParents,
+  type RoomToParents,
   RoomType,
   MessageEvent,
   StateEvent,
-  UnreadInfo,
+  type UnreadInfo,
 } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
 

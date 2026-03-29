@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export interface IntegrationManager {

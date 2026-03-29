@@ -1,6 +1,6 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { ClientConfig } from '$hooks/useClientConfig';
+import { type ClientConfig } from '$hooks/useClientConfig';
 import { trimTrailingSlash } from '$utils/common';
 
 const getClientConfig = async (): Promise<ClientConfig> => {

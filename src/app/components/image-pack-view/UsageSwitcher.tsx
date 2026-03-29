@@ -1,5 +1,16 @@
-import { MouseEventHandler, useMemo, useState } from 'react';
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
+import { type MouseEventHandler, useMemo, useState } from 'react';
+import {
+  Box,
+  Button,
+  config,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  PopOut,
+  type RectCords,
+  Text,
+} from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { stopPropagation } from '$utils/keyboard';

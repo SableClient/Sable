@@ -1,4 +1,4 @@
-import { MouseEventHandler, useState } from 'react';
+import { type MouseEventHandler, useState } from 'react';
 import {
   Box,
   Button,
@@ -9,7 +9,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Switch,
   Text,
@@ -18,7 +18,7 @@ import FocusTrap from 'focus-trap-react';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import { JumboEmojiSize, settingsAtom } from '$state/settings';
+import { type JumboEmojiSize, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';

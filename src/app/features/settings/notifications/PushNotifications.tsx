@@ -1,6 +1,6 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import { type MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
-import { ClientConfig } from '../../../hooks/useClientConfig';
+import { type ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 

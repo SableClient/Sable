@@ -1,10 +1,10 @@
-import { FormEventHandler, ReactNode, useMemo, useState } from 'react';
+import { type FormEventHandler, type ReactNode, useMemo, useState } from 'react';
 import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { ImageUsage, imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
+import { type ImageUsage, imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { createUploadAtom, TUploadAtom } from '$state/upload';
+import { createUploadAtom, type TUploadAtom } from '$state/upload';
 import { replaceSpaceWithDash } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
 import * as css from './style.css';

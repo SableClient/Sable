@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { ClosedLobbyCategoriesAtom } from '$state/closedLobbyCategories';
+import { type ClosedLobbyCategoriesAtom } from '$state/closedLobbyCategories';
 
 const ClosedLobbyCategoriesAtomContext = createContext<ClosedLobbyCategoriesAtom | null>(null);
 export const ClosedLobbyCategoriesProvider = ClosedLobbyCategoriesAtomContext.Provider;

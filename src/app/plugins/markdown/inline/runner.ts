@@ -1,5 +1,5 @@
-import { MatchResult, replaceMatch } from '$plugins/markdown/internal';
-import { InlineMDParser, InlineMDRule } from './type';
+import { type MatchResult, replaceMatch } from '$plugins/markdown/internal';
+import { type InlineMDParser, type InlineMDRule } from './type';
 
 /**
  * Runs a single markdown rule on the provided text.

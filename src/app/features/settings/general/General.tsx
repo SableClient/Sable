@@ -1,8 +1,8 @@
 import {
-  ChangeEventHandler,
-  FormEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler,
+  type ChangeEventHandler,
+  type FormEventHandler,
+  type KeyboardEventHandler,
+  type MouseEventHandler,
   useEffect,
   useState,
 } from 'react';
@@ -20,7 +20,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Scroll,
   Switch,
   Text,
@@ -31,11 +31,11 @@ import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import {
-  DateFormat,
+  type DateFormat,
   MessageLayout,
-  MessageSpacing,
+  type MessageSpacing,
   RightSwipeAction,
-  CaptionPosition,
+  type CaptionPosition,
   settingsAtom,
 } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';

@@ -1,4 +1,4 @@
-import { Room, RoomEvent, RoomEventHandlerMap } from '$types/matrix-sdk';
+import { type Room, RoomEvent, type RoomEventHandlerMap } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
 
 export const useRoomAccountData = (room: Room): Map<string, object> => {

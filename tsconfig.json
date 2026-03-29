@@ -15,7 +15,7 @@
     "composite": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    // "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "tsBuildInfoFile": "./.tsbuildinfo/tsconfig.tsbuildinfo",
     "baseUrl": ".",

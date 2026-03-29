@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { MatrixEvent, Room, Relations } from '$types/matrix-sdk';
+import { type MatrixEvent, type Room, type Relations } from '$types/matrix-sdk';
 
 export enum ModalType {
   Delete = 'delete',

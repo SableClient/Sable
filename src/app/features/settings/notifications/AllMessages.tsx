@@ -2,8 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { Badge, Box, Text } from 'folds';
 import {
   ConditionKind,
-  IPushRules,
-  PushRuleCondition,
+  type IPushRules,
+  type PushRuleCondition,
   PushRuleKind,
   RuleId,
 } from '$types/matrix-sdk';
@@ -11,7 +11,7 @@ import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { PushRuleData, usePushRule } from '$hooks/usePushRule';
+import { type PushRuleData, usePushRule } from '$hooks/usePushRule';
 import {
   getNotificationModeActions,
   NotificationMode,

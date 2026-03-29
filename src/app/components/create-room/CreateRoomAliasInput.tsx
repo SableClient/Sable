@@ -1,6 +1,6 @@
 import {
-  FormEventHandler,
-  KeyboardEventHandler,
+  type FormEventHandler,
+  type KeyboardEventHandler,
   useCallback,
   useEffect,
   useRef,
@@ -12,7 +12,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import { getMxIdServer } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { replaceSpaceWithDash } from '$utils/common';
-import { AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
+import { type AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useDebounce } from '$hooks/useDebounce';
 
 export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {

@@ -3,7 +3,7 @@ import { Box, Button, Icon, Icons, Text } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
-import { Direction, EventType, NotificationCountType, Room } from '$types/matrix-sdk';
+import { Direction, EventType, NotificationCountType, type Room } from '$types/matrix-sdk';
 import { Membership } from '$types/matrix/room';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';

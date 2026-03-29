@@ -1,4 +1,4 @@
-import { MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
+import { type MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
@@ -10,7 +10,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   config,
   toRem,
@@ -60,7 +60,7 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import { RoomSearchParams } from '$pages/paths';
+import { type RoomSearchParams } from '$pages/paths';
 import { useHomeRooms } from './useHomeRooms';
 
 type HomeMenuProps = {

@@ -1,5 +1,5 @@
-import { MouseEventHandler, useState } from 'react';
-import { Box, config, Icon, Icons, Menu, PopOut, RectCords, Text } from 'folds';
+import { type MouseEventHandler, useState } from 'react';
+import { Box, config, Icon, Icons, Menu, PopOut, type RectCords, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
@@ -15,7 +15,7 @@ import {
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import { RoomSearchParams } from '$pages/paths';
+import { type RoomSearchParams } from '$pages/paths';
 
 export function CreateTab() {
   const createSelected = useCreateSelected();

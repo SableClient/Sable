@@ -1,9 +1,9 @@
 /* eslint-disable react/destructuring-assignment */
-import { MouseEventHandler, useMemo } from 'react';
-import { IEventWithRoomId, JoinRule, RelationType, Room } from '$types/matrix-sdk';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import { type MouseEventHandler, useMemo } from 'react';
+import { type IEventWithRoomId, JoinRule, RelationType, type Room } from '$types/matrix-sdk';
+import { type HTMLReactParserOptions } from 'html-react-parser';
 import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   factoryRenderLinkifyWithMention,
@@ -15,7 +15,7 @@ import {
 } from '$plugins/react-custom-html-parser';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import { type GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
 import {
   AvatarBase,
   ImageContent,
@@ -52,7 +52,7 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
-import { ResultItem } from './useMessageSearch';
+import { type ResultItem } from './useMessageSearch';
 
 type SearchResultGroupProps = {
   room: Room;

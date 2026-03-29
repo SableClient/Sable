@@ -1,4 +1,4 @@
-import { Direction, EventTimeline, MatrixEvent, Room } from '$types/matrix-sdk';
+import { Direction, type EventTimeline, type MatrixEvent, type Room } from '$types/matrix-sdk';
 import { roomHaveNotification, roomHaveUnread, reactionOrEditEvent } from '$utils/room';
 
 export const PAGINATION_LIMIT = 60;

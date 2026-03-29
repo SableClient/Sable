@@ -21,7 +21,7 @@ import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths'
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
-import { Room } from 'matrix-js-sdk';
+import { type Room } from 'matrix-js-sdk';
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();

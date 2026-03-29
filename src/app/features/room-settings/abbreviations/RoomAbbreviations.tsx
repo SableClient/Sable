@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useMemo } from 'react';
+import { type FormEventHandler, useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import {
   Box,
@@ -26,8 +26,8 @@ import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useForceUpdate } from '$hooks/useForceUpdate';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { MatrixError } from '$types/matrix-sdk';
-import { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
+import { type MatrixError } from '$types/matrix-sdk';
+import { type AbbreviationEntry, type RoomAbbreviationsContent } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';

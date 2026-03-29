@@ -1,6 +1,6 @@
 import {
-  MouseEventHandler,
-  ReactElement,
+  type MouseEventHandler,
+  type ReactElement,
   useCallback,
   useEffect,
   useMemo,
@@ -20,20 +20,24 @@ import {
   color,
   config,
 } from 'folds';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import {
   JoinRule,
   RestrictedAllowType,
-  Room,
-  RoomJoinRulesEventContent,
-  IHierarchyRoom,
+  type Room,
+  type RoomJoinRulesEventContent,
+  type IHierarchyRoom,
 } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
-import { HierarchyItem, HierarchyItemSpace, useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import {
+  type HierarchyItem,
+  type HierarchyItemSpace,
+  useSpaceHierarchy,
+} from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -42,7 +46,7 @@ import { settingsAtom } from '$state/settings';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import {
-  IPowerLevels,
+  type IPowerLevels,
   PowerLevelsContextProvider,
   usePowerLevels,
   useRoomsPowerLevels,
@@ -73,7 +77,7 @@ import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
-import { CanDropCallback, useDnDMonitor } from './DnD';
+import { type CanDropCallback, useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';

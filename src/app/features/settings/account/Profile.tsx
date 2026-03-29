@@ -1,6 +1,6 @@
 import {
-  ChangeEventHandler,
-  FormEventHandler,
+  type ChangeEventHandler,
+  type FormEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -29,7 +29,7 @@ import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile, useUserProfile, MSC4440Bio } from '$hooks/useUserProfile';
+import { type UserProfile, useUserProfile, type MSC4440Bio } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -40,13 +40,13 @@ import { useObjectURL } from '$hooks/useObjectURL';
 import { stopPropagation } from '$utils/keyboard';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import { createUploadAtom, type UploadSuccess } from '$state/upload';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
-import { MSC1767Text } from '$types/matrix/common';
+import { type MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';

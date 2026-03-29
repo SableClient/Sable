@@ -1,4 +1,4 @@
-import { MouseEventHandler, ReactNode, useCallback, useRef } from 'react';
+import { type MouseEventHandler, type ReactNode, useCallback, useRef } from 'react';
 import {
   Avatar,
   Badge,
@@ -19,11 +19,11 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { JoinRule, MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
+import { JoinRule, type MatrixError, type Room, type IHierarchyRoom } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import { type HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';

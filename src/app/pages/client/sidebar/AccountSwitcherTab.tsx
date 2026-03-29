@@ -1,4 +1,4 @@
-import { MouseEvent, MouseEventHandler, useCallback, useState } from 'react';
+import { type MouseEvent, type MouseEventHandler, useCallback, useState } from 'react';
 import {
   Box,
   Button,
@@ -9,7 +9,7 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
+  type RectCords,
   Text,
   config,
   toRem,
@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   sessionsAtom,
   activeSessionIdAtom,
-  Session,
+  type Session,
   backgroundUnreadCountsAtom,
 } from '$state/sessions';
 import {

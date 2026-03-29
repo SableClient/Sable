@@ -11,11 +11,11 @@ import {
   Text,
   TextArea,
 } from 'folds';
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import { type FormEventHandler, useCallback, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
-import { JoinRule, MatrixError } from '$types/matrix-sdk';
+import { JoinRule, type MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { useRoom } from '$hooks/useRoom';
@@ -30,11 +30,11 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { StateEvent } from '$types/matrix/room';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import { createUploadAtom, type UploadSuccess } from '$state/upload';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;

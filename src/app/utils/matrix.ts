@@ -1,21 +1,21 @@
 import {
-  EncryptedAttachmentInfo,
+  type EncryptedAttachmentInfo,
   decryptAttachment,
   encryptAttachment,
 } from 'browser-encrypt-attachment';
 import {
   EventTimeline,
-  EventTimelineSet,
-  MatrixClient,
+  type EventTimelineSet,
+  type MatrixClient,
   MatrixError,
-  MatrixEvent,
-  Room,
-  RoomMember,
-  UploadProgress,
-  UploadResponse,
+  type MatrixEvent,
+  type Room,
+  type RoomMember,
+  type UploadProgress,
+  type UploadResponse,
 } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
+import { type IImageInfo, type IThumbnailContent, type IVideoInfo } from '$types/matrix/common';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';

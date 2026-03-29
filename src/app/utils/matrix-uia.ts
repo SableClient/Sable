@@ -1,4 +1,4 @@
-import { AuthType, IAuthData, UIAFlow } from '$types/matrix-sdk';
+import { AuthType, type IAuthData, type UIAFlow } from '$types/matrix-sdk';
 
 export const getSupportedUIAFlows = (uiaFlows: UIAFlow[], supportedStages: string[]): UIAFlow[] => {
   const supportedUIAFlows = uiaFlows.filter((flow) =>

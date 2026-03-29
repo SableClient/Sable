@@ -1,11 +1,11 @@
-import { MouseEventHandler, ReactNode, useCallback, useState } from 'react';
+import { type MouseEventHandler, type ReactNode, useCallback, useState } from 'react';
 import {
   Box,
   Text,
   Chip,
   Icon,
   Icons,
-  RectCords,
+  type RectCords,
   PopOut,
   Menu,
   config,
@@ -13,7 +13,7 @@ import {
   color,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { SecretStorageKeyContent } from '$types/matrix/accountData';
+import { type SecretStorageKeyContent } from '$types/matrix/accountData';
 import { storePrivateKey } from '$client/secretStorageKeys';
 import { stopPropagation } from '$utils/keyboard';
 import { useMatrixClient } from '$hooks/useMatrixClient';

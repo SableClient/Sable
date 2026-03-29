@@ -1,9 +1,9 @@
 import {
-  ChangeEventHandler,
-  FocusEventHandler,
-  MouseEventHandler,
-  ReactNode,
-  RefObject,
+  type ChangeEventHandler,
+  type FocusEventHandler,
+  type MouseEventHandler,
+  type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -12,22 +12,22 @@ import {
 import { Box, config, Icons, Scroll } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { Room } from '$types/matrix-sdk';
-import { atom, PrimitiveAtom, useAtom, useSetAtom } from 'jotai';
+import { type Room } from '$types/matrix-sdk';
+import { atom, type PrimitiveAtom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { IEmoji, emojiGroups, emojis } from '$plugins/emoji';
+import { type IEmoji, emojiGroups, emojis } from '$plugins/emoji';
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { isUserId, mxcUrlToHttp } from '$utils/matrix';
 import { editableActiveElement, targetFromEvent } from '$utils/dom';
-import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch, type UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { useThrottle } from '$hooks/useThrottle';
 import { addRecentEmoji } from '$plugins/recent-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { ImagePack, ImageUsage, PackImageReader } from '$plugins/custom-emoji';
+import { type ImagePack, ImageUsage, type PackImageReader } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
 import { VirtualTile } from '$components/virtualizer';
 import { useSetting } from '$state/hooks/settings';
@@ -43,7 +43,7 @@ import {
   NoStickerPacks,
   createPreviewDataAtom,
   Preview,
-  PreviewData,
+  type PreviewData,
   EmojiItem,
   StickerItem,
   CustomEmojiItem,

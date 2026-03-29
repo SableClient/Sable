@@ -1,4 +1,4 @@
-import { MouseEventHandler, useState } from 'react';
+import { type MouseEventHandler, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   Dialog,
@@ -16,7 +16,7 @@ import {
   Button,
   Chip,
   PopOut,
-  RectCords,
+  type RectCords,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/time';

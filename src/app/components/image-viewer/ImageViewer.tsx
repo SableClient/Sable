@@ -1,4 +1,4 @@
-import { WheelEvent } from 'react';
+import { type WheelEvent } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';

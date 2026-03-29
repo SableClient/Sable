@@ -14,7 +14,7 @@ import {
   color,
   config,
 } from 'folds';
-import { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
+import { type IContent, type MatrixEvent, type Room } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -30,8 +30,8 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useCallback, useMemo, useState } from 'react';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import { type Opts as LinkifyOpts } from 'linkifyjs';
+import { type HTMLReactParserOptions } from 'html-react-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { modalAtom, ModalType } from '$state/modal';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';

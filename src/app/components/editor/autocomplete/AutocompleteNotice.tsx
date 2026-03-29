@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Header, Menu } from 'folds';
 import { BaseAutocompleteMenu } from './BaseAutocompleteMenu';
 import * as css from './AutocompleteMenu.css';

@@ -1,5 +1,5 @@
 import { Box, IconButton, Text, Icon, Icons, Scroll, Chip } from 'folds';
-import { PackAddress } from '$plugins/custom-emoji';
+import { type PackAddress } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Page, PageHeader, PageContent } from '$components/page';
 import { RoomImagePack } from './RoomImagePack';

@@ -1,16 +1,24 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
 import {
-  MatrixClient,
-  Room,
-  MatrixEvent,
+  type MatrixClient,
+  type Room,
+  type MatrixEvent,
   Direction,
-  EventTimeline,
-  EventTimelineSetHandlerMap,
+  type EventTimeline,
+  type EventTimelineSetHandlerMap,
   RoomEvent,
-  IRoomTimelineData,
-  RoomEventHandlerMap,
+  type IRoomTimelineData,
+  type RoomEventHandlerMap,
   RelationType,
   ThreadEvent,
 } from '$types/matrix-sdk';

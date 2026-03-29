@@ -1,4 +1,4 @@
-import { MouseEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import { type MouseEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -12,7 +12,7 @@ import {
   config,
   Spinner,
   Menu,
-  RectCords,
+  type RectCords,
   PopOut,
   Checkbox,
   toRem,
@@ -23,7 +23,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import { type Room } from '$types/matrix-sdk';
 import { useGlobalImagePacks, useRoomsImagePacks } from '$hooks/useImagePacks';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -31,10 +31,10 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
-  EmoteRoomsContent,
-  ImagePack,
+  type EmoteRoomsContent,
+  type ImagePack,
   ImageUsage,
-  PackAddress,
+  type PackAddress,
   packAddressEqual,
 } from '$plugins/custom-emoji';
 import { LineClamp2 } from '$styles/Text.css';

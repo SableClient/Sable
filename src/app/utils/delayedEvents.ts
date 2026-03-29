@@ -1,12 +1,13 @@
 import {
   EventType,
-  IContent,
-  MatrixClient,
+  type IContent,
+  type MatrixClient,
   MatrixEvent,
-  Room,
+  type Room,
   UpdateDelayedEventAction,
+  type DelayedEventInfo,
+  type SendDelayedEventResponse,
 } from '$types/matrix-sdk';
-import type { DelayedEventInfo, SendDelayedEventResponse } from '$types/matrix-sdk';
 
 // Grab types needed for encryption
 interface EncryptableBackend {

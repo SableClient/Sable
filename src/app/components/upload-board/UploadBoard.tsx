@@ -1,9 +1,14 @@
-import { MutableRefObject, ReactNode, useImperativeHandle, useRef } from 'react';
+import { type MutableRefObject, type ReactNode, useImperativeHandle, useRef } from 'react';
 import { Badge, Box, Chip, Header, Icon, Icons, Spinner, Text, as, percent } from 'folds';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
 
-import { TUploadFamilyObserverAtom, Upload, UploadStatus, UploadSuccess } from '$state/upload';
+import {
+  type TUploadFamilyObserverAtom,
+  type Upload,
+  UploadStatus,
+  type UploadSuccess,
+} from '$state/upload';
 import * as css from './UploadBoard.css';
 
 type UploadBoardProps = {

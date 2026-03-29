@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { MatrixError, Room, RoomCanonicalAliasEventContent } from '$types/matrix-sdk';
+import {
+  type MatrixError,
+  type Room,
+  type RoomCanonicalAliasEventContent,
+} from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { getStateEvent } from '$utils/room';
-import { AsyncState, useAsyncCallback } from './useAsyncCallback';
+import { type AsyncState, useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';
 import { useAlive } from './useAlive';
 import { useStateEvent } from './useStateEvent';

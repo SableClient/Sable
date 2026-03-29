@@ -1,4 +1,11 @@
-import { useCallback, DragEventHandler, RefObject, useState, useEffect, useRef } from 'react';
+import {
+  useCallback,
+  type DragEventHandler,
+  type RefObject,
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 import { getDataTransferFiles } from '$utils/dom';
 
 export const useFileDropHandler = (onDrop: (file: File[]) => void): DragEventHandler =>

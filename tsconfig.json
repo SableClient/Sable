@@ -4,20 +4,19 @@
     "target": "ESNext",
     "module": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "allowJs": true,
+    "allowJs": false,
     "checkJs": false,
     "strict": true,
-    "strictNullChecks": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "composite": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    // "verbatimModuleSyntax": true,
     "noEmit": true,
-    "noImplicitAny": true,
-    "alwaysStrict": true,
     "tsBuildInfoFile": "./.tsbuildinfo/tsconfig.tsbuildinfo",
     "baseUrl": ".",
     "paths": {
@@ -46,9 +45,6 @@
       "$client": ["src/client"],
       "$client/*": ["src/client/*"]
     }
-  },
-  "typeAcquisition": {
-    "enable": false
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.js", "src/**/*.jsx"],
   "exclude": ["node_modules", "dist", "coverage"]

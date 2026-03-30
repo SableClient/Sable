@@ -29,6 +29,8 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
   const [presence, setPresence] = useState(() => (user ? getUserPresence(user) : undefined));
 
   useEffect(() => {
+    setPresence(user ? getUserPresence(user) : undefined);
+
     const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {
       if (u.userId === user?.userId) {
         setPresence(getUserPresence(user));

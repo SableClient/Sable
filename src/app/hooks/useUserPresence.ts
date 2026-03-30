@@ -31,6 +31,27 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
   useEffect(() => {
     setPresence(user ? getUserPresence(user) : undefined);
 
+    let cancelled = false;
+
+    // Sliding sync (Synapse MSC4186) has no presence extension — m.presence events are never
+    // delivered via sync. As a result, User.presence stays at the SDK default and
+    // getLastActiveTs() stays 0. Fall back to a direct REST fetch to bootstrap presence state.
+    if (!user || user.getLastActiveTs() === 0) {
+      mx.getPresence(userId)
+        .then((resp) => {
+          if (cancelled) return;
+          setPresence({
+            presence: resp.presence as Presence,
+            status: resp.status_msg,
+            active: resp.currently_active ?? false,
+            lastActiveTs: resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
+          });
+        })
+        .catch(() => {
+          // Presence not available on this server (404 or not supported) — keep existing state.
+        });
+    }
+
     const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {
       if (u.userId === userId) {
         setPresence(getUserPresence(u));
@@ -56,6 +77,7 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     }
 
     return () => {
+      cancelled = true;
       user?.removeListener(UserEvent.Presence, updatePresence);
       user?.removeListener(UserEvent.CurrentlyActive, updatePresence);
       user?.removeListener(UserEvent.LastPresenceTs, updatePresence);

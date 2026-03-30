@@ -40,10 +40,12 @@ import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { logoutClient, initClient, stopClient } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
+import { useUserPresence } from '$hooks/useUserPresence';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { Settings } from '$features/settings';
 import { Modal500 } from '$components/Modal500';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -173,6 +175,7 @@ export function AccountSwitcherTab() {
 
   const myUserId = mx.getUserId() ?? '';
   const activeProfile = useUserProfile(myUserId);
+  const myPresence = useUserPresence(myUserId);
   const activeAvatarUrl = activeProfile.avatarUrl
     ? (mxcUrlToHttp(mx, activeProfile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
@@ -277,12 +280,20 @@ export function AccountSwitcherTab() {
             onClick={handleToggle}
             outlined={sessions.length > 1}
           >
-            <UserAvatar
-              userId={activeSession.userId}
-              src={activeAvatarUrl}
-              alt={label}
-              renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
-            />
+            <AvatarPresence
+              badge={
+                myPresence && myPresence.lastActiveTs !== 0 ? (
+                  <PresenceBadge presence={myPresence.presence} size="200" />
+                ) : undefined
+              }
+            >
+              <UserAvatar
+                userId={activeSession.userId}
+                src={activeAvatarUrl}
+                alt={label}
+                renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
+              />
+            </AvatarPresence>
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

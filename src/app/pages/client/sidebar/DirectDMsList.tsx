@@ -15,6 +15,8 @@ import {
 } from '$components/sidebar';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
+import { useUserPresence, Presence } from '$hooks/useUserPresence';
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
@@ -47,6 +49,28 @@ function DMItem({ room, selected }: DMItemProps) {
   // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
   // Members are sorted by who last sent messages (most recent first)
   const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS);
+
+  // Presence hooks — always called unconditionally (React rules of hooks).
+  // For single DMs: guessDMUserId() is synchronous; group slots use '' → undefined.
+  // For group DMs: singleDMUserId is '' → undefined; member slots use groupMembers.
+  const singleDMUserId = isGroupDM ? '' : room.guessDMUserId();
+  const singleDMPresence = useUserPresence(singleDMUserId);
+  const member0Presence = useUserPresence(isGroupDM ? (groupMembers[0]?.userId ?? '') : '');
+  const member1Presence = useUserPresence(isGroupDM ? (groupMembers[1]?.userId ?? '') : '');
+  const member2Presence = useUserPresence(isGroupDM ? (groupMembers[2]?.userId ?? '') : '');
+
+  const groupDMOnline =
+    isGroupDM &&
+    [member0Presence, member1Presence, member2Presence].some(
+      (p) => p && p.lastActiveTs !== 0 && p.presence === Presence.Online
+    );
+
+  const presenceBadge =
+    !isGroupDM && singleDMPresence && singleDMPresence.lastActiveTs !== 0 ? (
+      <PresenceBadge presence={singleDMPresence.presence} size="200" />
+    ) : isGroupDM && groupDMOnline ? (
+      <PresenceBadge presence={Presence.Online} size="200" />
+    ) : undefined;
 
   // Get unread info for badge
   const unread = roomToUnread.get(room.roomId);
@@ -133,7 +157,7 @@ function DMItem({ room, selected }: DMItemProps) {
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
-            {renderAvatar()}
+            <AvatarPresence badge={presenceBadge}>{renderAvatar()}</AvatarPresence>
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>

@@ -156,9 +156,11 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
-            <AvatarPresence badge={presenceBadge}>{renderAvatar()}</AvatarPresence>
-          </SidebarAvatar>
+          <AvatarPresence badge={presenceBadge}>
+            <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
+              {renderAvatar()}
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (

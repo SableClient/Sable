@@ -274,18 +274,18 @@ export function AccountSwitcherTab() {
     <SidebarItem active={!!menuAnchor || settingsOpen}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            onClick={handleToggle}
-            outlined={sessions.length > 1}
+          <AvatarPresence
+            badge={
+              myPresence && myPresence.lastActiveTs !== 0 ? (
+                <PresenceBadge presence={myPresence.presence} size="200" />
+              ) : undefined
+            }
           >
-            <AvatarPresence
-              badge={
-                myPresence && myPresence.lastActiveTs !== 0 ? (
-                  <PresenceBadge presence={myPresence.presence} size="200" />
-                ) : undefined
-              }
+            <SidebarAvatar
+              as="button"
+              ref={triggerRef}
+              onClick={handleToggle}
+              outlined={sessions.length > 1}
             >
               <UserAvatar
                 userId={activeSession.userId}
@@ -293,8 +293,8 @@ export function AccountSwitcherTab() {
                 alt={label}
                 renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
               />
-            </AvatarPresence>
-          </SidebarAvatar>
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (

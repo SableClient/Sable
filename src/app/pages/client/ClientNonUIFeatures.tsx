@@ -831,6 +831,12 @@ function PresenceFeature() {
     mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
     // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
+    // Synapse MSC4186 sliding sync has no presence extension, so setSyncPresence has no
+    // effect. Explicitly PUT /presence/{userId}/status so the server knows the user's
+    // state — otherwise GET /presence returns stale offline and own presence badge is grey.
+    mx.setPresence({ presence: sendPresence ? 'online' : 'offline' }).catch(() => {
+      // Server doesn't support presence — ignore.
+    });
   }, [mx, sendPresence]);
 
   return null;

@@ -72,13 +72,13 @@ async function main() {
   const projectRoot = process.cwd();
   const { write, roots } = parseArgs(process.argv.slice(2));
   const aliases = await loadAliasMapFromTsconfig(
-    path.join(projectRoot, 'tsconfig.json'),
+    path.join(projectRoot, 'tsconfig.web.json'),
     projectRoot
   );
   const { dim, red, green } = createTextHelpers();
 
   if (aliases.length === 0) {
-    throw new Error('No aliases found in tsconfig.json');
+    throw new Error('No aliases found in tsconfig.web.json');
   }
 
   const targetRoots = roots.map((root) => path.resolve(projectRoot, root));

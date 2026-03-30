@@ -118,7 +118,7 @@ const projectOverrides = defineConfig([
       'import-x/resolver-next': [
         createTypeScriptImportResolver({
           alwaysTryTypes: true,
-          project: ['tsconfig.json', 'tsconfig.node.json'],
+          project: ['tsconfig.web.json', 'tsconfig.node.json'],
         }),
       ],
     },
@@ -165,7 +165,7 @@ const projectOverrides = defineConfig([
     languageOptions: {
       parserOptions: {
         projectService: false,
-        project: ['tsconfig.json', 'tsconfig.node.json'],
+        project: ['tsconfig.web.json', 'tsconfig.node.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

@@ -8,8 +8,8 @@ on:
       - 'index.html'
       - 'package.json'
       - 'vite.config.ts'
+      - 'tsconfig.web.json'
       - 'tsconfig.json'
-      - 'tsconfig.build.json'
       - 'tsconfig.node.json'
   workflow_dispatch:
     inputs:

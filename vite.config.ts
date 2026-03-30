@@ -226,7 +226,7 @@ export default defineConfig(({ command }) => ({
       '@vanilla-extract/recipes/createRuntimeFn',
     ],
     needsInterop: ['matrix-widget-api'],
-    esbuildOptions: {
+    rolldownOptions: {
       define: {
         global: 'globalThis',
       },

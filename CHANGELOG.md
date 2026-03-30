@@ -1,5 +1,14 @@
 # Sable Client Changelog
 
+## 1.13.1 (2026-03-30)
+
+### Fixes
+
+* Add youtube shorts support to stop it from crashing sable. ([#578](https://github.com/SableClient/Sable/pull/578) by @nushea)
+* Fix rich-text reply previews and custom-formatted messages so unsafe HTML is filtered more strictly and Matrix colors render correctly. ([#571](https://github.com/SableClient/Sable/pull/571) by @hazre)
+* Fix crash when previewing non-video YouTube URLs (channels, @handles, etc.) that lack query parameters. ([#584](https://github.com/SableClient/Sable/pull/584) by @Just-Insane)
+* fix id handling and id generation for Personas ([#583](https://github.com/SableClient/Sable/pull/583) by @dozro)
+
 ## 1.13.0 (2026-03-28)
 
 ### Features

@@ -168,21 +168,19 @@ function parseYoutubeLink(url: string): YoutubeLink | null {
     [videoId] = split;
     params = split[1]?.split('&');
   } else if (url.includes('/shorts/')) {
-    const split = path.split('/shorts/');
+    const split = path.split('?');
     [videoId] = split;
-    params = split[1]?.split('shorts');
+    params = split[1]?.split('&') ?? [];
   } else if (url.includes('youtube.com')) {
-    params = path.split('?')[1].split('&');
-    videoId = params.find((s) => s.startsWith('v='), params)?.split('v=')[1];
+    params = path.split('?')[1]?.split('&') ?? [];
+    videoId = params.find((s) => s.startsWith('v='))?.split('v=')[1];
   } else return null;
 
   if (!videoId) return null;
 
   // playlist is not used for the embed, it can be appended as is
-  const playlist = params ? params.find((s) => s.startsWith('list='), params) : undefined;
-  const timestamp = params
-    ? params.find((s) => s.startsWith('t='), params)?.split('t=')[1]
-    : undefined;
+  const playlist = params ? params.find((s) => s.startsWith('list=')) : undefined;
+  const timestamp = params ? params.find((s) => s.startsWith('t='))?.split('t=')[1] : undefined;
 
   return {
     videoId,

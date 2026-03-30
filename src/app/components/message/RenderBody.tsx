@@ -9,6 +9,25 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { splitByAbbreviations } from '$utils/abbreviations';
 import { MessageEmptyContent } from './content';
 
+function getRenderedBodyText(text: string, highlightRegex?: RegExp): (string | JSX.Element)[] {
+  const emojiScaledText = scaleSystemEmoji(text);
+
+  return highlightRegex ? highlightText(highlightRegex, emojiScaledText) : emojiScaledText;
+}
+
+function renderLinkifiedBodyText(
+  text: string,
+  linkifyOpts: Opts,
+  highlightRegex: RegExp | undefined,
+  key?: string
+): JSX.Element {
+  return (
+    <Linkify key={key} options={linkifyOpts}>
+      {getRenderedBodyText(text, highlightRegex)}
+    </Linkify>
+  );
+}
+
 type AbbreviationTermProps = {
   text: string;
   definition: string;
@@ -92,7 +111,6 @@ export function buildAbbrReplaceTextNode(
 type RenderBodyProps = {
   body: string;
   customBody?: string;
-
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
@@ -107,7 +125,6 @@ export function RenderBody({
   const abbrMap = useRoomAbbreviationsContext();
 
   if (customBody) {
-    if (customBody === '') return <MessageEmptyContent />;
     return parse(sanitizeCustomHtml(customBody), htmlReactParserOptions);
   }
   if (body === '') return <MessageEmptyContent />;
@@ -122,24 +139,12 @@ export function RenderBody({
               const definition = abbrMap.get(seg.termKey) ?? '';
               return <AbbreviationTerm key={seg.id} text={seg.text} definition={definition} />;
             }
-            return (
-              <Linkify key={seg.id} options={linkifyOpts}>
-                {highlightRegex
-                  ? highlightText(highlightRegex, scaleSystemEmoji(seg.text))
-                  : scaleSystemEmoji(seg.text)}
-              </Linkify>
-            );
+            return renderLinkifiedBodyText(seg.text, linkifyOpts, highlightRegex, seg.id);
           })}
         </>
       );
     }
   }
 
-  return (
-    <Linkify options={linkifyOpts}>
-      {highlightRegex
-        ? highlightText(highlightRegex, scaleSystemEmoji(body))
-        : scaleSystemEmoji(body)}
-    </Linkify>
-  );
+  return renderLinkifiedBodyText(body, linkifyOpts, highlightRegex);
 }

@@ -51,8 +51,8 @@ const FLAG_PAT = String.raw`(?:^|\s)-(\w+)\b`;
 const FLAG_REG = new RegExp(FLAG_PAT);
 const FLAG_REG_G = new RegExp(FLAG_PAT, 'g');
 
-const ADDPMP_REGEX = /(\w+) (name=)?"?([\w\s]*)"? (avatar=)?([\w.:/]+)/;
-const USEPMP_REGEX = /^(\w+)\s*(-g)?(-o)?(-u)?\s*(\d+)?$/;
+const ADDPMP_REGEX = /(\S+) (name=)?"?([\w\s]*)"? (avatar=)?([\w.:/]+)/;
+const USEPMP_REGEX = /^(\S+)\s*(-g)?(-o)?(-u)?\s*(\d+)?$/;
 
 export const splitPayloadContentAndFlags = (payload: string): [string, string | undefined] => {
   const flagMatch = new RegExp(FLAG_REG).exec(payload);

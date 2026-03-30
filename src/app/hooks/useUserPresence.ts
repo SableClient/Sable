@@ -44,7 +44,8 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
             presence: resp.presence as Presence,
             status: resp.status_msg,
             active: resp.currently_active ?? false,
-            lastActiveTs: resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
+            lastActiveTs:
+              resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
           });
         })
         .catch(() => {

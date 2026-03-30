@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Text, Box } from 'folds';
@@ -65,12 +65,12 @@ function DMItem({ room, selected }: DMItemProps) {
       (p) => p && p.lastActiveTs !== 0 && p.presence === Presence.Online
     );
 
-  const presenceBadge =
-    !isGroupDM && singleDMPresence && singleDMPresence.lastActiveTs !== 0 ? (
-      <PresenceBadge presence={singleDMPresence.presence} size="200" />
-    ) : isGroupDM && groupDMOnline ? (
-      <PresenceBadge presence={Presence.Online} size="200" />
-    ) : undefined;
+  let presenceBadge: ReactNode;
+  if (!isGroupDM && singleDMPresence && singleDMPresence.lastActiveTs !== 0) {
+    presenceBadge = <PresenceBadge presence={singleDMPresence.presence} size="200" />;
+  } else if (isGroupDM && groupDMOnline) {
+    presenceBadge = <PresenceBadge presence={Presence.Online} size="200" />;
+  }
 
   // Get unread info for badge
   const unread = roomToUnread.get(room.roomId);

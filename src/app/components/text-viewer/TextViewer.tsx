@@ -1,11 +1,9 @@
-import { ComponentProps, HTMLAttributes, Suspense, forwardRef, lazy } from 'react';
+import { ComponentProps, HTMLAttributes, forwardRef } from 'react';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Scroll, Text, as } from 'folds';
-import { ErrorBoundary } from 'react-error-boundary';
+import { CodeHighlightRenderer } from '$components/code-highlight';
 import { copyToClipboard } from '$utils/dom';
 import * as css from './TextViewer.css';
-
-const ReactPrism = lazy(() => import('$plugins/react-prism/ReactPrism'));
 
 type TextViewerContentProps = {
   text: string;
@@ -21,11 +19,7 @@ export const TextViewerContent = forwardRef<HTMLPreElement, TextViewerContentPro
       {...props}
       ref={ref}
     >
-      <ErrorBoundary fallback={<code>{text}</code>}>
-        <Suspense fallback={<code>{text}</code>}>
-          <ReactPrism key={text}>{(codeRef) => <code ref={codeRef}>{text}</code>}</ReactPrism>
-        </Suspense>
-      </ErrorBoundary>
+      <CodeHighlightRenderer code={text} language={langName} allowDetect />
     </Text>
   )
 );

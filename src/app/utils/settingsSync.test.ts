@@ -40,7 +40,16 @@ describe('NON_SYNCABLE_KEYS', () => {
   });
 
   it('does not include ordinary syncable keys', () => {
-    const syncable = ['isMarkdown', 'twitterEmoji', 'messageLayout', 'urlPreview'] as const;
+    const syncable = [
+      'isMarkdown',
+      'twitterEmoji',
+      'messageLayout',
+      'urlPreview',
+      'useSystemArboriumTheme',
+      'arboriumThemeId',
+      'arboriumLightTheme',
+      'arboriumDarkTheme',
+    ] as const;
     syncable.forEach((key) => {
       expect(NON_SYNCABLE_KEYS.has(key)).toBe(false);
     });

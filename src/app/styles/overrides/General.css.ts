@@ -40,7 +40,9 @@ globalStyle(
     button[class*="_1684mq51"]:has(img):hover,
     [data-index] [class*="_1r9nvaso"]:hover,
     [data-index] [class*="_1r9nvaso"] *:hover,
-    [data-index] button:has(p):hover
+    [data-index] button:has(p):hover,
+    [data-index] button:hover,
+    [data-index] [role="button"]:hover
 `,
   {
     transform: 'none !important',

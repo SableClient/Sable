@@ -1,6 +1,6 @@
 import { JoinRule } from '$types/matrix-sdk';
 import { AvatarFallback, Icon, Icons, color } from 'folds';
-import { ComponentProps, ReactNode, forwardRef, useState } from 'react';
+import { ComponentProps, ReactNode, forwardRef, useEffect, useState } from 'react';
 import { getRoomIconSrc } from '$utils/room';
 import colorMXID from '$utils/colorMXID';
 import * as css from './RoomAvatar.css';
@@ -16,6 +16,10 @@ type RoomAvatarProps = {
 
 export function RoomAvatar({ roomId, src, alt, renderFallback, uniformIcons }: RoomAvatarProps) {
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
 
   if (!src || error) {
     return (

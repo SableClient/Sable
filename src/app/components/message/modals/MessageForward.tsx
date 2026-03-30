@@ -23,7 +23,7 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import * as css from '$features/room/message/styles.css';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { getStateEvents } from '$utils/room';
 import { StateEvent } from '$types/matrix/room';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -206,12 +206,12 @@ export function MessageForwardInternal({
 
       const safeHtml =
         originalFormattedBody === undefined
-          ? sanitizeCustomHtml(originalBody).replaceAll('\n', '<br>')
+          ? sanitizeText(originalBody).replaceAll('\n', '<br>')
           : sanitizeCustomHtml(originalFormattedBody);
 
       newBodyHtml =
         `<div data-forward-marker>` +
-        `<p>${sanitizeCustomHtml(bodyModifText)}</p>` +
+        `<p>${sanitizeText(bodyModifText)}</p>` +
         `<blockquote>${safeHtml}</blockquote>` +
         `</div>`;
     }
@@ -224,6 +224,8 @@ export function MessageForwardInternal({
         }
       : {};
     const baseContent = { ...mEvent.getContent() };
+    delete baseContent['m.relates_to']; // remove relations from the forwarded message
+    delete baseContent['m.mentions']; // remove mentions from forwarded message
     delete baseContent['com.beeper.per_message_profile']; // remove per-message profile as that could confuse clients in the target room
     let content;
     // handle privacy stuff
@@ -232,8 +234,6 @@ export function MessageForwardInternal({
       // we can still include the original message content in the body of the message, so we'll just use a fallback text/plain content with the original message body
       content = {
         ...baseContent,
-        'm.relates_to': null, // remove any relations to avoid confusion in the target room
-        'm.mentions': null, // remove mentions to avoid leaking information about users in the original room
         ...forwardedTextContent,
         'moe.sable.message.forward': {
           v: 1,
@@ -249,10 +249,6 @@ export function MessageForwardInternal({
       content = {
         ...baseContent,
         ...forwardedTextContent,
-        'm.relates_to': {
-          rel_type: 'm.reference',
-          event_id: eventId,
-        },
         'moe.sable.message.forward': {
           v: 1,
           is_forwarded: true,

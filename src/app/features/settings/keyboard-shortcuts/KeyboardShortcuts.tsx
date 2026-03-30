@@ -23,8 +23,7 @@ function formatKey(key: string): string {
   return key
     .replace(/\bmod\b/g, isMac ? '⌘' : 'Ctrl')
     .replace(/\balt\b/gi, isMac ? '⌥' : 'Alt')
-    .replace(/\bshift\b/gi, '⇧')
-    .replace(/\+/g, '+');
+    .replace(/\bshift\b/gi, '⇧');
 }
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [

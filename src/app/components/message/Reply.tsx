@@ -8,6 +8,7 @@ import { useAtomValue } from 'jotai';
 import { getMemberDisplayName, trimReplyFromBody, trimReplyFromFormattedBody } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { randomNumberBetween } from '$utils/common';
+import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   getReactCustomHtmlParser,
   scaleSystemEmoji,
@@ -91,6 +92,19 @@ type ReplyProps = {
   replyIcon?: JSX.Element;
 };
 
+export const sanitizeReplyFormattedPreview = (formattedBody: string): string => {
+  const safeFormattedBody = sanitizeCustomHtml(formattedBody);
+  const strippedHtml = trimReplyFromFormattedBody(safeFormattedBody)
+    .replaceAll(/<br\s*\/?>/gi, ' ')
+    .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
+    .replaceAll(/<\/?p[^>]*>/gi, '')
+    .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
+    .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
+    .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+
+  return strippedHtml;
+};
+
 export const Reply = as<'div', ReplyProps>(
   (
     { room, timelineSet, replyEventId, threadRootId, mentions, onClick, replyIcon, ...props },
@@ -125,6 +139,9 @@ export const Reply = as<'div', ReplyProps>(
 
     const badEncryption = replyEvent?.getContent().msgtype === 'm.bad.encrypted';
     const mentionClickHandler = useMentionClickHandler(room.roomId);
+    const isFormattedReply =
+      format === 'org.matrix.custom.html' && typeof formattedBody === 'string';
+    const hasPlainTextReply = typeof body === 'string' && body !== '';
 
     // An encrypted event that hasn't been decrypted yet (keys pending) has an
     // empty result from getClearContent().  Treat it as still-loading rather
@@ -157,22 +174,16 @@ export const Reply = as<'div', ReplyProps>(
       [mx, room.roomId, mentionClickHandler, nicknames]
     );
 
-    if (format === 'org.matrix.custom.html' && formattedBody) {
-      const strippedHtml = trimReplyFromFormattedBody(formattedBody)
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<\/p>\s*<p[^>]*>/gi, ' ')
-        .replaceAll(/<\/?p[^>]*>/gi, '')
-        .replaceAll(/<\/li>\s*<li[^>]*>/gi, ' ')
-        .replaceAll(/<\/?(ul|ol|li|blockquote|h[1-6]|pre|div)[^>]*>/gi, '')
-        .replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+    if (isFormattedReply && formattedBody !== '') {
+      const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
         linkifyOpts: replyLinkifyOpts,
         useAuthentication,
         nicknames,
         handleMentionClick: mentionClickHandler,
       });
-      bodyJSX = parse(strippedHtml, parserOpts) as JSX.Element;
-    } else if (body) {
+      bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
+    } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);
     } else if (eventType === StateEvent.RoomMember && !!replyEvent) {
@@ -230,6 +241,13 @@ export const Reply = as<'div', ReplyProps>(
         </>
       );
     }
+    let replyContent = bodyJSX;
+    if (isBlockedSender) {
+      replyContent = <MessageBlockedContent />;
+    } else if (badEncryption) {
+      replyContent = <MessageBadEncryptedContent />;
+    }
+
     return (
       <Box direction="Row" gap="200" alignItems="Center" {...props} ref={ref}>
         {threadRootId && (
@@ -254,11 +272,7 @@ export const Reply = as<'div', ReplyProps>(
         >
           {replyEvent !== undefined && !isPendingDecrypt ? (
             <Text size="T300" truncate>
-              {(() => {
-                if (isBlockedSender) return <MessageBlockedContent />;
-                if (badEncryption) return <MessageBadEncryptedContent />;
-                return bodyJSX;
-              })()}
+              {replyContent}
             </Text>
           ) : (
             (isRedacted && <MessageDeletedContent />) || (

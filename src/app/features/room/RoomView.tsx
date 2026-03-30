@@ -146,7 +146,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
           style={
             room.isCallRoom() && screenSize === ScreenSize.Desktop
               ? { maxWidth: toRem(399), minWidth: toRem(399) }
-              : {}
+              : undefined
           }
         >
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>

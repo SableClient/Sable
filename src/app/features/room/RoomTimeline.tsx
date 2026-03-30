@@ -205,6 +205,17 @@ export function RoomTimeline({
 
   const [shift, setShift] = useState(false);
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
+  const vListStyle = useMemo(
+    () => ({
+      flex: 1,
+      minHeight: 0,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
+      paddingBottom: config.space.S600,
+    }),
+    [topSpacerHeight]
+  );
 
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
@@ -839,14 +850,7 @@ export function RoomTimeline({
           data={processedEvents}
           shift={shift}
           className={css.messageList}
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
-            paddingBottom: config.space.S600,
-          }}
+          style={vListStyle}
           onScroll={handleVListScroll}
         >
           {(eventData, index) => {

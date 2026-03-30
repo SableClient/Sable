@@ -8,6 +8,7 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
 import { MatrixClient, Room } from 'matrix-js-sdk';
+import { generateShortId } from '$utils/shortIdGen';
 
 const pkMemberRenameRegex = /^(pk;member)\s+"?([\w\s]+)"?\s*rename\s+"?([\w\s]+)"?$/;
 const pkMemberNewRegex = /^(pk;member)\s+new\s+"?([\w\s]+)"?$/;
@@ -90,7 +91,7 @@ export class PKitCommandMessageHandler {
         return;
       }
       const memberName = cmdParts[2];
-      const generatedID = crypto.randomUUID();
+      const generatedID = generateShortId(5);
       sendFeedback(
         `adding new member has been created with id: ${generatedID} and name ${memberName}`,
         this.room,

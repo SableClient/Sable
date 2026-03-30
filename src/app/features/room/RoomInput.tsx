@@ -144,7 +144,7 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
 import { SchedulePickerDialog } from './schedule-send';
@@ -812,7 +812,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           /**
            * html escaped version of the display name
            */
-          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+          const escapedName = sanitizeText(perMessageProfile.name);
 
           const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 

@@ -73,7 +73,7 @@ import { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { Opts as LinkifyOpts } from 'linkifyjs';
 import { GetContentCallback } from '$types/matrix/room';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeText } from '$utils/sanitize';
 
 type MessageEditorProps = {
   roomId: string;
@@ -205,7 +205,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             plainText = bodyPrefix + plainText;
           }
 
-          const escapedName = sanitizeCustomHtml(pmpDisplayname);
+          const escapedName = sanitizeText(pmpDisplayname);
           const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
           if (!customHtml.startsWith(htmlPrefix)) {
             customHtml = htmlPrefix + customHtml;

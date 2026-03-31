@@ -242,8 +242,7 @@ export function Settings({
     setLegacyActivePage(SettingsPages.GeneralPage);
   };
 
-  const shouldShowSectionBack =
-    visibleSection !== null && (screenSize === ScreenSize.Mobile || visibleSection !== 'general');
+  const shouldShowSectionBack = visibleSection !== null && screenSize === ScreenSize.Mobile;
   const sectionRequestBack = shouldShowSectionBack ? handleRequestBack : undefined;
 
   return (

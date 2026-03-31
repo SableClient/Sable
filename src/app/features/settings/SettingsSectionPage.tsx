@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Box, Icon, IconButton, Icons, Text } from 'folds';
 import { Page, PageHeader } from '$components/page';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { settingsHeader } from './styles.css';
 
 type SettingsSectionPageProps = {
@@ -22,14 +23,16 @@ export function SettingsSectionPage({
   actionLabel,
   children,
 }: SettingsSectionPageProps) {
+  const screenSize = useScreenSizeContext();
   const closeLabel = actionLabel ?? 'Close';
+  const showBack = screenSize === ScreenSize.Mobile && requestBack;
 
   return (
     <Page>
       <PageHeader className={settingsHeader}>
         <Box grow="Yes" gap="200">
           <Box grow="Yes" alignItems="Center" gap="200">
-            {requestBack && (
+            {showBack && (
               <IconButton aria-label={backLabel ?? 'Back'} onClick={requestBack} variant="Surface">
                 <Icon src={Icons.ArrowLeft} />
               </IconButton>

@@ -355,7 +355,7 @@ describe('SettingsSectionPage', () => {
     ).toEqual(['Back', 'Close']);
   });
 
-  it('supports custom title semantics and close label', () => {
+  it('supports custom title semantics and close label without a desktop back button', () => {
     render(
       <ScreenSizeProvider value={ScreenSize.Desktop}>
         <SettingsSectionPage
@@ -369,7 +369,7 @@ describe('SettingsSectionPage', () => {
     );
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Keyboard Shortcuts');
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close keyboard shortcuts' })).toBeInTheDocument();
   });
 
@@ -720,18 +720,17 @@ describe('Settings shallow route shell', () => {
     expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
   });
 
-  it('returns to general settings when desktop section back is clicked', async () => {
+  it('does not show a desktop section back button in shallow settings', async () => {
     const user = userEvent.setup();
 
     renderClientShell(ScreenSize.Desktop);
 
     await user.click(screen.getByRole('button', { name: 'Open settings' }));
     await user.click(screen.getByRole('button', { name: 'Devices' }));
-    await user.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Devices section' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Devices section' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 
   it('closes a desktop shallow settings flow in one step after switching sections', async () => {

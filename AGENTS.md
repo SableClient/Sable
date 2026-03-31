@@ -7,7 +7,7 @@ Workflow and process rules for AI agents. These complement the universal rules i
 ## Git & Branching
 
 - Never commit directly to `dev` or `integration`.
-- When creating a branch, first sync `upstream/dev` to `origin/dev` and local `dev`, then branch from `dev`:
+- When creating a branch, first sync `upstream/dev` to `origin/dev` and local `dev`, then branch from `dev`, with `origin/dev` as the remote:
   ```
   git fetch upstream
   git checkout dev && git reset --hard upstream/dev

@@ -14,9 +14,9 @@ Workflow and process rules for AI agents. These complement the universal rules i
   git push origin dev
   git checkout -b feat/your-branch dev
   ```
-- Before building `integration`, always force-update `dev` from `upstream/dev`:
+- Before building `integration`, always force-update `origin/dev` from `upstream/dev`, then force-update `dev`:
   ```
-  git fetch upstream && git checkout dev && git reset --hard upstream/dev
+  git fetch upstream && git push origin upstream/dev:dev --force && git fetch origin && git checkout dev && git reset --hard origin/dev
   ```
 - When asked to build `integration`, always prompt for which feature/fix/chore branches to include. In general, include all non-`dev` branches.
 
@@ -67,6 +67,7 @@ pnpm build       # Production build — must succeed with no errors
 ## Destructive Actions
 
 Always ask before:
+
 - Deleting files or branches (`git branch -D`, `rm`, etc.)
 - Force-pushing (`git push --force`)
 - Hard-resetting local branches other than `dev`/`integration` (`git reset --hard`)

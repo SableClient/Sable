@@ -156,31 +156,48 @@ type YoutubeLink = {
   isMusic: boolean;
 };
 
-function parseYoutubeLink(url: string): YoutubeLink | null {
-  const urlsplit = url.split('/');
-  const path = urlsplit[urlsplit.length - 1];
+function parseYoutubeLink(url: Readonly<string>): YoutubeLink | null {
+  /**
+   * the parsed version of `url`
+   */
+  let parsedURL: URL;
+  try {
+    parsedURL = new URL(url);
+  } catch {
+    // new URL can throw
+    return null;
+  }
+  const urlHost = parsedURL.host;
+  const urlSearchParams = parsedURL.searchParams;
 
+  /**
+   * The id of the youtube video, for example `MTn_bhTVr2U`
+   */
   let videoId: string | undefined;
-  let params: string[];
 
-  if (url.includes('youtu.be')) {
-    const split = path.split('?');
-    [videoId] = split;
-    params = split[1]?.split('&');
-  } else if (url.includes('/shorts/')) {
-    const split = path.split('?');
-    [videoId] = split;
-    params = split[1]?.split('&') ?? [];
-  } else if (url.includes('youtube.com')) {
-    params = path.split('?')[1]?.split('&') ?? [];
-    videoId = params.find((s) => s.startsWith('v='))?.split('v=')[1];
+  if (urlHost === 'youtu.be' || urlHost.endsWith('.youtu.be')) {
+    // example https://youtu.be/MTn_bhTVr2U?si=xxxx
+    // pathname includes the leading `/` so we have to split that
+    videoId = parsedURL.pathname.slice(1);
+  } else if (parsedURL.pathname.startsWith('/shorts/')) {
+    // example https://youtube.com/shorts/R0KZIPOqITw?si=xxxx
+    videoId = parsedURL.pathname.split('/').findLast(Boolean);
+  } else if (
+    (urlHost === 'youtube.com' || urlHost.endsWith('.youtube.com')) &&
+    parsedURL.pathname === '/watch'
+  ) {
+    // example: https://www.youtube.com/watch?v=MTn_bhTVr2U&list=RDjcB4zu4KX10&index=3
+    // get returns null if `v` is not in the url
+    videoId = urlSearchParams.get('v') ?? undefined;
   } else return null;
 
   if (!videoId) return null;
 
   // playlist is not used for the embed, it can be appended as is
-  const playlist = params ? params.find((s) => s.startsWith('list=')) : undefined;
-  const timestamp = params ? params.find((s) => s.startsWith('t='))?.split('t=')[1] : undefined;
+  // returns null if `list` doesn't exist
+  const playlist = urlSearchParams.get('list') ?? undefined;
+  // returns null if `t` doesn't exist
+  const timestamp = urlSearchParams.get('t') ?? urlSearchParams.get('start') ?? undefined;
 
   return {
     videoId,

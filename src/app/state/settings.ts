@@ -28,6 +28,10 @@ export interface Settings {
   useSystemTheme: boolean;
   lightThemeId?: string;
   darkThemeId?: string;
+  useSystemArboriumTheme: boolean;
+  arboriumThemeId?: string;
+  arboriumLightTheme?: string;
+  arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
   isMarkdown: boolean;
@@ -124,6 +128,10 @@ const defaultSettings: Settings = {
   useSystemTheme: true,
   lightThemeId: undefined,
   darkThemeId: undefined,
+  useSystemArboriumTheme: true,
+  arboriumThemeId: 'dracula',
+  arboriumLightTheme: 'github-light',
+  arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
   isMarkdown: true,

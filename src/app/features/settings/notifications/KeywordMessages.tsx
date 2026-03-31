@@ -5,18 +5,20 @@ import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import {
   getNotificationModeActions,
   NotificationMode,
   NotificationModeOptions,
+  useNotificationActionsMode,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { NotificationModeSwitcher } from './NotificationModeSwitcher';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
+import { notificationModeSelectorOptions } from './notificationModeOptions';
 
 const NOTIFY_MODE_OPS: NotificationModeOptions = {
   highlight: true,
@@ -130,21 +132,30 @@ function KeywordModeSwitcher({ pushRule }: PushRulesProps) {
   const mx = useMatrixClient();
 
   const getModeActions = useNotificationModeActions(NOTIFY_MODE_OPS);
-
-  const handleChange = useCallback(
-    async (mode: NotificationMode) => {
-      const actions = getModeActions(mode);
-      await mx.setPushRuleActions(
-        'global',
-        PushRuleKind.ContentSpecific,
-        pushRule.rule_id,
-        actions
-      );
-    },
-    [mx, getModeActions, pushRule]
+  const selectedMode = useNotificationActionsMode(pushRule.actions);
+  const [changeState, change] = useAsyncCallback(
+    useCallback(
+      async (mode: NotificationMode) => {
+        const actions = getModeActions(mode);
+        await mx.setPushRuleActions(
+          'global',
+          PushRuleKind.ContentSpecific,
+          pushRule.rule_id,
+          actions
+        );
+      },
+      [mx, getModeActions, pushRule]
+    )
   );
 
-  return <NotificationModeSwitcher pushRule={pushRule} onChange={handleChange} />;
+  return (
+    <SettingMenuSelector
+      value={selectedMode}
+      options={notificationModeSelectorOptions}
+      onSelect={change}
+      loading={changeState.status === AsyncStatus.Loading}
+    />
+  );
 }
 
 export function KeywordMessagesNotifications() {

@@ -38,12 +38,12 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-color="#ff0000"');
   });
 
-  it('only keeps the permitted attributes on each tag', () => {
+  it('keeps only the permitted attributes on each tag while preserving markdown metadata', () => {
     const result = sanitizeCustomHtml(
-      '<span data-mx-color="#ff0000" data-mx-bg-color="#00ff00" data-mx-spoiler="spoiler" data-mx-maths="x" data-md="nope">span</span>' +
-        '<a href="https://example.com" target="_blank" rel="noreferrer">link</a>' +
-        '<ol start="2" type="A"><li>item</li></ol>' +
-        '<code class="language-typescript extra">code</code>' +
+      '<span data-mx-color="#ff0000" data-mx-bg-color="#00ff00" data-mx-spoiler="spoiler" data-mx-maths="x" data-md="**">span</span>' +
+        '<a href="https://example.com" target="_blank" rel="noreferrer" data-md="[]()">link</a>' +
+        '<ol start="2" type="A" data-md="1."><li>item</li></ol>' +
+        '<pre class="language-rust" data-md="```" data-lang="rust"><code class="language-rust" data-md="```" data-lang="rust">fn main() {}</code></pre>' +
         '<div data-mx-maths="x" data-md="nope">maths</div>'
     );
 
@@ -51,18 +51,25 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-bg-color="#00ff00"');
     expect(result).toContain('data-mx-spoiler="spoiler"');
     expect(result).toContain('data-mx-maths="x"');
-    expect(result).not.toContain('data-md=');
-    expect(result).toContain('<a href="https://example.com" target="_blank">link</a>');
+    expect(result).toContain('data-md="**"');
+    expect(result).toContain('href="https://example.com"');
+    expect(result).toContain('target="_blank"');
+    expect(result).toContain('data-md="[]()"');
     expect(result).not.toContain('rel=');
-    expect(result).toContain('<ol start="2">');
+    expect(result).toContain('<ol start="2" data-md="1.">');
     expect(result).not.toContain('type=');
-    expect(result).not.toContain('class=');
+    expect(result).toContain('class="language-rust"');
+    expect(result).toContain('data-lang="rust"');
+    expect(result).toContain('data-md="```"');
     expect(result).toContain('<div data-mx-maths="x">maths</div>');
   });
 
-  it('preserves a code class only when every class starts with language-', () => {
+  it('preserves a language class only when every class starts with language-', () => {
     expect(sanitizeCustomHtml('<code class="language-typescript">code</code>')).toContain(
       'class="language-typescript"'
+    );
+    expect(sanitizeCustomHtml('<pre class="language-rust"><code>code</code></pre>')).toContain(
+      'class="language-rust"'
     );
     expect(
       sanitizeCustomHtml('<code class="language-typescript language-js">code</code>')
@@ -88,25 +95,20 @@ describe('sanitizeCustomHtml', () => {
       '<a>matrix</a>'
     );
     expect(sanitizeCustomHtml('<a href="javascript:alert(1)">bad</a>')).toBe('<a>bad</a>');
+    expect(sanitizeCustomHtml('<a href="vbscript:msgbox(1)">bad</a>')).toBe('<a>bad</a>');
   });
 
-  it('keeps only mxc image sources', () => {
-    const allowed = sanitizeCustomHtml('<img src="mxc://example.com/abc123" alt="img" />');
+  it('keeps only mxc image sources and preserves custom-emote markers', () => {
+    const allowed = sanitizeCustomHtml(
+      '<img data-mx-emoticon src="mxc://example.com/abc123" alt="blobcat" title="blobcat" height="32" />'
+    );
     const blocked = sanitizeCustomHtml('<img src="https://example.com/image.jpg" alt="img" />');
 
     expect(allowed).toContain('<img');
+    expect(allowed).toContain('data-mx-emoticon');
     expect(allowed).toContain('src="mxc://example.com/abc123"');
+    expect(allowed).toContain('alt="blobcat"');
     expect(blocked).not.toContain('<img');
-  });
-
-  it('preserves legacy MSC2545 custom-emote markers on mxc images', () => {
-    const result = sanitizeCustomHtml(
-      '<img data-mx-emoticon src="mxc://example.com/abc123" alt="blobcat" title="blobcat" height="32" />'
-    );
-
-    expect(result).toContain('data-mx-emoticon');
-    expect(result).toContain('src="mxc://example.com/abc123"');
-    expect(result).toContain('alt="blobcat"');
   });
 
   it('restores only one validated image src after masking duplicate image source attributes', () => {

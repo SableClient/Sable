@@ -73,6 +73,9 @@ export const useAsync = <TData, TError, TArgs extends unknown[]>(
             });
           });
         }
+        // Re-throw so .then()/.catch() callers see the rejection and success
+        // handlers are skipped. Fire-and-forget unhandled-rejection warnings are
+        // suppressed at the useAsyncCallback level via a no-op .catch wrapper.
         throw e;
       }
 
@@ -102,7 +105,19 @@ export const useAsyncCallback = <TData, TError, TArgs extends unknown[]>(
     status: AsyncStatus.Idle,
   });
 
-  const callback = useAsync(asyncCallback, setState);
+  const innerCallback = useAsync(asyncCallback, setState);
+
+  // Re-throw preserves rejection for callers that await/chain; the no-op .catch
+  // suppresses "Uncaught (in promise)" for fire-and-forget call sites (e.g.
+  // loadSrc() in a useEffect) without swallowing the error from intentional callers.
+  const callback = useCallback(
+    (...args: TArgs): Promise<TData> => {
+      const p = innerCallback(...args);
+      p.catch(() => {});
+      return p;
+    },
+    [innerCallback]
+  ) as AsyncCallback<TArgs, TData>;
 
   return [state, callback, setState];
 };

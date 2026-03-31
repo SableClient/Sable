@@ -166,12 +166,34 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
   }, [handlePointerMove, handlePointerUp]);
 
   const zoomIn = useCallback(() => {
-    setZoom((z) => Math.min(z * (1 + step), max));
-  }, [setZoom, step, max]);
+    setTransforms((prev) => {
+      const newZoom = Math.min(prev.zoom * (1 + step), max);
+      const zoomMult = newZoom / prev.zoom;
+
+      return {
+        zoom: newZoom,
+        pan: {
+          x: prev.pan.x * zoomMult,
+          y: prev.pan.y * zoomMult,
+        },
+      };
+    });
+  }, [step, max]);
 
   const zoomOut = useCallback(() => {
-    setZoom((z) => Math.max(z / (1 + step), min));
-  }, [setZoom, step, min]);
+    setTransforms((prev) => {
+      const newZoom = Math.min(prev.zoom / (1 + step), max);
+      const zoomMult = newZoom / prev.zoom;
+
+      return {
+        zoom: newZoom,
+        pan: {
+          x: prev.pan.x * zoomMult,
+          y: prev.pan.y * zoomMult,
+        },
+      };
+    });
+  }, [step, max]);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {

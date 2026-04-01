@@ -1064,6 +1064,16 @@ export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   return false;
 };
 
+export async function getPinsHash(pinnedIds: string[]): Promise<string> {
+  const sorted = [...pinnedIds].toSorted().join(',');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(sorted);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hashHex.slice(0, 10);
+}
+
 export const isThreadRelationEvent = (mEvent: MatrixEvent, threadRootId?: string): boolean => {
   const relation =
     mEvent.getRelation?.() ??

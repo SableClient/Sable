@@ -40,7 +40,8 @@ import {
   NavItem,
   NavItemContent,
 } from '$components/nav';
-import { getDirectCreatePath, getDirectRoomPath } from '$pages/pathUtils';
+import { getDirectCreatePath, getDirectRoomPath, getDirectForumPath } from '$pages/pathUtils';
+import { CustomRoomType } from '$types/matrix/room';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { VirtualTile } from '$components/virtualizer';
@@ -362,7 +363,11 @@ export function Direct() {
                             direct
                             customDMCards={customDMCards}
                             hideText={hideText}
-                            linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            linkPath={
+                              room.getType() === CustomRoomType.Forum
+                                ? getDirectForumPath(getCanonicalAliasOrRoomId(mx, roomId))
+                                : getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))
+                            }
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId

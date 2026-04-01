@@ -104,6 +104,7 @@ export type MessageProps = {
   reply?: ReactNode;
   reactions?: ReactNode;
   hideReadReceipts?: boolean;
+  hideReplyButton?: boolean;
   showDeveloperTools?: boolean;
   memberPowerTag?: MemberPowerTag;
   hour24Clock: boolean;
@@ -352,6 +353,7 @@ function MessageInternal(
     reply,
     reactions,
     hideReadReceipts,
+    hideReplyButton,
     showDeveloperTools,
     memberPowerTag,
     hour24Clock,
@@ -937,6 +939,7 @@ function MessageInternal(
             onReplyClick={onReplyClick}
             onEditId={onEditId}
             hideReadReceipts={hideReadReceipts}
+            hideReplyButton={hideReplyButton}
             showDeveloperTools={showDeveloperTools}
             canPinEvent={canPinEvent}
             cleanedDisplayName={cleanedDisplayName}

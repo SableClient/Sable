@@ -1,14 +1,16 @@
 import { JoinRule, RoomType } from '$types/matrix-sdk';
 import type { ComponentType } from 'react';
 import type { IconProps } from '@phosphor-icons/react';
-import { Globe, HashStraight, Lock, SpeakerHigh, SquaresFour } from './phosphor';
+import { CustomRoomType } from '$types/matrix/room';
+import { Chats, Globe, HashStraight, Lock, SpeakerHigh, SquaresFour } from './phosphor';
 
 export type RoomPhosphorIcon = ComponentType<IconProps>;
 
 export type RoomIconOverlay = 'globe' | 'lock';
 
 const isRegularRoom = (roomType?: string): boolean =>
-  roomType !== RoomType.Space && roomType !== RoomType.UnstableCall;
+  roomType !== RoomType.Space &&
+  roomType !== RoomType.UnstableCall;
 
 export function getRoomIconOverlay(
   roomType?: string,
@@ -59,6 +61,17 @@ export function getRoomStandaloneIconComponent(
     return SpeakerHigh;
   }
 
+  if (roomType === CustomRoomType.Forum) {
+    if (
+      joinRule === JoinRule.Invite ||
+      joinRule === JoinRule.Knock ||
+      joinRule === JoinRule.Private
+    ) {
+      return Lock;
+    }
+    return Chats;
+  }
+
   if (joinRule === JoinRule.Public) return Globe;
   if (
     joinRule === JoinRule.Invite ||
@@ -93,6 +106,17 @@ export function getRoomIconComponent(roomType?: string, joinRule?: JoinRule): Ro
       return Lock;
     }
     return SpeakerHigh;
+  }
+
+  if (roomType === CustomRoomType.Forum) {
+    if (
+      joinRule === JoinRule.Invite ||
+      joinRule === JoinRule.Knock ||
+      joinRule === JoinRule.Private
+    ) {
+      return Lock;
+    }
+    return Chats;
   }
 
   return HashStraight;

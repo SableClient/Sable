@@ -20,11 +20,13 @@ import {
   REGISTER_PATH,
   RESET_PASSWORD_PATH,
   ROOT_PATH,
+  SETTINGS_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
   SPACE_ROOM_PATH,
   SPACE_SEARCH_PATH,
   CREATE_PATH,
+  SettingsPathSearchParams,
 } from './paths';
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
@@ -158,3 +160,11 @@ export const getCreatePath = (): string => CREATE_PATH;
 export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
+
+export const getSettingsPath = (section?: string, focus?: string): string => {
+  const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));
+  if (!focus) return path;
+
+  const params: SettingsPathSearchParams = { focus };
+  return `${path}?${new URLSearchParams(params).toString()}`;
+};

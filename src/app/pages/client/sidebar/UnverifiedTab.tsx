@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Badge, color, Icon, Icons, Text } from 'folds';
 import {
   SidebarAvatar,
@@ -14,12 +13,12 @@ import {
   VerificationStatus,
 } from '$hooks/useDeviceVerificationStatus';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
-import { Modal500 } from '$components/Modal500';
-import { Settings, SettingsPages } from '$features/settings';
+import { useOpenSettings } from '$features/settings';
 import * as css from './UnverifiedTab.css';
 
 function UnverifiedIndicator() {
   const mx = useMatrixClient();
+  const openSettings = useOpenSettings();
 
   const crypto = mx.getCrypto();
   const [devices] = useDeviceList();
@@ -40,15 +39,12 @@ function UnverifiedIndicator() {
     otherDevicesId
   );
 
-  const [settings, setSettings] = useState(false);
-  const closeSettings = () => setSettings(false);
-
   const hasUnverified =
     unverified || (unverifiedDeviceCount !== undefined && unverifiedDeviceCount > 0);
   return (
     <>
       {hasUnverified && (
-        <SidebarItem active={settings} className={css.UnverifiedTab}>
+        <SidebarItem className={css.UnverifiedTab}>
           <SidebarItemTooltip tooltip={unverified ? 'Unverified Device' : 'Unverified Devices'}>
             {(triggerRef) => (
               <SidebarAvatar
@@ -56,7 +52,7 @@ function UnverifiedIndicator() {
                 as="button"
                 ref={triggerRef}
                 outlined
-                onClick={() => setSettings(true)}
+                onClick={() => openSettings('devices')}
               >
                 <Icon
                   style={{ color: unverified ? color.Critical.Main : color.Warning.Main }}
@@ -75,11 +71,6 @@ function UnverifiedIndicator() {
             </SidebarItemBadge>
           )}
         </SidebarItem>
-      )}
-      {settings && (
-        <Modal500 requestClose={closeSettings}>
-          <Settings initialPage={SettingsPages.DevicesPage} requestClose={closeSettings} />
-        </Modal500>
       )}
     </>
   );

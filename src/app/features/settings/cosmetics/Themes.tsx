@@ -109,6 +109,7 @@ function SystemThemePreferences() {
     <Box wrap="Wrap" gap="400">
       <SettingTile
         title="Light Theme:"
+        focusId="light-theme"
         after={
           <SettingMenuSelector
             value={selectedLightThemeId}
@@ -127,6 +128,7 @@ function SystemThemePreferences() {
       />
       <SettingTile
         title="Dark Theme:"
+        focusId="dark-theme"
         after={
           <SettingMenuSelector
             value={selectedDarkThemeId}
@@ -195,6 +197,7 @@ function CodeBlockSystemThemePreferences() {
     <Box wrap="Wrap" gap="400">
       <SettingTile
         title="Light Theme:"
+        focusId="code-block-light-theme"
         after={
           <SettingMenuSelector
             value={selectedArboriumLightTheme}
@@ -213,6 +216,7 @@ function CodeBlockSystemThemePreferences() {
       />
       <SettingTile
         title="Dark Theme:"
+        focusId="code-block-dark-theme"
         after={
           <SettingMenuSelector
             value={selectedArboriumDarkTheme}
@@ -251,6 +255,7 @@ function CodeBlockThemeSettings() {
       >
         <SettingTile
           title="System Theme"
+          focusId="code-block-system-theme"
           description="Sync highlighted code with the app's active light/dark theme."
           after={
             <Switch
@@ -266,6 +271,7 @@ function CodeBlockThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Manual Theme"
+          focusId="code-block-manual-theme"
           description="Active when System Theme is disabled."
           after={<SelectCodeBlockTheme disabled={useSystemArboriumTheme} />}
         />
@@ -295,6 +301,7 @@ function ThemeSettings() {
       >
         <SettingTile
           title="System Theme"
+          focusId="system-theme"
           description="Sync with your device's light/dark mode."
           after={<Switch variant="Primary" value={systemTheme} onChange={setSystemTheme} />}
         />
@@ -304,6 +311,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Manual Theme"
+          focusId="manual-theme"
           description="Active when System Theme is disabled."
           after={<SelectTheme disabled={systemTheme} />}
         />
@@ -312,6 +320,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Saturation"
+          focusId="saturation"
           description={`${saturation}%`}
           after={
             <input
@@ -337,6 +346,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Underline Links"
+          focusId="underline-links"
           description="Always show underlines on links in chat, bios and room descriptions."
           after={<Switch variant="Primary" value={underlineLinks} onChange={setUnderlineLinks} />}
         />
@@ -344,6 +354,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Reduced Motion"
+          focusId="reduced-motion"
           description="Stops animations and sliding UI elements."
           after={<Switch variant="Primary" value={reducedMotion} onChange={setReducedMotion} />}
         />
@@ -351,6 +362,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay GIFs"
+          focusId="autoplay-gifs"
           description="Automatically play animated image uploads and links."
           after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
         />
@@ -358,6 +370,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay Stickers"
+          focusId="autoplay-stickers"
           description="Automatically play animated stickers."
           after={
             <Switch variant="Primary" value={autoplayStickers} onChange={setAutoplayStickers} />
@@ -367,6 +380,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay Emojis"
+          focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
         />
@@ -480,6 +494,7 @@ export function Appearance() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Twitter Emoji"
+            focusId="twitter-emoji"
             description="Use Twitter-style emojis instead of system native ones."
             after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
           />
@@ -488,18 +503,20 @@ export function Appearance() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Show Easter Eggs"
+            focusId="show-easter-eggs"
             description="Lets the interface keep a little mischief turned on."
             after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
           />
         </SequenceCard>
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile title="Page Zoom" after={<PageZoomInput />} />
+          <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
         </SequenceCard>
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Subspace Hierarchy Limit"
+            focusId="subspace-hierarchy-limit"
             description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
             after={<SubnestedSpaceLinkDepthInput />}
           />

@@ -73,6 +73,7 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
+  settingsLinkBaseUrlOverride?: string;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -175,6 +176,7 @@ const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
+  settingsLinkBaseUrlOverride: undefined,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',

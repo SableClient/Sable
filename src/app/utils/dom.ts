@@ -187,22 +187,35 @@ export const scrollToBottom = (scrollEl: HTMLElement, behavior?: 'auto' | 'insta
   });
 };
 
-export const copyToClipboard = (text: string) => {
+export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
-  } else {
-    const host = document.body;
-    const copyInput = document.createElement('input');
-    copyInput.style.position = 'fixed';
-    copyInput.style.opacity = '0';
-    copyInput.value = text;
-    host.append(copyInput);
-
-    copyInput.select();
-    copyInput.setSelectionRange(0, 99999);
-    document.execCommand('Copy');
-    copyInput.remove();
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
   }
+
+  const host = document.body;
+  const copyInput = document.createElement('input');
+  copyInput.style.position = 'fixed';
+  copyInput.style.opacity = '0';
+  copyInput.value = text;
+  host.append(copyInput);
+
+  copyInput.select();
+  copyInput.setSelectionRange(0, 99999);
+
+  let copied = false;
+  try {
+    copied = document.execCommand('Copy');
+  } catch {
+    copied = false;
+  }
+
+  copyInput.remove();
+  return copied;
 };
 
 export const setFavicon = (url: string): void => {

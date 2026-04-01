@@ -60,6 +60,10 @@ vi.mock('$hooks/useMentionClickHandler', () => ({
   useMentionClickHandler: () => undefined,
 }));
 
+vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
+  useSettingsLinkBaseUrl: () => 'https://app.sable.moe',
+}));
+
 vi.mock('$utils/room', async (importActual) => {
   const actual = await importActual<typeof import('$utils/room')>();
   return {

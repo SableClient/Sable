@@ -158,6 +158,7 @@ export function SpecialMessagesNotifications() {
       >
         <SettingTile
           title={`Mention User ID ("${userId}")`}
+          focusId="mention-user-id"
           after={
             <MentionModeSwitcher
               pushRules={pushRules}
@@ -175,6 +176,7 @@ export function SpecialMessagesNotifications() {
       >
         <SettingTile
           title={`Contains Displayname ${displayName ? `("${displayName}")` : ''}`}
+          focusId="contains-display-name"
           after={
             <MentionModeSwitcher
               pushRules={pushRules}
@@ -192,6 +194,7 @@ export function SpecialMessagesNotifications() {
       >
         <SettingTile
           title={`Contains Username ("${getMxIdLocalPart(userId)}")`}
+          focusId="contains-username"
           after={
             <MentionModeSwitcher
               pushRules={pushRules}
@@ -209,6 +212,7 @@ export function SpecialMessagesNotifications() {
       >
         <SettingTile
           title="Mention @room"
+          focusId="mention-room"
           description="Only triggers if the sender has permission to notify the whole room."
           after={
             intentionalMentions ? (

@@ -1,9 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as css from '$styles/CustomHtml.css';
+import * as customHtmlCss from '$styles/CustomHtml.css';
 import { sanitizeCustomHtml } from '$utils/sanitize';
-import { getReactCustomHtmlParser, LINKIFY_OPTS } from './react-custom-html-parser';
+import {
+  LINKIFY_OPTS,
+  factoryRenderLinkifyWithMention,
+  getReactCustomHtmlParser,
+  makeMentionCustomProps,
+  renderMatrixMention,
+} from './react-custom-html-parser';
+
+const settingsLinkBaseUrl = 'https://app.example';
 
 const { CodeHighlightRenderer } = vi.hoisted(() => ({
   CodeHighlightRenderer: vi.fn(
@@ -31,24 +39,26 @@ vi.mock('$components/code-highlight', () => ({
   CodeHighlightRenderer,
 }));
 
-function createMatrixClient() {
-  return {
+const createMatrixClient = (overrides: Record<string, unknown> = {}) =>
+  ({
+    getUserId: () => '@alice:example.org',
     getRoom: () => undefined,
-    getUserId: () => '@me:example.com',
     mxcUrlToHttp: () => null,
-  } as any;
-}
+    ...overrides,
+  }) as never;
 
 function renderParsedHtml(
   html: string,
   options: {
     sanitize?: boolean;
-    mx?: any;
+    mx?: ReturnType<typeof createMatrixClient>;
   } = {}
 ) {
   const { sanitize = true, mx = createMatrixClient() } = options;
   const parserOptions = getReactCustomHtmlParser(mx, '!room:example.com', {
+    settingsLinkBaseUrl,
     linkifyOpts: LINKIFY_OPTS,
+    handleMentionClick: undefined,
   });
 
   return render(<div>{parse(sanitize ? sanitizeCustomHtml(html) : html, parserOptions)}</div>);
@@ -76,7 +86,9 @@ describe('getReactCustomHtmlParser code blocks', () => {
     expect(arboriumCode).toHaveTextContent('fn main()');
     expect(arboriumCode).toHaveAttribute('data-language', 'rust');
     expect(arboriumCode).toHaveAttribute('data-allow-detect', 'false');
-    expect(container.querySelector('#code-block-content')).toHaveClass(css.CodeBlockInternal);
+    expect(container.querySelector('#code-block-content')).toHaveClass(
+      customHtmlCss.CodeBlockInternal
+    );
     expect(CodeHighlightRenderer).toHaveBeenCalledWith(
       expect.objectContaining({
         code: expect.stringContaining('let fifteenth = 15;'),
@@ -122,7 +134,75 @@ describe('getReactCustomHtmlParser code blocks', () => {
   });
 });
 
-describe('getReactCustomHtmlParser', () => {
+describe('react custom html parser', () => {
+  it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {
+    const renderLink = factoryRenderLinkifyWithMention(
+      settingsLinkBaseUrl,
+      () => undefined,
+      undefined
+    ) as (ir: never) => JSX.Element;
+
+    render(
+      <div>
+        {renderLink({
+          tagName: 'a',
+          attributes: {
+            href: 'https://app.example/settings/appearance?focus=message-link-preview',
+          },
+          content: 'https://app.example/settings/appearance?focus=message-link-preview',
+        } as never)}
+      </div>
+    );
+
+    const link = screen.getByRole('link', { name: 'Appearance / Message Link Preview' });
+    expect(link).toHaveAttribute('data-settings-link-section', 'appearance');
+    expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');
+    expect(link.className).toContain(customHtmlCss.Mention({}));
+    expect(link).not.toHaveTextContent('Settings:');
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
+  });
+
+  it('renders same-origin settings links as internal app links with settings metadata', () => {
+    renderParsedHtml(
+      '<a href="https://app.example/settings/appearance?focus=message-link-preview">Appearance</a>',
+      { sanitize: false }
+    );
+
+    const link = screen.getByRole('link', { name: 'Appearance' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://app.example/settings/appearance?focus=message-link-preview'
+    );
+    expect(link).toHaveAttribute('data-settings-link-section', 'appearance');
+    expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');
+    expect(link).not.toHaveAttribute('data-mention-id');
+    expect(link.className).toContain(customHtmlCss.Mention({}));
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
+  });
+
+  it('renders matrix message permalinks with an icon instead of the Message prefix', () => {
+    render(
+      <div>
+        {renderMatrixMention(
+          createMatrixClient({
+            getRoom: () => ({ roomId: '!room:example.org', name: 'Lobby' }),
+          }),
+          undefined,
+          'https://matrix.to/#/!room:example.org/$event123',
+          makeMentionCustomProps(undefined)
+        )}
+      </div>
+    );
+
+    const link = screen.getByRole('link', { name: '#Lobby' });
+    expect(link).toHaveAttribute('data-mention-id', '!room:example.org');
+    expect(link).toHaveAttribute('data-mention-event-id', '$event123');
+    expect(link.className).toContain(customHtmlCss.Mention({}));
+    expect(link.className).toContain(customHtmlCss.MentionWithIcon);
+    expect(link).not.toHaveTextContent('Message:');
+    expect(link.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  });
+
   it('translates Matrix color data attributes into rendered styles', () => {
     renderParsedHtml('<span data-mx-color="#ff0000" data-mx-bg-color="#00ff00">colored</span>');
 
@@ -150,7 +230,8 @@ describe('getReactCustomHtmlParser', () => {
 
   it('renders a readable fallback for unresolved legacy emote MXC images', () => {
     const { container } = renderParsedHtml(
-      '<img data-mx-emoticon src="mxc://example.org/emote" alt="blobcat" title="blobcat" height="32" />'
+      '<img data-mx-emoticon src="mxc://example.org/emote" alt="blobcat" title="blobcat" height="32" />',
+      { sanitize: false }
     );
 
     expect(screen.getByText(':blobcat:')).toBeInTheDocument();
@@ -159,7 +240,8 @@ describe('getReactCustomHtmlParser', () => {
 
   it('renders a readable fallback for unresolved non-emote MXC images', () => {
     const { container } = renderParsedHtml(
-      '<img src="mxc://example.org/image" alt="media" title="media" />'
+      '<img src="mxc://example.org/image" alt="media" title="media" />',
+      { sanitize: false }
     );
 
     expect(screen.getByText('media')).toBeInTheDocument();
@@ -169,7 +251,9 @@ describe('getReactCustomHtmlParser', () => {
   it('renders unresolved MXC fallbacks without emitting debug logs', () => {
     const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    renderParsedHtml('<img src="mxc://example.org/image" alt="media" title="media" />');
+    renderParsedHtml('<img src="mxc://example.org/image" alt="media" title="media" />', {
+      sanitize: false,
+    });
 
     expect(logSpy).not.toHaveBeenCalled();
   });

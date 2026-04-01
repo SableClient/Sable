@@ -38,6 +38,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
       >
         <SettingTile
           title="Global"
+          focusId="global-account-data"
           description="Data stored in your global account data."
           after={
             <Button

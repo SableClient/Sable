@@ -174,6 +174,17 @@ export const Mention = recipe({
   },
 });
 
+export const MentionWithIcon = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: toRem(2),
+});
+
+export const MentionIcon = style({
+  display: 'inline-flex',
+  flexShrink: 0,
+});
+
 export const Command = recipe({
   base: [
     DefaultReset,

@@ -1,5 +1,7 @@
 import { memo, useMemo, useCallback } from 'react';
 import { MsgType } from '$types/matrix-sdk';
+import { parseSettingsLink } from '$features/settings/settingsLink';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
@@ -80,6 +82,7 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
     [CaptionPosition.Below]: 'column',
@@ -102,7 +105,9 @@ function RenderMessageContentInternal({
 
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
-      const filteredUrls = urls.filter((url) => !testMatrixTo(url));
+      const filteredUrls = urls.filter(
+        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
+      );
       if (filteredUrls.length === 0) return undefined;
 
       const analyzed = filteredUrls.map((url) => ({
@@ -130,7 +135,7 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview, urlPreview]
+    [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
   );
   const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
 

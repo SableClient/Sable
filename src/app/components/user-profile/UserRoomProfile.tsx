@@ -34,6 +34,7 @@ import { RenderBody } from '$components/message';
 import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -315,21 +316,25 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const mentionClickHandler = useCallback((e: SyntheticEvent<HTMLElement>) => {
     e.preventDefault();
   }, []);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
 
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room, mentionClickHandler, nicknames]
+    [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
 
   const spoilerClickHandler = useSpoilerClickHandler();
@@ -337,11 +342,12 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
       }),
-    [mx, room, linkifyOpts, useAuthentication, spoilerClickHandler]
+    [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
   );
 
   return (

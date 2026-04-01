@@ -19,6 +19,7 @@ export function PKCompatSettings() {
         gap="100"
       >
         <SettingTile
+          focusId="enable-pk-commands"
           title="Enable PK commands"
           description="If enabled, it will enable a few pk style commands, currently verry limited"
           after={
@@ -31,6 +32,7 @@ export function PKCompatSettings() {
           }
         />
         <SettingTile
+          focusId="enable-pk-shorthands"
           title="Enable Shorthands"
           description="If enabled, you can use shorthands to use a Persona for one message only (eg. '✨:test')"
           after={

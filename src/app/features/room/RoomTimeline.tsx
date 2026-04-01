@@ -49,6 +49,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -179,6 +180,7 @@ export function RoomTimeline({
   const mediaAuthentication = useMediaAuthentication();
   const spoilerClickHandler = useSpoilerClickHandler();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
@@ -490,17 +492,20 @@ export function RoomTimeline({
   const linkifyOpts = useMemo(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room.roomId, mentionClickHandler, nicknames]
+    [mx, room.roomId, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
 
   const abbrMap = useRoomAbbreviationsContext();
@@ -508,6 +513,7 @@ export function RoomTimeline({
   const htmlReactParserOptions = useMemo(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         useAuthentication: mediaAuthentication,
         handleSpoilerClick: spoilerClickHandler,
@@ -525,6 +531,7 @@ export function RoomTimeline({
       nicknames,
       mediaAuthentication,
       spoilerClickHandler,
+      settingsLinkBaseUrl,
       abbrMap,
     ]
   );

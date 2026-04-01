@@ -8,13 +8,14 @@ import type {
 import { JoinRule, RestrictedAllowType, EventType, RoomType } from '$types/matrix-sdk';
 
 import type { StateEvents } from '$types/matrix-sdk';
+import type { CustomRoomType } from '$types/matrix/room';
 import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { CreateRoomAccess } from './types';
 import * as prefix from '$unstable/prefixes';
 
 export const createRoomCreationContent = (
-  type: RoomType | undefined,
+  type: RoomType | CustomRoomType | undefined,
   allowFederation: boolean,
   additionalCreators: string[] | undefined
 ): object => {
@@ -101,7 +102,7 @@ export const createVoiceRoomPowerLevelsOverride = () => ({
 
 export type CreateRoomData = {
   version: string;
-  type?: RoomType;
+  type?: RoomType | CustomRoomType;
   parent?: Room;
   access: CreateRoomAccess;
   name: string;

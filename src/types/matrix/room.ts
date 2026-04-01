@@ -20,6 +20,12 @@ export const CustomStateEvent = {
 } as const;
 export type CustomStateEvent = (typeof CustomStateEvent)[keyof typeof CustomStateEvent];
 
+// Custom room types not covered by the Matrix SDK's RoomType enum.
+export const CustomRoomType = {
+  Forum: 'm.forum',
+} as const;
+export type CustomRoomType = (typeof CustomRoomType)[keyof typeof CustomRoomType];
+
 export type MSpaceChildContent = {
   via: string[];
   suggested?: boolean;

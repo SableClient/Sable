@@ -62,7 +62,15 @@ import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
+import {
+  getHomeSearchPath,
+  getSpaceSearchPath,
+  getHomeForumPath,
+  getDirectForumPath,
+  getSpaceForumPath,
+  withSearchParam,
+} from '$pages/pathUtils';
+import { CustomRoomType } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
 import {
   getCanonicalAliasOrRoomId,
@@ -98,7 +106,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
+import { getPinsHash, hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
 
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -115,16 +123,6 @@ import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const log = createLogger('RoomViewHeader');
 
-async function getPinsHash(pinnedIds: string[]): Promise<string> {
-  const sorted = [...pinnedIds].toSorted().join(',');
-  const encoder = new TextEncoder();
-  const data = encoder.encode(sorted);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-  return hashHex.slice(0, 10);
-}
-
 export interface PinReadMarker {
   hash: string;
   count: number;
@@ -137,7 +135,9 @@ type RoomMenuProps = {
 };
 const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose }, ref) => {
   const mx = useMatrixClient();
+  const navigate = useNavigate();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
+  const [developerTools] = useSetting(settingsAtom, 'developerTools');
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
@@ -149,6 +149,9 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
   const { navigateRoom } = useRoomNavigate();
+  const parentSpace = useSpaceOptionally();
+  const isForum = room.getType() === CustomRoomType.Forum;
+  const isDirectRoom = useIsDirectRoom();
 
   const [invitePrompt, setInvitePrompt] = useState(false);
   const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
@@ -197,9 +200,21 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
   };
 
   const openSettings = useOpenRoomSettings();
-  const parentSpace = useSpaceOptionally();
   const handleOpenSettings = () => {
     openSettings(room.roomId, parentSpace?.roomId);
+    requestClose();
+  };
+
+  const handleOpenForumView = () => {
+    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+    if (parentSpace) {
+      const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace.roomId);
+      navigate(getSpaceForumPath(spaceIdOrAlias, roomIdOrAlias));
+    } else if (isDirectRoom) {
+      navigate(getDirectForumPath(roomIdOrAlias));
+    } else {
+      navigate(getHomeForumPath(roomIdOrAlias));
+    }
     requestClose();
   };
 
@@ -315,6 +330,13 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
             </>
           )}
         </UseStateProvider>
+        {(isForum || developerTools) && (
+          <MenuItem onClick={handleOpenForumView} size="300" after={menuIcon(Chats)} radii="300">
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Forum View
+            </Text>
+          </MenuItem>
+        )}
       </Box>
       <Line variant="Surface" size="300" />
       <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>

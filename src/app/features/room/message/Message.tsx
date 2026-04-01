@@ -255,6 +255,7 @@ export type MessageProps = {
   reply?: ReactNode;
   reactions?: ReactNode;
   hideReadReceipts?: boolean;
+  hideReplyButton?: boolean;
   showDeveloperTools?: boolean;
   memberPowerTag?: MemberPowerTag;
   hour24Clock: boolean;
@@ -440,6 +441,7 @@ function MessageInternal(
     reply,
     reactions,
     hideReadReceipts,
+    hideReplyButton,
     showDeveloperTools,
     memberPowerTag,
     hour24Clock,
@@ -1031,18 +1033,20 @@ function MessageInternal(
                   </IconButton>
                 </PopOut>
               )}
-              <IconButton
-                onClick={(ev) => {
-                  onReplyClick(ev);
-                  setMobileOptionsOpen(false);
-                }}
-                data-event-id={mEvent.getId()}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-              >
-                {menuIcon(ArrowBendUpLeftIcon)}
-              </IconButton>
+              {!hideReplyButton && (
+                <IconButton
+                  onClick={(ev) => {
+                    onReplyClick(ev);
+                    setMobileOptionsOpen(false);
+                  }}
+                  data-event-id={mEvent.getId()}
+                  variant="SurfaceVariant"
+                  size="300"
+                  radii="300"
+                >
+                  {menuIcon(ArrowBendUpLeftIcon)}
+                </IconButton>
+              )}
               {!isThreadedMessage && (
                 <IconButton
                   onClick={(ev) => {
@@ -1146,22 +1150,24 @@ function MessageInternal(
                             </MenuItem>
                           )}
                         {relations && <MessageAllReactionItem room={room} relations={relations} />}
-                        <MenuItem
-                          size="300"
-                          after={menuIcon(ArrowBendUpLeftIcon)}
-                          radii="300"
-                          data-event-id={mEvent.getId()}
-                          onClick={(evt: React.MouseEvent) => {
-                            onReplyClick(
-                              evt as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0]
-                            );
-                            closeMenu();
-                          }}
-                        >
-                          <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                            Reply
-                          </Text>
-                        </MenuItem>
+                        {!hideReplyButton && (
+                          <MenuItem
+                            size="300"
+                            after={menuIcon(ArrowBendUpLeftIcon)}
+                            radii="300"
+                            data-event-id={mEvent.getId()}
+                            onClick={(evt: React.MouseEvent) => {
+                              onReplyClick(
+                                evt as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0]
+                              );
+                              closeMenu();
+                            }}
+                          >
+                            <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+                              Reply
+                            </Text>
+                          </MenuItem>
+                        )}
                         {!isThreadedMessage && (
                           <MenuItem
                             size="300"

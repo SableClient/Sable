@@ -30,7 +30,12 @@ import { JoinRule, EventType, KnownMembership } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
-import { getSpaceLobbyPath, getSpaceRoomPath, getSpaceSearchPath } from '$pages/pathUtils';
+import {
+  getSpaceLobbyPath,
+  getSpaceRoomPath,
+  getSpaceForumPath,
+  getSpaceSearchPath,
+} from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useSpaceLobbySelected, useSpaceSearchSelected } from '$hooks/router/useSelectedSpace';
@@ -103,7 +108,7 @@ import { RoomAvatar } from '$components/room-avatar';
 import { getRoomAvatarUrl } from '$utils/room';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { CustomStateEvent } from '$types/matrix/room';
+import { CustomStateEvent, CustomRoomType } from '$types/matrix/room';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
 import { ModalWide } from '$styles/Modal.css';
 import { ImageViewer } from '$components/image-viewer';
@@ -841,8 +846,13 @@ export function Space() {
     return !collapsed;
   });
 
-  const getToLink = (roomId: string) =>
-    getSpaceRoomPath(spaceIdOrAlias, getCanonicalAliasOrRoomId(mx, roomId));
+  const getToLink = (roomId: string) => {
+    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+    if (mx.getRoom(roomId)?.getType() === CustomRoomType.Forum) {
+      return getSpaceForumPath(spaceIdOrAlias, roomIdOrAlias);
+    }
+    return getSpaceRoomPath(spaceIdOrAlias, roomIdOrAlias);
+  };
 
   const navigate = useNavigate();
   const lastRoomId = useAtomValue(lastVisitedRoomIdAtom);

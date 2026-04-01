@@ -33,6 +33,7 @@ import {
   getExplorePath,
   getHomeCreatePath,
   getHomeRoomPath,
+  getHomeForumPath,
   getHomeSearchPath,
   withSearchParam,
 } from '$pages/pathUtils';
@@ -40,6 +41,7 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useHomeSelected';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { CustomRoomType } from '$types/matrix/room';
 import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
 import { makeNavCategoryId } from '$state/closedNavCategories';
@@ -467,7 +469,11 @@ export function Home() {
                             selected={selected}
                             showAvatar={showIcons()}
                             hideText={hideText}
-                            linkPath={getHomeRoomPath(canonicalName)}
+                            linkPath={
+                              room.getType() === CustomRoomType.Forum
+                                ? getHomeForumPath(canonicalName)
+                                : getHomeRoomPath(canonicalName)
+                            }
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId

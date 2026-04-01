@@ -74,7 +74,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (!active) return;
+      if (!active || (e.pointerType === 'mouse' && e.button === 2)) return;
 
       e.stopPropagation();
       const target = e.target as HTMLElement;

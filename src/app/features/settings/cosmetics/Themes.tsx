@@ -507,6 +507,7 @@ export function Appearance() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Close Space Folders by Default"
+            focusId="collapse-folders-by-default"
             description="Collapse sidebar folders upon loading."
             after={
               <Switch

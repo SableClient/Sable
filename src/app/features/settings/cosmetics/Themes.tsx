@@ -468,6 +468,10 @@ function PageZoomInput() {
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
+    settingsAtom,
+    'closeFoldersByDefault'
+  );
 
   return (
     <Box direction="Column" gap="700">
@@ -482,6 +486,20 @@ export function Appearance() {
             title="Twitter Emoji"
             description="Use Twitter-style emojis instead of system native ones."
             after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Close Space Folders by Default"
+            description="Collapse sidebar folders upon loading."
+            after={
+              <Switch
+                variant="Primary"
+                value={closeFoldersByDefault}
+                onChange={setCloseFoldersByDefault}
+              />
+            }
           />
         </SequenceCard>
 

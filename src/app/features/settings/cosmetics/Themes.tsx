@@ -24,6 +24,7 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { ThemeCatalogSettings } from './ThemeCatalogSettings';
 
 function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
   return themes.map((theme) => ({
@@ -385,6 +386,8 @@ function ThemeSettings() {
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
         />
       </SequenceCard>
+
+      <ThemeCatalogSettings />
     </Box>
   );
 }

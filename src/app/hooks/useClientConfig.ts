@@ -45,6 +45,7 @@ export type ClientConfig = {
   settingsLinkBaseUrl?: string;
 
   themeCatalogBaseUrl?: string;
+  themeCatalogManifestUrl?: string;
   themeCatalogApprovedHostPrefixes?: string[];
 };
 

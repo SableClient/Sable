@@ -60,6 +60,7 @@ export function ThemeCatalogSettings({
   const patchSettings = usePatchSettings();
   const configBase = clientConfig.themeCatalogBaseUrl?.trim();
   const catalogBase = themeCatalogListingBaseUrl(configBase);
+  const catalogManifestUrl = clientConfig.themeCatalogManifestUrl?.trim() || undefined;
 
   const isAppearanceMode = mode === 'appearance';
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -125,8 +126,8 @@ export function ThemeCatalogSettings({
   );
 
   const pairsQuery = useQuery({
-    queryKey: ['theme-catalog-pairs', catalogBase],
-    queryFn: () => listThemePairsFromCatalog(catalogBase),
+    queryKey: ['theme-catalog-pairs', catalogBase, catalogManifestUrl ?? ''],
+    queryFn: () => listThemePairsFromCatalog(catalogBase, { manifestUrl: catalogManifestUrl }),
     enabled: isRemoteMode,
     staleTime: 5 * 60_000,
   });

@@ -13,8 +13,60 @@ export type ThemePair = {
   fullUrl: string;
 };
 
+export type ThemeCatalogManifest = {
+  version?: number;
+  themes?: ThemePair[];
+};
+
+export type ListThemeCatalogOptions = {
+  manifestUrl?: string | null;
+};
+
 const PREVIEW_SUFFIX = '.preview.sable.css';
 const FULL_SUFFIX = '.sable.css';
+
+export function themeCatalogManifestUrlFromBase(catalogBaseUrl: string): string | null {
+  const trimmed = catalogBaseUrl.trim();
+  if (!trimmed) return null;
+  const base = trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+  try {
+    return new URL('catalog.json', base).href;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchThemePairsFromManifest(manifestUrl: string): Promise<ThemePair[] | null> {
+  const res = await fetch(manifestUrl, { mode: 'cors' });
+  if (!res.ok) return null;
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const themes = (data as ThemeCatalogManifest).themes;
+  if (!Array.isArray(themes)) return null;
+  const pairs: ThemePair[] = [];
+  for (const row of themes) {
+    if (!row || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const basename = o.basename;
+    const previewUrl = o.previewUrl;
+    const fullUrl = o.fullUrl;
+    if (
+      typeof basename !== 'string' ||
+      typeof previewUrl !== 'string' ||
+      typeof fullUrl !== 'string'
+    ) {
+      continue;
+    }
+    if (!basename || !previewUrl || !fullUrl) continue;
+    pairs.push({ basename, previewUrl, fullUrl });
+  }
+  return pairs;
+}
 
 /** Path segments for GET /repos/.../contents/{path} */
 function directoryPathToApiSegment(directoryPath: string): string {
@@ -40,7 +92,17 @@ async function fetchGithubContents(parts: GithubRawParts): Promise<GithubContent
   return Array.isArray(data) ? data : [data];
 }
 
-export async function listThemePairsFromCatalog(baseUrl: string): Promise<ThemePair[]> {
+export async function listThemePairsFromCatalog(
+  baseUrl: string,
+  options?: ListThemeCatalogOptions
+): Promise<ThemePair[]> {
+  const manifestUrl =
+    options?.manifestUrl?.trim() || themeCatalogManifestUrlFromBase(baseUrl) || undefined;
+  if (manifestUrl) {
+    const fromManifest = await fetchThemePairsFromManifest(manifestUrl);
+    if (fromManifest !== null) return fromManifest;
+  }
+
   const parts = parseGithubRawBaseUrl(baseUrl);
   if (!parts) return [];
   const items = await fetchGithubContents(parts);

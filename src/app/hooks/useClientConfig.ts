@@ -43,6 +43,9 @@ export type ClientConfig = {
 
   matrixToBaseUrl?: string;
   settingsLinkBaseUrl?: string;
+
+  themeCatalogBaseUrl?: string;
+  themeCatalogApprovedHostPrefixes?: string[];
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

@@ -121,6 +121,14 @@ export interface Settings {
 
   // furry stuff
   renderAnimals: boolean;
+
+  // theme catalog
+  themeRemoteCatalogEnabled: boolean;
+  themeChatPreviewAnyUrl: boolean;
+  themeChatPreviewApprovedCatalogOnly: boolean;
+  themeRemoteManualFullUrl?: string;
+  themeRemoteLightFullUrl?: string;
+  themeRemoteDarkFullUrl?: string;
 }
 
 const defaultSettings: Settings = {
@@ -219,6 +227,14 @@ const defaultSettings: Settings = {
 
   // furry stuff
   renderAnimals: true,
+
+  // theme catalog
+  themeRemoteCatalogEnabled: false,
+  themeChatPreviewAnyUrl: false,
+  themeChatPreviewApprovedCatalogOnly: false,
+  themeRemoteManualFullUrl: undefined,
+  themeRemoteLightFullUrl: undefined,
+  themeRemoteDarkFullUrl: undefined,
 };
 
 export const getSettings = () => {

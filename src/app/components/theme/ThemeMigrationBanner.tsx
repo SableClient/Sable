@@ -22,9 +22,12 @@ import { trimTrailingSlash } from '$utils/common';
 import { defaultSettings, settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 
-import { usePatchSettings } from '$features/settings/cosmetics/ThemeCatalogSettings';
+import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatch';
 import { needsLegacyThemeMigration } from '../../theme/legacyToCatalogMap';
-import { DEFAULT_THEME_CATALOG_BASE, runLegacyThemeMigration } from '../../theme/migrateLegacyThemes';
+import {
+  DEFAULT_THEME_CATALOG_BASE,
+  runLegacyThemeMigration,
+} from '../../theme/migrateLegacyThemes';
 
 export function ThemeMigrationBanner() {
   const store = useStore();

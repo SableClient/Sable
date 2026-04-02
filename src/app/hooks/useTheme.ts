@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { isLocalImportThemeUrl } from '../theme/localImportUrls';
 import { onDarkFontWeight, onLightFontWeight } from '../../config.css';
 import { darkTheme, lightTheme } from '../../colors.css';
 
@@ -18,8 +19,11 @@ export type Theme = {
 
 export const REMOTE_THEME_ID = 'sable-remote-theme';
 
-const isHttpsThemeUrl = (u: string | undefined): u is string =>
-  Boolean(u && /^https:\/\//i.test(u.trim()));
+const isRemoteLoadedThemeUrl = (u: string | undefined): u is string => {
+  if (!u) return false;
+  const t = u.trim();
+  return /^https:\/\//i.test(t) || isLocalImportThemeUrl(t);
+};
 
 function parseRemoteKind(value: 'light' | 'dark' | undefined, fallback: ThemeKind): ThemeKind {
   if (value === 'dark') return ThemeKind.Dark;
@@ -102,7 +106,7 @@ export const useActiveTheme = (): Theme => {
   const [darkRemoteKind] = useSetting(settingsAtom, 'themeRemoteDarkKind');
 
   if (!systemTheme) {
-    if (isHttpsThemeUrl(manualRemoteUrl)) {
+    if (isRemoteLoadedThemeUrl(manualRemoteUrl)) {
       const inferred = themeId === 'dark-theme' ? ThemeKind.Dark : ThemeKind.Light;
       return makeRemoteTheme(manualRemoteUrl, parseRemoteKind(manualRemoteKind, inferred));
     }
@@ -111,7 +115,7 @@ export const useActiveTheme = (): Theme => {
 
   const isDark = systemThemeKind === ThemeKind.Dark;
   const slotRemoteUrl = isDark ? darkRemoteUrl : lightRemoteUrl;
-  if (isHttpsThemeUrl(slotRemoteUrl)) {
+  if (isRemoteLoadedThemeUrl(slotRemoteUrl)) {
     const defaultSlotKind = isDark ? ThemeKind.Dark : ThemeKind.Light;
     const slotKind = isDark ? darkRemoteKind : lightRemoteKind;
     return makeRemoteTheme(slotRemoteUrl, parseRemoteKind(slotKind, defaultSlotKind));

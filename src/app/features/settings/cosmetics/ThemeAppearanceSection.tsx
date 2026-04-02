@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Box, Button, Switch, Text } from 'folds';
 
 import { SettingMenuSelector } from '$components/setting-menu-selector';
@@ -133,77 +133,7 @@ function RemoteCatalogThemeSection({
 }: {
   onBrowseOpenChange?: (open: boolean) => void;
 }) {
-  const [browseOpen, setBrowseOpen] = useState(false);
-  const setBrowseOpenSafe = (open: boolean) => {
-    setBrowseOpen(open);
-    onBrowseOpenChange?.(open);
-  };
-
-  useEffect(() => {
-    onBrowseOpenChange?.(browseOpen);
-  }, [browseOpen, onBrowseOpenChange]);
-
-  return (
-    <Box direction="Column" gap="700">
-      {!browseOpen ? (
-        <>
-          <ThemeCatalogSettings mode="local" />
-
-          <SequenceCard
-            className={SequenceCardStyle}
-            variant="SurfaceVariant"
-            direction="Column"
-            gap="400"
-          >
-            <SettingTile
-              title="Browse themes"
-              focusId="theme-browse-remote"
-              description="Download themes from the official catalog (star to save locally)."
-              after={
-                <Button
-                  variant="Secondary"
-                  size="300"
-                  radii="300"
-                  onClick={() => setBrowseOpenSafe(true)}
-                >
-                  <Text size="B300">Browse themes</Text>
-                </Button>
-              }
-            />
-          </SequenceCard>
-
-          <ThemeCatalogSettings mode="chat" />
-        </>
-      ) : (
-        <>
-          <SequenceCard
-            className={SequenceCardStyle}
-            variant="SurfaceVariant"
-            direction="Column"
-            gap="400"
-          >
-            <SettingTile
-              title="Browse themes"
-              focusId="theme-browse-back"
-              description="Download themes from the catalog."
-              after={
-                <Button
-                  variant="Secondary"
-                  size="300"
-                  radii="300"
-                  onClick={() => setBrowseOpenSafe(false)}
-                >
-                  <Text size="B300">Back</Text>
-                </Button>
-              }
-            />
-          </SequenceCard>
-
-          <ThemeCatalogSettings mode="remote" />
-        </>
-      )}
-    </Box>
-  );
+  return <ThemeCatalogSettings mode="appearance" onBrowseOpenChange={onBrowseOpenChange} />;
 }
 
 export function ThemeAppearanceSection({

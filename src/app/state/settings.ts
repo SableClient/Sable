@@ -29,6 +29,7 @@ export type ThemeRemoteFavorite = {
   basename: string;
   kind: 'light' | 'dark';
   pinned?: boolean;
+  importedLocal?: boolean;
 };
 
 export interface Settings {

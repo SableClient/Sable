@@ -1,8 +1,6 @@
-import { type ChangeEventHandler, useCallback, useMemo, useState } from 'react';
+import { type ChangeEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Chip, Input, Spinner, Switch, Text, toRem } from 'folds';
-import { useStore } from 'jotai/react';
-
 import { useClientConfig } from '$hooks/useClientConfig';
 import { ThemeKind } from '$hooks/useTheme';
 import { trimTrailingSlash } from '$utils/common';
@@ -12,8 +10,12 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
-import { putCachedThemeCss } from '../../../theme/cache';
+import { usePatchSettings } from './themeSettingsPatch';
+import { ThemeImportModal } from './ThemeImportModal';
+import { getCachedThemeCss, putCachedThemeCss } from '../../../theme/cache';
 import { listThemePairsFromCatalog, type ThemePair } from '../../../theme/catalog';
+import { isLocalImportThemeUrl } from '../../../theme/localImportUrls';
+import { isThirdPartyThemeUrl } from '../../../theme/themeApproval';
 import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
@@ -39,6 +41,7 @@ export type LocalPreviewRow = ThemeRemoteFavorite & {
   author?: string;
   contrast: SableThemeContrast;
   tags: string[];
+  importedLocal?: boolean;
 };
 
 function previewUrlFromFullThemeUrl(fullUrl: string): string | undefined {
@@ -46,28 +49,37 @@ function previewUrlFromFullThemeUrl(fullUrl: string): string | undefined {
   return fullUrl.replace(/\.sable\.css$/i, '.preview.sable.css');
 }
 
-export function usePatchSettings() {
-  const store = useStore();
-  return useCallback(
-    (partial: Partial<Settings>) => {
-      const next = { ...store.get(settingsAtom), ...partial };
-      store.set(settingsAtom, next);
-    },
-    [store]
-  );
-}
+export type ThemeCatalogSettingsMode = 'full' | 'local' | 'chat' | 'remote' | 'appearance';
 
-export type ThemeCatalogSettingsMode = 'full' | 'local' | 'chat' | 'remote';
+export { usePatchSettings } from './themeSettingsPatch';
 
-export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSettingsMode }) {
+type ThemeCatalogSettingsProps = {
+  mode?: ThemeCatalogSettingsMode;
+  onBrowseOpenChange?: (open: boolean) => void;
+};
+
+export function ThemeCatalogSettings({
+  mode = 'full',
+  onBrowseOpenChange,
+}: ThemeCatalogSettingsProps) {
   const clientConfig = useClientConfig();
   const patchSettings = usePatchSettings();
   const configBase = clientConfig.themeCatalogBaseUrl?.trim();
   const catalogBase = `${trimTrailingSlash(configBase && configBase.length > 0 ? configBase : DEFAULT_CATALOG_BASE)}/`;
 
-  const isRemoteMode = mode === 'remote' || mode === 'full';
-  const isChatMode = mode === 'chat' || mode === 'full';
-  const isLocalMode = mode === 'local' || mode === 'full';
+  const isAppearanceMode = mode === 'appearance';
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAppearanceMode) {
+      onBrowseOpenChange?.(browseOpen);
+    }
+  }, [browseOpen, isAppearanceMode, onBrowseOpenChange]);
+
+  const isRemoteMode = mode === 'remote' || mode === 'full' || (isAppearanceMode && browseOpen);
+  const isChatMode = mode === 'chat' || mode === 'full' || (isAppearanceMode && !browseOpen);
+  const isLocalMode = mode === 'local' || mode === 'full' || (isAppearanceMode && !browseOpen);
 
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
   const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
@@ -189,21 +201,29 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
           if (!previewUrl) return undefined;
 
           try {
-            const res = await fetch(previewUrl, { mode: 'cors' });
-            if (!res.ok) return undefined;
-            const previewText = await res.text();
+            let previewText: string;
+            if (isLocalImportThemeUrl(previewUrl)) {
+              previewText = (await getCachedThemeCss(previewUrl)) ?? '';
+            } else {
+              const res = await fetch(previewUrl, { mode: 'cors' });
+              if (!res.ok) return undefined;
+              previewText = await res.text();
+            }
             const meta = parseSableThemeMetadata(previewText);
             const displayName = meta.name?.trim() || fav.displayName || fav.basename;
             const contrast: SableThemeContrast = meta.contrast === 'high' ? 'high' : 'low';
-            return {
+            const authorTrim = meta.author?.trim();
+            const row: LocalPreviewRow = {
               ...fav,
               previewUrl,
               previewText,
               displayName,
-              author: meta.author?.trim() || undefined,
               contrast,
               tags: meta.tags ?? [],
+              importedLocal: fav.importedLocal,
+              ...(authorTrim ? { author: authorTrim } : {}),
             };
+            return row;
           } catch {
             return undefined;
           }
@@ -307,6 +327,10 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
 
   const prefetchFull = useCallback(async (url: string): Promise<boolean> => {
     try {
+      if (isLocalImportThemeUrl(url)) {
+        const cached = await getCachedThemeCss(url);
+        return Boolean(cached);
+      }
       const res = await fetch(url, { mode: 'cors' });
       if (!res.ok) return false;
       const text = await res.text();
@@ -472,172 +496,6 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
 
   return (
     <Box direction="Column" gap="100">
-      {isChatMode && (
-        <>
-          <Text size="L400">Chat previews</Text>
-
-          <SequenceCard
-            className={SequenceCardStyle}
-            variant="SurfaceVariant"
-            direction="Column"
-            gap="400"
-          >
-            <SettingTile
-              title="Theme previews from any URL"
-              focusId="theme-chat-preview-any"
-              description="When enabled, messages linking to .preview.sable.css may fetch and show a preview (parsed for safety). Installing these third-party themes is not necessarily safe."
-              after={<Switch variant="Primary" value={chatAny} onChange={setChatAny} />}
-            />
-          </SequenceCard>
-        </>
-      )}
-
-      {isRemoteMode && (
-        <>
-          <Text size="L400">Browse catalog</Text>
-
-          {(pairsQuery.isPending || pairsQuery.isError) && (
-            <SequenceCard
-              className={SequenceCardStyle}
-              variant="SurfaceVariant"
-              direction="Column"
-              gap="400"
-            >
-              <Box direction="Column" gap="200">
-                {pairsQuery.isPending && (
-                  <Box direction="Row" gap="200" alignItems="Center">
-                    <Spinner variant="Primary" size="400" />
-                    <Text size="T300">Loading catalog…</Text>
-                  </Box>
-                )}
-                {pairsQuery.isError && (
-                  <Text size="T300" style={{ color: 'var(--sable-crit-main)' }}>
-                    {pairsQuery.error?.message ?? 'Failed to load catalog'}
-                  </Text>
-                )}
-              </Box>
-            </SequenceCard>
-          )}
-
-          {pairsQuery.isSuccess && pairsQuery.data.length > 0 && (
-            <SequenceCard
-              className={SequenceCardStyle}
-              variant="SurfaceVariant"
-              direction="Column"
-              gap="400"
-            >
-              {previewsQuery.isPending && (
-                <Box direction="Row" gap="200" alignItems="Center">
-                  <Spinner variant="Primary" size="400" />
-                  <Text size="T300">Loading previews…</Text>
-                </Box>
-              )}
-
-              {previewsQuery.isSuccess && (
-                <>
-                  <Input
-                    size="300"
-                    radii="300"
-                    outlined
-                    placeholder="Search name or tag…"
-                    value={search}
-                    onChange={onSearchChange}
-                  />
-                  <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                    <Text size="T300">Kind:</Text>
-                    {(['all', 'light', 'dark'] as const).map((k) => (
-                      <Chip
-                        key={k}
-                        type="button"
-                        variant={kindFilter === k ? 'Primary' : 'Secondary'}
-                        outlined={kindFilter === k}
-                        radii="Pill"
-                        onClick={() => setKindFilter(k)}
-                      >
-                        <Text size="B300">{k === 'all' ? 'All' : k}</Text>
-                      </Chip>
-                    ))}
-                    <Text size="T300">Contrast:</Text>
-                    {(['all', 'low', 'high'] as const).map((c) => (
-                      <Chip
-                        key={c}
-                        type="button"
-                        variant={contrastFilter === c ? 'Primary' : 'Secondary'}
-                        outlined={contrastFilter === c}
-                        radii="Pill"
-                        onClick={() => setContrastFilter(c)}
-                      >
-                        <Text size="B300">{c === 'all' ? 'All' : c}</Text>
-                      </Chip>
-                    ))}
-                  </Box>
-
-                  <Box
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                      gap: toRem(16),
-                    }}
-                  >
-                    {filteredRows.map((row) => {
-                      const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                      const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
-                      const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
-                      const line1 = `${kindLabel} · ${row.contrast} contrast`;
-                      const line2 = `${row.author ? `by ${row.author}` : ''}${
-                        row.tags.length > 0
-                          ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
-                          : ''
-                      }`.trim();
-                      const subtitle = (
-                        <>
-                          {line1}
-                          {line2 ? (
-                            <>
-                              <br />
-                              {line2}
-                            </>
-                          ) : null}
-                        </>
-                      );
-                      return (
-                        <ThemePreviewCard
-                          key={row.basename}
-                          title={row.displayName}
-                          subtitle={subtitle}
-                          previewCssText={row.previewText}
-                          scopeSlug={`catalog-${slug}`}
-                          copyText={row.previewUrl}
-                          isFavorited={isFav}
-                          onToggleFavorite={() => toggleFavorite(row)}
-                          systemTheme={systemTheme}
-                          onApplyLight={
-                            systemTheme ? () => installFromCatalogLight(row) : undefined
-                          }
-                          onApplyDark={systemTheme ? () => installFromCatalogDark(row) : undefined}
-                          onApplyManual={
-                            !systemTheme ? () => installFromCatalogManual(row) : undefined
-                          }
-                          isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
-                          isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
-                          isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
-                        />
-                      );
-                    })}
-                  </Box>
-
-                  {filteredRows.length === 0 && (
-                    <Text size="T300" priority="300">
-                      No themes match filters.
-                    </Text>
-                  )}
-                </>
-              )}
-            </SequenceCard>
-          )}
-        </>
-      )}
-
       {isLocalMode && (
         <>
           <SequenceCard
@@ -758,7 +616,14 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
                           subtitle={subtitle}
                           previewCssText={row.previewText}
                           scopeSlug={`local-${slug}`}
-                          copyText={row.previewUrl}
+                          copyText={row.importedLocal ? undefined : row.previewUrl}
+                          thirdParty={
+                            !row.importedLocal &&
+                            isThirdPartyThemeUrl(
+                              row.fullUrl,
+                              clientConfig.themeCatalogApprovedHostPrefixes
+                            )
+                          }
                           isFavorited
                           onToggleFavorite={() => removeFavorite(row.fullUrl)}
                           systemTheme={systemTheme}
@@ -779,6 +644,233 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
             )}
           </SequenceCard>
         </>
+      )}
+
+      {isAppearanceMode && !browseOpen && (
+        <>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Browse themes"
+              focusId="theme-browse-remote"
+              description="Download themes from the official catalog (star to save locally)."
+              after={
+                <Button
+                  variant="Secondary"
+                  size="300"
+                  radii="300"
+                  onClick={() => setBrowseOpen(true)}
+                >
+                  <Text size="B300">Browse themes</Text>
+                </Button>
+              }
+            />
+          </SequenceCard>
+
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Import a theme"
+              focusId="theme-import-open"
+              description="Add a theme from a link or from a CSS file on your device."
+              after={
+                <Button
+                  variant="Secondary"
+                  size="300"
+                  radii="300"
+                  onClick={() => setImportModalOpen(true)}
+                >
+                  <Text size="B300">Import…</Text>
+                </Button>
+              }
+            />
+          </SequenceCard>
+
+          <ThemeImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
+        </>
+      )}
+
+      {isRemoteMode && (
+        <>
+          {!isAppearanceMode && <Text size="L400">Browse catalog</Text>}
+
+          {(pairsQuery.isPending ||
+            pairsQuery.isError ||
+            (pairsQuery.isSuccess && pairsQuery.data.length > 0)) && (
+            <SequenceCard
+              className={SequenceCardStyle}
+              variant="SurfaceVariant"
+              direction="Column"
+              gap="400"
+            >
+              {isAppearanceMode && browseOpen && (
+                <SettingTile
+                  title="Browse themes"
+                  focusId="theme-browse-back"
+                  description="Download themes from the catalog."
+                  after={
+                    <Button
+                      variant="Secondary"
+                      size="300"
+                      radii="300"
+                      onClick={() => setBrowseOpen(false)}
+                    >
+                      <Text size="B300">Back</Text>
+                    </Button>
+                  }
+                />
+              )}
+
+              {(pairsQuery.isPending || pairsQuery.isError) && (
+                <Box direction="Column" gap="200">
+                  {pairsQuery.isPending && (
+                    <Box direction="Row" gap="200" alignItems="Center">
+                      <Spinner variant="Primary" size="400" />
+                      <Text size="T300">Loading catalog…</Text>
+                    </Box>
+                  )}
+                  {pairsQuery.isError && (
+                    <Text size="T300" style={{ color: 'var(--sable-crit-main)' }}>
+                      {pairsQuery.error?.message ?? 'Failed to load catalog'}
+                    </Text>
+                  )}
+                </Box>
+              )}
+
+              {pairsQuery.isSuccess && pairsQuery.data.length > 0 && (
+                <>
+                  {previewsQuery.isPending && (
+                    <Box direction="Row" gap="200" alignItems="Center">
+                      <Spinner variant="Primary" size="400" />
+                      <Text size="T300">Loading previews…</Text>
+                    </Box>
+                  )}
+
+                  {previewsQuery.isSuccess && (
+                    <>
+                      <Input
+                        size="300"
+                        radii="300"
+                        outlined
+                        placeholder="Search name or tag…"
+                        value={search}
+                        onChange={onSearchChange}
+                      />
+                      <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+                        <Text size="T300">Kind:</Text>
+                        {(['all', 'light', 'dark'] as const).map((k) => (
+                          <Chip
+                            key={k}
+                            type="button"
+                            variant={kindFilter === k ? 'Primary' : 'Secondary'}
+                            outlined={kindFilter === k}
+                            radii="Pill"
+                            onClick={() => setKindFilter(k)}
+                          >
+                            <Text size="B300">{k === 'all' ? 'All' : k}</Text>
+                          </Chip>
+                        ))}
+                        <Text size="T300">Contrast:</Text>
+                        {(['all', 'low', 'high'] as const).map((c) => (
+                          <Chip
+                            key={c}
+                            type="button"
+                            variant={contrastFilter === c ? 'Primary' : 'Secondary'}
+                            outlined={contrastFilter === c}
+                            radii="Pill"
+                            onClick={() => setContrastFilter(c)}
+                          >
+                            <Text size="B300">{c === 'all' ? 'All' : c}</Text>
+                          </Chip>
+                        ))}
+                      </Box>
+
+                      <Box
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                          gap: toRem(16),
+                        }}
+                      >
+                        {filteredRows.map((row) => {
+                          const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
+                          const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
+                          const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
+                          const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                          const line2 = `${row.author ? `by ${row.author}` : ''}${
+                            row.tags.length > 0
+                              ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
+                              : ''
+                          }`.trim();
+                          const subtitle = (
+                            <>
+                              {line1}
+                              {line2 ? (
+                                <>
+                                  <br />
+                                  {line2}
+                                </>
+                              ) : null}
+                            </>
+                          );
+                          return (
+                            <ThemePreviewCard
+                              key={row.basename}
+                              title={row.displayName}
+                              subtitle={subtitle}
+                              previewCssText={row.previewText}
+                              scopeSlug={`catalog-${slug}`}
+                              copyText={row.previewUrl}
+                              thirdParty={isThirdPartyThemeUrl(
+                                row.previewUrl,
+                                clientConfig.themeCatalogApprovedHostPrefixes
+                              )}
+                              isFavorited={isFav}
+                              onToggleFavorite={() => toggleFavorite(row)}
+                              systemTheme={systemTheme}
+                              onApplyLight={
+                                systemTheme ? () => installFromCatalogLight(row) : undefined
+                              }
+                              onApplyDark={
+                                systemTheme ? () => installFromCatalogDark(row) : undefined
+                              }
+                              onApplyManual={
+                                !systemTheme ? () => installFromCatalogManual(row) : undefined
+                              }
+                              isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
+                              isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
+                              isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
+                            />
+                          );
+                        })}
+                      </Box>
+
+                      {filteredRows.length === 0 && (
+                        <Text size="T300" priority="300">
+                          No themes match filters.
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </SequenceCard>
+          )}
+        </>
+      )}
+
+      {isChatMode && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <SettingTile
+            title="Theme previews from any URL"
+            focusId="theme-chat-preview-any"
+            description="When enabled, messages linking to .preview.sable.css may fetch and show a preview (parsed for safety). Installing these third-party themes is not necessarily safe."
+            after={<Switch variant="Primary" value={chatAny} onChange={setChatAny} />}
+          />
+        </SequenceCard>
       )}
     </Box>
   );

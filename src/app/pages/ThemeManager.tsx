@@ -12,6 +12,7 @@ import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
+import { isLocalImportThemeUrl } from '../theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 
@@ -21,6 +22,9 @@ async function loadRemoteThemeCssText(url: string): Promise<string | undefined> 
     if (cached) return cached;
   } catch {
     /* IndexedDB unavailable */
+  }
+  if (isLocalImportThemeUrl(url)) {
+    return undefined;
   }
   const res = await fetch(url, { mode: 'cors' });
   if (!res.ok) return undefined;

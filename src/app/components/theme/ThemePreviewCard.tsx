@@ -1,5 +1,16 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
-import { Box, Button, Icon, IconButton, Icons, Text, toRem, config } from 'folds';
+import {
+  Box,
+  Button,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipProvider,
+  toRem,
+  config,
+} from 'folds';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
@@ -25,6 +36,7 @@ export type ThemePreviewCardProps = {
 
   onRevert?: () => void;
   canRevert?: boolean;
+  thirdParty?: boolean;
 };
 
 function safeSlug(input: string): string {
@@ -49,6 +61,7 @@ export function ThemePreviewCard({
   isAppliedManual,
   onRevert,
   canRevert,
+  thirdParty,
 }: ThemePreviewCardProps) {
   const [copied, setCopied] = useTimeoutToggle();
 
@@ -79,7 +92,30 @@ export function ThemePreviewCard({
     >
       <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200">
         <Box direction="Column" gap="100" grow="Yes">
-          <Text size="H6">{title}</Text>
+          <Box direction="Row" gap="100" alignItems="Center" wrap="Wrap">
+            <Text size="H6">{title}</Text>
+            {thirdParty && (
+              <TooltipProvider
+                position="Top"
+                tooltip={
+                  <Tooltip style={{ maxWidth: toRem(280) }}>
+                    <Text size="T200">Third-party theme. Only use themes you trust.</Text>
+                  </Tooltip>
+                }
+              >
+                {(triggerRef) => (
+                  <Icon
+                    ref={triggerRef}
+                    src={Icons.Warning}
+                    size="100"
+                    filled
+                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
+                    aria-label="Third-party theme"
+                  />
+                )}
+              </TooltipProvider>
+            )}
+          </Box>
           {subtitle && (
             <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
               {subtitle}

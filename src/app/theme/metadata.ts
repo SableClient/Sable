@@ -9,7 +9,6 @@ export type SableThemeMetadata = {
   kind: ThemeKind;
   contrast: SableThemeContrast;
   tags: string[];
-  legacyIds: string[];
   fullThemeUrl?: string;
 };
 
@@ -62,13 +61,6 @@ export function parseSableThemeMetadata(cssText: string): Partial<SableThemeMeta
           break;
         case 'tags':
           out.tags = value
-            .split(',')
-            .map((t) => t.trim())
-            .filter(Boolean);
-          break;
-        case 'legacyids':
-        case 'legacy_ids':
-          out.legacyIds = value
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean);

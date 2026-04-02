@@ -45,6 +45,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
 
   const [importUrl, setImportUrl] = useState('');
   const [importPaste, setImportPaste] = useState('');
+  const [uploadedFileCss, setUploadedFileCss] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importFileName, setImportFileName] = useState<string | undefined>(undefined);
@@ -70,6 +71,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     if (!open) {
       setImportUrl('');
       setImportPaste('');
+      setUploadedFileCss(null);
       setImportError(null);
       setImportFileName(undefined);
       if (importFileRef.current) importFileRef.current.value = '';
@@ -114,9 +116,10 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportFileName(file.name);
+    setImportPaste('');
     const reader = new FileReader();
     reader.onload = () => {
-      setImportPaste(typeof reader.result === 'string' ? reader.result : '');
+      setUploadedFileCss(typeof reader.result === 'string' ? reader.result : '');
     };
     reader.readAsText(file);
   };
@@ -139,13 +142,18 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
       return;
     }
     const pasted = importPaste.trim();
-    if (!pasted) {
-      setImportError('Enter an HTTPS URL, paste CSS, or choose a file.');
+    const fromFile = uploadedFileCss?.trim();
+    const cssToImport = fromFile || pasted;
+    if (!cssToImport) {
+      setImportError('Enter an URL, paste CSS, or choose a file.');
       return;
     }
     setImportBusy(true);
     try {
-      const result = await processPastedOrUploadedCss(pasted, importFileName);
+      const result = await processPastedOrUploadedCss(
+        cssToImport,
+        fromFile ? importFileName : undefined
+      );
       if (!result.ok) {
         setImportError(result.error);
         return;
@@ -154,7 +162,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     } finally {
       setImportBusy(false);
     }
-  }, [addImportedFavorite, importFileName, importPaste, importUrl]);
+  }, [addImportedFavorite, importFileName, importPaste, importUrl, uploadedFileCss]);
 
   const dismissSafe = useCallback(() => {
     if (importBusy) return;
@@ -200,8 +208,9 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Text priority="400">
-                Paste a link to a theme file, or paste CSS / upload a .css file. Files from your
-                device stay local. HTTPS links are treated like other remote themes.
+                Paste a link to a theme file, or paste CSS / upload a .css file. If the CSS includes
+                fullThemeUrl and that URL loads, it is used, otherwise the theme is stored only on
+                this device. Links fetch remote themes.
               </Text>
               <SequenceCard
                 className={SequenceCardStyle}
@@ -213,15 +222,36 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                   size="300"
                   radii="300"
                   outlined
-                  placeholder="https://… (optional if importing from CSS below)"
+                  placeholder="https://…"
                   value={importUrl}
                   onChange={onImportUrlChange}
                 />
+                {importFileName && uploadedFileCss !== null && (
+                  <Box direction="Row" gap="200" alignItems="Center" wrap="Wrap">
+                    <Text size="T300" priority="300">
+                      Loaded file: <strong>{importFileName}</strong>.
+                    </Text>
+                    <Button
+                      variant="Secondary"
+                      size="300"
+                      radii="300"
+                      disabled={importBusy}
+                      onClick={() => {
+                        setUploadedFileCss(null);
+                        setImportFileName(undefined);
+                        if (importFileRef.current) importFileRef.current.value = '';
+                      }}
+                    >
+                      <Text size="B300">Clear file</Text>
+                    </Button>
+                  </Box>
+                )}
                 <textarea
                   value={importPaste}
                   onChange={onImportPasteChange}
                   placeholder="Paste .preview.sable.css or .sable.css text, or pick a file below…"
                   rows={6}
+                  disabled={Boolean(uploadedFileCss)}
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',

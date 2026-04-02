@@ -135,21 +135,22 @@ export async function processPastedOrUploadedCss(
   if (fullFromMeta && /^https:\/\//i.test(fullFromMeta)) {
     try {
       const fullRes = await fetch(fullFromMeta, { mode: 'cors' });
-      if (!fullRes.ok) return { ok: false, error: `Linked full theme failed (${fullRes.status}).` };
-      const fullCss = await fullRes.text();
-      await putCachedThemeCss(fullFromMeta, fullCss);
-      const previewMeta = parseSableThemeMetadata(trimmed);
-      return {
-        ok: true,
-        fullUrl: fullFromMeta,
-        previewCssForCard: trimmed,
-        displayName: previewMeta.name?.trim() || basenameFromHttpsUrl(fullFromMeta),
-        basename: basenameFromHttpsUrl(fullFromMeta),
-        kind: metaKindToLd(meta),
-        importedLocal: false,
-      };
+      if (fullRes.ok) {
+        const fullCss = await fullRes.text();
+        await putCachedThemeCss(fullFromMeta, fullCss);
+        const previewMeta = parseSableThemeMetadata(trimmed);
+        return {
+          ok: true,
+          fullUrl: fullFromMeta,
+          previewCssForCard: trimmed,
+          displayName: previewMeta.name?.trim() || basenameFromHttpsUrl(fullFromMeta),
+          basename: basenameFromHttpsUrl(fullFromMeta),
+          kind: metaKindToLd(meta),
+          importedLocal: false,
+        };
+      }
     } catch {
-      return { ok: false, error: 'Network error while downloading linked full theme.' };
+      /* unreachable URL / CORS — fall through to local import */
     }
   }
 

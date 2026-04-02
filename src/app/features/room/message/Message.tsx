@@ -2,16 +2,26 @@ import {
   Avatar,
   Box,
   Chip,
+  Button,
+  Dialog,
+  Header,
   Icon,
   IconButton,
   Icons,
+  Input,
   Line,
   Menu,
   MenuItem,
+  Modal,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   PopOut,
   RectCords,
+  Spinner,
   Text,
   as,
+  color,
   config,
 } from 'folds';
 import {
@@ -57,6 +67,7 @@ import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
+import { EventReaders } from '../../../components/event-readers';
 import { EmojiBoard } from '$components/emoji-board';
 import { UserAvatar } from '$components/user-avatar';
 import { copyToClipboard } from '$utils/dom';
@@ -75,7 +86,6 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { useBlobCache } from '$hooks/useBlobCache';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
-import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHistory';
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
@@ -134,8 +144,58 @@ export const MessageQuickReactions = as<'div', MessageQuickReactionsProps>(
         <Line size="300" />
       </>
     );
-  }
+  },
 );
+
+export const MessageReadReceiptItem = as<
+  'button',
+  {
+    room: Room;
+    eventId: string;
+    onClose?: () => void;
+  }
+>(({ room, eventId, onClose, ...props }, ref) => {
+  const [open, setOpen] = useState(false);
+
+  const handleClose = () => {
+    setOpen(false);
+    onClose?.();
+  };
+
+  return (
+    <>
+      <Overlay open={open} backdrop={<OverlayBackdrop />}>
+        <OverlayCenter>
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: handleClose,
+              clickOutsideDeactivates: true,
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Modal variant="Surface" size="300">
+              <EventReaders room={room} eventId={eventId} requestClose={handleClose} />
+            </Modal>
+          </FocusTrap>
+        </OverlayCenter>
+      </Overlay>
+      <MenuItem
+        size="300"
+        after={<Icon size="100" src={Icons.CheckTwice} />}
+        radii="300"
+        onClick={() => setOpen(true)}
+        {...props}
+        ref={ref}
+        aria-pressed={open}
+      >
+        <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+          Read Receipts
+        </Text>
+      </MenuItem>
+    </>
+  );
+});
 
 export const MessageCopyLinkItem = as<
   'button',
@@ -242,7 +302,7 @@ export type MessageProps = {
   onUsernameClick: MouseEventHandler<HTMLButtonElement>;
   onReplyClick: (
     ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
-    startThread?: boolean
+    startThread?: boolean,
   ) => void;
   onEditId?: (eventId?: string) => void;
   onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
@@ -282,7 +342,7 @@ function useMobileDoubleTap(callback: () => void, delay = 300) {
         lastTapRef.current = now;
       }
     },
-    [callback, delay]
+    [callback, delay],
   );
 }
 
@@ -315,7 +375,7 @@ const Pronouns = as<
   const visiblePronouns = filterPronounsByLanguage(
     pronouns,
     languageFilterEnabled,
-    selectedLanguages
+    selectedLanguages,
   );
 
   const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -377,7 +437,7 @@ function MessageInternal(
     msc2723ForwardedMessageProps,
     ...props
   }: MessageProps & { className?: string; children?: ReactNode },
-  ref: any
+  ref: any,
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -395,11 +455,6 @@ function MessageInternal(
       setContentVersion((v) => v + 1);
       triggerTimelineRegroup();
     };
-
-    if (mEvent.getClearContent()) {
-      setContentVersion((v) => (v === 0 ? 1 : v));
-      triggerTimelineRegroup();
-    }
 
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);
@@ -666,7 +721,7 @@ function MessageInternal(
       evt.stopPropagation();
       onResend?.(mEvent);
     },
-    [mEvent, onResend]
+    [mEvent, onResend],
   );
 
   const handleDeleteFailedSendClick: MouseEventHandler<HTMLButtonElement> = useCallback(
@@ -675,7 +730,7 @@ function MessageInternal(
       evt.stopPropagation();
       onDeleteFailedSend?.(mEvent);
     },
-    [mEvent, onDeleteFailedSend]
+    [mEvent, onDeleteFailedSend],
   );
 
   const MSG_CONTENT_STYLE = { maxWidth: '100%' };
@@ -989,7 +1044,7 @@ function MessageInternal(
                                   `sticker-${mEvent.getId()}`,
                                   mEvent.getContent().url ?? mEvent.getContent().file?.url ?? '',
                                   mEvent.getContent().body,
-                                  mEvent.getContent().info
+                                  mEvent.getContent().info,
                                 );
                                 closeMenu();
                               }}
@@ -1062,7 +1117,11 @@ function MessageInternal(
                           </MenuItem>
                         )}
                         {!hideReadReceipts && (
-                          <MessageReadReceiptItem room={room} eventId={mEvent.getId() ?? ''} />
+                          <MessageReadReceiptItem
+                            room={room}
+                            eventId={mEvent.getId() ?? ''}
+                            onClose={closeMenu}
+                          />
                         )}
                         {isEdited && (
                           <MessageEditHistoryItem
@@ -1237,7 +1296,7 @@ export type EventProps = {
   canDelete?: boolean;
   onReplyClick: (
     ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
-    startThread?: boolean
+    startThread?: boolean,
   ) => void;
   messageSpacing: MessageSpacing;
   hideReadReceipts?: boolean;
@@ -1261,7 +1320,7 @@ export const Event = as<'div', EventProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     const mx = useMatrixClient();
     const stateEvent = typeof mEvent.getStateKey() === 'string';
@@ -1457,5 +1516,5 @@ export const Event = as<'div', EventProps>(
         </div>
       </MessageBase>
     );
-  }
+  },
 );

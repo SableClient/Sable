@@ -23,6 +23,13 @@ export enum CaptionPosition {
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
+export type ThemeRemoteFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  kind: 'light' | 'dark';
+};
+
 export interface Settings {
   themeId?: string;
   useSystemTheme: boolean;
@@ -111,9 +118,6 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
-  /**
-   * whether to enable pk compat
-   */
   pkCompat: boolean;
   pmpProxying: boolean;
   mentionInReplies: boolean;
@@ -123,13 +127,14 @@ export interface Settings {
   renderAnimals: boolean;
 
   // theme catalog
+  themeCatalogOnboardingDone: boolean;
+  themeRemoteFavorites: ThemeRemoteFavorite[];
   themeRemoteCatalogEnabled: boolean;
   themeChatPreviewAnyUrl: boolean;
   themeChatPreviewApprovedCatalogOnly: boolean;
   themeRemoteManualFullUrl?: string;
   themeRemoteLightFullUrl?: string;
   themeRemoteDarkFullUrl?: string;
-  /** for Arborium / UI kind **/
   themeRemoteManualKind?: 'light' | 'dark';
   themeRemoteLightKind?: 'light' | 'dark';
   themeRemoteDarkKind?: 'light' | 'dark';
@@ -233,6 +238,8 @@ const defaultSettings: Settings = {
   renderAnimals: true,
 
   // theme catalog
+  themeCatalogOnboardingDone: false,
+  themeRemoteFavorites: [],
   themeRemoteCatalogEnabled: false,
   themeChatPreviewAnyUrl: false,
   themeChatPreviewApprovedCatalogOnly: false,
@@ -258,10 +265,19 @@ export const getSettings = () => {
   }
   delete parsed.monochromeMode;
 
-  return {
+  const merged = {
     ...defaultSettings,
     ...(parsed as Settings),
   };
+
+  if (merged.themeCatalogOnboardingDone === undefined) {
+    merged.themeCatalogOnboardingDone = merged.themeRemoteCatalogEnabled === true;
+  }
+  if (!merged.themeRemoteFavorites) {
+    merged.themeRemoteFavorites = [];
+  }
+
+  return merged;
 };
 
 export const setSettings = (settings: Settings) => {

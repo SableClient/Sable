@@ -21,10 +21,7 @@ export const REMOTE_THEME_ID = 'sable-remote-theme';
 const isHttpsThemeUrl = (u: string | undefined): u is string =>
   Boolean(u && /^https:\/\//i.test(u.trim()));
 
-function parseRemoteKind(
-  value: 'light' | 'dark' | undefined,
-  fallback: ThemeKind
-): ThemeKind {
+function parseRemoteKind(value: 'light' | 'dark' | undefined, fallback: ThemeKind): ThemeKind {
   if (value === 'dark') return ThemeKind.Dark;
   if (value === 'light') return ThemeKind.Light;
   return fallback;
@@ -32,8 +29,7 @@ function parseRemoteKind(
 
 function makeRemoteTheme(url: string, kind: ThemeKind): Theme {
   const fw = kind === ThemeKind.Dark ? onDarkFontWeight : onLightFontWeight;
-  const kindClass =
-    kind === ThemeKind.Dark ? 'sable-remote-kind-dark' : 'sable-remote-kind-light';
+  const kindClass = kind === ThemeKind.Dark ? 'sable-remote-kind-dark' : 'sable-remote-kind-light';
   const legacyCssTheme = kind === ThemeKind.Dark ? 'dark-theme' : 'light-theme';
   const veTheme = kind === ThemeKind.Dark ? darkTheme : lightTheme;
   return {
@@ -107,16 +103,8 @@ export const useActiveTheme = (): Theme => {
 
   if (!systemTheme) {
     if (isHttpsThemeUrl(manualRemoteUrl)) {
-      const inferred =
-        themeId === 'dark-theme'
-          ? ThemeKind.Dark
-          : themeId === 'light-theme'
-            ? ThemeKind.Light
-            : ThemeKind.Light;
-      return makeRemoteTheme(
-        manualRemoteUrl,
-        parseRemoteKind(manualRemoteKind, inferred)
-      );
+      const inferred = themeId === 'dark-theme' ? ThemeKind.Dark : ThemeKind.Light;
+      return makeRemoteTheme(manualRemoteUrl, parseRemoteKind(manualRemoteKind, inferred));
     }
     return themes.find((theme) => theme.id === themeId) ?? LightTheme;
   }

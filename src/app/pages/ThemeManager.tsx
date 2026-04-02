@@ -8,10 +8,10 @@ import {
   useActiveTheme,
   useSystemThemeKind,
 } from '$hooks/useTheme';
-import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 
@@ -84,28 +84,27 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const url = activeTheme.remoteFullUrl?.trim();
-    if (!url) {
-      document.getElementById(REMOTE_STYLE_ID)?.remove();
-      return;
-    }
-
     let cancelled = false;
 
-    (async () => {
-      const text = await loadRemoteThemeCssText(url);
-      if (cancelled) return;
-      if (!text) {
-        document.getElementById(REMOTE_STYLE_ID)?.remove();
-        return;
-      }
-      let node = document.getElementById(REMOTE_STYLE_ID) as HTMLStyleElement | null;
-      if (!node) {
-        node = document.createElement('style');
-        node.id = REMOTE_STYLE_ID;
-        document.head.appendChild(node);
-      }
-      node.textContent = text;
-    })();
+    if (url) {
+      (async () => {
+        const text = await loadRemoteThemeCssText(url);
+        if (cancelled) return;
+        if (!text) {
+          document.getElementById(REMOTE_STYLE_ID)?.remove();
+          return;
+        }
+        let node = document.getElementById(REMOTE_STYLE_ID) as HTMLStyleElement | null;
+        if (!node) {
+          node = document.createElement('style');
+          node.id = REMOTE_STYLE_ID;
+          document.head.appendChild(node);
+        }
+        node.textContent = text;
+      })();
+    } else {
+      document.getElementById(REMOTE_STYLE_ID)?.remove();
+    }
 
     return () => {
       cancelled = true;

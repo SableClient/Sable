@@ -258,17 +258,23 @@ type CosmeticsProps = {
 };
 
 export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
+  const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
+
   return (
     <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
-              <Appearance />
-              <IdentityCosmetics />
-              <JumboEmoji />
-              <Privacy />
-              <LanguageSpecificPronouns />
+              <Appearance onThemeBrowserOpenChange={setThemeBrowserOpen} />
+              {!themeBrowserOpen && (
+                <>
+                  <IdentityCosmetics />
+                  <JumboEmoji />
+                  <Privacy />
+                  <LanguageSpecificPronouns />
+                </>
+              )}
             </Box>
           </PageContent>
         </Scroll>

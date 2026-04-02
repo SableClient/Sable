@@ -10,17 +10,19 @@ const DANGEROUS_VALUE = /url\s*\(|@import|expression\s*\(|javascript:|\\0|<!--|-
 export function extractSafePreviewCustomProperties(cssText: string): Record<string, string> {
   const noComments = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
   const vars: Record<string, string> = {};
-  for (const line of noComments.split(/\r?\n/)) {
+  noComments.split(/\r?\n/).forEach((line) => {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('@')) continue;
-    const m = trimmed.match(PROP_RE);
-    if (!m) continue;
-    const name = m[1];
-    let val = m[2].trim();
-    if (DANGEROUS_VALUE.test(val)) continue;
-    if (val.length > 2000) continue;
-    vars[name] = val;
-  }
+    if (trimmed && !trimmed.startsWith('@')) {
+      const m = trimmed.match(PROP_RE);
+      if (m) {
+        const name = m[1];
+        const val = m[2].trim();
+        if (!DANGEROUS_VALUE.test(val) && val.length <= 2000) {
+          vars[name] = val;
+        }
+      }
+    }
+  });
   return vars;
 }
 

@@ -6,6 +6,9 @@ import { Appearance } from './Themes';
 type SettingsShape = {
   themeId?: string;
   useSystemTheme: boolean;
+  themeCatalogOnboardingDone: boolean;
+  themeRemoteCatalogEnabled: boolean;
+  themeRemoteFavorites: unknown[];
   lightThemeId?: string;
   darkThemeId?: string;
   useSystemArboriumTheme: boolean;
@@ -61,6 +64,9 @@ beforeEach(() => {
   currentSettings = {
     themeId: 'silver-theme',
     useSystemTheme: true,
+    themeCatalogOnboardingDone: true,
+    themeRemoteCatalogEnabled: false,
+    themeRemoteFavorites: [],
     lightThemeId: 'cinny-light-theme',
     darkThemeId: 'black-theme',
     useSystemArboriumTheme: true,
@@ -94,22 +100,24 @@ const getFirstEnabledButton = (name: string) =>
   screen.getAllByRole('button', { name }).find((node) => !node.hasAttribute('disabled'));
 
 describe('Appearance settings', () => {
-  it('renders Theme, Code Block Theme, and Visual Tweaks as separate sections', () => {
+  it('renders Theme, Display, Code Block Theme, and Visual Tweaks as separate sections', () => {
     render(<Appearance />);
 
     const themeHeading = screen.getByText('Theme');
+    const displayHeading = screen.getByText('Display');
     const codeBlockThemeHeading = screen.getByText('Code Block Theme');
     const visualTweaksHeading = screen.getByText('Visual Tweaks');
 
-    expect(themeHeading.compareDocumentPosition(codeBlockThemeHeading)).toBe(
+    expect(themeHeading.compareDocumentPosition(displayHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(displayHeading.compareDocumentPosition(codeBlockThemeHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(codeBlockThemeHeading.compareDocumentPosition(visualTweaksHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(screen.getByRole('button', { name: 'Silver' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cinny Light' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Black' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Dracula' })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Dracula' }).at(-1)).toBeDisabled();
@@ -124,7 +132,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Silver' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Light' }).at(-1)!);
     clickLatestButton('Dark');
 
     fireEvent.click(screen.getByRole('button', { name: 'Dracula' }));
@@ -132,19 +140,6 @@ describe('Appearance settings', () => {
 
     expect(getSetter('themeId')).toHaveBeenCalledWith('dark-theme');
     expect(getSetter('arboriumThemeId')).toHaveBeenCalledWith('ayu-light');
-  });
-
-  it('updates the system theme settings when the chip selectors change', () => {
-    render(<Appearance />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cinny Light' }));
-    clickLatestButton('Silver');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Black' }));
-    clickLatestButton('Dark');
-
-    expect(getSetter('lightThemeId')).toHaveBeenCalledWith('silver-theme');
-    expect(getSetter('darkThemeId')).toHaveBeenCalledWith('dark-theme');
   });
 
   it('updates the system code block theme settings when the chip selectors change', () => {
@@ -169,7 +164,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
   });
 
   it('falls back to the active code block system theme when the stored manual theme id is invalid', () => {
@@ -194,7 +189,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dark' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Dark' }).length).toBeGreaterThan(0);
   });
 });

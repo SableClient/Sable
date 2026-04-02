@@ -9,8 +9,7 @@ export type GithubRawParts = {
   directoryPath: string;
 };
 
-const RAW_RE =
-  /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)(?:\/(.*))?$/;
+const RAW_RE = /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)(?:\/(.*))?$/;
 
 export function parseGithubRawBaseUrl(baseUrl: string): GithubRawParts | null {
   const trimmed = baseUrl.trim().replace(/\/+$/, '');

@@ -16,13 +16,15 @@ describe('listThemePairsFromCatalog', () => {
           name: 'rose-pine.preview.sable.css',
           path: 'rose-pine.preview.sable.css',
           type: 'file',
-          download_url: 'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.preview.sable.css',
+          download_url:
+            'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.preview.sable.css',
         },
         {
           name: 'rose-pine.sable.css',
           path: 'rose-pine.sable.css',
           type: 'file',
-          download_url: 'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.sable.css',
+          download_url:
+            'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.sable.css',
         },
         {
           name: 'README.md',

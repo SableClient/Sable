@@ -16,9 +16,7 @@
   "settingsLinkBaseUrl": "https://app.sable.moe",
 
   "themeCatalogBaseUrl": "https://raw.githubusercontent.com/SableClient/themes/main/",
-  "themeCatalogApprovedHostPrefixes": [
-    "https://raw.githubusercontent.com/SableClient/themes/"
-  ],
+  "themeCatalogApprovedHostPrefixes": ["https://raw.githubusercontent.com/SableClient/themes/"],
 
   "slidingSync": {
     "enabled": true

@@ -33,6 +33,7 @@ import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { RenderBody } from '$components/message';
 import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
+import { extractPlainTextFromCustomHtml } from '$utils/sanitize';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { CreatorChip } from './CreatorChip';
@@ -134,7 +135,7 @@ function UserExtendedSection({
 
     const safetyTrim = rawBio.length > 2048 ? rawBio.slice(0, 2048) : rawBio;
 
-    const visibleText = safetyTrim.replaceAll(/<[^>]*>?/gm, '');
+    const visibleText = extractPlainTextFromCustomHtml(safetyTrim);
     const VISIBLE_LIMIT = 1024;
 
     if (visibleText.length <= VISIBLE_LIMIT) {

@@ -31,6 +31,7 @@ import { settingsAtom } from '$state/settings';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { createRoomEncryptionState } from '$components/create-room';
 import { parsePronounsInput } from '$utils/pronouns';
+import { extractPlainTextFromCustomHtml } from '$utils/sanitize';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { useRoomNavigate } from './useRoomNavigate';
@@ -1352,14 +1353,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           await mx.sendMessage(room.roomId, {
             msgtype: MsgType.Text,
-            body: payload
-              .replaceAll('<br>', '\n')
-              .replaceAll('<li>', '\n- ')
-              .replaceAll(
-                /<a(.*?)href="(?<link>(.*?))"(.*?)>(?<text>(.*?))<\/a>/g,
-                '[$<text>]($<link>)'
-              )
-              .replaceAll(/<[^>]*>/g, ''),
+            body: extractPlainTextFromCustomHtml(payload),
             format: 'org.matrix.custom.html',
             formatted_body: payload,
           });

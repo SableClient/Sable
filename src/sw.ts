@@ -164,7 +164,7 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
   }
 
   const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
+  if (typeof resolveSession === 'function') {
     resolveSession(sessions.get(clientId));
     clientToResolve.delete(clientId);
     clientToSessionPromise.delete(clientId);
@@ -562,7 +562,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     const { eventId } = data as { eventId?: string };
     if (typeof eventId === 'string') {
       const resolve = decryptionPendingMap.get(eventId);
-      if (resolve) {
+      if (typeof resolve === 'function') {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
       }

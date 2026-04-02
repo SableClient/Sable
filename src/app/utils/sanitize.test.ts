@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeCustomHtml } from './sanitize';
+import { extractPlainTextFromCustomHtml, sanitizeCustomHtml } from './sanitize';
 
 describe('sanitizeCustomHtml', () => {
   it('keeps permitted Matrix v1.18 tags', () => {
@@ -136,5 +136,15 @@ describe('sanitizeCustomHtml', () => {
 
     expect(result).toContain('text');
     expect((result.match(/<div>/g) ?? []).length).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('extractPlainTextFromCustomHtml', () => {
+  it('converts sanitized html into readable plain text', () => {
+    const result = extractPlainTextFromCustomHtml(
+      '<p>Hello<br>world</p><ul><li>One</li><li>Two</li></ul><script>alert(1)</script>'
+    );
+
+    expect(result).toBe('Hello\nworld\n- One\n- Two');
   });
 });

@@ -55,7 +55,7 @@ export const MATRIX_IMPORT_BOUNDARY_FILES = new Set([
  * @returns {string}
  */
 export function toPosix(inputPath) {
-  return inputPath.split(path.sep).join('/');
+  return inputPath.replace(/\\/g, '/');
 }
 
 /**

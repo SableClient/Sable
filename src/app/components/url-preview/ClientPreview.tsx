@@ -167,7 +167,7 @@ function parseYoutubeLink(url: Readonly<string>): YoutubeLink | null {
     // new URL can throw
     return null;
   }
-  const urlHost = parsedURL.host;
+  const urlHost = parsedURL.hostname.toLowerCase();
   const urlSearchParams = parsedURL.searchParams;
 
   /**
@@ -203,7 +203,7 @@ function parseYoutubeLink(url: Readonly<string>): YoutubeLink | null {
     videoId,
     timestamp,
     playlist,
-    isMusic: url.includes('music.youtube.com'),
+    isMusic: urlHost === 'music.youtube.com' || urlHost.endsWith('.music.youtube.com'),
   };
 }
 

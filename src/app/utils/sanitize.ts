@@ -78,6 +78,31 @@ const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option
 const codeLanguageClassRegex = /^language-[A-Za-z0-9_-]+$/;
 const orderedListStartRegex = /^-?\d+$/;
 const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc):/i;
+const textBlockTags = new Set([
+  'blockquote',
+  'caption',
+  'details',
+  'div',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'ol',
+  'p',
+  'pre',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'tr',
+  'ul',
+]);
 
 export function sanitizeText(body: string): string {
   const tagsToReplace: Record<string, string> = {
@@ -273,7 +298,7 @@ const pruneInvalidEmptyElements = (
   });
 };
 
-export const sanitizeCustomHtml = (customHtml: string): string => {
+export function sanitizeCustomHtml(customHtml: string): string {
   if (typeof window === 'undefined') {
     return sanitizeText(customHtml);
   }
@@ -345,4 +370,57 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
   const container = document.createElement('div');
   container.append(fragment);
   return restoreProtectedImageSources(container.innerHTML, protectedSources);
-};
+}
+
+function appendPlainTextLineBreak(parts: string[]) {
+  const previous = parts.at(-1);
+  if (previous?.endsWith('\n')) return;
+  parts.push('\n');
+}
+
+function collectPlainTextFromNode(node: Node, parts: string[]): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent;
+    if (text) parts.push(text);
+    return;
+  }
+
+  if (!(node instanceof Element)) return;
+
+  const tagName = node.tagName.toLowerCase();
+
+  if (tagName === 'br') {
+    appendPlainTextLineBreak(parts);
+    return;
+  }
+
+  if (tagName === 'li') {
+    parts.push('- ');
+  }
+
+  [...node.childNodes].forEach((child) => collectPlainTextFromNode(child, parts));
+
+  if (textBlockTags.has(tagName)) {
+    appendPlainTextLineBreak(parts);
+  }
+}
+
+export function extractPlainTextFromCustomHtml(customHtml: string): string {
+  if (typeof DOMParser === 'undefined') {
+    return customHtml;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(sanitizeCustomHtml(customHtml), 'text/html');
+  const parts: string[] = [];
+
+  [...doc.body.childNodes].forEach((child) => collectPlainTextFromNode(child, parts));
+
+  return parts
+    .join('')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

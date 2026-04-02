@@ -1,6 +1,6 @@
 const PROP_RE = /^\s*(--(?:sable|tc)-[a-zA-Z0-9-]+)\s*:\s*([^;]+?)\s*;?\s*$/;
 
-const DANGEROUS_VALUE = /url\s*\(|@import|expression\s*\(|javascript:|\\0|<!--|-->|<script/i;
+const DANGEROUS_VALUE = /url\s*\(|@import|expression\s*\(|javascript:|\\0|<!--|--!?>|<script/i;
 
 export const PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES: ReadonlySet<string> = new Set([
   '--sable-bg-container',

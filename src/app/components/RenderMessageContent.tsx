@@ -3,6 +3,7 @@ import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import { HTMLReactParserOptions } from 'html-react-parser';
@@ -29,7 +30,13 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
+import {
+  UrlPreviewCard,
+  UrlPreviewHolder,
+  ClientPreview,
+  ThemePreviewUrlCard,
+  youtubeUrl,
+} from './url-preview';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -82,6 +89,9 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const [themeChatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
+  const [themeChatApprovedOnly] = useSetting(settingsAtom, 'themeChatPreviewApprovedCatalogOnly');
+  const clientConfig = useClientConfig();
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -110,6 +120,18 @@ function RenderMessageContentInternal({
       );
       if (filteredUrls.length === 0) return undefined;
 
+      const themePreviewUrls = themeChatAny
+        ? filteredUrls.filter((u) => /\.preview\.sable\.css(\?|#|$)/i.test(u))
+        : [];
+      const approvedPrefixes = clientConfig.themeCatalogApprovedHostPrefixes ?? [];
+      const themeAllowed = (u: string) => {
+        if (!/^https:\/\//i.test(u)) return false;
+        if (!themeChatApprovedOnly) return true;
+        if (approvedPrefixes.length === 0) return false;
+        return approvedPrefixes.some((p) => u.startsWith(p));
+      };
+      const themeToRender = themePreviewUrls.filter(themeAllowed);
+
       const analyzed = filteredUrls.map((url) => ({
         url,
         type: getMediaType(url),
@@ -120,7 +142,11 @@ function RenderMessageContentInternal({
 
       return (
         <UrlPreviewHolder>
+          {themeToRender.map((url) => (
+            <ThemePreviewUrlCard key={`theme:${url}`} url={url} />
+          ))}
           {toRender.map(({ url, type }) => {
+            if (themeToRender.includes(url)) return null;
             if (type) {
               return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
             }
@@ -135,9 +161,17 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
+    [
+      ts,
+      clientUrlPreview,
+      settingsLinkBaseUrl,
+      urlPreview,
+      themeChatAny,
+      themeChatApprovedOnly,
+      clientConfig.themeCatalogApprovedHostPrefixes,
+    ]
   );
-  const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
+  const messageUrlsPreview = urlPreview || themeChatAny ? renderUrlsPreview : undefined;
 
   const renderCaption = () => {
     const hasCaption = content.body && content.body.trim().length > 0;

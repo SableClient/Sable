@@ -1,19 +1,6 @@
 import { type ChangeEventHandler, useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Spinner,
-  Switch,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, Chip, Input, Spinner, Switch, Text, toRem } from 'folds';
 import { useStore } from 'jotai/react';
 
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -24,12 +11,9 @@ import { settingsAtom, type Settings, type ThemeRemoteFavorite } from '$state/se
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { putCachedThemeCss } from '../../../theme/cache';
 import { listThemePairsFromCatalog, type ThemePair } from '../../../theme/catalog';
-import {
-  buildPreviewStyleBlock,
-  extractSafePreviewCustomProperties,
-} from '../../../theme/previewCss';
 import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
@@ -49,8 +33,10 @@ export type CatalogPreviewRow = ThemePair & {
 };
 
 export type LocalPreviewRow = ThemeRemoteFavorite & {
+  previewUrl: string;
   previewText: string;
   displayName: string;
+  author?: string;
   contrast: SableThemeContrast;
   tags: string[];
 };
@@ -68,66 +54,6 @@ export function usePatchSettings() {
       store.set(settingsAtom, next);
     },
     [store]
-  );
-}
-
-function ThemePreviewMini({ scopeClass, styleBlock }: { scopeClass: string; styleBlock: string }) {
-  if (!styleBlock) {
-    return (
-      <Text size="T300" priority="300">
-        No preview tokens
-      </Text>
-    );
-  }
-  return (
-    <>
-      <style>{styleBlock}</style>
-      <Box
-        className={scopeClass}
-        direction="Column"
-        gap="300"
-        style={{
-          padding: toRem(12),
-          borderRadius: config.radii.R300,
-          background: 'var(--sable-bg-container)',
-          border: `${toRem(1)} solid var(--sable-surface-container-line)`,
-          minHeight: toRem(88),
-        }}
-      >
-        <Text size="T300" style={{ color: 'var(--sable-bg-on-container)' }}>
-          Sample text
-        </Text>
-        <Box direction="Row" gap="200" wrap="Wrap">
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: `${toRem(4)} ${toRem(10)}`,
-              borderRadius: config.radii.Pill,
-              background: 'var(--sable-primary-main)',
-              color: 'var(--sable-primary-on-main)',
-              fontSize: toRem(12),
-              fontWeight: 500,
-            }}
-          >
-            Primary
-          </span>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: `${toRem(4)} ${toRem(10)}`,
-              borderRadius: config.radii.Pill,
-              background: 'var(--sable-surface-container)',
-              color: 'var(--sable-surface-on-container)',
-              fontSize: toRem(12),
-            }}
-          >
-            Surface
-          </span>
-        </Box>
-      </Box>
-    </>
   );
 }
 
@@ -159,6 +85,42 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
   const [contrastFilter, setContrastFilter] = useState<'all' | SableThemeContrast>('all');
 
   const onSearchChange: ChangeEventHandler<HTMLInputElement> = (e) => setSearch(e.target.value);
+
+  const activeUrls = useMemo(
+    () =>
+      [manualRemoteFullUrl, lightRemoteFullUrl, darkRemoteFullUrl].filter((u): u is string =>
+        Boolean(u && u.trim().length > 0)
+      ),
+    [darkRemoteFullUrl, lightRemoteFullUrl, manualRemoteFullUrl]
+  );
+
+  const pruneFavorites = useCallback(
+    (nextFavorites: ThemeRemoteFavorite[], nextActiveUrls: string[]) => {
+      const active = new Set(nextActiveUrls);
+      return nextFavorites.filter((f) => f.pinned === true || active.has(f.fullUrl));
+    },
+    []
+  );
+
+  const clearAssignmentsIfMatch = useCallback(
+    (fullUrl: string) => {
+      const partial: Partial<Settings> = {};
+      if (lightRemoteFullUrl === fullUrl) {
+        partial.themeRemoteLightFullUrl = undefined;
+        partial.themeRemoteLightKind = undefined;
+      }
+      if (darkRemoteFullUrl === fullUrl) {
+        partial.themeRemoteDarkFullUrl = undefined;
+        partial.themeRemoteDarkKind = undefined;
+      }
+      if (manualRemoteFullUrl === fullUrl) {
+        partial.themeRemoteManualFullUrl = undefined;
+        partial.themeRemoteManualKind = undefined;
+      }
+      return partial;
+    },
+    [darkRemoteFullUrl, lightRemoteFullUrl, manualRemoteFullUrl]
+  );
 
   const pairsQuery = useQuery({
     queryKey: ['theme-catalog-pairs', catalogBase],
@@ -239,8 +201,10 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
             const contrast: SableThemeContrast = meta.contrast === 'high' ? 'high' : 'low';
             return {
               ...fav,
+              previewUrl,
               previewText,
               displayName,
+              author: meta.author?.trim() || undefined,
               contrast,
               tags: meta.tags ?? [],
             };
@@ -256,11 +220,25 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
 
   const removeFavorite = useCallback(
     (fullUrl: string) => {
+      const nextFavorites = favorites.filter((f) => f.fullUrl !== fullUrl);
+      const cleared = clearAssignmentsIfMatch(fullUrl);
+      const nextActive = [manualRemoteFullUrl, lightRemoteFullUrl, darkRemoteFullUrl]
+        .filter((u): u is string => Boolean(u && u.trim().length > 0))
+        .filter((u) => u !== fullUrl);
       patchSettings({
-        themeRemoteFavorites: favorites.filter((f) => f.fullUrl !== fullUrl),
+        ...cleared,
+        themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
       });
     },
-    [favorites, patchSettings]
+    [
+      clearAssignmentsIfMatch,
+      darkRemoteFullUrl,
+      favorites,
+      lightRemoteFullUrl,
+      manualRemoteFullUrl,
+      patchSettings,
+      pruneFavorites,
+    ]
   );
 
   const applyFavoriteToLight = useCallback(
@@ -347,8 +325,12 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
     async (row: CatalogPreviewRow) => {
       const existing = favorites.find((f: ThemeRemoteFavorite) => f.fullUrl === row.fullInstallUrl);
       if (existing) {
+        const nextFavorites = favorites.filter((f) => f.fullUrl !== row.fullInstallUrl);
+        const cleared = clearAssignmentsIfMatch(row.fullInstallUrl);
+        const nextActive = activeUrls.filter((u) => u !== row.fullInstallUrl);
         patchSettings({
-          themeRemoteFavorites: favorites.filter((f) => f.fullUrl !== row.fullInstallUrl),
+          ...cleared,
+          themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
         });
         return;
       }
@@ -360,12 +342,125 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
         displayName: row.displayName,
         basename: row.basename,
         kind,
+        pinned: true,
       };
       patchSettings({
         themeRemoteFavorites: [...favorites, next],
       });
     },
-    [favorites, patchSettings, prefetchFull]
+    [activeUrls, clearAssignmentsIfMatch, favorites, patchSettings, prefetchFull, pruneFavorites]
+  );
+
+  const installFromCatalogLight = useCallback(
+    async (row: CatalogPreviewRow) => {
+      const kind: 'light' | 'dark' = row.kind === ThemeKind.Dark ? 'dark' : 'light';
+      const nextActive = Array.from(
+        new Set(
+          [manualRemoteFullUrl, darkRemoteFullUrl, row.fullInstallUrl].filter(Boolean) as string[]
+        )
+      );
+
+      let nextFavorites = favorites;
+      const existing = favorites.find((f) => f.fullUrl === row.fullInstallUrl);
+      if (!existing) {
+        const ok = await prefetchFull(row.fullInstallUrl);
+        if (!ok) return;
+        nextFavorites = [
+          ...favorites,
+          {
+            fullUrl: row.fullInstallUrl,
+            displayName: row.displayName,
+            basename: row.basename,
+            kind,
+            pinned: false,
+          },
+        ];
+      }
+
+      patchSettings({
+        themeRemoteLightFullUrl: row.fullInstallUrl,
+        themeRemoteLightKind: kind,
+        themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
+      });
+    },
+    [darkRemoteFullUrl, favorites, manualRemoteFullUrl, patchSettings, prefetchFull, pruneFavorites]
+  );
+
+  const installFromCatalogDark = useCallback(
+    async (row: CatalogPreviewRow) => {
+      const kind: 'light' | 'dark' = row.kind === ThemeKind.Dark ? 'dark' : 'light';
+      const nextActive = Array.from(
+        new Set(
+          [manualRemoteFullUrl, lightRemoteFullUrl, row.fullInstallUrl].filter(Boolean) as string[]
+        )
+      );
+
+      let nextFavorites = favorites;
+      const existing = favorites.find((f) => f.fullUrl === row.fullInstallUrl);
+      if (!existing) {
+        const ok = await prefetchFull(row.fullInstallUrl);
+        if (!ok) return;
+        nextFavorites = [
+          ...favorites,
+          {
+            fullUrl: row.fullInstallUrl,
+            displayName: row.displayName,
+            basename: row.basename,
+            kind,
+            pinned: false,
+          },
+        ];
+      }
+
+      patchSettings({
+        themeRemoteDarkFullUrl: row.fullInstallUrl,
+        themeRemoteDarkKind: kind,
+        themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
+      });
+    },
+    [
+      favorites,
+      lightRemoteFullUrl,
+      manualRemoteFullUrl,
+      patchSettings,
+      prefetchFull,
+      pruneFavorites,
+    ]
+  );
+
+  const installFromCatalogManual = useCallback(
+    async (row: CatalogPreviewRow) => {
+      const kind: 'light' | 'dark' = row.kind === ThemeKind.Dark ? 'dark' : 'light';
+      const nextActive = Array.from(
+        new Set(
+          [lightRemoteFullUrl, darkRemoteFullUrl, row.fullInstallUrl].filter(Boolean) as string[]
+        )
+      );
+
+      let nextFavorites = favorites;
+      const existing = favorites.find((f) => f.fullUrl === row.fullInstallUrl);
+      if (!existing) {
+        const ok = await prefetchFull(row.fullInstallUrl);
+        if (!ok) return;
+        nextFavorites = [
+          ...favorites,
+          {
+            fullUrl: row.fullInstallUrl,
+            displayName: row.displayName,
+            basename: row.basename,
+            kind,
+            pinned: false,
+          },
+        ];
+      }
+
+      patchSettings({
+        themeRemoteManualFullUrl: row.fullInstallUrl,
+        themeRemoteManualKind: kind,
+        themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
+      });
+    },
+    [darkRemoteFullUrl, favorites, lightRemoteFullUrl, patchSettings, prefetchFull, pruneFavorites]
   );
 
   const clearRemote = useCallback(() => {
@@ -505,52 +600,48 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
                     }}
                   >
                     {filteredRows.map((row) => {
-                      const vars = extractSafePreviewCustomProperties(row.previewText);
                       const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                      const scopeClass = `sable-theme-preview--${slug}`;
-                      const styleBlock = buildPreviewStyleBlock(vars, scopeClass);
                       const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
                       const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
+                      const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                      const line2 = `${row.author ? `by ${row.author}` : ''}${
+                        row.tags.length > 0
+                          ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
+                          : ''
+                      }`.trim();
+                      const subtitle = (
+                        <>
+                          {line1}
+                          {line2 ? (
+                            <>
+                              <br />
+                              {line2}
+                            </>
+                          ) : null}
+                        </>
+                      );
                       return (
-                        <Box
+                        <ThemePreviewCard
                           key={row.basename}
-                          direction="Column"
-                          gap="300"
-                          style={{
-                            padding: toRem(12),
-                            borderRadius: config.radii.R300,
-                            border: `${toRem(1)} solid var(--sable-surface-container-line)`,
-                            background: 'var(--sable-surface-container)',
-                          }}
-                        >
-                          <Box
-                            direction="Row"
-                            alignItems="Start"
-                            justifyContent="SpaceBetween"
-                            gap="200"
-                          >
-                            <Box direction="Column" gap="100" grow="Yes">
-                              <Text size="H6">{row.displayName}</Text>
-                              <Text size="T200" priority="300">
-                                {kindLabel} · {row.contrast} contrast
-                                {row.author ? ` · by ${row.author}` : ''}
-                                {row.tags.length > 0 ? ` · ${row.tags.join(', ')}` : ''}
-                              </Text>
-                            </Box>
-                            <IconButton
-                              size="300"
-                              variant={isFav ? 'Primary' : 'Secondary'}
-                              radii="300"
-                              aria-label={isFav ? 'Remove from saved' : 'Save theme'}
-                              onClick={() => {
-                                toggleFavorite(row).catch(() => undefined);
-                              }}
-                            >
-                              <Icon size="200" src={Icons.Star} filled={isFav} />
-                            </IconButton>
-                          </Box>
-                          <ThemePreviewMini scopeClass={scopeClass} styleBlock={styleBlock} />
-                        </Box>
+                          title={row.displayName}
+                          subtitle={subtitle}
+                          previewCssText={row.previewText}
+                          scopeSlug={`catalog-${slug}`}
+                          copyText={row.previewUrl}
+                          isFavorited={isFav}
+                          onToggleFavorite={() => toggleFavorite(row)}
+                          systemTheme={systemTheme}
+                          onApplyLight={
+                            systemTheme ? () => installFromCatalogLight(row) : undefined
+                          }
+                          onApplyDark={systemTheme ? () => installFromCatalogDark(row) : undefined}
+                          onApplyManual={
+                            !systemTheme ? () => installFromCatalogManual(row) : undefined
+                          }
+                          isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
+                          isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
+                          isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
+                        />
                       );
                     })}
                   </Box>
@@ -661,85 +752,45 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
                     }}
                   >
                     {localPreviewsQuery.data.map((row) => {
-                      const vars = extractSafePreviewCustomProperties(row.previewText);
                       const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                      const scopeClass = `sable-theme-preview--${slug}`;
-                      const styleBlock = buildPreviewStyleBlock(vars, scopeClass);
-
                       const kindLabel = row.kind === 'dark' ? 'Dark' : 'Light';
-                      const isLightSelected = lightRemoteFullUrl === row.fullUrl;
-                      const isDarkSelected = darkRemoteFullUrl === row.fullUrl;
-                      const isManualSelected = manualRemoteFullUrl === row.fullUrl;
-
+                      const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                      const line2 = `${row.author ? `by ${row.author}` : ''}${
+                        row.tags.length > 0
+                          ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
+                          : ''
+                      }`.trim();
+                      const subtitle = (
+                        <>
+                          {line1}
+                          {line2 ? (
+                            <>
+                              <br />
+                              {line2}
+                            </>
+                          ) : null}
+                        </>
+                      );
                       return (
-                        <Box
+                        <ThemePreviewCard
                           key={row.fullUrl}
-                          direction="Column"
-                          gap="300"
-                          style={{
-                            padding: toRem(12),
-                            borderRadius: config.radii.R300,
-                            border: `${toRem(1)} solid var(--sable-surface-container-line)`,
-                            background: 'var(--sable-surface-container)',
-                          }}
-                        >
-                          <Box
-                            direction="Row"
-                            alignItems="Start"
-                            justifyContent="SpaceBetween"
-                            gap="200"
-                          >
-                            <Box direction="Column" gap="100" grow="Yes">
-                              <Text size="H6">{row.displayName}</Text>
-                              <Text size="T200" priority="300">
-                                {kindLabel} · {row.contrast} contrast
-                                {row.tags.length > 0 ? ` · ${row.tags.join(', ')}` : ''}
-                              </Text>
-                            </Box>
-
-                            <IconButton
-                              size="300"
-                              variant="Secondary"
-                              radii="300"
-                              aria-label="Remove from saved"
-                              onClick={() => removeFavorite(row.fullUrl)}
-                            >
-                              <Icon size="200" src={Icons.Star} filled />
-                            </IconButton>
-                          </Box>
-
-                          <ThemePreviewMini scopeClass={scopeClass} styleBlock={styleBlock} />
-
-                          {systemTheme ? (
-                            <Box direction="Column" gap="200">
-                              <Button
-                                variant={isLightSelected ? 'Primary' : 'Secondary'}
-                                size="300"
-                                radii="300"
-                                onClick={() => applyFavoriteToLight(row)}
-                              >
-                                <Text size="B300">Use when OS light</Text>
-                              </Button>
-                              <Button
-                                variant={isDarkSelected ? 'Primary' : 'Secondary'}
-                                size="300"
-                                radii="300"
-                                onClick={() => applyFavoriteToDark(row)}
-                              >
-                                <Text size="B300">Use when OS dark</Text>
-                              </Button>
-                            </Box>
-                          ) : (
-                            <Button
-                              variant={isManualSelected ? 'Primary' : 'Secondary'}
-                              size="300"
-                              radii="300"
-                              onClick={() => applyFavoriteToManual(row)}
-                            >
-                              <Text size="B300">Use theme</Text>
-                            </Button>
-                          )}
-                        </Box>
+                          title={row.displayName}
+                          subtitle={subtitle}
+                          previewCssText={row.previewText}
+                          scopeSlug={`local-${slug}`}
+                          copyText={row.previewUrl}
+                          isFavorited
+                          onToggleFavorite={() => removeFavorite(row.fullUrl)}
+                          systemTheme={systemTheme}
+                          onApplyLight={systemTheme ? () => applyFavoriteToLight(row) : undefined}
+                          onApplyDark={systemTheme ? () => applyFavoriteToDark(row) : undefined}
+                          onApplyManual={
+                            !systemTheme ? () => applyFavoriteToManual(row) : undefined
+                          }
+                          isAppliedLight={lightRemoteFullUrl === row.fullUrl}
+                          isAppliedDark={darkRemoteFullUrl === row.fullUrl}
+                          isAppliedManual={manualRemoteFullUrl === row.fullUrl}
+                        />
                       );
                     })}
                   </Box>

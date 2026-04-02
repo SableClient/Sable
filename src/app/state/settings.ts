@@ -28,6 +28,7 @@ export type ThemeRemoteFavorite = {
   displayName: string;
   basename: string;
   kind: 'light' | 'dark';
+  pinned?: boolean;
 };
 
 export interface Settings {

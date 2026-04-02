@@ -34,10 +34,12 @@ function makeRemoteTheme(url: string, kind: ThemeKind): Theme {
   const fw = kind === ThemeKind.Dark ? onDarkFontWeight : onLightFontWeight;
   const kindClass =
     kind === ThemeKind.Dark ? 'sable-remote-kind-dark' : 'sable-remote-kind-light';
+  const legacyCssTheme = kind === ThemeKind.Dark ? 'dark-theme' : 'light-theme';
+  const veTheme = kind === ThemeKind.Dark ? darkTheme : lightTheme;
   return {
     id: REMOTE_THEME_ID,
     kind,
-    classNames: ['sable-remote-theme', kindClass, fw],
+    classNames: ['sable-remote-theme', kindClass, legacyCssTheme, veTheme, fw],
     remoteFullUrl: url.trim(),
   };
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractSafePreviewCustomProperties, PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES } from './previewCss';
+import {
+  extractSafePreviewCustomProperties,
+  PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES,
+} from './previewCss';
 
 describe('extractSafePreviewCustomProperties', () => {
   it('keeps only allowlisted custom properties', () => {

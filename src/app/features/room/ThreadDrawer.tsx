@@ -412,7 +412,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
-        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
       mx,

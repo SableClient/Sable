@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as customHtmlCss from '$styles/CustomHtml.css';
+import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
   LINKIFY_OPTS,
@@ -256,5 +257,54 @@ describe('react custom html parser', () => {
     });
 
     expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('linkifies bare urls in formatted html text nodes even when abbreviation replacement runs', () => {
+    const parserOptions = getReactCustomHtmlParser(createMatrixClient(), '!room:example.com', {
+      settingsLinkBaseUrl,
+      linkifyOpts: LINKIFY_OPTS,
+      handleMentionClick: undefined,
+      replaceTextNode: buildAbbrReplaceTextNode(new Map([['PR', 'Pull request']]), LINKIFY_OPTS),
+    });
+
+    render(
+      <div>
+        {parse(
+          '<p>figured out the section could be removed; set up a PR for it: https://github.com/SableClient/Sable/pull/626</p>',
+          parserOptions
+        )}
+      </div>
+    );
+
+    expect(screen.getByText('PR')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', {
+        name: 'https://github.com/SableClient/Sable/pull/626',
+      })
+    ).toHaveAttribute('href', 'https://github.com/SableClient/Sable/pull/626');
+  });
+
+  it('keeps the full link intact when an abbreviation term appears inside the url token', () => {
+    const parserOptions = getReactCustomHtmlParser(createMatrixClient(), '!room:example.com', {
+      settingsLinkBaseUrl,
+      linkifyOpts: LINKIFY_OPTS,
+      handleMentionClick: undefined,
+      replaceTextNode: buildAbbrReplaceTextNode(new Map([['PR', 'Pull request']]), LINKIFY_OPTS),
+    });
+
+    render(
+      <div>
+        {parse(
+          '<p>see https://github.com/SableClient/Sable/pull/PR/626 for context</p>',
+          parserOptions
+        )}
+      </div>
+    );
+
+    expect(
+      screen.getByRole('link', {
+        name: 'https://github.com/SableClient/Sable/pull/PR/626',
+      })
+    ).toHaveAttribute('href', 'https://github.com/SableClient/Sable/pull/PR/626');
   });
 });

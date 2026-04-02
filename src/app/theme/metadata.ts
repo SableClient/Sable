@@ -5,6 +5,7 @@ export type SableThemeContrast = 'low' | 'high';
 export type SableThemeMetadata = {
   id: string;
   name: string;
+  author?: string;
   kind: ThemeKind;
   contrast: SableThemeContrast;
   tags: string[];
@@ -35,6 +36,9 @@ export function parseSableThemeMetadata(cssText: string): Partial<SableThemeMeta
         break;
       case 'name':
         out.name = value;
+        break;
+      case 'author':
+        out.author = value;
         break;
       case 'kind':
         out.kind = value === 'dark' ? ThemeKind.Dark : ThemeKind.Light;

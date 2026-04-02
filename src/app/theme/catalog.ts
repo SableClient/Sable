@@ -46,25 +46,23 @@ async function fetchThemePairsFromManifest(manifestUrl: string): Promise<ThemePa
     return null;
   }
   if (!data || typeof data !== 'object') return null;
-  const themes = (data as ThemeCatalogManifest).themes;
+  const { themes } = data as ThemeCatalogManifest;
   if (!Array.isArray(themes)) return null;
-  const pairs: ThemePair[] = [];
-  for (const row of themes) {
-    if (!row || typeof row !== 'object') continue;
-    const o = row as Record<string, unknown>;
-    const basename = o.basename;
-    const previewUrl = o.previewUrl;
-    const fullUrl = o.fullUrl;
-    if (
-      typeof basename !== 'string' ||
-      typeof previewUrl !== 'string' ||
-      typeof fullUrl !== 'string'
-    ) {
-      continue;
-    }
-    if (!basename || !previewUrl || !fullUrl) continue;
-    pairs.push({ basename, previewUrl, fullUrl });
-  }
+  const pairs: ThemePair[] = themes
+    .map((row) => {
+      if (!row || typeof row !== 'object') return null;
+      const { basename, previewUrl, fullUrl } = row as Record<string, unknown>;
+      if (
+        typeof basename !== 'string' ||
+        typeof previewUrl !== 'string' ||
+        typeof fullUrl !== 'string'
+      ) {
+        return null;
+      }
+      if (!basename || !previewUrl || !fullUrl) return null;
+      return { basename, previewUrl, fullUrl };
+    })
+    .filter((pair): pair is ThemePair => pair !== null);
   return pairs;
 }
 

@@ -139,9 +139,10 @@ export interface Settings {
   themeRemoteManualKind?: 'light' | 'dark';
   themeRemoteLightKind?: 'light' | 'dark';
   themeRemoteDarkKind?: 'light' | 'dark';
+  themeMigrationDismissed: boolean;
 }
 
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   themeId: undefined,
   useSystemTheme: true,
   lightThemeId: undefined,
@@ -250,6 +251,7 @@ const defaultSettings: Settings = {
   themeRemoteManualKind: undefined,
   themeRemoteLightKind: undefined,
   themeRemoteDarkKind: undefined,
+  themeMigrationDismissed: false,
 };
 
 export const getSettings = () => {
@@ -276,6 +278,9 @@ export const getSettings = () => {
   }
   if (!merged.themeRemoteFavorites) {
     merged.themeRemoteFavorites = [];
+  }
+  if (merged.themeMigrationDismissed === undefined) {
+    merged.themeMigrationDismissed = false;
   }
 
   return merged;

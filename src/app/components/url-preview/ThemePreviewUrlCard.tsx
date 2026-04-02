@@ -14,6 +14,7 @@ import {
 } from '../../theme/metadata';
 import { putCachedThemeCss } from '../../theme/cache';
 import { ThemePreviewCard } from '../theme/ThemePreviewCard';
+import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
 function isHttps(url: string): boolean {
   return /^https:\/\//i.test(url);
@@ -52,7 +53,6 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
   const clientConfig = useClientConfig();
   const store = useStore();
   const [chatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
-  const [chatApprovedOnly] = useSetting(settingsAtom, 'themeChatPreviewApprovedCatalogOnly');
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
   const [systemTheme] = useSetting(settingsAtom, 'useSystemTheme');
   const [manualRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
@@ -61,17 +61,18 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
   const allowed = useMemo(() => {
     if (!chatAny) return false;
-    if (!isHttps(url) || !isPreviewThemeUrl(url)) return false;
-    if (chatApprovedOnly) {
-      return isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes);
-    }
-    return true;
-  }, [chatAny, chatApprovedOnly, clientConfig.themeCatalogApprovedHostPrefixes, url]);
+    return isHttps(url) && isPreviewThemeUrl(url);
+  }, [chatAny, url]);
 
   const isOfficial = useMemo(
     () => isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes),
     [clientConfig.themeCatalogApprovedHostPrefixes, url]
   );
+
+  const showThirdPartyBanner = useMemo(() => {
+    const p = clientConfig.themeCatalogApprovedHostPrefixes;
+    return Boolean(p && p.length > 0 && !isApprovedByPrefix(url, p));
+  }, [clientConfig.themeCatalogApprovedHostPrefixes, url]);
 
   const previewQuery = useQuery({
     queryKey: ['theme-preview-embed', url],
@@ -174,9 +175,9 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
     const next: ThemeRemoteFavorite = {
       fullUrl,
-      displayName: previewQuery.data.displayName,
+      displayName: previewQuery.data?.displayName ?? basenameFromUrl(fullUrl),
       basename: basenameFromUrl(fullUrl),
-      kind: previewQuery.data.kind === ThemeKind.Dark ? 'dark' : 'light',
+      kind: previewQuery.data?.kind === ThemeKind.Dark ? 'dark' : 'light',
       pinned: true,
     };
 
@@ -402,6 +403,9 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       <ThemePreviewCard
         title={title}
         subtitle={subtitle}
+        beforePreview={
+          showThirdPartyBanner ? <ThemeThirdPartyBanner hostLabel={baseLabel(url)} /> : undefined
+        }
         previewCssText={previewQuery.data?.previewText ?? ''}
         scopeSlug={`chat-${basenameFromUrl(url)}`}
         copyText={url}

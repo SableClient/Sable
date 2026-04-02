@@ -8,6 +8,7 @@ import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../.
 export type ThemePreviewCardProps = {
   title: string;
   subtitle?: ReactNode;
+  beforePreview?: ReactNode;
   previewCssText: string;
   scopeSlug: string;
   copyText?: string;
@@ -33,6 +34,7 @@ function safeSlug(input: string): string {
 export function ThemePreviewCard({
   title,
   subtitle,
+  beforePreview,
   previewCssText,
   scopeSlug,
   copyText,
@@ -115,6 +117,8 @@ export function ThemePreviewCard({
           )}
         </Box>
       </Box>
+
+      {beforePreview}
 
       {styleBlock ? (
         <>

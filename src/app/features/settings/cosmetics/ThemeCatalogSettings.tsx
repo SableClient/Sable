@@ -75,10 +75,6 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
   const [lightRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
   const [darkRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
   const [chatAny, setChatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
-  const [chatApprovedOnly, setChatApprovedOnly] = useSetting(
-    settingsAtom,
-    'themeChatPreviewApprovedCatalogOnly'
-  );
 
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<'all' | 'light' | 'dark'>('all');
@@ -487,26 +483,10 @@ export function ThemeCatalogSettings({ mode = 'full' }: { mode?: ThemeCatalogSet
             gap="400"
           >
             <SettingTile
-              title="Chat: theme previews from any HTTPS URL"
+              title="Theme previews from any URL"
               focusId="theme-chat-preview-any"
-              description="When enabled, messages linking to .preview.sable.css may fetch and show a small preview (parsed for safety)."
+              description="When enabled, messages linking to .preview.sable.css may fetch and show a preview (parsed for safety). Installing these third-party themes is not necessarily safe."
               after={<Switch variant="Primary" value={chatAny} onChange={setChatAny} />}
-            />
-          </SequenceCard>
-
-          <SequenceCard
-            className={SequenceCardStyle}
-            variant="SurfaceVariant"
-            direction="Column"
-            gap="400"
-          >
-            <SettingTile
-              title="Chat: only approved catalog URLs"
-              focusId="theme-chat-preview-approved"
-              description="Restricts chat theme embeds to URLs under approved prefixes from config."
-              after={
-                <Switch variant="Primary" value={chatApprovedOnly} onChange={setChatApprovedOnly} />
-              }
             />
           </SequenceCard>
         </>

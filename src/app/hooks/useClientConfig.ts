@@ -58,6 +58,10 @@ export function useClientConfig(): ClientConfig {
   return config;
 }
 
+export function useOptionalClientConfig(): ClientConfig | null {
+  return useContext(ClientConfigContext);
+}
+
 export const clientDefaultServer = (clientConfig: ClientConfig): string =>
   clientConfig.homeserverList?.[clientConfig.defaultHomeserver ?? 0] ?? 'matrix.org';
 

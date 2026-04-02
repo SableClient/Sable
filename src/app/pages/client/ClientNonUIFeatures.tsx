@@ -51,6 +51,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
+import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
@@ -861,6 +862,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />
+      <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <SentryRoomContextFeature />

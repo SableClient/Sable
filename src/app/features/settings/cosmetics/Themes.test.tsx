@@ -7,6 +7,7 @@ type SettingsShape = {
   themeId?: string;
   useSystemTheme: boolean;
   themeCatalogOnboardingDone: boolean;
+  themeMigrationDismissed: boolean;
   themeRemoteCatalogEnabled: boolean;
   themeRemoteFavorites: unknown[];
   lightThemeId?: string;
@@ -65,6 +66,7 @@ beforeEach(() => {
     themeId: 'silver-theme',
     useSystemTheme: true,
     themeCatalogOnboardingDone: true,
+    themeMigrationDismissed: true,
     themeRemoteCatalogEnabled: false,
     themeRemoteFavorites: [],
     lightThemeId: 'cinny-light-theme',

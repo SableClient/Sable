@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Chip, Input, Spinner, Switch, Text, toRem } from 'folds';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { ThemeKind } from '$hooks/useTheme';
-import { trimTrailingSlash } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, type Settings, type ThemeRemoteFavorite } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -16,13 +15,13 @@ import { getCachedThemeCss, putCachedThemeCss } from '../../../theme/cache';
 import { listThemePairsFromCatalog, type ThemePair } from '../../../theme/catalog';
 import { isLocalImportThemeUrl } from '../../../theme/localImportUrls';
 import { isThirdPartyThemeUrl } from '../../../theme/themeApproval';
+import { themeCatalogListingBaseUrl } from '../../../theme/catalogDefaults';
 import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
   type SableThemeContrast,
 } from '../../../theme/metadata';
-
-const DEFAULT_CATALOG_BASE = 'https://raw.githubusercontent.com/SableClient/themes/main/';
+import { previewUrlFromFullThemeUrl } from '../../../theme/previewUrls';
 
 export type CatalogPreviewRow = ThemePair & {
   previewText: string;
@@ -44,11 +43,6 @@ export type LocalPreviewRow = ThemeRemoteFavorite & {
   importedLocal?: boolean;
 };
 
-function previewUrlFromFullThemeUrl(fullUrl: string): string | undefined {
-  if (!/\.sable\.css$/i.test(fullUrl)) return undefined;
-  return fullUrl.replace(/\.sable\.css$/i, '.preview.sable.css');
-}
-
 export type ThemeCatalogSettingsMode = 'full' | 'local' | 'chat' | 'remote' | 'appearance';
 
 export { usePatchSettings } from './themeSettingsPatch';
@@ -65,7 +59,7 @@ export function ThemeCatalogSettings({
   const clientConfig = useClientConfig();
   const patchSettings = usePatchSettings();
   const configBase = clientConfig.themeCatalogBaseUrl?.trim();
-  const catalogBase = `${trimTrailingSlash(configBase && configBase.length > 0 ? configBase : DEFAULT_CATALOG_BASE)}/`;
+  const catalogBase = themeCatalogListingBaseUrl(configBase);
 
   const isAppearanceMode = mode === 'appearance';
   const [browseOpen, setBrowseOpen] = useState(false);

@@ -3,6 +3,7 @@ import type { Settings, ThemeRemoteFavorite } from '$state/settings';
 import { trimTrailingSlash } from '$utils/common';
 
 import { putCachedThemeCss } from './cache';
+import { DEFAULT_THEME_CATALOG_BASE } from './catalogDefaults';
 import {
   catalogFullUrlForBasename,
   inferLegacyKindFromBasename,
@@ -10,9 +11,6 @@ import {
   legacyThemeIdToBasename,
 } from './legacyToCatalogMap';
 import { parseSableThemeMetadata } from './metadata';
-
-export const DEFAULT_THEME_CATALOG_BASE =
-  'https://raw.githubusercontent.com/SableClient/themes/main';
 
 type FetchOk = {
   kind: 'light' | 'dark';

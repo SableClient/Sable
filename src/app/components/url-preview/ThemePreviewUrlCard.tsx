@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Text } from 'folds';
 import { useStore } from 'jotai/react';
 
 import { useClientConfig } from '$hooks/useClientConfig';
 import { ThemeKind } from '$hooks/useTheme';
+import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatch';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, type Settings, type ThemeRemoteFavorite } from '$state/settings';
 import {
@@ -13,6 +14,7 @@ import {
   type SableThemeContrast,
 } from '../../theme/metadata';
 import { putCachedThemeCss } from '../../theme/cache';
+import { fullUrlFromPreviewUrl } from '../../theme/previewUrls';
 import { ThemePreviewCard } from '../theme/ThemePreviewCard';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
@@ -27,12 +29,6 @@ function isPreviewThemeUrl(url: string): boolean {
 function isApprovedByPrefix(url: string, prefixes: string[] | undefined): boolean {
   if (!prefixes || prefixes.length === 0) return true;
   return prefixes.some((p) => url.startsWith(p));
-}
-
-function fullUrlFromPreviewUrl(previewUrl: string, metaFull?: string): string | undefined {
-  if (metaFull && isHttps(metaFull)) return metaFull;
-  if (!/\.preview\.sable\.css(\?|#|$)/i.test(previewUrl)) return undefined;
-  return previewUrl.replace(/\.preview\.sable\.css(\?|#|$)/i, '.sable.css$1');
 }
 
 function basenameFromUrl(url: string): string {
@@ -52,6 +48,16 @@ function baseLabel(url: string): string {
 export function ThemePreviewUrlCard({ url }: { url: string }) {
   const clientConfig = useClientConfig();
   const store = useStore();
+  const patchSettings = usePatchSettings();
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const [chatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
   const [systemTheme] = useSetting(settingsAtom, 'useSystemTheme');
@@ -94,20 +100,11 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     },
   });
 
-  const patchSettings = useCallback(
-    (partial: Partial<Settings>) => {
-      const next = { ...store.get(settingsAtom), ...partial };
-      store.set(settingsAtom, next);
-    },
-    [store]
-  );
-
   const revertRef = useRef<Partial<Settings> | null>(null);
   const lastAutoSavedUrlRef = useRef<string | null>(null);
   const [canRevert, setCanRevert] = useState(false);
   const [favoriteTouched, setFavoriteTouched] = useState(false);
 
-  /** True when this embed's theme is active (survives remount when scrolling away). */
   const appliedHere = useMemo(() => {
     const u = previewQuery.data?.fullUrl;
     if (!u) return false;
@@ -169,9 +166,12 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
     setFavoriteTouched(true);
     const res = await fetch(fullUrl, { mode: 'cors' });
+    if (!mountedRef.current) return;
     if (!res.ok) return;
     const cssText = await res.text();
+    if (!mountedRef.current) return;
     await putCachedThemeCss(fullUrl, cssText);
+    if (!mountedRef.current) return;
 
     const next: ThemeRemoteFavorite = {
       fullUrl,
@@ -219,9 +219,12 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     if (favorites.some((f) => f.fullUrl === fullUrl)) return false;
 
     const res = await fetch(fullUrl, { mode: 'cors' });
+    if (!mountedRef.current) return false;
     if (!res.ok) return false;
     const cssText = await res.text();
+    if (!mountedRef.current) return false;
     await putCachedThemeCss(fullUrl, cssText);
+    if (!mountedRef.current) return false;
 
     const next: ThemeRemoteFavorite = {
       fullUrl,
@@ -269,12 +272,14 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
       if (!favoriteTouched) {
         const added = await ensureFavorited();
+        if (!mountedRef.current) return;
         lastAutoSavedUrlRef.current = added ? (previewQuery.data?.fullUrl ?? null) : null;
       } else {
         lastAutoSavedUrlRef.current = null;
       }
 
       fn();
+      if (!mountedRef.current) return;
 
       const nextActive = [
         nextApplied.themeRemoteManualFullUrl ?? manualRemoteFullUrl,

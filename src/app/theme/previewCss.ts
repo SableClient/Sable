@@ -1,11 +1,16 @@
-/**
- * Build safe preview CSS from a `.preview.sable.css` file: only allow --sable-* / --tc-* custom properties.
- * Raw preview text is never injected as a stylesheet.
- */
-
 const PROP_RE = /^\s*(--(?:sable|tc)-[a-zA-Z0-9-]+)\s*:\s*([^;]+?)\s*;?\s*$/;
 
 const DANGEROUS_VALUE = /url\s*\(|@import|expression\s*\(|javascript:|\\0|<!--|-->|<script/i;
+
+export const PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES: ReadonlySet<string> = new Set([
+  '--sable-bg-container',
+  '--sable-bg-on-container',
+  '--sable-primary-main',
+  '--sable-primary-on-main',
+  '--sable-surface-container',
+  '--sable-surface-container-line',
+  '--sable-surface-on-container',
+]);
 
 export function extractSafePreviewCustomProperties(cssText: string): Record<string, string> {
   const noComments = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -16,6 +21,7 @@ export function extractSafePreviewCustomProperties(cssText: string): Record<stri
       const m = trimmed.match(PROP_RE);
       if (m) {
         const name = m[1];
+        if (!PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES.has(name)) return;
         const val = m[2].trim();
         if (!DANGEROUS_VALUE.test(val) && val.length <= 2000) {
           vars[name] = val;

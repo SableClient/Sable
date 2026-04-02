@@ -15,20 +15,25 @@ export type SableThemeMetadata = {
 
 const META_START = '@sable-theme';
 
-function extractFirstBlockComment(cssText: string): string {
-  const start = cssText.indexOf('/*');
-  if (start === -1) return '';
-  const end = cssText.indexOf('*/', start + 2);
-  if (end === -1) return '';
-  return cssText.slice(start + 2, end);
+function extractSableThemeBlockComment(cssText: string): string {
+  let pos = 0;
+  while (pos < cssText.length) {
+    const start = cssText.indexOf('/*', pos);
+    if (start === -1) return '';
+    const end = cssText.indexOf('*/', start + 2);
+    if (end === -1) return '';
+    const block = cssText.slice(start + 2, end);
+    if (block.includes(META_START)) {
+      return block;
+    }
+    pos = end + 2;
+  }
+  return '';
 }
 
-/**
- * First block comment must contain @sable-theme and key: value lines.
- */
 export function parseSableThemeMetadata(cssText: string): Partial<SableThemeMetadata> {
-  const block = extractFirstBlockComment(cssText);
-  if (!block.includes(META_START)) return {};
+  const block = extractSableThemeBlockComment(cssText);
+  if (!block) return {};
 
   const lines = block.split(/\r?\n/).map((l) => l.replace(/^\s*\*?\s?/, '').trim());
   const out: Partial<SableThemeMetadata> = {};
@@ -84,7 +89,8 @@ export function extractFullThemeUrlFromPreview(cssText: string): string | undefi
   if (meta.fullThemeUrl && /^https:\/\//i.test(meta.fullThemeUrl)) {
     return meta.fullThemeUrl;
   }
-  const block = extractFirstBlockComment(cssText);
+  const block = extractSableThemeBlockComment(cssText);
+  if (!block) return undefined;
   const m = block.match(/fullThemeUrl:\s*(https:\/\/[^\s*]+)/i);
   return m?.[1];
 }

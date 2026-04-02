@@ -4,7 +4,6 @@ import {
   Button,
   config,
   Icon,
-  IconButton,
   Icons,
   Menu,
   MenuItem,
@@ -15,13 +14,14 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import { type JumboEmojiSize, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
 
@@ -109,6 +109,7 @@ function JumboEmoji() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Jumbo Emoji Size"
+          focusId="jumbo-emoji-size"
           description="Adjust the size of emojis sent without text."
           after={<SelectJumboEmojiSize />}
         />
@@ -132,6 +133,7 @@ function Privacy() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Blur Media"
+          focusId="blur-media"
           description="Blurs images and videos in the timeline."
           after={<Switch variant="Primary" value={privacyBlur} onChange={setPrivacyBlur} />}
         />
@@ -140,6 +142,7 @@ function Privacy() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Blur Avatars"
+          focusId="blur-avatars"
           description="Blurs user profile pictures and room icons."
           after={
             <Switch variant="Primary" value={privacyBlurAvatars} onChange={setPrivacyBlurAvatars} />
@@ -150,6 +153,7 @@ function Privacy() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Blur Emotes"
+          focusId="blur-emotes"
           description="Blurs emoticons within messages."
           after={
             <Switch variant="Primary" value={privacyBlurEmotes} onChange={setPrivacyBlurEmotes} />
@@ -181,6 +185,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Colorful Names"
+          focusId="colorful-names"
           description="Assign unique colors to users based on their ID. Does not override room/space custom colors. Will override default role colors."
           after={
             <Switch
@@ -194,6 +199,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Pronoun Pills"
+          focusId="show-pronoun-pills"
           description="Display user pronouns in the message timeline."
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
         />
@@ -201,6 +207,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Pronoun Pills for All"
+          focusId="pronoun-pills-for-all"
           description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
@@ -208,6 +215,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Global Username Colors"
+          focusId="render-global-username-colors"
           description="Display the username colors anyone can set in their account settings."
           after={
             <Switch variant="Primary" value={renderGlobalColors} onChange={setRenderGlobalColors} />
@@ -217,6 +225,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Space/Room Username Colors"
+          focusId="render-space-room-username-colors"
           description="Display the username colors that can be set with /color."
           after={
             <Switch variant="Primary" value={renderRoomColors} onChange={setRenderRoomColors} />
@@ -226,6 +235,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Space/Room Fonts"
+          focusId="render-space-room-fonts"
           description="Display the username fonts that can be set with /font."
           after={<Switch variant="Primary" value={renderRoomFonts} onChange={setRenderRoomFonts} />}
         />
@@ -233,6 +243,7 @@ function IdentityCosmetics() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Consistent Icon Style"
+          focusId="consistent-icon-style"
           description="Harmonize icon appearance with background fill"
           after={<Switch variant="Primary" value={uniformIcons} onChange={setUniformIcons} />}
         />
@@ -242,26 +253,13 @@ function IdentityCosmetics() {
 }
 
 type CosmeticsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
 
-export function Cosmetics({ requestClose }: CosmeticsProps) {
+export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Appearance
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -275,6 +273,6 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

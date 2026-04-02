@@ -26,6 +26,7 @@ import { type HTMLReactParserOptions } from 'html-react-parser';
 import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { nicknamesAtom } from '$state/nicknames';
 import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
@@ -67,6 +68,7 @@ function ThreadPreview({ room, thread, onClick }: ThreadPreviewProps) {
   const useAuthentication = useMediaAuthentication();
   const { navigateRoom } = useRoomNavigate();
   const nicknames = useAtomValue(nicknamesAtom);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
@@ -77,29 +79,42 @@ function ThreadPreview({ room, thread, onClick }: ThreadPreviewProps) {
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href: string) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href: string) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room.roomId, nicknames, mentionClickHandler]
+    [mx, room.roomId, nicknames, mentionClickHandler, settingsLinkBaseUrl]
   );
 
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         useAuthentication,
         nicknames,
       }),
-    [mx, room, linkifyOpts, mentionClickHandler, spoilerClickHandler, useAuthentication, nicknames]
+    [
+      mx,
+      room,
+      linkifyOpts,
+      mentionClickHandler,
+      spoilerClickHandler,
+      useAuthentication,
+      nicknames,
+      settingsLinkBaseUrl,
+    ]
   );
 
   const handleJumpClick: MouseEventHandler = useCallback(

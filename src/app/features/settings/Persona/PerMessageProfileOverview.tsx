@@ -6,6 +6,7 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { useEffect, useState } from 'react';
 import { Box, Button, Text } from 'folds';
+import { generateShortId } from '$utils/shortIdGen';
 import { PerMessageProfileEditor } from './PerMessageProfileEditor';
 
 /**
@@ -36,7 +37,7 @@ export function PerMessageProfileOverview() {
         <Button
           onClick={() => {
             const newProfile: PerMessageProfile = {
-              id: crypto.randomUUID(),
+              id: generateShortId(5),
               name: 'New Profile',
             };
             addOrUpdatePerMessageProfile(mx, newProfile).then(() => {

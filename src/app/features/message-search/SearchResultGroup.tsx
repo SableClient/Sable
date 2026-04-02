@@ -52,6 +52,7 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { type ResultItem } from './useMessageSearch';
 
 type SearchResultGroupProps = {
@@ -90,6 +91,7 @@ export function SearchResultGroup({
   const theme = useTheme();
   const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
   const nicknames = useAtomValue(nicknamesAtom);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
 
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
@@ -97,21 +99,25 @@ export function SearchResultGroup({
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room, mentionClickHandler, nicknames]
+    [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         highlightRegex,
         useAuthentication,
@@ -128,6 +134,7 @@ export function SearchResultGroup({
       spoilerClickHandler,
       useAuthentication,
       nicknames,
+      settingsLinkBaseUrl,
     ]
   );
 

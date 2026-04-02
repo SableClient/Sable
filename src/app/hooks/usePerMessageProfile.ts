@@ -1,7 +1,8 @@
+import { type AccountDataCompatVersion, AccountDataEvent } from '$types/matrix/accountData';
 import { type PronounSet } from '$utils/pronouns';
 import { type MatrixClient } from 'matrix-js-sdk';
 
-const ACCOUNT_DATA_PREFIX = 'fyi.cisnt.permessageprofile';
+const ACCOUNT_DATA_PREFIX = AccountDataEvent.SablePerProfileMessageProfiles;
 
 /**
  * a per message profile
@@ -26,6 +27,7 @@ export type PerMessageProfile = {
    * @see PronounSet for the format of the pronouns, and how to parse them from a string input
    */
   pronouns?: PronounSet[];
+  compat?: AccountDataCompatVersion;
 };
 
 /**
@@ -104,6 +106,7 @@ type PerMessageProfileIndex = {
    * a list of all profile ids, used to list all profiles when the user wants to manage them.
    */
   profileIds: string[];
+  compat: AccountDataCompatVersion;
 };
 
 /**
@@ -112,6 +115,64 @@ type PerMessageProfileIndex = {
 type PerMessageProfileRoomAssociation = {
   profileId: string;
   validUntil?: number;
+};
+
+/**
+ * associating a profile by proxy
+ * @author Rye
+ */
+export type PerMessageProfileProxyAssociation = {
+  /**
+   * the profile associated with the proxy
+   */
+  profileId: string;
+  /**
+   * regex (string representation of it) to handle the proxy
+   */
+  regexString: string;
+  /**
+   * optional parameter to save when the proxy was added
+   */
+  setAt?: number;
+};
+
+export type InternalPerMessageProfileProxyAssociation = {
+  /**
+   * the profile associated with the proxy
+   */
+  profileId: string;
+  /**
+   * regex to handle the proxy
+   */
+  regex: RegExp;
+  /**
+   * optional parameter to save when the proxy was added
+   */
+  setAt?: number;
+};
+
+export function parsePerMessageProfileProxyAssociation(
+  assoc: PerMessageProfileProxyAssociation
+): InternalPerMessageProfileProxyAssociation {
+  return {
+    profileId: assoc.profileId,
+    // we need to remove artifacts from the toString conversion
+    regex: new RegExp(assoc.regexString.slice(1, -1)),
+    setAt: assoc.setAt,
+  } satisfies InternalPerMessageProfileProxyAssociation;
+}
+
+type PerMessageProfileProxyAssociationWrapper = {
+  /**
+   * the associations saved in the wrapper
+   */
+  associations:
+    | Map<string, PerMessageProfileProxyAssociation>
+    | Record<string, PerMessageProfileProxyAssociation>;
+  /**
+   * optional parameter to save compatibility information
+   */
+  compat?: AccountDataCompatVersion;
 };
 
 /**
@@ -128,9 +189,14 @@ type PerMessageProfileRoomAssociationWrapper = {
   associations:
     | Map<string, PerMessageProfileRoomAssociation>
     | Record<string, PerMessageProfileRoomAssociation>;
+  compat?: AccountDataCompatVersion;
 };
 
-// Helper to always get a Map from wrapper
+/**
+ * unwrap a profile-room-associations-wrapper
+ * @param wrapper the wrapper to unwrap
+ * @returns unwrapped map for profile-room-associations
+ */
 function getAssociationsMap(
   wrapper?: PerMessageProfileRoomAssociationWrapper
 ): Map<string, PerMessageProfileRoomAssociation> {
@@ -146,6 +212,33 @@ function associationsMapToObject(
   return Object.fromEntries(map);
 }
 
+/**
+ * helper function (similar to getAssociationsMap for Room associations)
+ * @param wrapper the wrapper to unwrap
+ * @returns unwrapped map of proxy associations
+ */
+function getProxyAssociationMap(
+  wrapper?: PerMessageProfileProxyAssociationWrapper
+): Map<string, PerMessageProfileProxyAssociation> {
+  if (!wrapper?.associations) return new Map();
+  if (wrapper.associations instanceof Map) return wrapper.associations;
+  return new Map(Object.entries(wrapper.associations));
+}
+
+function proxyAssociationsMapToObject(
+  map: Map<string, PerMessageProfileProxyAssociation>
+): Record<string, PerMessageProfileProxyAssociation> {
+  return Object.fromEntries(map);
+}
+
+/**
+ * getting a profile from the account data where the profile matches a given id
+ *
+ * @export
+ * @param {MatrixClient} mx the matrix client
+ * @param {string} id the profile id
+ * @return {*}  {(Promise<PerMessageProfile | undefined>)} the profile, with the profile Id, if it exists
+ */
 export async function getPerMessageProfileById(
   mx: MatrixClient,
   id: string
@@ -154,6 +247,13 @@ export async function getPerMessageProfileById(
   return profile ? (profile.getContent() as unknown as PerMessageProfile) : undefined;
 }
 
+/**
+ * getting an array of all PerMessageProfile's saved in the account data
+ *
+ * @export
+ * @param {MatrixClient} mx the matrix client
+ * @return {*}  {Promise<PerMessageProfile[]>} a array containing all per-message-profiles saved
+ */
 export async function getAllPerMessageProfiles(mx: MatrixClient): Promise<PerMessageProfile[]> {
   const profileData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.index` as any);
   const profileIds = (profileData?.getContent() as PerMessageProfileIndex)?.profileIds || [];
@@ -161,17 +261,33 @@ export async function getAllPerMessageProfiles(mx: MatrixClient): Promise<PerMes
   return profiles.filter((profile): profile is PerMessageProfile => profile !== undefined);
 }
 
+/**
+ * add or update a pmp
+ * @param mx the matrix client
+ * @param profile the profile to add/update
+ * @returns void
+ */
 export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessageProfile) {
   const profileListIndex = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.index` as any);
+  const profileWithCompat = {
+    ...profile,
+    compat: {
+      version: 1,
+      compatDate: '2026-03-26',
+    } satisfies AccountDataCompatVersion,
+  } satisfies PerMessageProfile;
   if (profileListIndex?.getContent()?.profileIds.includes(profile.id)) {
     // profile already exists, just update it
-    return mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${profile.id}` as any, profile as any);
+    return mx.setAccountData(
+      `${ACCOUNT_DATA_PREFIX}.${profile.id}` as any,
+      profileWithCompat as any
+    );
   }
   // profile doesn't exist, add it to the index and then add the profile data
   const newProfileIds = [...(profileListIndex?.getContent()?.profileIds || []), profile.id];
   return Promise.all([
     mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.index` as any, { profileIds: newProfileIds } as any),
-    mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${profile.id}` as any, profile as any),
+    mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${profile.id}` as any, profileWithCompat as any),
   ]);
 }
 
@@ -243,6 +359,89 @@ export async function setCurrentlyUsedPerMessageProfileIdForRoom(
 }
 
 /**
+ *
+ * @param mx the matrix client
+ * @param profileId the profile id which the prefix should be attached to
+ * @param proxy the prefix to use as index
+ * @param proxyRegExp the regex we can use to match the prefix
+ * @param reset wheather to delete the prefix
+ */
+export async function associateProxyWithProfile(
+  mx: MatrixClient,
+  profileId: string | undefined,
+  proxy: string,
+  proxyRegExp: RegExp,
+  reset: boolean
+) {
+  const associations = getProxyAssociationMap(
+    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as any)?.getContent()
+  );
+
+  if (reset) associations.delete(proxy);
+
+  if (!profileId) throw new Error('profileId might not be undefined');
+  if (profileId)
+    associations.set(proxy, {
+      profileId,
+      regexString: proxyRegExp.toString(),
+    } satisfies PerMessageProfileProxyAssociation);
+  mx.setAccountData(
+    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as any,
+    { associations: proxyAssociationsMapToObject(associations) } as any
+  );
+}
+
+/**
+ * get a profile based on a proxy
+ * @param mx the matrix client
+ * @param proxy the proxy to look for
+ * @returns the profile, if any, associated with the prefix
+ */
+export async function getProfileAssociatedWithProxy(
+  mx: MatrixClient,
+  proxy: string
+): Promise<PerMessageProfile | undefined> {
+  const profileId = getAssociationsMap(
+    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as any)?.getContent()
+  ).get(proxy)?.profileId;
+  if (!profileId) return undefined;
+  return getPerMessageProfileById(mx, profileId);
+}
+
+/**
+ *
+ *
+ * @export
+ * @param {MatrixClient} mx the matrix client
+ * @return {*}  {Promise<PerMessageProfileProxyAssociation[]>}
+ */
+export async function getAllPerMessageProfileProxies(
+  mx: MatrixClient
+): Promise<PerMessageProfileProxyAssociation[]> {
+  const cont: PerMessageProfileProxyAssociationWrapper | undefined = mx
+    .getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as any)
+    ?.getContent();
+  if (!cont) return [];
+  const pmap = getProxyAssociationMap(cont);
+  const parr = new Array<PerMessageProfileProxyAssociation>();
+  pmap.values().forEach((v) => parr.push(v));
+  return parr;
+}
+
+export async function dropProxyAssociationForPMP(mx: MatrixClient, proxy: string) {
+  const associations = getProxyAssociationMap(
+    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as any)?.getContent()
+  );
+  if (!associations) return;
+  associations.delete(proxy);
+  mx.setAccountData(
+    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as any,
+    { associations: proxyAssociationsMapToObject(associations) } as any
+  );
+}
+
+/**
+ *
  * drops all room associations for a profile, used when deleting a profile to make sure there are no dangling associations left that point to a non existing profile, which could cause issues when trying to apply the profile to a message in a room that still has an association for the deleted profile.
  *
  * @param {MatrixClient} mx the matrix client

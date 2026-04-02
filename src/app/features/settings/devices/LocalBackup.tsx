@@ -73,7 +73,7 @@ function ExportKeys() {
   };
 
   return (
-    <SettingTile>
+    <SettingTile focusId="export-messages-data">
       <Box as="form" onSubmit={handleSubmit} direction="Column" gap="100">
         <Box gap="200" alignItems="End">
           <ConfirmPasswordMatch initialValue>
@@ -142,6 +142,7 @@ function ExportKeysTile() {
     <>
       <SettingTile
         title="Export Messages Data"
+        focusId="export-messages-data"
         description="Save password protected copy of encryption data on your device to decrypt messages later."
         after={
           <Box>
@@ -219,7 +220,7 @@ function ImportKeys({ file, onDone }: ImportKeysProps) {
   };
 
   return (
-    <SettingTile>
+    <SettingTile focusId="import-messages-data">
       <Box as="form" onSubmit={handleSubmit} direction="Column" gap="100">
         <Box gap="200" alignItems="End">
           <Box grow="Yes" direction="Column" gap="100">
@@ -271,6 +272,7 @@ function ImportKeysTile() {
     <>
       <SettingTile
         title="Import Messages Data"
+        focusId="import-messages-data"
         description="Load password protected copy of encryption data from device to decrypt your messages."
         after={
           <Box>

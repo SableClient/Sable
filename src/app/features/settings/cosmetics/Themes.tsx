@@ -4,125 +4,92 @@ import {
   type MouseEventHandler,
   useState,
 } from 'react';
-import {
-  as,
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  type RectCords,
-  Switch,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
-import FocusTrap from 'focus-trap-react';
+
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { SequenceCard } from '$components/sequence-card';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
+import {
+  DEFAULT_ARBORIUM_DARK_THEME,
+  DEFAULT_ARBORIUM_LIGHT_THEME,
+  getArboriumThemeLabel,
+  getArboriumThemeOptions,
+} from '$plugins/arborium';
 import {
   DarkTheme,
   LightTheme,
   type Theme,
   ThemeKind,
+  useActiveTheme,
   useSystemThemeKind,
   useThemeNames,
   useThemes,
 } from '$hooks/useTheme';
-import { stopPropagation } from '$utils/keyboard';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
-type ThemeSelectorProps = {
-  themeNames: Record<string, string>;
-  themes: Theme[];
-  selected: Theme;
-  onSelect: (theme: Theme) => void;
-};
-export const ThemeSelector = as<'div', ThemeSelectorProps>(
-  ({ themeNames, themes, selected, onSelect, ...props }, ref) => (
-    <Menu {...props} ref={ref}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        {themes.map((theme) => (
-          <MenuItem
-            key={theme.id}
-            size="300"
-            variant={theme.id === selected.id ? 'Primary' : 'Surface'}
-            radii="300"
-            onClick={() => onSelect(theme)}
-          >
-            <Text size="T300">{themeNames[theme.id] ?? theme.id}</Text>
-          </MenuItem>
-        ))}
-      </Box>
-    </Menu>
-  )
-);
+function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
+  return themes.map((theme) => ({
+    value: theme.id,
+    label: themeNames[theme.id] ?? theme.id,
+  }));
+}
+
+function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
+  const themes = kind
+    ? getArboriumThemeOptions(kind)
+    : [...getArboriumThemeOptions('light'), ...getArboriumThemeOptions('dark')];
+
+  return themes.map((theme) => ({
+    value: theme.id,
+    label: getArboriumThemeLabel(theme.id),
+  }));
+}
+
+function ThemeTrigger({
+  selectedLabel,
+  onClick,
+  active,
+  disabled,
+}: {
+  selectedLabel: string;
+  onClick: MouseEventHandler<HTMLButtonElement>;
+  active: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Chip
+      type="button"
+      variant={active ? 'Primary' : 'Secondary'}
+      outlined={active}
+      radii="Pill"
+      after={<Icon size="200" src={Icons.ChevronBottom} />}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <Text size="B300">{selectedLabel}</Text>
+    </Chip>
+  );
+}
 
 function SelectTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
   const themes = useThemes();
   const themeNames = useThemeNames();
   const [themeId, setThemeId] = useSetting(settingsAtom, 'themeId');
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const selectedTheme = themes.find((theme) => theme.id === themeId) ?? LightTheme;
 
-  const handleThemeMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleThemeSelect = (theme: Theme) => {
-    setThemeId(theme.id);
-    setMenuCords(undefined);
-  };
+  const themeOptions = makeThemeOptions(themes, themeNames);
+  const selectedThemeId =
+    themeOptions.find((theme) => theme.value === themeId)?.value ?? LightTheme.id;
 
   return (
-    <>
-      <Button
-        size="300"
-        variant="Primary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
-        onClick={disabled ? undefined : handleThemeMenu}
-        aria-disabled={disabled}
-      >
-        <Text size="T300">{themeNames[selectedTheme.id] ?? selectedTheme.id}</Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <ThemeSelector
-              themeNames={themeNames}
-              themes={themes}
-              selected={selectedTheme}
-              onSelect={handleThemeSelect}
-            />
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={selectedThemeId}
+      options={themeOptions}
+      onSelect={setThemeId}
+      disabled={disabled}
+    />
   );
 }
 
@@ -135,114 +102,185 @@ function SystemThemePreferences() {
 
   const lightThemes = themes.filter((theme) => theme.kind === ThemeKind.Light);
   const darkThemes = themes.filter((theme) => theme.kind === ThemeKind.Dark);
+  const lightThemeOptions = makeThemeOptions(lightThemes, themeNames);
+  const darkThemeOptions = makeThemeOptions(darkThemes, themeNames);
 
-  const selectedLightTheme = lightThemes.find((theme) => theme.id === lightThemeId) ?? LightTheme;
-  const selectedDarkTheme = darkThemes.find((theme) => theme.id === darkThemeId) ?? DarkTheme;
-
-  const [ltCords, setLTCords] = useState<RectCords>();
-  const [dtCords, setDTCords] = useState<RectCords>();
-
-  const handleLightThemeMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setLTCords(evt.currentTarget.getBoundingClientRect());
-  };
-  const handleDarkThemeMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setDTCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleLightThemeSelect = (theme: Theme) => {
-    setLightThemeId(theme.id);
-    setLTCords(undefined);
-  };
-
-  const handleDarkThemeSelect = (theme: Theme) => {
-    setDarkThemeId(theme.id);
-    setDTCords(undefined);
-  };
+  const selectedLightThemeId =
+    lightThemeOptions.find((theme) => theme.value === lightThemeId)?.value ?? LightTheme.id;
+  const selectedDarkThemeId =
+    darkThemeOptions.find((theme) => theme.value === darkThemeId)?.value ?? DarkTheme.id;
 
   return (
     <Box wrap="Wrap" gap="400">
       <SettingTile
         title="Light Theme:"
+        focusId="light-theme"
         after={
-          <Chip
-            variant={themeKind === ThemeKind.Light ? 'Primary' : 'Secondary'}
-            outlined={themeKind === ThemeKind.Light}
-            radii="Pill"
-            after={<Icon size="200" src={Icons.ChevronBottom} />}
-            onClick={handleLightThemeMenu}
-          >
-            <Text size="B300">{themeNames[selectedLightTheme.id] ?? selectedLightTheme.id}</Text>
-          </Chip>
-        }
-      />
-      <PopOut
-        anchor={ltCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setLTCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <ThemeSelector
-              themeNames={themeNames}
-              themes={lightThemes}
-              selected={selectedLightTheme}
-              onSelect={handleLightThemeSelect}
-            />
-          </FocusTrap>
+          <SettingMenuSelector
+            value={selectedLightThemeId}
+            options={lightThemeOptions}
+            onSelect={setLightThemeId}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={themeKind === ThemeKind.Light}
+                disabled={disabled}
+              />
+            )}
+          />
         }
       />
       <SettingTile
         title="Dark Theme:"
+        focusId="dark-theme"
         after={
-          <Chip
-            variant={themeKind === ThemeKind.Dark ? 'Primary' : 'Secondary'}
-            outlined={themeKind === ThemeKind.Dark}
-            radii="Pill"
-            after={<Icon size="200" src={Icons.ChevronBottom} />}
-            onClick={handleDarkThemeMenu}
-          >
-            <Text size="B300">{themeNames[selectedDarkTheme.id] ?? selectedDarkTheme.id}</Text>
-          </Chip>
+          <SettingMenuSelector
+            value={selectedDarkThemeId}
+            options={darkThemeOptions}
+            onSelect={setDarkThemeId}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={themeKind === ThemeKind.Dark}
+                disabled={disabled}
+              />
+            )}
+          />
         }
       />
-      <PopOut
-        anchor={dtCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setDTCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <ThemeSelector
-              themeNames={themeNames}
-              themes={darkThemes}
-              selected={selectedDarkTheme}
-              onSelect={handleDarkThemeSelect}
+    </Box>
+  );
+}
+
+function SelectCodeBlockTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
+  const activeTheme = useActiveTheme();
+  const [arboriumThemeId, setArboriumThemeId] = useSetting(settingsAtom, 'arboriumThemeId');
+  const [arboriumLightTheme] = useSetting(settingsAtom, 'arboriumLightTheme');
+  const [arboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
+
+  const arboriumThemeOptions = makeArboriumThemeOptions();
+  const selectedSystemThemeId =
+    activeTheme.kind === ThemeKind.Dark
+      ? (makeArboriumThemeOptions('dark').find((theme) => theme.value === arboriumDarkTheme)
+          ?.value ?? DEFAULT_ARBORIUM_DARK_THEME)
+      : (makeArboriumThemeOptions('light').find((theme) => theme.value === arboriumLightTheme)
+          ?.value ?? DEFAULT_ARBORIUM_LIGHT_THEME);
+  const selectedArboriumThemeId =
+    arboriumThemeOptions.find((theme) => theme.value === arboriumThemeId)?.value ??
+    selectedSystemThemeId;
+
+  return (
+    <SettingMenuSelector
+      value={selectedArboriumThemeId}
+      options={arboriumThemeOptions}
+      onSelect={setArboriumThemeId}
+      disabled={disabled}
+    />
+  );
+}
+
+function CodeBlockSystemThemePreferences() {
+  const activeTheme = useActiveTheme();
+  const [arboriumLightTheme, setArboriumLightTheme] = useSetting(
+    settingsAtom,
+    'arboriumLightTheme'
+  );
+  const [arboriumDarkTheme, setArboriumDarkTheme] = useSetting(settingsAtom, 'arboriumDarkTheme');
+
+  const arboriumLightThemeOptions = makeArboriumThemeOptions('light');
+  const arboriumDarkThemeOptions = makeArboriumThemeOptions('dark');
+  const selectedArboriumLightTheme =
+    arboriumLightThemeOptions.find((theme) => theme.value === arboriumLightTheme)?.value ??
+    DEFAULT_ARBORIUM_LIGHT_THEME;
+  const selectedArboriumDarkTheme =
+    arboriumDarkThemeOptions.find((theme) => theme.value === arboriumDarkTheme)?.value ??
+    DEFAULT_ARBORIUM_DARK_THEME;
+
+  return (
+    <Box wrap="Wrap" gap="400">
+      <SettingTile
+        title="Light Theme:"
+        focusId="code-block-light-theme"
+        after={
+          <SettingMenuSelector
+            value={selectedArboriumLightTheme}
+            options={arboriumLightThemeOptions}
+            onSelect={setArboriumLightTheme}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={activeTheme.kind === ThemeKind.Light}
+                disabled={disabled}
+              />
+            )}
+          />
+        }
+      />
+      <SettingTile
+        title="Dark Theme:"
+        focusId="code-block-dark-theme"
+        after={
+          <SettingMenuSelector
+            value={selectedArboriumDarkTheme}
+            options={arboriumDarkThemeOptions}
+            onSelect={setArboriumDarkTheme}
+            renderTrigger={({ selectedOption, openMenu, disabled }) => (
+              <ThemeTrigger
+                selectedLabel={selectedOption.label}
+                onClick={openMenu}
+                active={activeTheme.kind === ThemeKind.Dark}
+                disabled={disabled}
+              />
+            )}
+          />
+        }
+      />
+    </Box>
+  );
+}
+
+function CodeBlockThemeSettings() {
+  const [useSystemArboriumTheme, setUseSystemArboriumTheme] = useSetting(
+    settingsAtom,
+    'useSystemArboriumTheme'
+  );
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Code Block Theme</Text>
+
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="System Theme"
+          focusId="code-block-system-theme"
+          description="Sync highlighted code with the app's active light/dark theme."
+          after={
+            <Switch
+              variant="Primary"
+              value={useSystemArboriumTheme}
+              onChange={setUseSystemArboriumTheme}
             />
-          </FocusTrap>
-        }
-      />
+          }
+        />
+        {useSystemArboriumTheme && <CodeBlockSystemThemePreferences />}
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Manual Theme"
+          focusId="code-block-manual-theme"
+          description="Active when System Theme is disabled."
+          after={<SelectCodeBlockTheme disabled={useSystemArboriumTheme} />}
+        />
+      </SequenceCard>
     </Box>
   );
 }
@@ -268,6 +306,7 @@ function ThemeSettings() {
       >
         <SettingTile
           title="System Theme"
+          focusId="system-theme"
           description="Sync with your device's light/dark mode."
           after={<Switch variant="Primary" value={systemTheme} onChange={setSystemTheme} />}
         />
@@ -277,6 +316,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Manual Theme"
+          focusId="manual-theme"
           description="Active when System Theme is disabled."
           after={<SelectTheme disabled={systemTheme} />}
         />
@@ -285,6 +325,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Saturation"
+          focusId="saturation"
           description={`${saturation}%`}
           after={
             <input
@@ -310,6 +351,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Underline Links"
+          focusId="underline-links"
           description="Always show underlines on links in chat, bios and room descriptions."
           after={<Switch variant="Primary" value={underlineLinks} onChange={setUnderlineLinks} />}
         />
@@ -317,6 +359,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Reduced Motion"
+          focusId="reduced-motion"
           description="Stops animations and sliding UI elements."
           after={<Switch variant="Primary" value={reducedMotion} onChange={setReducedMotion} />}
         />
@@ -324,6 +367,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay GIFs"
+          focusId="autoplay-gifs"
           description="Automatically play animated image uploads and links."
           after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
         />
@@ -331,6 +375,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay Stickers"
+          focusId="autoplay-stickers"
           description="Automatically play animated stickers."
           after={
             <Switch variant="Primary" value={autoplayStickers} onChange={setAutoplayStickers} />
@@ -340,6 +385,7 @@ function ThemeSettings() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Autoplay Emojis"
+          focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
         />
@@ -437,6 +483,7 @@ function PageZoomInput() {
     />
   );
 }
+
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
@@ -444,6 +491,7 @@ export function Appearance() {
   return (
     <Box direction="Column" gap="700">
       <ThemeSettings />
+      <CodeBlockThemeSettings />
 
       <Box direction="Column" gap="100">
         <Text size="L400">Visual Tweaks</Text>
@@ -451,6 +499,7 @@ export function Appearance() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Twitter Emoji"
+            focusId="twitter-emoji"
             description="Use Twitter-style emojis instead of system native ones."
             after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
           />
@@ -459,18 +508,20 @@ export function Appearance() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Show Easter Eggs"
+            focusId="show-easter-eggs"
             description="Lets the interface keep a little mischief turned on."
             after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
           />
         </SequenceCard>
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile title="Page Zoom" after={<PageZoomInput />} />
+          <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
         </SequenceCard>
 
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Subspace Hierarchy Limit"
+            focusId="subspace-hierarchy-limit"
             description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
             after={<SubnestedSpaceLinkDepthInput />}
           />

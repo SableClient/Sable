@@ -114,6 +114,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
           >
             <SettingTile
               title="Device Dashboard"
+              focusId="device-dashboard"
               description="Manage your devices on OIDC dashboard."
               after={
                 <Button

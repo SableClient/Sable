@@ -42,7 +42,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
-import { Settings } from '$features/settings';
+import { useOpenSettings } from '$features/settings';
 import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -152,6 +152,7 @@ export function AccountSwitcherTab() {
   const useAuthentication = useMediaAuthentication();
   const backgroundUnreads = useAtomValue(backgroundUnreadCountsAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
+  const openSettings = useOpenSettings();
 
   // Total unread count across all background sessions (for the sidebar badge).
   const totalBackgroundUnread = Object.entries(backgroundUnreads)
@@ -164,7 +165,6 @@ export function AccountSwitcherTab() {
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [busyUserIds, setBusyUserIds] = useState<Set<string>>(new Set());
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmSignOutSession, setConfirmSignOutSession] = useState<Session | undefined>(
     undefined
   );
@@ -184,10 +184,9 @@ export function AccountSwitcherTab() {
 
   const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
     if (disableAccountSwitcher) {
-      setSettingsOpen(true);
+      openSettings();
       return;
     }
-
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -258,7 +257,7 @@ export function AccountSwitcherTab() {
       userId: activeSession?.userId,
     });
     setMenuAnchor(undefined);
-    setSettingsOpen(true);
+    openSettings();
   };
 
   const activeLocalPart =
@@ -268,7 +267,7 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor || settingsOpen}>
+    <SidebarItem active={!!menuAnchor}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
           <SidebarAvatar
@@ -367,11 +366,6 @@ export function AccountSwitcherTab() {
         }
       />
 
-      {settingsOpen && (
-        <Modal500 requestClose={() => setSettingsOpen(false)}>
-          <Settings requestClose={() => setSettingsOpen(false)} />
-        </Modal500>
-      )}
       {confirmSignOutSession && (
         <Modal500 requestClose={() => setConfirmSignOutSession(undefined)}>
           <Dialog variant="Surface">

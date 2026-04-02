@@ -14,6 +14,23 @@ import { ImageViewer } from '../image-viewer';
 
 const linkStyles = { color: color.Success.Main };
 
+// Module-level in-flight deduplication: prevents N+1 concurrent requests when a
+// large event batch renders many UrlPreviewCard instances for the same URL.
+// Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
+// Inner cache keyed by URL only (not ts) — the same URL shows the same preview
+// regardless of which message referenced it. Promises are evicted after settling
+// so a later render can retry after network recovery.
+const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse>>>();
+
+const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
+  let clientCache = previewRequestCache.get(mx);
+  if (!clientCache) {
+    clientCache = new Map();
+    previewRequestCache.set(mx, clientCache);
+  }
+  return clientCache;
+};
+
 const openMediaInNewTab = async (url: string | undefined) => {
   if (!url) {
     console.warn('Attempted to open an empty url');
@@ -34,7 +51,13 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
     const [previewStatus, loadPreview] = useAsyncCallback(
       useCallback(() => {
         if (isDirect) return Promise.resolve(null);
-        return mx.getUrlPreview(url, ts);
+        const clientCache = getClientCache(mx);
+        const cached = clientCache.get(url);
+        if (cached !== undefined) return cached;
+        const urlPreview = mx.getUrlPreview(url, ts);
+        clientCache.set(url, urlPreview);
+        urlPreview.finally(() => clientCache.delete(url));
+        return urlPreview;
       }, [url, ts, mx, isDirect])
     );
 

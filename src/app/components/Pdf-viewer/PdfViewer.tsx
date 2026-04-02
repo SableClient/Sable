@@ -39,7 +39,13 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { zoom, zoomIn, zoomOut, setZoom, onPointerDown } = useImageGestures(true, 0.2);
+    const {
+      transforms: { zoom },
+      zoomIn,
+      zoomOut,
+      setZoom,
+      onPointerDown,
+    } = useImageGestures(true, 0.2);
 
     const [pdfJSState, loadPdfJS] = usePdfJSLoader();
     const [docState, loadPdfDocument] = usePdfDocumentLoader(

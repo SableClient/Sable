@@ -29,6 +29,7 @@ export const SequenceCard = as<
         ContainerColor({ variant }),
         className
       )}
+      data-sequence-card="true"
       data-first-child={firstChild}
       data-last-child={lastChild}
       {...props}

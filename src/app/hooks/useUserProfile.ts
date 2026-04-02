@@ -32,6 +32,7 @@ export type UserProfile = {
 };
 
 const normalizeInfo = (info: any): UserProfile => {
+  const msc4440Bio = info['gay.fomx.biography'] as MSC4440Bio | undefined;
   const knownKeys = new Set([
     'avatar_url',
     'displayname',
@@ -61,7 +62,7 @@ const normalizeInfo = (info: any): UserProfile => {
     pronouns: info['io.fsky.nyx.pronouns'],
     timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
     bio:
-      (info['gay.fomx.biography'] satisfies MSC4440Bio)['m.text'][0].body ||
+      msc4440Bio?.['m.text']?.[0]?.body ||
       info['moe.sable.app.bio'] ||
       info['chat.commet.profile_bio'],
     status: info['chat.commet.profile_status'],
@@ -103,7 +104,10 @@ export const useUserProfile = (
   const cached = useAtomValue(userSelector);
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
 
-  const needsFetch = !!userId && userId !== 'undefined' && !cached?._fetched;
+  const hasOnlyFetchedMarker =
+    cached?._fetched === true && Object.keys(cached ?? {}).every((key) => key === '_fetched');
+  const needsFetch =
+    !!userId && userId !== 'undefined' && (!cached?._fetched || hasOnlyFetchedMarker);
 
   useEffect(() => {
     if (!needsFetch) return undefined;

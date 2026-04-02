@@ -1,4 +1,3 @@
-import { type WheelEvent } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
@@ -14,26 +13,12 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
-    const { zoom, pan, cursor, onPointerDown, setZoom, zoomIn, zoomOut } = useImageGestures(
-      true,
-      0.2
-    );
+    const { transforms, cursor, handleWheel, onPointerDown, resetTransforms, zoomIn, zoomOut } =
+      useImageGestures(true, 0.2);
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
       FileSaver.saveAs(fileContent, alt);
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      const { deltaY } = e;
-      // Mouse wheel scrolls only by integer delta values, therefore
-      // If deltaY is an integer, then it's a mouse wheel action
-      if (Number.isInteger(deltaY)) {
-        if (deltaY < 0) {
-          zoomIn();
-        } else zoomOut();
-      }
-      // If it's not an integer, then it's a touchpad action, do nothing and let the browser handle the zooming
     };
 
     return (
@@ -54,8 +39,8 @@ export const ImageViewer = as<'div', ImageViewerProps>(
           </Box>
           <Box shrink="No" alignItems="Center" gap="200">
             <IconButton
-              variant={zoom < 1 ? 'Success' : 'SurfaceVariant'}
-              outlined={zoom < 1}
+              variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}
+              outlined={transforms.zoom < 1}
               size="300"
               radii="Pill"
               onClick={zoomOut}
@@ -63,12 +48,12 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             >
               <Icon size="50" src={Icons.Minus} />
             </IconButton>
-            <Chip variant="SurfaceVariant" radii="Pill" onClick={() => setZoom(zoom === 1 ? 2 : 1)}>
-              <Text size="B300">{Math.round(zoom * 100)}%</Text>
+            <Chip variant="SurfaceVariant" radii="Pill" onClick={resetTransforms}>
+              <Text size="B300">{Math.round(transforms.zoom * 100)}%</Text>
             </Chip>
             <IconButton
-              variant={zoom > 1 ? 'Success' : 'SurfaceVariant'}
-              outlined={zoom > 1}
+              variant={transforms.zoom > 1 ? 'Success' : 'SurfaceVariant'}
+              outlined={transforms.zoom > 1}
               size="300"
               radii="Pill"
               onClick={zoomIn}
@@ -104,7 +89,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               userSelect: 'none',
               touchAction: 'none',
               willChange: 'transform',
-              transform: `translate(${pan.translateX}px, ${pan.translateY}px) scale(${zoom})`,
+              transform: `translate(${transforms.pan.x}px, ${transforms.pan.y}px) scale(${transforms.zoom})`,
             }}
             src={src}
             alt={alt}

@@ -39,6 +39,7 @@ import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
 import {
@@ -242,6 +243,7 @@ function MessageNotifications() {
   const clientStartTimeRef = useRef(Date.now());
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const appBaseUrl = useSettingsLinkBaseUrl();
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
@@ -474,6 +476,7 @@ function MessageNotifications() {
           content.formatted_body
         ) {
           const htmlParserOpts = getReactCustomHtmlParser(mx, room.roomId, {
+            settingsLinkBaseUrl: appBaseUrl,
             linkifyOpts: LINKIFY_OPTS,
             useAuthentication,
             nicknames: nicknamesRef.current,
@@ -532,6 +535,7 @@ function MessageNotifications() {
     setInAppBanner,
     setPending,
     selectedRoomId,
+    appBaseUrl,
     useAuthentication,
   ]);
 

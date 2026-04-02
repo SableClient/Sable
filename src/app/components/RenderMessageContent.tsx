@@ -1,5 +1,7 @@
 import { memo, useMemo, useCallback } from 'react';
 import { MsgType } from '$types/matrix-sdk';
+import { parseSettingsLink } from '$features/settings/settingsLink';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
@@ -80,12 +82,14 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
     [CaptionPosition.Below]: 'column',
     [CaptionPosition.Inline]: 'row',
     [CaptionPosition.Hidden]: 'row',
   } satisfies Record<CaptionPosition, React.CSSProperties['flexDirection']>;
+  const attachmentDirection = captionPositionMap[captionPosition];
 
   const renderBody = useCallback(
     (props: any) => (
@@ -101,7 +105,9 @@ function RenderMessageContentInternal({
 
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
-      const filteredUrls = urls.filter((url) => !testMatrixTo(url));
+      const filteredUrls = urls.filter(
+        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
+      );
       if (filteredUrls.length === 0) return undefined;
 
       const analyzed = filteredUrls.map((url) => ({
@@ -129,8 +135,9 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview, urlPreview]
+    [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
   );
+  const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
 
   const renderCaption = () => {
     const hasCaption = content.body && content.body.trim().length > 0;
@@ -143,7 +150,7 @@ function RenderMessageContentInternal({
             edited={edited}
             content={content}
             renderBody={renderBody}
-            renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+            renderUrlsPreview={messageUrlsPreview}
           />
         );
       return (
@@ -162,7 +169,7 @@ function RenderMessageContentInternal({
             edited={edited}
             content={content}
             renderBody={renderBody}
-            renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+            renderUrlsPreview={messageUrlsPreview}
           />
         </Box>
       );
@@ -170,54 +177,53 @@ function RenderMessageContentInternal({
     return null;
   };
 
-  const renderFile = () => (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: captionPositionMap[captionPosition],
-      }}
-    >
-      <div>
-        <MFile
-          content={content}
-          renderFileContent={({ body, mimeType, info, encInfo, url }) => (
-            <FileContent
-              body={body}
-              mimeType={mimeType}
-              renderAsPdfFile={() => (
-                <ReadPdfFile
-                  body={body}
-                  mimeType={mimeType}
-                  url={url}
-                  encInfo={encInfo}
-                  renderViewer={(p) => <PdfViewer {...p} />}
-                />
-              )}
-              renderAsTextFile={() => (
-                <ReadTextFile
-                  body={body}
-                  mimeType={mimeType}
-                  url={url}
-                  encInfo={encInfo}
-                  renderViewer={(p) => <TextViewer {...p} />}
-                />
-              )}
-            >
-              <DownloadFile
+  function renderCaptionedAttachment(attachment: JSX.Element): JSX.Element {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: attachmentDirection,
+        }}
+      >
+        <div>{attachment}</div>
+        {renderCaption()}
+      </div>
+    );
+  }
+
+  const renderFile = () =>
+    renderCaptionedAttachment(
+      <MFile
+        content={content}
+        renderFileContent={({ body, mimeType, info, encInfo, url }) => (
+          <FileContent
+            body={body}
+            mimeType={mimeType}
+            renderAsPdfFile={() => (
+              <ReadPdfFile
                 body={body}
                 mimeType={mimeType}
                 url={url}
                 encInfo={encInfo}
-                info={info}
+                renderViewer={(p) => <PdfViewer {...p} />}
               />
-            </FileContent>
-          )}
-          outlined={outlineAttachment}
-        />
-      </div>
-      {renderCaption()}
-    </div>
-  );
+            )}
+            renderAsTextFile={() => (
+              <ReadTextFile
+                body={body}
+                mimeType={mimeType}
+                url={url}
+                encInfo={encInfo}
+                renderViewer={(p) => <TextViewer {...p} />}
+              />
+            )}
+          >
+            <DownloadFile body={body} mimeType={mimeType} url={url} encInfo={encInfo} info={info} />
+          </FileContent>
+        )}
+        outlined={outlineAttachment}
+      />
+    );
 
   if (msgType === MsgType.Text) {
     return (
@@ -225,7 +231,7 @@ function RenderMessageContentInternal({
         edited={edited}
         content={content}
         renderBody={renderBody}
-        renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderUrlsPreview={messageUrlsPreview}
       />
     );
   }
@@ -246,7 +252,7 @@ function RenderMessageContentInternal({
         edited={edited}
         content={content}
         renderBody={renderBody}
-        renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderUrlsPreview={messageUrlsPreview}
       />
     );
   }
@@ -257,7 +263,7 @@ function RenderMessageContentInternal({
         edited={edited}
         content={content}
         renderBody={renderBody}
-        renderUrlsPreview={urlPreview ? renderUrlsPreview : undefined}
+        renderUrlsPreview={messageUrlsPreview}
       />
     );
   }
@@ -270,101 +276,71 @@ function RenderMessageContentInternal({
       content.body?.toLowerCase().endsWith('.webp') ||
       (typeof content.url === 'string' && content.url.toLowerCase().includes('gif'));
 
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: captionPositionMap[captionPosition],
-        }}
-      >
-        <div>
-          <MImage
-            content={content}
-            renderImageContent={(imageProps) => (
-              <ImageContent
-                {...imageProps}
-                autoPlay={mediaAutoLoad}
-                renderImage={(p) => {
-                  if (isGif && !autoplayGifs && p.src) {
-                    return (
-                      <ClientSideHoverFreeze src={p.src}>
-                        <Image {...p} loading="lazy" />
-                      </ClientSideHoverFreeze>
-                    );
-                  }
-                  return <Image {...p} loading="lazy" />;
-                }}
-                renderViewer={(p) => <ImageViewer {...p} />}
-              />
-            )}
-            outlined={outlineAttachment}
+    return renderCaptionedAttachment(
+      <MImage
+        content={content}
+        renderImageContent={(imageProps) => (
+          <ImageContent
+            {...imageProps}
+            autoPlay={mediaAutoLoad}
+            renderImage={(p) => {
+              if (isGif && !autoplayGifs && p.src) {
+                return (
+                  <ClientSideHoverFreeze src={p.src}>
+                    <Image {...p} loading="lazy" />
+                  </ClientSideHoverFreeze>
+                );
+              }
+              return <Image {...p} loading="lazy" />;
+            }}
+            renderViewer={(p) => <ImageViewer {...p} />}
           />
-        </div>
-        {renderCaption()}
-      </div>
+        )}
+        outlined={outlineAttachment}
+      />
     );
   }
 
   if (msgType === MsgType.Video) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: captionPositionMap[captionPosition],
-        }}
-      >
-        <div>
-          <MVideo
-            content={content}
-            renderAsFile={renderFile}
-            renderVideoContent={({ body, info, ...videoProps }) => (
-              <VideoContent
-                body={body}
-                info={info}
-                {...videoProps}
-                renderThumbnail={
-                  mediaAutoLoad
-                    ? () => (
-                        <ThumbnailContent
-                          info={info}
-                          renderImage={(src) => (
-                            <Image alt={body} title={body} src={src} loading="lazy" />
-                          )}
-                        />
-                      )
-                    : undefined
-                }
-                renderVideo={(p) => <PersistedVolumeVideo {...p} />}
-              />
-            )}
-            outlined={outlineAttachment}
+    return renderCaptionedAttachment(
+      <MVideo
+        content={content}
+        renderAsFile={renderFile}
+        renderVideoContent={({ body, info, ...videoProps }) => (
+          <VideoContent
+            body={body}
+            info={info}
+            {...videoProps}
+            renderThumbnail={
+              mediaAutoLoad
+                ? () => (
+                    <ThumbnailContent
+                      info={info}
+                      renderImage={(src) => (
+                        <Image alt={body} title={body} src={src} loading="lazy" />
+                      )}
+                    />
+                  )
+                : undefined
+            }
+            renderVideo={(p) => <PersistedVolumeVideo {...p} />}
           />
-        </div>
-        {renderCaption()}
-      </div>
+        )}
+        outlined={outlineAttachment}
+      />
     );
   }
 
   if (msgType === MsgType.Audio) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: captionPositionMap[captionPosition],
-        }}
-      >
-        <div>
-          <MAudio
-            content={content}
-            renderAsFile={renderFile}
-            renderAudioContent={(audioProps) => (
-              <AudioContent {...audioProps} renderMediaControl={(p) => <MediaControl {...p} />} />
-            )}
-            outlined={outlineAttachment}
-          />
-        </div>
-        {renderCaption()}
-      </div>
+    return renderCaptionedAttachment(
+      <MAudio
+        content={content}
+        renderAsFile={renderFile}
+        renderAudioContent={(audioProps) => (
+          <AudioContent {...audioProps} renderMediaControl={(p) => <MediaControl {...p} />} />
+        )}
+        outlined={outlineAttachment}
+      />
     );
   }
 

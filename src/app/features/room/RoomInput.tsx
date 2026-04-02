@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
@@ -148,7 +149,9 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeText } from '$utils/sanitize';
+import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
+import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -256,6 +259,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const commands = useCommands(mx, room);
+    /**
+     * handle pluralkit-style messages
+     */
+    const pluralkitCmdMessageHandler = useMemo(
+      () => new PKitCommandMessageHandler(mx, room),
+      [mx, room]
+    );
+    const pluralkitProxyMessageHandler = useMemo(() => new PKitProxyMessageHandler(mx), [mx]);
+    useEffect(() => {
+      pluralkitProxyMessageHandler.init();
+    }, [pluralkitProxyMessageHandler]);
+
+    const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
+    const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     const roomToParents = useAtomValue(roomToParentsAtom);
@@ -714,6 +731,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
+      // check if its a pk command
+      if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
+        pluralkitCmdMessageHandler.handleMessage(plainText);
+        resetEditor(editor); // clear the editor
+        return; // don't do anything besides handling the command
+      }
+
       if (commandName) {
         plainText = trimCommand(commandName, plainText);
         customHtml = trimCommand(commandName, customHtml);
@@ -770,8 +794,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
        * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
        */
-      const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+      const perMessageProfile =
+        pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText)
+          ? await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText)
+          : await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
+      if (pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
+        plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
       if (perMessageProfile) {
         content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
           perMessageProfile,
@@ -790,7 +819,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           /**
            * html escaped version of the display name
            */
-          const escapedName = sanitizeCustomHtml(perMessageProfile.name);
+          const escapedName = sanitizeText(perMessageProfile.name);
 
           const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
 
@@ -901,19 +930,23 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     }, [
       editor,
       replyEvent,
-      isMarkdown,
-      canSendReaction,
       mx,
       roomId,
+      isMarkdown,
+      canSendReaction,
+      pkCompatEnable,
       replyDraft,
       silentReply,
+      pmpProxyingEnable,
+      pluralkitProxyMessageHandler,
       scheduledTime,
       editingScheduledDelayId,
       nicknames,
+      room,
       handleQuickReact,
+      pluralkitCmdMessageHandler,
       commands,
       sendTypingStatus,
-      room,
       queryClient,
       threadRootId,
       setReplyDraft,

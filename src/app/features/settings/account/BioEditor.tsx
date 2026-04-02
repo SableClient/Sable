@@ -167,7 +167,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
 
   return (
     <Box direction="Column" gap="100">
-      <SettingTile title="About You" description="Customize your bio." />
+      <SettingTile title="About You" focusId="about-you" description="Customize your bio." />
       <Box className={css.BioEditorContainer} direction="Column" style={{ position: 'relative' }}>
         {autocompleteQuery?.prefix === AutocompletePrefix.Emoticon && (
           <EmoticonAutocomplete

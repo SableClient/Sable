@@ -31,6 +31,7 @@ import {
 } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { useMediaConfig } from '$hooks/useMediaConfig';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
@@ -387,14 +388,16 @@ export function UploadCardRenderer({
 
   const spoilerClickHandler = useSpoilerClickHandler();
   const useAuthentication = useMediaAuthentication();
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
       }),
-    [linkifyOpts, mx, roomId, spoilerClickHandler, useAuthentication]
+    [linkifyOpts, mx, roomId, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
   );
   return (
     <UploadCard

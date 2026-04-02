@@ -40,6 +40,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Animals"
+          focusId="render-animals"
           description="Render animals as animals as opposed to normal humans."
           after={<Switch variant="Primary" value={renderAnimals} onChange={setRenderAnimals} />}
         />
@@ -47,6 +48,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Is Cat"
+          focusId="is-cat"
           description="Marks you as a cat."
           after={
             <Switch
@@ -60,6 +62,7 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Has Cats"
+          focusId="has-cats"
           description="Marks that you have cats."
           after={
             <Switch

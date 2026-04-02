@@ -40,12 +40,18 @@ function createTimeline(events: unknown[] = [{}]): FakeTimeline {
   };
 }
 
-function createRoom(events: unknown[] = [{}]): {
+function createRoom(
+  roomId = '!room:test',
+  events: unknown[] = [{}]
+): {
   room: FakeRoom;
   timelineSet: FakeTimelineSet;
   events: unknown[];
 } {
-  const timeline = createTimeline(events);
+  const timeline = {
+    ...createTimeline(events),
+    getRoomId: () => roomId,
+  };
   const timelineSet = new EventEmitter() as FakeTimelineSet;
   timelineSet.getLiveTimeline = () => timeline;
   timelineSet.getTimelineForEvent = () => undefined;
@@ -55,7 +61,7 @@ function createRoom(events: unknown[] = [{}]): {
     on: roomEmitter.on.bind(roomEmitter),
     removeListener: roomEmitter.removeListener.bind(roomEmitter),
     emit: roomEmitter.emit.bind(roomEmitter),
-    roomId: '!room:test',
+    roomId,
     getUnfilteredTimelineSet: () => timelineSet as never,
     getEventReadUpTo: () => null,
     getThread: () => null,
@@ -124,5 +130,111 @@ describe('useTimelineSync', () => {
     });
 
     expect(scrollToBottom).toHaveBeenCalledWith('instant');
+  });
+
+  it('resets timeline state when room.roomId changes and eventId is not set', async () => {
+    const roomOne = createRoom('!room:one');
+    const roomTwo = createRoom('!room:two');
+    const scrollToBottom = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ room, eventId }) =>
+        useTimelineSync({
+          room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          eventId,
+          isAtBottom: false,
+          isAtBottomRef: { current: false },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        }),
+      {
+        initialProps: {
+          room: roomOne.room as Room,
+          eventId: undefined as string | undefined,
+        },
+      }
+    );
+
+    expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
+
+    await act(async () => {
+      rerender({ room: roomTwo.room as Room, eventId: undefined });
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines[0]).toBe(roomTwo.timelineSet.getLiveTimeline());
+  });
+
+  it('does not reset timeline when eventId is set during a room change', async () => {
+    const roomOne = createRoom('!room:one');
+    const roomTwo = createRoom('!room:two');
+    const scrollToBottom = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ room, eventId }) =>
+        useTimelineSync({
+          room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          eventId,
+          isAtBottom: false,
+          isAtBottomRef: { current: false },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        }),
+      {
+        initialProps: {
+          room: roomOne.room as Room,
+          eventId: undefined as string | undefined,
+        },
+      }
+    );
+
+    await act(async () => {
+      rerender({ room: roomTwo.room as Room, eventId: '$event:one' });
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
+  });
+
+  it('does not reset timeline when the roomId stays the same', async () => {
+    const roomOne = createRoom('!room:one');
+    const sameRoomId = createRoom('!room:one');
+    const scrollToBottom = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ room }) =>
+        useTimelineSync({
+          room,
+          mx: { getUserId: () => '@alice:test' } as never,
+          eventId: undefined,
+          isAtBottom: false,
+          isAtBottomRef: { current: false },
+          scrollToBottom,
+          unreadInfo: undefined,
+          setUnreadInfo: vi.fn(),
+          hideReadsRef: { current: false },
+          readUptoEventIdRef: { current: undefined },
+        }),
+      {
+        initialProps: {
+          room: roomOne.room as Room,
+        },
+      }
+    );
+
+    await act(async () => {
+      rerender({ room: sameRoomId.room as Room });
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
   });
 });

@@ -66,13 +66,14 @@ import { mobileOrTablet } from '$utils/user-agent';
 import { useComposingCheck } from '$hooks/useComposingCheck';
 import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { type HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { type Opts as LinkifyOpts } from 'linkifyjs';
 import { type GetContentCallback } from '$types/matrix/room';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeText } from '$utils/sanitize';
 
 type MessageEditorProps = {
   roomId: string;
@@ -204,7 +205,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             plainText = bodyPrefix + plainText;
           }
 
-          const escapedName = sanitizeCustomHtml(pmpDisplayname);
+          const escapedName = sanitizeText(pmpDisplayname);
           const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
           if (!customHtml.startsWith(htmlPrefix)) {
             customHtml = htmlPrefix + customHtml;
@@ -348,16 +349,18 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     }, [saveState, onCancel]);
 
     const useAuthentication = useMediaAuthentication();
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const linkifyOpts = useMemo<LinkifyOpts>(() => ({ ...LINKIFY_OPTS }), []);
     const spoilerClickHandler = useSpoilerClickHandler();
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
         getReactCustomHtmlParser(mx, mEvent.getRoomId(), {
+          settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,
           handleSpoilerClick: spoilerClickHandler,
         }),
-      [linkifyOpts, mEvent, mx, spoilerClickHandler, useAuthentication]
+      [linkifyOpts, mEvent, mx, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
     );
     const getContent = (() => mEvent.getContent()) as GetContentCallback;
     const msgType = mEvent.getContent().msgtype;

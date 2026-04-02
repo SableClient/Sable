@@ -78,6 +78,7 @@ export function LanguageSpecificPronouns() {
       >
         <SettingTile
           title="Show pronouns only in selected language"
+          focusId="show-pronouns-only-in-selected-language"
           description="If enabled, pronouns are only shown when they match your selected language. This helps if your contacts set pronouns in different languages. It doesn't affect how your pronouns are shared with others."
           after={
             <Switch
@@ -90,6 +91,7 @@ export function LanguageSpecificPronouns() {
         {useLanguageSpecificPronouns && (
           <SettingTile
             title="Selected language for pronouns"
+            focusId="selected-language-for-pronouns"
             description="The language to show pronouns for when the above setting is enabled."
             after={
               <Input

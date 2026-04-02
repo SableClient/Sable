@@ -28,6 +28,10 @@ export type Settings = {
   useSystemTheme: boolean;
   lightThemeId?: string;
   darkThemeId?: string;
+  useSystemArboriumTheme: boolean;
+  arboriumThemeId?: string;
+  arboriumLightTheme?: string;
+  arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
   isMarkdown: boolean;
@@ -69,6 +73,7 @@ export type Settings = {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
+  settingsLinkBaseUrlOverride?: string;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -106,6 +111,11 @@ export type Settings = {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  /**
+   * whether to enable pk compat
+   */
+  pkCompat: boolean;
+  pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
 
@@ -118,6 +128,10 @@ const defaultSettings: Settings = {
   useSystemTheme: true,
   lightThemeId: undefined,
   darkThemeId: undefined,
+  useSystemArboriumTheme: true,
+  arboriumThemeId: 'dracula',
+  arboriumLightTheme: 'github-light',
+  arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
   isMarkdown: true,
@@ -162,6 +176,7 @@ const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
+  settingsLinkBaseUrlOverride: undefined,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -197,6 +212,8 @@ const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  pkCompat: false,
+  pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
 

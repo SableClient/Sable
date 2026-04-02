@@ -23,7 +23,7 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import * as css from '$features/room/message/styles.css';
-import { sanitizeCustomHtml } from '$utils/sanitize';
+import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { getStateEvents } from '$utils/room';
 import { StateEvent } from '$types/matrix/room';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -206,12 +206,12 @@ export function MessageForwardInternal({
 
       const safeHtml =
         originalFormattedBody === undefined
-          ? sanitizeCustomHtml(originalBody).replaceAll('\n', '<br>')
+          ? sanitizeText(originalBody).replaceAll('\n', '<br>')
           : sanitizeCustomHtml(originalFormattedBody);
 
       newBodyHtml =
         `<div data-forward-marker>` +
-        `<p>${sanitizeCustomHtml(bodyModifText)}</p>` +
+        `<p>${sanitizeText(bodyModifText)}</p>` +
         `<blockquote>${safeHtml}</blockquote>` +
         `</div>`;
     }

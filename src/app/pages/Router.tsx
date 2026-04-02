@@ -10,6 +10,8 @@ import * as Sentry from '@sentry/react';
 
 import { type ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
+import { SettingsRoute } from '$features/settings';
+import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
@@ -49,6 +51,7 @@ import {
   SERVER_PATH_SEGMENT,
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
+  SETTINGS_PATH,
 } from './paths';
 import {
   getAppPathFromHref,
@@ -59,7 +62,7 @@ import {
   getOriginBaseUrl,
   getSpaceLobbyPath,
 } from './pathUtils';
-import { ClientBindAtoms, ClientLayout, ClientRoot } from './client';
+import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
@@ -185,7 +188,7 @@ export const createRouter = (
                               </MobileFriendlyClientNav>
                             }
                           >
-                            <Outlet />
+                            <ClientRouteOutlet />
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
@@ -194,6 +197,7 @@ export const createRouter = (
                         <CreateRoomModalRenderer />
                         <CreateSpaceModalRenderer />
                         <BugReportModalRenderer />
+                        <SettingsShallowRouteRenderer />
                         <RoomSettingsRenderer />
                         <SpaceSettingsRenderer />
                         <GlobalKeyboardShortcuts />
@@ -343,6 +347,7 @@ export const createRouter = (
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         <Route
           path={INBOX_PATH}
           element={

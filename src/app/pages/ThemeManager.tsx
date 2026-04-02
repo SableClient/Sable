@@ -8,9 +8,30 @@ import {
   useActiveTheme,
   useSystemThemeKind,
 } from '$hooks/useTheme';
+import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+
+const REMOTE_STYLE_ID = 'sable-remote-theme-style';
+
+async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
+  try {
+    const cached = await getCachedThemeCss(url);
+    if (cached) return cached;
+  } catch {
+    /* IndexedDB unavailable */
+  }
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) return undefined;
+  const text = await res.text();
+  try {
+    await putCachedThemeCss(url, text);
+  } catch {
+    /* cache optional */
+  }
+  return text;
+}
 
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
@@ -60,6 +81,36 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       document.body.style.filter = '';
     }
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
+
+  useEffect(() => {
+    const url = activeTheme.remoteFullUrl?.trim();
+    if (!url) {
+      document.getElementById(REMOTE_STYLE_ID)?.remove();
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const text = await loadRemoteThemeCssText(url);
+      if (cancelled) return;
+      if (!text) {
+        document.getElementById(REMOTE_STYLE_ID)?.remove();
+        return;
+      }
+      let node = document.getElementById(REMOTE_STYLE_ID) as HTMLStyleElement | null;
+      if (!node) {
+        node = document.createElement('style');
+        node.id = REMOTE_STYLE_ID;
+        document.head.appendChild(node);
+      }
+      node.textContent = text;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTheme.remoteFullUrl]);
 
   return (
     <ArboriumThemeBridge kind={activeTheme.kind}>

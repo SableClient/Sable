@@ -129,6 +129,10 @@ export interface Settings {
   themeRemoteManualFullUrl?: string;
   themeRemoteLightFullUrl?: string;
   themeRemoteDarkFullUrl?: string;
+  /** for Arborium / UI kind **/
+  themeRemoteManualKind?: 'light' | 'dark';
+  themeRemoteLightKind?: 'light' | 'dark';
+  themeRemoteDarkKind?: 'light' | 'dark';
 }
 
 const defaultSettings: Settings = {
@@ -235,6 +239,9 @@ const defaultSettings: Settings = {
   themeRemoteManualFullUrl: undefined,
   themeRemoteLightFullUrl: undefined,
   themeRemoteDarkFullUrl: undefined,
+  themeRemoteManualKind: undefined,
+  themeRemoteLightKind: undefined,
+  themeRemoteDarkKind: undefined,
 };
 
 export const getSettings = () => {

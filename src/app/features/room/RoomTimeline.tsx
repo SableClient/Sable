@@ -520,7 +520,7 @@ export function RoomTimeline({
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
-        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
       mx,

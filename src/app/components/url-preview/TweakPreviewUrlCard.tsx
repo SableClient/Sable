@@ -84,10 +84,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
 
   const [copied, setCopied] = useTimeoutToggle();
 
-  const allowed = useMemo(
-    () => chatAny && isHttpsFullSableCssUrl(url),
-    [chatAny, url]
-  );
+  const allowed = useMemo(() => chatAny && isHttpsFullSableCssUrl(url), [chatAny, url]);
 
   const isOfficial = useMemo(
     () => isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes),
@@ -98,8 +95,8 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
     () =>
       Boolean(
         clientConfig.themeCatalogApprovedHostPrefixes &&
-          clientConfig.themeCatalogApprovedHostPrefixes.length > 0 &&
-          !isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes)
+        clientConfig.themeCatalogApprovedHostPrefixes.length > 0 &&
+        !isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes)
       ),
     [clientConfig.themeCatalogApprovedHostPrefixes, url]
   );
@@ -126,12 +123,9 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
     },
   });
 
-  const data = tweakPreviewQuery.data;
+  const { data } = tweakPreviewQuery;
 
-  const scopeClass = useMemo(
-    () => `sable-tweak-preview--${safeSlug(url)}`,
-    [url]
-  );
+  const scopeClass = useMemo(() => `sable-tweak-preview--${safeSlug(url)}`, [url]);
 
   const styleBlock = useMemo(() => {
     if (!data?.cssText) return '';
@@ -180,7 +174,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
         const nextEnabled = enabledTweakFullUrls.includes(url)
           ? [...enabledTweakFullUrls]
           : [...enabledTweakFullUrls, url];
-        let nextFavs = [...tweakFavorites];
+        const nextFavs = [...tweakFavorites];
         if (!nextFavs.some((f) => f.fullUrl === url)) {
           nextFavs.push({
             fullUrl: url,
@@ -232,10 +226,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
 
   const isFav = tweakFavorites.some((f) => f.fullUrl === url);
   const isOn = enabledTweakFullUrls.includes(url);
-  const thirdPartyIcon = isThirdPartyThemeUrl(
-    url,
-    clientConfig.themeCatalogApprovedHostPrefixes
-  );
+  const thirdPartyIcon = isThirdPartyThemeUrl(url, clientConfig.themeCatalogApprovedHostPrefixes);
 
   const descParts = [
     data.description,

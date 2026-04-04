@@ -66,10 +66,24 @@ export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatal
                 choose not to, you can keep using the built-in Light and Dark themes only.
               </Text>
               <Box direction="Column" gap="200">
-                <Button variant="Primary" fill="Soft" outlined size="300" radii="300" onClick={onEnable}>
+                <Button
+                  variant="Primary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={onEnable}
+                >
                   <Text size="B400">Yes, use the catalog</Text>
                 </Button>
-                <Button variant="Secondary" fill="Soft" outlined size="300" radii="300" onClick={onDecline}>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={onDecline}
+                >
                   <Text size="B400">No, built-in themes only</Text>
                 </Button>
               </Box>

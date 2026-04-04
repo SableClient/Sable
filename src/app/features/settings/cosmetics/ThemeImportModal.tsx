@@ -258,8 +258,8 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                 Paste a link to a <strong>.sable.css</strong> file, or paste CSS / upload a file.
                 Files whose first metadata block uses <strong>@sable-tweak</strong> are saved as
                 tweaks (applied on top of your current theme and turned on immediately). Themes use{' '}
-                <strong>@sable-theme</strong>. If theme CSS includes <strong>fullThemeUrl</strong> and
-                that URL loads, it is used; otherwise the theme is stored only on this device.
+                <strong>@sable-theme</strong>. If theme CSS includes <strong>fullThemeUrl</strong>{' '}
+                and that URL loads, it is used; otherwise the theme is stored only on this device.
               </Text>
               <SequenceCard
                 className={SequenceCardStyle}

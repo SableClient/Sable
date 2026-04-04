@@ -196,7 +196,9 @@ export async function processPastedOrUploadedCss(
   if (pkgKind === 'tweak') {
     const tweakMeta = parseSableTweakMetadata(trimmed);
     const displayName =
-      tweakMeta.name?.trim() || (fileName ? fileName.replace(/\.[^.]+$/, '') : '') || 'Imported tweak';
+      tweakMeta.name?.trim() ||
+      (fileName ? fileName.replace(/\.[^.]+$/, '') : '') ||
+      'Imported tweak';
     const basename = tweakBasename(tweakMeta, fileName);
     const id = makeLocalImportTweakId();
     const fullU = localImportTweakFullUrl(id);

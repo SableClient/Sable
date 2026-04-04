@@ -127,12 +127,9 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     }
 
     (async () => {
-      const chunks: string[] = [];
-      for (const url of urls) {
-        const text = await loadRemoteThemeCssText(url.trim());
-        if (text) chunks.push(text);
-      }
+      const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
       if (cancelled) return;
+      const chunks = texts.filter((text): text is string => Boolean(text));
       let node = document.getElementById(REMOTE_TWEAKS_STYLE_ID) as HTMLStyleElement | null;
       if (!node) {
         node = document.createElement('style');
@@ -145,7 +142,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [enabledTweakUrls.join('|')]);
+  }, [enabledTweakUrls]);
 
   return (
     <ArboriumThemeBridge kind={activeTheme.kind}>

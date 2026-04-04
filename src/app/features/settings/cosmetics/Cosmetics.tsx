@@ -262,16 +262,24 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
   const appearanceScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!themeBrowserOpen) return;
+    let timeoutId: number | undefined;
     const el = appearanceScrollRef.current;
-    if (!el) return;
-    const scrollToTop = () => {
-      el.scrollTop = 0;
+
+    if (themeBrowserOpen && el) {
+      const scrollToTop = () => {
+        el.scrollTop = 0;
+      };
+
+      scrollToTop();
+      requestAnimationFrame(scrollToTop);
+      timeoutId = window.setTimeout(scrollToTop, 0);
+    }
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
     };
-    scrollToTop();
-    requestAnimationFrame(scrollToTop);
-    const t = window.setTimeout(scrollToTop, 0);
-    return () => window.clearTimeout(t);
   }, [themeBrowserOpen]);
 
   return (

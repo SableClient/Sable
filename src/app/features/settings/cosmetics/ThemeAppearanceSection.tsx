@@ -118,7 +118,14 @@ function ClassicThemeSection({ onBrowseCatalog }: { onBrowseCatalog: () => void 
           focusId="browse-remote-catalog"
           description="Open the catalog to browse themes and optional tweaks, save favorites, and sync with light and dark mode."
           after={
-            <Button variant="Secondary" fill="Soft" outlined size="300" radii="300" onClick={onBrowseCatalog}>
+            <Button
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              size="300"
+              radii="300"
+              onClick={onBrowseCatalog}
+            >
               <Text size="B300">Browse catalog…</Text>
             </Button>
           }

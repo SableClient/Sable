@@ -396,11 +396,6 @@ function MessageInternal(
       triggerTimelineRegroup();
     };
 
-    if (mEvent.getClearContent()) {
-      setContentVersion((v) => (v === 0 ? 1 : v));
-      triggerTimelineRegroup();
-    }
-
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);
     return () => {
@@ -679,6 +674,7 @@ function MessageInternal(
   );
 
   const MSG_CONTENT_STYLE = { maxWidth: '100%' };
+  const isSableFeedback = mEvent.getId()?.startsWith('~sable-feedback-');
 
   const msgContentJSX = (
     <Box
@@ -755,6 +751,31 @@ function MessageInternal(
               <Text size="B300">Delete</Text>
             </Chip>
           )}
+        </Box>
+      )}
+      {isSableFeedback && (
+        <Box className={css.SendStatusRow} alignItems="Center" gap="100">
+          <Icon src={Icons.Info} size="100" />
+          <Text size="T200" priority="300" as="span">
+            Only you can see this.
+          </Text>
+          <Chip
+            type="button"
+            variant="SurfaceVariant"
+            radii="Pill"
+            outlined
+            onClick={(evt: any) => {
+              evt.preventDefault();
+              evt.stopPropagation();
+              const eventId = mEvent.getId();
+              if (eventId) {
+                room.removeEvent(eventId);
+                room.emit(RoomEvent.LocalEchoUpdated, mEvent, room);
+              }
+            }}
+          >
+            <Text size="B300">Dismiss</Text>
+          </Chip>
         </Box>
       )}
     </Box>

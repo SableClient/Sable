@@ -132,6 +132,7 @@ export interface Settings {
   pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
+  closeFoldersByDefault: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -246,6 +247,7 @@ export const defaultSettings: Settings = {
   pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
+  closeFoldersByDefault: false,
 
   // furry stuff
   renderAnimals: true,

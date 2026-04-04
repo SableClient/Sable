@@ -283,28 +283,7 @@ export const getSettings = () => {
   }
   delete parsed.monochromeMode;
 
-  const merged = {
-    ...defaultSettings,
-    ...(parsed as Settings),
-  };
-
-  if (merged.themeCatalogOnboardingDone === undefined) {
-    merged.themeCatalogOnboardingDone = merged.themeRemoteCatalogEnabled === true;
-  }
-  if (!merged.themeRemoteFavorites) {
-    merged.themeRemoteFavorites = [];
-  }
-  if (merged.themeMigrationDismissed === undefined) {
-    merged.themeMigrationDismissed = false;
-  }
-  if (!merged.themeRemoteTweakFavorites) {
-    merged.themeRemoteTweakFavorites = [];
-  }
-  if (!merged.themeRemoteEnabledTweakFullUrls) {
-    merged.themeRemoteEnabledTweakFullUrls = [];
-  }
-
-  return merged;
+  return parsed;
 };
 
 export const setSettings = (settings: Settings) => {

@@ -114,11 +114,11 @@ function ClassicThemeSection({ onBrowseCatalog }: { onBrowseCatalog: () => void 
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Remote theme catalog"
+          title="Remote catalog"
           focusId="browse-remote-catalog"
-          description="Browse themes from the official catalog, save favorites, and sync with light and dark mode."
+          description="Open the catalog to browse themes and optional tweaks, save favorites, and sync with light and dark mode."
           after={
-            <Button variant="Secondary" size="300" radii="300" onClick={onBrowseCatalog}>
+            <Button variant="Secondary" fill="Soft" outlined size="300" radii="300" onClick={onBrowseCatalog}>
               <Text size="B300">Browse catalog…</Text>
             </Button>
           }

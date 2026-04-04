@@ -1,21 +1,38 @@
 import { ThemeKind } from '$hooks/useTheme';
 
 import { putCachedThemeCss } from './cache';
-import { extractFullThemeUrlFromPreview, parseSableThemeMetadata } from './metadata';
+import {
+  extractFullThemeUrlFromPreview,
+  getSableCssPackageKind,
+  parseSableThemeMetadata,
+  parseSableTweakMetadata,
+} from './metadata';
 import {
   localImportFullUrl,
   localImportPreviewUrl,
+  localImportTweakFullUrl,
   makeLocalImportThemeId,
+  makeLocalImportTweakId,
 } from './localImportUrls';
 
 export type ProcessedThemeImport =
   | {
       ok: true;
+      role: 'theme';
       fullUrl: string;
       previewCssForCard: string;
       displayName: string;
       basename: string;
       kind: 'light' | 'dark';
+      importedLocal: boolean;
+    }
+  | {
+      ok: true;
+      role: 'tweak';
+      fullUrl: string;
+      displayName: string;
+      basename: string;
+      description?: string;
       importedLocal: boolean;
     }
   | { ok: false; error: string };
@@ -36,6 +53,18 @@ function metaKindToLd(meta: ReturnType<typeof parseSableThemeMetadata>): 'light'
   return 'light';
 }
 
+function tweakBasename(
+  tweakMeta: ReturnType<typeof parseSableTweakMetadata>,
+  fileName?: string
+): string {
+  const raw =
+    tweakMeta.id?.trim() ||
+    tweakMeta.name?.trim() ||
+    (fileName ? fileName.replace(/\.[^.]+$/, '') : '') ||
+    'tweak';
+  return raw.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'tweak';
+}
+
 export async function processImportedHttpsUrl(url: string): Promise<ProcessedThemeImport> {
   const trimmed = url.trim();
   if (!/^https:\/\//i.test(trimmed)) {
@@ -45,6 +74,23 @@ export async function processImportedHttpsUrl(url: string): Promise<ProcessedThe
     const res = await fetch(trimmed, { mode: 'cors' });
     if (!res.ok) return { ok: false, error: `Download failed (${res.status}).` };
     const text = await res.text();
+
+    const pkgKind = getSableCssPackageKind(text);
+    if (pkgKind === 'tweak') {
+      await putCachedThemeCss(trimmed, text);
+      const tm = parseSableTweakMetadata(text);
+      const displayName = tm.name?.trim() || basenameFromHttpsUrl(trimmed);
+      return {
+        ok: true,
+        role: 'tweak',
+        fullUrl: trimmed,
+        displayName,
+        basename: tweakBasename(tm),
+        description: tm.description?.trim(),
+        importedLocal: false,
+      };
+    }
+
     const meta = parseSableThemeMetadata(text);
     const fullFromMeta = extractFullThemeUrlFromPreview(text);
     const isPreviewPath = /\.preview\.sable\.css(\?|#|$)/i.test(trimmed);
@@ -55,6 +101,7 @@ export async function processImportedHttpsUrl(url: string): Promise<ProcessedThe
         const displayName = meta.name?.trim() || basenameFromHttpsUrl(trimmed);
         return {
           ok: true,
+          role: 'theme',
           fullUrl: trimmed,
           previewCssForCard: text,
           displayName,
@@ -72,6 +119,7 @@ export async function processImportedHttpsUrl(url: string): Promise<ProcessedThe
       const displayName = meta.name?.trim() || basenameFromHttpsUrl(fullFromMeta);
       return {
         ok: true,
+        role: 'theme',
         fullUrl: fullFromMeta,
         previewCssForCard: text,
         displayName,
@@ -87,11 +135,28 @@ export async function processImportedHttpsUrl(url: string): Promise<ProcessedThe
         const fullRes = await fetch(guessed, { mode: 'cors' });
         if (fullRes.ok) {
           const fullCss = await fullRes.text();
+          const fullPkg = getSableCssPackageKind(fullCss);
+          if (fullPkg === 'tweak') {
+            await putCachedThemeCss(guessed, fullCss);
+            await putCachedThemeCss(trimmed, text);
+            const tm = parseSableTweakMetadata(fullCss);
+            const displayName = tm.name?.trim() || basenameFromHttpsUrl(guessed);
+            return {
+              ok: true,
+              role: 'tweak',
+              fullUrl: guessed,
+              displayName,
+              basename: tweakBasename(tm),
+              description: tm.description?.trim(),
+              importedLocal: false,
+            };
+          }
           await putCachedThemeCss(guessed, fullCss);
           await putCachedThemeCss(trimmed, text);
           const displayName = meta.name?.trim() || basenameFromHttpsUrl(guessed);
           return {
             ok: true,
+            role: 'theme',
             fullUrl: guessed,
             previewCssForCard: text,
             displayName,
@@ -107,6 +172,7 @@ export async function processImportedHttpsUrl(url: string): Promise<ProcessedThe
     const displayName = meta.name?.trim() || basenameFromHttpsUrl(trimmed);
     return {
       ok: true,
+      role: 'theme',
       fullUrl: trimmed,
       previewCssForCard: text,
       displayName,
@@ -126,6 +192,26 @@ export async function processPastedOrUploadedCss(
   const trimmed = cssText.trim();
   if (!trimmed) return { ok: false, error: 'No CSS content.' };
 
+  const pkgKind = getSableCssPackageKind(trimmed);
+  if (pkgKind === 'tweak') {
+    const tweakMeta = parseSableTweakMetadata(trimmed);
+    const displayName =
+      tweakMeta.name?.trim() || (fileName ? fileName.replace(/\.[^.]+$/, '') : '') || 'Imported tweak';
+    const basename = tweakBasename(tweakMeta, fileName);
+    const id = makeLocalImportTweakId();
+    const fullU = localImportTweakFullUrl(id);
+    await putCachedThemeCss(fullU, trimmed);
+    return {
+      ok: true,
+      role: 'tweak',
+      fullUrl: fullU,
+      displayName,
+      basename,
+      description: tweakMeta.description?.trim(),
+      importedLocal: true,
+    };
+  }
+
   const meta = parseSableThemeMetadata(trimmed);
   const fullFromMeta = extractFullThemeUrlFromPreview(trimmed);
   const displayName =
@@ -137,10 +223,25 @@ export async function processPastedOrUploadedCss(
       const fullRes = await fetch(fullFromMeta, { mode: 'cors' });
       if (fullRes.ok) {
         const fullCss = await fullRes.text();
+        const remoteKind = getSableCssPackageKind(fullCss);
+        if (remoteKind === 'tweak') {
+          await putCachedThemeCss(fullFromMeta, fullCss);
+          const tm = parseSableTweakMetadata(fullCss);
+          return {
+            ok: true,
+            role: 'tweak',
+            fullUrl: fullFromMeta,
+            displayName: tm.name?.trim() || basenameFromHttpsUrl(fullFromMeta),
+            basename: tweakBasename(tm),
+            description: tm.description?.trim(),
+            importedLocal: false,
+          };
+        }
         await putCachedThemeCss(fullFromMeta, fullCss);
         const previewMeta = parseSableThemeMetadata(trimmed);
         return {
           ok: true,
+          role: 'theme',
           fullUrl: fullFromMeta,
           previewCssForCard: trimmed,
           displayName: previewMeta.name?.trim() || basenameFromHttpsUrl(fullFromMeta),
@@ -162,6 +263,7 @@ export async function processPastedOrUploadedCss(
 
   return {
     ok: true,
+    role: 'theme',
     fullUrl: fullU,
     previewCssForCard: trimmed,
     displayName,

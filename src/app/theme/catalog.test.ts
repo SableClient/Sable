@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listThemePairsFromCatalog, themeCatalogManifestUrlFromBase } from './catalog';
+import {
+  fetchThemeCatalogBundle,
+  listThemePairsFromCatalog,
+  themeCatalogManifestUrlFromBase,
+} from './catalog';
 
 describe('themeCatalogManifestUrlFromBase', () => {
   it('resolves catalog.json beside raw root', () => {
@@ -37,9 +41,9 @@ describe('listThemePairsFromCatalog', () => {
           {
             basename: 'rose-pine',
             previewUrl:
-              'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.preview.sable.css',
+              'https://raw.githubusercontent.com/SableClient/themes/main/themes/rose-pine.preview.sable.css',
             fullUrl:
-              'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.sable.css',
+              'https://raw.githubusercontent.com/SableClient/themes/main/themes/rose-pine.sable.css',
           },
         ],
       }),
@@ -106,17 +110,17 @@ describe('listThemePairsFromCatalog', () => {
         json: async () => [
           {
             name: 'rose-pine.preview.sable.css',
-            path: 'rose-pine.preview.sable.css',
+            path: 'themes/rose-pine.preview.sable.css',
             type: 'file',
             download_url:
-              'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.preview.sable.css',
+              'https://raw.githubusercontent.com/SableClient/themes/main/themes/rose-pine.preview.sable.css',
           },
           {
             name: 'rose-pine.sable.css',
-            path: 'rose-pine.sable.css',
+            path: 'themes/rose-pine.sable.css',
             type: 'file',
             download_url:
-              'https://raw.githubusercontent.com/SableClient/themes/main/rose-pine.sable.css',
+              'https://raw.githubusercontent.com/SableClient/themes/main/themes/rose-pine.sable.css',
           },
         ],
       });
@@ -131,7 +135,7 @@ describe('listThemePairsFromCatalog', () => {
       expect.objectContaining({ mode: 'cors' })
     );
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://api.github.com/repos/SableClient/themes/contents?ref=main',
+      'https://api.github.com/repos/SableClient/themes/contents/themes?ref=main',
       expect.objectContaining({ headers: { Accept: 'application/vnd.github+json' } })
     );
   });
@@ -140,6 +144,10 @@ describe('listThemePairsFromCatalog', () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -154,7 +162,11 @@ describe('listThemePairsFromCatalog', () => {
       expect.anything()
     );
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://api.github.com/repos/SableClient/themes/contents/dist/themes?ref=main',
+      'https://api.github.com/repos/SableClient/themes/contents/dist/themes/themes?ref=main',
+      expect.anything()
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/SableClient/themes/contents/dist/themes/tweaks?ref=main',
       expect.anything()
     );
   });
@@ -167,5 +179,55 @@ describe('listThemePairsFromCatalog', () => {
       'https://example.com/catalog.json',
       expect.anything()
     );
+  });
+
+  it('loads tweaks from manifest when themes array is empty', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        version: 1,
+        themes: [],
+        tweaks: [
+          {
+            basename: 'rounded',
+            fullUrl:
+              'https://raw.githubusercontent.com/SableClient/themes/main/tweaks/rounded.sable.css',
+          },
+        ],
+      }),
+    });
+    const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
+    const bundle = await fetchThemeCatalogBundle(base);
+    expect(bundle.themes).toEqual([]);
+    expect(bundle.tweaks).toHaveLength(1);
+    expect(bundle.tweaks[0].basename).toBe('rounded');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads tweaks from GitHub tweaks/ when manifest is missing', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            name: 'rounded.sable.css',
+            path: 'tweaks/rounded.sable.css',
+            type: 'file',
+            download_url:
+              'https://raw.githubusercontent.com/SableClient/themes/main/tweaks/rounded.sable.css',
+          },
+        ],
+      });
+    const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
+    const bundle = await fetchThemeCatalogBundle(base);
+    expect(bundle.themes).toEqual([]);
+    expect(bundle.tweaks).toHaveLength(1);
+    expect(bundle.tweaks[0].basename).toBe('rounded');
   });
 });

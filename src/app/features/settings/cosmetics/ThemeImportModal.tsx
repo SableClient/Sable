@@ -18,7 +18,11 @@ import {
 } from 'folds';
 
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom, type ThemeRemoteFavorite } from '$state/settings';
+import {
+  settingsAtom,
+  type ThemeRemoteFavorite,
+  type ThemeRemoteTweakFavorite,
+} from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -39,6 +43,8 @@ type ThemeImportModalProps = {
 export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
   const patchSettings = usePatchSettings();
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
+  const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
+  const [enabledTweakFullUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
   const [manualRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
   const [lightRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
   const [darkRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
@@ -67,6 +73,14 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     []
   );
 
+  const pruneTweakFavorites = useCallback(
+    (nextFavorites: ThemeRemoteTweakFavorite[], nextEnabledUrls: string[]) => {
+      const enabled = new Set(nextEnabledUrls);
+      return nextFavorites.filter((f) => f.pinned === true || enabled.has(f.fullUrl));
+    },
+    []
+  );
+
   useEffect(() => {
     if (!open) {
       setImportUrl('');
@@ -84,8 +98,32 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
   const onImportPasteChange: ChangeEventHandler<HTMLTextAreaElement> = (e) =>
     setImportPaste(e.target.value);
 
-  const addImportedFavorite = useCallback(
+  const addImportedResult = useCallback(
     (r: Extract<ProcessedThemeImport, { ok: true }>) => {
+      if (r.role === 'tweak') {
+        const existing = tweakFavorites.find((f) => f.fullUrl === r.fullUrl);
+        if (existing) {
+          setImportError('That tweak is already saved.');
+          return;
+        }
+        const next: ThemeRemoteTweakFavorite = {
+          fullUrl: r.fullUrl,
+          displayName: r.displayName,
+          basename: r.basename,
+          pinned: true,
+          importedLocal: r.importedLocal,
+        };
+        const nextEnabled = enabledTweakFullUrls.includes(r.fullUrl)
+          ? [...enabledTweakFullUrls]
+          : [...enabledTweakFullUrls, r.fullUrl];
+        patchSettings({
+          themeRemoteTweakFavorites: pruneTweakFavorites([...tweakFavorites, next], nextEnabled),
+          themeRemoteEnabledTweakFullUrls: nextEnabled,
+        });
+        onClose();
+        return;
+      }
+
       const existing = favorites.find((f) => f.fullUrl === r.fullUrl);
       if (existing) {
         setImportError('That theme is already saved.');
@@ -109,7 +147,16 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
       });
       onClose();
     },
-    [activeUrls, favorites, onClose, patchSettings, pruneFavorites]
+    [
+      activeUrls,
+      enabledTweakFullUrls,
+      favorites,
+      onClose,
+      patchSettings,
+      pruneFavorites,
+      pruneTweakFavorites,
+      tweakFavorites,
+    ]
   );
 
   const onImportFileChange: ChangeEventHandler<HTMLInputElement> = (e) => {
@@ -135,7 +182,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
           setImportError(result.error);
           return;
         }
-        addImportedFavorite(result);
+        addImportedResult(result);
       } finally {
         setImportBusy(false);
       }
@@ -158,11 +205,11 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
         setImportError(result.error);
         return;
       }
-      addImportedFavorite(result);
+      addImportedResult(result);
     } finally {
       setImportBusy(false);
     }
-  }, [addImportedFavorite, importFileName, importPaste, importUrl, uploadedFileCss]);
+  }, [addImportedResult, importFileName, importPaste, importUrl, uploadedFileCss]);
 
   const dismissSafe = useCallback(() => {
     if (importBusy) return;
@@ -193,7 +240,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
             >
               <Box grow="Yes">
                 <Text id="theme-import-title" size="H4">
-                  Import a theme
+                  Import a theme or tweak
                 </Text>
               </Box>
               <IconButton
@@ -208,9 +255,11 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
             </Header>
             <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
               <Text priority="400">
-                Paste a link to a theme file, or paste CSS / upload a .css file. If the CSS includes
-                fullThemeUrl and that URL loads, it is used, otherwise the theme is stored only on
-                this device. Links fetch remote themes.
+                Paste a link to a <strong>.sable.css</strong> file, or paste CSS / upload a file.
+                Files whose first metadata block uses <strong>@sable-tweak</strong> are saved as
+                tweaks (applied on top of your current theme and turned on immediately). Themes use{' '}
+                <strong>@sable-theme</strong>. If theme CSS includes <strong>fullThemeUrl</strong> and
+                that URL loads, it is used; otherwise the theme is stored only on this device.
               </Text>
               <SequenceCard
                 className={SequenceCardStyle}
@@ -233,6 +282,8 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                     </Text>
                     <Button
                       variant="Secondary"
+                      fill="Soft"
+                      outlined
                       size="300"
                       radii="300"
                       disabled={importBusy}
@@ -249,7 +300,7 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                 <textarea
                   value={importPaste}
                   onChange={onImportPasteChange}
-                  placeholder="Paste .preview.sable.css or .sable.css text, or pick a file below…"
+                  placeholder="Paste .preview.sable.css, .sable.css, or tweak CSS, or pick a file below…"
                   rows={6}
                   disabled={Boolean(uploadedFileCss)}
                   style={{
@@ -275,6 +326,8 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                 <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
                   <Button
                     variant="Secondary"
+                    fill="Soft"
+                    outlined
                     size="300"
                     radii="300"
                     disabled={importBusy}
@@ -284,6 +337,8 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
                   </Button>
                   <Button
                     variant="Primary"
+                    fill="Soft"
+                    outlined
                     size="300"
                     radii="300"
                     disabled={importBusy}

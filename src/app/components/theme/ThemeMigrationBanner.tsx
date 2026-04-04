@@ -108,6 +108,9 @@ export function ThemeMigrationBanner() {
               </Box>
               <IconButton
                 size="300"
+                variant="Secondary"
+                fill="Soft"
+                outlined
                 radii="300"
                 onClick={dismissSafe}
                 disabled={busy}
@@ -128,10 +131,26 @@ export function ThemeMigrationBanner() {
                 </Text>
               )}
               <Box direction="Column" gap="200">
-                <Button variant="Primary" fill="Solid" onClick={migrate} disabled={busy}>
+                <Button
+                  variant="Primary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={migrate}
+                  disabled={busy}
+                >
                   <Text size="B400">{busy ? 'Migrating…' : 'Migrate'}</Text>
                 </Button>
-                <Button variant="Secondary" fill="Soft" onClick={dismissSafe} disabled={busy}>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={dismissSafe}
+                  disabled={busy}
+                >
                   <Text size="B400">Not now</Text>
                 </Button>
               </Box>

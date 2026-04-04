@@ -10,6 +10,8 @@ type SettingsShape = {
   themeMigrationDismissed: boolean;
   themeRemoteCatalogEnabled: boolean;
   themeRemoteFavorites: unknown[];
+  themeRemoteTweakFavorites: unknown[];
+  themeRemoteEnabledTweakFullUrls: string[];
   lightThemeId?: string;
   darkThemeId?: string;
   useSystemArboriumTheme: boolean;
@@ -69,6 +71,8 @@ beforeEach(() => {
     themeMigrationDismissed: true,
     themeRemoteCatalogEnabled: false,
     themeRemoteFavorites: [],
+    themeRemoteTweakFavorites: [],
+    themeRemoteEnabledTweakFullUrls: [],
     lightThemeId: 'cinny-light-theme',
     darkThemeId: 'black-theme',
     useSystemArboriumTheme: true,

@@ -12,9 +12,10 @@ import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
-import { isLocalImportThemeUrl } from '../theme/localImportUrls';
+import { isLocalImportBundledUrl } from '../theme/localImportUrls';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
+const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
 
 async function loadRemoteThemeCssText(url: string): Promise<string | undefined> {
   try {
@@ -23,7 +24,7 @@ async function loadRemoteThemeCssText(url: string): Promise<string | undefined> 
   } catch {
     /* IndexedDB unavailable */
   }
-  if (isLocalImportThemeUrl(url)) {
+  if (isLocalImportBundledUrl(url)) {
     return undefined;
   }
   const res = await fetch(url, { mode: 'cors' });
@@ -59,6 +60,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [saturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
+  const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
   useEffect(() => {
     document.body.className = '';
@@ -114,6 +116,36 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [activeTheme.remoteFullUrl]);
+
+  useEffect(() => {
+    const urls = enabledTweakUrls.filter((u) => u.trim().length > 0);
+    let cancelled = false;
+
+    if (urls.length === 0) {
+      document.getElementById(REMOTE_TWEAKS_STYLE_ID)?.remove();
+      return undefined;
+    }
+
+    (async () => {
+      const chunks: string[] = [];
+      for (const url of urls) {
+        const text = await loadRemoteThemeCssText(url.trim());
+        if (text) chunks.push(text);
+      }
+      if (cancelled) return;
+      let node = document.getElementById(REMOTE_TWEAKS_STYLE_ID) as HTMLStyleElement | null;
+      if (!node) {
+        node = document.createElement('style');
+        node.id = REMOTE_TWEAKS_STYLE_ID;
+        document.head.appendChild(node);
+      }
+      node.textContent = chunks.join('\n\n');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabledTweakUrls.join('|')]);
 
   return (
     <ArboriumThemeBridge kind={activeTheme.kind}>

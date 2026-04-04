@@ -34,8 +34,10 @@ import {
   UrlPreviewHolder,
   ClientPreview,
   ThemePreviewUrlCard,
+  TweakPreviewUrlCard,
   youtubeUrl,
 } from './url-preview';
+import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -122,6 +124,10 @@ function RenderMessageContentInternal({
         : [];
       const themeToRender = themePreviewUrls.filter((u) => /^https:\/\//i.test(u));
 
+      const tweakCandidateUrls = themeChatAny
+        ? filteredUrls.filter((u) => isHttpsFullSableCssUrl(u))
+        : [];
+
       const analyzed = filteredUrls.map((url) => ({
         url,
         type: getMediaType(url),
@@ -135,8 +141,12 @@ function RenderMessageContentInternal({
           {themeToRender.map((url) => (
             <ThemePreviewUrlCard key={`theme:${url}`} url={url} />
           ))}
+          {tweakCandidateUrls.map((url) => (
+            <TweakPreviewUrlCard key={`tweak:${url}`} url={url} />
+          ))}
           {toRender.map(({ url, type }) => {
             if (themeToRender.includes(url)) return null;
+            if (tweakCandidateUrls.includes(url)) return null;
             if (type) {
               return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
             }

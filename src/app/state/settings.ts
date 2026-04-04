@@ -32,6 +32,14 @@ export type ThemeRemoteFavorite = {
   importedLocal?: boolean;
 };
 
+export type ThemeRemoteTweakFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  pinned?: boolean;
+  importedLocal?: boolean;
+};
+
 export interface Settings {
   themeId?: string;
   useSystemTheme: boolean;
@@ -141,6 +149,8 @@ export interface Settings {
   themeRemoteLightKind?: 'light' | 'dark';
   themeRemoteDarkKind?: 'light' | 'dark';
   themeMigrationDismissed: boolean;
+  themeRemoteTweakFavorites: ThemeRemoteTweakFavorite[];
+  themeRemoteEnabledTweakFullUrls: string[];
 }
 
 export const defaultSettings: Settings = {
@@ -253,6 +263,8 @@ export const defaultSettings: Settings = {
   themeRemoteLightKind: undefined,
   themeRemoteDarkKind: undefined,
   themeMigrationDismissed: false,
+  themeRemoteTweakFavorites: [],
+  themeRemoteEnabledTweakFullUrls: [],
 };
 
 export const getSettings = () => {
@@ -282,6 +294,12 @@ export const getSettings = () => {
   }
   if (merged.themeMigrationDismissed === undefined) {
     merged.themeMigrationDismissed = false;
+  }
+  if (!merged.themeRemoteTweakFavorites) {
+    merged.themeRemoteTweakFavorites = [];
+  }
+  if (!merged.themeRemoteEnabledTweakFullUrls) {
+    merged.themeRemoteEnabledTweakFullUrls = [];
   }
 
   return merged;

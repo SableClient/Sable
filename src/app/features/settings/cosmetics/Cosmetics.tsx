@@ -1,4 +1,4 @@
-import { MouseEventHandler, useState } from 'react';
+import { MouseEventHandler, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -259,11 +259,25 @@ type CosmeticsProps = {
 
 export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
+  const appearanceScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!themeBrowserOpen) return;
+    const el = appearanceScrollRef.current;
+    if (!el) return;
+    const scrollToTop = () => {
+      el.scrollTop = 0;
+    };
+    scrollToTop();
+    requestAnimationFrame(scrollToTop);
+    const t = window.setTimeout(scrollToTop, 0);
+    return () => window.clearTimeout(t);
+  }, [themeBrowserOpen]);
 
   return (
     <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
-        <Scroll hideTrack visibility="Hover">
+        <Scroll ref={appearanceScrollRef} hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
               <Appearance onThemeBrowserOpenChange={setThemeBrowserOpen} />

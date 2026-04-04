@@ -1,10 +1,31 @@
 import { type ChangeEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
+import { copyToClipboard } from '$utils/dom';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Button, Chip, Input, Spinner, Switch, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  Chip,
+  Icon,
+  IconButton,
+  Icons,
+  Input,
+  Scroll,
+  Spinner,
+  Switch,
+  Text,
+  config,
+  toRem,
+} from 'folds';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { ThemeKind } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom, type Settings, type ThemeRemoteFavorite } from '$state/settings';
+import {
+  settingsAtom,
+  type Settings,
+  type ThemeRemoteFavorite,
+  type ThemeRemoteTweakFavorite,
+} from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -12,13 +33,18 @@ import { ThemePreviewCard } from '$components/theme/ThemePreviewCard';
 import { usePatchSettings } from './themeSettingsPatch';
 import { ThemeImportModal } from './ThemeImportModal';
 import { getCachedThemeCss, putCachedThemeCss } from '../../../theme/cache';
-import { listThemePairsFromCatalog, type ThemePair } from '../../../theme/catalog';
-import { isLocalImportThemeUrl } from '../../../theme/localImportUrls';
+import {
+  fetchThemeCatalogBundle,
+  type ThemePair,
+  type TweakCatalogEntry,
+} from '../../../theme/catalog';
+import { isLocalImportBundledUrl, isLocalImportThemeUrl } from '../../../theme/localImportUrls';
 import { isThirdPartyThemeUrl } from '../../../theme/themeApproval';
 import { themeCatalogListingBaseUrl } from '../../../theme/catalogDefaults';
 import {
   extractFullThemeUrlFromPreview,
   parseSableThemeMetadata,
+  parseSableTweakMetadata,
   type SableThemeContrast,
 } from '../../../theme/metadata';
 import { previewUrlFromFullThemeUrl } from '../../../theme/previewUrls';
@@ -43,6 +69,21 @@ export type LocalPreviewRow = ThemeRemoteFavorite & {
   importedLocal?: boolean;
 };
 
+export type CatalogTweakRow = TweakCatalogEntry & {
+  fullCssText: string;
+  displayName: string;
+  description?: string;
+  author?: string;
+  tags: string[];
+};
+
+export type LocalTweakRow = ThemeRemoteTweakFavorite & {
+  fullCssText: string;
+  description?: string;
+  author?: string;
+  tags: string[];
+};
+
 export type ThemeCatalogSettingsMode = 'full' | 'local' | 'chat' | 'remote' | 'appearance';
 
 export { usePatchSettings } from './themeSettingsPatch';
@@ -51,6 +92,166 @@ type ThemeCatalogSettingsProps = {
   mode?: ThemeCatalogSettingsMode;
   onBrowseOpenChange?: (open: boolean) => void;
 };
+
+type CatalogTweakCardProps = {
+  displayName: string;
+  description: string;
+  copyUrl?: string;
+  thirdPartyChip: boolean;
+  isFavorited: boolean;
+  onToggleFavorite: () => void | Promise<void>;
+  isOn: boolean;
+  onSetApplied: (v: boolean) => void;
+};
+
+function CatalogTweakCard({
+  displayName,
+  description,
+  copyUrl,
+  thirdPartyChip,
+  isFavorited,
+  onToggleFavorite,
+  isOn,
+  onSetApplied,
+}: CatalogTweakCardProps) {
+  const [copied, setCopied] = useTimeoutToggle();
+  const handleCopy = useCallback(async () => {
+    if (!copyUrl) return;
+    if (await copyToClipboard(copyUrl)) setCopied();
+  }, [copyUrl, setCopied]);
+
+  return (
+    <Box
+      direction="Column"
+      gap="200"
+      style={{
+        padding: toRem(12),
+        borderRadius: config.radii.R300,
+        border: `${toRem(1)} solid var(--sable-surface-container-line)`,
+        background: 'var(--sable-surface-container)',
+      }}
+    >
+      <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200" wrap="Wrap">
+        <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
+          <Text size="H6">{displayName}</Text>
+          <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
+            {description}
+          </Text>
+        </Box>
+        <Box direction="Row" gap="100" alignItems="Center" shrink="No" wrap="Wrap">
+          {thirdPartyChip && (
+            <Chip variant="Critical" outlined radii="Pill">
+              <Text size="B300">Third-party URL</Text>
+            </Chip>
+          )}
+          {copyUrl && (
+            <IconButton
+              size="300"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+              aria-label={copied ? 'Copied tweak link' : 'Copy tweak link'}
+              onClick={() => {
+                handleCopy().catch(() => undefined);
+              }}
+            >
+              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            </IconButton>
+          )}
+          <IconButton
+            size="300"
+            variant={isFavorited ? 'Primary' : 'Secondary'}
+            fill="Soft"
+            outlined
+            radii="300"
+            aria-label={isFavorited ? 'Remove tweak from saved' : 'Save tweak'}
+            onClick={() => {
+              Promise.resolve(onToggleFavorite()).catch(() => undefined);
+            }}
+          >
+            <Icon size="200" src={Icons.Star} filled={isFavorited} />
+          </IconButton>
+          <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+type SavedTweakRowProps = {
+  displayName: string;
+  description: string;
+  copyUrl?: string;
+  thirdPartyChip: boolean;
+  isOn: boolean;
+  onRemove: () => void;
+  onSetApplied: (v: boolean) => void;
+};
+
+function SavedTweakRow({
+  displayName,
+  description,
+  copyUrl,
+  thirdPartyChip,
+  isOn,
+  onRemove,
+  onSetApplied,
+}: SavedTweakRowProps) {
+  const [copied, setCopied] = useTimeoutToggle();
+  const handleCopy = useCallback(async () => {
+    if (!copyUrl) return;
+    if (await copyToClipboard(copyUrl)) setCopied();
+  }, [copyUrl, setCopied]);
+
+  return (
+    <Box
+      direction="Column"
+      gap="200"
+      style={{
+        padding: toRem(12),
+        borderRadius: config.radii.R300,
+        border: `${toRem(1)} solid var(--sable-surface-container-line)`,
+        background: 'var(--sable-surface-container)',
+      }}
+    >
+      <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200" wrap="Wrap">
+        <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
+          <Text size="H6">{displayName}</Text>
+          <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
+            {description}
+          </Text>
+        </Box>
+        <Box direction="Row" gap="100" alignItems="Center" shrink="No" wrap="Wrap">
+          {thirdPartyChip && (
+            <Chip variant="Critical" outlined radii="Pill">
+              <Text size="B300">Third-party URL</Text>
+            </Chip>
+          )}
+          {copyUrl && (
+            <IconButton
+              size="300"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+              aria-label={copied ? 'Copied tweak link' : 'Copy tweak link'}
+              onClick={() => {
+                handleCopy().catch(() => undefined);
+              }}
+            >
+              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            </IconButton>
+          )}
+          <Button variant="Critical" fill="Soft" outlined size="300" radii="300" onClick={onRemove}>
+            <Text size="B300">Remove</Text>
+          </Button>
+          <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
+        </Box>
+      </Box>
+    </Box>
+  );
+}
 
 export function ThemeCatalogSettings({
   mode = 'full',
@@ -74,20 +275,30 @@ export function ThemeCatalogSettings({
 
   const isRemoteMode = mode === 'remote' || mode === 'full' || (isAppearanceMode && browseOpen);
   const isChatMode = mode === 'chat' || mode === 'full' || (isAppearanceMode && !browseOpen);
-  const isLocalMode = mode === 'local' || mode === 'full' || (isAppearanceMode && !browseOpen);
+  const showAssignmentChrome =
+    mode === 'full' || mode === 'local' || (isAppearanceMode && !browseOpen);
+  const showSavedLibrary =
+    (mode === 'full' || mode === 'local' || isAppearanceMode) && !(isAppearanceMode && browseOpen);
 
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
+  const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
+  const [enabledTweakFullUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
   const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
   const [manualRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
   const [lightRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
   const [darkRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
   const [chatAny, setChatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
 
-  const [search, setSearch] = useState('');
+  const [themeSearch, setThemeSearch] = useState('');
+  const [tweakSearch, setTweakSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<'all' | 'light' | 'dark'>('all');
   const [contrastFilter, setContrastFilter] = useState<'all' | SableThemeContrast>('all');
+  const [tweakApplyFilter, setTweakApplyFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
 
-  const onSearchChange: ChangeEventHandler<HTMLInputElement> = (e) => setSearch(e.target.value);
+  const onThemeSearchChange: ChangeEventHandler<HTMLInputElement> = (e) =>
+    setThemeSearch(e.target.value);
+  const onTweakSearchChange: ChangeEventHandler<HTMLInputElement> = (e) =>
+    setTweakSearch(e.target.value);
 
   const activeUrls = useMemo(
     () =>
@@ -101,6 +312,14 @@ export function ThemeCatalogSettings({
     (nextFavorites: ThemeRemoteFavorite[], nextActiveUrls: string[]) => {
       const active = new Set(nextActiveUrls);
       return nextFavorites.filter((f) => f.pinned === true || active.has(f.fullUrl));
+    },
+    []
+  );
+
+  const pruneTweakFavorites = useCallback(
+    (nextFavorites: ThemeRemoteTweakFavorite[], nextEnabledUrls: string[]) => {
+      const enabled = new Set(nextEnabledUrls);
+      return nextFavorites.filter((f) => f.pinned === true || enabled.has(f.fullUrl));
     },
     []
   );
@@ -125,9 +344,9 @@ export function ThemeCatalogSettings({
     [darkRemoteFullUrl, lightRemoteFullUrl, manualRemoteFullUrl]
   );
 
-  const pairsQuery = useQuery({
-    queryKey: ['theme-catalog-pairs', catalogBase, catalogManifestUrl ?? ''],
-    queryFn: () => listThemePairsFromCatalog(catalogBase, { manifestUrl: catalogManifestUrl }),
+  const catalogQuery = useQuery({
+    queryKey: ['theme-catalog-bundle', catalogBase, catalogManifestUrl ?? ''],
+    queryFn: () => fetchThemeCatalogBundle(catalogBase, { manifestUrl: catalogManifestUrl }),
     enabled: isRemoteMode,
     staleTime: 5 * 60_000,
   });
@@ -136,10 +355,10 @@ export function ThemeCatalogSettings({
     queryKey: [
       'theme-catalog-previews',
       catalogBase,
-      pairsQuery.data?.map((p) => p.previewUrl).join('|') ?? '',
+      catalogQuery.data?.themes?.map((p) => p.previewUrl).join('|') ?? '',
     ],
     queryFn: async (): Promise<CatalogPreviewRow[]> => {
-      const pairs = pairsQuery.data ?? [];
+      const pairs = catalogQuery.data?.themes ?? [];
       const rows = await Promise.all(
         pairs.map(async (pair) => {
           const res = await fetch(pair.previewUrl, { mode: 'cors' });
@@ -164,13 +383,75 @@ export function ThemeCatalogSettings({
       );
       return rows;
     },
-    enabled: isRemoteMode && Boolean(pairsQuery.data?.length),
+    enabled: isRemoteMode && Boolean(catalogQuery.data?.themes?.length),
     staleTime: 10 * 60_000,
   });
 
+  const tweakDetailsQuery = useQuery({
+    queryKey: [
+      'theme-catalog-tweak-details',
+      catalogBase,
+      catalogQuery.data?.tweaks?.map((t) => t.fullUrl).join('|') ?? '',
+    ],
+    queryFn: async (): Promise<CatalogTweakRow[]> => {
+      const tweaks = catalogQuery.data?.tweaks ?? [];
+      const rows = await Promise.all(
+        tweaks.map(async (entry) => {
+          try {
+            let text: string;
+            if (isLocalImportBundledUrl(entry.fullUrl)) {
+              text = (await getCachedThemeCss(entry.fullUrl)) ?? '';
+            } else {
+              const res = await fetch(entry.fullUrl, { mode: 'cors' });
+              text = res.ok ? await res.text() : '';
+            }
+            const meta = parseSableTweakMetadata(text);
+            return {
+              ...entry,
+              fullCssText: text,
+              displayName: meta.name?.trim() || entry.basename,
+              description: meta.description?.trim() || undefined,
+              author: meta.author?.trim() || undefined,
+              tags: meta.tags ?? [],
+            };
+          } catch {
+            return {
+              ...entry,
+              fullCssText: '',
+              displayName: entry.basename,
+              tags: [],
+            };
+          }
+        })
+      );
+      return rows;
+    },
+    enabled: isRemoteMode && Boolean(catalogQuery.data?.tweaks?.length),
+    staleTime: 10 * 60_000,
+  });
+
+  const filteredTweakRows = useMemo(() => {
+    const rows = tweakDetailsQuery.data ?? [];
+    const q = tweakSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) => {
+      const hay =
+        `${row.displayName} ${row.basename} ${row.description ?? ''} ${row.tags.join(' ')}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tweakDetailsQuery.data, tweakSearch]);
+
+  const catalogTweaksAfterApplyFilter = useMemo(() => {
+    if (tweakApplyFilter === 'all') return filteredTweakRows;
+    if (tweakApplyFilter === 'enabled') {
+      return filteredTweakRows.filter((r) => enabledTweakFullUrls.includes(r.fullUrl));
+    }
+    return filteredTweakRows.filter((r) => !enabledTweakFullUrls.includes(r.fullUrl));
+  }, [filteredTweakRows, enabledTweakFullUrls, tweakApplyFilter]);
+
   const filteredRows = useMemo(() => {
     const rows = previewsQuery.data ?? [];
-    const q = search.trim().toLowerCase();
+    const q = themeSearch.trim().toLowerCase();
     return rows.filter((row) => {
       if (kindFilter !== 'all') {
         const want = kindFilter === 'dark' ? ThemeKind.Dark : ThemeKind.Light;
@@ -183,11 +464,11 @@ export function ThemeCatalogSettings({
       }
       return true;
     });
-  }, [previewsQuery.data, search, kindFilter, contrastFilter]);
+  }, [previewsQuery.data, themeSearch, kindFilter, contrastFilter]);
 
   const localPreviewsQuery = useQuery({
     queryKey: ['theme-local-previews', favorites.map((f) => f.fullUrl).join('|')],
-    enabled: isLocalMode && favorites.length > 0,
+    enabled: showSavedLibrary && favorites.length > 0,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<LocalPreviewRow[]> => {
       const rows = await Promise.all(
@@ -226,6 +507,43 @@ export function ThemeCatalogSettings({
       );
 
       return rows.filter((r): r is LocalPreviewRow => Boolean(r));
+    },
+  });
+
+  const localTweaksQuery = useQuery({
+    queryKey: ['theme-local-tweaks', tweakFavorites.map((f) => f.fullUrl).join('|')],
+    enabled: showSavedLibrary && tweakFavorites.length > 0,
+    staleTime: 10 * 60_000,
+    queryFn: async (): Promise<LocalTweakRow[]> => {
+      const rows = await Promise.all(
+        tweakFavorites.map(async (fav) => {
+          try {
+            let text: string;
+            if (isLocalImportBundledUrl(fav.fullUrl)) {
+              text = (await getCachedThemeCss(fav.fullUrl)) ?? '';
+            } else {
+              const res = await fetch(fav.fullUrl, { mode: 'cors' });
+              if (!res.ok) return undefined;
+              text = await res.text();
+            }
+            const meta = parseSableTweakMetadata(text);
+            const authorTrim = meta.author?.trim();
+            const row: LocalTweakRow = {
+              ...fav,
+              fullCssText: text,
+              displayName: meta.name?.trim() || fav.displayName || fav.basename,
+              description: meta.description?.trim() || undefined,
+              tags: meta.tags ?? [],
+              importedLocal: fav.importedLocal,
+              ...(authorTrim ? { author: authorTrim } : {}),
+            };
+            return row;
+          } catch {
+            return undefined;
+          }
+        })
+      );
+      return rows.filter((r): r is LocalTweakRow => Boolean(r));
     },
   });
 
@@ -322,7 +640,7 @@ export function ThemeCatalogSettings({
 
   const prefetchFull = useCallback(async (url: string): Promise<boolean> => {
     try {
-      if (isLocalImportThemeUrl(url)) {
+      if (isLocalImportBundledUrl(url)) {
         const cached = await getCachedThemeCss(url);
         return Boolean(cached);
       }
@@ -489,9 +807,98 @@ export function ThemeCatalogSettings({
     });
   }, [patchSettings]);
 
+  const setTweakApplied = useCallback(
+    async (fullUrl: string, apply: boolean, hint?: { displayName?: string; basename?: string }) => {
+      const trimmed = fullUrl.trim();
+      if (!trimmed) return;
+
+      if (apply) {
+        const ok = await prefetchFull(trimmed);
+        if (!ok) return;
+        const nextEnabled = enabledTweakFullUrls.includes(trimmed)
+          ? [...enabledTweakFullUrls]
+          : [...enabledTweakFullUrls, trimmed];
+        const nextFavs = [...tweakFavorites];
+        if (!nextFavs.some((f) => f.fullUrl === trimmed)) {
+          const cached = (await getCachedThemeCss(trimmed)) ?? '';
+          const meta = parseSableTweakMetadata(cached);
+          const base =
+            trimmed
+              .replace(/\.sable\.css(\?.*)?$/i, '')
+              .split('/')
+              .pop() ?? 'tweak';
+          nextFavs.push({
+            fullUrl: trimmed,
+            displayName: hint?.displayName ?? meta.name?.trim() ?? base,
+            basename: hint?.basename ?? meta.id?.trim() ?? base,
+            pinned: false,
+          });
+        }
+        patchSettings({
+          themeRemoteEnabledTweakFullUrls: nextEnabled,
+          themeRemoteTweakFavorites: pruneTweakFavorites(nextFavs, nextEnabled),
+        });
+      } else {
+        const nextEnabled = enabledTweakFullUrls.filter((u) => u !== trimmed);
+        patchSettings({
+          themeRemoteEnabledTweakFullUrls: nextEnabled,
+          themeRemoteTweakFavorites: pruneTweakFavorites(tweakFavorites, nextEnabled),
+        });
+      }
+    },
+    [enabledTweakFullUrls, patchSettings, prefetchFull, pruneTweakFavorites, tweakFavorites]
+  );
+
+  const toggleCatalogTweakFavorite = useCallback(
+    async (row: CatalogTweakRow) => {
+      const existing = tweakFavorites.find((f) => f.fullUrl === row.fullUrl);
+      if (existing) {
+        const nextFavs = tweakFavorites.filter((f) => f.fullUrl !== row.fullUrl);
+        const nextEnabled = enabledTweakFullUrls.filter((u) => u !== row.fullUrl);
+        patchSettings({
+          themeRemoteTweakFavorites: pruneTweakFavorites(nextFavs, nextEnabled),
+          themeRemoteEnabledTweakFullUrls: nextEnabled,
+        });
+        return;
+      }
+      const ok = await prefetchFull(row.fullUrl);
+      if (!ok) return;
+      const next: ThemeRemoteTweakFavorite = {
+        fullUrl: row.fullUrl,
+        displayName: row.displayName,
+        basename: row.basename,
+        pinned: true,
+      };
+      patchSettings({
+        themeRemoteTweakFavorites: pruneTweakFavorites(
+          [...tweakFavorites, next],
+          enabledTweakFullUrls
+        ),
+      });
+    },
+    [enabledTweakFullUrls, patchSettings, prefetchFull, pruneTweakFavorites, tweakFavorites]
+  );
+
+  const removeTweakFavorite = useCallback(
+    (fullUrl: string) => {
+      const nextFavs = tweakFavorites.filter((f) => f.fullUrl !== fullUrl);
+      const nextEnabled = enabledTweakFullUrls.filter((u) => u !== fullUrl);
+      patchSettings({
+        themeRemoteTweakFavorites: pruneTweakFavorites(nextFavs, nextEnabled),
+        themeRemoteEnabledTweakFullUrls: nextEnabled,
+      });
+    },
+    [enabledTweakFullUrls, patchSettings, pruneTweakFavorites, tweakFavorites]
+  );
+
+  const catalogBundle = catalogQuery.data;
+  const catalogThemeCount = catalogBundle?.themes.length ?? 0;
+  const catalogTweakCount = catalogBundle?.tweaks.length ?? 0;
+  const catalogHasEntries = catalogThemeCount + catalogTweakCount > 0;
+
   return (
     <Box direction="Column" gap="100">
-      {isLocalMode && (
+      {showAssignmentChrome && (
         <>
           <SequenceCard
             className={SequenceCardStyle}
@@ -508,10 +915,24 @@ export function ThemeCatalogSettings({
 
             {systemTheme ? (
               <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                <Button variant="Secondary" size="300" radii="300" onClick={useBuiltinForLightSlot}>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={useBuiltinForLightSlot}
+                >
                   <Text size="B300">Built-in (OS light)</Text>
                 </Button>
-                <Button variant="Secondary" size="300" radii="300" onClick={useBuiltinForDarkSlot}>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={useBuiltinForDarkSlot}
+                >
                   <Text size="B300">Built-in (OS dark)</Text>
                 </Button>
               </Box>
@@ -519,6 +940,8 @@ export function ThemeCatalogSettings({
               <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
                 <Button
                   variant="Secondary"
+                  fill="Soft"
+                  outlined
                   size="300"
                   radii="300"
                   onClick={useBuiltinForManualLight}
@@ -527,6 +950,8 @@ export function ThemeCatalogSettings({
                 </Button>
                 <Button
                   variant="Secondary"
+                  fill="Soft"
+                  outlined
                   size="300"
                   radii="300"
                   onClick={useBuiltinForManualDark}
@@ -543,20 +968,32 @@ export function ThemeCatalogSettings({
               focusId="theme-catalog-clear-remote"
               description="Clears which saved themes apply to light/dark or manual mode. Saved stars stay available."
               after={
-                <Button variant="Secondary" size="300" radii="300" onClick={clearRemote}>
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  size="300"
+                  radii="300"
+                  onClick={clearRemote}
+                >
                   <Text size="B300">Clear</Text>
                 </Button>
               }
             />
           </SequenceCard>
+        </>
+      )}
 
+      {showSavedLibrary && (
+        <>
           <SequenceCard
             className={SequenceCardStyle}
             variant="SurfaceVariant"
             direction="Column"
             gap="400"
           >
-            {localPreviewsQuery.isPending && (
+            <Text size="L400">Saved themes</Text>
+            {localPreviewsQuery.isPending && favorites.length > 0 && (
               <Box direction="Row" gap="200" alignItems="Center">
                 <Spinner variant="Primary" size="400" />
                 <Text size="T300">Loading local previews…</Text>
@@ -638,6 +1075,71 @@ export function ThemeCatalogSettings({
               </>
             )}
           </SequenceCard>
+
+          <SequenceCard
+            className={SequenceCardStyle}
+            variant="SurfaceVariant"
+            direction="Column"
+            gap="400"
+          >
+            <Text size="L400">Saved tweaks</Text>
+            {localTweaksQuery.isPending && tweakFavorites.length > 0 && (
+              <Box direction="Row" gap="200" alignItems="Center">
+                <Spinner variant="Primary" size="400" />
+                <Text size="T300">Loading tweaks…</Text>
+              </Box>
+            )}
+            {tweakFavorites.length === 0 && (
+              <Text size="T300" priority="300">
+                No saved tweaks. Star tweaks in the catalog to keep them here, or enable a tweak to
+                cache it automatically.
+              </Text>
+            )}
+            {localTweaksQuery.isSuccess && tweakFavorites.length > 0 && (
+              <Box direction="Column" gap="200">
+                {localTweaksQuery.data.length === 0 ? (
+                  <Text size="T300" priority="300">
+                    Could not load tweak CSS. Check the URL or your connection.
+                  </Text>
+                ) : (
+                  localTweaksQuery.data.map((row) => {
+                    const isOn = enabledTweakFullUrls.includes(row.fullUrl);
+                    const descParts = [
+                      row.description,
+                      row.author ? `by ${row.author}` : '',
+                      row.tags.length > 0 ? row.tags.join(', ') : '',
+                    ].filter(Boolean);
+                    const desc =
+                      descParts.join(' · ') ||
+                      'Applies on top of your current theme after it loads.';
+                    return (
+                      <SavedTweakRow
+                        key={row.fullUrl}
+                        displayName={row.displayName}
+                        description={desc}
+                        copyUrl={row.importedLocal ? undefined : row.fullUrl}
+                        thirdPartyChip={
+                          !row.importedLocal &&
+                          isThirdPartyThemeUrl(
+                            row.fullUrl,
+                            clientConfig.themeCatalogApprovedHostPrefixes
+                          )
+                        }
+                        isOn={isOn}
+                        onRemove={() => removeTweakFavorite(row.fullUrl)}
+                        onSetApplied={(v) =>
+                          setTweakApplied(row.fullUrl, v, {
+                            displayName: row.displayName,
+                            basename: row.basename,
+                          })
+                        }
+                      />
+                    );
+                  })
+                )}
+              </Box>
+            )}
+          </SequenceCard>
         </>
       )}
 
@@ -645,17 +1147,19 @@ export function ThemeCatalogSettings({
         <>
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
             <SettingTile
-              title="Browse themes"
+              title="Browse catalog"
               focusId="theme-browse-remote"
-              description="Download themes from the official catalog (star to save locally)."
+              description="Download themes and tweaks from the official catalog (star to save locally)."
               after={
                 <Button
                   variant="Secondary"
+                  fill="Soft"
+                  outlined
                   size="300"
                   radii="300"
                   onClick={() => setBrowseOpen(true)}
                 >
-                  <Text size="B300">Browse themes</Text>
+                  <Text size="B300">Browse catalog…</Text>
                 </Button>
               }
             />
@@ -663,12 +1167,14 @@ export function ThemeCatalogSettings({
 
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
             <SettingTile
-              title="Import a theme"
+              title="Import a theme or tweak"
               focusId="theme-import-open"
-              description="Add a theme from a link or from a CSS file on your device."
+              description="Add a theme or @sable-tweak overlay from a link or a CSS file on your device."
               after={
                 <Button
                   variant="Secondary"
+                  fill="Soft"
+                  outlined
                   size="300"
                   radii="300"
                   onClick={() => setImportModalOpen(true)}
@@ -687,23 +1193,26 @@ export function ThemeCatalogSettings({
         <>
           {!isAppearanceMode && <Text size="L400">Browse catalog</Text>}
 
-          {(pairsQuery.isPending ||
-            pairsQuery.isError ||
-            (pairsQuery.isSuccess && pairsQuery.data.length > 0)) && (
+          {(catalogQuery.isPending ||
+            catalogQuery.isError ||
+            (catalogQuery.isSuccess && catalogHasEntries)) && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"
               gap="400"
+              style={{ overflowX: 'hidden', minWidth: 0 }}
             >
               {isAppearanceMode && browseOpen && (
                 <SettingTile
-                  title="Browse themes"
+                  title="Browse catalog"
                   focusId="theme-browse-back"
-                  description="Download themes from the catalog."
+                  description="Download themes and tweaks from the catalog."
                   after={
                     <Button
                       variant="Secondary"
+                      fill="Soft"
+                      outlined
                       size="300"
                       radii="300"
                       onClick={() => setBrowseOpen(false)}
@@ -714,40 +1223,48 @@ export function ThemeCatalogSettings({
                 />
               )}
 
-              {(pairsQuery.isPending || pairsQuery.isError) && (
+              {(catalogQuery.isPending || catalogQuery.isError) && (
                 <Box direction="Column" gap="200">
-                  {pairsQuery.isPending && (
+                  {catalogQuery.isPending && (
                     <Box direction="Row" gap="200" alignItems="Center">
                       <Spinner variant="Primary" size="400" />
                       <Text size="T300">Loading catalog…</Text>
                     </Box>
                   )}
-                  {pairsQuery.isError && (
+                  {catalogQuery.isError && (
                     <Text size="T300" style={{ color: 'var(--sable-crit-main)' }}>
-                      {pairsQuery.error?.message ?? 'Failed to load catalog'}
+                      {catalogQuery.error?.message ?? 'Failed to load catalog'}
                     </Text>
                   )}
                 </Box>
               )}
 
-              {pairsQuery.isSuccess && pairsQuery.data.length > 0 && (
-                <>
-                  {previewsQuery.isPending && (
+              {catalogQuery.isSuccess && catalogHasEntries && (
+                <Box direction="Column" gap="400">
+                  {catalogThemeCount > 0 && previewsQuery.isPending && (
                     <Box direction="Row" gap="200" alignItems="Center">
                       <Spinner variant="Primary" size="400" />
                       <Text size="T300">Loading previews…</Text>
                     </Box>
                   )}
 
-                  {previewsQuery.isSuccess && (
-                    <>
+                  {catalogTweakCount > 0 && tweakDetailsQuery.isPending && (
+                    <Box direction="Row" gap="200" alignItems="Center">
+                      <Spinner variant="Primary" size="400" />
+                      <Text size="T300">Loading tweaks…</Text>
+                    </Box>
+                  )}
+
+                  {catalogThemeCount > 0 && previewsQuery.isSuccess && (
+                    <Box direction="Column" gap="300">
+                      <Text size="L400">Themes</Text>
                       <Input
                         size="300"
                         radii="300"
                         outlined
-                        placeholder="Search name or tag…"
-                        value={search}
-                        onChange={onSearchChange}
+                        placeholder="Search themes…"
+                        value={themeSearch}
+                        onChange={onThemeSearchChange}
                       />
                       <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
                         <Text size="T300">Kind:</Text>
@@ -777,75 +1294,183 @@ export function ThemeCatalogSettings({
                           </Chip>
                         ))}
                       </Box>
-
-                      <Box
+                      <Scroll
+                        direction="Vertical"
+                        size="300"
+                        hideTrack
+                        visibility="Hover"
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                          gap: toRem(16),
+                          height: 'min(33vh, 16rem)',
+                          minHeight: 0,
+                          maxWidth: '100%',
                         }}
                       >
-                        {filteredRows.map((row) => {
-                          const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                          const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
-                          const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
-                          const line1 = `${kindLabel} · ${row.contrast} contrast`;
-                          const line2 = `${row.author ? `by ${row.author}` : ''}${
-                            row.tags.length > 0
-                              ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
-                              : ''
-                          }`.trim();
-                          const subtitle = (
-                            <>
-                              {line1}
-                              {line2 ? (
+                        <Box direction="Column" gap="400">
+                          <Box
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                              gap: toRem(16),
+                            }}
+                          >
+                            {filteredRows.map((row) => {
+                              const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
+                              const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
+                              const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
+                              const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                              const line2 = `${row.author ? `by ${row.author}` : ''}${
+                                row.tags.length > 0
+                                  ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
+                                  : ''
+                              }`.trim();
+                              const subtitle = (
                                 <>
-                                  <br />
-                                  {line2}
+                                  {line1}
+                                  {line2 ? (
+                                    <>
+                                      <br />
+                                      {line2}
+                                    </>
+                                  ) : null}
                                 </>
-                              ) : null}
-                            </>
-                          );
-                          return (
-                            <ThemePreviewCard
-                              key={row.basename}
-                              title={row.displayName}
-                              subtitle={subtitle}
-                              previewCssText={row.previewText}
-                              scopeSlug={`catalog-${slug}`}
-                              copyText={row.previewUrl}
-                              thirdParty={isThirdPartyThemeUrl(
-                                row.previewUrl,
-                                clientConfig.themeCatalogApprovedHostPrefixes
-                              )}
-                              isFavorited={isFav}
-                              onToggleFavorite={() => toggleFavorite(row)}
-                              systemTheme={systemTheme}
-                              onApplyLight={
-                                systemTheme ? () => installFromCatalogLight(row) : undefined
-                              }
-                              onApplyDark={
-                                systemTheme ? () => installFromCatalogDark(row) : undefined
-                              }
-                              onApplyManual={
-                                !systemTheme ? () => installFromCatalogManual(row) : undefined
-                              }
-                              isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
-                              isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
-                              isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
-                            />
-                          );
-                        })}
-                      </Box>
+                              );
+                              return (
+                                <ThemePreviewCard
+                                  key={row.basename}
+                                  title={row.displayName}
+                                  subtitle={subtitle}
+                                  previewCssText={row.previewText}
+                                  scopeSlug={`catalog-${slug}`}
+                                  copyText={row.previewUrl}
+                                  thirdParty={isThirdPartyThemeUrl(
+                                    row.previewUrl,
+                                    clientConfig.themeCatalogApprovedHostPrefixes
+                                  )}
+                                  isFavorited={isFav}
+                                  onToggleFavorite={() => toggleFavorite(row)}
+                                  systemTheme={systemTheme}
+                                  onApplyLight={
+                                    systemTheme ? () => installFromCatalogLight(row) : undefined
+                                  }
+                                  onApplyDark={
+                                    systemTheme ? () => installFromCatalogDark(row) : undefined
+                                  }
+                                  onApplyManual={
+                                    !systemTheme ? () => installFromCatalogManual(row) : undefined
+                                  }
+                                  isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
+                                  isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
+                                  isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
+                                />
+                              );
+                            })}
+                          </Box>
 
-                      {filteredRows.length === 0 && (
-                        <Text size="T300" priority="300">
-                          No themes match filters.
-                        </Text>
-                      )}
-                    </>
+                          {filteredRows.length === 0 && (
+                            <Text size="T300" priority="300">
+                              No themes match filters.
+                            </Text>
+                          )}
+                        </Box>
+                      </Scroll>
+                    </Box>
                   )}
-                </>
+
+                  {catalogTweakCount > 0 && tweakDetailsQuery.isSuccess && (
+                    <Box direction="Column" gap="300">
+                      <Text size="L400">Tweaks</Text>
+                      <Input
+                        size="300"
+                        radii="300"
+                        outlined
+                        placeholder="Search tweaks…"
+                        value={tweakSearch}
+                        onChange={onTweakSearchChange}
+                      />
+                      <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+                        <Text size="T300">Status:</Text>
+                        {(['all', 'enabled', 'disabled'] as const).map((f) => (
+                          <Chip
+                            key={f}
+                            type="button"
+                            variant={tweakApplyFilter === f ? 'Primary' : 'Secondary'}
+                            outlined={tweakApplyFilter === f}
+                            radii="Pill"
+                            onClick={() => setTweakApplyFilter(f)}
+                          >
+                            <Text size="B300">
+                              {
+                                {
+                                  all: 'All',
+                                  enabled: 'Enabled',
+                                  disabled: 'Disabled',
+                                }[f]
+                              }
+                            </Text>
+                          </Chip>
+                        ))}
+                      </Box>
+                      <Scroll
+                        direction="Vertical"
+                        size="300"
+                        hideTrack
+                        visibility="Hover"
+                        style={{
+                          height: 'min(33vh, 16rem)',
+                          minHeight: 0,
+                          maxWidth: '100%',
+                        }}
+                      >
+                        <Box direction="Column" gap="200">
+                          {catalogTweaksAfterApplyFilter.map((row) => {
+                            const isFav = tweakFavorites.some((f) => f.fullUrl === row.fullUrl);
+                            const isOn = enabledTweakFullUrls.includes(row.fullUrl);
+                            const descParts = [
+                              row.description,
+                              row.author ? `by ${row.author}` : '',
+                              row.tags.length > 0 ? row.tags.join(', ') : '',
+                            ].filter(Boolean);
+                            const desc =
+                              descParts.join(' · ') ||
+                              'Applies on top of your current theme after it loads.';
+                            return (
+                              <CatalogTweakCard
+                                key={row.fullUrl}
+                                displayName={row.displayName}
+                                description={desc}
+                                copyUrl={row.fullUrl}
+                                thirdPartyChip={isThirdPartyThemeUrl(
+                                  row.fullUrl,
+                                  clientConfig.themeCatalogApprovedHostPrefixes
+                                )}
+                                isFavorited={isFav}
+                                onToggleFavorite={() => toggleCatalogTweakFavorite(row)}
+                                isOn={isOn}
+                                onSetApplied={(v) =>
+                                  setTweakApplied(row.fullUrl, v, {
+                                    displayName: row.displayName,
+                                    basename: row.basename,
+                                  })
+                                }
+                              />
+                            );
+                          })}
+                          {filteredTweakRows.length === 0 && (
+                            <Text size="T300" priority="300">
+                              No tweaks match your search.
+                            </Text>
+                          )}
+                          {filteredTweakRows.length > 0 &&
+                            catalogTweaksAfterApplyFilter.length === 0 && (
+                              <Text size="T300" priority="300">
+                                No tweaks match this status filter.
+                              </Text>
+                            )}
+                        </Box>
+                      </Scroll>
+                    </Box>
+                  )}
+                </Box>
               )}
             </SequenceCard>
           )}
@@ -860,9 +1485,9 @@ export function ThemeCatalogSettings({
           gap="400"
         >
           <SettingTile
-            title="Theme previews from any URL"
+            title="Theme & tweak previews from URLs"
             focusId="theme-chat-preview-any"
-            description="When enabled, messages linking to .preview.sable.css may fetch and show a preview (parsed for safety). Installing these third-party themes is not necessarily safe."
+            description="When enabled, messages linking to .preview.sable.css may fetch and show theme previews, and links to full .sable.css files with @sable-tweak metadata may show tweak metadata. Third-party CSS is not necessarily safe."
             after={<Switch variant="Primary" value={chatAny} onChange={setChatAny} />}
           />
         </SequenceCard>

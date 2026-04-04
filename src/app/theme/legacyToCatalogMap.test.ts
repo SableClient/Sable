@@ -23,9 +23,9 @@ describe('legacyToCatalogMap', () => {
     expect(legacyThemeIdToBasename('cinny-light-theme')).toBe('cinny-light');
   });
 
-  it('builds catalog full URL', () => {
-    expect(catalogFullUrlForBasename('silver', 'https://example.com/themes')).toBe(
-      'https://example.com/themes/silver.sable.css'
+  it('builds catalog full URL under themes/', () => {
+    expect(catalogFullUrlForBasename('silver', 'https://example.com/catalog-root')).toBe(
+      'https://example.com/catalog-root/themes/silver.sable.css'
     );
   });
 

@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { fullUrlFromPreviewUrl, previewUrlFromFullThemeUrl } from './previewUrls';
+import {
+  fullUrlFromPreviewUrl,
+  isHttpsFullSableCssUrl,
+  previewUrlFromFullThemeUrl,
+} from './previewUrls';
 
 describe('previewUrls', () => {
+  it('isHttpsFullSableCssUrl matches full tweak/theme CSS links only', () => {
+    expect(isHttpsFullSableCssUrl('https://x/tweaks/rounded.sable.css')).toBe(true);
+    expect(isHttpsFullSableCssUrl('http://x/y.sable.css')).toBe(false);
+    expect(isHttpsFullSableCssUrl('https://x/y.preview.sable.css')).toBe(false);
+  });
+
   it('previewUrlFromFullThemeUrl derives preview asset URL', () => {
     expect(
       previewUrlFromFullThemeUrl(

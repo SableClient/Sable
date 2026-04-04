@@ -128,6 +128,8 @@ export function ThemePreviewCard({
             <IconButton
               size="300"
               variant="Secondary"
+              fill="Soft"
+              outlined
               radii="300"
               aria-label={copied ? 'Copied theme link' : 'Copy theme link'}
               onClick={() => {
@@ -142,6 +144,8 @@ export function ThemePreviewCard({
             <IconButton
               size="300"
               variant={isFavorited ? 'Primary' : 'Secondary'}
+              fill="Soft"
+              outlined
               radii="300"
               aria-label={isFavorited ? 'Remove from saved' : 'Save theme'}
               onClick={() => {
@@ -216,6 +220,8 @@ export function ThemePreviewCard({
             {onApplyLight && (
               <Button
                 variant={isAppliedLight ? 'Primary' : 'Secondary'}
+                fill="Soft"
+                outlined
                 size="300"
                 radii="300"
                 style={{ flex: '1 1 0' }}
@@ -228,6 +234,8 @@ export function ThemePreviewCard({
             {onApplyDark && (
               <Button
                 variant={isAppliedDark ? 'Primary' : 'Secondary'}
+                fill="Soft"
+                outlined
                 size="300"
                 radii="300"
                 style={{ flex: '1 1 0' }}
@@ -242,6 +250,8 @@ export function ThemePreviewCard({
           onApplyManual && (
             <Button
               variant={isAppliedManual ? 'Primary' : 'Secondary'}
+              fill="Soft"
+              outlined
               size="300"
               radii="300"
               style={{ flex: onRevert ? '1 1 0' : undefined, width: onRevert ? undefined : '100%' }}
@@ -256,6 +266,8 @@ export function ThemePreviewCard({
         {onRevert && (
           <Button
             variant="Secondary"
+            fill="Soft"
+            outlined
             size="300"
             radii="300"
             disabled={!canRevert}

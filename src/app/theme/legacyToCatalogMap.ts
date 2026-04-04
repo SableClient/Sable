@@ -31,7 +31,7 @@ export function inferLegacyKindFromBasename(basename: string): 'light' | 'dark' 
 
 export function catalogFullUrlForBasename(basename: string, catalogBase: string): string {
   const base = trimTrailingSlash(catalogBase);
-  return `${base}/${basename}.sable.css`;
+  return `${base}/themes/${basename}.sable.css`;
 }
 
 export function needsLegacyThemeMigration(settings: Settings): boolean {

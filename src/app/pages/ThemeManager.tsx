@@ -118,7 +118,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   }, [activeTheme.remoteFullUrl]);
 
   useEffect(() => {
-    const urls = enabledTweakUrls.filter((u) => u.trim().length > 0);
+    const urls = (enabledTweakUrls ?? []).filter((u) => u.trim().length > 0);
     let cancelled = false;
 
     if (urls.length === 0) {

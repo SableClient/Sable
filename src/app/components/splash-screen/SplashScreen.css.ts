@@ -2,7 +2,7 @@ import { style } from '@vanilla-extract/css';
 import { color, config } from 'folds';
 
 export const SplashScreen = style({
-  minHeight: '100%',
+  minHeight: '100vh',
   backgroundColor: color.Background.Container,
   color: color.Background.OnContainer,
 });

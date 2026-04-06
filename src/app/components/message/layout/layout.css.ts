@@ -58,11 +58,14 @@ const highlightAnime = keyframes({
     backgroundColor: color.Primary.Container,
   },
 });
+
+export const messageJumpHighlight = style({
+  animation: `${highlightAnime} 2000ms ease-in-out`,
+  animationIterationCount: 'infinite',
+});
+
 const HighlightVariant = styleVariants({
-  true: {
-    animation: `${highlightAnime} 2000ms ease-in-out`,
-    animationIterationCount: 'infinite',
-  },
+  true: [messageJumpHighlight],
 });
 
 const NotifyHighlightVariant = styleVariants({

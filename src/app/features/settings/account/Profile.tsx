@@ -38,6 +38,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { stopPropagation } from '$utils/keyboard';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
 import { createUploadAtom, UploadSuccess } from '$state/upload';
@@ -105,6 +106,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   return (
     <SettingTile
       title="Avatar"
+      focusId="avatar"
       after={
         <Avatar size="500" radii="300">
           <UserAvatar
@@ -280,7 +282,7 @@ function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
   const previewUrl = isRemoving ? undefined : imageFileURL || stagedUrl || bannerUrl;
 
   return (
-    <SettingTile title="Banner">
+    <SettingTile title="Banner" focusId="banner">
       <Box direction="Column" gap="300" grow="Yes">
         <Box
           style={{
@@ -426,7 +428,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
 
   const hasChanges = displayName !== defaultDisplayName;
   return (
-    <SettingTile title="Display Name">
+    <SettingTile title="Display Name" focusId="display-name">
       <Box direction="Column" grow="Yes" gap="100">
         <Box
           as="form"
@@ -636,6 +638,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
             >
               <SettingTile
                 key={key}
+                focusId={`profile-field-${toSettingsFocusIdPart(key)}`}
                 title={key.split('.').pop() || key}
                 description={key}
                 after={

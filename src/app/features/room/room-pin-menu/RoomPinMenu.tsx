@@ -52,6 +52,7 @@ import {
 import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -332,26 +333,31 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
     });
 
     const mentionClickHandler = useMentionClickHandler(room.roomId);
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const spoilerClickHandler = useSpoilerClickHandler();
 
     const linkifyOpts = useMemo<LinkifyOpts>(
       () => ({
         ...LINKIFY_OPTS,
-        render: factoryRenderLinkifyWithMention((href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          )
+        render: factoryRenderLinkifyWithMention(
+          settingsLinkBaseUrl,
+          (href) =>
+            renderMatrixMention(
+              mx,
+              room.roomId,
+              href,
+              makeMentionCustomProps(mentionClickHandler),
+              nicknames
+            ),
+          mentionClickHandler
         ),
       }),
-      [mx, room, mentionClickHandler, nicknames]
+      [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
     );
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
         getReactCustomHtmlParser(mx, room.roomId, {
+          settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,
           handleSpoilerClick: spoilerClickHandler,
@@ -366,6 +372,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
         spoilerClickHandler,
         useAuthentication,
         nicknames,
+        settingsLinkBaseUrl,
       ]
     );
 

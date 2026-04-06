@@ -28,6 +28,7 @@ import { StateEvent, MessageEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useTranslation } from 'react-i18next';
 import * as customHtmlCss from '$styles/CustomHtml.css';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import {
   MessageBadEncryptedContent,
   MessageBlockedContent,
@@ -134,6 +135,7 @@ export const Reply = as<'div', ReplyProps>(
     const { color: usernameColor, font: usernameFont } = useSableCosmetics(sender ?? '', room);
     const nicknames = useAtomValue(nicknamesAtom);
     const useAuthentication = useMediaAuthentication();
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
 
     const fallbackBody = isRedacted ? <MessageDeletedContent /> : <MessageFailedContent />;
 
@@ -161,22 +163,26 @@ export const Reply = as<'div', ReplyProps>(
     const replyLinkifyOpts = useMemo(
       () => ({
         ...LINKIFY_OPTS,
-        render: factoryRenderLinkifyWithMention((href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          )
+        render: factoryRenderLinkifyWithMention(
+          settingsLinkBaseUrl,
+          (href) =>
+            renderMatrixMention(
+              mx,
+              room.roomId,
+              href,
+              makeMentionCustomProps(mentionClickHandler),
+              nicknames
+            ),
+          mentionClickHandler
         ),
       }),
-      [mx, room.roomId, mentionClickHandler, nicknames]
+      [mx, room.roomId, mentionClickHandler, nicknames, settingsLinkBaseUrl]
     );
 
     if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
       const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts: replyLinkifyOpts,
         useAuthentication,
         nicknames,

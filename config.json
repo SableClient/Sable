@@ -13,6 +13,8 @@
     "webPushAppID": "moe.sable.app.sygnal"
   },
 
+  "settingsLinkBaseUrl": "https://app.sable.moe",
+
   "slidingSync": {
     "enabled": true
   },

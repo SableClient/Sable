@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import CinnySVG from '$public/res/svg/cinny-logo.svg';
@@ -9,6 +9,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();
@@ -50,7 +51,11 @@ export function HomeserverInfo() {
         direction="Column"
         gap="400"
       >
-        <SettingTile title="Domain" description={mx.getSafeUserId().split(':')[1]} />
+        <SettingTile
+          title="Domain"
+          focusId="domain"
+          description={mx.getSafeUserId().split(':')[1]}
+        />
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
@@ -60,6 +65,7 @@ export function HomeserverInfo() {
       >
         <SettingTile
           title="Base URL"
+          focusId="base-url"
           description={
             <a href={mx.baseUrl} target="_blank" rel="noopener noreferrer">
               {mx.baseUrl}
@@ -76,6 +82,7 @@ export function HomeserverInfo() {
         >
           <SettingTile
             title="Federation URL"
+            focusId="federation-url"
             description={
               <a href={federationUrl} target="_blank" rel="noopener noreferrer">
                 {federationUrl}
@@ -103,7 +110,11 @@ export function HomeserverInfo() {
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Name" description={version.server?.name} />
+              <SettingTile
+                title="Name"
+                focusId="homeserver-name"
+                description={version.server?.name}
+              />
             </SequenceCard>
           )}
           {version.server?.version && (
@@ -113,7 +124,11 @@ export function HomeserverInfo() {
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Version" description={version.server?.version} />
+              <SettingTile
+                title="Version"
+                focusId="homeserver-version"
+                description={version.server?.version}
+              />
             </SequenceCard>
           )}
           {version.server?.compiler && (
@@ -123,7 +138,11 @@ export function HomeserverInfo() {
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Compiler" description={version.server?.compiler} />
+              <SettingTile
+                title="Compiler"
+                focusId="homeserver-compiler"
+                description={version.server?.compiler}
+              />
             </SequenceCard>
           )}
         </>
@@ -142,30 +161,17 @@ export function HomeserverInfo() {
 }
 
 type AboutProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function About({ requestClose }: Readonly<AboutProps>) {
+export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const openBugReport = useOpenBugReportModal();
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              About
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="About" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -227,6 +233,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
                 >
                   <SettingTile
                     title="Clear Cache & Reload"
+                    focusId="clear-cache-and-reload"
                     description="Clear all your locally stored data and reload from server."
                     after={
                       <Button
@@ -250,6 +257,7 @@ export function About({ requestClose }: Readonly<AboutProps>) {
                 >
                   <SettingTile
                     title="Report an Issue"
+                    focusId="report-an-issue"
                     description="Report a bug or request a feature on GitHub."
                     after={
                       <Button
@@ -428,6 +436,6 @@ export function About({ requestClose }: Readonly<AboutProps>) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

@@ -144,6 +144,7 @@ export function IgnoredUserList() {
       >
         <SettingTile
           title="Select User"
+          focusId="blocked-users"
           description="Prevent receiving messages or invites from user by adding their userId."
         >
           <Box direction="Column" gap="300">

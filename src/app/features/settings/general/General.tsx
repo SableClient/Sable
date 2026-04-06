@@ -27,7 +27,7 @@ import {
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
 import {
@@ -53,6 +53,8 @@ import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
+import { SettingsSectionPage } from '../SettingsSectionPage';
+import { SettingsLinkBaseUrlSetting } from './SettingsLinkBaseUrlSetting';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -254,7 +256,7 @@ function CustomDateFormat({ value, onChange }: Readonly<CustomDateFormatProps>) 
 
   const hasChanges = dateFormatCustom !== value;
   return (
-    <SettingTile>
+    <SettingTile focusId="custom-date-format">
       <Box as="form" onSubmit={handleSubmit} gap="200">
         <Box grow="Yes" direction="Column">
           <Input
@@ -377,6 +379,7 @@ function SelectDateFormat() {
     <>
       <SettingTile
         title="Date Format"
+        focusId="date-format"
         description={customDateFormat ? dayjs().format(dateFormatString) : ''}
         after={<PresetDateFormat value={selectedDateFormat} onChange={handlePresetChange} />}
       />
@@ -406,6 +409,7 @@ function DateAndTime() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="24-Hour Time Format"
+          focusId="twenty-four-hour-time-format"
           after={<Switch variant="Primary" value={hour24Clock} onChange={setHour24Clock} />}
         />
       </SequenceCard>
@@ -436,6 +440,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       >
         <SettingTile
           title="ENTER for Newline"
+          focusId="enter-for-newline"
           description={`Use ${isMacOS() ? KeySymbol.Command : 'Ctrl'} + ENTER to send message. ${isMobile ? '(Disabled on Mobile)' : ''}`}
           after={
             <Switch
@@ -450,12 +455,14 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Markdown Formatting"
+          focusId="markdown-formatting"
           after={<Switch variant="Primary" value={isMarkdown} onChange={setIsMarkdown} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Typing Indicators"
+          focusId="hide-typing-indicators"
           description="Turn off typing status."
           after={<Switch variant="Primary" value={hideActivity} onChange={setHideActivity} />}
         />
@@ -463,6 +470,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Read Receipts"
+          focusId="hide-read-receipts"
           description="Turn off read receipts."
           after={<Switch variant="Primary" value={hideReads} onChange={setHideReads} />}
         />
@@ -470,6 +478,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Presence Status"
+          focusId="presence-status"
           description="Show and receive online status from other users."
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
         />
@@ -477,6 +486,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Send notifications for replies"
+          focusId="reply-notifications"
           description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
           after={
             <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
@@ -770,6 +780,7 @@ function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Enable Swiping"
+          focusId="enable-swiping"
           description="Swipe left for rooms, swipe right for actions."
           after={
             <Switch
@@ -784,6 +795,7 @@ function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Right Swipe Action"
+          focusId="right-swipe-action"
           description="What happens when you swipe right on a message."
           after={<SelectRightSwipeAction disabled={!isMobile || !mobileGestures} />}
         />
@@ -847,6 +859,7 @@ function Calls() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Call Button for Large Rooms"
+          focusId="large-room-call-button"
           after={
             <Switch
               variant="Primary"
@@ -898,17 +911,30 @@ function Messages() {
     <Box direction="Column" gap="100">
       <Text size="L400">Messages</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="Message Layout" after={<SelectMessageLayout />} />
+        <SettingTile
+          title="Message Layout"
+          focusId="message-layout"
+          after={<SelectMessageLayout />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="Message Spacing" after={<SelectMessageSpacing />} />
+        <SettingTile
+          title="Message Spacing"
+          focusId="message-spacing"
+          after={<SelectMessageSpacing />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="File description placement" after={<SelectCaptionPosition />} />
+        <SettingTile
+          title="File description placement"
+          focusId="file-description-placement"
+          after={<SelectCaptionPosition />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Emoji Selector Character Threshold"
+          focusId="emoji-selector-threshold"
           after={<EmojiSelectorThresholdInput />}
         />
       </SequenceCard>
@@ -916,6 +942,7 @@ function Messages() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Right Aligned Bubbles"
+            focusId="right-aligned-bubbles"
             description="While using bubble layout, have your bubbles right aligned."
             after={<Switch variant="Primary" value={rightBubbles} onChange={setRightBubbles} />}
           />
@@ -924,6 +951,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Membership Change"
+          focusId="hide-membership-change"
           after={
             <Switch
               variant="Primary"
@@ -936,6 +964,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Profile Change"
+          focusId="hide-profile-change"
           after={
             <Switch
               variant="Primary"
@@ -948,6 +977,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Disable Media Auto Load"
+          focusId="disable-media-auto-load"
           after={
             <Switch
               variant="Primary"
@@ -960,6 +990,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Display Bundled Embeds"
+          focusId="display-bundled-embeds"
           description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
           after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
         />
@@ -967,6 +998,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Server-side Embeds"
+          focusId="url-preview"
           description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
           after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
         />
@@ -974,6 +1006,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Server-side Embeds in Encrypted Room"
+          focusId="encrypted-room-url-preview"
           description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
         />
@@ -981,6 +1014,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Client-side Embeds"
+          focusId="client-side-embeds"
           description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
           after={
             <Switch
@@ -1000,6 +1034,7 @@ function Messages() {
       >
         <SettingTile
           title="Client-side Embeds in Encrypted Rooms"
+          focusId="encrypted-room-embeds"
           after={
             <Switch
               variant="Primary"
@@ -1022,6 +1057,7 @@ function Messages() {
       >
         <SettingTile
           title="Embed YouTube Links"
+          focusId="embed-youtube-links"
           after={
             <Switch
               variant="Primary"
@@ -1037,8 +1073,12 @@ function Messages() {
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingsLinkBaseUrlSetting />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Member Events in Read-Only Rooms"
+          focusId="hide-member-events-read-only-rooms"
           after={
             <Switch
               variant="Primary"
@@ -1051,6 +1091,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Hidden Events"
+          focusId="show-hidden-events"
           after={
             <Switch
               variant="Primary"
@@ -1068,6 +1109,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Tombstones for Redacted Messages"
+          focusId="show-redacted-message-tombstones"
           after={
             <Switch
               variant="Primary"
@@ -1118,6 +1160,7 @@ export function Sync() {
       >
         <SettingTile
           title="Use Sliding Sync"
+          focusId="use-sliding-sync"
           description={
             serverSlidingEnabled ? (
               <>
@@ -1169,6 +1212,7 @@ export function Sync() {
 }
 
 type GeneralProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
 
@@ -1210,11 +1254,16 @@ function SettingsSyncSection() {
       >
         <SettingTile
           title="Sync across devices"
+          focusId="sync-across-devices"
           description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
           after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
         />
         {syncEnabled && (
-          <SettingTile title="Sync status" description={syncStatusLabel[syncStatus]} />
+          <SettingTile
+            focusId="sync-status"
+            title="Sync status"
+            description={syncStatusLabel[syncStatus]}
+          />
         )}
       </SequenceCard>
       <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
@@ -1303,6 +1352,7 @@ function DiagnosticsAndPrivacy() {
       >
         <SettingTile
           title="Error Reporting"
+          focusId="error-reporting"
           description={
             isSentryConfigured
               ? 'Send anonymous crash reports to help improve Sable. No messages, room names, or personal data are included.'
@@ -1320,6 +1370,7 @@ function DiagnosticsAndPrivacy() {
         {sentryEnabled && isSentryConfigured && (
           <SettingTile
             title="Session Replay"
+            focusId="session-replay"
             description="Allow recording of UI interactions to help debug errors. All text, media, and inputs are fully masked before sending."
             after={
               <Switch
@@ -1350,23 +1401,9 @@ function DiagnosticsAndPrivacy() {
   );
 }
 
-export function General({ requestClose }: Readonly<GeneralProps>) {
+export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              General
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="General" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -1382,6 +1419,6 @@ export function General({ requestClose }: Readonly<GeneralProps>) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

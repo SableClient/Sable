@@ -39,6 +39,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { MessageEvent } from '$types/matrix/room';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as css from './EventHistory.css';
 
 export type EventHistoryProps = {
@@ -50,6 +51,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
   ({ className, room, mEvents, requestClose, ...props }, ref) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const openProfile = useOpenUserRoomProfile();
     const space = useSpaceOptionally();
     const nicknames = useAtomValue(nicknamesAtom);
@@ -72,11 +74,12 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
         getReactCustomHtmlParser(mx, mEvents[0].getRoomId(), {
+          settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,
           handleSpoilerClick: spoilerClickHandler,
         }),
-      [linkifyOpts, mEvents, mx, spoilerClickHandler, useAuthentication]
+      [linkifyOpts, mEvents, mx, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
     );
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);

@@ -105,15 +105,6 @@ export function MText({
     [customBody, body]
   );
 
-  const safeCustomBody = useMemo(() => {
-    if (!customBody) return undefined;
-    if (customBody.length > 8000) {
-      const imageTags = customBody.match(/<img[^>]*>/g);
-      return imageTags ? imageTags.join(' ') : undefined;
-    }
-    return customBody;
-  }, [customBody]);
-
   const isForwarded = useMemo(() => {
     const forwardMeta = content['moe.sable.message.forward'];
     return typeof forwardMeta === 'object';
@@ -130,7 +121,7 @@ export function MText({
   const isJumbo = useMemo(() => {
     if (!trimmedBody || trimmedBody.length >= 500) return false;
     if (
-      (unwrappedPerMessageProfileMessage ?? safeCustomBody)?.match(
+      (unwrappedPerMessageProfileMessage ?? customBody)?.match(
         /^(<img[^>]*data-mx-emoticon[^>]*\/>){1,20}$/i
       )
     )
@@ -138,12 +129,12 @@ export function MText({
     if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
-      const hasImage = safeCustomBody && /<img[^>]*>/i.test(safeCustomBody);
+      const hasImage = customBody && /<img[^>]*>/i.test(customBody);
       if (!hasImage) return false;
     }
 
     return true;
-  }, [unwrappedPerMessageProfileMessage, trimmedBody, safeCustomBody]);
+  }, [unwrappedPerMessageProfileMessage, trimmedBody, customBody]);
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
@@ -192,13 +183,13 @@ export function MText({
   return (
     <>
       <MessageTextBody
-        preWrap={typeof safeCustomBody !== 'string'}
+        preWrap={typeof customBody !== 'string'}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         style={style}
       >
         {renderBody({
           body: trimmedBody,
-          customBody: safeCustomBody,
+          customBody: typeof customBody === 'string' ? customBody : undefined,
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>

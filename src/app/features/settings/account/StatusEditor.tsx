@@ -39,7 +39,7 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
   const hasChanges = value !== current;
 
   return (
-    <SettingTile title="Status">
+    <SettingTile title="Status" focusId="status">
       <Box direction="Column" grow="Yes" gap="100">
         <Box as="form" onSubmit={handleSubmit} gap="200" aria-disabled={saving} grow="Yes">
           <Box grow="Yes" direction="Column">

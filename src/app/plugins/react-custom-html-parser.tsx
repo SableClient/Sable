@@ -2,10 +2,9 @@
 import {
   CSSProperties,
   ComponentPropsWithoutRef,
-  lazy,
+  Fragment,
   ReactEventHandler,
   ReactNode,
-  Suspense,
   useMemo,
   useState,
 } from 'react';
@@ -21,7 +20,6 @@ import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
 import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
-import { ErrorBoundary } from 'react-error-boundary';
 import { ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
 import {
@@ -38,7 +36,10 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
+import { parseSettingsLink } from '$features/settings/settingsLink';
+import { settingsSections } from '$features/settings/routes';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
@@ -46,8 +47,6 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
-
-const ReactPrism = lazy(() => import('./react-prism/ReactPrism'));
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
 
@@ -176,21 +175,26 @@ export const renderMatrixMention = (
     const mentionRoom = mx.getRoom(
       isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
     );
+    const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
 
     return (
       <a
         href={href}
         {...customProps}
-        className={css.Mention({
-          highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
-        })}
+        className={classNames(
+          css.Mention({
+            highlight: currentRoomId === (mentionRoom?.roomId ?? roomIdOrAlias),
+          }),
+          css.MentionWithIcon
+        )}
         data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
         data-mention-event-id={eventId}
         data-mention-via={viaServers?.join(',')}
       >
-        {customProps.children
-          ? customProps.children
-          : `Message: ${mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias}`}
+        <span aria-hidden="true" className={css.MentionIcon}>
+          <Icon size="50" src={Icons.Message} />
+        </span>
+        {customProps.children ? customProps.children : fallbackContent}
       </a>
     );
   }
@@ -198,8 +202,80 @@ export const renderMatrixMention = (
   return undefined;
 };
 
+const settingsSectionLabel = Object.fromEntries(
+  settingsSections.map((section) => [section.id, section.label])
+) as Record<(typeof settingsSections)[number]['id'], string>;
+
+const humanizeSettingsLinkPart = (value: string): string =>
+  value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const getSettingsLinkLabel = (
+  section: keyof typeof settingsSectionLabel,
+  focus?: string
+): string => {
+  const sectionLabel = settingsSectionLabel[section];
+  const focusLabel = focus ? humanizeSettingsLinkPart(focus) : undefined;
+
+  return focusLabel ? `${sectionLabel} / ${focusLabel}` : sectionLabel;
+};
+
+const getSettingsLinkChildren = ({
+  href,
+  section,
+  focus,
+  content,
+  fallbackChildren,
+}: {
+  href: string;
+  section: keyof typeof settingsSectionLabel;
+  focus?: string;
+  content?: string;
+  fallbackChildren?: ReactNode;
+}): ReactNode => {
+  if (!content || content === href || content === safeDecodeUrl(href)) {
+    return getSettingsLinkLabel(section, focus);
+  }
+
+  return fallbackChildren ?? content;
+};
+
+const renderSettingsLink = ({
+  href,
+  section,
+  focus,
+  handleMentionClick,
+  content,
+  fallbackChildren,
+}: {
+  href: string;
+  section: keyof typeof settingsSectionLabel;
+  focus?: string;
+  handleMentionClick?: ReactEventHandler<HTMLElement>;
+  content?: string;
+  fallbackChildren?: ReactNode;
+}) => (
+  <a
+    href={href}
+    {...makeMentionCustomProps(handleMentionClick, content)}
+    className={classNames(css.Mention({}), css.MentionWithIcon)}
+    data-settings-link-section={section}
+    data-settings-link-focus={focus}
+  >
+    <span aria-hidden="true" className={css.MentionIcon}>
+      <Icon size="50" src={Icons.Setting} />
+    </span>
+    {getSettingsLinkChildren({ href, section, focus, content, fallbackChildren })}
+  </a>
+);
+
 export const factoryRenderLinkifyWithMention = (
-  mentionRender: (href: string) => JSX.Element | undefined
+  settingsLinkBaseUrl: string,
+  mentionRender: (href: string) => JSX.Element | undefined,
+  handleMentionClick?: ReactEventHandler<HTMLElement>
 ): OptFn<(ir: IntermediateRepresentation) => any> => {
   const renderLink: OptFn<(ir: IntermediateRepresentation) => any> = ({
     tagName,
@@ -212,6 +288,21 @@ export const factoryRenderLinkifyWithMention = (
     if (tagName === 'a' && decodedHref && testMatrixTo(decodedHref)) {
       const mention = mentionRender(decodedHref);
       if (mention) return mention;
+    }
+
+    if (tagName === 'a' && decodedHref) {
+      const settingsLink = parseSettingsLink(settingsLinkBaseUrl, decodedHref);
+      if (settingsLink) {
+        const { section, focus } = settingsLink;
+        return renderSettingsLink({
+          href: decodedHref,
+          section,
+          focus,
+          handleMentionClick,
+          content,
+          fallbackChildren: content,
+        });
+      }
     }
 
     return <a {...attributes}>{content}</a>;
@@ -279,20 +370,40 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
   return text;
 };
 
+const getLanguageFromClassName = (className?: string): string | undefined => {
+  if (!className) return undefined;
+
+  return className
+    .split(/\s+/)
+    .find((token) => token.startsWith('language-'))
+    ?.replace('language-', '');
+};
+
+const getCodeBlockLanguage = (
+  children: ChildNode[],
+  attribs?: Record<string, string | undefined>
+): string | undefined => {
+  const code = children.find((child) => child instanceof Element && child.name === 'code');
+  const codeAttribs = code instanceof Element ? code.attribs : undefined;
+
+  return (
+    codeAttribs?.['data-lang'] ??
+    attribs?.['data-lang'] ??
+    getLanguageFromClassName(codeAttribs?.class) ??
+    getLanguageFromClassName(attribs?.class)
+  );
+};
+
 export function CodeBlock({
   children,
+  attribs,
   opts,
 }: {
   children: ChildNode[];
+  attribs?: Record<string, string | undefined>;
   opts: HTMLReactParserOptions;
 }) {
-  const code = children[0];
-  const languageClass =
-    code instanceof Element && code.name === 'code' ? code.attribs.class : undefined;
-  const language =
-    languageClass && languageClass.startsWith('language-')
-      ? languageClass.replace('language-', '')
-      : languageClass;
+  const language = getCodeBlockLanguage(children, attribs);
 
   const LINE_LIMIT = 14;
   const largeCodeBlock = useMemo(
@@ -382,6 +493,7 @@ export const getReactCustomHtmlParser = (
   mx: MatrixClient,
   roomId: string | undefined,
   params: {
+    settingsLinkBaseUrl: string;
     linkifyOpts: LinkifyOpts;
     highlightRegex?: RegExp;
     handleSpoilerClick?: ReactEventHandler<HTMLElement>;
@@ -389,14 +501,52 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
-    replaceTextNode?: (text: string) => JSX.Element | undefined;
+    replaceTextNode?: (
+      text: string,
+      renderText: (text: string, key?: string) => JSX.Element
+    ) => JSX.Element | undefined;
   }
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
+
+  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
+
+  const decorateText = (text: string) => {
+    let jsx = scaleSystemEmoji(text);
+
+    if (params.highlightRegex) {
+      jsx = highlightText(params.highlightRegex, jsx);
+    }
+
+    return jsx;
+  };
+
+  const renderReplacementText = (text: string, linkify: boolean, key?: string): JSX.Element => {
+    const decoratedText = decorateText(text);
+
+    if (linkify) {
+      return (
+        <Linkify key={key} options={params.linkifyOpts}>
+          {decoratedText}
+        </Linkify>
+      );
+    }
+
+    return <Fragment key={key}>{decoratedText}</Fragment>;
+  };
+
   const opts: HTMLReactParserOptions = {
     replace: (domNode) => {
       if (replaceTextNode && domNode instanceof DOMText) {
-        return replaceTextNode(domNode.data) ?? undefined;
+        const replacement = replaceTextNode(domNode.data, (text, key) =>
+          renderReplacementText(text, shouldLinkifyDomText(domNode), key)
+        );
+
+        if (replacement !== undefined) {
+          return replacement;
+        }
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
@@ -473,7 +623,11 @@ export const getReactCustomHtmlParser = (
         }
 
         if (name === 'pre') {
-          return <CodeBlock opts={opts}>{children}</CodeBlock>;
+          return (
+            <CodeBlock attribs={attribs} opts={opts}>
+              {children}
+            </CodeBlock>
+          );
         }
 
         if (name === 'blockquote') {
@@ -501,60 +655,73 @@ export const getReactCustomHtmlParser = (
 
         if (name === 'code') {
           if (parent && 'name' in parent && parent.name === 'pre') {
-            const codeReact = renderChildren();
-            if (typeof codeReact === 'string') {
-              let lang = typeof props.className === 'string' ? props.className : undefined;
-              if (lang === 'language-rs') lang = 'language-rust';
-              else if (lang === 'language-js') lang = 'language-javascript';
-              else if (lang === 'language-ts') lang = 'language-typescript';
-              return (
-                <ErrorBoundary fallback={<code {...props}>{codeReact}</code>}>
-                  <Suspense fallback={<code {...props}>{codeReact}</code>}>
-                    <ReactPrism>
-                      {(ref) => (
-                        <code ref={ref} {...props} className={lang}>
-                          {codeReact}
-                        </code>
-                      )}
-                    </ReactPrism>
-                  </Suspense>
-                </ErrorBoundary>
-              );
+            const codeContent = renderChildren();
+            if (typeof codeContent !== 'string') {
+              return undefined;
             }
-          } else {
+
+            const language = getCodeBlockLanguage(
+              parent instanceof Element ? parent.children : [],
+              parent instanceof Element ? parent.attribs : undefined
+            );
             return (
-              <Text as="code" size="T300" className={css.Code} {...props}>
-                {renderChildren()}
-              </Text>
+              <CodeHighlightRenderer
+                code={codeContent}
+                language={language}
+                allowDetect={false}
+                className={typeof props.className === 'string' ? props.className : undefined}
+              />
             );
           }
+
+          return (
+            <Text as="code" size="T300" className={css.Code} {...props}>
+              {renderChildren()}
+            </Text>
+          );
         }
 
         if (name === 'a' && typeof props.href === 'string') {
           const encodedHref = props.href;
           const decodedHref = encodedHref && safeDecodeUrl(encodedHref);
+          const renderedChildren = renderChildren();
           const anchorProps = {
             ...props,
             rel: ensureNoopenerRel(props.rel),
           };
 
-          if (!decodedHref || !testMatrixTo(decodedHref)) {
-            return <a {...anchorProps}>{renderChildren()}</a>;
-          }
-
           const content = children.find((child) => !(child instanceof DOMText))
             ? undefined
             : children.map((c) => (c instanceof DOMText ? c.data : '')).join();
 
-          const mention = renderMatrixMention(
-            mx,
-            roomId,
-            safeDecodeUrl(props.href),
-            makeMentionCustomProps(params.handleMentionClick, content),
-            params.nicknames
-          );
+          if (decodedHref && testMatrixTo(decodedHref)) {
+            const mention = renderMatrixMention(
+              mx,
+              roomId,
+              decodedHref,
+              makeMentionCustomProps(params.handleMentionClick, content),
+              params.nicknames
+            );
 
-          if (mention) return mention;
+            if (mention) return mention;
+          }
+
+          if (decodedHref) {
+            const settingsLink = parseSettingsLink(params.settingsLinkBaseUrl, decodedHref);
+            if (settingsLink) {
+              const { section, focus } = settingsLink;
+              return renderSettingsLink({
+                href: decodedHref,
+                section,
+                focus,
+                handleMentionClick: params.handleMentionClick,
+                content,
+                fallbackChildren: renderedChildren,
+              });
+            }
+          }
+
+          return <a {...anchorProps}>{renderedChildren}</a>;
         }
 
         if (name === 'span' && 'data-mx-spoiler' in props) {
@@ -711,20 +878,14 @@ export const getReactCustomHtmlParser = (
       }
 
       if (domNode instanceof DOMText) {
-        const linkify =
-          !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-          !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
-        let jsx = scaleSystemEmoji(domNode.data);
-
-        if (params.highlightRegex) {
-          jsx = highlightText(params.highlightRegex, jsx);
-        }
+        const linkify = shouldLinkifyDomText(domNode);
+        const decoratedText = decorateText(domNode.data);
 
         if (linkify) {
-          return <Linkify options={params.linkifyOpts}>{jsx}</Linkify>;
+          return <Linkify options={params.linkifyOpts}>{decoratedText}</Linkify>;
         }
-        return jsx;
+
+        return decoratedText;
       }
       return undefined;
     },

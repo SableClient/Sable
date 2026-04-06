@@ -20,6 +20,7 @@ export function MatrixId() {
       >
         <SettingTile
           title={userId}
+          focusId="matrix-id"
           after={
             <Chip variant="Secondary" radii="Pill" onClick={() => copyToClipboard(userId)}>
               <Text size="T200">Copy</Text>

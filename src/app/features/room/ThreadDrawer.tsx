@@ -35,6 +35,7 @@ import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { minuteDifference } from '$utils/time';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import { MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
@@ -369,6 +370,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const useAuthentication = useMediaAuthentication();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const spoilerClickHandler = useSpoilerClickHandler();
 
   // Settings
@@ -383,17 +385,20 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room, mentionClickHandler, nicknames]
+    [mx, room, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
 
   const abbrMap = useRoomAbbreviationsContext();
@@ -401,12 +406,13 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
-        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
       mx,
@@ -416,6 +422,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       mentionClickHandler,
       useAuthentication,
       nicknames,
+      settingsLinkBaseUrl,
       abbrMap,
     ]
   );

@@ -45,12 +45,29 @@ const permittedHtmlTags = [
 ] as const;
 
 const permittedTagToAttributes = {
-  span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths'],
-  a: ['target', 'href'],
+  span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths', 'data-md'],
+  a: ['target', 'href', 'data-md'],
   img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'], // data-mx-emoticon is for MSC2545
-  ol: ['start'],
-  code: ['class'],
+  ol: ['start', 'data-md'],
+  ul: ['data-md'],
+  code: ['class', 'data-md', 'data-lang'],
+  pre: ['class', 'data-md', 'data-lang'],
   div: ['data-mx-maths'],
+  blockquote: ['data-md'],
+  h1: ['data-md'],
+  h2: ['data-md'],
+  h3: ['data-md'],
+  h4: ['data-md'],
+  h5: ['data-md'],
+  h6: ['data-md'],
+  strong: ['data-md'],
+  i: ['data-md'],
+  em: ['data-md'],
+  u: ['data-md'],
+  s: ['data-md'],
+  del: ['data-md'],
+  sub: ['data-md'],
+  hr: ['data-md'],
 } as const satisfies Record<string, readonly string[]>;
 
 const permittedHtmlAttributes = Array.from(new Set(Object.values(permittedTagToAttributes).flat()));
@@ -147,7 +164,7 @@ function getValidatedAttributeValue(
     return undefined;
   }
 
-  if (tagName === 'code' && attrName === 'class') {
+  if ((tagName === 'code' || tagName === 'pre') && attrName === 'class') {
     return normalizeCodeClasses(attrValue);
   }
 

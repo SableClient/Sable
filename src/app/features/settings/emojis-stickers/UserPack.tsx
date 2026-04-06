@@ -39,6 +39,7 @@ export function UserPack({ onViewPack }: UserPackProps) {
       >
         <SettingTile
           title={userPack?.meta.name ?? 'Unknown'}
+          focusId="default-pack"
           description={userPack?.meta.attribution}
           before={
             <Avatar size="300" radii="300">

@@ -1,29 +1,17 @@
-import { Page, PageHeader, PageNavContent } from '$components/page';
-import { Box, IconButton, Icon, Icons, Text } from 'folds';
+import { PageNavContent } from '$components/page';
+import { Box } from 'folds';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { PerMessageProfileOverview } from './PerMessageProfileOverview';
 import { PKCompatSettings } from './PKCompat';
 
 type PerMessageProfilePageProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
 
-export function PerMessageProfilePage({ requestClose }: PerMessageProfilePageProps) {
+export function PerMessageProfilePage({ requestBack, requestClose }: PerMessageProfilePageProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Persona
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Persona" requestBack={requestBack} requestClose={requestClose}>
       <PageNavContent>
         <Box
           grow="Yes"
@@ -42,6 +30,6 @@ export function PerMessageProfilePage({ requestClose }: PerMessageProfilePagePro
           <PerMessageProfileOverview />
         </Box>
       </PageNavContent>
-    </Page>
+    </SettingsSectionPage>
   );
 }

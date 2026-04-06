@@ -176,7 +176,11 @@ export default defineConfig(({ command }) => ({
       injectRegister: false,
       manifest: false,
       injectManifest: {
-        injectionPoint: undefined,
+        // element-call is a self-contained embedded app; exclude its large assets
+        // from the SW precache manifest (they are not part of the Sable shell).
+        globIgnores: ['public/element-call/**'],
+        // The app's own crypto WASM and main bundle exceed the 2 MiB default.
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
       },
       devOptions: {
         enabled: true,

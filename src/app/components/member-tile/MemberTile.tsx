@@ -8,7 +8,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
 import { useUserPresence } from '$hooks/useUserPresence';
-import { AvatarPresence, PresenceBadge } from '$components/presence';
+import { PresenceBadge } from '$components/presence';
 import * as css from './style.css';
 
 const getName = (room: Room, member: RoomMember, nicknames: Record<string, string>) =>

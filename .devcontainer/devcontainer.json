@@ -1,0 +1,90 @@
+// Codespace configuration — lives on personal/config (not ephemeral dev/feat branches).
+// This file intentionally targets browser-based use on iPad.
+{
+  "name": "Sable",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+
+  "features": {
+    // Keep git up-to-date for SSH signing support (git ≥ 2.34).
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // ── Codespace user secrets ──────────────────────────────────────────────────
+  // Configure these at: github.com/settings/codespaces > Secrets
+  //
+  //   GIT_SIGNING_KEY  — passphrase-free SSH private key (ed25519 recommended).
+  //                      Add the matching public key to your GitHub account as a
+  //                      "signing key": github.com/settings/keys
+  //                      postCreate.sh will wire up git automatically if set.
+  //
+  //   GIT_USER_NAME    — e.g. "Evie"
+  //   GIT_USER_EMAIL   — e.g. "you@example.com"
+  // ───────────────────────────────────────────────────────────────────────────
+
+  "remoteEnv": {
+    // Pin the pnpm store to a known path so the volume mount works across rebuilds.
+    "PNPM_STORE_DIR": "/home/node/.pnpm-store"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // ── Layout — tuned for iPad browser (vscode.dev / Codespaces web) ─────
+        // Move the activity bar to the top so it isn't hidden by the iOS Safari
+        // toolbar or the browser's combined title/status bar.
+        "workbench.activityBar.location": "top",
+        // Use a menu for the layout control — fewer tiny hit targets on touch.
+        "workbench.layoutControl.type": "menu",
+        // Place the panel (Terminal, Problems, Copilot Chat history) on the
+        // right so it doesn't fight with the keyboard on small screens.
+        "workbench.panel.defaultLocation": "right",
+        // Keep editor tabs visible and wrap them so none are hidden off-screen.
+        "workbench.editor.showTabs": "multiple",
+        "workbench.editor.wrapTabs": true,
+        // Disable minimap — saves horizontal space, improves touch accuracy.
+        "editor.minimap.enabled": false,
+        "editor.scrollBeyondLastLine": false,
+        // Larger default fonts for retina/HiDPI iPad displays.
+        "editor.fontSize": 14,
+        "terminal.integrated.fontSize": 14,
+
+        // ── Git signing ───────────────────────────────────────────────────────
+        // postCreate.sh configures gpg.format and user.signingkey if
+        // GIT_SIGNING_KEY secret is present.  This just keeps VS Code's git
+        // UI in sync.
+        "git.enableCommitSigning": true,
+        "git.confirmSync": false,
+
+        // ── Copilot Chat ──────────────────────────────────────────────────────
+        // Always show follow-ups and keep chat history accessible.
+        "github.copilot.chat.followUps": "always"
+      },
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "vitest.explorer"
+      ]
+    }
+  },
+
+  // ── Port forwarding ─────────────────────────────────────────────────────────
+  "forwardPorts": [5173, 4173],
+  "portsAttributes": {
+    "5173": { "label": "Vite dev", "onAutoForward": "notify" },
+    "4173": { "label": "Vite preview", "onAutoForward": "notify" }
+  },
+
+  // ── Persistence ─────────────────────────────────────────────────────────────
+  // Named volume keeps the pnpm content-addressable store across rebuilds.
+  // Combined with the PNPM_STORE_DIR env var above so postCreate can also
+  // point pnpm at the same path.
+  "mounts": [
+    "source=sable-pnpm-store,target=/home/node/.pnpm-store,type=volume"
+  ],
+
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "remoteUser": "node"
+}

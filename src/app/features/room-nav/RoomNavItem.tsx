@@ -68,6 +68,7 @@ import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
 import { CallControlState } from '$plugins/call/CallControlState';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
+import { useUserPresence } from '$hooks/useUserPresence';
 import { RoomNavUser } from './RoomNavUser';
 
 /**
@@ -282,6 +283,8 @@ export function RoomNavItem({
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
+  const presence = useUserPresence(dmUserId ?? '');
+  const roomDescription = direct ? presence?.status : 'aaa';
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
@@ -413,15 +416,20 @@ export function RoomNavItem({
                   />
                 )}
               </Avatar>
-              <Box as="span" grow="Yes">
+              <Box as="span" grow="Yes" direction="Column">
                 <Text
-                  priority={unread || hasRoomUnread || isActiveCall ? '500' : '300'}
+                  priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
                   as="span"
                   size="Inherit"
                   truncate
                 >
                   {roomName}
                 </Text>
+                {roomDescription && (
+                  <Text as="span" truncate size="Inherit" priority="300">
+                    {presence?.status}
+                  </Text>
+                )}
               </Box>
               {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
                 <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>

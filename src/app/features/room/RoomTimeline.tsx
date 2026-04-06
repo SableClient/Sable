@@ -132,6 +132,7 @@ export function RoomTimeline({
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
@@ -550,6 +551,7 @@ export function RoomTimeline({
       hour24Clock,
       dateFormatString,
       mediaAutoLoad,
+      showBundledPreview,
       showUrlPreview,
       showClientUrlPreview,
       autoplayStickers,

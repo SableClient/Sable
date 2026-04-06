@@ -15,8 +15,27 @@
 
   "settingsLinkBaseUrl": "https://app.sable.moe",
 
+  "experiments": {
+    "sessionSyncStrategy": {
+      "enabled": false,
+      "rolloutPercentage": 0,
+      "controlVariant": "control",
+      "variants": ["session-sync-heartbeat", "session-sync-adaptive"]
+    }
+  },
+
   "slidingSync": {
     "enabled": true
+  },
+
+  "sessionSync": {
+    "phase1ForegroundResync": false,
+    "phase2VisibleHeartbeat": false,
+    "phase3AdaptiveBackoffJitter": false,
+    "foregroundDebounceMs": 1500,
+    "heartbeatIntervalMs": 600000,
+    "resumeHeartbeatSuppressMs": 60000,
+    "heartbeatMaxBackoffMs": 1800000
   },
 
   "featuredCommunities": {

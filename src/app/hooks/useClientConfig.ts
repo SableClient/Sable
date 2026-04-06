@@ -43,6 +43,16 @@ export type ClientConfig = {
 
   matrixToBaseUrl?: string;
   settingsLinkBaseUrl?: string;
+
+  sessionSync?: {
+    phase1ForegroundResync?: boolean;
+    phase2VisibleHeartbeat?: boolean;
+    phase3AdaptiveBackoffJitter?: boolean;
+    foregroundDebounceMs?: number;
+    heartbeatIntervalMs?: number;
+    resumeHeartbeatSuppressMs?: number;
+    heartbeatMaxBackoffMs?: number;
+  };
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

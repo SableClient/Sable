@@ -54,8 +54,10 @@
         "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
         // MesloLGS NF is a local system font — unavailable in the browser.
-        // Fira Code is loaded as a web font via the tonsky.font-fira-code extension.
-        "terminal.integrated.fontFamily": "'Fira Code', Menlo, monospace",
+        // Fira Code (loaded via the tonsky extension) works for the editor renderer but
+        // not for the terminal canvas/DOM renderer on iOS — it doesn't arrive in time.
+        // Menlo is a native iOS/macOS system font and is always immediately available.
+        "terminal.integrated.fontFamily": "Menlo, 'Courier New', monospace",
         // Use zsh (installed in onCreate) as the default terminal shell.
         "terminal.integrated.defaultProfile.linux": "zsh",
 

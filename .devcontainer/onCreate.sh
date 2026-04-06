@@ -37,9 +37,9 @@ pnpm install
 # Install these during prebuild so the first Codespace start is fast.
 # The dotfiles checkout in postCreate.sh will provide .zshrc / .p10k.zsh.
 
-# Install zsh if not already present (base:bookworm ships it, but be safe).
-if ! command -v zsh &>/dev/null; then
-  sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+# Install zsh and tmux if not already present (base:bookworm ships zsh, but be safe).
+if ! command -v zsh &>/dev/null || ! command -v tmux &>/dev/null; then
+  sudo apt-get update -qq && sudo apt-get install -y -qq zsh tmux
 fi
 
 # Install Oh My Zsh non-interactively (KEEP_ZSHRC=yes preserves any existing .zshrc).

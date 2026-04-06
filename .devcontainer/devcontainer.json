@@ -90,5 +90,6 @@
   ],
 
   "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "onCreateCommand": "bash .devcontainer/onCreate.sh",
   "remoteUser": "node"
 }

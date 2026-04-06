@@ -1,17 +1,7 @@
 #!/bin/bash
-# postCreate.sh — runs once after the Codespace container is created.
+# postCreate.sh — runs once after the Codespace container is created (NOT during prebuild).
+# Secrets (GIT_SIGNING_KEY, GIT_USER_NAME, GIT_USER_EMAIL) are available here.
 set -euo pipefail
-
-# ── pnpm ──────────────────────────────────────────────────────────────────────
-# Enable corepack so the exact pnpm version from package.json#packageManager is used.
-corepack enable
-
-# Point pnpm at the persistent named-volume store so packages survive rebuilds.
-if [ -n "${PNPM_STORE_DIR:-}" ]; then
-  pnpm config set store-dir "${PNPM_STORE_DIR}"
-fi
-
-pnpm install
 
 # ── Git identity ──────────────────────────────────────────────────────────────
 # Populate from Codespace user secrets if they aren't already set by dotfiles.

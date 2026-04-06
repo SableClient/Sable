@@ -4,7 +4,19 @@
 # Everything here is cached in the prebuild snapshot.
 set -euo pipefail
 
+# ── Ensure the node feature's PATH additions are active ──────────────────────
+# The devcontainers node feature installs via nvm; source it so `node`/`pnpm`
+# resolve correctly even in non-login, non-interactive shells.
+export NVM_DIR="${NVM_DIR:-/usr/local/share/nvm}"
+# shellcheck source=/dev/null
+[ -s "${NVM_DIR}/nvm.sh" ] && source "${NVM_DIR}/nvm.sh" --no-use
+# Activate the version pinned in .nvmrc / package.json engines.
+nvm use 24 2>/dev/null || nvm use node
+
 # ── pnpm ──────────────────────────────────────────────────────────────────────
+# Suppress corepack's interactive download-confirmation prompt in CI/prebuild.
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
 # Enable corepack so the exact pnpm version from package.json#packageManager is used.
 corepack enable
 

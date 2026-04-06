@@ -454,16 +454,13 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   const handleLoadMoreRef = useRef(handleLoadMore);
   handleLoadMoreRef.current = handleLoadMore;
 
-  const handleThreadsScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      if (distanceFromBottom < 200 && canLoadMoreRef.current && !loadingMoreRef.current) {
-        handleLoadMoreRef.current();
-      }
-    },
-    []
-  );
+  const handleThreadsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 200 && canLoadMoreRef.current && !loadingMoreRef.current) {
+      handleLoadMoreRef.current();
+    }
+  }, []);
 
   const allThreads = room.getThreads().sort((a: Thread, b: Thread) => {
     const aTs = a.events.at(-1)?.getTs() ?? a.rootEvent?.getTs() ?? 0;

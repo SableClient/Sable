@@ -39,28 +39,21 @@ export const MemberTile = as<'button', MemberTileProps>(
 
     return (
       <AsMemberTile className={css.MemberTile} {...props} ref={ref}>
-        <AvatarPresence
-          badge={
-            presence && presence.lastActiveTs !== 0 ? (
-              <PresenceBadge presence={presence.presence} size="300" />
-            ) : undefined
-          }
-        >
-          <Avatar size="300" radii="400">
-            <UserAvatar
-              userId={member.userId}
-              src={avatarUrl ?? undefined}
-              alt={name}
-              renderFallback={() => <Icon size="300" src={Icons.User} filled />}
-            />
-          </Avatar>
-        </AvatarPresence>
+        <Avatar size="300" radii="400">
+          <UserAvatar
+            userId={member.userId}
+            src={avatarUrl ?? undefined}
+            alt={name}
+            renderFallback={() => <Icon size="300" src={Icons.User} filled />}
+          />
+        </Avatar>
         <Box grow="Yes" as="span" direction="Column">
           <Text as="span" size="T300" truncate style={{ color, fontFamily: font }}>
             <b>{name}</b>
           </Text>
           {presence && presence.status && (
-            <Box alignItems="Center" justifyContent="SpaceBetween" gap="100">
+            <Box alignItems="Center" gap="100">
+              <PresenceBadge presence={presence.presence} size="200" />
               <Text as="span" size="T200" priority="300" truncate>
                 {presence.status}
               </Text>

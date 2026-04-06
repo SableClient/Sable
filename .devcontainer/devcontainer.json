@@ -2,9 +2,12 @@
 // This file intentionally targets browser-based use on iPad.
 {
   "name": "Sable",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  // Using base + node feature instead of javascript-node:<tag> to avoid
+  // tag availability issues on newer Node versions.
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
 
   "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
     // Keep git up-to-date for SSH signing support (git ≥ 2.34).
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
@@ -24,7 +27,7 @@
 
   "remoteEnv": {
     // Pin the pnpm store to a known path so the volume mount works across rebuilds.
-    "PNPM_STORE_DIR": "/home/node/.pnpm-store"
+    "PNPM_STORE_DIR": "/home/vscode/.pnpm-store"
   },
 
   "customizations": {
@@ -51,6 +54,8 @@
         "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
         "terminal.integrated.fontFamily": "'Fira Code', 'Cascadia Code', Menlo, monospace",
+        // Use zsh (installed in onCreate) as the default terminal shell.
+        "terminal.integrated.defaultProfile.linux": "zsh",
 
         // ── Git signing ───────────────────────────────────────────────────────
         // postCreate.sh configures gpg.format and user.signingkey if
@@ -86,10 +91,10 @@
   // Combined with the PNPM_STORE_DIR env var above so postCreate can also
   // point pnpm at the same path.
   "mounts": [
-    "source=sable-pnpm-store,target=/home/node/.pnpm-store,type=volume"
+    "source=sable-pnpm-store,target=/home/vscode/.pnpm-store,type=volume"
   ],
 
   "postCreateCommand": "bash .devcontainer/postCreate.sh",
   "onCreateCommand": "bash .devcontainer/onCreate.sh",
-  "remoteUser": "node"
+  "remoteUser": "vscode"
 }

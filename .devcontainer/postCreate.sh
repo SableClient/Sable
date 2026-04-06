@@ -3,6 +3,35 @@
 # Secrets (GIT_SIGNING_KEY, GIT_USER_NAME, GIT_USER_EMAIL) are available here.
 set -euo pipefail
 
+# ── Dotfiles (bare git repo, MacStudio branch) ────────────────────────────────
+# The dotfiles repo uses the "bare repo in $HOME" pattern.
+# We clone a specific branch so we get the VS Code / Codespace-aware config
+# (e.g. the P10k instant-prompt guard for $TERM_PROGRAM == "vscode").
+DOTFILES_REPO="https://github.com/Just-Insane/dotfiles.git"
+DOTFILES_BRANCH="MacStudio"
+DOTFILES_DIR="${HOME}/.cfg"
+
+if [ ! -d "${DOTFILES_DIR}" ]; then
+  git clone --bare --branch "${DOTFILES_BRANCH}" "${DOTFILES_REPO}" "${DOTFILES_DIR}"
+
+  # Check out dotfiles to $HOME.  Use --force to overwrite any stub files
+  # created by the devcontainer (e.g. a default .bashrc).
+  git --git-dir="${DOTFILES_DIR}" --work-tree="${HOME}" checkout --force "${DOTFILES_BRANCH}"
+
+  # Don't show untracked files (the whole home dir) in status.
+  git --git-dir="${DOTFILES_DIR}" --work-tree="${HOME}" \
+    config --local status.showUntrackedFiles no
+
+  echo "✓ Dotfiles checked out from ${DOTFILES_BRANCH}"
+else
+  # Already exists (e.g. Codespace resumed) — just pull latest.
+  git --git-dir="${DOTFILES_DIR}" --work-tree="${HOME}" \
+    fetch origin "${DOTFILES_BRANCH}" && \
+  git --git-dir="${DOTFILES_DIR}" --work-tree="${HOME}" \
+    checkout --force "${DOTFILES_BRANCH}"
+  echo "✓ Dotfiles updated"
+fi
+
 # ── Git identity ──────────────────────────────────────────────────────────────
 # Populate from Codespace user secrets if they aren't already set by dotfiles.
 if [ -n "${GIT_USER_NAME:-}" ] && [ -z "$(git config --global user.name 2>/dev/null)" ]; then

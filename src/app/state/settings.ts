@@ -88,6 +88,7 @@ export interface Settings {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -187,6 +188,7 @@ const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,

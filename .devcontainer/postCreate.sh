@@ -32,6 +32,16 @@ else
   echo "✓ Dotfiles updated"
 fi
 
+# ── Powerlevel10k — browser-compatible glyph mode ────────────────────────────
+# MesloLGS NF / Nerd Font glyphs are unavailable in browser-based Codespaces.
+# Patch .p10k.zsh to use the 'compatible' Unicode symbol set instead, which
+# renders correctly with any modern monospace font (e.g. Fira Code via extension).
+if [ -f "${HOME}/.p10k.zsh" ]; then
+  sed -i "s/POWERLEVEL9K_MODE='nerdfont-v3'/POWERLEVEL9K_MODE='compatible'/" \
+    "${HOME}/.p10k.zsh"
+  echo "✓ p10k mode set to compatible"
+fi
+
 # ── Git identity ──────────────────────────────────────────────────────────────
 # Populate from Codespace user secrets if they aren't already set by dotfiles.
 if [ -n "${GIT_USER_NAME:-}" ] && [ -z "$(git config --global user.name 2>/dev/null)" ]; then

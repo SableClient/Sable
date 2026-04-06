@@ -53,7 +53,9 @@
         "editor.fontFamily": "'Fira Code', 'Cascadia Code', Menlo, monospace",
         "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
-        "terminal.integrated.fontFamily": "'MesloLGS NF', 'Fira Code', Menlo, monospace",
+        // MesloLGS NF is a local system font — unavailable in the browser.
+        // Fira Code is loaded as a web font via the tonsky.font-fira-code extension.
+        "terminal.integrated.fontFamily": "'Fira Code', Menlo, monospace",
         // Use zsh (installed in onCreate) as the default terminal shell.
         "terminal.integrated.defaultProfile.linux": "zsh",
 

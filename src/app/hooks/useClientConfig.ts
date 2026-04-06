@@ -43,6 +43,10 @@ export type ClientConfig = {
 
   matrixToBaseUrl?: string;
   settingsLinkBaseUrl?: string;
+
+  features?: {
+    polls?: boolean;
+  };
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

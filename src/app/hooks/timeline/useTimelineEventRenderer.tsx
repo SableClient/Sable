@@ -54,6 +54,7 @@ import {
   Message,
   Reactions,
 } from '$features/room/message';
+import { PollEvent } from '$features/room/poll';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 
@@ -1079,6 +1080,81 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
+      [MessageEvent.PollStart]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const { getSender, getAssociatedStatus, isRedacted, getUnsigned } = mEvent;
+        const reactionRelations = getEventReactions(timelineSet, mEventId);
+        const reactions = reactionRelations?.getSortedAnnotationsByKey();
+        const hasReactions = reactions && reactions.length > 0;
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const senderId = getSender.call(mEvent) ?? '';
+        const senderDisplayName =
+          getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
+        const myUserId = mx.getUserId() ?? '';
+        const canEnd = myUserId === senderId || canRedact;
+
+        return (
+          <Message
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            messageSpacing={messageSpacing}
+            messageLayout={messageLayout}
+            highlight={highlighted}
+            canDelete={canRedact || (canDeleteOwn && senderId === myUserId)}
+            canSendReaction={canSendReaction}
+            canPinEvent={canPinEvent}
+            imagePackRooms={imagePackRooms}
+            relations={hasReactions ? reactionRelations : undefined}
+            onUserClick={onUserClick}
+            onUsernameClick={onUsernameClick}
+            onReplyClick={onReplyClick}
+            onReactionToggle={onReactionToggle}
+            onEditId={onEditId}
+            senderId={senderId}
+            activeReplyId={activeReplyId}
+            senderDisplayName={senderDisplayName}
+            sendStatus={getAssociatedStatus.call(mEvent)}
+            onResend={onResend}
+            onDeleteFailedSend={onDeleteFailedSend}
+            collapse={collapse}
+            reactions={
+              reactionRelations ? (
+                <Reactions
+                  style={{ marginTop: config.space.S200 }}
+                  room={room}
+                  relations={reactionRelations}
+                  mEventId={mEventId}
+                  canSendReaction={canSendReaction}
+                  canDeleteOwn={canDeleteOwn}
+                  onReactionToggle={onReactionToggle}
+                />
+              ) : undefined
+            }
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            memberPowerTag={getMemberPowerTag(senderId)}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          >
+            {isRedacted.call(mEvent) ? (
+              <RedactedContent reason={getUnsigned.call(mEvent).redacted_because?.content.reason} />
+            ) : (
+              <PollEvent
+                room={room}
+                mEvent={mEvent}
+                canEnd={canEnd}
+                outlined={messageLayout === MessageLayout.Bubble}
+              />
+            )}
+          </Message>
+        );
+      },
+      // Poll response and end events are not rendered individually —
+      // they update the poll via RoomEvent.Timeline listeners in PollEvent.
+      [MessageEvent.PollResponse]: () => null,
+      [MessageEvent.PollEnd]: () => null,
     },
     (mEventId, mEvent, item, timelineSet, collapse) => {
       const { getSender, getTs, getType } = mEvent;

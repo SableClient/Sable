@@ -137,6 +137,7 @@ import { MessageEvent } from '$types/matrix/room';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
 import {
   convertPerMessageProfileToBeeperFormat,
@@ -149,6 +150,8 @@ import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitComman
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
+import { PollCreatorDialog } from './poll';
+import type { PollCreatorContent } from './poll';
 import {
   getAudioMsgContent,
   getFileMsgContent,
@@ -364,6 +367,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+    const [showPollCreator, setShowPollCreator] = useState(false);
+    const clientConfig = useClientConfig();
+    const pollsEnabled = clientConfig.features?.polls ?? false;
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const isEncrypted = room.hasEncryptionStateEvent();
@@ -766,6 +772,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
+      } else if (commandName === Command.Poll) {
+        if (pollsEnabled) setShowPollCreator(true);
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
       } else if (commandName) {
         const commandContent = commands[commandName as Command];
         if (commandContent) {
@@ -964,6 +976,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      pollsEnabled,
+      setShowPollCreator,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1366,16 +1380,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              title="Upload File"
-              aria-label="Upload and attach a File"
-            >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+            <Box alignItems="Center" gap="100">
+              <IconButton
+                onClick={() => pickFile('*')}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="Upload File"
+                aria-label="Upload and attach a File"
+              >
+                <Icon src={Icons.PlusCircle} />
+              </IconButton>
+            </Box>
           }
           after={
             <>
@@ -1631,6 +1647,37 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             onSubmit={(date) => {
               setScheduledTime(date);
               setShowSchedulePicker(false);
+            }}
+          />
+        )}
+        {showPollCreator && (
+          <PollCreatorDialog
+            onCancel={() => setShowPollCreator(false)}
+            onSubmit={(content: PollCreatorContent) => {
+              setShowPollCreator(false);
+              const pollKindKey = content.kind;
+              const eventContent: Record<string, unknown> = {
+                'org.matrix.msc1767.text': content.question,
+                'org.matrix.msc3381.poll.start': {
+                  question: {
+                    'org.matrix.msc1767.text': content.question,
+                  },
+                  kind: pollKindKey,
+                  max_selections: content.maxSelections,
+                  answers: content.answers.map((a) => ({
+                    id: a.id,
+                    'org.matrix.msc1767.text': a.text,
+                  })),
+                  show_voter_names: content.showVoterNames,
+                  ...(content.closesAt !== undefined ? { closes_at: content.closesAt } : {}),
+                },
+              };
+              (mx as any).sendEvent(roomId, 'org.matrix.msc3381.poll.start', eventContent).catch(
+                // unstable MSC3381 type
+                (err: unknown) => {
+                  console.error('Failed to send poll:', err);
+                }
+              );
             }}
           />
         )}

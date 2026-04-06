@@ -47,7 +47,10 @@
         "editor.scrollBeyondLastLine": false,
         // Larger default fonts for retina/HiDPI iPad displays.
         "editor.fontSize": 14,
+        "editor.fontFamily": "'Fira Code', 'Cascadia Code', Menlo, monospace",
+        "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
+        "terminal.integrated.fontFamily": "'Fira Code', 'Cascadia Code', Menlo, monospace",
 
         // ── Git signing ───────────────────────────────────────────────────────
         // postCreate.sh configures gpg.format and user.signingkey if
@@ -63,6 +66,7 @@
       "extensions": [
         "GitHub.copilot",
         "GitHub.copilot-chat",
+        "tonsky.font-fira-code",
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
         "vitest.explorer"

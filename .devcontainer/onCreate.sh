@@ -13,6 +13,12 @@ export NVM_DIR="${NVM_DIR:-/usr/local/share/nvm}"
 # Activate the version pinned in .nvmrc / package.json engines.
 nvm use 24 2>/dev/null || nvm use node
 
+# ── Fix named-volume ownership ────────────────────────────────────────────────
+# Docker mounts named volumes as root; fix ownership so the vscode user can write.
+if [ -d "${PNPM_STORE_DIR:-}" ]; then
+  sudo chown -R "$(id -u):$(id -g)" "${PNPM_STORE_DIR}"
+fi
+
 # ── pnpm ──────────────────────────────────────────────────────────────────────
 # Suppress corepack's interactive download-confirmation prompt in CI/prebuild.
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0

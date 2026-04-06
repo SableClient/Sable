@@ -4,6 +4,7 @@ import {
   getHomeJoinPath,
   getHomePath,
   getHomeSearchPath,
+  getHomeBookmarksPath,
 } from '$pages/pathUtils';
 
 export const useHomeSelected = (): boolean => {
@@ -39,6 +40,16 @@ export const useHomeJoinSelected = (): boolean => {
 export const useHomeSearchSelected = (): boolean => {
   const match = useMatch({
     path: getHomeSearchPath(),
+    caseSensitive: true,
+    end: false,
+  });
+
+  return !!match;
+};
+
+export const useHomeBookmarksSelected = (): boolean => {
+  const match = useMatch({
+    path: getHomeBookmarksPath(),
     caseSensitive: true,
     end: false,
   });

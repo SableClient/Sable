@@ -80,6 +80,9 @@ import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHi
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
+import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
+import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
+import { useExperimentVariant } from '$hooks/useClientConfig';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
@@ -204,6 +207,50 @@ export const MessagePinItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         {isPinned ? 'Unpin Message' : 'Pin Message'}
+      </Text>
+    </MenuItem>
+  );
+});
+
+// message bookmarking
+export const MessageBookmarkItem = as<
+  'button',
+  {
+    room: Room;
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ room, mEvent, onClose, ...props }, ref) => {
+  const mx = useMatrixClient();
+  const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const eventId = mEvent.getId() ?? '';
+  const isBookmarked = useIsBookmarked(room.roomId, eventId);
+  const { add, remove } = useBookmarkActions();
+
+  if (!bookmarksExperiment.inExperiment && !enableMessageBookmarks) return null;
+
+  const handleClick = async () => {
+    if (isBookmarked) {
+      await remove(computeBookmarkId(room.roomId, eventId));
+    } else {
+      const item = createBookmarkItem(room, mEvent);
+      if (item) await add(item);
+    }
+    onClose?.();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={<Icon size="100" src={Icons.Bookmark} />}
+      radii="300"
+      onClick={handleClick}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {isBookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
       </Text>
     </MenuItem>
   );
@@ -1097,6 +1144,7 @@ function MessageInternal(
                         )}
                         <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                        <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         {canPinEvent && (
                           <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         )}
@@ -1430,6 +1478,13 @@ export const Event = as<'div', EventProps>(
                             )}
                             <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                             <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                            {!stateEvent && (
+                              <MessageBookmarkItem
+                                room={room}
+                                mEvent={mEvent}
+                                onClose={closeMenu}
+                              />
+                            )}
                           </Box>
                           {((!mEvent.isRedacted() && canDelete && !stateEvent) ||
                             (mEvent.getSender() !== mx.getUserId() && !stateEvent)) && (

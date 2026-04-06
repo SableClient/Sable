@@ -35,11 +35,16 @@ import {
   getHomeCreatePath,
   getHomeRoomPath,
   getHomeSearchPath,
+  getHomeBookmarksPath,
   withSearchParam,
 } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
-import { useHomeCreateSelected, useHomeSearchSelected } from '$hooks/router/useHomeSelected';
+import {
+  useHomeCreateSelected,
+  useHomeSearchSelected,
+  useHomeBookmarksSelected,
+} from '$hooks/router/useHomeSelected';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { VirtualTile } from '$components/virtualizer';
 import { RoomNavCategoryButton, RoomNavItem } from '$features/room-nav';
@@ -54,6 +59,7 @@ import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useExperimentVariant } from '$hooks/useClientConfig';
 import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
@@ -203,6 +209,10 @@ export function Home() {
   const selectedRoomId = useSelectedRoom();
   const createRoomSelected = useHomeCreateSelected();
   const searchSelected = useHomeSearchSelected();
+  const bookmarksSelected = useHomeBookmarksSelected();
+  const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const showBookmarks = bookmarksExperiment.inExperiment || enableMessageBookmarks;
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
@@ -236,83 +246,101 @@ export function Home() {
   return (
     <PageNav>
       <HomeHeader />
-      {noRoomToDisplay ? (
-        <HomeEmpty />
-      ) : (
-        <PageNavContent scrollRef={scrollRef}>
-          <Box direction="Column" gap="300">
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
-                <NavButton onClick={() => navigate(getHomeCreatePath())}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Create Room
-                        </Text>
-                      </Box>
+      <PageNavContent scrollRef={scrollRef}>
+        <Box direction="Column" gap="300">
+          <NavCategory>
+            <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
+              <NavButton onClick={() => navigate(getHomeCreatePath())}>
+                <NavItemContent>
+                  <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                    <Avatar size="200" radii="400">
+                      <Icon src={Icons.Plus} size="100" />
+                    </Avatar>
+                    <Box as="span" grow="Yes">
+                      <Text as="span" size="Inherit" truncate>
+                        Create Room
+                      </Text>
                     </Box>
-                  </NavItemContent>
-                </NavButton>
-              </NavItem>
-              <UseStateProvider initial={false}>
-                {(open, setOpen) => (
-                  <>
-                    <NavItem variant="Background" radii="400">
-                      <NavButton onClick={() => setOpen(true)}>
-                        <NavItemContent>
-                          <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                            <Avatar size="200" radii="400">
-                              <Icon src={Icons.Link} size="100" />
-                            </Avatar>
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                Join with Address
-                              </Text>
-                            </Box>
+                  </Box>
+                </NavItemContent>
+              </NavButton>
+            </NavItem>
+            <UseStateProvider initial={false}>
+              {(open, setOpen) => (
+                <>
+                  <NavItem variant="Background" radii="400">
+                    <NavButton onClick={() => setOpen(true)}>
+                      <NavItemContent>
+                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                          <Avatar size="200" radii="400">
+                            <Icon src={Icons.Link} size="100" />
+                          </Avatar>
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Join with Address
+                            </Text>
                           </Box>
-                        </NavItemContent>
-                      </NavButton>
-                    </NavItem>
-                    {open && (
-                      <JoinAddressPrompt
-                        onCancel={() => setOpen(false)}
-                        onOpen={(roomIdOrAlias, viaServers, eventId) => {
-                          setOpen(false);
-                          const path = getHomeRoomPath(roomIdOrAlias, eventId);
-                          navigate(
-                            viaServers
-                              ? withSearchParam<RoomSearchParams>(path, {
-                                  viaServers: encodeSearchParamValueArray(viaServers),
-                                })
-                              : path
-                          );
-                        }}
-                      />
-                    )}
-                  </>
-                )}
-              </UseStateProvider>
-              <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
-                <NavLink to={getHomeSearchPath()}>
+                        </Box>
+                      </NavItemContent>
+                    </NavButton>
+                  </NavItem>
+                  {open && (
+                    <JoinAddressPrompt
+                      onCancel={() => setOpen(false)}
+                      onOpen={(roomIdOrAlias, viaServers, eventId) => {
+                        setOpen(false);
+                        const path = getHomeRoomPath(roomIdOrAlias, eventId);
+                        navigate(
+                          viaServers
+                            ? withSearchParam<RoomSearchParams>(path, {
+                                viaServers: encodeSearchParamValueArray(viaServers),
+                              })
+                            : path
+                        );
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </UseStateProvider>
+            <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
+              <NavLink to={getHomeSearchPath()}>
+                <NavItemContent>
+                  <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                    <Avatar size="200" radii="400">
+                      <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                    </Avatar>
+                    <Box as="span" grow="Yes">
+                      <Text as="span" size="Inherit" truncate>
+                        Message Search
+                      </Text>
+                    </Box>
+                  </Box>
+                </NavItemContent>
+              </NavLink>
+            </NavItem>
+            {showBookmarks && (
+              <NavItem variant="Background" radii="400" aria-selected={bookmarksSelected}>
+                <NavLink to={getHomeBookmarksPath()}>
                   <NavItemContent>
                     <Box as="span" grow="Yes" alignItems="Center" gap="200">
                       <Avatar size="200" radii="400">
-                        <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        <Icon src={Icons.Bookmark} size="100" filled={bookmarksSelected} />
                       </Avatar>
                       <Box as="span" grow="Yes">
                         <Text as="span" size="Inherit" truncate>
-                          Message Search
+                          Bookmarks
                         </Text>
                       </Box>
                     </Box>
                   </NavItemContent>
                 </NavLink>
               </NavItem>
-            </NavCategory>
+            )}
+          </NavCategory>
+          {noRoomToDisplay ? (
+            <HomeEmpty />
+          ) : (
             <NavCategory>
               <NavCategoryHeader>
                 <RoomNavCategoryButton
@@ -355,9 +383,9 @@ export function Home() {
                 })}
               </div>
             </NavCategory>
-          </Box>
-        </PageNavContent>
-      )}
+          )}
+        </Box>
+      </PageNavContent>
     </PageNav>
   );
 }

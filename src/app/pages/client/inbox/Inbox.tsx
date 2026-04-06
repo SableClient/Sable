@@ -1,12 +1,24 @@
 import { Avatar, Box, Icon, Icons, Text } from 'folds';
 import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
-import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
-import { useInboxInvitesSelected, useInboxNotificationsSelected } from '$hooks/router/useInbox';
+import {
+  getInboxBookmarksPath,
+  getInboxInvitesPath,
+  getInboxNotificationsPath,
+} from '$pages/pathUtils';
+import {
+  useInboxBookmarksSelected,
+  useInboxInvitesSelected,
+  useInboxNotificationsSelected,
+} from '$hooks/router/useInbox';
 import { UnreadBadge } from '$components/unread-badge';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { useExperimentVariant } from '$hooks/useClientConfig';
 
 function InvitesNavItem() {
   const invitesSelected = useInboxInvitesSelected();
@@ -39,9 +51,36 @@ function InvitesNavItem() {
   );
 }
 
+function BookmarksNavItem() {
+  const bookmarksSelected = useInboxBookmarksSelected();
+
+  return (
+    <NavItem variant="Background" radii="400" aria-selected={bookmarksSelected}>
+      <NavLink to={getInboxBookmarksPath()}>
+        <NavItemContent>
+          <Box as="span" grow="Yes" alignItems="Center" gap="200">
+            <Avatar size="200" radii="400">
+              <Icon src={Icons.Bookmark} size="100" filled={bookmarksSelected} />
+            </Avatar>
+            <Box as="span" grow="Yes">
+              <Text as="span" size="Inherit" truncate>
+                Bookmarks
+              </Text>
+            </Box>
+          </Box>
+        </NavItemContent>
+      </NavLink>
+    </NavItem>
+  );
+}
+
 export function Inbox() {
   useNavToActivePathMapper('inbox');
+  const mx = useMatrixClient();
   const notificationsSelected = useInboxNotificationsSelected();
+  const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  const showBookmarks = bookmarksExperiment.inExperiment || enableMessageBookmarks;
 
   return (
     <PageNav>
@@ -75,6 +114,7 @@ export function Inbox() {
               </NavLink>
             </NavItem>
             <InvitesNavItem />
+            {showBookmarks && <BookmarksNavItem />}
           </NavCategory>
         </Box>
       </PageNavContent>

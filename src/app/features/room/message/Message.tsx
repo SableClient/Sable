@@ -386,15 +386,20 @@ function MessageInternal(
 
   useEffect(() => {
     const triggerTimelineRegroup = () => {
-      room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
-        liveEvent: true,
-      } as IRoomTimelineData);
+      // A Local Echo update seems to trigger a visual refresh without
+      // scrolling the viewport.
+      room.emit(RoomEvent.LocalEchoUpdated, mEvent, room);
     };
 
     const onUpdate = () => {
       setContentVersion((v) => v + 1);
       triggerTimelineRegroup();
     };
+
+    if (mEvent.getClearContent()) {
+      setContentVersion((v) => (v === 0 ? 1 : v));
+      triggerTimelineRegroup();
+    }
 
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);

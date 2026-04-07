@@ -49,14 +49,19 @@
         "editor.minimap.enabled": false,
         "editor.scrollBeyondLastLine": false,
         // Larger default fonts for retina/HiDPI iPad displays.
-        // Fira Code is loaded as a web font by the tonsky.font-fira-code extension,
-        // making it available in the browser terminal (Safari on iPad included).
+        // Fira Code is loaded as a web font by the tonsky.font-fira-code extension.
+        // This works for the Monaco *editor* (HTML/CSS rendered), but xterm.js uses
+        // canvas drawing — it does NOT reliably inherit CSS @font-face on iOS Safari.
+        // MesloLGS NF / Monaco / Meslo are not iOS system fonts either.
+        // → Editor: Fira Code via extension is fine.
+        // → Terminal: use Menlo only (ships with iOS since iOS 7, always available).
         "editor.fontSize": 14,
-        "editor.fontFamily": "'MesloLGS NF', 'Fira Code', Meslo, Monaco, 'Courier New', monospace",
+        "editor.fontFamily": "'MesloLGS NF', 'Fira Code', Menlo, 'Courier New', monospace",
         "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
-        "terminal.integrated.fontFamily": "'MesloLGS NF', 'Fira Code', Meslo, Monaco, 'Courier New', monospace",
-        "terminal.integrated.fontLigatures.enabled": true,
+        "terminal.integrated.fontFamily": "Menlo, 'Courier New', monospace",
+        "terminal.integrated.fontLigatures.enabled": false,
+        "terminal.integrated.gpuAcceleration": "off",
 
         // Use zsh (installed in onCreate) as the default terminal shell.
         "terminal.integrated.defaultProfile.linux": "zsh",

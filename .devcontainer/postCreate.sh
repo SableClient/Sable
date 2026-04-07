@@ -95,4 +95,32 @@ if [ -n "${GIT_SIGNING_KEY:-}" ]; then
   echo "✓ Git SSH commit signing configured (${KEY_FILE}.pub)"
 fi
 
+# ── SSH auth key ──────────────────────────────────────────────────────────────
+# Requires a Codespace user secret named SSH_AUTH_KEY containing a
+# passphrase-free SSH private key (ed25519 recommended).
+#
+# To set up:
+#   1. Generate a key: ssh-keygen -t ed25519 -C "codespace auth" -N "" -f ~/.ssh/id_ed25519
+#   2. Copy the private key into a GitHub Codespace secret called SSH_AUTH_KEY:
+#        github.com/settings/codespaces > Secrets > New secret
+#   3. Add the *public* key to ~/.ssh/authorized_keys on your server.
+# ----------------------------------------------------------------------------
+if [ -n "${SSH_AUTH_KEY:-}" ]; then
+  SSH_DIR="${HOME}/.ssh"
+  mkdir -p "${SSH_DIR}"
+  chmod 700 "${SSH_DIR}"
+
+  AUTH_KEY_FILE="${SSH_DIR}/id_ed25519"
+  printf '%s\n' "${SSH_AUTH_KEY}" > "${AUTH_KEY_FILE}"
+  chmod 600 "${AUTH_KEY_FILE}"
+
+  ssh-keygen -y -f "${AUTH_KEY_FILE}" > "${AUTH_KEY_FILE}.pub"
+  chmod 644 "${AUTH_KEY_FILE}.pub"
+
+  eval "$(ssh-agent -s)" &>/dev/null || true
+  ssh-add "${AUTH_KEY_FILE}"
+
+  echo "✓ SSH auth key loaded (${AUTH_KEY_FILE}.pub)"
+fi
+
 echo "✓ postCreate complete"

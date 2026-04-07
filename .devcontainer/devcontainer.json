@@ -21,6 +21,10 @@
   //                      "signing key": github.com/settings/keys
   //                      postCreate.sh will wire up git automatically if set.
   //
+  //   SSH_AUTH_KEY     — passphrase-free SSH private key (ed25519 recommended).
+  //                      Add the matching public key to ~/.ssh/authorized_keys on
+  //                      any server you want to SSH into from the Codespace.
+  //
   //   GIT_USER_NAME    — e.g. "Evie"
   //   GIT_USER_EMAIL   — e.g. "evie@gauthier.id"
   // ───────────────────────────────────────────────────────────────────────────

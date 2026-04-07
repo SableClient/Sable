@@ -88,6 +88,10 @@ if [ -n "${GIT_SIGNING_KEY:-}" ]; then
   echo "${EMAIL} $(cat "${KEY_FILE}.pub")" > "${ALLOWED_SIGNERS}"
   git config --global gpg.ssh.allowedSignersFile "${ALLOWED_SIGNERS}"
 
+  # Load the key into the ssh-agent so it's available for signing and SSH auth.
+  eval "$(ssh-agent -s)" &>/dev/null || true
+  ssh-add "${KEY_FILE}"
+
   echo "✓ Git SSH commit signing configured (${KEY_FILE}.pub)"
 fi
 

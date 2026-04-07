@@ -3,9 +3,9 @@ mod windows;
 #[cfg(desktop)]
 mod desktop_tray;
 
+use tauri::{AppHandle, Manager};
 #[cfg(desktop)]
 use tauri_plugin_window_state::StateFlags;
-use tauri::{AppHandle, Manager};
 
 // Runtime selection: CEF or Wry
 #[cfg(feature = "cef")]
@@ -29,11 +29,8 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
 
     log::info!("Main window not found, creating a new one.");
 
-    let builder = tauri::WebviewWindowBuilder::new(
-        app,
-        MAIN_WINDOW_LABEL,
-        tauri::WebviewUrl::default(),
-    );
+    let builder =
+        tauri::WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, tauri::WebviewUrl::default());
 
     #[cfg(desktop)]
     let builder = builder
@@ -49,7 +46,6 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
     builder.build()?;
     Ok(())
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

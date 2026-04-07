@@ -9,6 +9,22 @@ import { setCloseToTrayEnabled } from '$generated/tauri/commands';
 
 const log = createLogger('TauriFrontendReady');
 
+function onPageFullyLoaded(cb: () => void): () => void {
+  if (document.readyState === 'complete') {
+    cb();
+    return () => {};
+  }
+
+  const handleLoad = () => {
+    cb();
+  };
+
+  window.addEventListener('load', handleLoad, { once: true });
+  return () => {
+    window.removeEventListener('load', handleLoad);
+  };
+}
+
 export function TauriFrontendReady() {
   const [closeToTray] = useSetting(settingsAtom, 'closeToTray');
 
@@ -19,12 +35,11 @@ export function TauriFrontendReady() {
     if (os !== 'windows' && os !== 'linux' && os !== 'macos') return undefined;
 
     const appWindow = getCurrentWindow();
-    const rafId = window.requestAnimationFrame(() => {
+    return onPageFullyLoaded(() => {
       appWindow.show().catch((error) => {
-        log.warn('Failed to show main window after frontend mount:', error);
+        log.warn('Failed to show main window after frontend fully loaded:', error);
       });
     });
-    return () => window.cancelAnimationFrame(rafId);
   }, []);
 
   useEffect(() => {

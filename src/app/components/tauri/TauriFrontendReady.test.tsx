@@ -9,18 +9,21 @@ const {
   mockGetCurrentWindow,
   mockSetCloseToTrayEnabled,
   mockUseSetting,
-} = vi.hoisted(() => {
-  const show = vi.fn().mockResolvedValue(undefined);
+} = vi.hoisted(() => ({
+  mockIsTauri: vi.fn(),
+  mockOsType: vi.fn(),
+  mockShow: vi.fn().mockResolvedValue(undefined),
+  mockGetCurrentWindow: vi.fn(),
+  mockSetCloseToTrayEnabled: vi.fn().mockResolvedValue(undefined),
+  mockUseSetting: vi.fn(() => [true, vi.fn()]),
+}));
 
-  return {
-    mockIsTauri: vi.fn(),
-    mockOsType: vi.fn(),
-    mockShow: show,
-    mockGetCurrentWindow: vi.fn(() => ({ show })),
-    mockSetCloseToTrayEnabled: vi.fn().mockResolvedValue(undefined),
-    mockUseSetting: vi.fn(() => [true, vi.fn()]),
-  };
-});
+function setDocumentReadyState(value: DocumentReadyState) {
+  Object.defineProperty(document, 'readyState', {
+    configurable: true,
+    value,
+  });
+}
 
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: mockIsTauri,
@@ -57,7 +60,9 @@ describe('TauriFrontendReady', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsTauri.mockReturnValue(true);
+    mockGetCurrentWindow.mockReturnValue({ show: mockShow });
     mockUseSetting.mockReturnValue([true, vi.fn()]);
+    setDocumentReadyState('complete');
   });
 
   afterEach(() => {
@@ -65,10 +70,7 @@ describe('TauriFrontendReady', () => {
   });
 
   it('does not schedule mobile startup work after mount', async () => {
-    const requestAnimationFrameSpy = vi.fn(() => 1);
-    const cancelAnimationFrameSpy = vi.fn();
-    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameSpy);
-    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameSpy);
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     mockOsType.mockReturnValue('android');
 
     render(<TauriFrontendReady />);
@@ -77,28 +79,53 @@ describe('TauriFrontendReady', () => {
       expect(mockOsType).toHaveBeenCalledTimes(2);
     });
 
-    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
-    expect(cancelAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('load', expect.any(Function), {
+      once: true,
+    });
     expect(mockGetCurrentWindow).not.toHaveBeenCalled();
+    expect(mockShow).not.toHaveBeenCalled();
     expect(mockSetCloseToTrayEnabled).not.toHaveBeenCalled();
   });
 
-  it('shows the desktop window and syncs close-to-tray on desktop', async () => {
-    const requestAnimationFrameSpy = vi.fn((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
-    vi.stubGlobal('requestAnimationFrame', requestAnimationFrameSpy);
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  it('shows the desktop window immediately when the page is already fully loaded', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     mockOsType.mockReturnValue('windows');
+    setDocumentReadyState('complete');
 
     render(<TauriFrontendReady />);
 
     await waitFor(() => {
       expect(mockShow).toHaveBeenCalledOnce();
+      expect(mockSetCloseToTrayEnabled).toHaveBeenCalledWith({ enabled: true });
     });
 
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('load', expect.any(Function), {
+      once: true,
+    });
     expect(mockGetCurrentWindow).toHaveBeenCalledOnce();
+  });
+
+  it('waits for the window load event before showing the desktop window', async () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    mockOsType.mockReturnValue('windows');
+    setDocumentReadyState('loading');
+
+    render(<TauriFrontendReady />);
+
+    await waitFor(() => {
+      expect(mockSetCloseToTrayEnabled).toHaveBeenCalledWith({ enabled: true });
+    });
+
+    expect(addEventListenerSpy).toHaveBeenCalledWith('load', expect.any(Function), { once: true });
+    expect(mockGetCurrentWindow).toHaveBeenCalledOnce();
+    expect(mockShow).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event('load'));
+
+    await waitFor(() => {
+      expect(mockShow).toHaveBeenCalledOnce();
+    });
+
     expect(mockSetCloseToTrayEnabled).toHaveBeenCalledWith({ enabled: true });
   });
 });

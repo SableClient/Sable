@@ -16,7 +16,6 @@ pub async fn show_snap_overlay() {
     enigo.key(Key::Alt, Click).unwrap();
 }
 
-
 #[tauri::command]
 pub async fn hide_snap_overlay() {
     let mut enigo = Enigo::new(&Settings::default()).unwrap();

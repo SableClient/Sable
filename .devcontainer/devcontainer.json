@@ -49,8 +49,13 @@
         "editor.minimap.enabled": false,
         "editor.scrollBeyondLastLine": false,
         // Larger default fonts for retina/HiDPI iPad displays.
+        // Fira Code is loaded as a web font by the tonsky.font-fira-code extension,
+        // making it available in the browser terminal (Safari on iPad included).
         "editor.fontSize": 14,
+        "editor.fontFamily": "'Fira Code', Menlo, monospace",
+        "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
+        "terminal.integrated.fontFamily": "'Fira Code', Menlo, monospace",
 
         // Use zsh (installed in onCreate) as the default terminal shell.
         "terminal.integrated.defaultProfile.linux": "zsh",

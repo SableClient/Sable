@@ -36,7 +36,6 @@ import {
   RoomPinnedEventsEventContent,
   MatrixEventEvent,
   RoomEvent,
-  IRoomTimelineData,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';

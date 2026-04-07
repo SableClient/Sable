@@ -278,26 +278,71 @@ async function fetchRoomName(
   }
 }
 
+type MemberInfo = {
+  displayname: string | undefined;
+  avatarUrl: string | undefined;
+};
+
 /**
- * Fetch a room member's displayname from homeserver member state.
- * Returns undefined if the member has no displayname or the request fails.
+ * Fetch a room member's state from the homeserver.
+ * Returns displayname and avatar_url (both may be undefined).
  */
-async function fetchMemberDisplayName(
+async function fetchMemberInfo(
   baseUrl: string,
   accessToken: string,
   roomId: string,
   userId: string
-): Promise<string | undefined> {
+): Promise<MemberInfo> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(userId)}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return { displayname: undefined, avatarUrl: undefined };
+    const data = (await res.json()) as Record<string, unknown>;
+    const displayname =
+      typeof data.displayname === 'string' && data.displayname.trim()
+        ? data.displayname.trim()
+        : undefined;
+    const avatarUrl =
+      typeof data.avatar_url === 'string' && data.avatar_url.trim()
+        ? data.avatar_url.trim()
+        : undefined;
+    return { displayname, avatarUrl };
+  } catch {
+    return { displayname: undefined, avatarUrl: undefined };
+  }
+}
+
+/**
+ * Fetch the m.room.avatar state event URL from the homeserver.
+ * Returns undefined when the room has no avatar or the request fails.
+ */
+async function fetchRoomAvatar(
+  baseUrl: string,
+  accessToken: string,
+  roomId: string
+): Promise<string | undefined> {
+  try {
+    const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.avatar`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
-    const name = data.displayname;
-    return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+    const avatarUrl = data.url;
+    return typeof avatarUrl === 'string' && avatarUrl.trim() ? avatarUrl.trim() : undefined;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Convert an mxc:// URL to a legacy unauthenticated thumbnail URL.
+ * Notification icons are fetched by the OS without auth headers, so we use
+ * the pre-MSC3916 media endpoint which most homeservers still serve publicly.
+ */
+function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefined {
+  const match = mxcUrl.match(/^mxc:\/\/([^/]+)\/([^?#]+)/);
+  if (!match) return undefined;
+  const [, server, mediaId] = match;
+  return `${baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(server)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`;
 }
 
 /**
@@ -387,10 +432,11 @@ async function handleMinimalPushPayload(
     return;
   }
 
-  // Fetch the raw event and room name state in parallel — both need only roomId.
-  const [rawEvent, roomNameFromState] = await Promise.all([
+  // Fetch the raw event, room name, and room avatar in parallel — all need only roomId.
+  const [rawEvent, roomNameFromState, roomAvatarMxc] = await Promise.all([
     fetchRawEvent(session.baseUrl, session.accessToken, roomId, eventId),
     fetchRoomName(session.baseUrl, session.accessToken, roomId),
+    fetchRoomAvatar(session.baseUrl, session.accessToken, roomId),
   ]);
 
   if (!rawEvent) {
@@ -407,13 +453,20 @@ async function handleMinimalPushPayload(
 
   const eventType = rawEvent.type as string | undefined;
   const sender = rawEvent.sender as string | undefined;
-  // Fetch sender's display name from room member state; fall back to MXID localpart.
-  const senderDisplay =
-    (sender
-      ? await fetchMemberDisplayName(session.baseUrl, session.accessToken, roomId, sender)
-      : undefined) ?? (sender ? mxidLocalpart(sender) : 'Someone');
+  // Fetch sender's member state — gives us both display name and avatar URL.
+  const memberInfo = sender
+    ? await fetchMemberInfo(session.baseUrl, session.accessToken, roomId, sender)
+    : { displayname: undefined, avatarUrl: undefined };
+  // Fall back to MXID localpart when the server returns no displayname.
+  const senderDisplay = memberInfo.displayname ?? (sender ? mxidLocalpart(sender) : 'Someone');
   // For DMs (no m.room.name state), use the sender's display name as the room name.
   const resolvedRoomName = roomNameFromState ?? senderDisplay;
+  // Room avatar takes priority (group rooms); for DMs fall back to sender's member avatar.
+  // Convert mxc:// to a legacy unauthenticated thumbnail URL so the OS can fetch it.
+  const notificationAvatarUrl =
+    (roomAvatarMxc ?? memberInfo.avatarUrl) !== undefined
+      ? mxcToNotificationUrl((roomAvatarMxc ?? memberInfo.avatarUrl)!, session.baseUrl)
+      : undefined;
   const baseData = {
     room_id: roomId,
     event_id: eventId,
@@ -433,13 +486,16 @@ async function handleMinimalPushPayload(
 
     if (result?.success) {
       // App was backgrounded but not frozen — decryption succeeded.
+      // Prefer the server-fetched display name (authoritative) over the relay's SDK cache
+      // value, which may be stale or missing if the SDK hasn't fully synced yet.
       await handlePushNotificationPushData({
         ...baseData,
         type: result.eventType,
         content: result.content,
-        sender_display_name: result.sender_display_name ?? senderDisplay,
+        sender_display_name: senderDisplay,
         // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.
         room_name: result.room_name || resolvedRoomName,
+        room_avatar_url: notificationAvatarUrl,
       });
     } else {
       // App is frozen or fully closed — show "Encrypted message" fallback.
@@ -449,6 +505,7 @@ async function handleMinimalPushPayload(
         content: {},
         sender_display_name: senderDisplay,
         room_name: resolvedRoomName,
+        room_avatar_url: notificationAvatarUrl,
       });
     }
   } else {
@@ -459,6 +516,7 @@ async function handleMinimalPushPayload(
       content: rawEvent.content,
       sender_display_name: senderDisplay,
       room_name: resolvedRoomName,
+      room_avatar_url: notificationAvatarUrl,
     });
   }
 }

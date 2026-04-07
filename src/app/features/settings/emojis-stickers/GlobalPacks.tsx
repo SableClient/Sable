@@ -31,6 +31,7 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMediaSrc } from '$hooks/useMediaSrc';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import {
   EmoteRoomsContent,
   ImagePack,
@@ -191,6 +192,7 @@ function GlobalPackSelector({
                       >
                         <SettingTile
                           title={pack.meta.name ?? 'Unknown'}
+                          focusId={`room-pack-${toSettingsFocusIdPart(pack.id)}`}
                           description={<span className={LineClamp2}>{pack.meta.attribution}</span>}
                           before={
                             <Box alignItems="Center" gap="300">
@@ -364,6 +366,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
         gap="400"
       >
         <SettingTile
+          focusId={`selected-pack-${toSettingsFocusIdPart(pack.id)}`}
           title={
             <span style={{ textDecoration: removed ? 'line-through' : undefined }}>
               {pack.meta.name ?? 'Unknown'}
@@ -435,6 +438,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
         >
           <SettingTile
             title="Select Pack"
+            focusId="select-pack"
             description="Pick emojis and stickers pack from rooms to use in all rooms."
             after={
               <>

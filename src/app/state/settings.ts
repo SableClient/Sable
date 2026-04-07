@@ -33,6 +33,10 @@ export interface Settings {
   useSystemTheme: boolean;
   lightThemeId?: string;
   darkThemeId?: string;
+  useSystemArboriumTheme: boolean;
+  arboriumThemeId?: string;
+  arboriumLightTheme?: string;
+  arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
   isMarkdown: boolean;
@@ -54,6 +58,7 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -79,6 +84,7 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
+  settingsLinkBaseUrlOverride?: string;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -93,6 +99,7 @@ export interface Settings {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -116,8 +123,11 @@ export interface Settings {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
+  pkCompat: boolean;
+  pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
+  closeFoldersByDefault: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -128,6 +138,10 @@ const defaultSettings: Settings = {
   useSystemTheme: true,
   lightThemeId: undefined,
   darkThemeId: undefined,
+  useSystemArboriumTheme: true,
+  arboriumThemeId: 'dracula',
+  arboriumLightTheme: 'github-light',
+  arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
   isMarkdown: true,
@@ -145,6 +159,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,
@@ -177,6 +192,7 @@ const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
+  settingsLinkBaseUrlOverride: undefined,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -189,6 +205,7 @@ const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,
@@ -212,8 +229,11 @@ const defaultSettings: Settings = {
   alwaysShowCallButton: false,
   faviconForMentionsOnly: false,
   highlightMentions: true,
+  pkCompat: false,
+  pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
+  closeFoldersByDefault: false,
 
   // furry stuff
   renderAnimals: true,

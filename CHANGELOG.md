@@ -1,5 +1,55 @@
 # Sable Client Changelog
 
+## 1.13.1 (2026-03-30)
+
+### Fixes
+
+* Add youtube shorts support to stop it from crashing sable. ([#578](https://github.com/SableClient/Sable/pull/578) by @nushea)
+* Fix rich-text reply previews and custom-formatted messages so unsafe HTML is filtered more strictly and Matrix colors render correctly. ([#571](https://github.com/SableClient/Sable/pull/571) by @hazre)
+* Fix crash when previewing non-video YouTube URLs (channels, @handles, etc.) that lack query parameters. ([#584](https://github.com/SableClient/Sable/pull/584) by @Just-Insane)
+* fix id handling and id generation for Personas ([#583](https://github.com/SableClient/Sable/pull/583) by @dozro)
+
+## 1.13.0 (2026-03-28)
+
+### Features
+
+* Add ability to click on usernames in member and state events to view user info ([#536](https://github.com/SableClient/Sable/pull/536) by @thundertheidiot)
+* Add black theme ([#437](https://github.com/SableClient/Sable/pull/437) by @Elec3137)
+* added a limited compatibility with `pk;member` commands ([#550](https://github.com/SableClient/Sable/pull/550) by @dozro)
+* Add /location sharing command, and a /sharemylocation command. ([#509](https://github.com/SableClient/Sable/pull/509) by @nushea)
+* added option to use shorthands to send a message with a Persona, for example `✨:test` ([#550](https://github.com/SableClient/Sable/pull/550) by @dozro)
+* Add quick reply keybinds by using <kbd>ctrl</kbd>+<kbd>up</kbd> / <kbd>ctrl</kbd>+<kbd>down</kbd> you can now cycle through the message you are replying to with keybinds ([#524](https://github.com/SableClient/Sable/pull/524) by @CodeF53)
+* Adds a `/html` command to send HTML messages ([#560](https://github.com/SableClient/Sable/pull/560) by @Vespe-r)
+* Add room abbreviations with hover tooltips: moderators define term/definition pairs in room settings; matching terms are highlighted in messages. ([#514](https://github.com/SableClient/Sable/pull/514) by @Just-Insane)
+* Add support for timestamps, playlists and youtube music links for the youtube embeds ([#534](https://github.com/SableClient/Sable/pull/534) by @thundertheidiot)
+* Add settings sync across devices via Matrix account data, with JSON export/import ([#515](https://github.com/SableClient/Sable/pull/515) by @Just-Insane)
+
+### Fixes
+
+* Add detailed error messages to forwarding failures. ([#532](https://github.com/SableClient/Sable/pull/532) by @7w1)
+* Cap unread badge numbers at `1k+`, and something extra :) ([#484](https://github.com/SableClient/Sable/pull/484) by @hazre)
+* Fix scroll-to-bottom after room navigation, timeline pagination reliability, and URL preview deduplication. ([#529](https://github.com/SableClient/Sable/pull/529) by @Just-Insane)
+* Fixes the most recent pmp message in encrypted rooms not consistently rendering the pmp and not grouping with previous pmps. ([#526](https://github.com/SableClient/Sable/pull/526) by @7w1)
+* fixed sending sticker and attachments while having a persona selected ([#525](https://github.com/SableClient/Sable/pull/525) by @dozro)
+* Fix push notifications missing sender/room avatar and showing stale display names when using event_id_only push format. ([#551](https://github.com/SableClient/Sable/pull/551) by @Just-Insane)
+* Sanitize formatted reply previews before rendering to prevent unsafe HTML from being parsed in reply snippets. ([#569](https://github.com/SableClient/Sable/pull/569) by @Just-Insane)
+* Fix broken link to Sliding Sync known issues — now points to SableClient/Sable#39 instead of the old repository. ([#519](https://github.com/SableClient/Sable/pull/519) by @Just-Insane)
+* Fix service worker authenticated media requests returning 401 errors after SW restart or when session data is missing/stale. ([#516](https://github.com/SableClient/Sable/pull/516) by @Just-Insane)
+* rephrased the command describtion for `/usepmp` and made `/usepmp reset` actually reset the room association of the pmp ([#550](https://github.com/SableClient/Sable/pull/550) by @dozro)
+* Fix confusing ui with `Client Side Embeds in Encrypted Rooms` setting ([#535](https://github.com/SableClient/Sable/pull/535) by @thundertheidiot)
+* fix forwarding metadata by removing the `null` value ([#540](https://github.com/SableClient/Sable/pull/540) by @dozro)
+* fix forwarding issue for users on synapse homeservers, by removing the relation ([#558](https://github.com/SableClient/Sable/pull/558) by @dozro)
+* fixed the syntax issues regarding `/addpmp` and `usepmp` (note that the syntax for `/usepmp` has changed) ([#550](https://github.com/SableClient/Sable/pull/550) by @dozro)
+* fix the display of jumbo emojis on messages sent with a persona ([#530](https://github.com/SableClient/Sable/pull/530) by @dozro)
+* Fix sidebar notification badge positioning so unread and unverified counts align consistently. ([#484](https://github.com/SableClient/Sable/pull/484) by @hazre)
+* Use the browser's native compact number formatting for room and member counts. ([#484](https://github.com/SableClient/Sable/pull/484) by @hazre)
+* fix(sentry): scrub percent-encoded Matrix IDs and opaque base64url tokens from Sentry URLs ([#531](https://github.com/SableClient/Sable/pull/531) by @Just-Insane)
+
+### Notes
+
+* new/changed bios will now also be saved in the format MSC4440 expects ([#559](https://github.com/SableClient/Sable/pull/559) by @dozro)
+* moved the setting for filtering pronouns by language from experimental to the appearance setting ([#521](https://github.com/SableClient/Sable/pull/521) by @dozro)
+
 ## 1.12.3 (2026-03-24)
 
 ### Fixes

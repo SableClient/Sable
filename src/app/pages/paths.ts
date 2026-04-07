@@ -19,6 +19,10 @@ export type ResetPasswordPathSearchParams = {
 };
 export const RESET_PASSWORD_PATH = '/reset-password/:server?/';
 
+export type SettingsPathSearchParams = {
+  focus?: string;
+};
+
 export const CREATE_PATH_SEGMENT = 'create/';
 export const JOIN_PATH_SEGMENT = 'join/';
 export const LOBBY_PATH_SEGMENT = 'lobby/';
@@ -96,3 +100,4 @@ export const SPACE_SETTINGS_PATH = '/space-settings/';
 export const ROOM_SETTINGS_PATH = '/room-settings/';
 
 export const SSO_CALLBACK_PATH = '/lp/sso-callback';
+export const SETTINGS_PATH = '/settings/:section?/';

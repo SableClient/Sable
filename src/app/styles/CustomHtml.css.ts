@@ -106,6 +106,9 @@ export const CodeBlockInternal = style([
   {
     padding: `${config.space.S200} ${config.space.S200} 0`,
     minWidth: toRem(200),
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
   },
 ]);
 
@@ -169,6 +172,17 @@ export const Mention = recipe({
       },
     },
   },
+});
+
+export const MentionWithIcon = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: toRem(2),
+});
+
+export const MentionIcon = style({
+  display: 'inline-flex',
+  flexShrink: 0,
 });
 
 export const Command = recipe({

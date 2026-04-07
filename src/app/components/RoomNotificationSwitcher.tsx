@@ -1,7 +1,6 @@
-import { Box, config, Icon, Menu, MenuItem, PopOut, RectCords, Text, toRem } from 'folds';
-import { MouseEventHandler, ReactNode, useMemo, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import { stopPropagation } from '$utils/keyboard';
+import { Box, Icon, Text } from 'folds';
+import { type MouseEventHandler, ReactNode } from 'react';
+import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import {
   getRoomNotificationModeIcon,
   RoomNotificationMode,
@@ -9,27 +8,24 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
 
-const useRoomNotificationModes = (): RoomNotificationMode[] =>
-  useMemo(
-    () => [
-      RoomNotificationMode.Unset,
-      RoomNotificationMode.AllMessages,
-      RoomNotificationMode.SpecialMessages,
-      RoomNotificationMode.Mute,
-    ],
-    []
-  );
+const ROOM_NOTIFICATION_MODE_LABELS: Record<RoomNotificationMode, string> = {
+  [RoomNotificationMode.Unset]: 'Default',
+  [RoomNotificationMode.AllMessages]: 'All Messages',
+  [RoomNotificationMode.SpecialMessages]: 'Mention & Keywords',
+  [RoomNotificationMode.Mute]: 'Mute',
+};
 
-const useRoomNotificationModeStr = (): Record<RoomNotificationMode, string> =>
-  useMemo(
-    () => ({
-      [RoomNotificationMode.Unset]: 'Default',
-      [RoomNotificationMode.AllMessages]: 'All Messages',
-      [RoomNotificationMode.SpecialMessages]: 'Mention & Keywords',
-      [RoomNotificationMode.Mute]: 'Mute',
-    }),
-    []
-  );
+const ROOM_NOTIFICATION_MODE_OPTIONS: SettingMenuOption<RoomNotificationMode>[] = [
+  RoomNotificationMode.Unset,
+  RoomNotificationMode.AllMessages,
+  RoomNotificationMode.SpecialMessages,
+  RoomNotificationMode.Mute,
+].map((mode) => ({
+  value: mode,
+  label: ROOM_NOTIFICATION_MODE_LABELS[mode],
+  description:
+    mode === RoomNotificationMode.Unset ? 'Follows your global notification rules' : undefined,
+}));
 
 type NotificationModeSwitcherProps = {
   roomId: string;
@@ -45,84 +41,36 @@ export function RoomNotificationModeSwitcher({
   value = RoomNotificationMode.Unset,
   children,
 }: NotificationModeSwitcherProps) {
-  const modes = useRoomNotificationModes();
-  const modeToStr = useRoomNotificationModeStr();
-
   const { modeState, setMode } = useSetRoomNotificationPreference(roomId);
   const changing = modeState.status === AsyncStatus.Loading;
 
-  const [menuCords, setMenuCords] = useState<RectCords>();
-
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleClose = () => {
-    setMenuCords(undefined);
-  };
-
-  const handleSelect = (mode: RoomNotificationMode) => {
-    if (changing) return;
-    setMode(mode, value);
-    handleClose();
-  };
-
   return (
-    <PopOut
-      anchor={menuCords}
+    <SettingMenuSelector
+      value={value}
+      options={ROOM_NOTIFICATION_MODE_OPTIONS}
+      onSelect={(mode) => setMode(mode, value)}
+      loading={changing}
       offset={5}
       position="Right"
       align="Start"
-      content={
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: handleClose,
-            clickOutsideDeactivates: true,
-            isKeyForward: (evt: KeyboardEvent) =>
-              evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-            isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-            escapeDeactivates: stopPropagation,
-          }}
+      renderTrigger={({ openMenu, opened }) => children(openMenu, opened, changing)}
+      renderOption={({ option, selected }) => (
+        <Box
+          alignItems="Center"
+          gap="200"
+          style={option.value === RoomNotificationMode.Unset ? { minHeight: '48px' } : undefined}
         >
-          <Menu>
-            <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-              {modes.map((mode) => (
-                <MenuItem
-                  key={mode}
-                  size="300"
-                  variant="Surface"
-                  aria-pressed={mode === value}
-                  style={mode === RoomNotificationMode.Unset ? { height: toRem(48) } : undefined}
-                  radii="300"
-                  disabled={changing}
-                  onClick={() => handleSelect(mode)}
-                  before={
-                    <Icon
-                      size="100"
-                      src={getRoomNotificationModeIcon(mode)}
-                      filled={mode === value}
-                    />
-                  }
-                >
-                  <Box direction="Column" gap="100">
-                    <Text size="T300">
-                      {mode === value ? <b>{modeToStr[mode]}</b> : modeToStr[mode]}
-                    </Text>
-                    {mode === RoomNotificationMode.Unset && (
-                      <Text size="T200" priority="300">
-                        Follows your global notification rules
-                      </Text>
-                    )}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Box>
-          </Menu>
-        </FocusTrap>
-      }
-    >
-      {children(handleOpenMenu, !!menuCords, changing)}
-    </PopOut>
+          <Icon size="100" src={getRoomNotificationModeIcon(option.value)} filled={selected} />
+          <Box direction="Column" gap="100">
+            <Text size="T300">{selected ? <b>{option.label}</b> : option.label}</Text>
+            {option.description && (
+              <Text size="T200" priority="300">
+                {option.description}
+              </Text>
+            )}
+          </Box>
+        </Box>
+      )}
+    />
   );
 }

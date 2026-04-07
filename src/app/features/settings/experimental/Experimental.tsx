@@ -1,5 +1,5 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Icon, Icons, Scroll, Switch } from 'folds';
+import { PageContent } from '$components/page';
 import { InfoCard } from '$components/info-card';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
@@ -7,6 +7,7 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { Sync } from '../general';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 
@@ -22,6 +23,7 @@ function PersonaToggle() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Personas Tab"
+          focusId="show-personas-tab"
           description="Enables the personas tab in the settings menu for per-message profiles"
           after={
             <Switch variant="Primary" value={showPersonaSetting} onChange={setShowPersonaSetting} />
@@ -33,25 +35,12 @@ function PersonaToggle() {
 }
 
 type ExperimentalProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
+export function Experimental({ requestBack, requestClose }: Readonly<ExperimentalProps>) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Experimental
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Experimental" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -77,6 +66,6 @@ export function Experimental({ requestClose }: Readonly<ExperimentalProps>) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

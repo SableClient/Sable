@@ -30,62 +30,62 @@ export type Theme = {
 export const LightTheme: Theme = {
   id: 'light-theme',
   kind: ThemeKind.Light,
-  classNames: ['light-theme', lightTheme, onLightFontWeight, 'prism-light'],
+  classNames: ['light-theme', lightTheme, onLightFontWeight],
 };
 
 export const SilverTheme: Theme = {
   id: 'silver-theme',
   kind: ThemeKind.Light,
-  classNames: ['silver-theme', silverTheme, onLightFontWeight, 'prism-light'],
+  classNames: ['silver-theme', silverTheme, onLightFontWeight],
 };
 export const CinnyLightTheme: Theme = {
   id: 'cinny-light-theme',
   kind: ThemeKind.Light,
-  classNames: ['cinny-light-theme', cinnyLightTheme, onLightFontWeight, 'prism-light'],
+  classNames: ['cinny-light-theme', cinnyLightTheme, onLightFontWeight],
 };
 export const CinnySilverTheme: Theme = {
   id: 'cinny-silver-theme',
   kind: ThemeKind.Light,
-  classNames: ['cinny-silver-theme', cinnySilverTheme, onLightFontWeight, 'prism-light'],
+  classNames: ['cinny-silver-theme', cinnySilverTheme, onLightFontWeight],
 };
 export const DarkTheme: Theme = {
   id: 'dark-theme',
   kind: ThemeKind.Dark,
-  classNames: ['dark-theme', darkTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['dark-theme', darkTheme, onDarkFontWeight],
 };
 export const ButterTheme: Theme = {
   id: 'butter-theme',
   kind: ThemeKind.Dark,
-  classNames: ['butter-theme', butterTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['butter-theme', butterTheme, onDarkFontWeight],
 };
 export const RosePineTheme: Theme = {
   id: 'rose-pine-theme',
   kind: ThemeKind.Dark,
-  classNames: ['rose-pine-theme', rosePineTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['rose-pine-theme', rosePineTheme, onDarkFontWeight],
 };
 
 export const GruvdarkTheme: Theme = {
   id: 'gruvdark-theme',
   kind: ThemeKind.Dark,
-  classNames: ['gruvdark-theme', gruvdarkTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['gruvdark-theme', gruvdarkTheme, onDarkFontWeight],
 };
 
 export const CinnyDarkTheme: Theme = {
   id: 'cinny-dark-theme',
   kind: ThemeKind.Dark,
-  classNames: ['cinny-dark-theme', cinnyDarkTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['cinny-dark-theme', cinnyDarkTheme, onDarkFontWeight],
 };
 
 export const AccordTheme: Theme = {
   id: 'accord-theme',
   kind: ThemeKind.Dark,
-  classNames: ['accord-theme', accordTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['accord-theme', accordTheme, onDarkFontWeight],
 };
 
 export const BlackTheme: Theme = {
   id: 'black-theme',
   kind: ThemeKind.Dark,
-  classNames: ['black-theme', blackTheme, onDarkFontWeight, 'prism-dark'],
+  classNames: ['black-theme', blackTheme, onDarkFontWeight],
 };
 
 export const useThemes = (): Theme[] => {

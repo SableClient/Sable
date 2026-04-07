@@ -8,6 +8,7 @@ import {
   useActiveTheme,
   useSystemThemeKind,
 } from '$hooks/useTheme';
+import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 
@@ -25,7 +26,7 @@ export function UnAuthRouteThemeManager() {
     }
   }, [systemThemeKind]);
 
-  return null;
+  return <ArboriumThemeBridge kind={systemThemeKind} />;
 }
 
 export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
@@ -60,5 +61,9 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     }
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
 
-  return <ThemeContextProvider value={activeTheme}>{children}</ThemeContextProvider>;
+  return (
+    <ArboriumThemeBridge kind={activeTheme.kind}>
+      <ThemeContextProvider value={activeTheme}>{children}</ThemeContextProvider>
+    </ArboriumThemeBridge>
+  );
 }

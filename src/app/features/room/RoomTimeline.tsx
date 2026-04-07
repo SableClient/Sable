@@ -49,6 +49,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -58,6 +59,8 @@ import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
+import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
@@ -129,6 +132,7 @@ export function RoomTimeline({
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
@@ -145,7 +149,7 @@ export function RoomTimeline({
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
-    ? encClientUrlPreview
+    ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;
 
   const nicknames = useAtomValue(nicknamesAtom);
@@ -177,6 +181,7 @@ export function RoomTimeline({
   const mediaAuthentication = useMediaAuthentication();
   const spoilerClickHandler = useSpoilerClickHandler();
   const mentionClickHandler = useMentionClickHandler(room.roomId);
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const openUserRoomProfile = useOpenUserRoomProfile();
   const optionalSpace = useSpaceOptionally();
   const roomParents = useAtomValue(roomToParentsAtom);
@@ -207,6 +212,14 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
+  // firing within the window) cannot cancel it via useLayoutEffect cleanup.
+  const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Set to true when the 80 ms timer fires but processedEvents is still empty
+  // (e.g. the onLifecycle reset cleared the timeline before events refilled it).
+  // A recovery useLayoutEffect watches for processedEvents becoming non-empty
+  // and performs the final scroll + setIsReady when this flag is set.
+  const pendingReadyRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
@@ -215,6 +228,11 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
+    pendingReadyRef.current = false;
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
     setIsReady(false);
   }
 
@@ -270,18 +288,45 @@ export function RoomTimeline({
       !eventId &&
       !hasInitialScrolledRef.current &&
       timelineSync.eventsLength > 0 &&
+      // Guard: only scroll once the timeline reflects the current room's live
+      // timeline. Without this, a render with stale data from the previous room
+      // (before the room-change reset propagates) fires the scroll at the wrong
+      // position and marks hasInitialScrolledRef = true, preventing the correct
+      // scroll when the right data arrives.
+      timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-      const t = setTimeout(() => {
-        vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-        setIsReady(true);
+      // Store in a ref rather than a local so subsequent eventsLength changes
+      // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
+      // cancel this timer through the useLayoutEffect cleanup.
+      initialScrollTimerRef.current = setTimeout(() => {
+        initialScrollTimerRef.current = undefined;
+        if (processedEventsRef.current.length > 0) {
+          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          // Only mark ready once we've successfully scrolled.  If processedEvents
+          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
+          // timeline within the 80 ms window), defer setIsReady until the recovery
+          // effect below fires once events repopulate.
+          setIsReady(true);
+        } else {
+          pendingReadyRef.current = true;
+        }
       }, 80);
       hasInitialScrolledRef.current = true;
-      return () => clearTimeout(t);
     }
-    return () => {};
-  }, [timelineSync.eventsLength, eventId, room.roomId]);
+    // No cleanup return — the timer must survive eventsLength fluctuations.
+    // It is cancelled on unmount by the dedicated effect below.
+  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+
+  // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
+  // intentionally does not cancel it when deps change).
+  useEffect(
+    () => () => {
+      if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
+    },
+    []
+  );
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -355,6 +400,11 @@ export function RoomTimeline({
 
   useEffect(() => {
     if (eventId) return;
+    // Guard: once the timeline is visible to the user, do not override their
+    // scroll position. Without this, a later timeline refresh (e.g. the
+    // onLifecycle reset delivering a new linkedTimelines reference) can fire
+    // this effect after isReady and snap the view back to the read marker.
+    if (isReady) return;
     const { readUptoEventId, inLiveTimeline, scrollTo } = unreadInfo ?? {};
     if (readUptoEventId && inLiveTimeline && scrollTo) {
       const evtTimeline = getEventTimeline(room, readUptoEventId);
@@ -366,12 +416,16 @@ export function RoomTimeline({
           )
         : undefined;
 
-      if (absoluteIndex !== undefined && vListRef.current) {
+      if (absoluteIndex !== undefined) {
         const processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
-        if (processedIndex !== undefined) {
+        if (processedIndex !== undefined && vListRef.current) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'start' });
-          setUnreadInfo((prev) => (prev ? { ...prev, scrollTo: false } : prev));
         }
+        // Always consume the scroll intent once the event is located in the
+        // linked timelines, even if its processedIndex is undefined (filtered
+        // event). Without this, each linkedTimelines reference change retries
+        // the scroll indefinitely.
+        setUnreadInfo((prev) => (prev ? { ...prev, scrollTo: false } : prev));
       }
     }
   }, [
@@ -379,6 +433,7 @@ export function RoomTimeline({
     unreadInfo,
     timelineSync.timeline.linkedTimelines,
     eventId,
+    isReady,
     getRawIndexToProcessedIndex,
   ]);
 
@@ -438,28 +493,35 @@ export function RoomTimeline({
   const linkifyOpts = useMemo(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        settingsLinkBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room.roomId, mentionClickHandler, nicknames]
+    [mx, room.roomId, mentionClickHandler, nicknames, settingsLinkBaseUrl]
   );
+
+  const abbrMap = useRoomAbbreviationsContext();
 
   const htmlReactParserOptions = useMemo(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl,
         linkifyOpts,
         useAuthentication: mediaAuthentication,
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
       mx,
@@ -470,6 +532,8 @@ export function RoomTimeline({
       nicknames,
       mediaAuthentication,
       spoilerClickHandler,
+      settingsLinkBaseUrl,
+      abbrMap,
     ]
   );
 
@@ -487,6 +551,7 @@ export function RoomTimeline({
       hour24Clock,
       dateFormatString,
       mediaAutoLoad,
+      showBundledPreview,
       showUrlPreview,
       showClientUrlPreview,
       autoplayStickers,
@@ -667,6 +732,18 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
+  // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
+  // events repopulate.  Fires on every processedEvents.length change but is
+  // guarded by pendingReadyRef so it only acts once per initial-scroll attempt.
+  useLayoutEffect(() => {
+    if (!pendingReadyRef.current) return;
+    if (processedEvents.length === 0) return;
+    pendingReadyRef.current = false;
+    vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    setIsReady(true);
+  }, [processedEvents.length]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

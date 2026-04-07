@@ -11,16 +11,19 @@ import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { PushRuleData, usePushRule } from '$hooks/usePushRule';
 import {
   getNotificationModeActions,
   NotificationMode,
+  useNotificationActionsMode,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
+import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { NotificationModeSwitcher } from './NotificationModeSwitcher';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
+import { notificationModeSelectorOptions } from './notificationModeOptions';
 
 const getAllMessageDefaultRule = (
   ruleId: RuleId,
@@ -67,16 +70,25 @@ function AllMessagesModeSwitcher({
   const defaultPushRuleData = getAllMessageDefaultRule(ruleId, encrypted, oneToOne);
   const { kind, pushRule } = usePushRule(pushRules, ruleId) ?? defaultPushRuleData;
   const getModeActions = useNotificationModeActions();
-
-  const handleChange = useCallback(
-    async (mode: NotificationMode) => {
-      const actions = getModeActions(mode);
-      await mx.setPushRuleActions('global', kind, ruleId, actions);
-    },
-    [mx, getModeActions, kind, ruleId]
+  const selectedMode = useNotificationActionsMode(pushRule.actions);
+  const [changeState, change] = useAsyncCallback(
+    useCallback(
+      async (mode: NotificationMode) => {
+        const actions = getModeActions(mode);
+        await mx.setPushRuleActions('global', kind, ruleId, actions);
+      },
+      [mx, getModeActions, kind, ruleId]
+    )
   );
 
-  return <NotificationModeSwitcher pushRule={pushRule} onChange={handleChange} />;
+  return (
+    <SettingMenuSelector
+      value={selectedMode}
+      options={notificationModeSelectorOptions}
+      onSelect={change}
+      loading={changeState.status === AsyncStatus.Loading}
+    />
+  );
 }
 
 export function AllMessagesNotifications() {
@@ -109,6 +121,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Direct Messages"
+          focusId="direct-messages"
           description="Includes 1-to-1, group DMs, and bridged conversations."
           after={<AllMessagesModeSwitcher pushRules={pushRules} ruleId={RuleId.DM} oneToOne />}
         />
@@ -121,6 +134,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Direct Messages (Encrypted)"
+          focusId="direct-messages-encrypted"
           description="Includes 1-to-1, group DMs, and bridged conversations."
           after={
             <AllMessagesModeSwitcher
@@ -140,6 +154,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Rooms"
+          focusId="rooms"
           after={<AllMessagesModeSwitcher pushRules={pushRules} ruleId={RuleId.Message} />}
         />
       </SequenceCard>
@@ -151,6 +166,7 @@ export function AllMessagesNotifications() {
       >
         <SettingTile
           title="Rooms (Encrypted)"
+          focusId="rooms-encrypted"
           after={
             <AllMessagesModeSwitcher
               pushRules={pushRules}

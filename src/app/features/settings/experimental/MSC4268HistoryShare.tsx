@@ -22,6 +22,7 @@ export function MSC4268HistoryShare() {
       >
         <SettingTile
           title="Enable the /sharehistory command"
+          focusId="sharehistory-command"
           description="If enabled, this command will allow users to share encrypted history with other newly joined users, as per MSC4268."
           after={
             <Switch

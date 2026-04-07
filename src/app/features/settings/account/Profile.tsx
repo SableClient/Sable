@@ -29,7 +29,7 @@ import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import { UserProfile, useUserProfile, MSC4440Bio } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -38,6 +38,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { stopPropagation } from '$utils/keyboard';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
 import { createUploadAtom, UploadSuccess } from '$state/upload';
@@ -46,6 +47,7 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
@@ -104,6 +106,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   return (
     <SettingTile
       title="Avatar"
+      focusId="avatar"
       after={
         <Avatar size="500" radii="300">
           <UserAvatar
@@ -279,7 +282,7 @@ function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
   const previewUrl = isRemoving ? undefined : imageFileURL || stagedUrl || bannerUrl;
 
   return (
-    <SettingTile title="Banner">
+    <SettingTile title="Banner" focusId="banner">
       <Box direction="Column" gap="300" grow="Yes">
         <Box
           style={{
@@ -425,7 +428,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
 
   const hasChanges = displayName !== defaultDisplayName;
   return (
-    <SettingTile title="Display Name">
+    <SettingTile title="Display Name" focusId="display-name">
       <Box direction="Column" grow="Yes" gap="100">
         <Box
           as="form"
@@ -576,12 +579,26 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
       >
         <BioEditor
           value={
+            (profile.extended?.['gay.fomx.biography'] satisfies MSC4440Bio)?.formatted_body ||
             profile.extended?.['moe.sable.app.bio'] ||
             profile.extended?.['chat.commet.profile_bio'] ||
             profile.bio
           }
-          onSave={(htmlBio) => {
+          onSave={(htmlBio, plainTextBio) => {
             handleSaveField('moe.sable.app.bio', htmlBio);
+
+            // MSC4440
+            handleSaveField('gay.fomx.biography', {
+              'm.text': [
+                {
+                  body: htmlBio,
+                  mimetype: 'text/html',
+                } satisfies MSC1767Text,
+                {
+                  body: plainTextBio,
+                } satisfies MSC1767Text,
+              ],
+            } satisfies MSC4440Bio);
 
             const cleanedHtml = htmlBio.replaceAll('<br/></blockquote>', '</blockquote>');
             handleSaveField('chat.commet.profile_bio', {
@@ -621,6 +638,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
             >
               <SettingTile
                 key={key}
+                focusId={`profile-field-${toSettingsFocusIdPart(key)}`}
                 title={key.split('.').pop() || key}
                 description={key}
                 after={

@@ -1,4 +1,4 @@
-import { MouseEventHandler, useMemo } from 'react';
+import { MouseEventHandler, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAtomValue } from 'jotai';
 import {
@@ -20,6 +20,7 @@ import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
+import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import {
   EventContent,
   ImageContent,
@@ -58,9 +59,25 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 
 function DecoratedUser({ room, userId, userName }: DecoratedUserProps) {
   const { color, font } = useSableCosmetics(userId, room ?? ({} as Room));
+
+  const openUserRoomProfile = useOpenUserRoomProfile();
+  const handleUserClick: MouseEventHandler = useCallback(
+    (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      openUserRoomProfile(
+        room.roomId,
+        undefined,
+        userId,
+        evt.currentTarget.getBoundingClientRect()
+      );
+    },
+    [room, userId, openUserRoomProfile]
+  );
+
   return (
-    <Text truncate>
-      <b style={{ color, font }}> {userName ?? userId} </b>
+    <Text as="a" onClick={handleUserClick} truncate>
+      <b style={{ color, font }}>{userName ?? userId} </b>
     </Text>
   );
 }
@@ -202,6 +219,7 @@ export interface TimelineEventRendererOptions {
     dateFormatString: string;
     mediaAutoLoad: boolean;
     showUrlPreview: boolean;
+    showBundledPreview: boolean;
     showClientUrlPreview: boolean;
     autoplayStickers: boolean;
     hideMemberInReadOnly: boolean;
@@ -255,6 +273,7 @@ export function useTimelineEventRenderer({
     hour24Clock,
     dateFormatString,
     mediaAutoLoad,
+    showBundledPreview,
     showUrlPreview,
     showClientUrlPreview,
     autoplayStickers,
@@ -434,6 +453,7 @@ export function useTimelineEventRenderer({
                 getContent={getContent}
                 mediaAutoLoad={mediaAutoLoad}
                 urlPreview={showUrlPreview}
+                bundledPreview={showBundledPreview}
                 clientUrlPreview={showClientUrlPreview}
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
@@ -596,6 +616,7 @@ export function useTimelineEventRenderer({
                       edited={!!editedEvent}
                       getContent={getContent}
                       mediaAutoLoad={mediaAutoLoad}
+                      bundledPreview={showBundledPreview}
                       urlPreview={showUrlPreview}
                       clientUrlPreview={showClientUrlPreview}
                       htmlReactParserOptions={htmlReactParserOptions}

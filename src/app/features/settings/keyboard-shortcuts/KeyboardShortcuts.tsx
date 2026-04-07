@@ -4,8 +4,9 @@
  * Lists all keyboard shortcuts available in Sable in a semantic,
  * screen-reader-friendly dl/dt/dd structure.
  */
-import { Box, Icon, IconButton, Icons, Scroll, Text, config } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Scroll, Text, config } from 'folds';
+import { PageContent } from '$components/page';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type ShortcutEntry = {
   keys: string;
@@ -23,8 +24,7 @@ function formatKey(key: string): string {
   return key
     .replace(/\bmod\b/g, isMac ? '⌘' : 'Ctrl')
     .replace(/\balt\b/gi, isMac ? '⌥' : 'Alt')
-    .replace(/\bshift\b/gi, '⇧')
-    .replace(/\+/g, '+');
+    .replace(/\bshift\b/gi, '⇧');
 }
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
@@ -106,29 +106,18 @@ function ShortcutRow({ keys, description }: ShortcutEntry) {
 }
 
 type KeyboardShortcutsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function KeyboardShortcuts({ requestClose }: KeyboardShortcutsProps) {
+export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcutsProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" as="h1" truncate>
-              Keyboard Shortcuts
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton
-              onClick={requestClose}
-              variant="Surface"
-              aria-label="Close keyboard shortcuts"
-            >
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title="Keyboard Shortcuts"
+      titleAs="h1"
+      actionLabel="Close keyboard shortcuts"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -154,6 +143,6 @@ export function KeyboardShortcuts({ requestClose }: KeyboardShortcutsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

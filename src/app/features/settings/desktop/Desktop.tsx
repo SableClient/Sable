@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch, color } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Scroll, Switch, color } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
@@ -10,12 +10,14 @@ import {
   useDesktopSettingsSyncing,
 } from '$state/hooks/desktopSettings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type DesktopProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
 
-export function Desktop({ requestClose }: DesktopProps) {
+export function Desktop({ requestBack, requestClose }: DesktopProps) {
   const ready = useDesktopSettingsReady();
   const syncing = useDesktopSettingsSyncing();
   const runtimeState = useDesktopRuntimeState();
@@ -29,21 +31,7 @@ export function Desktop({ requestClose }: DesktopProps) {
   const trayFallback = showSystemTrayIcon && !runtimeState.trayAvailable && !syncing;
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Desktop
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Desktop" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -101,6 +89,6 @@ export function Desktop({ requestClose }: DesktopProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

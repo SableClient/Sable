@@ -17,8 +17,11 @@ import { Members } from '$features/common-settings/members';
 import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 import { Permissions } from './permissions';
 import { General } from './general';
+import { RoomAbbreviations } from './abbreviations/RoomAbbreviations';
 
 type RoomSettingsMenuItem = {
   page: RoomSettingsPage;
@@ -52,6 +55,11 @@ const useRoomSettingsMenuItems = (): RoomSettingsMenuItem[] =>
         activeIcon: Icons.AlphabetUnderline,
       },
       {
+        page: RoomSettingsPage.AbbreviationsPage,
+        name: 'Abbreviations',
+        icon: Icons.Info,
+      },
+      {
         page: RoomSettingsPage.EmojisStickersPage,
         name: 'Emojis & Stickers',
         icon: Icons.Smile,
@@ -75,8 +83,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const mDirects = useAtomValue(mDirectAtom);
+  const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
 
-  const roomAvatar = useRoomAvatar(room, mDirects.has(room.roomId));
+  const roomAvatar = useRoomAvatar(room, mDirects.has(room.roomId) && !customDMCards);
   const roomName = useRoomName(room);
   const joinRuleContent = useRoomJoinRule(room);
 
@@ -195,6 +204,9 @@ export function RoomSettings({ initialPage, requestClose }: RoomSettingsProps) {
         )}
         {activePage === RoomSettingsPage.DeveloperToolsPage && (
           <DeveloperTools requestClose={handlePageRequestClose} />
+        )}
+        {activePage === RoomSettingsPage.AbbreviationsPage && (
+          <RoomAbbreviations requestClose={handlePageRequestClose} />
         )}
       </PageRoot>
     </SwipeableOverlayWrapper>

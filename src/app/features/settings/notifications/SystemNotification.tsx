@@ -174,6 +174,7 @@ function EmailNotification() {
   return (
     <SettingTile
       title="Email Notification"
+      focusId="email-notification"
       description={
         <>
           {result && !result.email && (
@@ -906,6 +907,7 @@ function BackgroundPushNotificationSetting() {
     <>
       <SettingTile
         title="Background Push Notifications"
+        focusId="background-push-notifications"
         description={transportDescription}
         after={renderTransportToggle()}
       />
@@ -1036,20 +1038,19 @@ export function SystemNotification() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">System & Notifications</Text>
-      {mobileOrTablet() && (
-        <SequenceCard
-          className={SequenceCardStyle}
-          variant="SurfaceVariant"
-          direction="Column"
-          gap="400"
-        >
-          <SettingTile
-            title="Mobile In-App Notifications"
-            description="Show a notification banner inside the app when a message arrives."
-            after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
-          />
-        </SequenceCard>
-      )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="In-App Notifications"
+          focusId="in-app-notifications"
+          description="Show a notification banner inside the app when a message arrives."
+          after={<Switch value={showInAppNotifs} onChange={setShowInAppNotifs} />}
+        />
+      </SequenceCard>
       {!mobileOrTablet() && (
         <SequenceCard
           className={SequenceCardStyle}
@@ -1059,6 +1060,7 @@ export function SystemNotification() {
         >
           <SettingTile
             title="System Notifications"
+            focusId="system-notifications"
             description="Show an OS-level notification banner when a message arrives while the app is open."
             after={<Switch value={showSystemNotifs} onChange={setShowSystemNotifs} />}
           />
@@ -1080,6 +1082,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="In-App Notification Sound"
+          focusId="in-app-notification-sound"
           description="Play a sound inside the app when a new message arrives."
           after={<Switch value={isNotificationSounds} onChange={setIsNotificationSounds} />}
         />
@@ -1092,6 +1095,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Show Message Content"
+          focusId="show-message-content"
           description="Include message text in notification bodies."
           after={<Switch value={showMessageContent} onChange={setShowMessageContent} />}
         />
@@ -1104,6 +1108,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Show Encrypted Message Content"
+          focusId="show-encrypted-message-content"
           description="Allow message text from encrypted rooms in notification bodies. May not work on some platforms due to technical limitations."
           after={
             <Switch
@@ -1122,6 +1127,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Clear Notifications When Read Elsewhere"
+          focusId="clear-notifications-when-read-elsewhere"
           description="Automatically dismiss notifications on this device when you read messages on another device."
           after={<Switch value={clearNotificationsOnRead} onChange={setClearNotificationsOnRead} />}
         />
@@ -1158,6 +1164,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Favicon Dot: Mentions Only"
+          focusId="favicon-dot-mentions-only"
           description="Only change the browser tab favicon when you have mentions or keywords. Unreads without mentions won't affect the favicon."
           after={
             <Switch
@@ -1176,6 +1183,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Show Room Counts"
+          focusId="show-room-counts"
           description="Displays a number for unread activity in Rooms and Spaces."
           after={
             <Switch variant="Primary" value={showUnreadCounts} onChange={setShowUnreadCounts} />
@@ -1190,6 +1198,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Show DM Counts"
+          focusId="show-dm-counts"
           description="Displays a number for unread Direct Messages."
           after={
             <Switch variant="Primary" value={badgeCountDMsOnly} onChange={setBadgeCountDMsOnly} />
@@ -1204,6 +1213,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Show Mention Counts"
+          focusId="show-mention-counts"
           description="Displays a number for mentions and keyword alerts."
           after={<Switch variant="Primary" value={showPingCounts} onChange={setShowPingCounts} />}
         />
@@ -1216,6 +1226,7 @@ export function SystemNotification() {
       >
         <SettingTile
           title="Highlight Mentions"
+          focusId="highlight-mentions"
           description="Highlight the full background message when it contains a mention/keyword."
           after={
             <Switch variant="Primary" value={highlightMentions} onChange={setHighlightMentions} />

@@ -57,7 +57,7 @@ export function NameColorEditor({
 
   return (
     <Box direction="Column" gap="100">
-      <SettingTile title={title} description={description} />
+      <SettingTile title={title} focusId="name-color" description={description} />
       <Box
         alignItems="Center"
         justifyContent="SpaceBetween"

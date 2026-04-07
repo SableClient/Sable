@@ -73,12 +73,37 @@
         "github.copilot.chat.followUps": "always"
       },
       "extensions": [
+        // ── Copilot ───────────────────────────────────────────────────────────
         "GitHub.copilot",
         "GitHub.copilot-chat",
+        "GitHub.vscode-pull-request-github",
+        // ── Font (web font — required for terminal in browser/iPad) ───────────
         "tonsky.font-fira-code",
+        // ── Theme ─────────────────────────────────────────────────────────────
+        "GitHub.github-vscode-theme",
+        // ── Formatting & linting ──────────────────────────────────────────────
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
-        "vitest.explorer"
+        "streetsidesoftware.code-spell-checker",
+        "davidanson.vscode-markdownlint",
+        // ── Testing ───────────────────────────────────────────────────────────
+        "vitest.explorer",
+        // ── TypeScript / React ────────────────────────────────────────────────
+        "bradlc.vscode-tailwindcss",
+        "styled-components.vscode-styled-components",
+        "dsznajder.es7-react-js-snippets",
+        "formulahendry.auto-rename-tag",
+        "wix.vscode-import-cost",
+        // ── Utilities ─────────────────────────────────────────────────────────
+        "christian-kohler.path-intellisense",
+        "usernamehw.errorlens",
+        "gruntfuggly.todo-tree",
+        "wayou.vscode-todo-highlight",
+        "webpro.vscode-knip",
+        "lokalise.i18n-ally",
+        // ── Infrastructure ────────────────────────────────────────────────────
+        "hashicorp.terraform",
+        "zamerick.vscode-caddyfile-syntax"
       ]
     }
   },

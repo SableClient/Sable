@@ -36,10 +36,13 @@ fi
 # MesloLGS NF / Nerd Font glyphs are unavailable in browser-based Codespaces.
 # Patch .p10k.zsh to use the 'compatible' Unicode symbol set instead, which
 # renders correctly with any modern monospace font (e.g. Fira Code via extension).
+# The POWERLEVEL9K_MODE line has no quotes: POWERLEVEL9K_MODE=nerdfont-complete
 if [ -f "${HOME}/.p10k.zsh" ]; then
-  sed -i "s/POWERLEVEL9K_MODE='nerdfont-v3'/POWERLEVEL9K_MODE='compatible'/" \
+  sed -i "s/POWERLEVEL9K_MODE=.*/POWERLEVEL9K_MODE=compatible/" \
     "${HOME}/.p10k.zsh"
   echo "✓ p10k mode set to compatible"
+else
+  echo "⚠ ~/.p10k.zsh not found — skipping p10k patch (add it to your dotfiles repo)"
 fi
 
 # ── Git identity ──────────────────────────────────────────────────────────────

@@ -79,7 +79,12 @@
 
         // ── Copilot Chat ──────────────────────────────────────────────────────
         // Always show follow-ups and keep chat history accessible.
-        "github.copilot.chat.followUps": "always"
+        "github.copilot.chat.followUps": "always",
+        // Disable auto-discovery of extension-provided MCP servers (e.g. the
+        // io.github.github/github-mcp-server registered by vscode-pull-request-github).
+        // Our explicit HTTP server in .vscode/mcp.json is unaffected and handles all
+        // GitHub MCP calls without requiring a token prompt.
+        "chat.mcp.discovery.enabled": false
       },
       "extensions": [
         // ── Copilot ───────────────────────────────────────────────────────────

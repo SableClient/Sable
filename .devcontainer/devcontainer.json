@@ -52,10 +52,11 @@
         // Fira Code is loaded as a web font by the tonsky.font-fira-code extension,
         // making it available in the browser terminal (Safari on iPad included).
         "editor.fontSize": 14,
-        "editor.fontFamily": "'Fira Code', Menlo, monospace",
+        "editor.fontFamily": "'MesloLGS NF', 'Fira Code', Meslo, Monaco, 'Courier New', monospace",
         "editor.fontLigatures": true,
         "terminal.integrated.fontSize": 14,
-        "terminal.integrated.fontFamily": "'Fira Code', Menlo, monospace",
+        "terminal.integrated.fontFamily": "'MesloLGS NF', 'Fira Code', Meslo, Monaco, 'Courier New', monospace",
+        "terminal.integrated.fontLigatures.enabled": true,
 
         // Use zsh (installed in onCreate) as the default terminal shell.
         "terminal.integrated.defaultProfile.linux": "zsh",

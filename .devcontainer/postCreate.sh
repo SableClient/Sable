@@ -84,7 +84,7 @@ if [ -n "${GIT_SIGNING_KEY:-}" ]; then
 
   # Allow this key when verifying signatures locally.
   ALLOWED_SIGNERS="${SSH_DIR}/allowed_signers"
-  EMAIL="$(git config --global user.email 2>/dev/null || echo "you@example.com")"
+  EMAIL="$(git config --global user.email 2>/dev/null || echo "evie@gauthier.id")"
   echo "${EMAIL} $(cat "${KEY_FILE}.pub")" > "${ALLOWED_SIGNERS}"
   git config --global gpg.ssh.allowedSignersFile "${ALLOWED_SIGNERS}"
 

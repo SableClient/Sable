@@ -1,10 +1,14 @@
 import { isTauri } from '@tauri-apps/api/core';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch } from 'folds';
+import { Box, Text, IconButton, Icon, Icons, Scroll, Switch, color } from 'folds';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import {
+  useDesktopRuntimeState,
+  useDesktopSetting,
+  useDesktopSettingsReady,
+  useDesktopSettingsSyncing,
+} from '$state/hooks/desktopSettings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
 type DesktopProps = {
@@ -12,9 +16,17 @@ type DesktopProps = {
 };
 
 export function Desktop({ requestClose }: DesktopProps) {
-  const [closeToTray, setCloseToTray] = useSetting(settingsAtom, 'closeToTray');
+  const ready = useDesktopSettingsReady();
+  const syncing = useDesktopSettingsSyncing();
+  const runtimeState = useDesktopRuntimeState();
+  const [closeToBackgroundOnClose, setCloseToBackgroundOnClose] = useDesktopSetting(
+    'closeToBackgroundOnClose'
+  );
+  const [showSystemTrayIcon, setShowSystemTrayIcon] = useDesktopSetting('showSystemTrayIcon');
 
-  if (!isTauri()) return null;
+  if (!isTauri() || !ready) return null;
+
+  const trayFallback = showSystemTrayIcon && !runtimeState.trayAvailable && !syncing;
 
   return (
     <Page>
@@ -42,12 +54,45 @@ export function Desktop({ requestClose }: DesktopProps) {
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"
                   direction="Column"
+                  gap="400"
                 >
                   <SettingTile
-                    title="Close to Tray"
-                    description="Keep the app running in the system tray when the main window closes. Disable this to fully exit on close."
+                    title="Close button keeps Sable running"
+                    description="When enabled, closing the window keeps Sable running instead of exiting. If the tray icon is enabled and available, Sable stays in the system tray. Otherwise it continues running in the background."
                     after={
-                      <Switch variant="Primary" value={closeToTray} onChange={setCloseToTray} />
+                      <Switch
+                        aria-label="close-to-background-on-close"
+                        value={closeToBackgroundOnClose}
+                        onChange={setCloseToBackgroundOnClose}
+                      />
+                    }
+                  />
+                </SequenceCard>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                  gap="400"
+                >
+                  <SettingTile
+                    title="Show system tray icon"
+                    description={
+                      trayFallback ? (
+                        <Text as="span" style={{ color: color.Warning.Main }} size="T200">
+                          System tray is unavailable on this system. Sable can still keep running in
+                          the background without it.
+                        </Text>
+                      ) : (
+                        'Show a system tray icon while Sable is running. Disable this if you want Sable to stay available without a tray icon.'
+                      )
+                    }
+                    after={
+                      <Switch
+                        aria-label="show-system-tray-icon"
+                        value={!trayFallback ? showSystemTrayIcon : false}
+                        disabled={trayFallback}
+                        onChange={setShowSystemTrayIcon}
+                      />
                     }
                   />
                 </SequenceCard>

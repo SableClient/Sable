@@ -24,9 +24,6 @@ build.sh
 # the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
 .lh
 
-# the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
-.lh
-
 # Tauri
 /build
 /target/
@@ -44,9 +41,8 @@ src-tauri/target/
 # Tauri Android build outputs
 src-tauri/gen/android/app/build/
 
-
-# Rust build artifacts in subcrates
-crates/**/target/
+# Tauri-typegen cache
+.typecache
 
 # Worktrees
 .worktrees

@@ -3,5 +3,5 @@
   "identifier": "desktop-capability",
   "platforms": ["macOS", "windows", "linux"],
   "windows": ["main"],
-  "permissions": ["window-state:default"]
+  "permissions": ["window-state:default", "store:default"]
 }

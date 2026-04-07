@@ -83,7 +83,8 @@ export function DirectTab() {
   const handleDirectClick = () => {
     const activePath = navToActivePath.get('direct');
     const activePathname = activePath?.pathname;
-    const isValidDirectPath = typeof activePathname === 'string' && activePathname.startsWith('/direct/');
+    const isValidDirectPath =
+      typeof activePathname === 'string' && activePathname.startsWith('/direct/');
     if (activePath && isValidDirectPath && screenSize !== ScreenSize.Mobile) {
       navigate(joinPathComponent(activePath));
       return;

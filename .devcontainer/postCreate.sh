@@ -45,6 +45,30 @@ else
   echo "⚠ ~/.p10k.zsh not found — skipping p10k patch (add it to your dotfiles repo)"
 fi
 
+# ── Powerlevel10k — disable instant prompt in VS Code terminal ────────────────
+# Instant prompt outputs to the terminal before VS Code injects its shell
+# integration script.  This breaks the integration markers that Copilot Chat
+# relies on to run commands.  We prepend a one-liner to .zshrc that sets
+# POWERLEVEL9K_INSTANT_PROMPT=off whenever $TERM_PROGRAM is "vscode".
+# The check is idempotent — safe to run on Codespace resume.
+if [ -f "${HOME}/.zshrc" ]; then
+  if ! grep -q 'POWERLEVEL9K_INSTANT_PROMPT=off' "${HOME}/.zshrc"; then
+    tmp=$(mktemp)
+    {
+      printf '# Disable P10k instant prompt in VS Code — it fires before shell\n'
+      printf '# integration is injected, which breaks Copilot Chat terminal access.\n'
+      printf '[[ "$TERM_PROGRAM" == "vscode" ]] && typeset -g POWERLEVEL9K_INSTANT_PROMPT=off\n\n'
+      cat "${HOME}/.zshrc"
+    } > "$tmp"
+    mv "$tmp" "${HOME}/.zshrc"
+    echo "✓ P10k instant prompt disabled for VS Code terminal"
+  else
+    echo "✓ P10k instant prompt VS Code guard already present"
+  fi
+else
+  echo "⚠ ~/.zshrc not found — skipping instant-prompt patch (dotfiles not checked out?)"
+fi
+
 # ── Git identity ──────────────────────────────────────────────────────────────
 # Populate from Codespace user secrets if they aren't already set by dotfiles.
 if [ -n "${GIT_USER_NAME:-}" ] && [ -z "$(git config --global user.name 2>/dev/null)" ]; then

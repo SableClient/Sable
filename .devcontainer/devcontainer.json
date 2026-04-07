@@ -68,7 +68,18 @@
         "terminal.integrated.gpuAcceleration": "off",
 
         // Use zsh (installed in onCreate) as the default terminal shell.
+        // Explicit profile with -l (login shell) ensures nvm / PATH additions
+        // from the devcontainer node feature are loaded inside the terminal.
         "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": { "path": "/bin/zsh", "args": ["-l"] }
+        },
+
+        // Shell integration MUST be enabled for Copilot Chat to run terminal
+        // commands.  We set it explicitly because Powerlevel10k instant prompt
+        // can fire before VS Code injects its integration script and suppress
+        // the markers — postCreate.sh patches .zshrc to guard against this.
+        "terminal.integrated.shellIntegration.enabled": true,
 
         // ── Git signing ───────────────────────────────────────────────────────
         // postCreate.sh configures gpg.format and user.signingkey if

@@ -137,6 +137,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
@@ -718,6 +719,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       mediaAutoLoad,
       showUrlPreview,
       showClientUrlPreview,
+      showBundledPreview,
       autoplayStickers,
       hideMemberInReadOnly,
       isReadOnly,

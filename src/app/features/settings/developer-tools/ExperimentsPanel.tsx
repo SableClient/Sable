@@ -41,7 +41,7 @@ export function ExperimentsPanel() {
         gap="400"
       >
         {experiments.map(({ key, config: experimentConfig, selection }) => (
-          <SettingTile key={key} title={key}>
+          <SettingTile key={key} focusId={`experiment-${key}`} title={key}>
             <Box direction="Column" gap="200">
               <Box direction="Row" gap="300">
                 <Text size="T200">

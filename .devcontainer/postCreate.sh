@@ -8,7 +8,7 @@ set -euo pipefail
 # We clone a specific branch so we get the VS Code / Codespace-aware config
 # (e.g. the P10k instant-prompt guard for $TERM_PROGRAM == "vscode").
 DOTFILES_REPO="https://github.com/Just-Insane/dotfiles.git"
-DOTFILES_BRANCH="MacStudio"
+DOTFILES_BRANCH="codespaces"
 DOTFILES_DIR="${HOME}/.cfg"
 
 if [ ! -d "${DOTFILES_DIR}" ]; then
@@ -45,25 +45,29 @@ else
   echo "⚠ ~/.p10k.zsh not found — skipping p10k patch (add it to your dotfiles repo)"
 fi
 
-# ── Powerlevel10k — disable instant prompt in VS Code terminal ────────────────
+# ── Powerlevel10k — disable instant prompt in Codespace terminal ──────────────
 # Instant prompt outputs to the terminal before VS Code injects its shell
 # integration script.  This breaks the integration markers that Copilot Chat
-# relies on to run commands.  We prepend a one-liner to .zshrc that sets
-# POWERLEVEL9K_INSTANT_PROMPT=off whenever $TERM_PROGRAM is "vscode".
+# relies on to run commands.
+# We unconditionally disable it here because:
+#   - In a Codespace, VS Code shell integration is always needed for Copilot Chat.
+#   - $TERM_PROGRAM is NOT reliably set to "vscode" in browser-based Codespaces
+#     (e.g. iPad / vscode.dev), so a conditional guard can silently fail.
 # The check is idempotent — safe to run on Codespace resume.
 if [ -f "${HOME}/.zshrc" ]; then
   if ! grep -q 'POWERLEVEL9K_INSTANT_PROMPT=off' "${HOME}/.zshrc"; then
     tmp=$(mktemp)
     {
-      printf '# Disable P10k instant prompt in VS Code — it fires before shell\n'
-      printf '# integration is injected, which breaks Copilot Chat terminal access.\n'
-      printf '[[ "$TERM_PROGRAM" == "vscode" ]] && typeset -g POWERLEVEL9K_INSTANT_PROMPT=off\n\n'
+      printf '# Disable P10k instant prompt — it fires before VS Code shell\n'
+      printf '# integration is injected, breaking Copilot Chat terminal access.\n'
+      printf '# Unconditional: $TERM_PROGRAM is not reliable in browser Codespaces.\n'
+      printf 'typeset -g POWERLEVEL9K_INSTANT_PROMPT=off\n\n'
       cat "${HOME}/.zshrc"
     } > "$tmp"
     mv "$tmp" "${HOME}/.zshrc"
-    echo "✓ P10k instant prompt disabled for VS Code terminal"
+    echo "✓ P10k instant prompt unconditionally disabled"
   else
-    echo "✓ P10k instant prompt VS Code guard already present"
+    echo "✓ P10k instant prompt already disabled"
   fi
 else
   echo "⚠ ~/.zshrc not found — skipping instant-prompt patch (dotfiles not checked out?)"

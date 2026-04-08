@@ -16,6 +16,7 @@ export function MSC4438MessageBookmarks() {
       <Text size="L400">Message Bookmarks</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          focusId="experimental-message-bookmarks"
           title="Enable Message Bookmarks (MSC4438)"
           description={
             <>

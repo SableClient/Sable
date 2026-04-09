@@ -651,7 +651,7 @@ export function RoomTimeline({
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -719,7 +719,7 @@ export function RoomTimeline({
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
   const vListIndices = useMemo(
@@ -851,7 +851,7 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: isReady ? 1 : 0,
+          opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
         <VList<ProcessedEvent>

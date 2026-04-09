@@ -644,10 +644,23 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
+    const postHidden = () => {
+      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
+      // when the user locks the screen or backgrounds the app quickly, making
+      // it less likely that the SW is left with a stale appIsVisible=true.
+      const msg = { type: 'setAppVisible', visible: false };
+      navigator.serviceWorker.controller?.postMessage(msg);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    };
+
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    window.addEventListener('pagehide', postHidden);
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.removeEventListener('pagehide', postHidden);
+    };
   }, []);
 
   useEffect(() => {

@@ -12,6 +12,13 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+// Timestamp (Date.now()) of the last time appIsVisible was set to true.
+// Used to expire the flag if the app backgrounded before the SW received the
+// hidden message (e.g. iOS suspended the JS context mid-visibilitychange).
+let appVisibleSetAt = 0;
+// If no visible heartbeat has been received in this window, treat the flag as
+// stale and do not suppress push notifications.
+const APP_VISIBLE_TTL_MS = 30_000;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -571,6 +578,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      if (appIsVisible) appVisibleSetAt = Date.now();
     }
   }
   if (type === 'setNotificationSettings') {
@@ -751,8 +759,12 @@ const onPushNotification = async (event: PushEvent) => {
   // pill notification handles the alert instead.
   // Combine clients.matchAll() visibility with the explicit appIsVisible flag
   // because iOS Safari PWA often returns empty or stale results from matchAll().
+  // Guard against the flag being stale: if the app was backgrounded quickly and
+  // the SW never received the hidden message (iOS can suspend the JS context
+  // before postMessage is processed), the flag expires after APP_VISIBLE_TTL_MS.
+  const appIsVisibleFresh = appIsVisible && Date.now() - appVisibleSetAt < APP_VISIBLE_TTL_MS;
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisibleFresh || clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

@@ -14,6 +14,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
+import { roomScrollCache, RoomScrollCache } from '$utils/roomScrollCache';
 import {
   as,
   Box,
@@ -246,6 +247,8 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
+  // Scroll cache snapshot loaded for the current room (populated on room change).
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(undefined);
   const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
@@ -278,6 +281,18 @@ export function RoomTimeline({
   const [isReady, setIsReady] = useState(false);
 
   if (currentRoomIdRef.current !== room.roomId) {
+    // Save outgoing room's scroll state so we can restore it on revisit.
+    const outgoing = vListRef.current;
+    if (outgoing && isReady) {
+      roomScrollCache.save(currentRoomIdRef.current, {
+        cache: outgoing.cache,
+        scrollOffset: outgoing.scrollOffset,
+        atBottom: atBottomRef.current,
+      });
+    }
+    // Load incoming room's scroll cache (undefined for first-visit rooms).
+    scrollCacheForRoomRef.current = roomScrollCache.load(room.roomId);
+
     hasInitialScrolledRef.current = false;
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
@@ -353,28 +368,45 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
-      vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-      // Store in a ref rather than a local so subsequent eventsLength changes
-      // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
-      // cancel this timer through the useLayoutEffect cleanup.
-      initialScrollTimerRef.current = setTimeout(() => {
-        initialScrollTimerRef.current = undefined;
-        if (processedEventsRef.current.length > 0) {
-          programmaticScrollToBottomRef.current = true;
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-          // Only mark ready once we've successfully scrolled.  If processedEvents
-          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
-          // timeline within the 80 ms window), defer setIsReady until the recovery
-          // effect below fires once events repopulate.
-          // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest"
-          // button doesn't flash for one render cycle before onScroll confirms.
-          setAtBottom(true);
-          setIsReady(true);
-        } else {
-          pendingReadyRef.current = true;
-        }
-      }, 80);
+      const savedCache = scrollCacheForRoomRef.current;
       hasInitialScrolledRef.current = true;
+
+      if (savedCache) {
+        // Revisiting a room with a cached scroll state — restore position
+        // immediately and skip the 80 ms stabilisation timer entirely.
+        if (savedCache.atBottom) {
+          vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+        } else {
+          vListRef.current.scrollTo(savedCache.scrollOffset);
+        }
+        setIsReady(true);
+      } else {
+        // First visit — original behaviour: scroll to bottom, then wait 80 ms
+        // for VList to finish measuring item heights before revealing the timeline.
+        vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+        // Store in a ref rather than a local so subsequent eventsLength changes
+        // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
+        // cancel this timer through the useLayoutEffect cleanup.
+        initialScrollTimerRef.current = setTimeout(() => {
+          initialScrollTimerRef.current = undefined;
+          if (processedEventsRef.current.length > 0) {
+            programmaticScrollToBottomRef.current = true;
+            vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
+              align: 'end',
+            });
+            // Only mark ready once we've successfully scrolled.  If processedEvents
+            // was empty when the timer fired (e.g. the onLifecycle reset cleared the
+            // timeline within the 80 ms window), defer setIsReady until the recovery
+            // effect below fires once events repopulate.
+            // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest"
+            // button doesn't flash for one render cycle before onScroll confirms.
+            setAtBottom(true);
+            setIsReady(true);
+          } else {
+            pendingReadyRef.current = true;
+          }
+        }, 80);
+      }
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
@@ -1002,8 +1034,10 @@ export function RoomTimeline({
         }}
       >
         <VList<ProcessedEvent>
+          key={room.roomId}
           ref={vListRef}
           data={processedEvents}
+          cache={scrollCacheForRoomRef.current?.cache}
           shift={shift}
           className={css.messageList}
           style={{

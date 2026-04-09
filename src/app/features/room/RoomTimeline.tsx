@@ -328,6 +328,17 @@ export function RoomTimeline({
     []
   );
 
+  // If the timeline was blanked while content was already visible — e.g. a
+  // TimelineReset fired by mx.retryImmediately() when the app comes back from
+  // background — hide the timeline (opacity 0) and re-arm the initial-scroll so
+  // it runs again once events refill the live timeline.
+  useLayoutEffect(() => {
+    if (!isReady) return;
+    if (timelineSync.eventsLength > 0) return;
+    setIsReady(false);
+    hasInitialScrolledRef.current = false;
+  }, [isReady, timelineSync.eventsLength]);
+
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;

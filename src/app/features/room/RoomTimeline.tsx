@@ -200,8 +200,13 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  // Scroll cache snapshot loaded for the current room (populated on room change).
-  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(undefined);
+  // Load any cached scroll state for this room on mount. A fresh RoomTimeline is
+  // mounted per room (via key={roomId} in RoomView) so this is the only place we
+  // need to read the cache — the render-phase room-change block below only fires
+  // in the (hypothetical) case where the room prop changes without a remount.
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
+    roomScrollCache.load(room.roomId)
+  );
   const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
@@ -228,16 +233,8 @@ export function RoomTimeline({
   const [isReady, setIsReady] = useState(false);
 
   if (currentRoomIdRef.current !== room.roomId) {
-    // Save outgoing room's scroll state so we can restore it on revisit.
-    const outgoing = vListRef.current;
-    if (outgoing && isReady) {
-      roomScrollCache.save(currentRoomIdRef.current, {
-        cache: outgoing.cache,
-        scrollOffset: outgoing.scrollOffset,
-        atBottom: atBottomRef.current,
-      });
-    }
     // Load incoming room's scroll cache (undefined for first-visit rooms).
+    // Covers the rare case where room prop changes without a remount.
     scrollCacheForRoomRef.current = roomScrollCache.load(room.roomId);
 
     hasInitialScrolledRef.current = false;
@@ -336,6 +333,16 @@ export function RoomTimeline({
             vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
               align: 'end',
             });
+            // Persist the now-measured item heights so the next visit to this room
+            // can provide them to VList upfront and skip this 80 ms wait entirely.
+            const v = vListRef.current;
+            if (v) {
+              roomScrollCache.save(room.roomId, {
+                cache: v.cache,
+                scrollOffset: v.scrollOffset,
+                atBottom: true,
+              });
+            }
             // Only mark ready once we've successfully scrolled.  If processedEvents
             // was empty when the timer fired (e.g. the onLifecycle reset cleared the
             // timeline within the 80 ms window), defer setIsReady until the recovery
@@ -656,6 +663,14 @@ export function RoomTimeline({
         setAtBottom(isNowAtBottom);
       }
 
+      // Keep the scroll cache fresh so the next visit to this room can restore
+      // position (and skip the 80 ms measurement wait) immediately on mount.
+      roomScrollCache.save(room.roomId, {
+        cache: v.cache,
+        scrollOffset: offset,
+        atBottom: isNowAtBottom,
+      });
+
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
         timelineSyncRef.current.handleTimelinePagination(true);
       }
@@ -667,7 +682,7 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom]
+    [setAtBottom, room.roomId]
   );
 
   const showLoadingPlaceholders =

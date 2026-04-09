@@ -53,7 +53,9 @@ type PollCreatorDialogProps = {
 
 export function PollCreatorDialog({ onCancel, onSubmit }: PollCreatorDialogProps) {
   const questionId = useId();
+  const maxSelectionsId = useId();
   const [question, setQuestion] = useState('');
+  const [maxSelections, setMaxSelections] = useState(1);
   const [answers, setAnswers] = useState<{ id: string; text: string }[]>(() => [
     { id: crypto.randomUUID(), text: '' },
     { id: crypto.randomUUID(), text: '' },
@@ -122,6 +124,7 @@ export function PollCreatorDialog({ onCancel, onSubmit }: PollCreatorDialogProps
       setError(`Please add at least ${MIN_ANSWERS} answers.`);
       return;
     }
+    const clampedMaxSelections = Math.min(Math.max(1, maxSelections), validAnswers.length);
     if (expiryPreset === 'custom') {
       const ts = customExpiry ? new Date(customExpiry).getTime() : NaN;
       if (!Number.isFinite(ts) || ts <= Date.now()) {
@@ -134,7 +137,7 @@ export function PollCreatorDialog({ onCancel, onSubmit }: PollCreatorDialogProps
       question: trimmedQuestion,
       answers: validAnswers,
       kind,
-      maxSelections: 1,
+      maxSelections: clampedMaxSelections,
       showVoterNames,
       closesAt: computeClosesAt(),
     });
@@ -237,6 +240,25 @@ export function PollCreatorDialog({ onCancel, onSubmit }: PollCreatorDialogProps
                       <Text size="B300">Add Option</Text>
                     </Button>
                   )}
+                </Box>
+
+                {/* Max selections */}
+                <Box direction="Column" gap="100">
+                  <Text as="label" htmlFor={maxSelectionsId} size="L400" priority="400">
+                    Max selections
+                  </Text>
+                  <Input
+                    id={maxSelectionsId}
+                    type="number"
+                    min={1}
+                    max={answers.length}
+                    value={maxSelections}
+                    onChange={(e) => {
+                      const val = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (!Number.isNaN(val) && val >= 1) setMaxSelections(val);
+                    }}
+                    style={{ width: '5rem' }}
+                  />
                 </Box>
 
                 {/* Poll kind */}

@@ -75,6 +75,17 @@ export function NameColorEditor({
             }}
           >
             <Box alignItems="Center" gap="300" grow="Yes">
+              {hasChanged && (
+                <Button
+                  variant="Primary"
+                  size="300"
+                  radii="Pill"
+                  onClick={handleSave}
+                  disabled={!/^#[0-9A-F]{6}$/i.test(tempColor)}
+                >
+                  <Text size="B300">Save</Text>
+                </Button>
+              )}
               <HexColorPickerPopOut
                 picker={<HexColorPicker color={tempColor} onChange={handleUpdate} />}
               >
@@ -133,18 +144,6 @@ export function NameColorEditor({
                 )}
               </Box>
             </Box>
-
-            {hasChanged && (
-              <Button
-                variant="Primary"
-                size="300"
-                radii="Pill"
-                onClick={handleSave}
-                disabled={!/^#[0-9A-F]{6}$/i.test(tempColor)}
-              >
-                <Text size="B300">Save</Text>
-              </Button>
-            )}
           </Box>
         }
       />

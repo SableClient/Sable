@@ -539,10 +539,29 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
         gap="400"
       >
         <NameColorEditor
-          title="Global Name Color"
+          title="General Global Name Color"
           description="Custom name color everywhere names have color!"
+          focusId="name-color"
           current={profile.nameColor || profile.extended?.['moe.sable.app.name_color']}
           onSave={(color) => handleSaveField('moe.sable.app.name_color', color)}
+        />
+        <NameColorEditor
+          title="Dark theme Global Name Color"
+          description="Your name's color when using a dark theme"
+          focusId="name-color-dark-theme"
+          current={
+            profile.nameColorDark || profile.extended?.['moe.sable.app.name_color_dark_theme']
+          }
+          onSave={(color) => handleSaveField('moe.sable.app.name_color_dark_theme', color)}
+        />
+        <NameColorEditor
+          title="Light theme Global Name Color"
+          description="Your name's color when using a light theme"
+          focusId="name-color-light-theme"
+          current={
+            profile.nameColorLight || profile.extended?.['moe.sable.app.name_color_light_theme']
+          }
+          onSave={(color) => handleSaveField('moe.sable.app.name_color_light_theme', color)}
         />
       </SequenceCard>
       <SequenceCard
@@ -658,7 +677,6 @@ export function Profile() {
   const mx = useMatrixClient();
   const userId = mx.getUserId()!;
   const profile = useUserProfile(userId);
-
   return (
     <Box direction="Column" gap="700">
       <Box direction="Column" gap="100">

@@ -36,7 +36,9 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     // Sliding sync (Synapse MSC4186) has no presence extension — m.presence events are never
     // delivered via sync. As a result, User.presence stays at the SDK default and
     // getLastActiveTs() stays 0. Fall back to a direct REST fetch to bootstrap presence state.
-    if (!user || user.getLastActiveTs() === 0) {
+    // Guard against empty userId — callers that render a fixed number of hooks (e.g. group DM
+    // slots) pass '' for absent members; firing getPresence('') would be a malformed request.
+    if (userId && (!user || user.getLastActiveTs() === 0)) {
       mx.getPresence(userId)
         .then((resp) => {
           if (cancelled) return;

@@ -121,6 +121,10 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         return;
       }
 
+      // Always kick the sync loop on foreground regardless of phase flags —
+      // the SDK may be sitting in exponential backoff after iOS froze the tab.
+      mx?.retryImmediately();
+
       if (!phase1ForegroundResync) return;
 
       const now = Date.now();
@@ -137,8 +141,12 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     };
 
     const handleFocus = () => {
-      if (!phase1ForegroundResync) return;
       if (document.visibilityState !== 'visible') return;
+
+      // Always kick the sync loop on focus for the same reason as above.
+      mx?.retryImmediately();
+
+      if (!phase1ForegroundResync) return;
 
       const now = Date.now();
       if (now - lastForegroundPushAtRef.current < foregroundDebounceMs) return;
@@ -162,6 +170,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
     };
   }, [
     foregroundDebounceMs,
+    mx,
     phase1ForegroundResync,
     phase2VisibleHeartbeat,
     phase3AdaptiveBackoffJitter,
@@ -223,9 +232,13 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
 
       const result = pushSessionNow('heartbeat');
       if (phase3AdaptiveBackoffJitter) {
-        // Only reset on a successful send; 'skipped' (prerequisites not ready)
-        // should not grow the backoff — those aren't push failures.
-        if (result === 'sent') heartbeatFailuresRef.current = 0;
+        if (result === 'sent') {
+          heartbeatFailuresRef.current = 0;
+        } else {
+          // 'skipped' means prerequisites (SW controller, session) aren't ready.
+          // Treat as a transient failure so backoff grows until the SW is ready.
+          heartbeatFailuresRef.current += 1;
+        }
       }
 
       timeoutId = window.setTimeout(tick, getDelayMs());

@@ -547,7 +547,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
         />
         <NameColorEditor
           title="Dark theme Global Name Color"
-          description="Your name's color when using a dark theme"
+          description="Your name's color for a dark theme user."
           focusId="name-color-dark-theme"
           current={
             profile.nameColorDark || profile.extended?.['moe.sable.app.name_color_dark_theme']
@@ -556,7 +556,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
         />
         <NameColorEditor
           title="Light theme Global Name Color"
-          description="Your name's color when using a light theme"
+          description="Your name's color for a light theme user."
           focusId="name-color-light-theme"
           current={
             profile.nameColorLight || profile.extended?.['moe.sable.app.name_color_light_theme']

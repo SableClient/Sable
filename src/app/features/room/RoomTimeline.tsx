@@ -355,6 +355,9 @@ export function RoomTimeline({
           // was empty when the timer fired (e.g. the onLifecycle reset cleared the
           // timeline within the 80 ms window), defer setIsReady until the recovery
           // effect below fires once events repopulate.
+          // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest"
+          // button doesn't flash for one render cycle before onScroll confirms.
+          setAtBottom(true);
           setIsReady(true);
         } else {
           pendingReadyRef.current = true;
@@ -364,7 +367,13 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+  }, [
+    timelineSync.eventsLength,
+    timelineSync.liveTimelineLinked,
+    eventId,
+    room.roomId,
+    setAtBottom,
+  ]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -851,8 +860,11 @@ export function RoomTimeline({
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest" button
+    // doesn't flash for one render cycle before onScroll confirms the position.
+    setAtBottom(true);
     setIsReady(true);
-  }, [processedEvents.length]);
+  }, [processedEvents.length, setAtBottom]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

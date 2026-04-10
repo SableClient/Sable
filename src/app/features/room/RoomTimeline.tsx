@@ -947,8 +947,18 @@ export function RoomTimeline({
     // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest" button
     // doesn't flash for one render cycle before onScroll confirms the position.
     setAtBottom(true);
+    // The 80 ms timer's cache-save was skipped because processedEvents was empty
+    // when it fired. Save now so the next visit skips the timer.
+    const v = vListRef.current;
+    if (v) {
+      roomScrollCache.save(room.roomId, {
+        cache: v.cache,
+        scrollOffset: v.scrollOffset,
+        atBottom: true,
+      });
+    }
     setIsReady(true);
-  }, [processedEvents.length, setAtBottom]);
+  }, [processedEvents.length, setAtBottom, room.roomId]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

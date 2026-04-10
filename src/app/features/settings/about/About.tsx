@@ -209,7 +209,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                     </Button>
                     <Button
                       as="a"
-                      href="https://github.com/SableClient/Sable/pulls"
+                      href="https://opencollective.com/sable"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Critical"

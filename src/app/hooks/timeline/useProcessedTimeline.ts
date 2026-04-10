@@ -34,8 +34,13 @@ export interface UseProcessedTimelineOptions {
    * components re-render to reflect updated content.  When unchanged (e.g. a
    * new event was appended), existing objects are reused by identity, letting
    * memo bail out for unchanged items.
+   *
+   * Optional — defaults to 0 (stable refs always applied after first render).
+   * Call sites that do NOT use `React.memo` item components (e.g. `ThreadDrawer`)
+   * can omit this; the SDK mutates `mEvent` in place so rendered content stays
+   * correct regardless of object identity.
    */
-  mutationVersion: number;
+  mutationVersion?: number;
 }
 
 export interface ProcessedEvent {
@@ -72,7 +77,7 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
-  mutationVersion,
+  mutationVersion = 0,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   // Stable-ref cache: reuse the same ProcessedEvent object for an event when
   // nothing structural changed. This lets React.memo on item components bail

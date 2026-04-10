@@ -1,5 +1,39 @@
 # Sable Client Changelog
 
+## 1.14.0 (2026-04-10)
+
+### Features
+
+* Add support for rendering bundled urls per MSC4095 ([#590](https://github.com/SableClient/Sable/pull/590) by @nushea)
+* Improve code blocks with faster, more accurate syntax highlighting, broader language support, and separate light and dark theme options. ([#576](https://github.com/SableClient/Sable/pull/576) by @hazre)
+* Add statuses to DMs ([#644](https://github.com/SableClient/Sable/pull/644) by @nushea)
+* Add custom DM images and descriptions ([#644](https://github.com/SableClient/Sable/pull/644) by @nushea)
+* Add statuses to Member Tile ([#644](https://github.com/SableClient/Sable/pull/644) by @nushea)
+* Add the ability to set Global Name Colors dependent on the theme (dark/light) ([#656](https://github.com/SableClient/Sable/pull/656) by @nushea)
+* Add a setting to collapse sidebar folders by default. ([#624](https://github.com/SableClient/Sable/pull/624) by @7w1)
+* Add a "Dismiss" button to command response messages. ([#625](https://github.com/SableClient/Sable/pull/625) by @7w1)
+* Update threads: various fixes, browse all room threads, and see live reply counts on messages. ([#564](https://github.com/SableClient/Sable/pull/564) by @Just-Insane)
+* Re-introduced custom HTML formatting for long messages ([#641](https://github.com/SableClient/Sable/pull/641) by @Septicity)
+* You can now share direct links to specific settings, and opening one takes you to the right section and highlights the target option. ([#577](https://github.com/SableClient/Sable/pull/577) by @hazre)
+* Settings now use route-based navigation with improved desktop and mobile behavior, including better back and close handling. ([#577](https://github.com/SableClient/Sable/pull/577) by @hazre)
+
+### Fixes
+
+* Use file name instead of "a voice message" for non-voice audio files. ([#651](https://github.com/SableClient/Sable/pull/651) by @mvanhorn)
+* Constrain bug report modal to viewport height to prevent overflow. ([#652](https://github.com/SableClient/Sable/pull/652) by @mvanhorn)
+* Fix dms navigation not navigating to dms when local storage is messed up. ([#653](https://github.com/SableClient/Sable/pull/653) by @7w1)
+* Fix reply button not capturing editor focus. ([#623](https://github.com/SableClient/Sable/pull/623) by @7w1)
+* Fixes links not being clickable in formatted messages, including messages that use abbreviations. ([#632](https://github.com/SableClient/Sable/pull/632) by @hazre)
+* Fix some zero-width (invisible) names ([#640](https://github.com/SableClient/Sable/pull/640) by @nushea)
+* Fix iOS elastic bounce-back overscroll on the root element. ([#650](https://github.com/SableClient/Sable/pull/650) by @mvanhorn)
+* Fixed the "sticky scrolling" issue in encrypted rooms with many PMP messages. ([#626](https://github.com/SableClient/Sable/pull/626) by @Septicity)
+* Fix blank room timeline when app returns from background. When sliding sync delivers an `initial: true` response for the open room, a `TimelineReset` event now correctly shows skeleton placeholders while events reload instead of leaving an empty view. ([#657](https://github.com/SableClient/Sable/pull/657) by @Just-Insane)
+* Image zooming is now centered on the cursor position ([#602](https://github.com/SableClient/Sable/pull/602) by @mini-bomba)
+* Image zooming is now multiplicative instead of additive, resulting in a consistent "zooming speed". ([#602](https://github.com/SableClient/Sable/pull/602) by @mini-bomba)
+* Image zoom buttons now zoom towards the center of the screen ([#602](https://github.com/SableClient/Sable/pull/602) by @mini-bomba)
+* Right clicks no longer drag images in the viewer. ([#620](https://github.com/SableClient/Sable/pull/620) by @Septicity)
+* Updated Support links to point to https://opencollective.com/sable ([#661](https://github.com/SableClient/Sable/pull/661) by @7w1)
+
 ## 1.13.1 (2026-03-30)
 
 ### Fixes

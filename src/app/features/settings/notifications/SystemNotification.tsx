@@ -341,6 +341,7 @@ function SettingMenuSelector<T extends string>({
 }
 
 function NotificationTransportOverrideInput({
+  focusId,
   title,
   description,
   name,
@@ -348,6 +349,7 @@ function NotificationTransportOverrideInput({
   placeholder,
   onSave,
 }: {
+  focusId: string;
   title: string;
   description: string;
   name: string;
@@ -373,7 +375,7 @@ function NotificationTransportOverrideInput({
   };
 
   return (
-    <SettingTile title={title} description={description}>
+    <SettingTile title={title} focusId={focusId} description={description}>
       <Box direction="Column" grow="Yes" gap="100">
         <Box as="form" gap="200" onSubmit={handleSubmit}>
           <Box grow="Yes" direction="Column">
@@ -914,6 +916,7 @@ function BackgroundPushNotificationSetting() {
       {supportedModes.length > 2 && (
         <SettingTile
           title="Transport Mode"
+          focusId="background-push-transport-mode"
           description={`Current mode: ${labelTransportMode(
             selectedTransportMode
           )}${effectiveKind ? ` (${labelTransportKind(effectiveKind)})` : ''}`}
@@ -931,6 +934,7 @@ function BackgroundPushNotificationSetting() {
         <>
           <SettingTile
             title="UnifiedPush Distributor"
+            focusId="unified-push-distributor"
             description={selectedDistributor || 'Not selected. Pick a distributor such as ntfy.'}
             after={
               distributorOptions.length > 0 ? (
@@ -950,6 +954,7 @@ function BackgroundPushNotificationSetting() {
             )}
           </SettingTile>
           <NotificationTransportOverrideInput
+            focusId="unified-push-gateway-url"
             title="UnifiedPush Gateway URL"
             description={`Default: ${pushTransportDefaults.unifiedPushGatewayUrl ?? 'none'}`}
             name="unifiedPushGatewayUrl"
@@ -960,6 +965,7 @@ function BackgroundPushNotificationSetting() {
             }
           />
           <NotificationTransportOverrideInput
+            focusId="unified-push-app-id"
             title="UnifiedPush App ID"
             description={`Default: ${pushTransportDefaults.unifiedPushAppID ?? 'none'}`}
             name="unifiedPushAppID"

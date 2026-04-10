@@ -46,6 +46,7 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
                 >
                   <SettingTile
                     title="Close button keeps Sable running"
+                    focusId="close-to-background-on-close"
                     description="When enabled, closing the window keeps Sable running instead of exiting. If the tray icon is enabled and available, Sable stays in the system tray. Otherwise it continues running in the background."
                     after={
                       <Switch
@@ -64,6 +65,7 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
                 >
                   <SettingTile
                     title="Show system tray icon"
+                    focusId="show-system-tray-icon"
                     description={
                       trayFallback ? (
                         <Text as="span" style={{ color: color.Warning.Main }} size="T200">

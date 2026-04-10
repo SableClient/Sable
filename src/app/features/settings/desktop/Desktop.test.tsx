@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { Desktop } from './Desktop';
 
 const {
@@ -59,12 +60,19 @@ vi.mock('folds', async () => {
 });
 
 describe('Desktop', () => {
+  const renderDesktop = () =>
+    render(
+      <ScreenSizeProvider value={ScreenSize.Desktop}>
+        <Desktop requestClose={vi.fn()} />
+      </ScreenSizeProvider>
+    );
+
   it('renders explicit close behavior and tray settings', () => {
     mockUseDesktopRuntimeState.mockReturnValueOnce({
       trayAvailable: true,
     });
 
-    const { container } = render(<Desktop requestClose={vi.fn()} />);
+    const { container } = renderDesktop();
 
     expect(screen.getByText('Close button keeps Sable running')).toBeInTheDocument();
     expect(
@@ -82,7 +90,7 @@ describe('Desktop', () => {
   });
 
   it('shows fallback copy while the tray icon is enabled but unavailable', () => {
-    render(<Desktop requestClose={vi.fn()} />);
+    renderDesktop();
 
     expect(
       screen.getByText(
@@ -95,7 +103,7 @@ describe('Desktop', () => {
   it('does not show fallback copy while tray availability is still syncing', () => {
     mockUseDesktopSettingsSyncing.mockReturnValueOnce(true);
 
-    render(<Desktop requestClose={vi.fn()} />);
+    renderDesktop();
 
     expect(
       screen.queryByText(
@@ -109,7 +117,7 @@ describe('Desktop', () => {
       trayAvailable: true,
     });
 
-    render(<Desktop requestClose={vi.fn()} />);
+    renderDesktop();
 
     expect(
       screen.queryByText(

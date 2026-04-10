@@ -328,7 +328,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       .catch(() => {});
     // forceUpdateCounter must be in deps so this effect re-runs after
     // ThreadEvent.Update fires (which flips initialEventsFetched from false to
-    // true). 
+    // true).
   }, [mx, room, threadRootId, forceUpdate, forceUpdateCounter]);
 
   // Re-render when new thread events arrive (including reactions via ThreadEvent.Update).

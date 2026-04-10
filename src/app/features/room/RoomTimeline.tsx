@@ -373,6 +373,9 @@ export function RoomTimeline({
         // immediately and skip the 80 ms stabilisation timer entirely.
         if (savedCache.atBottom) {
           vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          // scrollToIndex is async; pre-empt the button so it doesn't flash for
+          // one render cycle before VList's onScroll confirms the position.
+          setAtBottom(true);
         } else {
           vListRef.current.scrollTo(savedCache.scrollOffset);
         }
@@ -957,6 +960,9 @@ export function RoomTimeline({
         atBottom: true,
       });
     }
+    // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest" button
+    // doesn't flash for one render cycle before onScroll confirms the position.
+    setAtBottom(true);
     setIsReady(true);
   }, [processedEvents.length, setAtBottom, room.roomId]);
 

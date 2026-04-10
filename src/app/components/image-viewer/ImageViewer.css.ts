@@ -31,12 +31,16 @@ export const ImageViewerContent = style([
 export const ImageViewerImg = style([
   DefaultReset,
   {
+    userSelect: 'none',
+    touchAction: 'none',
+    display: 'block',
     objectFit: 'contain',
     width: 'auto',
     height: 'auto',
-    maxWidth: '100%',
-    maxHeight: '100%',
+    maxWidth: 'none',
+    maxHeight: 'none',
     backgroundColor: color.Surface.Container,
     transition: 'transform 100ms linear',
+    willChange: 'transform',
   },
 ]);

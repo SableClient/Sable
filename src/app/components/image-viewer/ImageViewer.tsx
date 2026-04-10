@@ -13,8 +13,16 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
-    const { transforms, cursor, handleWheel, onPointerDown, resetTransforms, zoomIn, zoomOut } =
-      useImageGestures(true, 0.2);
+    const {
+      transforms,
+      cursor,
+      handleWheel,
+      onPointerDown,
+      resetTransforms,
+      zoomIn,
+      zoomOut,
+      setZoom,
+    } = useImageGestures(true, 0.2);
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
@@ -86,14 +94,28 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             data-gestures="ignore"
             style={{
               cursor,
-              userSelect: 'none',
-              touchAction: 'none',
-              willChange: 'transform',
               transform: `translate(${transforms.pan.x}px, ${transforms.pan.y}px) scale(${transforms.zoom})`,
             }}
             src={src}
             alt={alt}
             onPointerDown={onPointerDown}
+            onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
+              // Fit the image to the container on load
+              const img = event.currentTarget;
+              const container = img.parentElement;
+              if (!container) return;
+
+              const imgHeight = img.naturalHeight;
+              const imgWidth = img.naturalWidth;
+              const containerHeight = container.clientHeight || 0;
+              const containerWidth = container.clientWidth || 0;
+
+              const heightRatio = containerHeight / imgHeight;
+              const widthRatio = containerWidth / imgWidth;
+              const fitZoom = Math.min(heightRatio, widthRatio, 1);
+
+              setZoom(fitZoom);
+            }}
           />
         </Box>
       </Box>

@@ -32,6 +32,7 @@ import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
+import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
 import { markAsRead } from '$utils/notifications';
 import {
@@ -124,6 +125,8 @@ export function RoomTimeline({
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
+
+  const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
@@ -167,7 +170,6 @@ export function RoomTimeline({
     return myPowerLevel < sendLevel;
   }, [powerLevels, mx]);
 
-  const [editId, setEditId] = useState<string>();
   const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
 
   const readUptoEventIdRef = useRef<string | undefined>(undefined);
@@ -472,7 +474,6 @@ export function RoomTimeline({
     room,
     mx,
     editor,
-    alive,
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
@@ -481,8 +482,7 @@ export function RoomTimeline({
     setReplyDraft,
     openThreadId,
     setOpenThread,
-    setEditId,
-    onEditorReset,
+    handleEdit,
     handleOpenEvent: (id) => {
       const evtTimeline = getEventTimeline(room, id);
       const absoluteIndex = evtTimeline

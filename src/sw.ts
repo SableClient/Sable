@@ -757,14 +757,22 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
-  // Guard against the flag being stale: if the app was backgrounded quickly and
-  // the SW never received the hidden message (iOS can suspend the JS context
-  // before postMessage is processed), the flag expires after APP_VISIBLE_TTL_MS.
+  //
+  // Two-tier visibility check:
+  // 1. When clients.matchAll() returns ≥1 client, trust its visibilityState
+  //    directly.  iOS can suspend the JS thread before postMessage({ visible:
+  //    false }) is processed, leaving appIsVisible stuck at true.  matchAll()
+  //    still reports the backgrounded client as 'hidden', so it is the
+  //    authoritative signal when available.
+  // 2. When matchAll() returns zero clients (a separate iOS Safari PWA quirk
+  //    where the page is invisible to the SW even while visible), fall back to
+  //    the TTL-gated flag: the flag expires after APP_VISIBLE_TTL_MS so a stale
+  //    true from a quick background doesn't permanently suppress notifications.
   const appIsVisibleFresh = appIsVisible && Date.now() - appVisibleSetAt < APP_VISIBLE_TTL_MS;
   const hasVisibleClient =
-    appIsVisibleFresh || clients.some((client) => client.visibilityState === 'visible');
+    clients.length > 0
+      ? clients.some((client) => client.visibilityState === 'visible')
+      : appIsVisibleFresh;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

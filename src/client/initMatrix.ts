@@ -20,6 +20,7 @@ import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { fetch } from '$utils/fetch';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
 import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from './slidingSync';
@@ -294,6 +295,7 @@ const buildClient = async (
     baseUrl: session.baseUrl,
     accessToken: session.accessToken,
     userId: session.userId,
+    fetchFn: fetch,
     store: indexedDBStore,
     cryptoStore: legacyCryptoStore,
     deviceId: session.deviceId,

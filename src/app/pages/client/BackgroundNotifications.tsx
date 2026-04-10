@@ -23,6 +23,7 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { fetch } from '$utils/fetch';
 import {
   getMemberDisplayName,
   getNotificationType,
@@ -59,6 +60,7 @@ const startBackgroundClient = async (
     accessToken: session.accessToken,
     userId: session.userId,
     deviceId: session.deviceId,
+    fetchFn: fetch,
     timelineSupport: false,
   });
   await startClient(mx, {

@@ -1,5 +1,6 @@
 #[cfg(desktop)]
 mod desktop;
+mod network;
 
 use tauri::{AppHandle, Manager};
 #[cfg(desktop)]
@@ -7,7 +8,7 @@ use tauri_plugin_window_state::StateFlags;
 
 // Runtime selection: CEF or Wry
 #[cfg(feature = "cef")]
-use tauri::Cef as BrowserEngine;
+type BrowserEngine = tauri::Wry;
 #[cfg(all(not(feature = "cef"), feature = "wry"))]
 use tauri::Wry as BrowserEngine;
 
@@ -78,6 +79,7 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_edge_to_edge::init());
 
     builder
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_os::init())
@@ -103,6 +105,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            network::loopback_http::abort_loopback_fetch,
+            network::loopback_http::loopback_fetch,
             #[cfg(desktop)]
             desktop::tray::get_desktop_runtime_state,
             #[cfg(desktop)]

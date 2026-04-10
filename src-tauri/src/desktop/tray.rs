@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::desktop::runtime_state::DesktopRuntimeState;
 use crate::desktop::settings::{
     desktop_settings_from_values, tray_available_for_session, DesktopSettings,
-    CLOSE_TO_BACKGROUND_ON_CLOSE_KEY, DESKTOP_SETTINGS_PATH,
-    LEGACY_KEEP_BACKGROUND_RUNNING_KEY, SHOW_SYSTEM_TRAY_ICON_KEY,
+    CLOSE_TO_BACKGROUND_ON_CLOSE_KEY, DESKTOP_SETTINGS_PATH, LEGACY_KEEP_BACKGROUND_RUNNING_KEY,
+    SHOW_SYSTEM_TRAY_ICON_KEY,
 };
 use serde_json::json;
 use tauri::{
@@ -102,9 +102,7 @@ fn load_desktop_settings(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result
 fn current_desktop_settings(app: &AppHandle<crate::BrowserEngine>) -> DesktopSettings {
     let state = app.state::<DesktopSettingsState>();
     DesktopSettings {
-        close_to_background_on_close: state
-            .close_to_background_on_close
-            .load(Ordering::Relaxed),
+        close_to_background_on_close: state.close_to_background_on_close.load(Ordering::Relaxed),
         show_system_tray_icon: state.show_system_tray_icon.load(Ordering::Relaxed),
     }
 }
@@ -283,7 +281,9 @@ fn tray_icon_events_supported() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::desktop::settings::{desktop_settings_from_values, tray_available_for_session, DesktopSettings};
+    use crate::desktop::settings::{
+        desktop_settings_from_values, tray_available_for_session, DesktopSettings,
+    };
 
     #[test]
     fn close_behavior_keeps_sable_running() {

@@ -1,5 +1,6 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { fetch } from '$utils/fetch';
 import { SpecVersions, specVersions } from '../cs-api';
 
 type SpecVersionsLoaderProps = {

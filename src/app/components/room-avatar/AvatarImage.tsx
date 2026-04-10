@@ -4,6 +4,7 @@ import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { fetch } from '$utils/fetch';
 import * as css from './RoomAvatar.css';
 
 type AvatarImageProps = {

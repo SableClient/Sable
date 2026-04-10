@@ -1,6 +1,7 @@
 import { ReactNode, useCallback, useMemo } from 'react';
 import { AutoDiscoveryInfoProvider } from '../../hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallbackValue } from '../../hooks/useAsyncCallback';
+import { fetch } from '../../utils/fetch';
 import { autoDiscovery, AutoDiscoveryInfo } from '../../cs-api';
 import { getMxIdServer } from '../../utils/matrix';
 

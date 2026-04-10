@@ -9,6 +9,7 @@ import { getMxIdLocalPart } from '$utils/matrix';
 import { getStateEvent, getMemberAvatarMxc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
 import { StateEvent } from '$types/matrix/room';
+import { fetch } from '$utils/fetch';
 import {
   getUnifiedPushDistributor,
   getUnifiedPushDistributors,
@@ -93,14 +94,20 @@ export type EnableUnifiedPushResult =
   | Exclude<UnifiedPushRegistrationResult, { status: 'registered' }>;
 
 async function registerUnifiedPushWithTimeout(): Promise<UnifiedPushRegistrationResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    const id = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       reject(new Error('UnifiedPush registration timed out'));
-      clearTimeout(id);
     }, UP_REGISTER_TIMEOUT_MS);
   });
 
-  return Promise.race([registerUnifiedPushTransport(), timeout]);
+  try {
+    return await Promise.race([registerUnifiedPushTransport(), timeout]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 export async function tryEnableUnifiedPush(

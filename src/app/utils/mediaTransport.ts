@@ -1,4 +1,5 @@
-import { hasServiceWorker } from '$utils/platform';
+import { hasControllingServiceWorker } from '$utils/platform';
+import { fetch } from '$utils/fetch';
 import { getFromMediaCache, putInMediaCache } from './mediaCache';
 
 type StoredSession = {
@@ -78,7 +79,7 @@ function getStoredAccessToken(): string | undefined {
   return undefined;
 }
 
-function getStoredSessionScope(): string {
+export function getCurrentMediaSessionScope(): string {
   if (typeof localStorage === 'undefined') return 'anonymous';
 
   const sessions = parseStoredSessions();
@@ -113,7 +114,7 @@ function getRequestKey(url: string, cacheMode: MediaFetchCacheMode): string {
 }
 
 function getScopedMediaCacheKey(url: string, sessionScope?: string): string {
-  return `${sessionScope ?? getStoredSessionScope()}:${url}`;
+  return `${sessionScope ?? getCurrentMediaSessionScope()}:${url}`;
 }
 
 function resolveAccessToken(options?: MediaTransportOptions): string | undefined {
@@ -135,7 +136,17 @@ function resolveSessionScope(options?: MediaTransportOptions): string {
     return options.sessionScope ?? 'anonymous';
   }
 
-  return getStoredSessionScope();
+  return getCurrentMediaSessionScope();
+}
+
+function hasExplicitMediaAuthOverride(options?: MediaTransportOptions): boolean {
+  if (!options) return false;
+
+  return (
+    Object.hasOwn(options, 'accessToken') ||
+    Object.hasOwn(options, 'getAccessToken') ||
+    Object.hasOwn(options, 'sessionScope')
+  );
 }
 
 function isRetryableAuthError(response: Response): boolean {
@@ -171,7 +182,7 @@ async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptio
     if (cachedBlob) return cachedBlob;
   }
 
-  const useServiceWorker = hasServiceWorker();
+  const useServiceWorker = hasControllingServiceWorker() && !hasExplicitMediaAuthOverride(options);
   const fetchAndCache = async (response: Response): Promise<Blob> => {
     if (!response.ok) {
       throw new Error(`Failed to fetch media: ${response.status} ${response.statusText}`);

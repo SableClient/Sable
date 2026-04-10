@@ -18,6 +18,10 @@
     "opener:default",
     "opener:allow-default-urls",
     {
+      "identifier": "http:default",
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
+    },
+    {
       "identifier": "opener:allow-open-url",
       "allow": [
         {

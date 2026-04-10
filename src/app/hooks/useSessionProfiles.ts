@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Session } from '$state/sessions';
+import { fetch } from '$utils/fetch';
 import { fetchMediaBlob } from '$utils/mediaTransport';
 
 export type SessionProfile = {
@@ -48,12 +49,15 @@ const fetchAvatarBlobUrl = async (
 
 export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
   const [profiles, setProfiles] = useState<SessionProfiles>({});
-  const blobUrlsRef = useRef<string[]>([]);
 
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
-  const sessionKey = sessions.map((s) => s.userId).join('\x00');
+  const sessionIdentityKey = sessions
+    .map((session) =>
+      [session.userId, session.baseUrl, session.accessToken, session.deviceId].join('\x01')
+    )
+    .join('\x00');
 
   useEffect(() => {
     let cancelled = false;
@@ -94,10 +98,9 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
 
     return () => {
       cancelled = true;
-      blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
-      blobUrlsRef.current = newBlobUrls;
+      newBlobUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [sessionKey]);
+  }, [sessionIdentityKey]);
 
   return profiles;
 };

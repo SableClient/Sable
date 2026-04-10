@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchMediaBlob } from '$utils/mediaTransport';
-import { hasServiceWorker } from '$utils/platform';
+import { useAtomValue } from 'jotai';
+import { activeSessionIdAtom } from '$state/sessions';
+import { fetchMediaBlob, getCurrentMediaSessionScope } from '$utils/mediaTransport';
+import { hasControllingServiceWorker, hasServiceWorker } from '$utils/platform';
 
 type ObjectUrlEntry = {
   refs: number;
@@ -9,8 +11,17 @@ type ObjectUrlEntry = {
   promise: Promise<string>;
 };
 
+type ResolvedMediaUrlState = {
+  cacheKey?: string;
+  url?: string;
+};
+
 const objectUrlCache = new Map<string, ObjectUrlEntry>();
 const inflightRequests = new Map<string, Promise<string>>();
+
+function getObjectUrlCacheKey(sessionScope: string, url: string): string {
+  return `${sessionScope}\x00${url}`;
+}
 
 function normalizeRenderableMediaUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -28,7 +39,7 @@ function normalizeRenderableMediaUrl(url: string | undefined): string | undefine
   return undefined;
 }
 
-function createObjectUrlEntry(url: string): ObjectUrlEntry {
+function createObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
   const entry = {
     refs: 0,
     settled: false,
@@ -44,27 +55,27 @@ function createObjectUrlEntry(url: string): ObjectUrlEntry {
     })
     .finally(() => {
       entry.settled = true;
-      inflightRequests.delete(url);
+      inflightRequests.delete(cacheKey);
       if (entry.refs === 0 && entry.objectUrl) {
         URL.revokeObjectURL(entry.objectUrl);
-        objectUrlCache.delete(url);
+        objectUrlCache.delete(cacheKey);
       }
     });
 
-  objectUrlCache.set(url, entry);
-  inflightRequests.set(url, entry.promise);
+  objectUrlCache.set(cacheKey, entry);
+  inflightRequests.set(cacheKey, entry.promise);
 
   return entry;
 }
 
-function retainObjectUrlEntry(url: string): ObjectUrlEntry {
-  const entry = objectUrlCache.get(url) ?? createObjectUrlEntry(url);
+function retainObjectUrlEntry(cacheKey: string, url: string): ObjectUrlEntry {
+  const entry = objectUrlCache.get(cacheKey) ?? createObjectUrlEntry(cacheKey, url);
   entry.refs += 1;
   return entry;
 }
 
-function releaseObjectUrlEntry(url: string): void {
-  const entry = objectUrlCache.get(url);
+function releaseObjectUrlEntry(cacheKey: string): void {
+  const entry = objectUrlCache.get(cacheKey);
   if (!entry) return;
 
   entry.refs -= 1;
@@ -72,7 +83,7 @@ function releaseObjectUrlEntry(url: string): void {
   if (entry.objectUrl) {
     URL.revokeObjectURL(entry.objectUrl);
   }
-  objectUrlCache.delete(url);
+  objectUrlCache.delete(cacheKey);
 }
 
 export function getRenderableMediaUrlStats(): { cacheSize: number; inflightCount: number } {
@@ -80,45 +91,100 @@ export function getRenderableMediaUrlStats(): { cacheSize: number; inflightCount
 }
 
 export function useRenderableMediaUrl(url: string | undefined): string | undefined {
-  const needsBlob = !hasServiceWorker();
+  const activeSessionId = useAtomValue(activeSessionIdAtom);
+  const sessionScope = activeSessionId ?? getCurrentMediaSessionScope();
   const renderableUrl = normalizeRenderableMediaUrl(url);
-  const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(() =>
-    needsBlob ? undefined : renderableUrl
+  const objectUrlCacheKey =
+    renderableUrl && !renderableUrl.startsWith('blob:')
+      ? getObjectUrlCacheKey(sessionScope, renderableUrl)
+      : undefined;
+  const [usesControlledServiceWorker, setUsesControlledServiceWorker] = useState(() =>
+    hasControllingServiceWorker()
   );
+  const needsBlob = !usesControlledServiceWorker;
+  const usesExistingObjectUrl = renderableUrl?.startsWith('blob:') ?? false;
+  const [resolvedState, setResolvedState] = useState<ResolvedMediaUrlState>(() => ({
+    cacheKey: objectUrlCacheKey,
+    url: needsBlob && !usesExistingObjectUrl ? undefined : renderableUrl,
+  }));
+
+  useEffect(() => {
+    if (!hasServiceWorker()) {
+      setUsesControlledServiceWorker(false);
+      return undefined;
+    }
+
+    const { serviceWorker } = navigator;
+    if (!serviceWorker) {
+      setUsesControlledServiceWorker(false);
+      return undefined;
+    }
+
+    const updateControlState = () => {
+      setUsesControlledServiceWorker(hasControllingServiceWorker());
+    };
+
+    updateControlState();
+    serviceWorker.addEventListener('controllerchange', updateControlState);
+    serviceWorker.ready.then(updateControlState).catch(() => undefined);
+
+    return () => {
+      serviceWorker.removeEventListener('controllerchange', updateControlState);
+    };
+  }, []);
 
   useEffect(() => {
     if (!renderableUrl) {
-      setResolvedUrl(undefined);
+      setResolvedState({ cacheKey: undefined, url: undefined });
       return undefined;
     }
 
     if (!needsBlob) {
-      setResolvedUrl(renderableUrl);
+      setResolvedState({ cacheKey: undefined, url: renderableUrl });
       return undefined;
     }
 
-    const entry = retainObjectUrlEntry(renderableUrl);
-    let cancelled = false;
+    if (usesExistingObjectUrl) {
+      setResolvedState({ cacheKey: undefined, url: renderableUrl });
+      return undefined;
+    }
 
-    setResolvedUrl(entry.objectUrl);
+    if (!objectUrlCacheKey) {
+      setResolvedState({ cacheKey: undefined, url: undefined });
+      return undefined;
+    }
+
+    const entry = retainObjectUrlEntry(objectUrlCacheKey, renderableUrl);
+    let cancelled = false;
+    const { objectUrl } = entry;
+
+    setResolvedState({ cacheKey: objectUrlCacheKey, url: objectUrl });
 
     entry.promise
-      .then((objectUrl) => {
+      .then((resolvedObjectUrl) => {
         if (!cancelled) {
-          setResolvedUrl(objectUrl);
+          setResolvedState({ cacheKey: objectUrlCacheKey, url: resolvedObjectUrl });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setResolvedUrl(undefined);
+          setResolvedState({ cacheKey: objectUrlCacheKey, url: undefined });
         }
       });
 
     return () => {
       cancelled = true;
-      releaseObjectUrlEntry(renderableUrl);
+      releaseObjectUrlEntry(objectUrlCacheKey);
     };
-  }, [needsBlob, renderableUrl]);
+  }, [needsBlob, objectUrlCacheKey, renderableUrl, usesExistingObjectUrl]);
 
-  return needsBlob ? resolvedUrl : renderableUrl;
+  if (!needsBlob || usesExistingObjectUrl) {
+    return renderableUrl;
+  }
+
+  if (resolvedState.cacheKey !== objectUrlCacheKey) {
+    return undefined;
+  }
+
+  return resolvedState.url;
 }

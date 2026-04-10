@@ -5,6 +5,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { type as osType } from '@tauri-apps/plugin-os';
+import { fetch } from '$utils/fetch';
 
 type SSOLoginProps = {
   providers?: IIdentityProvider[];
@@ -15,7 +16,7 @@ type SSOLoginProps = {
 export function SSOLogin({ providers, redirectUrl, action, saveScreenSpace }: SSOLoginProps) {
   const discovery = useAutoDiscoveryInfo();
   const baseUrl = discovery['m.homeserver'].base_url;
-  const mx = useMemo(() => createClient({ baseUrl }), [baseUrl]);
+  const mx = useMemo(() => createClient({ baseUrl, fetchFn: fetch }), [baseUrl]);
 
   const getSSOIdUrl = (ssoId?: string): string =>
     mx.getSsoLoginUrl(redirectUrl, 'sso', ssoId, action);

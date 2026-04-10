@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  DEFAULT_UNIFIED_PUSH_APP_ID,
+  disableUnifiedPush,
+  tryEnableUnifiedPush,
+} from './UnifiedPushNotifications';
 
 const notificationsApi = vi.hoisted(() => ({
   onUnifiedPushMessage: vi.fn(),
@@ -34,9 +39,9 @@ vi.mock('./TauriNotificationsApiClient', () => ({
   getTauriNotificationsApi,
 }));
 
-async function loadUnifiedPushNotificationsModule() {
-  return import('./UnifiedPushNotifications');
-}
+vi.mock('$utils/fetch', () => ({
+  fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args),
+}));
 
 describe('UnifiedPushNotifications', () => {
   beforeEach(() => {
@@ -61,8 +66,6 @@ describe('UnifiedPushNotifications', () => {
   });
 
   it('registers the Matrix pusher with the resolved UnifiedPush overrides', async () => {
-    const { tryEnableUnifiedPush } = await loadUnifiedPushNotificationsModule();
-
     await expect(
       tryEnableUnifiedPush(matrixClient as never, {
         unifiedPushAppID: 'com.example.up',
@@ -86,10 +89,21 @@ describe('UnifiedPushNotifications', () => {
     );
   }, 15_000);
 
-  it('falls back to the default UnifiedPush app id when no override is provided', async () => {
-    const { DEFAULT_UNIFIED_PUSH_APP_ID, tryEnableUnifiedPush } =
-      await loadUnifiedPushNotificationsModule();
+  it('clears the UnifiedPush registration timeout after successful registration', async () => {
+    vi.useFakeTimers();
 
+    try {
+      await expect(tryEnableUnifiedPush(matrixClient as never)).resolves.toMatchObject({
+        status: 'registered',
+      });
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('falls back to the default UnifiedPush app id when no override is provided', async () => {
     await tryEnableUnifiedPush(matrixClient as never);
 
     expect(matrixClient.setPusher).toHaveBeenCalledWith(
@@ -100,8 +114,6 @@ describe('UnifiedPushNotifications', () => {
   });
 
   it('removes current-device UnifiedPush pushers when the cached endpoint is unavailable', async () => {
-    const { disableUnifiedPush } = await loadUnifiedPushNotificationsModule();
-
     matrixClient.getPushers.mockResolvedValue({
       pushers: [
         {

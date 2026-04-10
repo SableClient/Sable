@@ -105,7 +105,20 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             }}
             src={src}
             alt={alt}
-            onPointerDown={onPointerDown}
+            onPointerDown={(event: React.PointerEvent<HTMLImageElement>) => {
+              // Disable transition while dragging the image
+
+              // Note: This disables the smooth zooming when scrolling while dragging
+              // or when double-clicking to zoom
+              const img = event.currentTarget;
+              img.style.transition = 'none';
+              onPointerDown(event);
+            }}
+            onPointerUp={(event: React.PointerEvent<HTMLImageElement>) => {
+              // Re-enable transition after dragging
+              const img = event.currentTarget;
+              img.style.transition = '';
+            }}
             onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
               // Fit the image to the container on load
               const img = event.currentTarget;

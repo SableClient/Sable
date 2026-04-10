@@ -789,8 +789,18 @@ export function RoomTimeline({
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    // The 80 ms timer's cache-save was skipped because processedEvents was empty
+    // when it fired. Save now so the next visit skips the timer.
+    const v = vListRef.current;
+    if (v) {
+      roomScrollCache.save(room.roomId, {
+        cache: v.cache,
+        scrollOffset: v.scrollOffset,
+        atBottom: true,
+      });
+    }
     setIsReady(true);
-  }, [processedEvents.length]);
+  }, [processedEvents.length, room.roomId]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

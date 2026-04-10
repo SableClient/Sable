@@ -25,8 +25,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       setZoom,
     } = useImageGestures(true, 0.2);
 
+    const [fitRatio, setFitRatio] = useState(1);
     const [isImageReady, setIsImageReady] = useState(false);
     useEffect(() => {
+      setFitRatio(1);
       setIsImageReady(false);
     }, [src]);
 
@@ -52,6 +54,27 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             </Text>
           </Box>
           <Box shrink="No" alignItems="Center" gap="200">
+            <IconButton
+              variant="Surface"
+              style={{
+                visibility: !(
+                  transforms.zoom === fitRatio &&
+                  transforms.pan.x === 0 &&
+                  transforms.pan.y === 0
+                )
+                  ? 'visible'
+                  : 'hidden',
+              }}
+              size="300"
+              radii="Pill"
+              onClick={() => {
+                resetTransforms();
+                setZoom(fitRatio);
+              }}
+              aria-label="Refresh View"
+            >
+              <Icon size="50" src={Icons.Reload} />
+            </IconButton>
             <IconButton
               variant={transforms.zoom < 1 ? 'Success' : 'SurfaceVariant'}
               outlined={transforms.zoom < 1}
@@ -137,6 +160,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               const widthRatio = containerWidth / imgWidth;
               const fitZoom = Math.min(heightRatio, widthRatio, 1);
 
+              setFitRatio(fitZoom);
               setZoom(fitZoom);
               setIsImageReady(true);
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
@@ -23,6 +24,11 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       zoomOut,
       setZoom,
     } = useImageGestures(true, 0.2);
+
+    const [isImageReady, setIsImageReady] = useState(false);
+    useEffect(() => {
+      setIsImageReady(false);
+    }, [src]);
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
@@ -94,6 +100,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             data-gestures="ignore"
             style={{
               cursor,
+              opacity: isImageReady ? 1 : 0, // Hide image until fit to container
               transform: `translate(${transforms.pan.x}px, ${transforms.pan.y}px) scale(${transforms.zoom})`,
             }}
             src={src}
@@ -102,6 +109,9 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
               // Fit the image to the container on load
               const img = event.currentTarget;
+
+              img.style.transition = 'none';
+
               const container = img.parentElement;
               if (!container) return;
 
@@ -115,6 +125,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               const fitZoom = Math.min(heightRatio, widthRatio, 1);
 
               setZoom(fitZoom);
+              setIsImageReady(true);
+
+              // This should be enough time for the browser to apply the transform
+              // without the transition, so we can re-enable it for future interactions
+              setTimeout(() => {
+                img.style.transition = '';
+              }, 15);
             }}
           />
         </Box>

@@ -1,6 +1,7 @@
 import {
   Fragment,
   ReactNode,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -78,6 +79,49 @@ import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
 import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
+
+/** Render function type passed to the memoized TimelineItem via a ref. */
+type TimelineRenderFn = (eventData: ProcessedEvent) => ReactNode;
+
+/**
+ * Renders one timeline item.  Defined outside RoomTimeline so React never
+ * recreates the component type, and wrapped in `memo` so it skips re-renders
+ * when neither the event data nor any per-item volatile state changed.
+ *
+ * The actual rendering is delegated to `renderRef.current` (always the latest
+ * version of `renderMatrixEvent`, set synchronously during each render cycle)
+ * so stale-closure issues are avoided.
+ *
+ * Props not used in the function body (`isHighlighted`, `isEditing`, etc.) are
+ * intentionally included: React.memo's default shallow-equality comparator
+ * inspects ALL props, so changing one of them for a specific item causes only
+ * that item to re-render (e.g. only the message being edited re-renders when
+ * editId changes).
+ */
+interface TimelineItemProps {
+  data: ProcessedEvent;
+  renderRef: React.MutableRefObject<TimelineRenderFn | null>;
+  /** Changed when this specific item becomes highlighted / un-highlighted. */
+  isHighlighted: boolean;
+  /** Changed when this specific item enters / exits edit mode. */
+  isEditing: boolean;
+  /** Changed when this specific item is the active reply target. */
+  isReplying: boolean;
+  /** Changed when this specific item's thread drawer is open. */
+  isOpenThread: boolean;
+  /**
+   * Opaque object whose identity changes when any global render-affecting
+   * setting changes (layout, spacing, nicknames, permissions…).  Forces all
+   * visible items to re-render when settings change.
+   */
+  settingsEpoch: object;
+}
+
+const TimelineItem = memo(function TimelineItem({ data, renderRef }: TimelineItemProps) {
+  // isHighlighted, isEditing, isReplying, isOpenThread, settingsEpoch are not
+  // used here directly — their sole purpose is to guide React.memo comparisons.
+  return <>{renderRef.current?.(data)}</>;
+});
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -593,6 +637,52 @@ export function RoomTimeline({
     utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
   });
 
+  // Render function ref — updated synchronously each render so TimelineItem
+  // always calls the latest version (which has the current focusItem, editId,
+  // etc. in its closure) without needing to be a prop dep.
+  const renderFnRef = useRef<TimelineRenderFn | null>(null);
+  renderFnRef.current = (eventData: ProcessedEvent) =>
+    renderMatrixEvent(
+      eventData.mEvent.getType(),
+      typeof eventData.mEvent.getStateKey() === 'string',
+      eventData.id,
+      eventData.mEvent,
+      eventData.itemIndex,
+      eventData.timelineSet,
+      eventData.collapsed
+    );
+
+  // Object whose identity changes when any global render-affecting setting
+  // changes. TimelineItem memo sees the new reference and re-renders all items.
+  const settingsEpoch = useMemo(
+    () => ({}),
+    // Any setting that changes how ALL items are rendered should be listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      messageLayout,
+      messageSpacing,
+      hideReads,
+      showDeveloperTools,
+      hour24Clock,
+      dateFormatString,
+      mediaAutoLoad,
+      showBundledPreview,
+      showUrlPreview,
+      showClientUrlPreview,
+      autoplayStickers,
+      hideMemberInReadOnly,
+      isReadOnly,
+      hideMembershipEvents,
+      hideNickAvatarEvents,
+      showHiddenEvents,
+      reducedMotion,
+      nicknames,
+      imagePackRooms,
+      htmlReactParserOptions,
+      linkifyOpts,
+    ]
+  );
+
   const tryAutoMarkAsRead = useCallback(() => {
     if (!readUptoEventIdRef.current) {
       requestAnimationFrame(() => markAsRead(mx, room.roomId, hideReads));
@@ -724,13 +814,20 @@ export function RoomTimeline({
       : timelineSync.eventsLength;
   const vListIndices = useMemo(
     () => Array.from({ length: vListItemCount }, (_, i) => i),
+    // timelineSync.timeline.linkedTimelines: recompute when the timeline structure
+    // changes (pagination, room switch). timelineSync.mutationVersion: recompute
+    // when event content mutates (reactions, edits) without changing the count.
+    // Using the linkedTimelines reference (not the timeline wrapper object) means
+    // a setTimeline spread for a live event arrival does NOT recompute this — the
+    // eventsLength / vListItemCount change already covers that case.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
+    [vListItemCount, timelineSync.timeline.linkedTimelines, timelineSync.mutationVersion]
   );
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
+    mutationVersion: timelineSync.mutationVersion,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,
@@ -901,14 +998,19 @@ export function RoomTimeline({
               return <Fragment key={index} />;
             }
 
-            const renderedEvent = renderMatrixEvent(
-              eventData.mEvent.getType(),
-              typeof eventData.mEvent.getStateKey() === 'string',
-              eventData.id,
-              eventData.mEvent,
-              eventData.itemIndex,
-              eventData.timelineSet,
-              eventData.collapsed
+            const renderedEvent = (
+              <TimelineItem
+                data={eventData}
+                renderRef={renderFnRef}
+                isHighlighted={
+                  timelineSync.focusItem?.index === eventData.itemIndex &&
+                  (timelineSync.focusItem?.highlight ?? false)
+                }
+                isEditing={editId === eventData.mEvent.getId()}
+                isReplying={activeReplyId === eventData.mEvent.getId()}
+                isOpenThread={openThreadId === eventData.mEvent.getId()}
+                settingsEpoch={settingsEpoch}
+              />
             );
 
             const dividers = (

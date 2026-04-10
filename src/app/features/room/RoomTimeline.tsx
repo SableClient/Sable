@@ -372,6 +372,7 @@ export function RoomTimeline({
         // Revisiting a room with a cached scroll state — restore position
         // immediately and skip the 80 ms stabilisation timer entirely.
         if (savedCache.atBottom) {
+          programmaticScrollToBottomRef.current = true;
           vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
           // scrollToIndex is async; pre-empt the button so it doesn't flash for
           // one render cycle before VList's onScroll confirms the position.
@@ -812,14 +813,6 @@ export function RoomTimeline({
           atBottom: isNowAtBottom,
         });
       }
-
-      // Keep the scroll cache fresh so the next visit to this room can restore
-      // position (and skip the 80 ms measurement wait) immediately on mount.
-      roomScrollCache.save(room.roomId, {
-        cache: v.cache,
-        scrollOffset: offset,
-        atBottom: isNowAtBottom,
-      });
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
         timelineSyncRef.current.handleTimelinePagination(true);

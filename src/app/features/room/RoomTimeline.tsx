@@ -101,27 +101,28 @@ type TimelineRenderFn = (eventData: ProcessedEvent) => ReactNode;
 interface TimelineItemProps {
   data: ProcessedEvent;
   renderRef: React.MutableRefObject<TimelineRenderFn | null>;
-  /** Changed when this specific item becomes highlighted / un-highlighted. */
+  // The props below are not read in the component body — they exist solely so
+  // React.memo's shallow-equality comparator sees them and re-renders only the
+  // affected item when they change.
+  // eslint-disable-next-line react/no-unused-prop-types
   isHighlighted: boolean;
-  /** Changed when this specific item enters / exits edit mode. */
+  // eslint-disable-next-line react/no-unused-prop-types
   isEditing: boolean;
-  /** Changed when this specific item is the active reply target. */
+  // eslint-disable-next-line react/no-unused-prop-types
   isReplying: boolean;
-  /** Changed when this specific item's thread drawer is open. */
+  // eslint-disable-next-line react/no-unused-prop-types
   isOpenThread: boolean;
-  /**
-   * Opaque object whose identity changes when any global render-affecting
-   * setting changes (layout, spacing, nicknames, permissions…).  Forces all
-   * visible items to re-render when settings change.
-   */
+  // eslint-disable-next-line react/no-unused-prop-types
   settingsEpoch: object;
 }
 
-const TimelineItem = memo(function TimelineItem({ data, renderRef }: TimelineItemProps) {
-  // isHighlighted, isEditing, isReplying, isOpenThread, settingsEpoch are not
-  // used here directly — their sole purpose is to guide React.memo comparisons.
+// Declared outside memo() so the callback receives a reference, not an inline
+// function expression (satisfies prefer-arrow-callback).
+function TimelineItemInner({ data, renderRef }: TimelineItemProps) {
   return <>{renderRef.current?.(data)}</>;
-});
+}
+const TimelineItem = memo(TimelineItemInner);
+TimelineItem.displayName = 'TimelineItem';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (

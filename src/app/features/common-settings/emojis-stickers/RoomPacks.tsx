@@ -32,7 +32,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useMediaSrc } from '$hooks/useMediaSrc';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { StateEvent } from '$types/matrix/room';
 import { suffixRename } from '$utils/common';
@@ -43,7 +43,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 
 function PackAvatarImage({ url }: { url: string }) {
-  const resolved = useMediaSrc(url);
+  const resolved = useRenderableMediaUrl(url);
   return <AvatarImage style={{ objectFit: 'contain' }} src={resolved ?? url} />;
 }
 

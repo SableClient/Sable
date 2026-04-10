@@ -50,6 +50,8 @@ export function registerAppServiceWorker() {
     pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
   };
 
+  sendSessionToSW();
+
   const registrationPromise = navigator.serviceWorker.register(swUrl, swRegisterOptions);
 
   registrationPromise

@@ -34,6 +34,10 @@ async function evictIfNeeded(cache: Cache): Promise<void> {
   }
 }
 
+// Cache contract:
+// - keyed by the final media URL
+// - stores successful responses only
+// - persists blobs, never error responses or intermediate auth state
 export async function putInMediaCache(url: string, blob: Blob): Promise<void> {
   const cache = await openCache();
   if (!cache) return;

@@ -46,7 +46,7 @@ export const Reaction = as<
             return (
               <AuthenticatedImg
                 className={css.ReactionImg}
-                src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction}
+                src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? undefined}
                 alt={reaction}
                 onError={() => setImgError(true)}
               />

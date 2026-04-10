@@ -24,12 +24,12 @@ const getPackImageSrc = (
   saveStickerEmojiBandwidth: boolean,
   width: number,
   height: number
-): string => {
+): string | undefined => {
   const preserveAnimation = isAnimatedPackImage(image);
 
   return preserveAnimation || !saveStickerEmojiBandwidth
-    ? (mxcUrlToHttp(mx, image.url, useAuthentication) ?? '')
-    : (mxcUrlToHttp(mx, image.url, useAuthentication, width, height) ?? '');
+    ? (mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined)
+    : (mxcUrlToHttp(mx, image.url, useAuthentication, width, height) ?? undefined);
 };
 
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {

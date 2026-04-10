@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/alt-text */
 import {
   CSSProperties,
   ComponentPropsWithoutRef,
@@ -22,6 +21,7 @@ import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyj
 import Linkify from 'linkify-react';
 import { ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import {
   getCanonicalAliasRoomId,
   getMxIdLocalPart,
@@ -36,7 +36,6 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { useMediaSrc } from '$hooks/useMediaSrc';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { settingsSections } from '$features/settings/routes';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
@@ -482,14 +481,9 @@ export function CodeBlock({
  * silent browser broken-image icon showing up in message bodies.
  */
 function FallbackImg({
-  fallback,
-  src,
   ...props
-}: ComponentPropsWithoutRef<'img'> & { fallback: ReactNode }) {
-  const [failed, setFailed] = useState(false);
-  const resolvedSrc = useMediaSrc(src);
-  if (failed) return <>{fallback}</>;
-  return <img {...props} src={resolvedSrc ?? src} onError={() => setFailed(true)} />;
+}: ComponentPropsWithoutRef<typeof AuthenticatedImg> & { fallback: ReactNode }) {
+  return <AuthenticatedImg {...props} />;
 }
 
 export const getReactCustomHtmlParser = (
@@ -877,6 +871,12 @@ export const getReactCustomHtmlParser = (
                 }
               />
             );
+
+          return (
+            <span title={`Failed to load media${props.alt ? `: ${props.alt}` : ''}`}>
+              {fallbackLabel}
+            </span>
+          );
         }
       }
 

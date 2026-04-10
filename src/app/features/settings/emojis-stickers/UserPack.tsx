@@ -6,7 +6,7 @@ import { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useMediaSrc } from '$hooks/useMediaSrc';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
 type UserPackProps = {
@@ -19,7 +19,7 @@ export function UserPack({ onViewPack }: UserPackProps) {
   const userPack = useUserImagePack();
   const avatarMxc = userPack?.getAvatarUrl(ImageUsage.Emoticon);
   const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
-  const resolvedAvatarUrl = useMediaSrc(avatarUrl ?? undefined);
+  const resolvedAvatarUrl = useRenderableMediaUrl(avatarUrl ?? undefined);
 
   const handleView = () => {
     if (userPack) {

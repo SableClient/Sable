@@ -1,3 +1,5 @@
+import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
+
 export const targetFromEvent = (evt: Event, selector: string): Element | undefined => {
   const targets = evt.composedPath() as Element[];
   return targets.find((target) => target.matches?.(selector));
@@ -89,12 +91,6 @@ export const getDataTransferFiles = (dataTransfer: DataTransfer): File[] | undef
 export const renameFile = (file: File, name: string): File =>
   new File([file], name, { type: file.type });
 
-export const getImageUrlBlob = async (url: string) => {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return blob;
-};
-
 export const getImageFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(fileOrBlob);
 
 export const getVideoFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(fileOrBlob);
@@ -106,6 +102,24 @@ export const loadImageElement = (url: string): Promise<HTMLImageElement> =>
     img.onerror = (err) => reject(err);
     img.src = url;
   });
+
+export const loadImageElementFromMediaUrl = async (
+  url: string,
+  options?: MediaTransportOptions
+): Promise<{
+  blob: Blob;
+  image: HTMLImageElement;
+}> => {
+  const blob = await fetchMediaBlob(url, options);
+  const objectUrl = URL.createObjectURL(blob);
+
+  try {
+    const image = await loadImageElement(objectUrl);
+    return { blob, image };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
 
 export const loadVideoElement = (url: string): Promise<HTMLVideoElement> =>
   new Promise((resolve, reject) => {

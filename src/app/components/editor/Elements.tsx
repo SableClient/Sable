@@ -99,7 +99,7 @@ function RenderEmoticonElement({
         {element.key.startsWith('mxc://') ? (
           <AuthenticatedImg
             className={css.EmoticonImg}
-            src={mxcUrlToHttp(mx, element.key, useAuthentication) ?? element.key}
+            src={mxcUrlToHttp(mx, element.key, useAuthentication) ?? undefined}
             alt={element.shortcode}
           />
         ) : (

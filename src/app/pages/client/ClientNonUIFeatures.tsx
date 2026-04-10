@@ -55,7 +55,7 @@ import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
-import { getBlobCacheStats } from '$hooks/useBlobCache';
+import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
@@ -574,11 +574,11 @@ function PrivacyBlurFeature() {
 }
 
 // Periodically emits memory-health gauges so Sentry dashboards can surface
-// unbounded growth (e.g. blob cache never evicted, stale inflight requests).
+// unbounded growth (e.g. renderable media cache never evicted, stale inflight requests).
 function HealthMonitor() {
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { cacheSize, inflightCount } = getBlobCacheStats();
+      const { cacheSize, inflightCount } = getRenderableMediaUrlStats();
       Sentry.metrics.gauge('sable.media.blob_cache_size', cacheSize);
       if (inflightCount > 0) {
         Sentry.metrics.gauge('sable.media.inflight_requests', inflightCount);

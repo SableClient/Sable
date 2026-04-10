@@ -37,7 +37,7 @@ export function Preview({ previewAtom }: PreviewProps) {
           {key.startsWith('mxc://') ? (
             <AuthenticatedImg
               className={css.PreviewImg}
-              src={mxcUrlToHttp(mx, key, useAuthentication) ?? key}
+              src={mxcUrlToHttp(mx, key, useAuthentication) ?? undefined}
               alt={shortcode}
             />
           ) : (

@@ -3,7 +3,6 @@ import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { downloadMedia } from '$utils/matrix';
-import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import * as css from './ImageViewer.css';
 
 export type ImageViewerProps = {
@@ -14,12 +13,11 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
-    const mediaToken = useMediaDownloadToken();
     const { transforms, cursor, handleWheel, onPointerDown, resetTransforms, zoomIn, zoomOut } =
       useImageGestures(true, 0.2);
 
     const handleDownload = async () => {
-      const fileContent = await downloadMedia(src, mediaToken);
+      const fileContent = await downloadMedia(src);
       FileSaver.saveAs(fileContent, alt);
     };
 

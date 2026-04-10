@@ -39,7 +39,7 @@ export function ImageTile({
       before={
         <AuthenticatedImg
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />
@@ -163,7 +163,7 @@ export function ImageTileEdit({
       before={
         <AuthenticatedImg
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />

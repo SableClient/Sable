@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Session } from '$state/sessions';
+import { fetchMediaBlob } from '$utils/mediaTransport';
 
 export type SessionProfile = {
   displayName?: string;
@@ -15,8 +16,7 @@ const parseMxc = (mxcUrl: string): { serverName: string; mediaId: string } | und
 };
 
 const fetchAvatarBlobUrl = async (
-  baseUrl: string,
-  accessToken: string,
+  session: Session,
   mxcUrl: string
 ): Promise<string | undefined> => {
   const parsed = parseMxc(mxcUrl);
@@ -24,22 +24,21 @@ const fetchAvatarBlobUrl = async (
   const { serverName, mediaId } = parsed;
 
   const tryFetch = async (url: string) => {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const blob = await fetchMediaBlob(url, {
+      accessToken: session.accessToken,
+      sessionScope: session.userId,
     });
-    if (!res.ok) throw new Error(`${res.status}`);
-    const blob = await res.blob();
     return URL.createObjectURL(blob);
   };
 
   try {
     return await tryFetch(
-      `${baseUrl}/_matrix/client/v1/media/thumbnail/${serverName}/${mediaId}?width=96&height=96&method=crop`
+      `${session.baseUrl}/_matrix/client/v1/media/thumbnail/${encodeURIComponent(serverName)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`
     );
   } catch {
     try {
       return await tryFetch(
-        `${baseUrl}/_matrix/media/v3/thumbnail/${serverName}/${mediaId}?width=96&height=96&method=crop`
+        `${session.baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(serverName)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`
       );
     } catch {
       return undefined;
@@ -72,11 +71,7 @@ export const useSessionProfiles = (sessions: Session[]): SessionProfiles => {
 
         let avatarHttpUrl: string | undefined;
         if (data.avatar_url) {
-          avatarHttpUrl = await fetchAvatarBlobUrl(
-            session.baseUrl,
-            session.accessToken,
-            data.avatar_url
-          );
+          avatarHttpUrl = await fetchAvatarBlobUrl(session, data.avatar_url);
           if (avatarHttpUrl) newBlobUrls.push(avatarHttpUrl);
         }
 

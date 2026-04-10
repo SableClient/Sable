@@ -28,7 +28,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useMediaDownloadToken } from '$hooks/useMediaSrc';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 
@@ -72,7 +71,6 @@ export const VideoContent = as<'div', VideoContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
-    const mediaToken = useMediaDownloadToken();
     const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -87,14 +85,12 @@ export const VideoContent = as<'div', VideoContentProps>(
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
         const fileContent = encInfo
-          ? await downloadEncryptedMedia(
-              mediaUrl,
-              (encBuf) => decryptFile(encBuf, mimeType, encInfo),
-              mediaToken
+          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
+              decryptFile(encBuf, mimeType, encInfo)
             )
-          : await downloadMedia(mediaUrl, mediaToken);
+          : await downloadMedia(mediaUrl);
         return URL.createObjectURL(fileContent);
-      }, [mx, url, useAuthentication, mimeType, encInfo, mediaToken])
+      }, [mx, url, useAuthentication, mimeType, encInfo])
     );
 
     // When the source download succeeds, reset video-element error state so the

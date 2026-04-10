@@ -4,7 +4,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useMediaSrc, useMediaDownloadToken } from '$hooks/useMediaSrc';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
 export type ThumbnailContentProps = {
@@ -14,7 +14,6 @@ export type ThumbnailContentProps = {
 export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
-  const mediaToken = useMediaDownloadToken();
 
   const encInfo = info.thumbnail_file;
   const thumbMxcUrl = encInfo?.url ?? info.thumbnail_url;
@@ -24,7 +23,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
     return mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication) ?? undefined;
   }, [mx, thumbMxcUrl, useAuthentication]);
 
-  const resolvedMediaUrl = useMediaSrc(encInfo ? undefined : rawMediaUrl);
+  const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
 
   const [thumbSrcState, loadThumbSrc] = useAsyncCallback(
     useCallback(async () => {
@@ -34,15 +33,13 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       }
       if (encInfo) {
         if (!rawMediaUrl) throw new Error('Invalid media URL');
-        const fileContent = await downloadEncryptedMedia(
-          rawMediaUrl,
-          (encBuf) => decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo),
-          mediaToken
+        const fileContent = await downloadEncryptedMedia(rawMediaUrl, (encBuf) =>
+          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
         );
         return URL.createObjectURL(fileContent);
       }
       return resolvedMediaUrl ?? rawMediaUrl ?? thumbMxcUrl;
-    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, encInfo, mediaToken])
+    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, encInfo])
   );
 
   useEffect(() => {

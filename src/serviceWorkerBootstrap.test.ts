@@ -89,4 +89,24 @@ describe('registerAppServiceWorker', () => {
     expect(mockRegister).toHaveBeenCalled();
     expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
   });
+
+  it('pushes the active session immediately when a controller already exists', () => {
+    mockHasServiceWorker.mockReturnValue(true);
+
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {
+        serviceWorker: {
+          register: mockRegister,
+          ready: mockReady,
+          controller: { postMessage: vi.fn() },
+          addEventListener: mockAddEventListener,
+        },
+      },
+    });
+
+    registerAppServiceWorker();
+
+    expect(mockPushSessionToSW).toHaveBeenCalledTimes(1);
+  });
 });

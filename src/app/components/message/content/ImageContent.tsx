@@ -31,7 +31,7 @@ import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useMediaSrc, useMediaDownloadToken } from '$hooks/useMediaSrc';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
@@ -83,7 +83,6 @@ export const ImageContent = as<'div', ImageContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
-    const mediaToken = useMediaDownloadToken();
     const blurHash = validBlurHash(info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
@@ -97,21 +96,19 @@ export const ImageContent = as<'div', ImageContentProps>(
       return mxcUrlToHttp(mx, url, useAuthentication) ?? undefined;
     }, [mx, url, useAuthentication]);
 
-    const resolvedMediaUrl = useMediaSrc(encInfo ? undefined : rawMediaUrl);
+    const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
         if (encInfo) {
           if (!rawMediaUrl) throw new Error('Invalid media URL');
-          const fileContent = await downloadEncryptedMedia(
-            rawMediaUrl,
-            (encBuf) => decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo),
-            mediaToken
+          const fileContent = await downloadEncryptedMedia(rawMediaUrl, (encBuf) =>
+            decryptFile(encBuf, mimeType ?? FALLBACK_MIMETYPE, encInfo)
           );
           return URL.createObjectURL(fileContent);
         }
         return resolvedMediaUrl ?? rawMediaUrl ?? url;
-      }, [rawMediaUrl, resolvedMediaUrl, url, mimeType, encInfo, mediaToken])
+      }, [rawMediaUrl, resolvedMediaUrl, url, mimeType, encInfo])
     );
 
     // When the source download succeeds, reset image-element error state so the

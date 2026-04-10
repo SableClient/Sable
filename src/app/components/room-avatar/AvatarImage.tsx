@@ -3,7 +3,7 @@ import { ReactEventHandler, useState, useEffect } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { useMediaSrc } from '$hooks/useMediaSrc';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import * as css from './RoomAvatar.css';
 
 type AvatarImageProps = {
@@ -16,7 +16,7 @@ type AvatarImageProps = {
 export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
   const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const resolvedSrc = useMediaSrc(src);
+  const resolvedSrc = useRenderableMediaUrl(src);
   const mediaSrc = resolvedSrc ?? src;
   const [processedSrc, setProcessedSrc] = useState<string>(mediaSrc);
 

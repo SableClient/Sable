@@ -162,18 +162,10 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const senderAvatarMxc = getMemberAvatarMxc(room, senderId);
   const getContent = (() => rootEvent.getContent()) as GetContentCallback;
 
-  // Prefer a locally-counted reply count (based on events already in the thread
-  // timeline) but fall back to thread.length which is the server-reported count
-  // from bundled m.thread aggregations.  This means that for threads discovered
-  // via fetchRoomThreads() whose timeline hasn't been paginated yet we still
-  // show the correct count rather than zero.
   const localReplyCount = thread.events.filter(
     (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
   ).length;
   // Use Math.max so we never show fewer replies than the server reports.
-  // thread.length is the server-reported count from bundled m.thread aggregations;
-  // it may slightly overcount reactions but is far more accurate than a partial
-  // local cache (e.g. 5 loaded vs 22 on server).
   const replyCount = Math.max(localReplyCount, thread.length ?? 0);
 
   const lastReply = thread.events

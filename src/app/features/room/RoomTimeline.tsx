@@ -267,6 +267,12 @@ export function RoomTimeline({
   // A recovery useLayoutEffect watches for processedEvents becoming non-empty
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
+  // Set to true before each programmatic scroll-to-bottom so intermediate
+  // onScroll events from virtua's height-correction pass cannot drive
+  // atBottomState to false (flashing the "Jump to Latest" button).
+  // Cleared when VList confirms isNowAtBottom, or on the first intermediate
+  // event so subsequent user-initiated scrolls are tracked normally.
+  const programmaticScrollToBottomRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
@@ -276,6 +282,7 @@ export function RoomTimeline({
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
+    programmaticScrollToBottomRef.current = false;
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
@@ -350,6 +357,7 @@ export function RoomTimeline({
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
+          programmaticScrollToBottomRef.current = true;
           vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
           // Only mark ready once we've successfully scrolled.  If processedEvents
           // was empty when the timer fired (e.g. the onLifecycle reset cleared the
@@ -731,8 +739,20 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+      // Clear the programmatic-scroll guard whenever VList confirms we are at the
+      // bottom, regardless of whether atBottomRef needs updating.
+      if (isNowAtBottom) programmaticScrollToBottomRef.current = false;
       if (isNowAtBottom !== atBottomRef.current) {
-        setAtBottom(isNowAtBottom);
+        if (isNowAtBottom || !programmaticScrollToBottomRef.current) {
+          setAtBottom(isNowAtBottom);
+        } else {
+          // VList fired an intermediate "not at bottom" event while settling after
+          // a programmatic scroll-to-bottom (e.g. height-correction pass). Suppress
+          // the false negative and clear the guard so the next event — either a
+          // VList correction to the true bottom, or a genuine user scroll — is
+          // processed normally.
+          programmaticScrollToBottomRef.current = false;
+        }
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
@@ -859,6 +879,7 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
+    programmaticScrollToBottomRef.current = true;
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
     // scrollToIndex is async; pre-empt atBottom so the "Jump to Latest" button
     // doesn't flash for one render cycle before onScroll confirms the position.

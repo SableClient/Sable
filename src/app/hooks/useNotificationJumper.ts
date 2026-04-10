@@ -52,13 +52,30 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      log.log('jumping to:', pending.roomId, pending.eventId);
+      // If the notification event is already in the room's live timeline (i.e.
+      // sliding sync has already delivered it), open the room at the live bottom
+      // rather than using the eventId URL path.  The eventId path triggers
+      // loadEventTimeline → roomInitialSync which loads a historical slice that
+      // (a) may look like a brand-new chat if the event is the only one in the
+      // slice, and (b) makes the room appear empty when the user navigates away
+      // and returns without the eventId, because the sliding-sync live timeline
+      // hasn't been populated yet.  Omitting the eventId for events already in
+      // the live timeline lets the room open normally at the bottom where the
+      // new message is visible.  Historical events (not in live timeline) still
+      // use the eventId so loadEventTimeline can jump to the right context.
+      const liveEvents = room?.getUnfilteredTimelineSet?.()?.getLiveTimeline?.()?.getEvents?.();
+      const eventInLive =
+        pending.eventId && liveEvents
+          ? liveEvents.some((e) => e.getId() === pending.eventId)
+          : false;
+      const resolvedEventId = eventInLive ? undefined : pending.eventId;
+      log.log('jumping to:', pending.roomId, resolvedEventId, { eventInLive });
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, pending.eventId));
+        navigate(getDirectRoomPath(roomIdOrAlias, resolvedEventId));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -74,11 +91,11 @@ export function NotificationJumper() {
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace),
               roomIdOrAlias,
-              pending.eventId
+              resolvedEventId
             )
           );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, pending.eventId));
+          navigate(getHomeRoomPath(roomIdOrAlias, resolvedEventId));
         }
       }
       setPending(null);

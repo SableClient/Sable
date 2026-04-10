@@ -297,6 +297,9 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
+    // Guard against VList's intermediate height-correction scroll events that
+    // would otherwise call setAtBottom(false) before the scroll settles.
+    programmaticScrollToBottomRef.current = true;
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, []);
 
@@ -745,14 +748,13 @@ export function RoomTimeline({
       if (isNowAtBottom !== atBottomRef.current) {
         if (isNowAtBottom || !programmaticScrollToBottomRef.current) {
           setAtBottom(isNowAtBottom);
-        } else {
-          // VList fired an intermediate "not at bottom" event while settling after
-          // a programmatic scroll-to-bottom (e.g. height-correction pass). Suppress
-          // the false negative and clear the guard so the next event — either a
-          // VList correction to the true bottom, or a genuine user scroll — is
-          // processed normally.
-          programmaticScrollToBottomRef.current = false;
         }
+        // else: programmatic guard active — suppress the false-negative and keep
+        // the guard set.  VList can fire several intermediate "not at bottom"
+        // events while it corrects item heights after a scrollTo(); clearing the
+        // guard on the first one would let the second cause a spurious
+        // setAtBottom(false) and flash the "Jump to Latest" button.  The guard
+        // is cleared above (unconditionally) when isNowAtBottom becomes true.
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {

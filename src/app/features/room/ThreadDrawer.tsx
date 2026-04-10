@@ -98,19 +98,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [jumpToEventId, setJumpToEventId] = useState<string | undefined>(undefined);
   const [loadingOlderReplies, setLoadingOlderReplies] = useState(false);
   const [canPageBack, setCanPageBack] = useState(true);
-  // Ref guard so the auto-paginate effect never starts a second concurrent request.
   const paginatingOlderRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevReplyCountRef = useRef(0);
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
-  // Track whether we've already attempted a server fetch for a given threadRootId.
-  // Prevents infinite re-fetch loops on genuinely empty threads while still
-  // allowing the first fetch even when thread.length === 0 (sliding sync case
-  // where bundled aggregations are absent so replyCount defaults to 0).
   const serverFetchAttemptedRef = useRef<string | null>(null);
-  // True while the viewport auto-fill is actively paginating backwards.
-  // Used so the auto-scroll effect keeps the user anchored to the bottom
-  // (showing latest replies) while older content is prepended at the top.
   const autoFillInProgressRef = useRef(false);
   const { editId, handleEdit } = useMessageEdit(editor);
   const nicknames = useAtomValue(nicknamesAtom);
@@ -280,30 +272,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const processedReplies = displayReplies;
 
   // Ensure the Thread object exists and has its reply events loaded.
-  //
-  // Case A — no Thread object yet (e.g. root event was loaded via jump/backward
-  //   pagination but the SDK hasn't created a Thread shell for it):
-  //   Call room.createThread() so the SDK constructor kicks off
-  //   updateThreadMetadata() → resetLiveTimeline() + paginateEventTimeline()
-  //   automatically.  ThreadEvent.Update fires when done → forceUpdate → re-render.
-  //   DO NOT call resetLiveTimeline() or paginateEventTimeline() ourselves —
-  //   that would race with the SDK's own initialization and cause a flood of
-  //   "Ignoring event … does not belong in timeline" warnings.
-  //
-  //   If the root is also outside the local timeline (e.g. a thread discovered
-  //   via ThreadBrowser but whose root predates the sliding-sync window), we
-  //   fetch it bare with fetchRoomEvent — this does NOT add it to the main
-  //   room timeline or cause any TimelineRefresh side-effects.
-  //
-  // Case B — Thread exists but initialEventsFetched is false (server-side thread
-  //   support active; SDK's updateThreadMetadata() is running):
-  //   Do nothing — the SDK will fire ThreadEvent.Update when done.
-  //
-  // Case C — Thread exists, initialEventsFetched is true (classic sync or SDK
-  //   has already finished initialising):
-  //   With classic sync the SDK never paginates thread timelines, so we backfill
-  //   from the main live timeline.  With server-side threads the SDK already
-  //   populated thread.events; this block is a no-op in that case.
   useEffect(() => {
     // Case A: create thread shell; SDK handles the rest asynchronously.
     if (!room.getThread(threadRootId)) {
@@ -352,36 +320,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       return;
     }
 
-    // No local events anywhere. We always attempt one server fetch here because
-    // with sliding sync the server omits bundled aggregations from subscription
-    // timeline events, leaving thread.replyCount at 0 even when the server has
-    // replies (the old `if (!currThread.length) return` guard incorrectly bailed
-    // out in that case). We use serverFetchAttemptedRef to ensure we only try
-    // once per threadRootId — if the paginate truly returns nothing, the ref
-    // prevents an infinite re-fetch loop.
     if (serverFetchAttemptedRef.current === threadRootId) return;
     serverFetchAttemptedRef.current = threadRootId;
 
-    // Do NOT call resetLiveTimeline() here.  Resetting a thread timeline emits
-    // RoomEvent.TimelineReset on the thread's EventTimelineSet; Thread's own
-    // onTimelineReset handler then awaits processRootEventPromise (a live
-    // fetchRootEvent network call).  If that promise is still pending this
-    // creates a deadlock that hangs and eventually crashes the app — observed
-    // on both classic sync and sliding sync.
-    //
-    // Calling paginateEventTimeline directly is safe: the thread's back-token
-    // is null (set by the fast path when replyCount was 0 at construction), but
-    // the SDK maps null → undefined for the `from` parameter and calls
-    // fetchRelations without a cursor, which correctly fetches the latest
-    // replies from the server.
     mx.paginateEventTimeline(currThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then(() => forceUpdate((n) => n + 1))
       .catch(() => {});
     // forceUpdateCounter must be in deps so this effect re-runs after
     // ThreadEvent.Update fires (which flips initialEventsFetched from false to
-    // true).  Without it the effect runs once on mount, hits Case B
-    // (initialEventsFetched=false) and never runs again — leaving the drawer
-    // empty on sliding sync where replyCount starts at 0.
+    // true). 
   }, [mx, room, threadRootId, forceUpdate, forceUpdateCounter]);
 
   // Re-render when new thread events arrive (including reactions via ThreadEvent.Update).
@@ -514,11 +461,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   }, []);
 
   // Auto-scroll to bottom when event count grows.
-  // During viewport auto-fill (autoFillInProgressRef) we ALWAYS scroll to the
-  // bottom: older messages are prepended at the top, so scrollTop stays at 0
-  // (clamped), and when content first overflows the isAtBottom check would be
-  // false — leaving the user staring at the oldest messages instead of the
-  // latest ones.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

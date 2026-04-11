@@ -1,7 +1,8 @@
 {
-  "version": 1,
-  "commands_hash": "edb9b7088f556ea8",
+  "version": 2,
+  "commands_hash": "fc2eef5fe637d84",
   "structs_hash": "558120cf32bcd332",
+  "events_hash": "7904dd65836c8ff4",
   "config_hash": "c72a07caa5bc6ed4",
-  "combined_hash": "1295970cbdd1d836"
+  "combined_hash": "6c5e9d69794c83ae"
 }

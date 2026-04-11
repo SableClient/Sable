@@ -113,6 +113,24 @@ export const EmojiGroupContent = style([
   },
 ]);
 
+export const GifGroupContent = style([
+  DefaultReset,
+  {
+    columnCount: 3,
+    columnGap: config.space.S100,
+    padding: `0 ${config.space.S200}`,
+
+    '@media': {
+      'screen and (max-width: 768px)': {
+        columnCount: 2,
+      },
+      'screen and (max-width: 480px)': {
+        columnCount: 1,
+      },
+    },
+  },
+]);
+
 /**
  * Item
  */
@@ -159,3 +177,44 @@ export const StickerImg = style([
     objectFit: 'contain',
   },
 ]);
+
+export const GifContainer = style({
+  columnCount: 3,
+  columnGap: toRem(8),
+  padding: toRem(16),
+
+  '@media': {
+    '(max-width: 768px)': {
+      columnCount: 2,
+    },
+    '(max-width: 480px)': {
+      columnCount: 1,
+    },
+  },
+});
+
+export const GifItem = style([
+  DefaultReset,
+  FocusOutline,
+  {
+    width: '100%',
+    marginBottom: toRem(8),
+    breakInside: 'avoid',
+    borderRadius: config.radii.R400,
+    cursor: 'pointer',
+    overflow: 'hidden',
+    display: 'block',
+    backgroundColor: color.SurfaceVariant.Container,
+
+    ':hover': {
+      backgroundColor: color.Surface.ContainerHover,
+    },
+  },
+]);
+
+export const GifImg = style({
+  display: 'block',
+  width: '100%',
+  height: 'auto',
+  objectFit: 'cover',
+});

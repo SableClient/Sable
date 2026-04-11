@@ -68,8 +68,8 @@ function UserExtendedSection({
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
-  const [showMore, setShowMore] = useState(false);
-  const [moreIndex, setMoreIndex] = useState(-1);
+  const [showMisc, setShowMisc] = useState(false);
+  const [miscDataIndex, setMiscDataIndex] = useState(-1);
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
@@ -147,12 +147,17 @@ function UserExtendedSection({
   );
 
   function handleMiscSelector(index: number) {
-    setMoreIndex(index);
-    setShowMore(false);
+    setMiscDataIndex(index);
+    setShowMisc(false);
   }
 
-  const miscSelector = useMemo(
-    () => (
+  const miscSelector = useMemo(() => {
+    if (unknownFields.length === 1 && showMisc) {
+      setShowMisc(false);
+      setMiscDataIndex(miscDataIndex === -1 ? 0 : -1);
+      return null;
+    }
+    return (
       <Menu style={{ position: 'absolute', zIndex: '100', transform: `translateY(${toRem(32)})` }}>
         <MenuItem
           size="300"
@@ -178,9 +183,8 @@ function UserExtendedSection({
           </MenuItem>
         ))}
       </Menu>
-    ),
-    [unknownFields]
-  );
+    );
+  }, [miscDataIndex, showMisc, unknownFields]);
   const miscHeader = useMemo(
     () => (
       <Box justifyContent="Center" grow="Yes">
@@ -188,8 +192,8 @@ function UserExtendedSection({
           variant="Secondary"
           size="300"
           fill="None"
-          onClick={() => setShowMore(!showMore)}
-          after={moreIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
+          onClick={() => setShowMisc(!showMisc)}
+          after={miscDataIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
           style={{
             padding: '1rem',
             justifyContent: 'flex-start',
@@ -198,15 +202,15 @@ function UserExtendedSection({
           }}
         >
           <Text size="T200" priority="400">
-            {moreIndex === -1
-              ? `Show Misc. Data (${unknownFields.length} values)`
-              : `${unknownFields[moreIndex][0]} (${moreIndex + 1}/${unknownFields.length})`}
+            {miscDataIndex === -1
+              ? `Show Misc. Data (${unknownFields.length} value${unknownFields.length > 1 ? 's' : ''})`
+              : `${unknownFields[miscDataIndex][0]} ${unknownFields.length > 1 ? `(${miscDataIndex + 1}/${unknownFields.length})` : ''}`}
           </Text>
         </Button>
-        {showMore && miscSelector}
+        {showMisc && miscSelector}
       </Box>
     ),
-    [miscSelector, moreIndex, showMore, unknownFields]
+    [miscSelector, miscDataIndex, showMisc, unknownFields]
   );
 
   return (
@@ -270,8 +274,8 @@ function UserExtendedSection({
 
       {unknownFields.length > 0 && (
         <Box direction="Column" gap="100">
-          {moreIndex === -1 && miscHeader}
-          {moreIndex > -1 && (
+          {miscDataIndex === -1 && miscHeader}
+          {miscDataIndex > -1 && (
             <div
               style={{
                 border: '2px solid',
@@ -294,7 +298,9 @@ function UserExtendedSection({
                     size="300"
                     fill="None"
                     onClick={() =>
-                      setMoreIndex(moreIndex === 0 ? unknownFields.length - 1 : moreIndex - 1)
+                      setMiscDataIndex(
+                        miscDataIndex === 0 ? unknownFields.length - 1 : miscDataIndex - 1
+                      )
                     }
                   >
                     <Icon src={Icons.ArrowLeft} size="50" />
@@ -306,7 +312,7 @@ function UserExtendedSection({
                     variant="Secondary"
                     size="300"
                     fill="None"
-                    onClick={() => setMoreIndex((moreIndex + 1) % unknownFields.length)}
+                    onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
                   >
                     <Icon src={Icons.ArrowRight} size="50" />
                   </Button>
@@ -322,7 +328,7 @@ function UserExtendedSection({
                   }}
                 >
                   <TextViewerContent
-                    text={renderValue(unknownFields[moreIndex][1])}
+                    text={renderValue(unknownFields[miscDataIndex][1])}
                     langName="json"
                   />
                 </Box>

@@ -12,13 +12,6 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
-// Timestamp (Date.now()) of the last time appIsVisible was set to true.
-// Used to expire the flag if the app backgrounded before the SW received the
-// hidden message (e.g. iOS suspended the JS context mid-visibilitychange).
-let appVisibleSetAt = 0;
-// If no visible heartbeat has been received in this window, treat the flag as
-// stale and do not suppress push notifications.
-const APP_VISIBLE_TTL_MS = 30_000;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -578,7 +571,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
-      if (appIsVisible) appVisibleSetAt = Date.now();
     }
   }
   if (type === 'setNotificationSettings') {
@@ -758,21 +750,20 @@ const onPushNotification = async (event: PushEvent) => {
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
   //
-  // Two-tier visibility check:
-  // 1. When clients.matchAll() returns ≥1 client, trust its visibilityState
-  //    directly.  iOS can suspend the JS thread before postMessage({ visible:
-  //    false }) is processed, leaving appIsVisible stuck at true.  matchAll()
-  //    still reports the backgrounded client as 'hidden', so it is the
-  //    authoritative signal when available.
-  // 2. When matchAll() returns zero clients (a separate iOS Safari PWA quirk
-  //    where the page is invisible to the SW even while visible), fall back to
-  //    the TTL-gated flag: the flag expires after APP_VISIBLE_TTL_MS so a stale
-  //    true from a quick background doesn't permanently suppress notifications.
-  const appIsVisibleFresh = appIsVisible && Date.now() - appVisibleSetAt < APP_VISIBLE_TTL_MS;
+  // When clients.matchAll() returns ≥1 client, trust its visibilityState
+  // directly.  iOS can suspend the JS thread before postMessage({ visible:
+  // false }) is processed, leaving appIsVisible stuck at true.  matchAll()
+  // still reports the backgrounded client as 'hidden', so it is the
+  // authoritative and most reliable signal.
+  //
+  // When matchAll() returns zero clients (a separate iOS Safari PWA quirk),
+  // visibility is unknowable — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
     clients.length > 0
       ? clients.some((client) => client.visibilityState === 'visible')
-      : appIsVisibleFresh;
+      : false;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

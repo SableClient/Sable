@@ -293,10 +293,8 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const [topicEvent, setTopicEvent] = useState(getStateEvent(room, StateEvent.RoomTopic));
+  const topicEvent = getStateEvent(room, StateEvent.RoomTopic);
 
-  // Ensures that the description does not stick to the position the room is in the row
-  useEffect(() => setTopicEvent(getStateEvent(room, StateEvent.RoomTopic)), [room, setTopicEvent]);
   const roomDescription = direct
     ? (customDMCards && (topicEvent?.getContent().topic as string)) || presence?.status
     : undefined;

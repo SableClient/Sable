@@ -25,12 +25,12 @@ log = "0.4"
 tokio = { version = "1", features = ["time", "sync"] }
 ts-rs = "12.0.0"
 
-tauri = { version = "2.10.3", default-features = false, features = ["tray-icon", "dynamic-acl", "compression", "devtools", "x11", "common-controls-v6"] }
+tauri = { version = "2.10.3", default-features = false, features = ["tray-icon", "dynamic-acl", "compression", "devtools", "x11", "common-controls-v6", "dbus"] }
 
-tauri-plugin-log = "2"
+tauri-plugin-log = "2.8.0"
 tauri-plugin-opener = "2.5.3"
 tauri-plugin-os = "2.3.2"
-tauri-plugin-deep-link = "2.4.7"
+tauri-plugin-deep-link = "2.4.8"
 tauri-plugin-http = "2.5.8"
 tauri-plugin-store = "2.4.2"
 
@@ -44,7 +44,7 @@ windows = { version = "0.61", features = [
 ] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
-tauri-plugin-single-instance = { version = "2.4.0", features = ["deep-link"] }
+tauri-plugin-single-instance = { version = "2.4.1", features = ["deep-link"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2.4.1"
@@ -58,6 +58,15 @@ default = ["wry"]
 custom-protocol = ["tauri/custom-protocol"]
 wry = ["tauri/wry"]
 cef = []
+[patch.crates-io]
+tauri = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-build = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-plugin = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-utils = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-macros = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-runtime = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-runtime-wry = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+
 # To test the CEF runtime path, switch this back to `cef = ["tauri/cef"]`
 # and uncomment the patch scaffold below.
 # cef = ["tauri/cef"]

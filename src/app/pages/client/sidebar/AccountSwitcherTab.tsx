@@ -40,7 +40,7 @@ import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { logoutClient, initClient, stopClient } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
-import { useUserPresence } from '$hooks/useUserPresence';
+import { Presence } from '$hooks/useUserPresence';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
 import { useOpenSettings } from '$features/settings';
@@ -50,6 +50,8 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -175,7 +177,14 @@ export function AccountSwitcherTab() {
 
   const myUserId = mx.getUserId() ?? '';
   const activeProfile = useUserProfile(myUserId);
-  const myPresence = useUserPresence(myUserId);
+  // Own presence badge is driven from settings state rather than the SDK's User object.
+  // The SDK won't echo your own presence back on MSC4186 sliding sync, so reading
+  // user.presence would leave the badge stuck at the SDK default forever.
+  const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const myOwnPresence: Presence | undefined = sendPresence
+    ? ((presenceMode ?? 'online') as Presence)
+    : undefined;
   const activeAvatarUrl = activeProfile.avatarUrl
     ? (mxcUrlToHttp(mx, activeProfile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
@@ -275,9 +284,7 @@ export function AccountSwitcherTab() {
         {(triggerRef) => (
           <AvatarPresence
             badge={
-              myPresence && myPresence.lastActiveTs !== 0 ? (
-                <PresenceBadge presence={myPresence.presence} size="200" />
-              ) : undefined
+              myOwnPresence ? <PresenceBadge presence={myOwnPresence} size="200" /> : undefined
             }
           >
             <SidebarAvatar
@@ -362,6 +369,43 @@ export function AccountSwitcherTab() {
                 >
                   <Text size="T300">Add Account</Text>
                 </MenuItem>
+                <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
+                <Text size="L400" style={{ padding: `${config.space.S100} ${config.space.S200}` }}>
+                  Status
+                </Text>
+                {(
+                  [
+                    { statusLabel: 'Online', presence: Presence.Online },
+                    { statusLabel: 'Away', presence: Presence.Unavailable },
+                    { statusLabel: 'Invisible', presence: Presence.Offline },
+                  ] as const
+                ).map(({ statusLabel, presence }) => {
+                  const isSelected = sendPresence && (presenceMode ?? 'online') === presence;
+                  return (
+                    <MenuItem
+                      key={presence}
+                      size="300"
+                      radii="300"
+                      before={<PresenceBadge presence={presence} size="300" />}
+                      after={
+                        isSelected ? (
+                          <Icon
+                            size="200"
+                            src={Icons.Check}
+                            style={{ color: 'var(--mx-c-success)' }}
+                          />
+                        ) : undefined
+                      }
+                      onClick={() => {
+                        setPresenceMode(presence);
+                        // Re-enable presence broadcasting if the master toggle was off
+                        if (!sendPresence) setSendPresence(true);
+                      }}
+                    >
+                      <Text size="T300">{statusLabel}</Text>
+                    </MenuItem>
+                  );
+                })}
                 <Line variant="Surface" size="300" style={{ margin: `${config.space.S100} 0` }} />
                 <MenuItem
                   size="300"

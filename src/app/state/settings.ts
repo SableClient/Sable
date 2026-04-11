@@ -53,6 +53,7 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -88,9 +89,12 @@ export interface Settings {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
+  /** Which Matrix presence state to broadcast when sendPresence is true. */
+  presenceMode: 'online' | 'unavailable' | 'offline';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -116,6 +120,9 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+
+  // experimental
+  enableMessageBookmarks: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -147,6 +154,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,
@@ -187,9 +195,11 @@ const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,
+  presenceMode: 'online',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
@@ -215,6 +225,9 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+
+  // experimental
+  enableMessageBookmarks: false,
 
   // furry stuff
   renderAnimals: true,

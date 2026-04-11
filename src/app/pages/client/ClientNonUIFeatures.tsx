@@ -56,6 +56,7 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -644,10 +645,23 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
+    const postHidden = () => {
+      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
+      // when the user locks the screen or backgrounds the app quickly, making
+      // it less likely that the SW is left with a stale appIsVisible=true.
+      const msg = { type: 'setAppVisible', visible: false };
+      navigator.serviceWorker.controller?.postMessage(msg);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    };
+
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    window.addEventListener('pagehide', postHidden);
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.removeEventListener('pagehide', postHidden);
+    };
   }, []);
 
   useEffect(() => {
@@ -828,20 +842,27 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
 
   useEffect(() => {
+    // Effective broadcast state: honour presenceMode when presence is on, otherwise offline.
+    const effectiveState = sendPresence ? (presenceMode ?? 'online') : 'offline';
+    const broadcasting = effectiveState !== 'offline';
+
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
+    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
+    // Sliding sync: keep the extension enabled so we always receive others' presence.
+    // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-    // Synapse MSC4186 sliding sync has no presence extension, so setSyncPresence has no
-    // effect. Explicitly PUT /presence/{userId}/status so the server knows the user's
-    // state — otherwise GET /presence returns stale offline and own presence badge is grey.
-    mx.setPresence({ presence: sendPresence ? 'online' : 'offline' }).catch(() => {
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
+    // - MSC4186 servers that have no presence extension see this immediately.
+    // - When 'offline' (Invisible mode), we appear offline to others but still receive
+    //   their presence events because the extension is still enabled above.
+    mx.setPresence({ presence: effectiveState }).catch(() => {
       // Server doesn't support presence — ignore.
     });
-  }, [mx, sendPresence]);
+  }, [mx, sendPresence, presenceMode]);
 
   return null;
 }
@@ -851,11 +872,17 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
+      <BookmarksFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

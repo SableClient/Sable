@@ -93,6 +93,8 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
+  /** Which Matrix presence state to broadcast when sendPresence is true. */
+  presenceMode: 'online' | 'unavailable' | 'offline';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -118,6 +120,9 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+
+  // experimental
+  enableMessageBookmarks: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -194,6 +199,7 @@ const defaultSettings: Settings = {
 
   // Sable features!
   sendPresence: true,
+  presenceMode: 'online',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
@@ -219,6 +225,9 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+
+  // experimental
+  enableMessageBookmarks: false,
 
   // furry stuff
   renderAnimals: true,

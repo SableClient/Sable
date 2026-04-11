@@ -1,4 +1,4 @@
-import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
+import { Box, Button, config, Icon, Icons, Scroll, Text, toRem } from 'folds';
 import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -67,11 +67,8 @@ function UserExtendedSection({
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
-  const clamp = (str: any, len: number) => {
-    const stringified = String(str ?? '');
-    return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
-  };
   const [showMore, setShowMore] = useState(false);
+  const [moreIndex, setMoreIndex] = useState(0);
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
@@ -223,25 +220,54 @@ function UserExtendedSection({
           </Button>
 
           {showMore && (
-            <Box
-              direction="Column"
-              style={{
-                padding: config.space.S200,
-                backgroundColor: 'var(--sable-surface-container)',
-                borderRadius: config.radii.R400,
-              }}
-            >
-              {unknownFields.map(([key, value]) => (
-                <Box key={key} direction="Column" style={{ marginBottom: config.space.S100 }}>
-                  <Text size="T200" priority="400" style={{ letterSpacing: '0.05em' }}>
-                    {key}
-                  </Text>
+            <>
+              <Box direction="Row" justifyContent="SpaceBetween" alignContent="Center">
+                {unknownFields.length > 1 && (
+                  <Button
+                    variant="Secondary"
+                    size="300"
+                    fill="None"
+                    onClick={() =>
+                      setMoreIndex(moreIndex === 0 ? unknownFields.length - 1 : moreIndex - 1)
+                    }
+                  >
+                    <Icon src={Icons.ArrowLeft} size="50" />
+                  </Button>
+                )}
+                <Text
+                  size="T200"
+                  priority="400"
+                  style={{ letterSpacing: '0.05em', alignSelf: 'center' }}
+                >
+                  {unknownFields[moreIndex][0]}
+                </Text>
+                {unknownFields.length > 1 && (
+                  <Button
+                    variant="Secondary"
+                    size="300"
+                    fill="None"
+                    onClick={() => setMoreIndex((moreIndex + 1) % unknownFields.length)}
+                  >
+                    <Icon src={Icons.ArrowRight} size="50" />
+                  </Button>
+                )}
+              </Box>
+              <Scroll size="300" direction="Both">
+                <Box
+                  direction="Column"
+                  style={{
+                    padding: config.space.S200,
+                    backgroundColor: 'var(--sable-surface-container)',
+                    borderRadius: config.radii.R400,
+                    maxHeight: toRem(100),
+                  }}
+                >
                   <Text size="T200" priority="300">
-                    {clamp(renderValue(value), 128)}
+                    {renderValue(unknownFields[moreIndex][1])}
                   </Text>
                 </Box>
-              ))}
-            </Box>
+              </Scroll>
+            </>
           )}
         </Box>
       )}

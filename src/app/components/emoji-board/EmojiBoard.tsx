@@ -588,7 +588,9 @@ export function EmojiBoard({
       (evt) => {
         const term = evt.target.value;
         if (tab === EmojiBoardTab.Gif) {
-          searchGifs(term);
+          if (term) {
+            searchGifs(term);
+          }
         } else if (term) {
           search(term);
         } else {

@@ -846,7 +846,9 @@ function PresenceFeature() {
 
   useEffect(() => {
     // Effective broadcast state: honour presenceMode when presence is on, otherwise offline.
-    const effectiveState = sendPresence ? (presenceMode ?? 'online') : 'offline';
+    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
+    const activePresence = presenceMode === 'dnd' ? 'online' : (presenceMode ?? 'online');
+    const effectiveState = sendPresence ? activePresence : 'offline';
     const broadcasting = effectiveState !== 'offline';
 
     // Classic sync: set_presence query param on every /sync poll.
@@ -859,7 +861,10 @@ function PresenceFeature() {
     // - MSC4186 servers that have no presence extension see this immediately.
     // - When 'offline' (Invisible mode), we appear offline to others but still receive
     //   their presence events because the extension is still enabled above.
-    mx.setPresence({ presence: effectiveState }).catch(() => {
+    mx.setPresence({
+      presence: effectiveState,
+      status_msg: sendPresence && presenceMode === 'dnd' ? 'dnd' : '',
+    }).catch(() => {
       // Server doesn't support presence — ignore.
     });
   }, [mx, sendPresence, presenceMode]);

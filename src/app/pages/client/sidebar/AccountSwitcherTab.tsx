@@ -1,5 +1,6 @@
-import { MouseEvent, MouseEventHandler, useCallback, useState } from 'react';
+import { MouseEvent, MouseEventHandler, ReactNode, useCallback, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -182,9 +183,16 @@ export function AccountSwitcherTab() {
   // user.presence would leave the badge stuck at the SDK default forever.
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
-  const myOwnPresence: Presence | undefined = sendPresence
-    ? ((presenceMode ?? 'online') as Presence)
-    : undefined;
+  let myOwnPresenceBadge: ReactNode;
+  if (sendPresence) {
+    myOwnPresenceBadge =
+      presenceMode === 'dnd' ? (
+        // DND: solid red badge (broadcasts as online with status_msg 'dnd')
+        <Badge size="200" variant="Critical" fill="Solid" radii="Pill" />
+      ) : (
+        <PresenceBadge presence={(presenceMode ?? 'online') as Presence} size="200" />
+      );
+  }
   const activeAvatarUrl = activeProfile.avatarUrl
     ? (mxcUrlToHttp(mx, activeProfile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
@@ -282,11 +290,7 @@ export function AccountSwitcherTab() {
     <SidebarItem active={!!menuAnchor}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
-          <AvatarPresence
-            badge={
-              myOwnPresence ? <PresenceBadge presence={myOwnPresence} size="200" /> : undefined
-            }
-          >
+          <AvatarPresence badge={myOwnPresenceBadge}>
             <SidebarAvatar
               as="button"
               ref={triggerRef}
@@ -375,18 +379,29 @@ export function AccountSwitcherTab() {
                 </Text>
                 {(
                   [
-                    { statusLabel: 'Online', presence: Presence.Online },
-                    { statusLabel: 'Away', presence: Presence.Unavailable },
-                    { statusLabel: 'Invisible', presence: Presence.Offline },
+                    { label: 'Online', desc: undefined, mode: 'online' as const },
+                    { label: 'Idle', desc: undefined, mode: 'unavailable' as const },
+                    { label: 'Do Not Disturb', desc: undefined, mode: 'dnd' as const },
+                    {
+                      label: 'Invisible',
+                      desc: 'You will appear offline',
+                      mode: 'offline' as const,
+                    },
                   ] as const
-                ).map(({ statusLabel, presence }) => {
-                  const isSelected = sendPresence && (presenceMode ?? 'online') === presence;
+                ).map(({ label: statusLabel, desc, mode }) => {
+                  const isSelected = sendPresence && (presenceMode ?? 'online') === mode;
+                  const badge =
+                    mode === 'dnd' ? (
+                      <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
+                    ) : (
+                      <PresenceBadge presence={mode as Presence} size="300" />
+                    );
                   return (
                     <MenuItem
-                      key={presence}
+                      key={mode}
                       size="300"
                       radii="300"
-                      before={<PresenceBadge presence={presence} size="300" />}
+                      before={badge}
                       after={
                         isSelected ? (
                           <Icon
@@ -397,12 +412,19 @@ export function AccountSwitcherTab() {
                         ) : undefined
                       }
                       onClick={() => {
-                        setPresenceMode(presence);
+                        setPresenceMode(mode);
                         // Re-enable presence broadcasting if the master toggle was off
                         if (!sendPresence) setSendPresence(true);
                       }}
                     >
-                      <Text size="T300">{statusLabel}</Text>
+                      <Box direction="Column">
+                        <Text size="T300">{statusLabel}</Text>
+                        {desc && (
+                          <Text size="T200" priority="300">
+                            {desc}
+                          </Text>
+                        )}
+                      </Box>
                     </MenuItem>
                   );
                 })}

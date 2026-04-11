@@ -35,6 +35,7 @@ import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { TextViewerContent } from '$components/text-viewer';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -206,22 +207,40 @@ function UserExtendedSection({
 
       {unknownFields.length > 0 && (
         <Box direction="Column" gap="100">
-          <Button
-            variant="Secondary"
-            size="300"
-            fill="None"
-            onClick={() => setShowMore(!showMore)}
-            after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
-            style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
-          >
-            <Text size="T200" priority="400">
-              {showMore ? 'Show less' : `+ ${unknownFields.length} more info`}
-            </Text>
-          </Button>
+          {!showMore && (
+            <Box justifyContent="Center">
+              <Button
+                variant="Secondary"
+                size="300"
+                fill="None"
+                onClick={() => setShowMore(!showMore)}
+                after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
+                style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
+              >
+                <Text size="T200" priority="400">
+                  {`Show Misc. Data (${unknownFields.length} values)`}
+                </Text>
+              </Button>
+            </Box>
+          )}
 
           {showMore && (
-            <>
-              <Box direction="Row" justifyContent="SpaceBetween" alignContent="Center">
+            <div
+              style={{
+                border: '2px solid',
+                backgroundColor: 'var(--sable-bg-container)',
+                borderColor: 'var(--sable-surface-container-line)',
+                borderRadius: config.radii.R400,
+              }}
+            >
+              <Box
+                direction="Row"
+                justifyContent="Center"
+                alignContent="Center"
+                style={{
+                  borderRadius: config.radii.R400,
+                }}
+              >
                 {unknownFields.length > 1 && (
                   <Button
                     variant="Secondary"
@@ -234,13 +253,28 @@ function UserExtendedSection({
                     <Icon src={Icons.ArrowLeft} size="50" />
                   </Button>
                 )}
-                <Text
-                  size="T200"
-                  priority="400"
-                  style={{ letterSpacing: '0.05em', alignSelf: 'center' }}
+                <Button
+                  variant="Secondary"
+                  size="300"
+                  fill="None"
+                  onClick={() => setShowMore(!showMore)}
+                  style={{
+                    padding: '1rem',
+                    justifyContent: 'flex-center',
+                    width: 'fit-content',
+                    wordBreak: 'break-word',
+                    overflow: 'hidden',
+                    flexGrow: '1',
+                  }}
                 >
-                  {unknownFields[moreIndex][0]}
-                </Text>
+                  <Text
+                    size="T200"
+                    priority="400"
+                    style={{ letterSpacing: '0.05em', alignSelf: 'center' }}
+                  >
+                    {unknownFields[moreIndex][0]}
+                  </Text>
+                </Button>
                 {unknownFields.length > 1 && (
                   <Button
                     variant="Secondary"
@@ -257,17 +291,17 @@ function UserExtendedSection({
                   direction="Column"
                   style={{
                     padding: config.space.S200,
-                    backgroundColor: 'var(--sable-surface-container)',
                     borderRadius: config.radii.R400,
                     maxHeight: toRem(100),
                   }}
                 >
-                  <Text size="T200" priority="300">
-                    {renderValue(unknownFields[moreIndex][1])}
-                  </Text>
+                  <TextViewerContent
+                    text={renderValue(unknownFields[moreIndex][1])}
+                    langName="json"
+                  />
                 </Box>
               </Scroll>
-            </>
+            </div>
           )}
         </Box>
       )}

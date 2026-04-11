@@ -37,7 +37,7 @@ import * as css from './PollEvent.css';
 
 type PollAnswer = { id: string; text: string };
 
-function extractPollData(mEvent: MatrixEvent): {
+export function extractPollData(mEvent: MatrixEvent): {
   question: string;
   answers: PollAnswer[];
   maxSelections: number;
@@ -81,7 +81,7 @@ function extractPollData(mEvent: MatrixEvent): {
   return { question: questionText, answers, maxSelections, isDisclosed, showVoterNames, closesAt };
 }
 
-function extractVoteSelections(responseEvent: MatrixEvent): string[] {
+export function extractVoteSelections(responseEvent: MatrixEvent): string[] {
   const content = responseEvent.getContent();
   const unstablePayload = content['org.matrix.msc3381.poll.response'];
   const selections: unknown =
@@ -99,7 +99,7 @@ type TallyResult = {
   isEnded: boolean;
 };
 
-function computeTally(
+export function computeTally(
   room: Room,
   pollEventId: string,
   pollStartEvent: MatrixEvent,
@@ -161,7 +161,7 @@ function computeTally(
   return { tally, myVote, isEnded };
 }
 
-function formatExpiry(ts: number): string {
+export function formatExpiry(ts: number): string {
   const diff = ts - Date.now();
   if (diff <= 0) return 'now';
   const hours = diff / 3_600_000;

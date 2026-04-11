@@ -28,6 +28,17 @@ export const ImageViewerContent = style([
   },
 ]);
 
+export const ImageViewerInput = style([
+  DefaultReset,
+  {
+    all: 'unset',
+    fieldSizing: 'content',
+    textAlign: 'center',
+    font: 'inherit',
+    color: 'inherit',
+  },
+]);
+
 export const ImageViewerImg = style([
   DefaultReset,
   {

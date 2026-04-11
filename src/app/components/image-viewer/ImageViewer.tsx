@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
@@ -25,12 +25,29 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       setZoom,
     } = useImageGestures(true, 0.2);
 
-    const [fitRatio, setFitRatio] = useState(1);
     const [isImageReady, setIsImageReady] = useState(false);
+    const [isEditingZoom, setIsEditingZoom] = useState(false);
+    const [fitRatio, setFitRatio] = useState(1);
+    const [zoomInput, setZoomInput] = useState('100');
     useEffect(() => {
       setFitRatio(1);
       setIsImageReady(false);
+      setIsEditingZoom(false);
+      setZoomInput('100');
     }, [src]);
+
+    useEffect(() => {
+      if (!isEditingZoom) {
+        setZoomInput(Math.round(transforms.zoom * 100).toString());
+      }
+    }, [isEditingZoom, transforms.zoom]);
+
+    const zoomInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+      if (isEditingZoom) {
+        zoomInputRef.current?.focus();
+      }
+    }, [isEditingZoom]);
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
@@ -57,13 +74,28 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             <IconButton
               variant="Surface"
               style={{
-                visibility: !(
-                  transforms.zoom === fitRatio &&
-                  transforms.pan.x === 0 &&
-                  transforms.pan.y === 0
-                )
-                  ? 'visible'
-                  : 'hidden',
+                // Only show when the image isn't already larger than the container
+                // and isn't already at 100% zoom
+                // (Otherwise, the Reset Zoom button does the same thing)
+                display: fitRatio !== 1 && transforms.zoom !== 1 ? 'flex' : 'none',
+              }}
+              size="300"
+              radii="Pill"
+              onClick={() => {
+                setZoom(1);
+              }}
+              aria-label="View Original Size"
+            >
+              <Icon size="50" src={Icons.Photo} />
+            </IconButton>
+            <IconButton
+              variant="Surface"
+              style={{
+                // Only show when the image has had any transforms applied (zoom or pan)
+                display:
+                  transforms.zoom !== fitRatio || transforms.pan.x !== 0 || transforms.pan.y !== 0
+                    ? 'flex'
+                    : 'none',
               }}
               size="300"
               radii="Pill"
@@ -71,7 +103,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                 resetTransforms();
                 setZoom(fitRatio);
               }}
-              aria-label="Refresh View"
+              aria-label="Reset Zoom"
             >
               <Icon size="50" src={Icons.Reload} />
             </IconButton>
@@ -85,8 +117,61 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             >
               <Icon size="50" src={Icons.Minus} />
             </IconButton>
-            <Chip variant="SurfaceVariant" radii="Pill" onClick={resetTransforms}>
-              <Text size="B300">{Math.round(transforms.zoom * 100)}%</Text>
+            <Chip
+              variant="SurfaceVariant"
+              radii="Pill"
+              style={{
+                // For zoom levels below 100%, keep the pill at the same size as it would be at 100% zoom.
+                // This prevents the Zoom Out button from moving from the pill changing size.
+                // 4em should be generous enough to fit without manually determining the width of the text.
+                minWidth: '4em',
+              }}
+              onClick={() => {
+                setZoomInput(Math.round(transforms.zoom * 100).toString());
+                setIsEditingZoom(true);
+              }}
+            >
+              <Text
+                size="B300"
+                style={{
+                  cursor: 'text',
+                  margin: 'auto',
+                }}
+              >
+                {isEditingZoom ? (
+                  <span>
+                    <input
+                      className={css.ImageViewerInput}
+                      ref={zoomInputRef}
+                      type="text"
+                      aria-label="Set Zoom Level"
+                      value={zoomInput}
+                      onChange={(e) => {
+                        setZoomInput(e.target.value);
+                      }}
+                      onBlur={() => {
+                        const next = parseInt(zoomInput, 10);
+                        if (!Number.isNaN(next)) {
+                          setZoom(next / 100);
+                        }
+                        setIsEditingZoom(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const next = parseInt(zoomInput, 10);
+                          if (!Number.isNaN(next)) {
+                            setZoom(next / 100);
+                          }
+                          setIsEditingZoom(false);
+                        }
+                      }}
+                    />
+                    <span>%</span>
+                  </span>
+                ) : (
+                  `${Math.round(transforms.zoom * 100)}%`
+                )}
+              </Text>
             </Chip>
             <IconButton
               variant={transforms.zoom > 1 ? 'Success' : 'SurfaceVariant'}

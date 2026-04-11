@@ -94,7 +94,7 @@ export interface Settings {
   // Sable features!
   sendPresence: boolean;
   /** Which Matrix presence state to broadcast when sendPresence is true. */
-  presenceMode: 'online' | 'unavailable' | 'offline';
+  presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;

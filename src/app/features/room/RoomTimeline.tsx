@@ -757,6 +757,20 @@ export function RoomTimeline({
         // is cleared above (unconditionally) when isNowAtBottom becomes true.
       }
 
+      // Keep the scroll cache fresh so the next visit to this room can restore
+      // position (and skip the 80 ms measurement wait) immediately on mount.
+      // Skip when viewing a historical slice via eventId: those item heights are
+      // for a sparse subset of events and would corrupt the cache for the next
+      // live-timeline visit, producing stale VList measurements and making the
+      // room appear to be at the wrong position (or visually empty) on re-entry.
+      if (!eventId) {
+        roomScrollCache.save(room.roomId, {
+          cache: v.cache,
+          scrollOffset: offset,
+          atBottom: isNowAtBottom,
+        });
+      }
+
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
         timelineSyncRef.current.handleTimelinePagination(true);
       }
@@ -768,7 +782,7 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom]
+    [setAtBottom, room.roomId, eventId]
   );
 
   const showLoadingPlaceholders =

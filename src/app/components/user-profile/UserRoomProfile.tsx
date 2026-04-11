@@ -1,4 +1,4 @@
-import { Box, Button, config, Icon, Icons, Scroll, Text, toRem } from 'folds';
+import { Box, Button, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -69,7 +69,7 @@ function UserExtendedSection({
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
   const [showMore, setShowMore] = useState(false);
-  const [moreIndex, setMoreIndex] = useState(0);
+  const [moreIndex, setMoreIndex] = useState(-1);
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
@@ -146,6 +146,69 @@ function UserExtendedSection({
     ([key]) => !KNOWN_KEYS.includes(key)
   );
 
+  function handleMiscSelector(index: number) {
+    setMoreIndex(index);
+    setShowMore(false);
+  }
+
+  const miscSelector = useMemo(
+    () => (
+      <Menu style={{ position: 'absolute', zIndex: '100', transform: `translateY(${toRem(32)})` }}>
+        <MenuItem
+          size="300"
+          radii="300"
+          fill="None"
+          variant="Primary"
+          style={{ justifyContent: 'Center', textAlign: 'center' }}
+          onClick={() => handleMiscSelector(-1)}
+        >
+          <Icon src={Icons.ChevronTop} size="50" />
+          <Text>Show less</Text>
+        </MenuItem>
+        {unknownFields.map(([key], index) => (
+          <MenuItem
+            size="300"
+            radii="300"
+            fill="None"
+            variant="Secondary"
+            style={{ justifyContent: 'Center' }}
+            onClick={() => handleMiscSelector(index)}
+          >
+            <Text>{key}</Text>
+          </MenuItem>
+        ))}
+      </Menu>
+    ),
+    [unknownFields]
+  );
+  const miscHeader = useMemo(
+    () => (
+      <Box justifyContent="Center" grow="Yes">
+        <Button
+          variant="Secondary"
+          size="300"
+          fill="None"
+          onClick={() => setShowMore(!showMore)}
+          after={moreIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
+          style={{
+            padding: '1rem',
+            justifyContent: 'flex-start',
+            width: 'fit-content',
+            textAlign: 'center',
+          }}
+        >
+          <Text size="T200" priority="400">
+            {moreIndex === -1
+              ? `Show Misc. Data (${unknownFields.length} values)`
+              : `${unknownFields[moreIndex][0]} (${moreIndex + 1}/${unknownFields.length})`}
+          </Text>
+        </Button>
+        {showMore && miscSelector}
+      </Box>
+    ),
+    [miscSelector, moreIndex, showMore, unknownFields]
+  );
+
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100 }}>
       {(pronouns || localTime) && (
@@ -207,24 +270,8 @@ function UserExtendedSection({
 
       {unknownFields.length > 0 && (
         <Box direction="Column" gap="100">
-          {!showMore && (
-            <Box justifyContent="Center">
-              <Button
-                variant="Secondary"
-                size="300"
-                fill="None"
-                onClick={() => setShowMore(!showMore)}
-                after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
-                style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
-              >
-                <Text size="T200" priority="400">
-                  {`Show Misc. Data (${unknownFields.length} values)`}
-                </Text>
-              </Button>
-            </Box>
-          )}
-
-          {showMore && (
+          {moreIndex === -1 && miscHeader}
+          {moreIndex > -1 && (
             <div
               style={{
                 border: '2px solid',
@@ -253,28 +300,7 @@ function UserExtendedSection({
                     <Icon src={Icons.ArrowLeft} size="50" />
                   </Button>
                 )}
-                <Button
-                  variant="Secondary"
-                  size="300"
-                  fill="None"
-                  onClick={() => setShowMore(!showMore)}
-                  style={{
-                    padding: '1rem',
-                    justifyContent: 'flex-center',
-                    width: 'fit-content',
-                    wordBreak: 'break-word',
-                    overflow: 'hidden',
-                    flexGrow: '1',
-                  }}
-                >
-                  <Text
-                    size="T200"
-                    priority="400"
-                    style={{ letterSpacing: '0.05em', alignSelf: 'center' }}
-                  >
-                    {unknownFields[moreIndex][0]}
-                  </Text>
-                </Button>
+                {miscHeader}
                 {unknownFields.length > 1 && (
                   <Button
                     variant="Secondary"
@@ -442,7 +468,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
           />
-          <Box alignItems="Center" gap="100" wrap="Wrap">
+          <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
             {server && <ServerChip server={server} />}
             <ShareChip userId={userId} />
             {creator ? <CreatorChip /> : <PowerChip userId={userId} />}

@@ -33,7 +33,7 @@ const getPackImageSrc = (
 };
 
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {
-  const label = element.getAttribute('data-emoji-label') ?? element.getAttribute('title');
+  const label = element.getAttribute('title');
   const type = element.getAttribute('data-emoji-type') as EmojiType | undefined;
   const data = element.getAttribute('data-emoji-data');
   const shortcode = element.getAttribute('data-emoji-shortcode');
@@ -60,7 +60,6 @@ export function EmojiItem({ emoji }: EmojiItemProps) {
       justifyContent="Center"
       className={css.EmojiItem}
       title={emoji.label}
-      data-emoji-label={emoji.label}
       aria-label={`${emoji.label} emoji`}
       data-emoji-type={EmojiType.Emoji}
       data-emoji-data={emoji.unicode}
@@ -91,7 +90,6 @@ export function CustomEmojiItem({
       justifyContent="Center"
       className={css.EmojiItem}
       title={image.body || image.shortcode}
-      data-emoji-label={image.body || image.shortcode}
       aria-label={`${image.body || image.shortcode} emoji`}
       data-emoji-type={EmojiType.CustomEmoji}
       data-emoji-data={image.url}
@@ -128,7 +126,6 @@ export function StickerItem({
       justifyContent="Center"
       className={css.StickerItem}
       title={image.body || image.shortcode}
-      data-emoji-label={image.body || image.shortcode}
       aria-label={`${image.body || image.shortcode} emoji`}
       data-emoji-type={EmojiType.Sticker}
       data-emoji-data={image.url}
@@ -172,7 +169,6 @@ export function GifItem({
       alignItems="Center"
       justifyContent="Center"
       title={showTitle ? label : undefined}
-      data-emoji-label={label}
       aria-label={`${label} gif`}
       data-emoji-type={type}
       data-emoji-data={data}

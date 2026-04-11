@@ -204,7 +204,6 @@ export const GifItem = style([
     cursor: 'pointer',
     overflow: 'hidden',
     display: 'block',
-    backgroundColor: color.SurfaceVariant.Container,
 
     ':hover': {
       backgroundColor: color.Surface.ContainerHover,
@@ -213,8 +212,8 @@ export const GifItem = style([
 ]);
 
 export const GifImg = style({
-  display: 'block',
   width: '100%',
-  height: 'auto',
+  height: '100%',
   objectFit: 'cover',
+  borderRadius: config.radii.R400,
 });

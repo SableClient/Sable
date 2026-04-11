@@ -423,8 +423,6 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 };
 
 const VIRTUAL_OVER_SCAN = 2;
-// TODO: This should stop existing if the API provides a way to get trending GIFs
-const DEFAULT_GIF_QUERY = 'trending';
 
 type EmojiBoardProps = {
   tab?: EmojiBoardTab;
@@ -545,7 +543,7 @@ export function EmojiBoard({
           // TODO: FIX API URL, must be changed when we migrate it to KLIPY
           const url = new URL('https://proxy.commet.chat');
           url.pathname = '/proxy/tenor/api/v2/search';
-          url.searchParams.set('q', trimmedQuery || DEFAULT_GIF_QUERY);
+          url.searchParams.set('q', trimmedQuery);
 
           const response = await fetch(url.toString());
 
@@ -695,13 +693,6 @@ export function EmojiBoard({
       virtualizer.scrollToIndex(0, { align: 'start' });
     }
   }, [tab, virtualizer, groups.length]);
-
-  // Load default/trending GIFs when opening the GIF tab.
-  useEffect(() => {
-    if (gifTab) {
-      searchGifs('');
-    }
-  }, [gifTab, searchGifs]);
 
   return (
     <FocusTrap

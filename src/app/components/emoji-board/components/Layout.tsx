@@ -24,11 +24,7 @@ export const EmojiBoardLayout = as<
       </Box>
       {children}
     </Box>
-    {sidebar && (
-      <>
-        <Line size="300" direction="Vertical" />
-        {sidebar}
-      </>
-    )}
+    <Line size="300" direction="Vertical" />
+    {sidebar}
   </Box>
 ));

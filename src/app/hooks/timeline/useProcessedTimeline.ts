@@ -211,9 +211,13 @@ export function useProcessedTimeline({
 
       // Reuse the previous ProcessedEvent object if all structural fields match,
       // so that React.memo on timeline item components can bail out cheaply.
+      // itemIndex must also be equal: after back-pagination the same eventId
+      // shifts to a higher VList index, so a stale itemIndex would break
+      // getRawIndexToProcessedIndex and focus-highlight comparisons.
       const prev = prevCache?.get(mEventId);
       const stable =
         prev &&
+        prev.itemIndex === processed.itemIndex &&
         prev.collapsed === collapsed &&
         prev.willRenderNewDivider === willRenderNewDivider &&
         prev.willRenderDayDivider === willRenderDayDivider &&

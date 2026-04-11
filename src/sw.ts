@@ -888,11 +888,17 @@ const onPushNotification = async (event: PushEvent) => {
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
-  const [, , clients] = await Promise.all([
+  // Capture the persisted session result into preloadedSession so that
+  // getAnyStoredSession() returns it in handleMinimalPushPayload without a
+  // second cache read.
+  const [, persistedSession, clients] = await Promise.all([
     loadPersistedSettings(),
     loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
+  if (persistedSession && !preloadedSession) {
+    preloadedSession = persistedSession;
+  }
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.

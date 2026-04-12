@@ -528,6 +528,9 @@ export function Appearance() {
             description="Show a custom DM card instead of the DM-ed's details"
             after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
           />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="DM Message Preview"
             focusId="dm-message-preview"

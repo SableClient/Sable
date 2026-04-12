@@ -296,7 +296,7 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const lastMessage = useRoomLastMessage(direct && dmMessagePreview ? room : undefined);
+  const lastMessage = useRoomLastMessage(direct && dmMessagePreview ? room : undefined, mx);
   const [topicEvent, setTopicEvent] = useState(getStateEvent(room, StateEvent.RoomTopic));
 
   // Ensures that the description does not stick to the position the room is in the row

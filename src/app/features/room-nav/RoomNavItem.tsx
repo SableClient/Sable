@@ -292,10 +292,10 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const lastMessage = useRoomLastMessage(!direct && roomMessagePreview ? room : undefined, mx);
+  const lastMessage = useRoomLastMessage(roomMessagePreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
   const roomTopic = direct
-    ? ((customDMCards && getRoomTopic) ?? presence?.status)
+    ? ((customDMCards && getRoomTopic) ?? lastMessage ?? presence?.status)
     : (roomTopicPreview && getRoomTopic) || (roomMessagePreview ? lastMessage : undefined);
 
   const { navigateRoom } = useRoomNavigate();

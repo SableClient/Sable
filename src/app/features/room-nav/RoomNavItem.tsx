@@ -261,6 +261,7 @@ type RoomNavItemProps = {
   customDMCards?: boolean;
   roomTopicPreview?: boolean;
   roomMessagePreview?: boolean;
+  dmMessagePreview?: boolean;
 };
 
 export function RoomNavItem({
@@ -271,6 +272,7 @@ export function RoomNavItem({
   customDMCards,
   roomTopicPreview = false,
   roomMessagePreview = false,
+  dmMessagePreview = true,
   notificationMode,
   linkPath,
 }: RoomNavItemProps) {
@@ -292,7 +294,8 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const lastMessage = useRoomLastMessage(roomMessagePreview ? room : undefined, mx);
+  const showPreview = direct ? dmMessagePreview : roomMessagePreview;
+  const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
   const roomTopic = direct
     ? ((customDMCards && getRoomTopic) ?? lastMessage ?? presence?.status)

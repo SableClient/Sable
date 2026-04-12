@@ -120,6 +120,7 @@ export interface Settings {
   closeFoldersByDefault: boolean;
   roomTopicPreview: boolean;
   roomMessagePreview: boolean;
+  dmMessagePreview: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -223,6 +224,7 @@ const defaultSettings: Settings = {
   closeFoldersByDefault: false,
   roomTopicPreview: false,
   roomMessagePreview: false,
+  dmMessagePreview: true,
 
   // furry stuff
   renderAnimals: true,

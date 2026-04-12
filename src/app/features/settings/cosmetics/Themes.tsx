@@ -482,6 +482,7 @@ function PageZoomInput() {
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [dmMessagePreview, setDmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
@@ -531,6 +532,14 @@ export function Appearance() {
             focusId="customize-dm-cards"
             description="Show a custom DM card instead of the DM-ed's details"
             after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
+          />
+          <SettingTile
+            title="DM Message Preview"
+            focusId="dm-message-preview"
+            description="Show a preview of the last message below DM room names."
+            after={
+              <Switch variant="Primary" value={dmMessagePreview} onChange={setDmMessagePreview} />
+            }
           />
         </SequenceCard>
 

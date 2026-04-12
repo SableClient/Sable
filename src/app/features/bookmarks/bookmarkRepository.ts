@@ -44,17 +44,22 @@ async function writeItem(mx: MatrixClient, item: BookmarkItemContent): Promise<v
 
 // Public API
 /**
- * Add a bookmark.
+ * Add a bookmark.  Also handles re-activation: if the same (roomId, eventId) was
+ * previously removed (tombstoned), calling addBookmark again clears the tombstone
+ * and restores it to the active list.
  *
  * MSC4438 §Adding a bookmark:
- *  1. Write the item event first.
+ *  1. Write the item event first (strips any deleted flag to guarantee re-activation).
  *  2. Prepend the ID to bookmark_ids (if not already present).
  *  3. Increment revision and update timestamp.
  *  4. Write the updated index.
  */
 export async function addBookmark(mx: MatrixClient, item: BookmarkItemContent): Promise<void> {
+  // Strip deleted so that re-bookmarking a previously removed message always
+  // produces an active item, even if a stale tombstoned item is passed in.
+  const { deleted, ...activeItem } = item;
   // Write item before updating index (cross-device consistency)
-  await writeItem(mx, item);
+  await writeItem(mx, activeItem as BookmarkItemContent);
 
   const index = readIndex(mx);
   if (!index.bookmark_ids.includes(item.bookmark_id)) {

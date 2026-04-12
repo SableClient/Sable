@@ -141,6 +141,35 @@ describe('addBookmark', () => {
     const idx = (mx as any)._store[AccountDataEvent.BookmarksIndex] as BookmarkIndexContent;
     expect(idx.bookmark_ids).toContain(item.bookmark_id);
   });
+
+  it('re-activates a tombstoned bookmark (strips deleted: true)', async () => {
+    const tombstoned = makeItem({ deleted: true });
+    const mx2 = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [] }),
+      [bookmarkItemEventType(tombstoned.bookmark_id)]: tombstoned,
+    });
+
+    // Re-add with a fresh item (same bookmark_id, no deleted flag)
+    const freshItem = makeItem();
+    await addBookmark(mx2, freshItem);
+
+    const stored = (mx2 as any)._store[
+      bookmarkItemEventType(freshItem.bookmark_id)
+    ] as BookmarkItemContent;
+    expect(stored.deleted).toBeUndefined();
+    const idx = (mx2 as any)._store[AccountDataEvent.BookmarksIndex] as BookmarkIndexContent;
+    expect(idx.bookmark_ids).toContain(freshItem.bookmark_id);
+  });
+
+  it('strips deleted: true even when the item passed in carries the flag', async () => {
+    const item = makeItem({ deleted: true });
+    await addBookmark(mx, item);
+
+    const stored = (mx as any)._store[
+      bookmarkItemEventType(item.bookmark_id)
+    ] as BookmarkItemContent;
+    expect(stored.deleted).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

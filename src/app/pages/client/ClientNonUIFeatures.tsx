@@ -767,19 +767,6 @@ function HandleDecryptPushEvent() {
       const { data } = ev;
       if (!data) return;
 
-      // Respond to live visibility pings from the SW push handler.
-      // Using a live round-trip avoids false suppression when the page JS was
-      // frozen before visibilitychange could fire (an iOS Safari PWA quirk).
-      if (data.type === 'checkVisibility') {
-        const { id } = data as { id: string };
-        navigator.serviceWorker.controller?.postMessage({
-          type: 'visibilityCheckResult',
-          id,
-          visible: document.visibilityState === 'visible',
-        });
-        return;
-      }
-
       if (data.type !== 'decryptPushEvent') return;
 
       const { rawEvent } = data as { rawEvent: Record<string, unknown> };

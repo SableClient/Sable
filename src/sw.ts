@@ -254,50 +254,6 @@ type DecryptionResult = {
 /** Pending decryption requests keyed by event_id. */
 const decryptionPendingMap = new Map<string, (result: DecryptionResult) => void>();
 
-/** Pending visibility check requests keyed by check ID. */
-const visibilityCheckPendingMap = new Map<string, (visible: boolean) => void>();
-
-/**
- * Ping each window client in sequence and return true if any confirm they are
- * currently visible (document.visibilityState === 'visible').  If a client
- * fails to respond within 500 ms its JS thread is likely frozen (iOS
- * backgrounded-before-visibilitychange race) — treat that as not visible.
- *
- * This is more reliable than stale in-memory flags (appIsVisible) or
- * clients.matchAll() visibilityState, both of which can be simultaneously
- * stale when iOS freezes the WKWebView before any events fire.
- */
-async function checkLiveVisibility(clients: readonly Client[]): Promise<boolean> {
-  if (clients.length === 0) return false;
-
-  return Array.from(clients).reduce<Promise<boolean>>(async (prevPromise, client, idx) => {
-    const prev = await prevPromise;
-    if (prev) return true;
-
-    const checkId = `vis-${Date.now()}-${idx}`;
-
-    const promise = new Promise<boolean>((resolve) => {
-      visibilityCheckPendingMap.set(checkId, resolve);
-    });
-
-    const timeout = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        visibilityCheckPendingMap.delete(checkId);
-        resolve(false);
-      }, 500);
-    });
-
-    try {
-      client.postMessage({ type: 'checkVisibility', id: checkId });
-    } catch {
-      visibilityCheckPendingMap.delete(checkId);
-      return false;
-    }
-
-    return Promise.race([promise, timeout]);
-  }, Promise.resolve(false));
-}
-
 /**
  * Fetch a single raw Matrix event from the homeserver.
  * Returns undefined on error (e.g. network failure, auth error, redacted event).
@@ -653,14 +609,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       }
     }
   }
-  if (type === 'visibilityCheckResult') {
-    const { id, visible } = data as { id: string; visible: boolean };
-    const resolve = visibilityCheckPendingMap.get(id);
-    if (resolve) {
-      visibilityCheckPendingMap.delete(id);
-      resolve(!!visible);
-    }
-  }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
@@ -955,29 +903,26 @@ const onPushNotification = async (event: PushEvent) => {
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
   //
-  // We do a live visibility ping rather than relying on stale in-memory state:
+  // Trust client.visibilityState from matchAll() directly: it is updated by the
+  // browser engine when the OS signals a visibility transition, independent of
+  // the page JS thread.  The earlier postMessage ping approach was unreliable
+  // because iOS can background the app without freezing the JS thread immediately,
+  // allowing the page to respond "visible" in the brief window before the freeze.
   //
-  //  • stale appIsVisible: if iOS freezes the WKWebView JS thread before the
-  //    visibilitychange event fires, the page never sends setAppVisible=false,
-  //    leaving appIsVisible stuck at true.
-  //
-  //  • stale matchAll() visibilityState: iOS can also fail to update the
-  //    client's visibilityState in the SW's perspective before the push arrives,
-  //    so both signals can be simultaneously stale.
-  //
-  // Pinging the client directly resolves this: a frozen/backgrounded page
-  // cannot respond within the timeout, so checkLiveVisibility returns false
-  // and the notification is shown correctly.
+  // When matchAll() returns zero clients (an iOS Safari PWA quirk where the
+  // controlled client list is empty), we cannot determine visibility — default
+  // to showing the notification rather than silently dropping it.
+  const hasVisibleClient =
+    clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
   console.debug(
     '[SW push] appIsVisible (diagnostic):',
     appIsVisible,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
-  const appLiveVisible = await checkLiveVisibility(clients);
-  console.debug('[SW push] live visibility check:', appLiveVisible);
-  if (appLiveVisible) {
-    console.debug('[SW push] suppressing OS notification — app confirmed visible');
+  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
+  if (hasVisibleClient) {
+    console.debug('[SW push] suppressing OS notification — app is visible');
     return;
   }
 

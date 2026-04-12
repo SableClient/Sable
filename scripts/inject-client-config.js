@@ -15,11 +15,15 @@ const formatError = (error) => {
 const isPlainObject = (value) =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+// Keys that could trigger prototype pollution via bracket assignment.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 const deepMerge = (target, source) => {
   if (!isPlainObject(target) || !isPlainObject(source)) return source;
 
   const merged = { ...target };
   Object.entries(source).forEach(([key, value]) => {
+    if (UNSAFE_KEYS.has(key)) return;
     const targetValue = merged[key];
     merged[key] =
       isPlainObject(targetValue) && isPlainObject(value) ? deepMerge(targetValue, value) : value;

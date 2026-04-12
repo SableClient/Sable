@@ -8,7 +8,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
-import { addBookmark, removeBookmark, listBookmarks, isBookmarked } from './bookmarkRepository';
+import {
+  addBookmark,
+  removeBookmark,
+  listBookmarks,
+  listDeletedBookmarks,
+  isBookmarked,
+} from './bookmarkRepository';
 import {
   bookmarkItemEventType,
   emptyIndex,
@@ -363,6 +369,75 @@ describe('listBookmarks', () => {
     });
 
     expect(listBookmarks(mx)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listDeletedBookmarks
+// ---------------------------------------------------------------------------
+
+describe('listDeletedBookmarks', () => {
+  it('returns an empty array when there are no tombstoned items', () => {
+    const item = makeItem();
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [item.bookmark_id] }),
+      [bookmarkItemEventType(item.bookmark_id)]: item,
+    });
+    expect(listDeletedBookmarks(mx)).toEqual([]);
+  });
+
+  it('returns index-referenced items that are tombstoned (partial remove failure)', () => {
+    const item = makeItem({ deleted: true });
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [item.bookmark_id] }),
+      [bookmarkItemEventType(item.bookmark_id)]: item,
+    });
+    const result = listDeletedBookmarks(mx);
+    expect(result).toHaveLength(1);
+    expect(result[0].bookmark_id).toBe(item.bookmark_id);
+  });
+
+  it('returns orphan tombstones not in the index (normal remove path)', () => {
+    const item = makeItem({ bookmark_id: 'bmk_orphan99', deleted: true });
+    const mx = makeClient({
+      // ID intentionally absent from the index
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [] }),
+      [bookmarkItemEventType(item.bookmark_id)]: item,
+    });
+    const result = listDeletedBookmarks(mx);
+    expect(result).toHaveLength(1);
+    expect(result[0].bookmark_id).toBe(item.bookmark_id);
+  });
+
+  it('does not return active (non-deleted) items', () => {
+    const active = makeItem();
+    const deleted = makeItem({ bookmark_id: 'bmk_deleted1', deleted: true });
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [active.bookmark_id] }),
+      [bookmarkItemEventType(active.bookmark_id)]: active,
+      [bookmarkItemEventType(deleted.bookmark_id)]: deleted,
+    });
+    const result = listDeletedBookmarks(mx);
+    expect(result.map((i) => i.bookmark_id)).not.toContain(active.bookmark_id);
+    expect(result.map((i) => i.bookmark_id)).toContain(deleted.bookmark_id);
+  });
+
+  it('deduplicates when the same ID appears in both index and orphan scan', () => {
+    const item = makeItem({ deleted: true });
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [item.bookmark_id] }),
+      [bookmarkItemEventType(item.bookmark_id)]: item,
+    });
+    const result = listDeletedBookmarks(mx);
+    expect(result).toHaveLength(1);
+  });
+
+  it('skips malformed item events even if deleted: true', () => {
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [] }),
+      [bookmarkItemEventType('bmk_bad')]: { deleted: true, not_valid: 'junk' },
+    });
+    expect(listDeletedBookmarks(mx)).toEqual([]);
   });
 });
 

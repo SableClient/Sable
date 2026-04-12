@@ -1,13 +1,29 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallback } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { bookmarkIdSetAtom, bookmarkListAtom, bookmarkLoadingAtom } from '$state/bookmarks';
+import {
+  bookmarkDeletedListAtom,
+  bookmarkIdSetAtom,
+  bookmarkListAtom,
+  bookmarkLoadingAtom,
+} from '$state/bookmarks';
 import { BookmarkItemContent, computeBookmarkId } from './bookmarkDomain';
-import { addBookmark, removeBookmark, listBookmarks, isBookmarked } from './bookmarkRepository';
+import {
+  addBookmark,
+  listBookmarks,
+  listDeletedBookmarks,
+  removeBookmark,
+  isBookmarked,
+} from './bookmarkRepository';
 
 /** Returns the current ordered bookmark list. */
 export function useBookmarkList(): BookmarkItemContent[] {
   return useAtomValue(bookmarkListAtom);
+}
+
+/** Returns deleted (tombstoned) bookmarks that can be restored. */
+export function useBookmarkDeletedList(): BookmarkItemContent[] {
+  return useAtomValue(bookmarkDeletedListAtom);
 }
 
 /** Returns true while a bookmark refresh is in progress. */
@@ -35,28 +51,30 @@ export function useIsBookmarked(roomId: string, eventId: string): boolean {
 export function useBookmarkActions() {
   const mx = useMatrixClient();
   const setList = useSetAtom(bookmarkListAtom);
+  const setDeletedList = useSetAtom(bookmarkDeletedListAtom);
   const setLoading = useSetAtom(bookmarkLoadingAtom);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const items = listBookmarks(mx);
-      setList(items);
+      setList(listBookmarks(mx));
+      setDeletedList(listDeletedBookmarks(mx));
     } finally {
       setLoading(false);
     }
-  }, [mx, setList, setLoading]);
+  }, [mx, setList, setDeletedList, setLoading]);
 
   const add = useCallback(
     async (item: BookmarkItemContent) => {
-      // Optimistic update
+      // Optimistic update: add to active list, remove from deleted list
       setList((prev) => {
         if (prev.some((b) => b.bookmark_id === item.bookmark_id)) return prev;
         return [item, ...prev];
       });
+      setDeletedList((prev) => prev.filter((b) => b.bookmark_id !== item.bookmark_id));
       await addBookmark(mx, item);
     },
-    [mx, setList]
+    [mx, setList, setDeletedList]
   );
 
   const remove = useCallback(
@@ -68,11 +86,24 @@ export function useBookmarkActions() {
     [mx, setList]
   );
 
+  const restore = useCallback(
+    async (item: BookmarkItemContent) => {
+      // Optimistic update: move from deleted list to active list
+      setDeletedList((prev) => prev.filter((b) => b.bookmark_id !== item.bookmark_id));
+      setList((prev) => {
+        if (prev.some((b) => b.bookmark_id === item.bookmark_id)) return prev;
+        return [item, ...prev];
+      });
+      await addBookmark(mx, item); // strips deleted flag
+    },
+    [mx, setList, setDeletedList]
+  );
+
   const checkIsBookmarked = useCallback(
     (roomId: string, eventId: string): boolean =>
       isBookmarked(mx, computeBookmarkId(roomId, eventId)),
     [mx]
   );
 
-  return { refresh, add, remove, checkIsBookmarked };
+  return { refresh, add, remove, restore, checkIsBookmarked };
 }

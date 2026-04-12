@@ -4,9 +4,9 @@ import { useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useSyncState } from '$hooks/useSyncState';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
-import { bookmarkListAtom, bookmarkLoadingAtom } from '$state/bookmarks';
+import { bookmarkDeletedListAtom, bookmarkListAtom, bookmarkLoadingAtom } from '$state/bookmarks';
 import { AccountDataEvent } from '$types/matrix/accountData';
-import { listBookmarks } from './bookmarkRepository';
+import { listBookmarks, listDeletedBookmarks } from './bookmarkRepository';
 
 /**
  * Top-level hook that keeps `bookmarkListAtom` in sync with account data.
@@ -24,16 +24,18 @@ import { listBookmarks } from './bookmarkRepository';
 export function useInitBookmarks(): void {
   const mx = useMatrixClient();
   const setList = useSetAtom(bookmarkListAtom);
+  const setDeletedList = useSetAtom(bookmarkDeletedListAtom);
   const setLoading = useSetAtom(bookmarkLoadingAtom);
 
   const loadBookmarks = useCallback(() => {
     setLoading(true);
     try {
       setList(listBookmarks(mx));
+      setDeletedList(listDeletedBookmarks(mx));
     } finally {
       setLoading(false);
     }
-  }, [mx, setList, setLoading]);
+  }, [mx, setList, setDeletedList, setLoading]);
 
   // Immediate load: fires once on mount to cover the case where ClientNonUIFeatures
   // mounts after the initial SyncState.Syncing transition has already fired.

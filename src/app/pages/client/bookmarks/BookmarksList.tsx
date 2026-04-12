@@ -48,6 +48,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { BookmarkItemContent } from '$features/bookmarks/bookmarkDomain';
 import {
   useBookmarkActions,
+  useBookmarkDeletedList,
   useBookmarkList,
   useBookmarkLoading,
 } from '$features/bookmarks/useBookmarks';
@@ -299,6 +300,45 @@ function BookmarkResultGroup({
 }
 
 // ---------------------------------------------------------------------------
+// RemovedBookmarkRow
+// ---------------------------------------------------------------------------
+
+type RemovedBookmarkRowProps = {
+  item: BookmarkItemContent;
+  onRestore: (item: BookmarkItemContent) => void;
+};
+
+function RemovedBookmarkRow({ item, onRestore }: RemovedBookmarkRowProps) {
+  const mx = useMatrixClient();
+  const room = mx.getRoom(item.room_id) ?? undefined;
+  const roomName = room?.name ?? item.room_name ?? item.room_id;
+
+  return (
+    <SequenceCard
+      style={{ padding: config.space.S300, opacity: 0.65 }}
+      variant="SurfaceVariant"
+      direction="Column"
+    >
+      <Box gap="300" justifyContent="SpaceBetween" alignItems="Center">
+        <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
+          <Text size="T300" priority="400" truncate>
+            {roomName}
+          </Text>
+          {item.body_preview && (
+            <Text size="T200" priority="300" truncate>
+              {item.body_preview}
+            </Text>
+          )}
+        </Box>
+        <Chip onClick={() => onRestore(item)} variant="Secondary" radii="400">
+          <Text size="T200">Restore</Text>
+        </Chip>
+      </Box>
+    </SequenceCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // BookmarkFilterInput
 // ---------------------------------------------------------------------------
 
@@ -379,8 +419,9 @@ export function BookmarksList() {
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
 
   const bookmarks = useBookmarkList();
+  const deletedBookmarks = useBookmarkDeletedList();
   const loading = useBookmarkLoading();
-  const { remove } = useBookmarkActions();
+  const { remove, restore } = useBookmarkActions();
 
   const [filterTerm, setFilterTerm] = useState<string | undefined>();
   const [removingItem, setRemovingItem] = useState<BookmarkItemContent | undefined>();
@@ -431,6 +472,13 @@ export function BookmarksList() {
     await remove(removingItem.bookmark_id);
     setRemovingItem(undefined);
   }, [removingItem, remove]);
+
+  const handleRestore = useCallback(
+    async (item: BookmarkItemContent) => {
+      await restore(item);
+    },
+    [restore]
+  );
 
   const handleFilter = useCallback((term: string) => {
     setFilterTerm(term);
@@ -528,6 +576,26 @@ export function BookmarksList() {
                       />
                     </>
                   ))}
+                </Box>
+              )}
+
+              {deletedBookmarks.length > 0 && !filterTerm && (
+                <Box direction="Column" gap="200" style={{ marginTop: config.space.S400 }}>
+                  <Line variant="Background" size="300" />
+                  <Header size="300">
+                    <Text size="H4" priority="300">
+                      Recently Removed
+                    </Text>
+                  </Header>
+                  <Box direction="Column" gap="100">
+                    {deletedBookmarks.map((item) => (
+                      <RemovedBookmarkRow
+                        key={item.bookmark_id}
+                        item={item}
+                        onRestore={handleRestore}
+                      />
+                    ))}
+                  </Box>
                 </Box>
               )}
             </PageContentCenter>

@@ -147,6 +147,45 @@ export function listBookmarks(mx: MatrixClient): BookmarkItemContent[] {
 }
 
 /**
+ * List all deleted (tombstoned) bookmark items.
+ *
+ * Includes both:
+ *  - Items still referenced in the index whose item event carries deleted: true
+ *    (arises when the index write fails after a soft-delete).
+ *  - Orphaned tombstones whose ID has already been removed from the index
+ *    (the normal case after a successful remove).
+ *
+ * Results are deduplicated and include only items that pass isValidBookmarkItem
+ * (ensuring enough stored metadata is available to display and restore them).
+ */
+export function listDeletedBookmarks(mx: MatrixClient): BookmarkItemContent[] {
+  const index = readIndex(mx);
+  const results: BookmarkItemContent[] = [];
+  const seen = new Set<string>();
+
+  // 1. Index-referenced items that are tombstoned (partial remove failure)
+  index.bookmark_ids.forEach((id) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const content = mx.getAccountData(bookmarkItemEventType(id) as any)?.getContent();
+    if (isValidBookmarkItem(content) && content.deleted === true) results.push(content);
+  });
+
+  // 2. Orphan tombstones (properly removed from index but item event persists)
+  const prefix = AccountDataEvent.BookmarkItemPrefix as string;
+  Array.from(mx.store.accountData.keys()).forEach((key) => {
+    if (!key.startsWith(prefix)) return;
+    const bookmarkId = key.slice(prefix.length);
+    if (seen.has(bookmarkId)) return;
+    seen.add(bookmarkId);
+    const content = mx.getAccountData(key as any)?.getContent();
+    if (isValidBookmarkItem(content) && content.deleted === true) results.push(content);
+  });
+
+  return results;
+}
+
+/**
  * Check whether a specific bookmark ID is in the index.
  *
  * NOTE: Do not rely on the bookmark ID being deterministically derivable from

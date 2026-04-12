@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   MatrixClient,
   MatrixEvent,
+  MatrixEventEvent,
   MsgType,
   Room,
   RoomEvent as RoomEventEnum,
@@ -75,9 +76,17 @@ export function useRoomLastMessage(
     const update = () => setText(getLastMessageText(room, mx));
     room.on(RoomEventEnum.Timeline, update);
     room.on(RoomEventEnum.LocalEchoUpdated, update);
+
+    // Re-check when any event in this room is decrypted (encrypted → plaintext).
+    const onDecrypted = (ev: MatrixEvent) => {
+      if (ev.getRoomId() === room.roomId) update();
+    };
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
+
     return () => {
       room.off(RoomEventEnum.Timeline, update);
       room.off(RoomEventEnum.LocalEchoUpdated, update);
+      mx.off(MatrixEventEvent.Decrypted, onDecrypted);
     };
   }, [room, mx]);
 

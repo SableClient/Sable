@@ -1,11 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
-import {
-  extractPollData,
-  extractVoteSelections,
-  computeTally,
-  formatExpiry,
-} from './PollEvent';
+import { extractPollData, extractVoteSelections, computeTally, formatExpiry } from './PollEvent';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -106,10 +101,7 @@ function makeEndEvent(sender: string, ts: number): MatrixEvent {
  * Build a minimal fake Room whose `relations.getAllChildEventsForEvent` returns
  * the provided child events.
  */
-function makeRoom(
-  childEvents: MatrixEvent[],
-  maySendRedaction = false
-): Room {
+function makeRoom(childEvents: MatrixEvent[], maySendRedaction = false): Room {
   return {
     getUnfilteredTimelineSet: () => ({
       relations: {
@@ -235,14 +227,7 @@ describe('computeTally', () => {
     const children = [makeResponseEvent('@alice:test', ['ans-red'], 2_000)];
     const room = makeRoom(children);
 
-    const { tally, isEnded } = computeTally(
-      room,
-      '$poll:test',
-      pollStart,
-      ANSWERS,
-      1,
-      MY_USER_ID
-    );
+    const { tally, isEnded } = computeTally(room, '$poll:test', pollStart, ANSWERS, 1, MY_USER_ID);
 
     expect(isEnded).toBe(false);
     expect(tally.get('ans-red')?.size).toBe(1);
@@ -346,7 +331,9 @@ describe('computeTally', () => {
 
   it('ignores decryption-failure response events', () => {
     const pollStart = makePollStartEvent('$poll:test');
-    const children = [makeResponseEvent('@alice:test', ['ans-red'], 2_000, /* decryptFailure= */ true)];
+    const children = [
+      makeResponseEvent('@alice:test', ['ans-red'], 2_000, /* decryptFailure= */ true),
+    ];
     const room = makeRoom(children);
 
     const { tally } = computeTally(room, '$poll:test', pollStart, ANSWERS, 1, MY_USER_ID);

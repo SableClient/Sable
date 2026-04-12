@@ -233,12 +233,13 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       const result = pushSessionNow('heartbeat');
       if (phase3AdaptiveBackoffJitter) {
         if (result === 'sent') {
+          // Successful push — reset backoff so next interval is the base rate.
           heartbeatFailuresRef.current = 0;
-        } else {
-          // 'skipped' means prerequisites (SW controller, session) aren't ready.
-          // Treat as a transient failure so backoff grows until the SW is ready.
-          heartbeatFailuresRef.current += 1;
         }
+        // 'skipped' means prerequisites (SW controller, session) aren't ready yet.
+        // Do NOT increment failures here: the app may simply be starting up and we
+        // do not want startup latency to drive exponential backoff that persists
+        // long after the prerequisites become available.
       }
 
       timeoutId = window.setTimeout(tick, getDelayMs());

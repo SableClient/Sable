@@ -116,9 +116,10 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
+      if (filteredUrls.length > 0) console.log(filteredUrls);
 
       const mediaLinks = analyzed.filter((item) => item.type !== null);
-      const toRender = mediaLinks.length > 0 ? mediaLinks : [analyzed[0]];
+      const toRender = mediaLinks.length > 0 ? mediaLinks : analyzed;
       return (
         <UrlPreviewHolder>
           {toRender.map(({ url, type }) => {

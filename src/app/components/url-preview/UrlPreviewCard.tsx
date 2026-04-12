@@ -108,6 +108,15 @@ export const UrlPreviewCard = as<
       }
     };
 
+    const ogW = ((prev['og:video'] && prev['og:video:width']) ||
+      (prev['og:image'] && prev['og:image:width']) ||
+      1) as number;
+    const ogH = ((prev['og:video'] && prev['og:video:height']) ||
+      (prev['og:image'] && prev['og:image:height']) ||
+      1) as number;
+
+    const aspectRatio = ogW && ogH ? `${ogW} / ${ogH}` : undefined;
+
     return (
       <Box
         grow="Yes"
@@ -153,9 +162,7 @@ export const UrlPreviewCard = as<
           <VideoContent
             style={{
               width: '100%',
-              aspectRatio:
-                ((prev['og:video:width'] as number) ?? 1) /
-                ((prev['og:video:height'] as number) ?? 1),
+              aspectRatio: aspectRatio ?? '10 / 9',
             }}
             body={prev['og:title']}
             info={{}}
@@ -167,43 +174,44 @@ export const UrlPreviewCard = as<
         )}
         {!prev['og:video'] &&
           prev['og:image'] &&
-          (() => {
-            const ogW = prev['og:image:width'];
-            const ogH = prev['og:image:height'];
-            const aspectRatio = ogW && ogH ? `${ogW} / ${ogH}` : undefined;
-            return (
-              <Box
+          (() => (
+            <Box
+              style={{
+                width: '100%',
+                maxHeight: '320px',
+                aspectRatio: aspectRatio ?? '16 / 9',
+                flexShrink: 1,
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <ImageContent
                 style={{
                   width: '100%',
-                  maxHeight: '400px',
-                  aspectRatio: aspectRatio ?? '16 / 9',
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                  position: 'relative',
+                  height: '100%',
+                  position: 'absolute',
+                  inset: 0,
+                  minHeight: 0,
                 }}
-              >
-                <ImageContent
-                  style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
-                  autoPlay
-                  onAuxClick={handleAuxClick}
-                  body={prev['og:title']}
-                  url={prev['og:image']}
-                  renderViewer={(p) => <ImageViewer {...p} />}
-                  renderImage={(p) => (
-                    <Image
-                      {...p}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        objectPosition: 'center',
-                      }}
-                    />
-                  )}
-                />
-              </Box>
-            );
-          })()}
+                autoPlay
+                onAuxClick={handleAuxClick}
+                body={prev['og:title']}
+                url={prev['og:image']}
+                renderViewer={(p) => <ImageViewer {...p} />}
+                renderImage={(p) => (
+                  <Image
+                    {...p}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          ))()}
         {!prev['og:video'] && !prev['og:image'] && prev['og:audio'] && (
           <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
             <AudioContent
@@ -262,8 +270,11 @@ export const UrlPreviewCard = as<
               minWidth: 0,
               maxWidth: '100%',
               margin: 0,
+              alignSelf: 'start',
             }
-          : undefined
+          : {
+              alignSelf: 'start',
+            }
       }
     >
       {previewContent}
@@ -345,24 +356,31 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
               </IconButton>
             </>
           )}
-          <Box ref={innerBoxRef} alignItems="Inherit" gap="200">
+          <Box
+            ref={innerBoxRef}
+            alignItems="Inherit"
+            gap="200"
+            style={{
+              alignItems: 'baseline',
+            }}
+          >
             {children}
-            {canScrollRight && (
-              <>
-                <div className={css.UrlPreviewHolderGradient({ position: 'Right' })} />
-                <IconButton
-                  className={css.UrlPreviewHolderBtn({ position: 'Right' })}
-                  variant="Primary"
-                  radii="Pill"
-                  size="300"
-                  outlined
-                  onClick={handleScrollFront}
-                >
-                  <Icon size="300" src={Icons.ArrowRight} />
-                </IconButton>
-              </>
-            )}
           </Box>
+          {canScrollRight && (
+            <>
+              <div className={css.UrlPreviewHolderGradient({ position: 'Right' })} />
+              <IconButton
+                className={css.UrlPreviewHolderBtn({ position: 'Right' })}
+                variant="Primary"
+                radii="Pill"
+                size="300"
+                outlined
+                onClick={handleScrollFront}
+              >
+                <Icon size="300" src={Icons.ArrowRight} />
+              </IconButton>
+            </>
+          )}
         </Box>
       </Scroll>
     </Box>

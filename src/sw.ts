@@ -761,9 +761,7 @@ const onPushNotification = async (event: PushEvent) => {
   // (handled gracefully by the in-app banner) than to silently drop a
   // notification while the app is backgrounded.
   const hasVisibleClient =
-    clients.length > 0
-      ? clients.some((client) => client.visibilityState === 'visible')
-      : false;
+    clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

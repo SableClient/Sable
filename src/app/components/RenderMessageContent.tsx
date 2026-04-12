@@ -117,7 +117,6 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
-      if (filteredUrls.length > 0) console.log(filteredUrls);
 
       const toRender = multiplePreviews ? analyzed : [analyzed[0]];
       return (

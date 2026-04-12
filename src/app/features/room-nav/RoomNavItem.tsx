@@ -265,6 +265,7 @@ type RoomNavItemProps = {
   showAvatar?: boolean;
   direct?: boolean;
   customDMCards?: boolean;
+  dmMessagePreview?: boolean;
 };
 
 export function RoomNavItem({
@@ -273,6 +274,7 @@ export function RoomNavItem({
   showAvatar,
   direct,
   customDMCards,
+  dmMessagePreview = true,
   notificationMode,
   linkPath,
 }: RoomNavItemProps) {
@@ -294,7 +296,7 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const lastMessage = useRoomLastMessage(direct ? room : undefined);
+  const lastMessage = useRoomLastMessage(direct && dmMessagePreview ? room : undefined);
   const [topicEvent, setTopicEvent] = useState(getStateEvent(room, StateEvent.RoomTopic));
 
   // Ensures that the description does not stick to the position the room is in the row

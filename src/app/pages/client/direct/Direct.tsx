@@ -178,6 +178,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -296,6 +297,7 @@ export function Direct() {
                         showAvatar
                         direct
                         customDMCards={customDMCards}
+                        dmMessagePreview={dmMessagePreview}
                         linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                         notificationMode={getRoomNotificationMode(
                           notificationPreferences,

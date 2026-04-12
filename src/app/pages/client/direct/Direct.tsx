@@ -197,6 +197,7 @@ export function Direct() {
   }, [roomSidebarWidth]);
 
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -355,6 +356,7 @@ export function Direct() {
                               room.roomId
                             )}
                             joinCallOnSingleClick={joinCallOnSingleClick}
+                            dmMessagePreview={dmMessagePreview}
                           />
                         </div>
                       </VirtualTile>
@@ -364,8 +366,8 @@ export function Direct() {
               </NavCategory>
             </Box>
           </PageNavContent>
-        )}
-      </PageNav>
+          )}
+        </PageNav>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}

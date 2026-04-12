@@ -673,6 +673,7 @@ export function Space() {
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
   const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
   const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   /**
    * Creates an SVG used for connecting spaces to their subrooms.
    * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
@@ -1035,6 +1036,9 @@ export function Space() {
                             room.roomId
                           )}
                           joinCallOnSingleClick={joinCallOnSingleClick}
+                          roomTopicPreview={roomTopicPreview}
+                          roomMessagePreview={roomMessagePreview}
+                          dmMessagePreview={dmMessagePreview}
                         />
                       </div>
                     </VirtualTile>

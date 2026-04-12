@@ -9,10 +9,28 @@ import {
 } from '$types/matrix-sdk';
 import { MessageEvent } from '$types/matrix/room';
 
+/**
+ * Strip the legacy reply fallback (lines starting with `> `) that some
+ * clients prepend when replying to a message.
+ */
+function stripReplyFallback(body: string): string {
+  const lines = body.split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].startsWith('> ')) i++;
+  // Skip the blank separator line that follows the fallback block.
+  if (i > 0 && i < lines.length && lines[i] === '') i++;
+  return lines.slice(i).join('\n');
+}
+
 function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (ev.isRedacted()) return undefined;
 
   const type = ev.getType();
+
+  // Skip reactions and edits — they aren't standalone messages.
+  if (type === MessageEvent.Reaction) return undefined;
+  const relType = ev.getContent()?.['m.relates_to']?.rel_type;
+  if (relType === 'm.replace') return undefined;
 
   if (type === MessageEvent.RoomMessageEncrypted) return '🔒 Encrypted message';
 
@@ -20,7 +38,7 @@ function eventToPreviewText(ev: MatrixEvent): string | undefined {
     const content = ev.getContent();
     const { msgtype } = content;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
-      return content.body;
+      return stripReplyFallback(content.body);
     }
     if (msgtype === MsgType.Image) return '📷 Image';
     if (msgtype === MsgType.Video) return '📹 Video';

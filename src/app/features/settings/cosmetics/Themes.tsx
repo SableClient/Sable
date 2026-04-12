@@ -784,6 +784,7 @@ export function Appearance({
   const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [dmMessagePreview, setDmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
@@ -841,8 +842,17 @@ export function Appearance({
                 title="Customize DM cards"
                 focusId="customize-dm-cards"
                 description="Show a custom DM card instead of the DM-ed's details"
+                after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="DM Message Preview"
+                focusId="dm-message-preview"
+                description="Show a preview of the last message below DM room names."
                 after={
-                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
+                  <Switch variant="Primary" value={dmMessagePreview} onChange={setDmMessagePreview} />
                 }
               />
             </SequenceCard>

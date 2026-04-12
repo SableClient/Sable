@@ -34,9 +34,12 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// One event of timeline per list room is enough to compute unread counts;
-// the full history is loaded when the user opens the room.
-const LIST_TIMELINE_LIMIT = 1;
+// A small number of timeline events per list room. Unread counts come from
+// the server-side notification_count field, so a full history isn't needed.
+// We fetch a few events (rather than 1) so that reactions and edits — which
+// the SDK excludes from the main timeline when their parent event is absent —
+// don't leave the timeline empty and break message previews.
+const LIST_TIMELINE_LIMIT = 5;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;

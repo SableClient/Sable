@@ -56,7 +56,6 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -877,17 +876,11 @@ function SettingsSyncFeature() {
   return null;
 }
 
-function BookmarksFeature() {
-  useInitBookmarks();
-  return null;
-}
-
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
-      <BookmarksFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

@@ -6,21 +6,25 @@ import { useUserPresence, Presence } from './useUserPresence';
 
 // Each test can override mockUser / mockGetPresence as needed.
 let mockUser: ReturnType<typeof makeMockUser> | null = null;
-let mockGetPresence: ReturnType<typeof vi.fn>;
-
-vi.mock('$hooks/useMatrixClient', () => ({
-  useMatrixClient: () => mockMx,
-}));
+type PresenceResponse = {
+  presence: string;
+  status_msg?: string;
+  currently_active?: boolean;
+  last_active_ago?: number | null;
+};
+let mockGetPresence: () => Promise<PresenceResponse>;
 
 // Listeners registered via user.on() – captured so tests can emit events.
 const userListeners = new Map<string, ((...args: unknown[]) => void)[]>();
 
-const makeMockUser = (opts: {
-  presence?: string;
-  presenceStatusMsg?: string | undefined;
-  currentlyActive?: boolean;
-  lastActiveTs?: number;
-} = {}) => ({
+const makeMockUser = (
+  opts: {
+    presence?: string;
+    presenceStatusMsg?: string | undefined;
+    currentlyActive?: boolean;
+    lastActiveTs?: number;
+  } = {}
+) => ({
   userId: '@alice:test',
   presence: opts.presence ?? 'online',
   presenceStatusMsg: opts.presenceStatusMsg,
@@ -36,18 +40,14 @@ const makeMockUser = (opts: {
 
 const mockMx = {
   getUser: vi.fn((): ReturnType<typeof makeMockUser> | null => mockUser),
-  getPresence: vi.fn(
-    (): Promise<{
-      presence: string;
-      status_msg?: string;
-      currently_active?: boolean;
-      last_active_ago?: number | null;
-    }> =>
-      mockGetPresence()
-  ),
+  getPresence: vi.fn((): Promise<PresenceResponse> => mockGetPresence()),
   on: vi.fn(),
   removeListener: vi.fn(),
 };
+
+vi.mock('$hooks/useMatrixClient', () => ({
+  useMatrixClient: () => mockMx,
+}));
 
 const USER_ID = '@alice:test';
 
@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   userListeners.clear();
   mockUser = null;
-  mockGetPresence = vi.fn().mockReturnValue(new Promise(() => {})); // pending by default
+  mockGetPresence = () => new Promise(() => {}); // pending by default
   mockMx.getUser.mockImplementation(() => mockUser);
   mockMx.getPresence.mockImplementation(() => mockGetPresence());
 });
@@ -91,9 +91,10 @@ describe('useUserPresence', () => {
       currently_active?: boolean;
       last_active_ago?: number;
     }) => void;
-    mockGetPresence = vi
-      .fn()
-      .mockReturnValue(new Promise((res) => { resolvePresence = res; }));
+    mockGetPresence = () =>
+      new Promise((res) => {
+        resolvePresence = res;
+      });
 
     const { result } = renderHook(() => useUserPresence(USER_ID));
 
@@ -116,9 +117,10 @@ describe('useUserPresence', () => {
   it('fires the REST fallback when user object does not exist yet', async () => {
     // user is null — REST should still be requested
     let resolvePresence!: (v: { presence: string }) => void;
-    mockGetPresence = vi
-      .fn()
-      .mockReturnValue(new Promise((res) => { resolvePresence = res; }));
+    mockGetPresence = () =>
+      new Promise((res) => {
+        resolvePresence = res;
+      });
 
     const { result } = renderHook(() => useUserPresence(USER_ID));
 
@@ -140,9 +142,11 @@ describe('useUserPresence', () => {
 
   it('ignores the REST response after the component unmounts (cancelled flag)', async () => {
     let resolvePresence!: (v: { presence: string }) => void;
-    mockGetPresence = vi
-      .fn()
-      .mockReturnValue(new Promise((res) => { resolvePresence = res; }));
+    mockGetPresence = vi.fn().mockReturnValue(
+      new Promise((res) => {
+        resolvePresence = res;
+      })
+    );
 
     const { result, unmount } = renderHook(() => useUserPresence(USER_ID));
     unmount();
@@ -157,12 +161,12 @@ describe('useUserPresence', () => {
 
   it('updates presence when UserEvent.Presence fires on the user object', () => {
     mockUser = makeMockUser({ presence: 'online', lastActiveTs: 1000 });
-    mockGetPresence = vi.fn().mockReturnValue(new Promise(() => {}));
+    mockGetPresence = () => new Promise(() => {});
 
     const { result } = renderHook(() => useUserPresence(USER_ID));
 
     // Mutate mock user to simulate a presence change, then fire the registered listener
-    mockUser!.presence = 'unavailable';
+    mockUser.presence = 'unavailable';
     const handlers = userListeners.get('User.presence') ?? [];
 
     act(() => {
@@ -174,7 +178,7 @@ describe('useUserPresence', () => {
 
   it('resets to undefined when userId changes to a user not in the SDK', () => {
     mockUser = makeMockUser({ presence: 'online', lastActiveTs: 1000 });
-    mockGetPresence = vi.fn().mockReturnValue(new Promise(() => {}));
+    mockGetPresence = () => new Promise(() => {});
 
     const { result, rerender } = renderHook(({ uid }) => useUserPresence(uid), {
       initialProps: { uid: USER_ID },
@@ -190,7 +194,7 @@ describe('useUserPresence', () => {
   });
 
   it('silently ignores a REST error (presence not supported on this server)', async () => {
-    mockGetPresence = vi.fn().mockReturnValue(Promise.reject(new Error('404 Not Found')));
+    mockGetPresence = () => Promise.reject(new Error('404 Not Found'));
 
     const { result } = renderHook(() => useUserPresence(USER_ID));
 

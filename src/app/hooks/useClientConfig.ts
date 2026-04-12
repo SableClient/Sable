@@ -5,6 +5,15 @@ export type HashRouterConfig = {
   basename?: string;
 };
 
+export type SessionSyncConfig = {
+  phase1ForegroundResync?: boolean;
+  phase2VisibleHeartbeat?: boolean;
+  phase3AdaptiveBackoffJitter?: boolean;
+  foregroundDebounceMs?: number;
+  heartbeatIntervalMs?: number;
+  resumeHeartbeatSuppressMs?: number;
+  heartbeatMaxBackoffMs?: number;
+};
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
@@ -14,6 +23,7 @@ export type ClientConfig = {
   disableAccountSwitcher?: boolean;
   hideUsernamePasswordFields?: boolean;
 
+  sessionSync?: SessionSyncConfig;
   pushNotificationDetails?: {
     pushNotifyUrl?: string;
     vapidPublicKey?: string;

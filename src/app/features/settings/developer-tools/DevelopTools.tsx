@@ -14,7 +14,6 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
-import { ExperimentsPanel } from './ExperimentsPanel';
 import { DebugLogViewer } from './DebugLogViewer';
 import { SentrySettings } from './SentrySettings';
 
@@ -139,7 +138,6 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                 )}
               </Box>
               {developerTools && <SyncDiagnostics />}
-              {developerTools && <ExperimentsPanel />}
               {developerTools && (
                 <Box direction="Column" gap="100">
                   <Text size="L400">Encryption</Text>

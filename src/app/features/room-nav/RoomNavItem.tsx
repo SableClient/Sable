@@ -74,6 +74,7 @@ import { CallControlState } from '$plugins/call/CallControlState';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
 import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { useRoomLastMessage } from '$hooks/useRoomLastMessage';
 import { StateEvent } from '$types/matrix/room';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { RoomNavUser } from './RoomNavUser';
@@ -293,12 +294,13 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
+  const lastMessage = useRoomLastMessage(direct ? room : undefined);
   const [topicEvent, setTopicEvent] = useState(getStateEvent(room, StateEvent.RoomTopic));
 
   // Ensures that the description does not stick to the position the room is in the row
   useEffect(() => setTopicEvent(getStateEvent(room, StateEvent.RoomTopic)), [room, setTopicEvent]);
   const roomDescription = direct
-    ? (customDMCards && (topicEvent?.getContent().topic as string)) || presence?.status
+    ? (customDMCards && (topicEvent?.getContent().topic as string)) || lastMessage
     : undefined;
 
   const { navigateRoom } = useRoomNavigate();

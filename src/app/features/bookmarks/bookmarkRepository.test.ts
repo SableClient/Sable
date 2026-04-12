@@ -202,6 +202,35 @@ describe('removeBookmark', () => {
     await expect(removeBookmark(mx, item.bookmark_id)).resolves.not.toThrow();
   });
 
+  it('tombstones a malformed item event (sets deleted: true even when validation fails)', async () => {
+    // A malformed item exists in account data (e.g. written by a buggy client).
+    // removeBookmark must still tombstone it so orphan recovery does not resurrect it.
+    const badContent = { not_a_valid: 'item' };
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: ['bmk_bad'] }),
+      [bookmarkItemEventType('bmk_bad')]: badContent,
+    });
+
+    await removeBookmark(mx, 'bmk_bad');
+
+    const stored = (mx as any)._store[bookmarkItemEventType('bmk_bad')];
+    expect(stored.deleted).toBe(true);
+  });
+
+  it('tombstones an already-deleted item event (idempotent)', async () => {
+    // If for any reason the same bookmark is removed twice, the tombstone write
+    // should still succeed and the item should remain deleted.
+    const item = makeItem({ deleted: true });
+    const mx = makeClient({
+      [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: [item.bookmark_id] }),
+      [bookmarkItemEventType(item.bookmark_id)]: item,
+    });
+
+    await expect(removeBookmark(mx, item.bookmark_id)).resolves.not.toThrow();
+    const stored = (mx as any)._store[bookmarkItemEventType(item.bookmark_id)] as BookmarkItemContent;
+    expect(stored.deleted).toBe(true);
+  });
+
   it('leaves the index unchanged when the ID was not present', async () => {
     const mx = makeClient({
       [AccountDataEvent.BookmarksIndex]: makeIndex({ bookmark_ids: ['bmk_aaaabbbb'] }),

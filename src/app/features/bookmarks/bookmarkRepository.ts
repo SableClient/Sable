@@ -77,12 +77,18 @@ export async function addBookmark(mx: MatrixClient, item: BookmarkItemContent): 
  * removed.
  */
 export async function removeBookmark(mx: MatrixClient, bookmarkId: string): Promise<void> {
-  // Soft-delete the item FIRST — mirrors the item-before-index ordering of addBookmark.
-  // If writeIndex ran first, orphan recovery in listBookmarks() would transiently resurface the
-  // bookmark (item not yet deleted, but ID also not in index) between the two writes.
-  const existing = readItem(mx, bookmarkId);
-  if (existing) {
-    await writeItem(mx, { ...existing, deleted: true });
+  // Tombstone the item event directly — bypass readItem()'s validation so that
+  // malformed or already-deleted items still get marked deleted: true.  Without
+  // this, orphan recovery can resurrect items whose deletion write failed halfway.
+  const evt = mx.getAccountData(bookmarkItemEventType(bookmarkId) as any);
+  const raw = evt?.getContent();
+  if (raw != null) {
+    // Write using the bookmarkId param as the canonical type key, not item.bookmark_id,
+    // so malformed items (missing bookmark_id field) still get the right event type.
+    await mx.setAccountData(
+      bookmarkItemEventType(bookmarkId) as any,
+      { ...(raw as object), deleted: true } as any
+    );
   }
 
   const index = readIndex(mx);

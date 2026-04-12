@@ -1029,6 +1029,7 @@ function Messages() {
 }
 
 function Embeds() {
+  const [multiplePreviews, setMultiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
   const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
@@ -1044,6 +1045,16 @@ function Embeds() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Embeds</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Multiple Embeds"
+          focusId="display-multiple-embeds"
+          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+          after={
+            <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
+          }
+        />
+      </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Display Bundled Embeds"

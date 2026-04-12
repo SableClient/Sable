@@ -26,12 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent, NavItemOptions } from '$components/nav';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import {
-  getDirectRoomAvatarUrl,
-  getRoomAvatarUrl,
-  getStateEvent,
-  roomHaveUnread,
-} from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl, roomHaveUnread } from '$utils/room';
 import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomUnread } from '$state/hooks/unread';
@@ -61,7 +56,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useRoomName } from '$hooks/useRoomMeta';
+import { useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
@@ -74,7 +69,6 @@ import { CallControlState } from '$plugins/call/CallControlState';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
 import { Presence, useUserPresence } from '$hooks/useUserPresence';
-import { StateEvent } from '$types/matrix/room';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { RoomNavUser } from './RoomNavUser';
 
@@ -293,11 +287,8 @@ export function RoomNavItem({
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
   const presence = useUserPresence(dmUserId ?? '');
-  const topicEvent = getStateEvent(room, StateEvent.RoomTopic);
-
-  const roomDescription = direct
-    ? (customDMCards && (topicEvent?.getContent().topic as string)) || presence?.status
-    : undefined;
+  const getRoomTopic = useRoomTopic(room);
+  const roomTopic = direct ? ((customDMCards && getRoomTopic) ?? presence?.status) : undefined;
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
@@ -447,7 +438,7 @@ export function RoomNavItem({
                 >
                   {roomName}
                 </Text>
-                {roomDescription && (
+                {roomTopic && (
                   <Text
                     truncate
                     size="T200"
@@ -457,7 +448,7 @@ export function RoomNavItem({
                       marginTop: '-2px',
                     }}
                   >
-                    {roomDescription}
+                    {roomTopic}
                   </Text>
                 )}
               </Box>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { roomScrollCache } from './roomScrollCache';
 
 // CacheSnapshot is opaque in tests — cast a plain object.
-const fakeCache = () => ({} as import('./roomScrollCache').RoomScrollCache['cache']);
+const fakeCache = () => ({}) as import('./roomScrollCache').RoomScrollCache['cache'];
 
 describe('roomScrollCache', () => {
   it('load returns undefined for an unknown roomId', () => {

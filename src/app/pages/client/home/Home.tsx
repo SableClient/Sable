@@ -210,6 +210,8 @@ export function Home() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -438,6 +440,8 @@ export function Home() {
                               room.roomId
                             )}
                             joinCallOnSingleClick={joinCallOnSingleClick}
+                            roomTopicPreview={roomTopicPreview}
+                            roomMessagePreview={roomMessagePreview}
                           />
                         </div>
                       </VirtualTile>
@@ -447,8 +451,8 @@ export function Home() {
               </NavCategory>
             </Box>
           </PageNavContent>
-        )}
-      </PageNav>
+          )}
+        </PageNav>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}

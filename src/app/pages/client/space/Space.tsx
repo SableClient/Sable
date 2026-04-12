@@ -533,6 +533,8 @@ export function Space() {
    * Determines the depth limit for the joined space hierarchy and the SpaceNavItems to start appearing
    */
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
   /**
    * Creates an SVG used for connecting spaces to their subrooms.
    * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
@@ -826,6 +828,8 @@ export function Space() {
                         selected={selectedRoomId === roomId}
                         showAvatar={mDirects.has(roomId)}
                         direct={mDirects.has(roomId)}
+                        roomTopicPreview={roomTopicPreview}
+                        roomMessagePreview={roomMessagePreview}
                         linkPath={getToLink(roomId)}
                         notificationMode={getRoomNotificationMode(
                           notificationPreferences,

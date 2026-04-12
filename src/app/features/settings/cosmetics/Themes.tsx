@@ -487,6 +487,11 @@ export function Appearance() {
     settingsAtom,
     'closeFoldersByDefault'
   );
+  const [roomTopicPreview, setRoomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview, setRoomMessagePreview] = useSetting(
+    settingsAtom,
+    'roomMessagePreview'
+  );
 
   return (
     <Box direction="Column" gap="700">
@@ -526,6 +531,32 @@ export function Appearance() {
             focusId="customize-dm-cards"
             description="Show a custom DM card instead of the DM-ed's details"
             after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Room Topic Preview"
+            focusId="room-topic-preview"
+            description="Show the room topic below room names in spaces and Home."
+            after={
+              <Switch variant="Primary" value={roomTopicPreview} onChange={setRoomTopicPreview} />
+            }
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Room Message Preview"
+            focusId="room-message-preview"
+            description="Show the latest message below room names in spaces and Home."
+            after={
+              <Switch
+                variant="Primary"
+                value={roomMessagePreview}
+                onChange={setRoomMessagePreview}
+              />
+            }
           />
         </SequenceCard>
 

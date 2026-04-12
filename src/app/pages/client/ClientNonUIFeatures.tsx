@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +21,9 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -56,7 +58,6 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
-import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -843,11 +844,18 @@ function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+  const clientConfig = useClientConfig();
+  const timeoutMs = clientConfig.presenceAutoIdleTimeoutMs ?? 0;
+
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
-    // Effective broadcast state: honour presenceMode when presence is on, otherwise offline.
+    // When auto-idled, broadcast as unavailable regardless of the configured mode.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    // Effective broadcast state: honour effectiveMode when presence is on, otherwise offline.
     // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
-    const activePresence = presenceMode === 'dnd' ? 'online' : (presenceMode ?? 'online');
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
     const effectiveState = sendPresence ? activePresence : 'offline';
     const broadcasting = effectiveState !== 'offline';
 
@@ -863,11 +871,11 @@ function PresenceFeature() {
     //   their presence events because the extension is still enabled above.
     mx.setPresence({
       presence: effectiveState,
-      status_msg: sendPresence && presenceMode === 'dnd' ? 'dnd' : '',
+      status_msg: sendPresence && effectiveMode === 'dnd' ? 'dnd' : '',
     }).catch(() => {
       // Server doesn't support presence — ignore.
     });
-  }, [mx, sendPresence, presenceMode]);
+  }, [mx, sendPresence, presenceMode, autoIdled]);
 
   return null;
 }
@@ -877,17 +885,11 @@ function SettingsSyncFeature() {
   return null;
 }
 
-function BookmarksFeature() {
-  useInitBookmarks();
-  return null;
-}
-
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
-      <BookmarksFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

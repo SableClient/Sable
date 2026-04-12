@@ -265,3 +265,6 @@ export const settingsAtom = atom<Settings, [Settings], undefined>(
     setSettings(update);
   }
 );
+
+/** Ephemeral (not persisted) — true when auto-idled due to inactivity. */
+export const presenceAutoIdledAtom = atom(false);

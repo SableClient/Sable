@@ -105,11 +105,11 @@ function makeRoom(childEvents: MatrixEvent[], maySendRedaction = false): Room {
   return {
     getUnfilteredTimelineSet: () => ({
       relations: {
-        getAllChildEventsForEvent: (_id: string) => childEvents,
+        getAllChildEventsForEvent: () => childEvents,
       },
     }),
     currentState: {
-      maySendRedactionForEvent: (_event: MatrixEvent, _sender: string) => maySendRedaction,
+      maySendRedactionForEvent: () => maySendRedaction,
     },
   } as unknown as Room;
 }

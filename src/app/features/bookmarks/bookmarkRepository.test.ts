@@ -262,7 +262,9 @@ describe('removeBookmark', () => {
     });
 
     await expect(removeBookmark(mx, item.bookmark_id)).resolves.not.toThrow();
-    const stored = (mx as any)._store[bookmarkItemEventType(item.bookmark_id)] as BookmarkItemContent;
+    const stored = (mx as any)._store[
+      bookmarkItemEventType(item.bookmark_id)
+    ] as BookmarkItemContent;
     expect(stored.deleted).toBe(true);
   });
 

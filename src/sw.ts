@@ -8,10 +8,19 @@ export type {};
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
-// Tracks whether a page client has reported itself as visible.
-// The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
-// so we use this explicit flag as a fallback.
+// Tracks whether a page client has reported itself as visible via postMessage.
+// Used alongside clients.matchAll() to require both signals to agree before
+// suppressing push notifications — prevents over-suppression during the brief
+// window after backgrounding where matchAll()'s visibilityState may lag behind
+// the page's own visibilitychange event.
+//
+// appIsVisibleAt records the last time appIsVisible was set to true. The signal
+// is treated as stale after APP_VISIBLE_TTL_MS — the page renews it via a
+// heartbeat every 30 s so a genuinely open app is always fresh, while a frozen
+// or backgrounded page naturally lets it expire.
 let appIsVisible = false;
+let appIsVisibleAt = 0;
+const APP_VISIBLE_TTL_MS = 45_000;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -512,8 +521,10 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
-    // If the relay responded and the app is currently visible, the in-app UI is already
-    // displaying the message — skip the OS notification entirely.
+    // If the relay responded and indicates the app is currently visible, the
+    // in-app UI is already displaying the message — skip the OS notification.
+    // result.visibilityState comes from a live postMessage round-trip, so it
+    // reflects the page's actual current state (not stale in-memory flags).
     if (result?.visibilityState === 'visible') return;
 
     if (result?.success) {
@@ -612,6 +623,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      if (appIsVisible) appIsVisibleAt = Date.now();
     }
   }
   if (type === 'setNotificationSettings') {
@@ -903,26 +915,39 @@ const onPushNotification = async (event: PushEvent) => {
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
   //
-  // On iOS PWA, either signal can be stale around app background/lock transitions:
-  // - clients.matchAll() visibilityState can briefly lag.
-  // - setAppVisible can lag if the page is frozen before posting.
+  // Visibility is determined by two independent signals that must both agree:
   //
-  // Suppress only when both signals agree the app is visible. Disagreement is
-  // treated as background/unknown so we prefer showing a notification over
-  // accidentally dropping one.
+  // 1. clients.matchAll() visibilityState — direct SW view of page state.
+  //    Can lag briefly on iOS after backgrounding.
+  //
+  // 2. appIsVisible + freshness — page-reported signal via postMessage.
+  //    The page sets this true when focused+visible and renews it every 30 s
+  //    (heartbeat). The SW treats it stale after APP_VISIBLE_TTL_MS (45 s) so
+  //    a frozen/backgrounded page that can't send the 'false' message is
+  //    self-healing. Also covers desktop minimize: Chrome/Edge don't always
+  //    fire visibilitychange on minimize, but the window reliably loses focus
+  //    (blur), which the page uses to report false immediately.
+  //
+  // Disagreement between the two signals is treated as background/unknown —
+  // prefer showing a notification over accidentally dropping one.
   const hasVisibleClientFromMatchAll =
     clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
-  const hasVisibleClient = hasVisibleClientFromMatchAll && appIsVisible;
+  const appVisibleAndFresh = appIsVisible && Date.now() - appIsVisibleAt < APP_VISIBLE_TTL_MS;
+  const hasVisibleClient = hasVisibleClientFromMatchAll && appVisibleAndFresh;
   console.debug(
-    '[SW push] appIsVisible (diagnostic):',
+    '[SW push] appIsVisible:',
     appIsVisible,
+    '| fresh:',
+    appVisibleAndFresh,
+    '| age ms:',
+    appIsVisibleAt ? Date.now() - appIsVisibleAt : 'never',
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClientFromMatchAll:', hasVisibleClientFromMatchAll);
   console.debug('[SW push] hasVisibleClient (combined):', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and fresh');
     return;
   }
 

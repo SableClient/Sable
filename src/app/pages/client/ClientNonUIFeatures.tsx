@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +21,9 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -56,6 +58,7 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -336,7 +339,12 @@ function MessageNotifications() {
         return;
       }
 
-      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent)) {
+      if (
+        !room ||
+        isHistoricalEvent ||
+        room.isSpaceRoom() ||
+        !isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)
+      ) {
         return;
       }
 
@@ -513,8 +521,12 @@ function MessageNotifications() {
         });
       }
 
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
+      // In-app audio: play when the app is in the foreground (has focus) and
+      // notification sounds are enabled for this notification type.
+      // Gating on hasFocus() rather than just visibilityState prevents a race
+      // where the page is still 'visible' for a brief window after the user
+      // backgrounds the app on mobile — hasFocus() flips false first.
+      if (notificationSound && isLoud && document.hasFocus()) {
         playSound();
       }
     };
@@ -638,16 +650,48 @@ function SyncNotificationSettingsWithServiceWorker() {
     if (!('serviceWorker' in navigator)) return undefined;
 
     const postVisibility = () => {
-      const visible = document.visibilityState === 'visible';
+      // Require both visibilityState === 'visible' AND document.hasFocus().
+      // visibilityState alone misses desktop window minimize: Chrome/Edge do
+      // not reliably fire visibilitychange when a PWA window is minimized, so
+      // the state can stay 'visible' indefinitely. hasFocus() is false as soon
+      // as the window loses focus (minimize, or another window on top), which
+      // means the SW receives false promptly via the blur listener below.
+      const visible = document.visibilityState === 'visible' && document.hasFocus();
       const msg = { type: 'setAppVisible', visible };
       navigator.serviceWorker.controller?.postMessage(msg);
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
+    const postHidden = () => {
+      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
+      // when the user locks the screen or backgrounds the app quickly, making
+      // it less likely that the SW is left with a stale appIsVisible=true.
+      const msg = { type: 'setAppVisible', visible: false };
+      navigator.serviceWorker.controller?.postMessage(msg);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    };
+
+    // Heartbeat: renew appIsVisible=true in the SW every 30 s while the app
+    // stays focused and visible. The SW expires the signal after 45 s, so the
+    // heartbeat ensures a genuinely open app is never incorrectly suppressed,
+    // while a frozen or backgrounded page lets the signal expire naturally.
+    const heartbeatId = setInterval(postVisibility, 30_000);
+
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    // blur fires when the window loses focus (minimize, another window on top).
+    // focus fires when the window regains focus.
+    window.addEventListener('focus', postVisibility);
+    window.addEventListener('blur', postHidden);
+    window.addEventListener('pagehide', postHidden);
+    return () => {
+      clearInterval(heartbeatId);
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.removeEventListener('focus', postVisibility);
+      window.removeEventListener('blur', postHidden);
+      window.removeEventListener('pagehide', postHidden);
+    };
   }, []);
 
   useEffect(() => {
@@ -830,14 +874,39 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+  const clientConfig = useClientConfig();
+  const timeoutMs = clientConfig.presenceAutoIdleTimeoutMs ?? 0;
+
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
+    // When auto-idled, broadcast as unavailable regardless of the configured mode.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    // Effective broadcast state: honour effectiveMode when presence is on, otherwise offline.
+    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const broadcasting = effectiveState !== 'offline';
+
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
+    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
+    // Sliding sync: keep the extension enabled so we always receive others' presence.
+    // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
+    // - MSC4186 servers that have no presence extension see this immediately.
+    // - When 'offline' (Invisible mode), we appear offline to others but still receive
+    //   their presence events because the extension is still enabled above.
+    mx.setPresence({
+      presence: effectiveState,
+      status_msg: sendPresence && effectiveMode === 'dnd' ? 'dnd' : '',
+    }).catch(() => {
+      // Server doesn't support presence — ignore.
+    });
+  }, [mx, sendPresence, presenceMode, autoIdled]);
 
   return null;
 }
@@ -847,11 +916,17 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
+      <BookmarksFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

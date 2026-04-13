@@ -52,13 +52,17 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      log.log('jumping to:', pending.roomId, pending.eventId);
+      // Always open joined rooms at the live timeline for notification clicks.
+      // Event-scoped navigation can create a sparse historical context where the
+      // room appears to contain only the notification event.
+      const targetEventId = undefined;
+      log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, pending.eventId));
+        navigate(getDirectRoomPath(roomIdOrAlias, targetEventId));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -74,11 +78,11 @@ export function NotificationJumper() {
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace),
               roomIdOrAlias,
-              pending.eventId
+              targetEventId
             )
           );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, pending.eventId));
+          navigate(getHomeRoomPath(roomIdOrAlias, targetEventId));
         }
       }
       setPending(null);

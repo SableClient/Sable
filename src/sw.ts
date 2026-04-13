@@ -11,6 +11,11 @@ let notificationSoundEnabled = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
+
+/** Explicit visibility flag posted by the app via setAppVisible messages.
+ * Combines with clients.matchAll() in the push handler because iOS Safari PWA
+ * often returns empty or stale results from matchAll(). */
+let appIsVisible = false;
 const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
   showMessageContent,
   showEncryptedMessageContent,
@@ -607,6 +612,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       }
     }
   }
+  if (type === 'setAppVisible') {
+    if (typeof (data as { visible?: unknown }).visible === 'boolean') {
+      appIsVisible = (data as { visible: boolean }).visible;
+    }
+  }
   if (type === 'setNotificationSettings') {
     if (
       typeof (data as { notificationSoundEnabled?: unknown }).notificationSoundEnabled === 'boolean'
@@ -895,14 +905,17 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
+  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
+  // because iOS Safari PWA often returns empty or stale results from matchAll().
   const hasVisibleClient =
-    clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
+    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
   console.debug(
-    '[SW push] hasVisibleClient:',
-    hasVisibleClient,
+    '[SW push] appIsVisible:',
+    appIsVisible,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
+  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;

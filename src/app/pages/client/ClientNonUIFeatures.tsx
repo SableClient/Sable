@@ -647,6 +647,22 @@ function SyncNotificationSettingsWithServiceWorker() {
   const [clearNotificationsOnRead] = useSetting(settingsAtom, 'clearNotificationsOnRead');
 
   useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const postVisibility = () => {
+      const visible = document.visibilityState === 'visible';
+      const msg = { type: 'setAppVisible', visible };
+      navigator.serviceWorker.controller?.postMessage(msg);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    };
+
+    // Report initial visibility immediately, then track changes.
+    postVisibility();
+    document.addEventListener('visibilitychange', postVisibility);
+    return () => document.removeEventListener('visibilitychange', postVisibility);
+  }, []);
+
+  useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).

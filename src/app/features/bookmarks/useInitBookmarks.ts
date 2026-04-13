@@ -57,12 +57,18 @@ export function useInitBookmarks(): void {
     )
   );
 
-  // React to index updates pushed by other devices mid-session.
+  // React to bookmark account data changes pushed by other devices mid-session.
+  // The index event fires when the bookmark list changes; individual item events
+  // fire when a bookmark is added, removed, or soft-deleted.
   useAccountDataCallback(
     mx,
     useCallback(
       (event: MatrixEvent) => {
-        if (event.getType() === (AccountDataEvent.BookmarksIndex as string)) {
+        const type = event.getType();
+        if (
+          type === (AccountDataEvent.BookmarksIndex as string) ||
+          type.startsWith(AccountDataEvent.BookmarkItemPrefix as string)
+        ) {
           loadBookmarks();
         }
       },

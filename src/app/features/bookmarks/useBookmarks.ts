@@ -79,11 +79,20 @@ export function useBookmarkActions() {
 
   const remove = useCallback(
     async (bookmarkId: string) => {
-      // Optimistic update
-      setList((prev) => prev.filter((b) => b.bookmark_id !== bookmarkId));
+      // Optimistic update: move from active list to deleted list
+      setList((prev) => {
+        const removed = prev.find((b) => b.bookmark_id === bookmarkId);
+        if (removed) {
+          setDeletedList((del) => {
+            if (del.some((b) => b.bookmark_id === bookmarkId)) return del;
+            return [{ ...removed, deleted: true }, ...del];
+          });
+        }
+        return prev.filter((b) => b.bookmark_id !== bookmarkId);
+      });
       await removeBookmark(mx, bookmarkId);
     },
-    [mx, setList]
+    [mx, setList, setDeletedList]
   );
 
   const restore = useCallback(

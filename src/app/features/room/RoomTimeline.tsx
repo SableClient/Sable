@@ -405,6 +405,21 @@ export function RoomTimeline({
     }
   }, [timelineSync.focusItem]);
 
+  // Recovery: if event timeline load failed and fell back to live timeline,
+  // reveal the timeline so the user doesn't see a blank page.
+  useEffect(() => {
+    if (eventId && !isReady && timelineSync.liveTimelineLinked && timelineSync.eventsLength > 0) {
+      scrollToBottom();
+      setIsReady(true);
+    }
+  }, [
+    eventId,
+    isReady,
+    timelineSync.liveTimelineLinked,
+    timelineSync.eventsLength,
+    scrollToBottom,
+  ]);
+
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);

@@ -656,10 +656,26 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
+    // Respond to live visibility pings from the SW push handler.
+    const handleSWMessage = (ev: MessageEvent) => {
+      if (ev.data?.type === 'checkVisibility' && typeof ev.data.seq === 'number') {
+        const visible = document.visibilityState === 'visible';
+        navigator.serviceWorker.controller?.postMessage({
+          type: 'visibilityCheckResult',
+          seq: ev.data.seq,
+          visible,
+        });
+      }
+    };
+
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+    };
   }, []);
 
   useEffect(() => {

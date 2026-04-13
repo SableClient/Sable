@@ -180,7 +180,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   ]);
 
   useEffect(() => {
-    if (!mx) return;
+    if (!mx) return undefined;
 
     const handleVisibilityForNotifications = (isVisible: boolean) => {
       togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);

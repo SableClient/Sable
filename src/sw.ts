@@ -106,13 +106,15 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
       // rejected and requestSession had no live window client to reach.
       // If the token truly is revoked the fetches in handleMinimalPushPayload will
       // receive a 401 and gracefully fall back to a generic notification anyway.
+      if (typeof s.accessToken !== 'string' || typeof s.baseUrl !== 'string') {
+        console.debug('[SW] loadPersistedSession: invalid cached session (missing fields)');
+        return undefined;
+      }
+
       const age = typeof s.persistedAt === 'number' ? Date.now() - s.persistedAt : Infinity;
       const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
       if (age > MAX_SESSION_AGE_MS) {
-        console.debug('[SW] loadPersistedSession: session expired', {
-          age,
-          accessToken: s.accessToken.slice(0, 8),
-        });
+        console.debug('[SW] loadPersistedSession: session expired', { age });
         return undefined;
       }
 
@@ -444,10 +446,10 @@ async function handleMinimalPushPayload(
   let session = getAnyStoredSession() ?? (await loadPersistedSession());
   if (!session && windowClients.length > 0) {
     console.debug('[SW push] no cached session, requesting from window clients');
-    const result = await Promise.race(
+    const results = await Promise.all(
       Array.from(windowClients).map((c) => requestSessionWithTimeout(c.id, 1500))
     );
-    session = result ?? undefined;
+    session = results.find((r) => r != null) ?? undefined;
   }
 
   if (!session) {
@@ -892,8 +894,8 @@ const onPushNotification = async (event: PushEvent) => {
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
   // Capture the persisted session result into preloadedSession so that
-  // getAnyStoredSession() returns it in handleMinimalPushPayload without a
-  // second cache read.
+  // handleMinimalPushPayload and media fetch handlers can use it as a
+  // fallback without a second cache read.
   const [, persistedSession, clients] = await Promise.all([
     loadPersistedSettings(),
     loadPersistedSession(),
@@ -1058,5 +1060,5 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   );
 });
 
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST ?? []);
 cleanupOutdatedCaches();

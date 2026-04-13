@@ -254,7 +254,7 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   useSyncNicknames(mx);
   useLogoutListener(mx);
-  useAppVisibility(mx);
+  useAppVisibility(mx, activeSession);
 
   useEffect(
     () => () => {

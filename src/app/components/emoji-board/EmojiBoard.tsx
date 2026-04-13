@@ -42,6 +42,7 @@ import {
   SidebarDivider,
   Sidebar,
   NoStickerPacks,
+  GifStatus,
   createPreviewDataAtom,
   Preview,
   PreviewData,
@@ -573,7 +574,7 @@ export function EmojiBoard({
     return { gifs, loading, error, searchGifs };
   }
 
-  const { gifs, searchGifs } = useGifSearch();
+  const { gifs, loading: gifsLoading, error: gifsError, searchGifs } = useGifSearch();
   const [emojiGroupItems, stickerGroupItems, gifGroupItems] = useGroups(tab, imagePacks, gifs);
   const groupsByTab = {
     [EmojiBoardTab.Emoji]: emojiGroupItems,
@@ -784,6 +785,9 @@ export function EmojiBoard({
               })}
             </div>
             {tab === EmojiBoardTab.Sticker && groups.length === 0 && <NoStickerPacks />}
+            {gifTab && (
+              <GifStatus loading={gifsLoading} error={gifsError} isEmpty={gifs.length === 0} />
+            )}
           </EmojiGroupHolder>
         </Box>
         {!gifTab && <Preview previewAtom={previewAtom} />}

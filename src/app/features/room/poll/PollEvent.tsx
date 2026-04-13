@@ -3,6 +3,7 @@ import FocusTrap from 'focus-trap-react';
 import {
   Box,
   Button,
+  Checkbox,
   config,
   Icon,
   Icons,
@@ -21,6 +22,7 @@ import {
   M_POLL_RESPONSE,
   M_POLL_START,
   MatrixEvent,
+  MatrixEventEvent,
   Room,
   RoomEvent,
 } from '$types/matrix-sdk';
@@ -200,6 +202,20 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
     };
   }, [room, pollEventId]);
 
+  // Also re-compute when an encrypted poll response/end is decrypted
+  useEffect(() => {
+    const onDecrypted = (event: MatrixEvent) => {
+      if (M_POLL_RESPONSE.matches(event.getType()) || M_POLL_END.matches(event.getType())) {
+        const relTo = event.getContent()?.['m.relates_to']?.event_id;
+        if (relTo === pollEventId) incrementTick();
+      }
+    };
+    mx.on(MatrixEventEvent.Decrypted, onDecrypted);
+    return () => {
+      mx.off(MatrixEventEvent.Decrypted, onDecrypted);
+    };
+  }, [mx, pollEventId]);
+
   // Re-render when the expiry countdown reaches zero
   useEffect(() => {
     if (!pollData?.closesAt) return undefined;
@@ -276,7 +292,8 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
 
   if (!pollData) return null;
 
-  const { question, answers, isDisclosed, closesAt } = pollData;
+  const { question, answers, isDisclosed, closesAt, maxSelections } = pollData;
+  const isMultiSelect = maxSelections > 1;
   const voterLabel = `${totalVoters} ${totalVoters === 1 ? 'voter' : 'voters'}`;
 
   let statusText: string;
@@ -383,7 +400,11 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
                         aria-pressed={isSelected}
                         aria-label={`Vote for ${answer.text}`}
                       >
-                        <RadioButton size="50" checked={isSelected} readOnly tabIndex={-1} />
+                        {isMultiSelect ? (
+                          <Checkbox size="50" checked={isSelected} readOnly tabIndex={-1} />
+                        ) : (
+                          <RadioButton size="50" checked={isSelected} readOnly tabIndex={-1} />
+                        )}
                       </button>
                       {textZone}
                     </Box>

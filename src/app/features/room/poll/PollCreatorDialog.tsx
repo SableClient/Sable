@@ -69,11 +69,13 @@ export function PollCreatorDialog({ onCancel, onSubmit }: PollCreatorDialogProps
   const [error, setError] = useState<string>();
   const lastInputRef = useRef<HTMLInputElement>(null);
 
-  const minDatetime = useMemo(
-    () => new Date(Date.now() + 60_000).toISOString().slice(0, 16),
+  const minDatetime = useMemo(() => {
+    const d = new Date(Date.now() + 60_000);
+    // datetime-local expects local time, not UTC — build YYYY-MM-DDTHH:MM manually
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expiryPreset]
-  );
+  }, [expiryPreset]);
 
   const computeClosesAt = (): number | undefined => {
     const now = Date.now();

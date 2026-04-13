@@ -58,10 +58,14 @@ export enum MessageEvent {
   Sticker = 'm.sticker',
   RoomRedaction = 'm.room.redaction',
   Reaction = 'm.reaction',
-  // MSC3381 Polls — unstable prefix (stable types not yet in a shipped room version)
+  // MSC3381 Polls — unstable prefix (still the most common in the wild)
   PollStart = 'org.matrix.msc3381.poll.start',
   PollResponse = 'org.matrix.msc3381.poll.response',
   PollEnd = 'org.matrix.msc3381.poll.end',
+  // MSC3381 Polls — stable types (used by newer servers)
+  StablePollStart = 'm.poll.start',
+  StablePollResponse = 'm.poll.response',
+  StablePollEnd = 'm.poll.end',
 }
 
 export enum RoomType {

@@ -171,6 +171,7 @@ export function BackgroundNotifications() {
 
     const { current } = clientsRef;
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
+    const pendingRetryTimers = new Set<ReturnType<typeof setTimeout>>();
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
       // Prefer ServiceWorkerRegistration.showNotification so that taps are handled
@@ -522,7 +523,8 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
-            setTimeout(() => {
+            const timerId = setTimeout(() => {
+              pendingRetryTimers.delete(timerId);
               const latestSession = inactiveSessionsRef.current.find(
                 (s) => s.userId === session.userId
               );
@@ -530,6 +532,7 @@ export function BackgroundNotifications() {
                 startSession(latestSession, attempt + 1);
               }
             }, retryDelay);
+            pendingRetryTimers.add(timerId);
           }
         });
     };
@@ -539,6 +542,8 @@ export function BackgroundNotifications() {
     });
 
     return () => {
+      pendingRetryTimers.forEach((id) => clearTimeout(id));
+      pendingRetryTimers.clear();
       // Reading ref.current in cleanup is intentional - we want cleanup functions
       // that were registered during async startBackgroundClient operations
       // eslint-disable-next-line react-hooks/exhaustive-deps

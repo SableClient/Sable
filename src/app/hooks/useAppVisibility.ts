@@ -115,9 +115,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
         { visibilityState: document.visibilityState }
       );
-      appEvents.onVisibilityChange?.(isVisible);
+      appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
-        appEvents.onVisibilityHidden?.();
+        appEvents.emitVisibilityHidden();
         return;
       }
 
@@ -186,11 +186,8 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
     };
 
-    appEvents.onVisibilityChange = handleVisibilityForNotifications;
-    // eslint-disable-next-line consistent-return
-    return () => {
-      appEvents.onVisibilityChange = null;
-    };
+    const unsubscribe = appEvents.onVisibilityChange(handleVisibilityForNotifications);
+    return unsubscribe;
   }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
 
   useEffect(() => {

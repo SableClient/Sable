@@ -38,12 +38,12 @@ export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined =>
   const data = element.getAttribute('data-emoji-data');
   const shortcode = element.getAttribute('data-emoji-shortcode');
 
-  if (type && data && shortcode)
+  if (type && data && shortcode && label)
     return {
       type,
       data,
       shortcode,
-      label: label ?? shortcode,
+      label,
     };
   return undefined;
 };

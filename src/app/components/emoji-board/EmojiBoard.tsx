@@ -141,7 +141,6 @@ const useGroups = (
     return g;
   }, [mx, imagePacks, tab]);
 
-  // TODO: verify this implementation
   const gifGroupItems = useMemo(() => {
     if (tab !== EmojiBoardTab.Gif) return [];
     return [

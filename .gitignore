@@ -20,3 +20,27 @@ devAssets
 !*.tfbackend.example
 crash.log
 build.sh
+
+# the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
+.lh
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# should not be done... but i dont want to add stuff that shouldnt be there
+devenv.nix
+devenv.yaml
+.envrc
+devenv.lock
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+CLAUDE.md
+.github/AGENTS.md
+.gitignore
+.github/copilot-instructions.md

@@ -426,6 +426,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
     }, [mentionInReplies, mx, replyDraft]);
 
+    const prevReplyEventId = useRef(replyDraft?.eventId);
+    useEffect(() => {
+      if (replyDraft?.eventId !== prevReplyEventId.current) {
+        prevReplyEventId.current = replyDraft?.eventId;
+
+        if (replyDraft?.eventId) {
+          requestAnimationFrame(() => {
+            try {
+              ReactEditor.focus(editor);
+              moveCursor(editor);
+            } catch {
+              // Ignore focus errors
+            }
+          });
+        }
+      }
+    }, [replyDraft?.eventId, editor]);
+
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
         setSelectedFiles({

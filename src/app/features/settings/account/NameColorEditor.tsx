@@ -7,6 +7,7 @@ import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
 type NameColorEditorProps = {
   title: string;
   description?: string;
+  focusId?: string;
   current?: string;
   onSave: (color: string | null) => void;
   disabled?: boolean;
@@ -15,6 +16,7 @@ type NameColorEditorProps = {
 export function NameColorEditor({
   title,
   description,
+  focusId,
   current,
   onSave,
   disabled,
@@ -57,89 +59,94 @@ export function NameColorEditor({
 
   return (
     <Box direction="Column" gap="100">
-      <SettingTile title={title} focusId="name-color" description={description} />
-      <Box
-        alignItems="Center"
-        justifyContent="SpaceBetween"
-        gap="300"
-        style={{
-          padding: config.space.S400,
-          backgroundColor: 'var(--sable-surface-container)',
-          borderRadius: config.radii.R400,
-        }}
-      >
-        <Box alignItems="Center" gap="300" grow="Yes">
-          <HexColorPickerPopOut
-            picker={<HexColorPicker color={tempColor} onChange={handleUpdate} />}
+      <SettingTile
+        title={title}
+        focusId={focusId}
+        description={description}
+        after={
+          <Box
+            alignItems="Center"
+            justifyContent="SpaceBetween"
+            gap="300"
+            style={{
+              padding: config.space.S100,
+              backgroundColor: 'var(--sable-surface-container)',
+              borderRadius: config.radii.R400,
+            }}
           >
-            {(onOpen, opened) => (
-              <Button
-                onClick={onOpen}
-                size="400"
-                variant="Secondary"
-                fill="None"
-                radii="300"
-                disabled={disabled ?? false}
-                style={{
-                  padding: config.space.S100,
-                  border: `2px solid ${opened ? 'var(--sable-primary-main)' : 'var(--sable-border-focus)'}`,
-                }}
+            <Box alignItems="Center" gap="300" grow="Yes">
+              {hasChanged && (
+                <Button
+                  variant="Primary"
+                  size="300"
+                  radii="Pill"
+                  onClick={handleSave}
+                  disabled={!/^#[0-9A-F]{6}$/i.test(tempColor)}
+                >
+                  <Text size="B300">Save</Text>
+                </Button>
+              )}
+              <HexColorPickerPopOut
+                picker={<HexColorPicker color={tempColor} onChange={handleUpdate} />}
               >
-                <Box
+                {(onOpen, opened) => (
+                  <Button
+                    onClick={onOpen}
+                    size="400"
+                    variant="Secondary"
+                    fill="None"
+                    radii="300"
+                    disabled={disabled ?? false}
+                    style={{
+                      padding: config.space.S100,
+                      border: `2px solid ${opened ? 'var(--sable-primary-main)' : 'var(--sable-border-focus)'}`,
+                    }}
+                  >
+                    <Box
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: tempColor,
+                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                      }}
+                    />
+                  </Button>
+                )}
+              </HexColorPickerPopOut>
+
+              <Box direction="Row" alignItems="Center" gap="100">
+                <Input
+                  value={tempColor}
+                  onChange={(e) => handleUpdate(e.currentTarget.value)}
+                  placeholder="#FFFFFF"
+                  variant="Background"
+                  size="300"
+                  radii="300"
+                  disabled={disabled ?? false}
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: tempColor,
-                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                    textTransform: 'uppercase',
+                    fontFamily: 'monospace',
+                    width: '100px',
                   }}
                 />
-              </Button>
-            )}
-          </HexColorPickerPopOut>
-
-          <Box direction="Row" alignItems="Center" gap="100">
-            <Input
-              value={tempColor}
-              onChange={(e) => handleUpdate(e.currentTarget.value)}
-              placeholder="#FFFFFF"
-              variant="Background"
-              size="300"
-              radii="300"
-              disabled={disabled ?? false}
-              style={{
-                textTransform: 'uppercase',
-                fontFamily: 'monospace',
-                width: '100px',
-              }}
-            />
-            {current && (
-              <IconButton
-                variant="Secondary"
-                size="300"
-                radii="300"
-                disabled={disabled ?? false}
-                onClick={handleReset}
-                title="Reset to default"
-              >
-                <Icon src={Icons.Cross} size="100" />
-              </IconButton>
-            )}
+                {current && (
+                  <IconButton
+                    variant="Secondary"
+                    size="300"
+                    radii="300"
+                    disabled={disabled ?? false}
+                    onClick={handleReset}
+                    title="Reset to default"
+                  >
+                    <Icon src={Icons.Cross} size="100" />
+                  </IconButton>
+                )}
+              </Box>
+            </Box>
           </Box>
-        </Box>
-
-        {hasChanged && (
-          <Button
-            variant="Primary"
-            size="300"
-            radii="Pill"
-            onClick={handleSave}
-            disabled={!/^#[0-9A-F]{6}$/i.test(tempColor)}
-          >
-            <Text size="B300">Save</Text>
-          </Button>
-        )}
-      </Box>
+        }
+      />
     </Box>
   );
 }

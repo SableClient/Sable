@@ -35,6 +35,8 @@ import { useFilePicker } from '$hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -294,8 +296,9 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const room = useRoom();
   const directs = useAtomValue(mDirectAtom);
   const isDm = directs.has(room.roomId);
+  const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
 
-  const avatar = useRoomAvatar(room, directs.has(room.roomId));
+  const avatar = useRoomAvatar(room, directs.has(room.roomId) && !customDMCards);
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
   const joinRule = useRoomJoinRule(room);

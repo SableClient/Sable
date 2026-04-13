@@ -5,6 +5,7 @@ import {
   getLocalStorageItem,
   setLocalStorageItem,
 } from './utils/atomWithLocalStorage';
+import { getSettings } from './settings';
 
 const OPENED_SIDEBAR_FOLDER = 'openedSidebarFolder';
 
@@ -30,6 +31,10 @@ export const makeOpenedSidebarFolderAtom = (userId: string): OpenedSidebarFolder
   const baseOpenedSidebarFolderAtom = atomWithLocalStorage<Set<string>>(
     storeKey,
     (key) => {
+      const settings = getSettings();
+      if (settings.closeFoldersByDefault) {
+        return new Set<string>();
+      }
       const arrayValue = getLocalStorageItem<string[]>(key, []);
       return new Set(arrayValue);
     },

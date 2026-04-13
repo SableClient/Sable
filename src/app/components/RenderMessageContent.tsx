@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import { MsgType } from '$types/matrix-sdk';
+import { type IPreviewUrlResponse, MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
@@ -44,6 +44,7 @@ type RenderMessageContentProps = {
   edited?: boolean;
   getContent: <T>() => T;
   mediaAutoLoad?: boolean;
+  bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
   highlightRegex?: RegExp;
@@ -70,6 +71,7 @@ function RenderMessageContentInternal({
   edited,
   getContent,
   mediaAutoLoad,
+  bundledPreview,
   urlPreview,
   clientUrlPreview,
   highlightRegex,
@@ -117,18 +119,17 @@ function RenderMessageContentInternal({
 
       const mediaLinks = analyzed.filter((item) => item.type !== null);
       const toRender = mediaLinks.length > 0 ? mediaLinks : [analyzed[0]];
-
       return (
         <UrlPreviewHolder>
           {toRender.map(({ url, type }) => {
             if (type) {
-              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview url={url} />;
             }
             if (urlPreview) {
-              return <UrlPreviewCard key={url} url={url} ts={ts} mediaType={type} />;
+              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             return null;
           })}
@@ -137,7 +138,23 @@ function RenderMessageContentInternal({
     },
     [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
   );
+  const renderBundledPreviews = useCallback(
+    (bundles: IPreviewUrlResponse[]) => (
+      <UrlPreviewHolder>
+        {bundles.map((bundle) => (
+          <UrlPreviewCard
+            urlPreview={urlPreview === true}
+            key={bundle['og:url']}
+            url={bundle['og:url']}
+            bundle={bundle}
+          />
+        ))}
+      </UrlPreviewHolder>
+    ),
+    [urlPreview]
+  );
   const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
+  const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
     const hasCaption = content.body && content.body.trim().length > 0;
@@ -151,6 +168,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
+            renderBundledPreviews={messageBundlePreview}
           />
         );
       return (
@@ -170,6 +188,7 @@ function RenderMessageContentInternal({
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
+            renderBundledPreviews={messageBundlePreview}
           />
         </Box>
       );
@@ -232,6 +251,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
+        renderBundledPreviews={messageBundlePreview}
       />
     );
   }
@@ -253,6 +273,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
+        renderBundledPreviews={messageBundlePreview}
       />
     );
   }
@@ -264,6 +285,7 @@ function RenderMessageContentInternal({
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
+        renderBundledPreviews={messageBundlePreview}
       />
     );
   }

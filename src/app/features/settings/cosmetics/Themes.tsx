@@ -486,7 +486,12 @@ function PageZoomInput() {
 
 export function Appearance() {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
+  const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
+    settingsAtom,
+    'closeFoldersByDefault'
+  );
 
   return (
     <Box direction="Column" gap="700">
@@ -502,6 +507,30 @@ export function Appearance() {
             focusId="twitter-emoji"
             description="Use Twitter-style emojis instead of system native ones."
             after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Close Space Folders by Default"
+            focusId="collapse-folders-by-default"
+            description="Collapse sidebar folders upon loading."
+            after={
+              <Switch
+                variant="Primary"
+                value={closeFoldersByDefault}
+                onChange={setCloseFoldersByDefault}
+              />
+            }
+          />
+        </SequenceCard>
+
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Customize DM cards"
+            focusId="customize-dm-cards"
+            description="Show a custom DM card instead of the DM-ed's details"
+            after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
           />
         </SequenceCard>
 

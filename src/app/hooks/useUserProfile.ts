@@ -9,6 +9,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { type MSC1767Text } from '$types/matrix/common';
 import { useMatrixClient } from './useMatrixClient';
+import { ThemeKind, useActiveTheme } from './useTheme';
 
 const inFlightProfiles = new Map<string, Promise<any>>();
 
@@ -25,6 +26,8 @@ export type UserProfile = {
   status?: string;
   bannerUrl?: string;
   nameColor?: string;
+  nameColorDark?: string;
+  nameColorLight?: string;
   isCat?: boolean;
   hasCats?: boolean;
   extended?: Record<string, any>;
@@ -45,6 +48,8 @@ const normalizeInfo = (info: any): UserProfile => {
     'chat.commet.profile_banner',
     'chat.commet.profile_status',
     'moe.sable.app.name_color',
+    'moe.sable.app.name_color_dark_theme',
+    'moe.sable.app.name_color_light_theme',
     'kitty.meow.has_cats',
     'kitty.meow.is_cat',
   ]);
@@ -68,6 +73,8 @@ const normalizeInfo = (info: any): UserProfile => {
     status: info['chat.commet.profile_status'],
     bannerUrl: info['chat.commet.profile_banner'],
     nameColor: info['moe.sable.app.name_color'],
+    nameColorDark: info['moe.sable.app.name_color_dark_theme'],
+    nameColorLight: info['moe.sable.app.name_color_light_theme'],
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
     extended,
@@ -98,6 +105,7 @@ export const useUserProfile = (
   const [renderGlobalColors] = useSetting(settingsAtom, 'renderGlobalNameColors');
   const [renderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
+  const themeKind = useActiveTheme().kind;
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
 
@@ -202,12 +210,26 @@ export const useUserProfile = (
       }
     }
     const validGlobalVal = isValidHex(data?.nameColor);
+    const validGlobalValDark = isValidHex(data?.nameColorDark);
+    const validGlobalValLight = isValidHex(data?.nameColorLight);
 
-    const hasGlobalColor = !!validGlobalVal;
-    const validGlobal =
-      (renderGlobalColors || userId === mx.getUserId()) && hasGlobalColor
+    const validGlobalGeneral =
+      (renderGlobalColors || userId === mx.getUserId()) && !!validGlobalVal
         ? validGlobalVal
         : undefined;
+    const validGlobalDark =
+      (renderGlobalColors || userId === mx.getUserId()) &&
+      themeKind === ThemeKind.Dark &&
+      !!validGlobalValDark
+        ? validGlobalValDark
+        : undefined;
+    const validGlobalLight =
+      (renderGlobalColors || userId === mx.getUserId()) &&
+      themeKind === ThemeKind.Light &&
+      !!validGlobalValLight
+        ? validGlobalValLight
+        : undefined;
+    const validGlobal = validGlobalDark ?? validGlobalLight ?? validGlobalGeneral;
     const validLocal = localColor && isValidHex(localColor) ? localColor : undefined;
     const validSpace = spaceColor && isValidHex(spaceColor) ? spaceColor : undefined;
 
@@ -237,13 +259,14 @@ export const useUserProfile = (
     };
   }, [
     cached,
+    initialProfile,
+    mx,
     userId,
     room,
-    mx,
-    legacyUsernameColor,
-    renderGlobalColors,
-    initialProfile,
     renderRoomColors,
     renderRoomFonts,
+    renderGlobalColors,
+    themeKind,
+    legacyUsernameColor,
   ]);
 };

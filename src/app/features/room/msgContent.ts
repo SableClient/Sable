@@ -147,10 +147,12 @@ export type AudioMsgContent = IContent & {
 export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgContent => {
   const { file, encInfo, metadata } = item;
   const { waveform, audioDuration, markedAsSpoiler } = metadata;
+  const isVoice = waveform !== undefined && waveform.length > 0;
+  const fallbackBody = isVoice ? 'a voice message' : file.name;
   let content: IContent = {
     msgtype: MsgType.Audio,
     filename: file.name,
-    body: item.body && item.body.length > 0 ? item.body : 'a voice message',
+    body: item.body && item.body.length > 0 ? item.body : fallbackBody,
     info: {
       mimetype: file.type,
       size: file.size,
@@ -162,7 +164,7 @@ export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgCont
       waveform: waveform?.map((v) => Math.round(v * 1024)),
       duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
     },
-    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : 'a voice message',
+    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : fallbackBody,
     'org.matrix.msc3245.voice.v2': {
       duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration,
       waveform: waveform?.map((v) => Math.round(v * 1024)),

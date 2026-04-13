@@ -11,13 +11,12 @@ import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
-import { createMentionElement, isEmptyEditor, moveCursor } from '$components/editor';
+import { createMentionElement, moveCursor } from '$components/editor';
 
 export type UseTimelineActionsOptions = {
   room: Room;
   mx: MatrixClient;
   editor: Editor;
-  alive: () => boolean;
   nicknames: Record<string, string>;
   globalProfiles: Record<string, any>;
   spaceId?: string;
@@ -33,8 +32,7 @@ export type UseTimelineActionsOptions = {
   setReplyDraft: (draft: any) => void;
   openThreadId?: string;
   setOpenThread: (threadId: string | undefined) => void;
-  setEditId: (editId: string | undefined) => void;
-  onEditorReset?: () => void;
+  handleEdit: (editId?: string) => void;
   handleOpenEvent: (eventId: string) => void;
 };
 
@@ -42,7 +40,6 @@ export function useTimelineActions({
   room,
   mx,
   editor,
-  alive,
   nicknames,
   globalProfiles,
   spaceId,
@@ -51,8 +48,7 @@ export function useTimelineActions({
   setReplyDraft,
   openThreadId,
   setOpenThread,
-  setEditId,
-  onEditorReset,
+  handleEdit,
   handleOpenEvent,
 }: UseTimelineActionsOptions) {
   const handleOpenReply: MouseEventHandler<HTMLButtonElement> = useCallback(
@@ -213,24 +209,6 @@ export function useTimelineActions({
       mx.cancelPendingEvent(mEvent);
     },
     [mx]
-  );
-
-  const handleEdit = useCallback(
-    (targetEditId?: string) => {
-      if (targetEditId) {
-        setEditId(targetEditId);
-        return;
-      }
-      setEditId(undefined);
-
-      requestAnimationFrame(() => {
-        if (!alive()) return;
-        if (isEmptyEditor(editor)) onEditorReset?.();
-        ReactEditor.focus(editor);
-        moveCursor(editor);
-      });
-    },
-    [editor, alive, onEditorReset, setEditId]
   );
 
   return {

@@ -7,6 +7,8 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { useUserPresence } from '$hooks/useUserPresence';
+import { PresenceBadge } from '$components/presence';
 import * as css from './style.css';
 
 const getName = (room: Room, member: RoomMember, nicknames: Record<string, string>) =>
@@ -25,7 +27,7 @@ export const MemberTile = as<'button', MemberTileProps>(
   ({ as: AsMemberTile = 'button', mx, room, member, useAuthentication, after, ...props }, ref) => {
     const nicknames = useAtomValue(nicknamesAtom);
     const name = getName(room, member, nicknames);
-    const username = getMxIdLocalPart(member.userId);
+    const presence = useUserPresence(member.userId ?? '');
 
     const avatarMxcUrl = member.getMxcAvatarUrl();
     const avatarUrl = avatarMxcUrl
@@ -49,11 +51,14 @@ export const MemberTile = as<'button', MemberTileProps>(
           <Text as="span" size="T300" truncate style={{ color, fontFamily: font }}>
             <b>{name}</b>
           </Text>
-          <Box alignItems="Center" justifyContent="SpaceBetween" gap="100">
-            <Text as="span" size="T200" priority="300" truncate>
-              {username}
-            </Text>
-          </Box>
+          {presence && presence.status && (
+            <Box alignItems="Center" gap="100">
+              <PresenceBadge presence={presence.presence} size="200" />
+              <Text as="span" size="T200" priority="300" truncate>
+                {presence.status}
+              </Text>
+            </Box>
+          )}
         </Box>
         {after}
       </AsMemberTile>

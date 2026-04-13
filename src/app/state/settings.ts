@@ -53,6 +53,7 @@ export type Settings = {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -88,6 +89,7 @@ export type Settings = {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -111,13 +113,11 @@ export type Settings = {
   alwaysShowCallButton: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
-  /**
-   * whether to enable pk compat
-   */
   pkCompat: boolean;
   pmpProxying: boolean;
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
+  closeFoldersByDefault: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -149,6 +149,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,
@@ -189,6 +190,7 @@ const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,
@@ -216,6 +218,7 @@ const defaultSettings: Settings = {
   pmpProxying: false,
   mentionInReplies: true,
   showPersonaSetting: false,
+  closeFoldersByDefault: false,
 
   // furry stuff
   renderAnimals: true,

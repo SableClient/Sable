@@ -56,7 +56,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useRoomName } from '$hooks/useRoomMeta';
+import { useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
@@ -68,6 +68,8 @@ import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
 import { CallControlState } from '$plugins/call/CallControlState';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { livekitSupport } from '$hooks/useLivekitSupport';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { RoomNavUser } from './RoomNavUser';
 
 /**
@@ -255,6 +257,7 @@ type RoomNavItemProps = {
   notificationMode?: RoomNotificationMode;
   showAvatar?: boolean;
   direct?: boolean;
+  customDMCards?: boolean;
 };
 
 export function RoomNavItem({
@@ -262,6 +265,7 @@ export function RoomNavItem({
   selected,
   showAvatar,
   direct,
+  customDMCards,
   notificationMode,
   linkPath,
 }: RoomNavItemProps) {
@@ -282,6 +286,9 @@ export function RoomNavItem({
   const dmUserId = direct ? room.getAvatarFallbackMember()?.userId : undefined;
   const matrixRoomName = useRoomName(room);
   const roomName = (dmUserId && nicknames[dmUserId]) || matrixRoomName;
+  const presence = useUserPresence(dmUserId ?? '');
+  const getRoomTopic = useRoomTopic(room);
+  const roomTopic = direct ? ((customDMCards && getRoomTopic) ?? presence?.status) : undefined;
 
   const { navigateRoom } = useRoomNavigate();
   const navigate = useNavigate();
@@ -381,47 +388,69 @@ export function RoomNavItem({
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
             <Box as="span" grow="Yes" alignItems="Center" gap="200">
-              <Avatar size="200" radii="400">
-                {showAvatar ? (
-                  <RoomAvatar
-                    roomId={room.roomId}
-                    src={
-                      direct
-                        ? getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                        : getRoomAvatarUrl(mx, room, 96, useAuthentication)
-                    }
-                    uniformIcons
-                    alt={roomName}
-                    renderFallback={() => (
-                      <Text as="span" size="H6">
-                        {nameInitials(roomName)}
-                      </Text>
-                    )}
-                  />
-                ) : (
-                  <RoomIcon
-                    style={{
-                      opacity:
-                        unread || hasRoomUnread || isActiveCall
-                          ? config.opacity.P500
-                          : config.opacity.P300,
-                    }}
-                    filled={selected || isActiveCall}
-                    size="100"
-                    joinRule={room.getJoinRule()}
-                    roomType={room.getType()}
-                  />
-                )}
-              </Avatar>
-              <Box as="span" grow="Yes">
+              <AvatarPresence
+                badge={
+                  presence &&
+                  presence.presence !== Presence.Offline && (
+                    <PresenceBadge presence={presence.presence} size="200" />
+                  )
+                }
+              >
+                <Avatar size="200" radii="400">
+                  {showAvatar ? (
+                    <RoomAvatar
+                      roomId={room.roomId}
+                      src={
+                        ((!direct || customDMCards) &&
+                          getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
+                        getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                      }
+                      uniformIcons
+                      alt={roomName}
+                      renderFallback={() => (
+                        <Text as="span" size="H6">
+                          {nameInitials(roomName)}
+                        </Text>
+                      )}
+                    />
+                  ) : (
+                    <RoomIcon
+                      style={{
+                        opacity:
+                          unread || hasRoomUnread || isActiveCall
+                            ? config.opacity.P500
+                            : config.opacity.P300,
+                      }}
+                      filled={selected || isActiveCall}
+                      size="100"
+                      joinRule={room.getJoinRule()}
+                      roomType={room.getType()}
+                    />
+                  )}
+                </Avatar>
+              </AvatarPresence>
+              <Box as="span" grow="Yes" direction="Column">
                 <Text
-                  priority={unread || hasRoomUnread || isActiveCall ? '500' : '300'}
+                  priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
                   as="span"
                   size="Inherit"
                   truncate
                 >
                   {roomName}
                 </Text>
+                {roomTopic && (
+                  <Text
+                    truncate
+                    size="T200"
+                    priority="300"
+                    style={{
+                      opacity: config.opacity.P300,
+                      marginTop: '-2px',
+                    }}
+                  >
+                    {roomTopic}
+                  </Text>
+                )}
               </Box>
               {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
                 <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>

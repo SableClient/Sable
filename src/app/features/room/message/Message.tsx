@@ -36,7 +36,6 @@ import {
   type RoomPinnedEventsEventContent,
   MatrixEventEvent,
   RoomEvent,
-  type IRoomTimelineData,
 } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -386,9 +385,9 @@ function MessageInternal(
 
   useEffect(() => {
     const triggerTimelineRegroup = () => {
-      room.emit(RoomEvent.Timeline, mEvent, room, false, false, {
-        liveEvent: true,
-      } as IRoomTimelineData);
+      // A Local Echo update seems to trigger a visual refresh without
+      // scrolling the viewport.
+      room.emit(RoomEvent.LocalEchoUpdated, mEvent, room);
     };
 
     const onUpdate = () => {
@@ -679,6 +678,7 @@ function MessageInternal(
   );
 
   const MSG_CONTENT_STYLE = { maxWidth: '100%' };
+  const isSableFeedback = mEvent.getId()?.startsWith('~sable-feedback-');
 
   const msgContentJSX = (
     <Box
@@ -755,6 +755,31 @@ function MessageInternal(
               <Text size="B300">Delete</Text>
             </Chip>
           )}
+        </Box>
+      )}
+      {isSableFeedback && (
+        <Box className={css.SendStatusRow} alignItems="Center" gap="100">
+          <Icon src={Icons.Info} size="100" />
+          <Text size="T200" priority="300" as="span">
+            Only you can see this.
+          </Text>
+          <Chip
+            type="button"
+            variant="SurfaceVariant"
+            radii="Pill"
+            outlined
+            onClick={(evt: any) => {
+              evt.preventDefault();
+              evt.stopPropagation();
+              const eventId = mEvent.getId();
+              if (eventId) {
+                room.removeEvent(eventId);
+                room.emit(RoomEvent.LocalEchoUpdated, mEvent, room);
+              }
+            }}
+          >
+            <Text size="B300">Dismiss</Text>
+          </Chip>
         </Box>
       )}
     </Box>

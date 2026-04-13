@@ -2,6 +2,7 @@
 import {
   type CSSProperties,
   type ComponentPropsWithoutRef,
+  Fragment,
   type ReactEventHandler,
   type ReactNode,
   useMemo,
@@ -500,14 +501,52 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
-    replaceTextNode?: (text: string) => JSX.Element | undefined;
+    replaceTextNode?: (
+      text: string,
+      renderText: (text: string, key?: string) => JSX.Element
+    ) => JSX.Element | undefined;
   }
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
+
+  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
+
+  const decorateText = (text: string) => {
+    let jsx = scaleSystemEmoji(text);
+
+    if (params.highlightRegex) {
+      jsx = highlightText(params.highlightRegex, jsx);
+    }
+
+    return jsx;
+  };
+
+  const renderReplacementText = (text: string, linkify: boolean, key?: string): JSX.Element => {
+    const decoratedText = decorateText(text);
+
+    if (linkify) {
+      return (
+        <Linkify key={key} options={params.linkifyOpts}>
+          {decoratedText}
+        </Linkify>
+      );
+    }
+
+    return <Fragment key={key}>{decoratedText}</Fragment>;
+  };
+
   const opts: HTMLReactParserOptions = {
     replace: (domNode) => {
       if (replaceTextNode && domNode instanceof DOMText) {
-        return replaceTextNode(domNode.data) ?? undefined;
+        const replacement = replaceTextNode(domNode.data, (text, key) =>
+          renderReplacementText(text, shouldLinkifyDomText(domNode), key)
+        );
+
+        if (replacement !== undefined) {
+          return replacement;
+        }
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
@@ -839,20 +878,14 @@ export const getReactCustomHtmlParser = (
       }
 
       if (domNode instanceof DOMText) {
-        const linkify =
-          !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-          !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
-        let jsx = scaleSystemEmoji(domNode.data);
-
-        if (params.highlightRegex) {
-          jsx = highlightText(params.highlightRegex, jsx);
-        }
+        const linkify = shouldLinkifyDomText(domNode);
+        const decoratedText = decorateText(domNode.data);
 
         if (linkify) {
-          return <Linkify options={params.linkifyOpts}>{jsx}</Linkify>;
+          return <Linkify options={params.linkifyOpts}>{decoratedText}</Linkify>;
         }
-        return jsx;
+
+        return decoratedText;
       }
       return undefined;
     },

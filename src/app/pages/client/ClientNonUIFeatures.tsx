@@ -647,54 +647,6 @@ function SyncNotificationSettingsWithServiceWorker() {
   const [clearNotificationsOnRead] = useSetting(settingsAtom, 'clearNotificationsOnRead');
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
-
-    const postVisibility = () => {
-      // Require both visibilityState === 'visible' AND document.hasFocus().
-      // visibilityState alone misses desktop window minimize: Chrome/Edge do
-      // not reliably fire visibilitychange when a PWA window is minimized, so
-      // the state can stay 'visible' indefinitely. hasFocus() is false as soon
-      // as the window loses focus (minimize, or another window on top), which
-      // means the SW receives false promptly via the blur listener below.
-      const visible = document.visibilityState === 'visible' && document.hasFocus();
-      const msg = { type: 'setAppVisible', visible };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
-    };
-
-    const postHidden = () => {
-      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
-      // when the user locks the screen or backgrounds the app quickly, making
-      // it less likely that the SW is left with a stale appIsVisible=true.
-      const msg = { type: 'setAppVisible', visible: false };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
-    };
-
-    // Heartbeat: renew appIsVisible=true in the SW every 30 s while the app
-    // stays focused and visible. The SW expires the signal after 45 s, so the
-    // heartbeat ensures a genuinely open app is never incorrectly suppressed,
-    // while a frozen or backgrounded page lets the signal expire naturally.
-    const heartbeatId = setInterval(postVisibility, 30_000);
-
-    // Report initial visibility immediately, then track changes.
-    postVisibility();
-    document.addEventListener('visibilitychange', postVisibility);
-    // blur fires when the window loses focus (minimize, another window on top).
-    // focus fires when the window regains focus.
-    window.addEventListener('focus', postVisibility);
-    window.addEventListener('blur', postHidden);
-    window.addEventListener('pagehide', postHidden);
-    return () => {
-      clearInterval(heartbeatId);
-      document.removeEventListener('visibilitychange', postVisibility);
-      window.removeEventListener('focus', postVisibility);
-      window.removeEventListener('blur', postHidden);
-      window.removeEventListener('pagehide', postHidden);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).

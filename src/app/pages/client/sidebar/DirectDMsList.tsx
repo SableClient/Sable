@@ -15,7 +15,7 @@ import {
 } from '$components/sidebar';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
-import { getDirectRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
@@ -69,7 +69,10 @@ function DMItem({ room, selected }: DMItemProps) {
         <Avatar size="400" radii="400">
           <RoomAvatar
             roomId={room.roomId}
-            src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)}
+            src={
+              getRoomAvatarUrl(mx, room, 96, useAuthentication) ||
+              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+            }
             alt={room.name}
             renderFallback={() => (
               <Text as="span" size="H6">

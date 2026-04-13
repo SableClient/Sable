@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import { SyncState, ClientEvent } from '$types/matrix-sdk';
+import { SyncState, ClientEvent, RoomEvent, Room, MatrixEvent } from '$types/matrix-sdk';
 import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
 import { mDirectAtom } from '../state/mDirectList';
 import { useSyncState } from './useSyncState';
@@ -52,10 +52,22 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      // Always open joined rooms at the live timeline for notification clicks.
-      // Event-scoped navigation can create a sparse historical context where the
-      // room appears to contain only the notification event.
-      const targetEventId = undefined;
+      const liveEvents =
+        room?.getUnfilteredTimelineSet?.()?.getLiveTimeline?.()?.getEvents?.() ?? [];
+      const eventInLive = pending.eventId
+        ? liveEvents.some((event) => event.getId() === pending.eventId)
+        : false;
+
+      // If the live timeline is empty the room data is not ready yet.
+      // Defer and retry on RoomEvent.Timeline so we can decide with real data.
+      if (!eventInLive && liveEvents.length === 0) {
+        log.log('live timeline empty, deferring jump...', { roomId: pending.roomId });
+        return;
+      }
+
+      // Keep event targeting when needed, but avoid event-scoped navigation for
+      // events already in the live timeline to prevent sparse historical context.
+      const targetEventId = eventInLive ? undefined : pending.eventId;
       log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
@@ -121,11 +133,16 @@ export function NotificationJumper() {
     if (!pending) return undefined;
 
     const onRoom = () => performJumpRef.current();
+    const onTimeline = (_event: MatrixEvent, eventRoom: Room | undefined) => {
+      if (eventRoom?.roomId === pending.roomId) performJumpRef.current();
+    };
     mx.on(ClientEvent.Room, onRoom);
+    mx.on(RoomEvent.Timeline, onTimeline);
     performJumpRef.current();
 
     return () => {
       mx.removeListener(ClientEvent.Room, onRoom);
+      mx.removeListener(RoomEvent.Timeline, onTimeline);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
 

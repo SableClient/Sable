@@ -12,6 +12,10 @@ import { getOrphanParents, guessPerfectParent } from '../utils/room';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
 
+// How long to wait for the notification event to appear in the live timeline
+// before falling back to opening the room at the live bottom.
+const JUMP_TIMEOUT_MS = 15_000;
+
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);
   const activeSessionId = useAtomValue(activeSessionIdAtom);
@@ -27,6 +31,9 @@ export function NotificationJumper() {
   // churn re-calls performJump (from the ClientEvent.Room listener or effect
   // re-runs) before React has committed the null, causing repeated navigation.
   const jumpingRef = useRef(false);
+  // Tracks when we first started waiting for the target event to appear in the
+  // live timeline. Reset whenever `pending` changes.
+  const jumpStartTimeRef = useRef<number | null>(null);
 
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
@@ -58,16 +65,33 @@ export function NotificationJumper() {
         ? liveEvents.some((event) => event.getId() === pending.eventId)
         : false;
 
-      // If the live timeline is empty the room data is not ready yet.
-      // Defer and retry on RoomEvent.Timeline so we can decide with real data.
-      if (!eventInLive && liveEvents.length === 0) {
-        log.log('live timeline empty, deferring jump...', { roomId: pending.roomId });
-        return;
+      // Defer while the target event hasn't arrived in the live timeline yet.
+      // Navigating with an eventId not in the live timeline triggers a sparse
+      // historical context load — the room appears empty or shows only one message.
+      // Retry on each RoomEvent.Timeline until the event appears, then navigate
+      // with the eventId so the room scrolls to and highlights it in full context.
+      // After JUMP_TIMEOUT_MS fall back to opening the room at the live bottom.
+      if (pending.eventId && !eventInLive) {
+        if (jumpStartTimeRef.current === null) {
+          jumpStartTimeRef.current = Date.now();
+        }
+        if (Date.now() - jumpStartTimeRef.current < JUMP_TIMEOUT_MS) {
+          log.log('event not yet in live timeline, deferring jump...', {
+            roomId: pending.roomId,
+            eventId: pending.eventId,
+          });
+          return;
+        }
+        log.log('timed out waiting for event in live; falling back to live bottom', {
+          roomId: pending.roomId,
+          eventId: pending.eventId,
+        });
       }
 
-      // Keep event targeting when needed, but avoid event-scoped navigation for
-      // events already in the live timeline to prevent sparse historical context.
-      const targetEventId = eventInLive ? undefined : pending.eventId;
+      // Pass eventId only when confirmed in the live timeline — scrolls to and
+      // highlights the event in full room context without a sparse historical load.
+      // Falls back to undefined (live bottom) when the event never appears in live.
+      const targetEventId = eventInLive ? pending.eventId : undefined;
       log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
@@ -108,9 +132,10 @@ export function NotificationJumper() {
     }
   }, [pending, activeSessionId, mx, mDirects, roomToParents, navigate, setPending, log]);
 
-  // Reset the guard only when pending is replaced (new notification or cleared).
+  // Reset guards only when pending is replaced (new notification or cleared).
   useEffect(() => {
     jumpingRef.current = false;
+    jumpStartTimeRef.current = null;
   }, [pending]);
 
   // Keep a stable ref to the latest performJump so that the listeners below

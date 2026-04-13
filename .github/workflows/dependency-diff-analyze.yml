@@ -1,0 +1,31 @@
+name: Dependency diff (analyze)
+
+on:
+  pull_request:
+
+jobs:
+  dependency-diff:
+    name: Dependency diff
+    runs-on: ubuntu-latest
+    if: github.head_ref != 'release'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Analyze dependencies
+        id: analyze
+        uses: e18e/action-dependency-diff@5d3c6ac2ad2de2eaca1dc120c5accfd9590764b6 # v1.5.1
+        with:
+          mode: artifact
+
+      - name: Upload comment artifact
+        if: steps.analyze.outputs.artifact-path
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e18e-diff-result
+          path: ${{ steps.analyze.outputs.artifact-path }}

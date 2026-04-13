@@ -903,24 +903,24 @@ const onPushNotification = async (event: PushEvent) => {
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
   //
-  // Trust client.visibilityState from matchAll() directly: it is updated by the
-  // browser engine when the OS signals a visibility transition, independent of
-  // the page JS thread.  The earlier postMessage ping approach was unreliable
-  // because iOS can background the app without freezing the JS thread immediately,
-  // allowing the page to respond "visible" in the brief window before the freeze.
+  // On iOS PWA, either signal can be stale around app background/lock transitions:
+  // - clients.matchAll() visibilityState can briefly lag.
+  // - setAppVisible can lag if the page is frozen before posting.
   //
-  // When matchAll() returns zero clients (an iOS Safari PWA quirk where the
-  // controlled client list is empty), we cannot determine visibility — default
-  // to showing the notification rather than silently dropping it.
-  const hasVisibleClient =
+  // Suppress only when both signals agree the app is visible. Disagreement is
+  // treated as background/unknown so we prefer showing a notification over
+  // accidentally dropping one.
+  const hasVisibleClientFromMatchAll =
     clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
+  const hasVisibleClient = hasVisibleClientFromMatchAll && appIsVisible;
   console.debug(
     '[SW push] appIsVisible (diagnostic):',
     appIsVisible,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
-  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
+  console.debug('[SW push] hasVisibleClientFromMatchAll:', hasVisibleClientFromMatchAll);
+  console.debug('[SW push] hasVisibleClient (combined):', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;

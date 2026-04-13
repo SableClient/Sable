@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
+import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
 
@@ -25,16 +26,29 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       setZoom,
     } = useImageGestures(true, 0.2);
 
+    const zoomInputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const imageRef = useRef<HTMLImageElement | null>(null);
+    const shouldResizeWithWindowRef = useRef(true);
+
     const [isImageReady, setIsImageReady] = useState(false);
     const [isEditingZoom, setIsEditingZoom] = useState(false);
+    const [shouldResizeWithWindow, setShouldResizeWithWindowState] = useState(true);
     const [fitRatio, setFitRatio] = useState(1);
     const [zoomInput, setZoomInput] = useState('100');
+
+    const setShouldResizeWithWindow = useCallback((next: boolean) => {
+      shouldResizeWithWindowRef.current = next;
+      setShouldResizeWithWindowState(next);
+    }, []);
     useEffect(() => {
       setFitRatio(1);
       setIsImageReady(false);
+      setShouldResizeWithWindow(true);
       setIsEditingZoom(false);
       setZoomInput('100');
-    }, [src]);
+      imageRef.current = null;
+    }, [src, setShouldResizeWithWindow]);
 
     useEffect(() => {
       if (!isEditingZoom) {
@@ -42,12 +56,30 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       }
     }, [isEditingZoom, transforms.zoom]);
 
-    const zoomInputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
       if (isEditingZoom) {
         zoomInputRef.current?.focus();
       }
     }, [isEditingZoom]);
+
+    const handleContainerResize = useCallback(
+      (width: number, height: number) => {
+        const img = imageRef.current;
+        const shouldResize = shouldResizeWithWindowRef.current && shouldResizeWithWindow;
+        if (!img || !shouldResize || !img.naturalWidth || !img.naturalHeight) return;
+
+        const heightRatio = height / img.naturalHeight;
+        const widthRatio = width / img.naturalWidth;
+        const fitZoom = Math.min(heightRatio, widthRatio, 1);
+
+        setFitRatio(fitZoom);
+        setZoom(fitZoom);
+        img.style.transition = 'none';
+      },
+      [setZoom, shouldResizeWithWindow]
+    );
+
+    useElementSizeObserver(() => containerRef.current, handleContainerResize);
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
@@ -83,6 +115,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               radii="Pill"
               onClick={() => {
                 setZoom(1);
+                setShouldResizeWithWindow(false);
               }}
               aria-label="View Original Size"
             >
@@ -102,6 +135,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               onClick={() => {
                 resetTransforms();
                 setZoom(fitRatio);
+                setShouldResizeWithWindow(true);
               }}
               aria-label="Reset Zoom"
             >
@@ -112,7 +146,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               outlined={transforms.zoom < 1}
               size="300"
               radii="Pill"
-              onClick={zoomOut}
+              onClick={() => {
+                zoomOut();
+                setShouldResizeWithWindow(false);
+              }}
               aria-label="Zoom Out"
             >
               <Icon size="50" src={Icons.Minus} />
@@ -153,6 +190,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                         const next = parseInt(zoomInput, 10);
                         if (!Number.isNaN(next)) {
                           setZoom(next / 100);
+                          setShouldResizeWithWindow(false);
                         }
                         setIsEditingZoom(false);
                       }}
@@ -161,6 +199,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                           const next = parseInt(zoomInput, 10);
                           if (!Number.isNaN(next)) {
                             setZoom(next / 100);
+                            setShouldResizeWithWindow(false);
                           }
                           setIsEditingZoom(false);
                         }
@@ -178,7 +217,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               outlined={transforms.zoom > 1}
               size="300"
               radii="Pill"
-              onClick={zoomIn}
+              onClick={() => {
+                zoomIn();
+                setShouldResizeWithWindow(false);
+              }}
               aria-label="Zoom In"
             >
               <Icon size="50" src={Icons.Plus} />
@@ -195,7 +237,16 @@ export const ImageViewer = as<'div', ImageViewerProps>(
         </Header>
         <Box
           grow="Yes"
-          onWheel={handleWheel}
+          ref={containerRef}
+          onWheel={(event) => {
+            const img = imageRef.current;
+            if (!img) return;
+
+            img.style.transition = '';
+
+            setShouldResizeWithWindow(false);
+            handleWheel(event);
+          }}
           className={css.ImageViewerContent}
           data-gestures="ignore"
           justifyContent="Center"
@@ -221,6 +272,8 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               const img = event.currentTarget;
               img.style.transition = 'none';
               onPointerDown(event);
+
+              setShouldResizeWithWindow(false);
             }}
             onPointerUp={(event: React.PointerEvent<HTMLImageElement>) => {
               // Re-enable transition after dragging
@@ -230,6 +283,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
               // Fit the image to the container on load
               const img = event.currentTarget;
+              imageRef.current = img;
 
               img.style.transition = 'none';
 

@@ -475,9 +475,6 @@ export function useTimelineSync({
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
 
-  const eventsLengthRef = useRef(eventsLength);
-  eventsLengthRef.current = eventsLength;
-
   useLiveEventArrive(
     room,
     useCallback(
@@ -499,9 +496,6 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
-          lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
-
           setTimeline((ct) => ({ ...ct }));
           return;
         }
@@ -511,7 +505,7 @@ export function useTimelineSync({
           setUnreadInfo(getRoomUnreadInfo(room));
         }
       },
-      [mx, room, isAtBottomRef, unreadInfo, scrollToBottom, setUnreadInfo, hideReadsRef]
+      [mx, room, isAtBottomRef, unreadInfo, setUnreadInfo, hideReadsRef]
     )
   );
 

@@ -245,7 +245,10 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
-    vListRef.current.scrollTo(vListRef.current.scrollSize);
+    // Guard against VList's intermediate height-correction scroll events that
+    // would otherwise call setAtBottom(false) before the scroll settles.
+    programmaticScrollToBottomRef.current = true;
+    vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
   }, []);
 
   const timelineSync = useTimelineSync({

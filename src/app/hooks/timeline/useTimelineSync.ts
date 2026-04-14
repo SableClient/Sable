@@ -1,4 +1,13 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
 import {
@@ -527,10 +536,10 @@ export function useTimelineSync({
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      if (wasAtBottom) {
-        scrollToBottom('instant');
-      }
-    }, [room, isAtBottomRef, scrollToBottom])
+      // Scroll is handled by the useLayoutEffect auto-scroll recovery which
+      // fires after React commits the new timeline state — scrolling here
+      // would operate on the pre-commit DOM with a stale scrollSize.
+    }, [room, isAtBottomRef])
   );
 
   useRelationUpdate(
@@ -547,7 +556,11 @@ export function useTimelineSync({
     }, [])
   );
 
-  useEffect(() => {
+  // useLayoutEffect so the scroll position is corrected before the browser
+  // paints. Without this, a sliding-sync subscription upgrade (timeline_limit
+  // 1 → 50) replaces the VList content and the user sees one frame at the
+  // wrong scroll position before the useEffect-based scroll fires.
+  useLayoutEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 

@@ -223,7 +223,7 @@ const projectOverrides = defineConfig([
   },
   {
     name: 'project/no-js-in-src',
-    files: ['src/**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx,cjs,mjs}'],
     rules: {
       'no-restricted-syntax': [
         'error',

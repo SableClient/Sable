@@ -128,7 +128,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
 
       // Double click zoom
       const now = Date.now();
-      if (now - lastTapRef.current < 300) {
+      if (now - lastTapRef.current < 300 && now - lastTapRef.current > 30) {
         // If two cursors are active, this isn't a double click.
         if (activePointers.current.size === 2) {
           const points = Array.from(activePointers.current.values());

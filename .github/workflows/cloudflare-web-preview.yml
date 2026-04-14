@@ -6,7 +6,8 @@ on:
       - 'src/**'
       - 'index.html'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'wrangler.jsonc'
       - 'vite.config.ts'
       - 'tsconfig.web.json'
       - 'tsconfig.json'
@@ -20,7 +21,8 @@ on:
       - 'src/**'
       - 'index.html'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'wrangler.jsonc'
       - 'vite.config.ts'
       - 'tsconfig.web.json'
       - 'tsconfig.json'
@@ -101,7 +103,7 @@ jobs:
           accountId: ${{ secrets.TF_VAR_ACCOUNT_ID }}
           command: >
             versions upload
-            -c dist/wrangler.json
+            -c wrangler.jsonc
             --preview-alias ${{ steps.alias.outputs.alias }}
             --message "$PREVIEW_MESSAGE"
 

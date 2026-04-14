@@ -5,7 +5,8 @@
     "src/ext.d.ts",
     "src/types/matrix-sdk-events.d.ts",
     "src/client/secretStorageKeys.d.ts",
-    "src/app/utils/bgColorImg.d.ts"
+    "src/app/utils/bgColorImg.d.ts",
+    "scripts/*"
   ],
   "ignoreExportsUsedInFile": {
     "interface": true,
@@ -14,8 +15,7 @@
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm",
-    "@testing-library/user-event"
+    "@matrix-org/matrix-sdk-crypto-wasm"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

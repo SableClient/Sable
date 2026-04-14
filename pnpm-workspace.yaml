@@ -1,11 +1,9 @@
 allowBuilds:
   '@sentry/cli': true
   '@swc/core': true
-  cloudflared: true
   esbuild: true
   sharp: true
   unrs-resolver: true
-  workerd: true
 engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import type { ViteDevServer, PluginOption } from 'vite';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import type { RollupInjectOptions } from '@rollup/plugin-inject';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
@@ -16,7 +16,6 @@ import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import { constants as zlibConstants } from 'zlib';
 import fs from 'fs';
 import path from 'path';
-import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import buildConfig from './build.config.ts';
@@ -61,7 +60,10 @@ const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
   try {
-    const tag = execSync('git describe --exact-match --tags HEAD 2>/dev/null').toString().trim();
+    const tag = execFileSync('git', ['describe', '--exact-match', '--tags', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
     return tag.startsWith('v');
   } catch {
     return false;
@@ -176,14 +178,6 @@ export default defineConfig(({ command }) => ({
       devOptions: {
         enabled: true,
         type: 'module',
-      },
-    }),
-    cloudflare({
-      config: {
-        compatibility_date: '2026-03-03',
-        assets: {
-          not_found_handling: 'single-page-application',
-        },
       },
     }),
     compression({

@@ -298,7 +298,7 @@ export function RoomNavItem({
   const lastMessage = useRoomLastMessage(showPreview ? room : undefined, mx);
   const getRoomTopic = useRoomTopic(room);
   const roomTopic = direct
-    ? ((customDMCards && getRoomTopic) ?? lastMessage ?? presence?.status)
+    ? (customDMCards && getRoomTopic) || lastMessage || presence?.status
     : (roomTopicPreview && getRoomTopic) || (roomMessagePreview ? lastMessage : undefined);
 
   const { navigateRoom } = useRoomNavigate();

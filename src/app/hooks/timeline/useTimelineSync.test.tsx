@@ -107,7 +107,7 @@ describe('useTimelineSync', () => {
   });
 
   it('keeps a bottom-pinned user anchored after TimelineReset', async () => {
-    const { room, timelineSet } = createRoom();
+    const { room, timelineSet, events } = createRoom();
     const scrollToBottom = vi.fn();
 
     renderHook(() =>
@@ -125,6 +125,9 @@ describe('useTimelineSync', () => {
     );
 
     await act(async () => {
+      // Simulate the SDK replacing the live timeline with new events,
+      // which is what a real TimelineReset does.
+      events.push({});
       timelineSet.emit(RoomEvent.TimelineReset);
       await Promise.resolve();
     });

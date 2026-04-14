@@ -224,6 +224,13 @@ export function RoomTimeline({
   const pendingReadyRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
 
+  // Timestamp (epoch ms) of the last programmatic scrollToIndex call.
+  // While Date.now() - ref < SCROLL_SETTLE_MS the handleVListScroll callback
+  // suppresses false-negative "not at bottom" reports that VList fires during
+  // its height re-measurement pass.
+  const SCROLL_SETTLE_MS = 200;
+  const programmaticScrollToBottomRef = useRef(0);
+
   const [isReady, setIsReady] = useState(false);
 
   if (currentRoomIdRef.current !== room.roomId) {
@@ -231,6 +238,7 @@ export function RoomTimeline({
     mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
+    programmaticScrollToBottomRef.current = 0;
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
@@ -247,7 +255,7 @@ export function RoomTimeline({
     if (lastIndex < 0) return;
     // Guard against VList's intermediate height-correction scroll events that
     // would otherwise call setAtBottom(false) before the scroll settles.
-    programmaticScrollToBottomRef.current = true;
+    programmaticScrollToBottomRef.current = Date.now();
     vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
   }, []);
 
@@ -301,6 +309,7 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
+      programmaticScrollToBottomRef.current = Date.now();
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
       // Store in a ref rather than a local so subsequent eventsLength changes
       // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
@@ -308,6 +317,7 @@ export function RoomTimeline({
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
+          programmaticScrollToBottomRef.current = Date.now();
           vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
           // Only mark ready once we've successfully scrolled.  If processedEvents
           // was empty when the timer fired (e.g. the onLifecycle reset cleared the
@@ -649,8 +659,17 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+
+      // During the settling window after a programmatic scroll, suppress
+      // false-negative "not at bottom" reports from VList.  Virtua fires
+      // several intermediate onScroll events while re-measuring item heights
+      // after scrollToIndex(); without this guard those would flash the
+      // "Jump to Latest" button for one or more render frames.
+      const isSettling = Date.now() - programmaticScrollToBottomRef.current < SCROLL_SETTLE_MS;
       if (isNowAtBottom !== atBottomRef.current) {
-        setAtBottom(isNowAtBottom);
+        if (isNowAtBottom || !isSettling) {
+          setAtBottom(isNowAtBottom);
+        }
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
@@ -770,6 +789,7 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
+    programmaticScrollToBottomRef.current = Date.now();
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
     setIsReady(true);
   }, [processedEvents.length]);

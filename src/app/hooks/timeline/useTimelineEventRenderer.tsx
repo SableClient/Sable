@@ -1069,12 +1069,20 @@ export function useTimelineEventRenderer({
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
 
-        const { pinned } = getContent.call(mEvent);
-        const prevPinned = getPrevContent.call(mEvent).pinned;
+        const pinned: string[] = getContent.call(mEvent).pinned;
+        const prevPinned: string[] = getPrevContent.call(mEvent).pinned;
         const pinsAdded =
-          prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+          prevPinned && pinned
+            ? pinned.filter((x: string) => !prevPinned.includes(x))
+            : pinned.filter((x: string) => x.length > 0);
         const pinsRemoved =
           prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+        let allPins =
+          (pinsRemoved && pinsAdded && pinsAdded.concat(pinsRemoved)) ||
+          pinsAdded ||
+          pinsRemoved ||
+          [];
+        allPins = allPins.slice(0, 4);
 
         const timeJSX = (
           <Time
@@ -1120,27 +1128,20 @@ export function useTimelineEventRenderer({
                       `has not changed the pins`) ||
                       `:`}
                   </Text>
-                  {(pinsAdded || pinsRemoved) &&
-                    pinsAdded
-                      .concat(pinsRemoved)
-                      .slice(0, 4)
-                      .map((x: string) => (
-                        <Reply
-                          style={{ opacity: '80%' }}
-                          room={room}
-                          replyEventId={x ?? ''}
-                          onClick={handleOpenReply}
-                          replyIcon={
-                            <>
-                              <Icon size="100" src={Icons.Pin} />
-                              <Icon
-                                size="100"
-                                src={pinned.includes(x) ? Icons.Plus : Icons.Minus}
-                              />
-                            </>
-                          }
-                        />
-                      ))}
+                  {allPins.map((x: string) => (
+                    <Reply
+                      style={{ opacity: '80%' }}
+                      room={room}
+                      replyEventId={x}
+                      onClick={handleOpenReply}
+                      replyIcon={
+                        <>
+                          <Icon size="100" src={Icons.Pin} />
+                          <Icon size="100" src={pinned.includes(x) ? Icons.Plus : Icons.Minus} />
+                        </>
+                      }
+                    />
+                  ))}
                 </Box>
               }
             />

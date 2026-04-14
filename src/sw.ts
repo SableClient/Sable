@@ -12,53 +12,10 @@ let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
 
-/** Explicit visibility flag posted by the app via setAppVisible messages.
- * Used only as a fast-path hint; the push handler verifies with a live ping. */
+// Tracks whether a page client has reported itself as visible.
+// Combines with clients.matchAll() in the push handler because iOS Safari PWA
+// often returns empty or stale results from matchAll().
 let appIsVisible = false;
-
-// ---------------------------------------------------------------------------
-// Live visibility check — actively probes window clients so the push handler
-// doesn't rely on stale in-memory flags or matchAll() data (both are unreliable
-// on iOS Safari PWA, which can freeze the page before the setAppVisible message
-// is delivered).
-// ---------------------------------------------------------------------------
-const visibilityCheckPendingMap = new Map<number, (visible: boolean) => void>();
-let visibilityCheckSeq = 0;
-
-/**
- * Post a checkVisibility message to every window client and resolve `true` if
- * any client confirms it is currently visible within `timeoutMs`.
- */
-async function checkLiveVisibility(
-  windowClients: readonly Client[],
-  timeoutMs = 500
-): Promise<boolean> {
-  if (windowClients.length === 0) return false;
-
-  visibilityCheckSeq += 1;
-  const seq = visibilityCheckSeq;
-
-  const promise = new Promise<boolean>((resolve) => {
-    visibilityCheckPendingMap.set(seq, resolve);
-
-    setTimeout(() => {
-      if (visibilityCheckPendingMap.delete(seq)) {
-        resolve(false);
-      }
-    }, timeoutMs);
-  });
-
-  Array.from(windowClients).forEach((client) => {
-    try {
-      client.postMessage({ type: 'checkVisibility', seq });
-    } catch {
-      // Client may have been killed — ignore.
-    }
-  });
-
-  return promise;
-}
-
 const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
   showMessageContent,
   showEncryptedMessageContent,
@@ -657,16 +614,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       }
     }
   }
-  if (type === 'visibilityCheckResult') {
-    const { seq, visible } = data as { seq?: number; visible?: boolean };
-    if (typeof seq === 'number' && visible === true) {
-      const resolve = visibilityCheckPendingMap.get(seq);
-      if (resolve) {
-        visibilityCheckPendingMap.delete(seq);
-        resolve(true);
-      }
-    }
-  }
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
@@ -960,19 +907,17 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // notification handles the alert instead.
-  // Neither the in-memory appIsVisible flag nor clients.matchAll() visibilityState
-  // are reliable on iOS Safari PWA: iOS can freeze the page before the setAppVisible
-  // message is delivered, and matchAll() can return stale visibility states.
-  // Instead, actively ping window clients and wait up to 500 ms for a response.
-  const hasVisibleClient = await checkLiveVisibility(clients);
+  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
+  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  const hasVisibleClient =
+    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
   console.debug(
-    '[SW push] liveVisibility:',
-    hasVisibleClient,
-    '| appIsVisible (hint):',
+    '[SW push] appIsVisible:',
     appIsVisible,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
+  console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;

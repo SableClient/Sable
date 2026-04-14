@@ -221,6 +221,26 @@ const projectOverrides = defineConfig([
       '@typescript-eslint/consistent-type-definitions': 'off',
     },
   },
+  {
+    name: 'project/secret-storage-helpers',
+    files: ['src/client/secretStorageKeys.ts'],
+    rules: {
+      'no-void': 'off',
+    },
+  },
+  {
+    name: 'project/no-js-in-src',
+    files: ['src/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Program',
+          message: 'JavaScript files are not allowed under src. Use TypeScript instead.',
+        },
+      ],
+    },
+  },
 ]);
 
 export default defineConfig([

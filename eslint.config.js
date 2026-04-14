@@ -222,13 +222,6 @@ const projectOverrides = defineConfig([
     },
   },
   {
-    name: 'project/secret-storage-helpers',
-    files: ['src/client/secretStorageKeys.ts'],
-    rules: {
-      'no-void': 'off',
-    },
-  },
-  {
     name: 'project/no-js-in-src',
     files: ['src/**/*.{js,jsx}'],
     rules: {

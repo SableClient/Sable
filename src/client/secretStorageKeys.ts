@@ -21,11 +21,9 @@ export function clearSecretStorageKeys(): void {
   secretStorageKeys.clear();
 }
 
-const getSecretStorageKey: NonNullable<CryptoCallbacks['getSecretStorageKey']> = async (
-  { keys },
-  name
-) => {
-  void name;
+const getSecretStorageKey: NonNullable<CryptoCallbacks['getSecretStorageKey']> = async ({
+  keys,
+}) => {
   const keyIds = Object.keys(keys);
   const keyId = keyIds.find(hasPrivateKey);
   if (!keyId) return null;
@@ -36,10 +34,9 @@ const getSecretStorageKey: NonNullable<CryptoCallbacks['getSecretStorageKey']> =
 
 const cacheSecretStorageKey: NonNullable<CryptoCallbacks['cacheSecretStorageKey']> = (
   keyId,
-  keyInfo,
+  _keyInfo,
   privateKey
 ) => {
-  void keyInfo;
   secretStorageKeys.set(keyId, privateKey);
 };
 

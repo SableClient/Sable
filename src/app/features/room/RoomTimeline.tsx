@@ -93,36 +93,37 @@ type TimelineRenderFn = (eventData: ProcessedEvent) => ReactNode;
  * version of `renderMatrixEvent`, set synchronously during each render cycle)
  * so stale-closure issues are avoided.
  *
- * Props not used in the function body (`isHighlighted`, `isEditing`, etc.) are
- * intentionally included: React.memo's default shallow-equality comparator
- * inspects ALL props, so changing one of them for a specific item causes only
- * that item to re-render (e.g. only the message being edited re-renders when
- * editId changes).
+ * The custom `areEqual` comparator checks `data`, `isHighlighted`, `isEditing`,
+ * `isReplying`, `isOpenThread`, and `settingsEpoch` — re-rendering only the
+ * specific item whose volatile state changed.
  */
+/* eslint-disable react/no-unused-prop-types -- props consumed in areEqual, not component body */
 interface TimelineItemProps {
   data: ProcessedEvent;
   renderRef: React.MutableRefObject<TimelineRenderFn | null>;
-  // The props below are not read in the component body — they exist solely so
-  // React.memo's shallow-equality comparator sees them and re-renders only the
-  // affected item when they change.
-  // eslint-disable-next-line react/no-unused-prop-types
   isHighlighted: boolean;
-  // eslint-disable-next-line react/no-unused-prop-types
   isEditing: boolean;
-  // eslint-disable-next-line react/no-unused-prop-types
   isReplying: boolean;
-  // eslint-disable-next-line react/no-unused-prop-types
   isOpenThread: boolean;
-  // eslint-disable-next-line react/no-unused-prop-types
   settingsEpoch: object;
 }
+/* eslint-enable react/no-unused-prop-types */
 
 // Declared outside memo() so the callback receives a reference, not an inline
 // function expression (satisfies prefer-arrow-callback).
 function TimelineItemInner({ data, renderRef }: TimelineItemProps) {
   return <>{renderRef.current?.(data)}</>;
 }
-const TimelineItem = memo(TimelineItemInner);
+const TimelineItem = memo(
+  TimelineItemInner,
+  (prev, next) =>
+    prev.data === next.data &&
+    prev.isHighlighted === next.isHighlighted &&
+    prev.isEditing === next.isEditing &&
+    prev.isReplying === next.isReplying &&
+    prev.isOpenThread === next.isOpenThread &&
+    prev.settingsEpoch === next.settingsEpoch
+);
 TimelineItem.displayName = 'TimelineItem';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(

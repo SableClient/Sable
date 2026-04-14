@@ -36,10 +36,9 @@ export const LIST_ROOM_SEARCH = 'room_search';
 export const LIST_SPACE = 'space';
 // A small number of timeline events per list room. Unread counts come from
 // the server-side notification_count field, so a full history isn't needed.
-// We fetch a few events (rather than 1) so that reactions and edits — which
-// the SDK excludes from the main timeline when their parent event is absent —
-// don't leave the timeline empty and break message previews.
-const LIST_TIMELINE_LIMIT = 5;
+// When message previews are enabled, a higher limit (e.g. 5) avoids empty
+// timelines caused by reactions/edits whose parent event is absent.
+const DEFAULT_LIST_TIMELINE_LIMIT = 1;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -53,7 +52,7 @@ const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
 // Timeline limit for the active-room subscription (full history load).
-// List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
+// List entries use a small timeline limit (default 1) for lightweight previews.
 const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
 
 export type PartialSlidingSyncRequest = {
@@ -67,6 +66,7 @@ export type SlidingSyncConfig = {
   proxyBaseUrl?: string;
   bootstrapClassicOnColdCache?: boolean;
   listPageSize?: number;
+  listTimelineLimit?: number;
   timelineLimit?: number;
   pollTimeoutMs?: number;
   maxRooms?: number;
@@ -147,7 +147,7 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
   ],
 });
 
-const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, MSC3575List> => {
+const buildLists = (pageSize: number, includeInviteList: boolean, listTimelineLimit: number): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
 
@@ -159,7 +159,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
     sort: LIST_SORT_ORDER,
-    timeline_limit: LIST_TIMELINE_LIMIT,
+    timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
     slow_get_all_rooms: true,
     filters: { is_invite: false },
@@ -169,7 +169,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
     lists.set(LIST_INVITES, {
       ranges: [[0, Math.max(0, initialRange - 1)]],
       sort: LIST_SORT_ORDER,
-      timeline_limit: LIST_TIMELINE_LIMIT,
+      timeline_limit: listTimelineLimit,
       required_state: listRequiredState,
       slow_get_all_rooms: true,
       filters: { is_invite: true },
@@ -179,7 +179,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   lists.set(LIST_DMS, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
     sort: LIST_SORT_ORDER,
-    timeline_limit: LIST_TIMELINE_LIMIT,
+    timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
     slow_get_all_rooms: true,
     filters: { is_dm: true },
@@ -251,6 +251,8 @@ export class SlidingSyncManager {
 
   private readonly listPageSize: number;
 
+  private readonly listTimelineLimit: number;
+
   private readonly roomTimelineLimit: number;
 
   private readonly onConnectionChange: () => void;
@@ -303,12 +305,13 @@ export class SlidingSyncManager {
     this.maxRooms = clampPositive(config.maxRooms, DEFAULT_MAX_ROOMS);
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
+    this.listTimelineLimit = clampPositive(config.listTimelineLimit, DEFAULT_LIST_TIMELINE_LIMIT);
 
     const roomTimelineLimit = clampPositive(config.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
-    const lists = buildLists(listPageSize, includeInviteList);
+    const lists = buildLists(listPageSize, includeInviteList, this.listTimelineLimit);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
@@ -720,7 +723,7 @@ export class SlidingSyncManager {
       list = {
         ranges: [[0, 20]],
         sort: LIST_SORT_ORDER,
-        timeline_limit: LIST_TIMELINE_LIMIT,
+        timeline_limit: this.listTimelineLimit,
         required_state: buildListRequiredState(),
         ...updateArgs,
       };

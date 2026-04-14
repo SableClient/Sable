@@ -1071,10 +1071,9 @@ export function useTimelineEventRenderer({
 
         const { pinned } = getContent.call(mEvent);
         const prevPinned = getPrevContent.call(mEvent).pinned;
-        const pinsAdded =
-          prevPinned && pinned
-            ? pinned.filter((x: string) => !prevPinned.includes(x))
-            : pinned.filter((x: string) => x.length > 0);
+        const pinsAdded = prevPinned
+          ? pinned?.filter((x: string) => !prevPinned.includes(x))
+          : pinned?.filter((x: string) => x.length > 0);
         const pinsRemoved =
           (prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x))) || [];
 

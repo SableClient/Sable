@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Add rotate-sessions developer tool to force session rotation for testing
+Add rotate-encryption-sessions developer tool to force Megolm session rotation for testing

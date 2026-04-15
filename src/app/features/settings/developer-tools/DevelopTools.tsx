@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Box, Text, Scroll, Switch, Button, Spinner, color } from 'folds';
-import { KnownMembership } from 'matrix-js-sdk/lib/types';
+import { KnownMembership } from '$types/matrix-sdk';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -33,6 +33,14 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
     []
   >(
     useCallback(async () => {
+      if (
+        !window.confirm(
+          'This will discard all current Megolm encryption sessions and start new ones. Continue?'
+        )
+      ) {
+        throw new Error('Cancelled');
+      }
+
       const crypto = mx.getCrypto();
       if (!crypto) throw new Error('Crypto module not available');
 
@@ -43,8 +51,10 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
             room.getMyMembership() === KnownMembership.Join && mx.isRoomEncrypted(room.roomId)
         );
 
-      await Promise.all(encryptedRooms.map((room) => crypto.forceDiscardSession(room.roomId)));
-      const rotated = encryptedRooms.length;
+      const results = await Promise.allSettled(
+        encryptedRooms.map((room) => crypto.forceDiscardSession(room.roomId))
+      );
+      const rotated = results.filter((r) => r.status === 'fulfilled').length;
 
       // Proactively start session creation + key sharing with all devices
       // (including bridge bots). fire-and-forget per room.

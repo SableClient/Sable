@@ -426,10 +426,7 @@ async function requestDecryptionFromClient(
   });
 
   // Return as soon as any client succeeds or the shared timeout fires.
-  return Promise.race([
-    Promise.any(clientAttempts).catch(() => undefined),
-    timeout,
-  ]);
+  return Promise.race([Promise.any(clientAttempts).catch(() => undefined), timeout]);
 }
 
 /**

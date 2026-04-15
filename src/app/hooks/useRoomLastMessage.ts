@@ -13,7 +13,7 @@ import { MessageEvent } from '$types/matrix/room';
  * Strip the legacy reply fallback (lines starting with `> `) that some
  * clients prepend when replying to a message.
  */
-function stripReplyFallback(body: string): string {
+export function stripReplyFallback(body: string): string {
   const lines = body.split('\n');
   let i = 0;
   while (i < lines.length && lines[i].startsWith('> ')) i++;
@@ -22,7 +22,7 @@ function stripReplyFallback(body: string): string {
   return lines.slice(i).join('\n');
 }
 
-function eventToPreviewText(ev: MatrixEvent): string | undefined {
+export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (ev.isRedacted()) return undefined;
 
   const type = ev.getType();
@@ -53,7 +53,7 @@ function eventToPreviewText(ev: MatrixEvent): string | undefined {
   return undefined;
 }
 
-function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
+export function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
   const events = room.getLiveTimeline().getEvents();
   const match = [...events].reverse().find((ev) => eventToPreviewText(ev) !== undefined);
   if (!match) return undefined;

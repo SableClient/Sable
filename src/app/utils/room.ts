@@ -530,8 +530,7 @@ export const getMemberDisplayName = (
   const name = member?.rawDisplayName;
   if (name === userId) return undefined;
   if (
-    name?.replace(/[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\uE0100-\uE01EF\u200B-\u200D]/gu, '')
-      .length === 0
+    name?.replace(/[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\u200B-\u200D\t\n ]/gu, '').length === 0
   )
     return undefined;
   return name;

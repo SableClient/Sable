@@ -25,17 +25,21 @@ export function stripReplyFallback(body: string): string {
 export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (ev.isRedacted()) return undefined;
 
-  const type = ev.getType();
+  // After decryption, getType() still returns 'm.room.encrypted' (the wire type).
+  // Use the effective event type to get the decrypted type when available.
+  const effectiveType = (ev.getEffectiveEvent()?.type as string | undefined) ?? ev.getType();
+  const type = effectiveType;
+  const content = ev.getContent();
 
   // Skip reactions and edits — they aren't standalone messages.
   if (type === MessageEvent.Reaction) return undefined;
-  const relType = ev.getContent()?.['m.relates_to']?.rel_type;
+  const relType = content?.['m.relates_to']?.rel_type;
   if (relType === 'm.replace') return undefined;
 
+  // Only show encrypted placeholder if the event is still encrypted (not yet decrypted).
   if (type === MessageEvent.RoomMessageEncrypted) return '🔒 Encrypted message';
 
   if (type === MessageEvent.RoomMessage) {
-    const content = ev.getContent();
     const { msgtype } = content;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
       return stripReplyFallback(content.body);
@@ -47,7 +51,7 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   }
 
   if (type === MessageEvent.Sticker) {
-    return `🎉 ${ev.getContent().body ?? 'Sticker'}`;
+    return `🎉 ${content.body ?? 'Sticker'}`;
   }
 
   return undefined;

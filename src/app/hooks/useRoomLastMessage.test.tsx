@@ -15,13 +15,17 @@ function makeEvent(overrides: {
   sender?: string;
   roomId?: string;
   redacted?: boolean;
+  effectiveType?: string;
 }) {
+  const type = overrides.type ?? 'm.room.message';
+  const content = overrides.content ?? { msgtype: 'm.text', body: 'hello' };
   return {
-    getType: () => overrides.type ?? 'm.room.message',
-    getContent: () => overrides.content ?? { msgtype: 'm.text', body: 'hello' },
+    getType: () => type,
+    getContent: () => content,
     getSender: () => overrides.sender ?? '@alice:test',
     getRoomId: () => overrides.roomId ?? '!room:test',
     isRedacted: () => overrides.redacted ?? false,
+    getEffectiveEvent: () => ({ type: overrides.effectiveType ?? type, content }),
   } as never;
 }
 
@@ -93,6 +97,15 @@ describe('eventToPreviewText', () => {
   it('returns encrypted placeholder for encrypted events', () => {
     const ev = makeEvent({ type: 'm.room.encrypted', content: {} });
     expect(eventToPreviewText(ev)).toBe('🔒 Encrypted message');
+  });
+
+  it('returns decrypted content when event has been decrypted', () => {
+    const ev = makeEvent({
+      type: 'm.room.encrypted',
+      content: { msgtype: 'm.text', body: 'decrypted text' },
+      effectiveType: 'm.room.message',
+    });
+    expect(eventToPreviewText(ev)).toBe('decrypted text');
   });
 
   it('returns sticker text', () => {

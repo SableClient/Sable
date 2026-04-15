@@ -19,6 +19,11 @@
     "enabled": true
   },
 
+  "sessionSync": {
+    "phase1ForegroundResync": true,
+    "phase2VisibleHeartbeat": true
+  },
+
   "featuredCommunities": {
     "openAsDefault": false,
     "spaces": [

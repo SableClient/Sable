@@ -1,10 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { usePresenceAutoIdle } from './usePresenceAutoIdle';
 import { presenceAutoIdledAtom } from '$state/settings';
 import { appEvents } from '$utils/appEvents';
 import type { ReactNode } from 'react';
+import { usePresenceAutoIdle } from './usePresenceAutoIdle';
 
 // -------- mock setup --------
 
@@ -39,7 +39,6 @@ function useAutoIdledReader(
   sendPresence: boolean,
   timeoutMs: number
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   usePresenceAutoIdle(mx as any, presenceMode, sendPresence, timeoutMs);
   return useAtomValue(presenceAutoIdledAtom);
 }
@@ -62,10 +61,9 @@ afterEach(() => {
 
 describe('usePresenceAutoIdle', () => {
   it('sets auto-idle after the timeout elapses', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     expect(result.current).toBe(false);
 
@@ -77,10 +75,9 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('resets auto-idle when user activity is detected', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     // Go idle.
     act(() => {
@@ -96,10 +93,9 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('resets auto-idle when app becomes visible via appEvents', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     act(() => {
       vi.advanceTimersByTime(5000);
@@ -114,10 +110,7 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('does not go idle when presenceMode is not online', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'dnd', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'dnd', true, 5000), { wrapper });
 
     act(() => {
       vi.advanceTimersByTime(10000);
@@ -126,10 +119,9 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('does not go idle when sendPresence is false', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', false, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', false, 5000), {
+      wrapper,
+    });
 
     act(() => {
       vi.advanceTimersByTime(10000);
@@ -138,10 +130,7 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('does not go idle when timeoutMs is 0', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 0),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 0), { wrapper });
 
     act(() => {
       vi.advanceTimersByTime(10000);
@@ -150,10 +139,9 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('restarts the idle timer on activity before timeout', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     // Advance partially, then trigger activity.
     act(() => {
@@ -194,10 +182,9 @@ describe('usePresenceAutoIdle', () => {
   });
 
   it('clears auto-idle when another device sets presence to online', () => {
-    const { result } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     act(() => {
       vi.advanceTimersByTime(5000);
@@ -209,18 +196,15 @@ describe('usePresenceAutoIdle', () => {
     expect(handlers.length).toBeGreaterThan(0);
 
     act(() => {
-      handlers.forEach((h) =>
-        h({}, { userId: '@alice:test', presence: 'online' })
-      );
+      handlers.forEach((h) => h({}, { userId: '@alice:test', presence: 'online' }));
     });
     expect(result.current).toBe(false);
   });
 
   it('unsubscribes from appEvents.onVisibilityChange on cleanup', () => {
-    const { result, unmount } = renderHook(
-      () => useAutoIdledReader(mockMx, 'online', true, 5000),
-      { wrapper }
-    );
+    const { result, unmount } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
 
     // Go idle.
     act(() => {

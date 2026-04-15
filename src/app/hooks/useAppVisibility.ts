@@ -16,7 +16,10 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
 
   const sessionSyncConfig = clientConfig.sessionSync;
-  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', mx?.getUserId() ?? undefined);
+  const sessionSyncVariant = useExperimentVariant(
+    'sessionSyncStrategy',
+    mx?.getUserId() ?? undefined
+  );
 
   // Derive phase flags from experiment variant; fall back to direct config when not in experiment.
   const inSessionSync = sessionSyncVariant.inExperiment;
@@ -86,12 +89,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       });
       return 'sent';
     },
-    [
-      mx,
-      phase1ForegroundResync,
-      phase2VisibleHeartbeat,
-      phase3AdaptiveBackoffJitter,
-    ]
+    [mx, phase1ForegroundResync, phase2VisibleHeartbeat, phase3AdaptiveBackoffJitter]
   );
 
   useEffect(() => {

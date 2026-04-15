@@ -894,8 +894,7 @@ const onPushNotification = async (event: PushEvent) => {
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
   // Capture the persisted session result into preloadedSession so that
-  // handleMinimalPushPayload and media fetch handlers can use it as a
-  // fallback without a second cache read.
+  // media fetch handlers can use it as a fallback without a second cache read.
   const [, persistedSession, clients] = await Promise.all([
     loadPersistedSettings(),
     loadPersistedSession(),

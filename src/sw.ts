@@ -396,36 +396,40 @@ async function requestDecryptionFromClient(
 ): Promise<DecryptionResult | undefined> {
   const eventId = rawEvent.event_id as string;
 
-  // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
-    async (prevPromise, client) => {
-      const prev = await prevPromise;
-      if (prev?.success) return prev;
+  // Try all window clients in parallel with a single shared timeout.
+  // This avoids the worst case of N × 5s sequential timeouts when multiple
+  // tabs are frozen (common on iOS).
+  const clientAttempts = Array.from(windowClients).map((client) => {
+    const promise = new Promise<DecryptionResult>((resolve) => {
+      decryptionPendingMap.set(eventId, resolve);
+    });
 
-      const promise = new Promise<DecryptionResult>((resolve) => {
-        decryptionPendingMap.set(eventId, resolve);
-      });
+    try {
+      (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+    } catch (err) {
+      decryptionPendingMap.delete(eventId);
+      console.warn('[SW decryptRelay] postMessage error', err);
+      return Promise.resolve(undefined as DecryptionResult | undefined);
+    }
 
-      const timeout = new Promise<undefined>((resolve) => {
-        setTimeout(() => {
-          decryptionPendingMap.delete(eventId);
-          console.warn('[SW decryptRelay] timed out waiting for client', client.id);
-          resolve(undefined);
-        }, 5000);
-      });
+    return promise as Promise<DecryptionResult | undefined>;
+  });
 
-      try {
-        (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
-      } catch (err) {
-        decryptionPendingMap.delete(eventId);
-        console.warn('[SW decryptRelay] postMessage error', err);
-        return undefined;
-      }
+  if (clientAttempts.length === 0) return undefined;
 
-      return Promise.race([promise, timeout]);
-    },
-    Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
-  );
+  const timeout = new Promise<undefined>((resolve) => {
+    setTimeout(() => {
+      decryptionPendingMap.delete(eventId);
+      console.warn('[SW decryptRelay] timed out waiting for all clients');
+      resolve(undefined);
+    }, 5000);
+  });
+
+  // Return as soon as any client succeeds or the shared timeout fires.
+  return Promise.race([
+    Promise.any(clientAttempts).catch(() => undefined),
+    timeout,
+  ]);
 }
 
 /**
@@ -533,6 +537,7 @@ async function handleMinimalPushPayload(
         // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.
         room_name: result.room_name || resolvedRoomName,
         room_avatar_url: notificationAvatarUrl,
+        isEncryptedRoom: true,
       });
     } else {
       // App is frozen or fully closed — show "Encrypted message" fallback.
@@ -951,11 +956,40 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    try {
+      await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    } catch (err) {
+      console.error('[SW push] handleMinimalPushPayload failed:', err);
+      // Show a generic fallback so the user still sees something on iOS.
+      await self.registration.showNotification('New Message', {
+        body: undefined,
+        icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+        badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+        tag: `room-${pushData.room_id}`,
+        renotify: true,
+        data: { room_id: pushData.room_id, event_id: pushData.event_id },
+      } as NotificationOptions);
+    }
     return;
   }
 
-  await handlePushNotificationPushData(pushData);
+  try {
+    await handlePushNotificationPushData(pushData);
+  } catch (err) {
+    console.error('[SW push] handlePushNotificationPushData failed:', err);
+    await self.registration.showNotification('New Message', {
+      body: undefined,
+      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+      tag: pushData.room_id ? `room-${pushData.room_id}` : (pushData.event_id ?? 'Cinny'),
+      renotify: true,
+      data: {
+        room_id: pushData.room_id,
+        event_id: pushData.event_id,
+        user_id: pushData.user_id,
+      },
+    } as NotificationOptions);
+  }
 };
 
 // ---------------------------------------------------------------------------

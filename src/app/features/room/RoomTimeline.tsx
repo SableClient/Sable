@@ -249,14 +249,14 @@ export function RoomTimeline({
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
   const timelineSyncRef = useRef<typeof timelineSync>(null as unknown as typeof timelineSync);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior?: 'instant' | 'smooth') => {
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
     // Guard against VList's intermediate height-correction scroll events that
     // would otherwise call setAtBottom(false) before the scroll settles.
     programmaticScrollToBottomRef.current = Date.now();
-    vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
+    vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: behavior === 'smooth' });
   }, []);
 
   const timelineSync = useTimelineSync({

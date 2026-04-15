@@ -35,7 +35,14 @@ export function clearPresenceCache(): void {
 }
 
 function fetchPresenceOnce(
-  mx: { getPresence: (userId: string) => Promise<{ presence: string; status_msg?: string; currently_active?: boolean; last_active_ago?: number | null }> },
+  mx: {
+    getPresence: (userId: string) => Promise<{
+      presence: string;
+      status_msg?: string;
+      currently_active?: boolean;
+      last_active_ago?: number | null;
+    }>;
+  },
   userId: string
 ): Promise<UserPresence | undefined> {
   const cached = presenceCache.get(userId);
@@ -53,8 +60,7 @@ function fetchPresenceOnce(
         presence: resp.presence as Presence,
         status: resp.status_msg,
         active: resp.currently_active ?? false,
-        lastActiveTs:
-          resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
+        lastActiveTs: resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
       };
       presenceCache.set(userId, { data, fetchedAt: Date.now() });
       return data;

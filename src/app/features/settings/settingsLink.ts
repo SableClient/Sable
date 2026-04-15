@@ -1,4 +1,3 @@
-import type { ClientConfig } from '$hooks/useClientConfig';
 import { getAppPathFromHref, getSettingsPath, withOriginBaseUrl } from '$pages/pathUtils';
 import { isSettingsSectionId, type SettingsSectionId } from './routes';
 
@@ -7,70 +6,101 @@ export type SettingsLink = {
   focus?: string;
 };
 
-export const DEFAULT_SETTINGS_LINK_BASE_URL = 'https://app.sable.moe';
+export const SETTINGS_LINK_ACTION_PARAM = 'moe.sable.client.action';
+export const SETTINGS_LINK_ACTION_SETTINGS = 'settings';
 
-export const normalizeSettingsLinkBaseUrl = (value?: string | null): string | undefined => {
-  if (typeof value !== 'string') return undefined;
+const withSettingsLinkAction = (path: string): string => {
+  const [pathname, search = ''] = path.split('?');
+  const params = new URLSearchParams(search);
+  params.set(SETTINGS_LINK_ACTION_PARAM, SETTINGS_LINK_ACTION_SETTINGS);
 
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return undefined;
-    }
-
-    return url.toString().replace(/\/+$/, '');
-  } catch {
-    return undefined;
-  }
+  return `${pathname}?${params.toString()}`;
 };
 
-export const getConfiguredSettingsLinkBaseUrl = (
-  clientConfig: Pick<ClientConfig, 'settingsLinkBaseUrl'>
-): string =>
-  normalizeSettingsLinkBaseUrl(clientConfig.settingsLinkBaseUrl) ?? DEFAULT_SETTINGS_LINK_BASE_URL;
+const parseSettingsAppPath = (appPath: string): SettingsLink | undefined => {
+  if (!appPath.startsWith('/settings/')) return undefined;
 
-export const getEffectiveSettingsLinkBaseUrl = (
-  clientConfig: Pick<ClientConfig, 'settingsLinkBaseUrl'>,
-  override?: string
-): string =>
-  normalizeSettingsLinkBaseUrl(override) ?? getConfiguredSettingsLinkBaseUrl(clientConfig);
+  const [pathname, search = ''] = appPath.split('?');
+  const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/?$/);
+  if (!sectionMatch) return undefined;
+
+  const section = sectionMatch[1];
+  if (!isSettingsSectionId(section)) return undefined;
+
+  const focus = new URLSearchParams(search).get('focus') ?? undefined;
+
+  return { section, focus };
+};
+
+const hasSettingsLinkAction = (search: string): boolean =>
+  new URLSearchParams(search).get(SETTINGS_LINK_ACTION_PARAM) === SETTINGS_LINK_ACTION_SETTINGS;
+
+const getCrossBaseSettingsPathname = (pathname: string): string | undefined =>
+  pathname.match(/(\/settings\/[^/]+\/?)$/)?.[1];
+
+const getCrossBaseSettingsAppPath = (pathname: string, search: string): string | undefined => {
+  if (!hasSettingsLinkAction(search)) return undefined;
+
+  const settingsPathname = getCrossBaseSettingsPathname(pathname);
+  if (!settingsPathname) return undefined;
+
+  const appPath = search ? `${settingsPathname}?${search}` : settingsPathname;
+  return parseSettingsAppPath(appPath) ? appPath : undefined;
+};
+
+const getSameBaseSettingsAppPath = (baseUrl: string, href: string): string | undefined => {
+  const base = new URL(baseUrl);
+  const target = new URL(href);
+
+  if (base.origin !== target.origin) return undefined;
+
+  if (base.hash) {
+    const baseHash = base.hash.replace(/\/+$/, '');
+    if (!(target.hash === baseHash || target.hash.startsWith(`${baseHash}/`))) {
+      return undefined;
+    }
+  }
+
+  return getAppPathFromHref(baseUrl, href);
+};
+
+const getCrossBaseSettingsAppPathFromHref = (href: string): string | undefined => {
+  const target = new URL(href);
+
+  const directAppPath = getCrossBaseSettingsAppPath(
+    target.pathname,
+    target.search.replace(/^\?/, '')
+  );
+  if (directAppPath) {
+    return directAppPath;
+  }
+
+  const hashPath = target.hash.startsWith('#') ? target.hash.slice(1) : target.hash;
+  if (!hashPath) return undefined;
+
+  const [hashPathname, hashSearch = ''] = hashPath.split('?');
+  return getCrossBaseSettingsAppPath(hashPathname, hashSearch);
+};
 
 export const buildSettingsLink = (
   baseUrl: string,
   section: SettingsSectionId,
   focus?: string
-): string => withOriginBaseUrl(baseUrl, getSettingsPath(section, focus));
+): string => withOriginBaseUrl(baseUrl, withSettingsLinkAction(getSettingsPath(section, focus)));
 
 export const parseSettingsLink = (baseUrl: string, href: string): SettingsLink | undefined => {
   try {
-    const base = new URL(baseUrl);
-    const target = new URL(href);
-
-    if (base.origin !== target.origin) return undefined;
-
-    if (base.hash) {
-      const baseHash = base.hash.replace(/\/+$/, '');
-      if (!(target.hash === baseHash || target.hash.startsWith(`${baseHash}/`))) {
-        return undefined;
-      }
+    const sameBaseAppPath = getSameBaseSettingsAppPath(baseUrl, href);
+    if (sameBaseAppPath) {
+      return parseSettingsAppPath(sameBaseAppPath);
     }
 
-    const appPath = getAppPathFromHref(baseUrl, href);
-    if (!appPath.startsWith('/settings/')) return undefined;
+    const crossBaseAppPath = getCrossBaseSettingsAppPathFromHref(href);
+    if (crossBaseAppPath) {
+      return parseSettingsAppPath(crossBaseAppPath);
+    }
 
-    const [pathname, search = ''] = appPath.split('?');
-    const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/?$/);
-    if (!sectionMatch) return undefined;
-
-    const section = sectionMatch[1];
-    if (!isSettingsSectionId(section)) return undefined;
-
-    const focus = new URLSearchParams(search).get('focus') ?? undefined;
-
-    return { section, focus };
+    return undefined;
   } catch {
     return undefined;
   }

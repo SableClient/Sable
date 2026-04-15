@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MsgType } from '$types/matrix-sdk';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { RenderMessageContent } from './RenderMessageContent';
@@ -13,9 +13,9 @@ vi.mock('./url-preview', () => ({
   youtubeUrl: () => false,
 }));
 
-function renderMessage(body: string, settingsLinkBaseUrl = 'https://app.sable.moe') {
+function renderMessage(body: string) {
   return render(
-    <ClientConfigProvider value={{ settingsLinkBaseUrl }}>
+    <ClientConfigProvider value={{}}>
       <RenderMessageContent
         displayName="Alice"
         msgType={MsgType.Text}
@@ -30,9 +30,19 @@ function renderMessage(body: string, settingsLinkBaseUrl = 'https://app.sable.mo
   );
 }
 
+beforeEach(() => {
+  vi.stubGlobal('location', { origin: 'https://app.example' } as Location);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('RenderMessageContent', () => {
   it('does not render url previews for settings links', () => {
-    renderMessage('https://app.sable.moe/settings/account?focus=status');
+    renderMessage(
+      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings'
+    );
 
     expect(screen.queryByTestId('url-preview-holder')).not.toBeInTheDocument();
     expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();

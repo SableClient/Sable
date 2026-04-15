@@ -12,8 +12,6 @@ const { mockMatrixClient, mockProfile } = vi.hoisted(() => ({
   mockProfile: { displayName: 'Alice', avatarUrl: undefined },
 }));
 
-let settingsLinkBaseUrlOverride: string | undefined;
-
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => mockMatrixClient,
 }));
@@ -27,13 +25,7 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: (_atom: unknown, key: string) => {
-    if (key === 'settingsLinkBaseUrlOverride') {
-      return [settingsLinkBaseUrlOverride, vi.fn()] as const;
-    }
-
-    return [true, vi.fn()] as const;
-  },
+  useSetting: () => [true, vi.fn()] as const,
 }));
 
 vi.mock('$state/settings', () => ({
@@ -137,7 +129,6 @@ vi.mock('./keyboard-shortcuts', () => ({
 
 beforeEach(() => {
   writeText.mockReset();
-  settingsLinkBaseUrlOverride = undefined;
   vi.stubGlobal('location', { origin: 'https://app.example' } as Location);
   vi.stubGlobal('navigator', { clipboard: { writeText } } as unknown as Navigator);
 });
@@ -147,11 +138,11 @@ afterEach(() => {
 });
 
 describe('Settings', () => {
-  it('uses the configured settings link base URL for copied settings links', async () => {
+  it('uses the current app origin for copied settings links', async () => {
     writeText.mockResolvedValueOnce(undefined);
 
     render(
-      <ClientConfigProvider value={{ settingsLinkBaseUrl: 'https://config.example' }}>
+      <ClientConfigProvider value={{}}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
           <Settings activeSection="appearance" requestClose={vi.fn()} />
         </ScreenSizeProvider>
@@ -162,17 +153,16 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://config.example/settings/appearance?focus=message-link-preview'
+        'https://app.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
       );
     });
   });
 
-  it('prefers the client-side override over the configured settings link base URL', async () => {
+  it('preserves the configured hash-router basename in copied settings links', async () => {
     writeText.mockResolvedValueOnce(undefined);
-    settingsLinkBaseUrlOverride = 'https://override.example/';
 
     render(
-      <ClientConfigProvider value={{ settingsLinkBaseUrl: 'https://config.example' }}>
+      <ClientConfigProvider value={{ hashRouter: { enabled: true, basename: '/app' } }}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
           <Settings activeSection="appearance" requestClose={vi.fn()} />
         </ScreenSizeProvider>
@@ -183,7 +173,7 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://override.example/settings/appearance?focus=message-link-preview'
+        'https://app.example/#/app/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
       );
     });
   });

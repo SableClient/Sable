@@ -16,9 +16,9 @@ import { MessageEvent } from '$types/matrix/room';
 export function stripReplyFallback(body: string): string {
   const lines = body.split('\n');
   let i = 0;
-  while (i < lines.length && lines[i].startsWith('> ')) i++;
+  while (i < lines.length && lines[i].startsWith('> ')) i += 1;
   // Skip the blank separator line that follows the fallback block.
-  if (i > 0 && i < lines.length && lines[i] === '') i++;
+  if (i > 0 && i < lines.length && lines[i] === '') i += 1;
   return lines.slice(i).join('\n');
 }
 

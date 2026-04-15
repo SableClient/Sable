@@ -147,7 +147,11 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
   ],
 });
 
-const buildLists = (pageSize: number, includeInviteList: boolean, listTimelineLimit: number): Map<string, MSC3575List> => {
+const buildLists = (
+  pageSize: number,
+  includeInviteList: boolean,
+  listTimelineLimit: number
+): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
 

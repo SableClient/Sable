@@ -150,8 +150,7 @@ describe('eventToPreviewText', () => {
 // -------- getLastMessageText --------
 
 describe('getLastMessageText', () => {
-  const makeMx = (userId = '@alice:test') =>
-    ({ getUserId: () => userId }) as never;
+  const makeMx = (userId = '@alice:test') => ({ getUserId: () => userId }) as never;
 
   const makeRoom = (events: ReturnType<typeof makeEvent>[], members?: Record<string, string>) =>
     ({

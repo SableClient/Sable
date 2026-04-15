@@ -88,7 +88,7 @@ export const createPushNotifications = (
       previewText: resolveNotificationPreviewText({
         content: pushData?.content,
         eventType: pushData?.type,
-        isEncryptedRoom: false,
+        isEncryptedRoom: pushData?.isEncryptedRoom === true,
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
       }),

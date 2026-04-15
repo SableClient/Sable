@@ -414,6 +414,11 @@ export function BackgroundNotifications() {
 
             const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
 
+            // After decryption, getType() still returns the wire type (m.room.encrypted).
+            // Use the effective event type to get the decrypted type when available.
+            const effectiveEventType =
+              (mEvent.getEffectiveEvent()?.type as string) ?? mEvent.getType();
+
             notifiedEventsRef.current.add(dedupeId);
             // Cap the set so it doesn't grow unbounded
             if (notifiedEventsRef.current.size > 200) {
@@ -428,7 +433,7 @@ export function BackgroundNotifications() {
               recipientId: session.userId,
               previewText: resolveNotificationPreviewText({
                 content: mEvent.getContent(),
-                eventType: mEvent.getType(),
+                eventType: effectiveEventType,
                 isEncryptedRoom,
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,

@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Fix unhandled promise rejections in useAsyncCallback by propagating errors to the error boundary
+Suppress "Uncaught (in promise)" console noise for fire-and-forget `useAsyncCallback` call sites; errors are still surfaced to callers that await the returned promise and captured in `AsyncState`

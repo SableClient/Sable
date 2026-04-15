@@ -273,7 +273,6 @@ export function RoomTimeline({
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
 
   const topSpacerHeightRef = useRef(0);
-  const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
@@ -302,7 +301,6 @@ export function RoomTimeline({
     scrollCacheForRoomRef.current = roomScrollCache.load(mxUserId, room.roomId);
 
     hasInitialScrolledRef.current = false;
-    mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
     programmaticScrollToBottomRef.current = 0;
@@ -320,11 +318,14 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
+    // Pre-empt atBottom so the "Jump to Latest" button doesn't flash between
+    // the scroll call and VList confirming the new position.
+    setAtBottom(true);
     // Guard against VList's intermediate height-correction scroll events that
     // would otherwise call setAtBottom(false) before the scroll settles.
     programmaticScrollToBottomRef.current = Date.now();
     vListRef.current.scrollTo(vListRef.current.scrollSize);
-  }, []);
+  }, [setAtBottom]);
 
   const timelineSync = useTimelineSync({
     room,
@@ -587,6 +588,9 @@ export function RoomTimeline({
       const shrank = newHeight < prev;
 
       if (shrank && atBottom) {
+        // Arm the guard before scrolling so VList's intermediate height-correction
+        // events (fired during item re-measurement) don't flip atBottom to false.
+        programmaticScrollToBottomRef.current = Date.now();
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
       prevViewportHeightRef.current = newHeight;

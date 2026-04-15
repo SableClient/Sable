@@ -441,10 +441,11 @@ async function handleMinimalPushPayload(
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
-  // the app (same pattern as settings persistence).
+  // the app (same pattern as settings persistence).  If onPushNotification already loaded
+  // the persisted session into preloadedSession, reuse it to avoid a second cache read.
   // Last resort: if neither the in-memory map nor the cache has a session, ask any live
   // window client for a fresh token (the app may be backgrounded but still alive in memory).
-  let session = getAnyStoredSession() ?? (await loadPersistedSession());
+  let session = getAnyStoredSession() ?? preloadedSession ?? (await loadPersistedSession());
   if (!session && windowClients.length > 0) {
     console.debug('[SW push] no cached session, requesting from window clients');
     const results = await Promise.all(

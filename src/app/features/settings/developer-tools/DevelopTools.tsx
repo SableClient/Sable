@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Box, Text, Scroll, Switch, Button, Spinner, color } from 'folds';
-import { KnownMembership } from 'matrix-js-sdk/lib/types';
+import { KnownMembership } from '$types/matrix-sdk';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';

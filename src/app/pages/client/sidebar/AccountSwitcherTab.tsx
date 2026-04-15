@@ -421,6 +421,7 @@ export function AccountSwitcherTab() {
                         setAutoIdled(false);
                         // Re-enable presence broadcasting if the master toggle was off
                         if (!sendPresence) setSendPresence(true);
+                        setMenuAnchor(undefined);
                       }}
                     >
                       <Box direction="Column">

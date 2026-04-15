@@ -22,6 +22,60 @@ const getUserPresence = (user: User): UserPresence => ({
   lastActiveTs: user.getLastActiveTs(),
 });
 
+// In-memory presence REST cache to avoid N+1 /presence/{userId}/status floods.
+// Multiple hook instances for the same user share a single in-flight request.
+const PRESENCE_CACHE_TTL_MS = 60_000;
+const presenceCache = new Map<string, { data: UserPresence; fetchedAt: number }>();
+const presenceInflight = new Map<string, Promise<UserPresence | undefined>>();
+
+/** Visible for testing — clears the in-memory REST presence cache. */
+export function clearPresenceCache(): void {
+  presenceCache.clear();
+  presenceInflight.clear();
+}
+
+function fetchPresenceOnce(
+  mx: { getPresence: (userId: string) => Promise<{ presence: string; status_msg?: string; currently_active?: boolean; last_active_ago?: number | null }> },
+  userId: string
+): Promise<UserPresence | undefined> {
+  const cached = presenceCache.get(userId);
+  if (cached && Date.now() - cached.fetchedAt < PRESENCE_CACHE_TTL_MS) {
+    return Promise.resolve(cached.data);
+  }
+
+  const existing = presenceInflight.get(userId);
+  if (existing) return existing;
+
+  const promise = mx
+    .getPresence(userId)
+    .then((resp) => {
+      const data: UserPresence = {
+        presence: resp.presence as Presence,
+        status: resp.status_msg,
+        active: resp.currently_active ?? false,
+        lastActiveTs:
+          resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
+      };
+      presenceCache.set(userId, { data, fetchedAt: Date.now() });
+      return data;
+    })
+    .catch((err: unknown) => {
+      // Suppress expected failures (404/403 = presence not supported, network errors).
+      // Only log unexpected server errors (5xx) for debugging.
+      const status = (err as { httpStatus?: number })?.httpStatus;
+      if (status && status >= 500) {
+        console.warn('[useUserPresence] REST fetch failed for', userId, err);
+      }
+      return undefined;
+    })
+    .finally(() => {
+      presenceInflight.delete(userId);
+    });
+
+  presenceInflight.set(userId, promise);
+  return promise;
+}
+
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();
   const user = mx.getUser(userId);
@@ -38,20 +92,10 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     // Guard against empty userId — callers that render a fixed number of hooks (e.g. group DM
     // slots) pass '' for absent members; firing getPresence('') would be a malformed request.
     if (userId && (!user || user.getLastActiveTs() === 0)) {
-      mx.getPresence(userId)
-        .then((resp) => {
-          if (cancelled) return;
-          setPresence({
-            presence: resp.presence as Presence,
-            status: resp.status_msg,
-            active: resp.currently_active ?? false,
-            lastActiveTs:
-              resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
-          });
-        })
-        .catch(() => {
-          // Presence not available on this server (404 or not supported) — keep existing state.
-        });
+      fetchPresenceOnce(mx, userId).then((data) => {
+        if (cancelled || !data) return;
+        setPresence(data);
+      });
     }
 
     const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {

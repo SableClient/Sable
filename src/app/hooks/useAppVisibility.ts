@@ -165,7 +165,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   ]);
 
   useEffect(() => {
-    if (!phase2VisibleHeartbeat) return undefined;
+    if (!phase2VisibleHeartbeat || !mx) return undefined;
 
     // Reset adaptive backoff/suppression so a config or session change starts fresh.
     heartbeatFailuresRef.current = 0;

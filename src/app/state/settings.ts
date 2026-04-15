@@ -125,9 +125,6 @@ export interface Settings {
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
 
-  // experimental
-  enableMessageBookmarks: boolean;
-
   // furry stuff
   renderAnimals: boolean;
 }
@@ -229,9 +226,6 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-
-  // experimental
-  enableMessageBookmarks: false,
 
   // furry stuff
   renderAnimals: true,

@@ -62,11 +62,20 @@ function DMItem({ room, selected }: DMItemProps) {
   const groupDMOnline =
     isGroupDM &&
     [member0Presence, member1Presence, member2Presence].some(
-      (p) => p && p.lastActiveTs !== 0 && p.presence === Presence.Online
+      (p) =>
+        p &&
+        p.lastActiveTs != null &&
+        p.lastActiveTs !== 0 &&
+        p.presence === Presence.Online
     );
 
   let presenceBadge: ReactNode;
-  if (!isGroupDM && singleDMPresence && singleDMPresence.lastActiveTs !== 0) {
+  if (
+    !isGroupDM &&
+    singleDMPresence &&
+    singleDMPresence.lastActiveTs != null &&
+    singleDMPresence.lastActiveTs !== 0
+  ) {
     presenceBadge = <PresenceBadge presence={singleDMPresence.presence} size="200" />;
   } else if (isGroupDM && groupDMOnline) {
     presenceBadge = <PresenceBadge presence={Presence.Online} size="200" />;

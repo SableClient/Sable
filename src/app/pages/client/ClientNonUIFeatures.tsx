@@ -871,7 +871,7 @@ function PresenceFeature() {
     //   their presence events because the extension is still enabled above.
     mx.setPresence({
       presence: effectiveState,
-      status_msg: sendPresence && effectiveMode === 'dnd' ? 'dnd' : '',
+      ...(sendPresence && effectiveMode === 'dnd' ? { status_msg: 'dnd' } : {}),
     }).catch(() => {
       // Server doesn't support presence — ignore.
     });

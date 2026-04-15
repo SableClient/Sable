@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useUserPresence, Presence } from './useUserPresence';
+import { useUserPresence, Presence, clearPresenceCache } from './useUserPresence';
 
 // ------- mock setup -------
 
@@ -45,7 +45,7 @@ const mockMx = {
   removeListener: vi.fn(),
 };
 
-vi.mock('$hooks/useMatrixClient', () => ({
+vi.mock('./useMatrixClient', () => ({
   useMatrixClient: () => mockMx,
 }));
 
@@ -54,6 +54,7 @@ const USER_ID = '@alice:test';
 beforeEach(() => {
   vi.clearAllMocks();
   userListeners.clear();
+  clearPresenceCache();
   mockUser = null;
   mockGetPresence = () => new Promise(() => {}); // pending by default
   mockMx.getUser.mockImplementation(() => mockUser);

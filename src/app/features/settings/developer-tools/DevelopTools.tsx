@@ -57,8 +57,14 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
       const rotated = results.filter((r) => r.status === 'fulfilled').length;
 
       // Proactively start session creation + key sharing with all devices
-      // (including bridge bots). fire-and-forget per room.
-      encryptedRooms.forEach((room) => crypto.prepareToEncrypt(room));
+      // (including bridge bots). fire-and-forget per room, but surface failures.
+      encryptedRooms.forEach((room) => {
+        void Promise.resolve()
+          .then(() => crypto.prepareToEncrypt(room))
+          .catch((error) => {
+            console.error('Failed to prepare room encryption', room.roomId, error);
+          });
+      });
 
       return { rotated, total: encryptedRooms.length };
     }, [mx])

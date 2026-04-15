@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Add rotate-encryption-sessions developer tool to force Megolm session rotation for testing
+Add developer tool to force-rotate outbound Megolm encryption sessions per room, useful for testing key rotation and bridge session recovery

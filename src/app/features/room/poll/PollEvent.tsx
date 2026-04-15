@@ -148,16 +148,16 @@ export function computeTally(
   const tally = new Map<string, Set<string>>(answers.map((a) => [a.id, new Set()]));
   userVotes.forEach(({ ts, selections }, userId) => {
     if (ts > cutoff) return;
-    const valid = selections.slice(0, maxSelections);
-    if (!valid.every((s) => validAnswerIds.has(s))) return;
+    // Per MSC3381, strip invalid answer IDs but keep the remaining valid ones.
+    const valid = selections.slice(0, maxSelections).filter((s) => validAnswerIds.has(s));
+    if (valid.length === 0) return;
     valid.forEach((sel) => tally.get(sel)?.add(userId));
   });
 
   const myEntry = userVotes.get(myUserId);
   let myVote: string[] = [];
   if (myEntry && myEntry.ts <= cutoff) {
-    const myValid = myEntry.selections.slice(0, maxSelections);
-    if (myValid.every((s) => validAnswerIds.has(s))) myVote = myValid;
+    myVote = myEntry.selections.slice(0, maxSelections).filter((s) => validAnswerIds.has(s));
   }
 
   return { tally, myVote, isEnded };

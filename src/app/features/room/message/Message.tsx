@@ -224,10 +224,11 @@ export const MessageBookmarkItem = as<
   const mx = useMatrixClient();
   const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
-  const eventId = mEvent.getId() ?? '';
-  const isBookmarked = useIsBookmarked(room.roomId, eventId);
+  const eventId = mEvent.getId();
+  const isBookmarked = useIsBookmarked(room.roomId, eventId ?? '');
   const { add, remove } = useBookmarkActions();
 
+  if (!eventId) return null;
   if (!bookmarksExperiment.inExperiment && !enableMessageBookmarks) return null;
 
   const handleClick = async () => {

@@ -1,4 +1,4 @@
-import { FormEventHandler, useCallback, useMemo, useRef, useState } from 'react';
+import { FormEventHandler, Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -561,10 +561,9 @@ export function BookmarksList() {
               {groupedByRoom.length > 0 && (
                 <Box direction="Column" gap="500" style={{ marginTop: config.space.S300 }}>
                   {groupedByRoom.map((group, i) => (
-                    <>
+                    <Fragment key={group.roomId}>
                       {i > 0 && <Line variant="Background" size="300" />}
                       <BookmarkResultGroup
-                        key={group.roomId}
                         roomId={group.roomId}
                         roomName={group.roomName}
                         items={group.items}
@@ -574,7 +573,7 @@ export function BookmarksList() {
                         hour24Clock={hour24Clock}
                         dateFormatString={dateFormatString}
                       />
-                    </>
+                    </Fragment>
                   ))}
                 </Box>
               )}

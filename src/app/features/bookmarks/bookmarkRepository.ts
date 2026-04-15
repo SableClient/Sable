@@ -74,12 +74,15 @@ export async function addBookmark(mx: MatrixClient, item: BookmarkItemContent): 
  * Remove a bookmark.
  *
  * MSC4438 §Removing a bookmark:
- *  1. Remove the ID from the index.
- *  2. Soft-delete the item (set deleted: true).
+ *  1. Soft-delete the item first (set deleted: true).
+ *  2. Remove the ID from the index.
+ *  3. Increment revision and update timestamp.
+ *  4. Write the updated index.
  *
  * Account data events cannot be deleted from the server, so soft-deletion is
- * used.  Other clients that encounter the item event can see it is explicitly
- * removed.
+ * used.  This implementation intentionally tombstones the item before updating
+ * the index to mirror addBookmark()'s item-first ordering and avoid transient
+ * orphan recovery/resurrection if a removal only partially completes.
  */
 export async function removeBookmark(mx: MatrixClient, bookmarkId: string): Promise<void> {
   // Tombstone the item event directly — bypass readItem()'s validation so that

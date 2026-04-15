@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { MatrixClient } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig, useExperimentVariant } from './useClientConfig';
@@ -25,7 +26,10 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   const isMobile = mobileOrTablet();
 
   const sessionSyncConfig = clientConfig.sessionSync;
-  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', mx?.getUserId() ?? undefined);
+  const sessionSyncVariant = useExperimentVariant(
+    'sessionSyncStrategy',
+    mx?.getUserId() ?? undefined
+  );
 
   // Derive phase flags from experiment variant; fall back to direct config when not in experiment.
   const inSessionSync = sessionSyncVariant.inExperiment;
@@ -63,9 +67,9 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
 
   const pushSessionNow = useCallback(
     (reason: 'foreground' | 'focus' | 'heartbeat'): 'sent' | 'skipped' => {
-      const baseUrl = activeSession?.baseUrl;
-      const accessToken = activeSession?.accessToken;
-      const userId = activeSession?.userId;
+      const baseUrl = mx?.getHomeserverUrl();
+      const accessToken = mx?.getAccessToken();
+      const userId = mx?.getUserId();
       const canPush =
         !!mx &&
         typeof baseUrl === 'string' &&
@@ -95,15 +99,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       });
       return 'sent';
     },
-    [
-      activeSession?.accessToken,
-      activeSession?.baseUrl,
-      activeSession?.userId,
-      mx,
-      phase1ForegroundResync,
-      phase2VisibleHeartbeat,
-      phase3AdaptiveBackoffJitter,
-    ]
+    [mx, phase1ForegroundResync, phase2VisibleHeartbeat, phase3AdaptiveBackoffJitter]
   );
 
   useEffect(() => {
@@ -123,6 +119,9 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       // Always kick the sync loop on foreground regardless of phase flags —
       // the SDK may be sitting in exponential backoff after iOS froze the tab.
       mx?.retryImmediately();
+      // retryImmediately() is a no-op on SlidingSyncSdk — call resend() on the
+      // SlidingSync instance directly to abort a stale long-poll and start fresh.
+      if (mx) getSlidingSyncManager(mx)?.slidingSync.resend();
 
       if (!phase1ForegroundResync) return;
 
@@ -146,6 +145,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
 
       // Always kick the sync loop on focus for the same reason as above.
       mx?.retryImmediately();
+      if (mx) getSlidingSyncManager(mx)?.slidingSync.resend();
 
       if (!phase1ForegroundResync) return;
 

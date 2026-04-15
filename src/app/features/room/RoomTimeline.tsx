@@ -365,6 +365,7 @@ export function RoomTimeline({
       setTopSpacerHeight(newH);
       if (prev > 0 && newH === 0 && processedEventsRef.current.length > 0) {
         requestAnimationFrame(() => {
+          programmaticScrollToBottomRef.current = Date.now();
           vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
         });
       }
@@ -388,6 +389,7 @@ export function RoomTimeline({
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
       if (wasAtBottomBeforePaginationRef.current) {
+        programmaticScrollToBottomRef.current = Date.now();
         vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
       }
     }
@@ -420,14 +422,23 @@ export function RoomTimeline({
 
   // Recovery: if event timeline load failed and fell back to live timeline,
   // reveal the timeline so the user doesn't see a blank page.
+  // Skip when focusItem is set — that means loadEventTimeline succeeded and
+  // the success effects (415–419) already handle setIsReady.
   useEffect(() => {
-    if (eventId && !isReady && timelineSync.liveTimelineLinked && timelineSync.eventsLength > 0) {
+    if (
+      eventId &&
+      !isReady &&
+      !timelineSync.focusItem &&
+      timelineSync.liveTimelineLinked &&
+      timelineSync.eventsLength > 0
+    ) {
       scrollToBottom();
       setIsReady(true);
     }
   }, [
     eventId,
     isReady,
+    timelineSync.focusItem,
     timelineSync.liveTimelineLinked,
     timelineSync.eventsLength,
     scrollToBottom,

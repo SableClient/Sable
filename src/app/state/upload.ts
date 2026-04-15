@@ -1,5 +1,5 @@
 import { atom, useAtom } from 'jotai';
-import { atomFamily } from 'jotai/utils';
+import { atomFamily } from 'jotai-family';
 import {
   type MatrixClient,
   type UploadResponse,

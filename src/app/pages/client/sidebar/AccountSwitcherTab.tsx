@@ -184,7 +184,7 @@ export function AccountSwitcherTab() {
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
   let myOwnPresenceBadge: ReactNode;
-  if (sendPresence) {
+  if (sendPresence && presenceMode !== 'offline') {
     myOwnPresenceBadge =
       presenceMode === 'dnd' ? (
         // DND: solid red badge (broadcasts as online with status_msg 'dnd')
@@ -393,7 +393,7 @@ export function AccountSwitcherTab() {
                   const badge =
                     mode === 'dnd' ? (
                       <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
-                    ) : (
+                    ) : mode === 'offline' ? undefined : (
                       <PresenceBadge presence={mode as Presence} size="300" />
                     );
                   return (

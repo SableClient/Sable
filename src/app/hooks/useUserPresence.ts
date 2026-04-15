@@ -68,7 +68,7 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     // ExtensionPresence emits ClientEvent.Event after creating and updating the User object,
     // so by the time this fires mx.getUser(userId) is guaranteed to be non-null.
     let removeClientListener: (() => void) | undefined;
-    if (!user) {
+    if (!user && userId) {
       const onClientEvent = (event: MatrixEvent) => {
         if (event.getSender() !== userId || event.getType() !== 'm.presence') return;
         const u = mx.getUser(userId);

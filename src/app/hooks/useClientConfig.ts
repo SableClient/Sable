@@ -71,6 +71,8 @@ export type ClientConfig = {
   matrixToBaseUrl?: string;
   settingsLinkBaseUrl?: string;
   sessionSync?: SessionSyncConfig;
+  /** How long (ms) without input before auto-idling presence. 0 = disabled. */
+  presenceAutoIdleTimeoutMs?: number;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

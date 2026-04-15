@@ -93,7 +93,11 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
-  /** Which Matrix presence state to broadcast when sendPresence is true. */
+  /**
+   * Which presence mode to use when sendPresence is true.
+   * Matrix presence states are sent as-is; the app-specific `dnd` mode is
+   * broadcast as `presence=online` with a `status_msg`.
+   */
   presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
@@ -265,3 +269,6 @@ export const settingsAtom = atom<Settings, [Settings], undefined>(
     setSettings(update);
   }
 );
+
+/** Ephemeral (not persisted) — true when auto-idled due to inactivity. */
+export const presenceAutoIdledAtom = atom(false);

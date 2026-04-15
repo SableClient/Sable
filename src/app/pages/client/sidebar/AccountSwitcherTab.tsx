@@ -52,7 +52,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -183,14 +183,18 @@ export function AccountSwitcherTab() {
   // user.presence would leave the badge stuck at the SDK default forever.
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode, setPresenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+  const setAutoIdled = useSetAtom(presenceAutoIdledAtom);
+  // The effective mode for badge display: if auto-idled, show unavailable regardless of selected mode.
+  const effectiveDisplayMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
   let myOwnPresenceBadge: ReactNode;
-  if (sendPresence && presenceMode !== 'offline') {
+  if (sendPresence) {
     myOwnPresenceBadge =
-      presenceMode === 'dnd' ? (
+      effectiveDisplayMode === 'dnd' ? (
         // DND: solid red badge (broadcasts as online with status_msg 'dnd')
         <Badge size="200" variant="Critical" fill="Solid" radii="Pill" />
       ) : (
-        <PresenceBadge presence={(presenceMode ?? 'online') as Presence} size="200" />
+        <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />
       );
   }
   const activeAvatarUrl = activeProfile.avatarUrl
@@ -393,7 +397,7 @@ export function AccountSwitcherTab() {
                   const badge =
                     mode === 'dnd' ? (
                       <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
-                    ) : mode === 'offline' ? undefined : (
+                    ) : (
                       <PresenceBadge presence={mode as Presence} size="300" />
                     );
                   return (
@@ -413,6 +417,8 @@ export function AccountSwitcherTab() {
                       }
                       onClick={() => {
                         setPresenceMode(mode);
+                        // Clear auto-idle so the badge updates immediately on manual selection.
+                        setAutoIdled(false);
                         // Re-enable presence broadcasting if the master toggle was off
                         if (!sendPresence) setSendPresence(true);
                       }}

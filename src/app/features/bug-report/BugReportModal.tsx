@@ -233,8 +233,8 @@ function BugReportModal() {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Modal size="500" flexHeight variant="Surface">
-            <Box direction="Column">
+          <Modal size="500" flexHeight variant="Surface" style={{ maxHeight: '90vh' }}>
+            <Box direction="Column" style={{ maxHeight: '90vh', overflow: 'hidden' }}>
               <Header
                 size="500"
                 style={{ padding: config.space.S200, paddingLeft: config.space.S400 }}

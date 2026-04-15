@@ -20,6 +20,12 @@ export interface UseProcessedTimelineOptions {
   hideNickAvatarEvents: boolean;
   isReadOnly: boolean;
   hideMemberInReadOnly: boolean;
+  /**
+   * When true, skip the filter that removes events whose `threadRootId` points
+   * to a different event.  Required when processing a thread's own timeline
+   * where every reply legitimately has `threadRootId` set to the root.
+   */
+  skipThreadFilter?: boolean;
 }
 
 export interface ProcessedEvent {
@@ -55,6 +61,7 @@ export function useProcessedTimeline({
   hideNickAvatarEvents,
   isReadOnly,
   hideMemberInReadOnly,
+  skipThreadFilter,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   return useMemo(() => {
     let prevEvent: MatrixEvent | undefined;
@@ -133,7 +140,7 @@ export function useProcessedTimeline({
         }
       }
 
-      if (threadRootId !== undefined && threadRootId !== mEventId) return acc;
+      if (!skipThreadFilter && threadRootId !== undefined && threadRootId !== mEventId) return acc;
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;
@@ -210,5 +217,6 @@ export function useProcessedTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
+    skipThreadFilter,
   ]);
 }

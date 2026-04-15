@@ -350,6 +350,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const direct = useIsDirectRoom();
+  const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
 
   const [chat, setChat] = useAtom(callChatAtom);
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -366,7 +367,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const encryptionEvent = useStateEvent(room, StateEvent.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
-  const avatarMxc = useRoomAvatar(room, direct);
+  const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
   const avatarUrl = avatarMxc

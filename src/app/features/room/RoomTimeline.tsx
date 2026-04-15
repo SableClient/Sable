@@ -1062,7 +1062,7 @@ export function RoomTimeline({
           key={room.roomId}
           ref={vListRef}
           data={processedEvents}
-          cache={scrollCacheForRoomRef.current?.cache}
+          cache={!eventId ? scrollCacheForRoomRef.current?.cache : undefined}
           shift={shift}
           className={css.messageList}
           style={{

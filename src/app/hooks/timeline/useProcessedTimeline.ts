@@ -217,6 +217,8 @@ export function useProcessedTimeline({
       const prev = prevCache?.get(mEventId);
       const stable =
         prev &&
+        prev.mEvent === mEvent &&
+        prev.timelineSet === timelineSet &&
         prev.itemIndex === processed.itemIndex &&
         prev.collapsed === collapsed &&
         prev.willRenderNewDivider === willRenderNewDivider &&

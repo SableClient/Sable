@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, UserEvent, UserEventHandlerMap } from '$types/matrix-sdk';
+import { ClientEvent, MatrixEvent, User, UserEvent, UserEventHandlerMap } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export enum Presence {
@@ -28,26 +28,64 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
   const [presence, setPresence] = useState(() => (user ? getUserPresence(user) : undefined));
 
   useEffect(() => {
-    if (!user) {
-      setPresence(undefined);
-      return undefined;
+    setPresence(user ? getUserPresence(user) : undefined);
+
+    let cancelled = false;
+
+    // Sliding sync (Synapse MSC4186) has no presence extension — m.presence events are never
+    // delivered via sync. As a result, User.presence stays at the SDK default and
+    // getLastActiveTs() stays 0. Fall back to a direct REST fetch to bootstrap presence state.
+    // Guard against empty userId — callers that render a fixed number of hooks (e.g. group DM
+    // slots) pass '' for absent members; firing getPresence('') would be a malformed request.
+    if (userId && (!user || user.getLastActiveTs() === 0)) {
+      mx.getPresence(userId)
+        .then((resp) => {
+          if (cancelled) return;
+          setPresence({
+            presence: resp.presence as Presence,
+            status: resp.status_msg,
+            active: resp.currently_active ?? false,
+            lastActiveTs:
+              resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
+          });
+        })
+        .catch(() => {
+          // Presence not available on this server (404 or not supported) — keep existing state.
+        });
     }
-    setPresence(getUserPresence(user));
-    const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (e, u) => {
-      if (u.userId === user.userId) {
-        setPresence(getUserPresence(user));
+
+    const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {
+      if (u.userId === userId) {
+        setPresence(getUserPresence(u));
       }
     };
-    user.on(UserEvent.Presence, updatePresence);
-    user.on(UserEvent.CurrentlyActive, updatePresence);
-    user.on(UserEvent.LastPresenceTs, updatePresence);
+    user?.on(UserEvent.Presence, updatePresence);
+    user?.on(UserEvent.CurrentlyActive, updatePresence);
+    user?.on(UserEvent.LastPresenceTs, updatePresence);
+
+    // If the User object doesn't exist yet, subscribe at client level as a fallback.
+    // ExtensionPresence emits ClientEvent.Event after creating and updating the User object,
+    // so by the time this fires mx.getUser(userId) is guaranteed to be non-null.
+    let removeClientListener: (() => void) | undefined;
+    if (!user && userId) {
+      const onClientEvent = (event: MatrixEvent) => {
+        if (event.getSender() !== userId || event.getType() !== 'm.presence') return;
+        const u = mx.getUser(userId);
+        if (!u) return;
+        setPresence(getUserPresence(u));
+      };
+      mx.on(ClientEvent.Event, onClientEvent);
+      removeClientListener = () => mx.removeListener(ClientEvent.Event, onClientEvent);
+    }
 
     return () => {
-      user.removeListener(UserEvent.Presence, updatePresence);
-      user.removeListener(UserEvent.CurrentlyActive, updatePresence);
-      user.removeListener(UserEvent.LastPresenceTs, updatePresence);
+      cancelled = true;
+      user?.removeListener(UserEvent.Presence, updatePresence);
+      user?.removeListener(UserEvent.CurrentlyActive, updatePresence);
+      user?.removeListener(UserEvent.LastPresenceTs, updatePresence);
+      removeClientListener?.();
     };
-  }, [user]);
+  }, [mx, userId, user]);
 
   return presence;
 };
@@ -55,9 +93,9 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
 export const usePresenceLabel = (): Record<Presence, string> =>
   useMemo(
     () => ({
-      [Presence.Online]: 'Active',
-      [Presence.Unavailable]: 'Busy',
-      [Presence.Offline]: 'Away',
+      [Presence.Online]: 'Online',
+      [Presence.Unavailable]: 'Idle',
+      [Presence.Offline]: 'Offline',
     }),
     []
   );

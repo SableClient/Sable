@@ -644,10 +644,23 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
+    const postHidden = () => {
+      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
+      // when the user locks the screen or backgrounds the app quickly, making
+      // it less likely that the SW is left with a stale appIsVisible=true.
+      const msg = { type: 'setAppVisible', visible: false };
+      navigator.serviceWorker.controller?.postMessage(msg);
+      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    };
+
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+    window.addEventListener('pagehide', postHidden);
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.removeEventListener('pagehide', postHidden);
+    };
   }, []);
 
   useEffect(() => {
@@ -828,14 +841,32 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
 
   useEffect(() => {
+    // Effective broadcast state: honour presenceMode when presence is on, otherwise offline.
+    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
+    const activePresence = presenceMode === 'dnd' ? 'online' : (presenceMode ?? 'online');
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const broadcasting = effectiveState !== 'offline';
+
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
+    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
+    // Sliding sync: keep the extension enabled so we always receive others' presence.
+    // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
+    // - MSC4186 servers that have no presence extension see this immediately.
+    // - When 'offline' (Invisible mode), we appear offline to others but still receive
+    //   their presence events because the extension is still enabled above.
+    mx.setPresence({
+      presence: effectiveState,
+      status_msg: sendPresence && presenceMode === 'dnd' ? 'dnd' : '',
+    }).catch(() => {
+      // Server doesn't support presence — ignore.
+    });
+  }, [mx, sendPresence, presenceMode]);
 
   return null;
 }

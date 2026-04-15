@@ -13,29 +13,33 @@ import { MessageEvent } from '$types/matrix/room';
  * Strip the legacy reply fallback (lines starting with `> `) that some
  * clients prepend when replying to a message.
  */
-function stripReplyFallback(body: string): string {
+export function stripReplyFallback(body: string): string {
   const lines = body.split('\n');
   let i = 0;
-  while (i < lines.length && lines[i].startsWith('> ')) i++;
+  while (i < lines.length && lines[i].startsWith('> ')) i += 1;
   // Skip the blank separator line that follows the fallback block.
-  if (i > 0 && i < lines.length && lines[i] === '') i++;
+  if (i > 0 && i < lines.length && lines[i] === '') i += 1;
   return lines.slice(i).join('\n');
 }
 
-function eventToPreviewText(ev: MatrixEvent): string | undefined {
+export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   if (ev.isRedacted()) return undefined;
 
-  const type = ev.getType();
+  // After decryption, getType() still returns 'm.room.encrypted' (the wire type).
+  // Use the effective event type to get the decrypted type when available.
+  const effectiveType = (ev.getEffectiveEvent()?.type as string | undefined) ?? ev.getType();
+  const type = effectiveType;
+  const content = ev.getContent();
 
   // Skip reactions and edits — they aren't standalone messages.
   if (type === MessageEvent.Reaction) return undefined;
-  const relType = ev.getContent()?.['m.relates_to']?.rel_type;
+  const relType = content?.['m.relates_to']?.rel_type;
   if (relType === 'm.replace') return undefined;
 
+  // Only show encrypted placeholder if the event is still encrypted (not yet decrypted).
   if (type === MessageEvent.RoomMessageEncrypted) return '🔒 Encrypted message';
 
   if (type === MessageEvent.RoomMessage) {
-    const content = ev.getContent();
     const { msgtype } = content;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
       return stripReplyFallback(content.body);
@@ -47,13 +51,13 @@ function eventToPreviewText(ev: MatrixEvent): string | undefined {
   }
 
   if (type === MessageEvent.Sticker) {
-    return `🎉 ${ev.getContent().body ?? 'Sticker'}`;
+    return `🎉 ${content.body ?? 'Sticker'}`;
   }
 
   return undefined;
 }
 
-function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
+export function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
   const events = room.getLiveTimeline().getEvents();
   const match = [...events].reverse().find((ev) => eventToPreviewText(ev) !== undefined);
   if (!match) return undefined;

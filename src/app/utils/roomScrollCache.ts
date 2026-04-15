@@ -12,11 +12,13 @@ export type RoomScrollCache = {
 /** Session-scoped, per-room scroll cache. Not persisted across page reloads. */
 const scrollCacheMap = new Map<string, RoomScrollCache>();
 
+const cacheKey = (userId: string, roomId: string): string => `${userId}:${roomId}`;
+
 export const roomScrollCache = {
-  save(roomId: string, data: RoomScrollCache): void {
-    scrollCacheMap.set(roomId, data);
+  save(userId: string, roomId: string, data: RoomScrollCache): void {
+    scrollCacheMap.set(cacheKey(userId, roomId), data);
   },
-  load(roomId: string): RoomScrollCache | undefined {
-    return scrollCacheMap.get(roomId);
+  load(userId: string, roomId: string): RoomScrollCache | undefined {
+    return scrollCacheMap.get(cacheKey(userId, roomId));
   },
 };

@@ -171,6 +171,7 @@ export function RoomTimeline({
   onEditLastMessageRef,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
+  const mxUserId = mx.getUserId()!;
   const alive = useAlive();
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
@@ -253,7 +254,7 @@ export function RoomTimeline({
   // need to read the cache — the render-phase room-change block below only fires
   // in the (hypothetical) case where the room prop changes without a remount.
   const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
-    roomScrollCache.load(room.roomId)
+    roomScrollCache.load(mxUserId, room.roomId)
   );
   const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
@@ -289,7 +290,7 @@ export function RoomTimeline({
   if (currentRoomIdRef.current !== room.roomId) {
     // Load incoming room's scroll cache (undefined for first-visit rooms).
     // Covers the rare case where room prop changes without a remount.
-    scrollCacheForRoomRef.current = roomScrollCache.load(room.roomId);
+    scrollCacheForRoomRef.current = roomScrollCache.load(mxUserId, room.roomId);
 
     hasInitialScrolledRef.current = false;
     mountScrollWindowRef.current = Date.now() + 3000;
@@ -400,7 +401,7 @@ export function RoomTimeline({
             // can provide them to VList upfront and skip this 80 ms wait entirely.
             const v = vListRef.current;
             if (v) {
-              roomScrollCache.save(room.roomId, {
+              roomScrollCache.save(mxUserId, room.roomId, {
                 cache: v.cache,
                 scrollOffset: v.scrollOffset,
                 atBottom: true,
@@ -808,7 +809,7 @@ export function RoomTimeline({
       // live-timeline visit, producing stale VList measurements and making the
       // room appear to be at the wrong position (or visually empty) on re-entry.
       if (!eventId) {
-        roomScrollCache.save(room.roomId, {
+        roomScrollCache.save(mxUserId, room.roomId, {
           cache: v.cache,
           scrollOffset: offset,
           atBottom: isNowAtBottom,
@@ -921,7 +922,7 @@ export function RoomTimeline({
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,
-    mxUserId: mx.getUserId(),
+    mxUserId,
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,
     hideNickAvatarEvents,
@@ -948,7 +949,7 @@ export function RoomTimeline({
     // when it fired. Save now so the next visit skips the timer.
     const v = vListRef.current;
     if (v) {
-      roomScrollCache.save(room.roomId, {
+      roomScrollCache.save(mxUserId, room.roomId, {
         cache: v.cache,
         scrollOffset: v.scrollOffset,
         atBottom: true,

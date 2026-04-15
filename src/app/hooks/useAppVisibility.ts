@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { MatrixClient } from '$types/matrix-sdk';
-import { Session } from '$state/sessions';
 import { useAtom } from 'jotai';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
@@ -19,14 +18,14 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 const DEFAULT_RESUME_HEARTBEAT_SUPPRESS_MS = 60 * 1000;
 const DEFAULT_HEARTBEAT_MAX_BACKOFF_MS = 30 * 60 * 1000;
 
-export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
+export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubAtom = useAtom(pushSubscriptionAtom);
   const isMobile = mobileOrTablet();
 
   const sessionSyncConfig = clientConfig.sessionSync;
-  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', activeSession?.userId);
+  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', mx?.getUserId() ?? undefined);
 
   // Derive phase flags from experiment variant; fall back to direct config when not in experiment.
   const inSessionSync = sessionSyncVariant.inExperiment;

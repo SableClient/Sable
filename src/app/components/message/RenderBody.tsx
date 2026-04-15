@@ -77,8 +77,9 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
   const [anchor, setAnchor] = useState<RectCords | undefined>();
 
   const handleClick: MouseEventHandler<HTMLElement> = (e) => {
+    if (e.currentTarget === null) return;
     e.stopPropagation();
-    setAnchor((prev) => (prev ? undefined : e.currentTarget.getBoundingClientRect()));
+    setAnchor((prev) => (prev ? undefined : e.currentTarget?.getBoundingClientRect()));
   };
 
   // On mobile, tapping an abbreviation pins the tooltip open.

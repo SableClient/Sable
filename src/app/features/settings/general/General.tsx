@@ -883,6 +883,7 @@ function Messages() {
     'hideNickAvatarEvents'
   );
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
@@ -988,23 +989,33 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Url Preview"
+          title="Display Bundled Embeds"
+          focusId="display-bundled-embeds"
+          description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
+          after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Server-side Embeds"
           focusId="url-preview"
+          description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
           after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Url Preview in Encrypted Room"
+          title="Server-side Embeds in Encrypted Room"
           focusId="encrypted-room-url-preview"
+          description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
           after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Client Side Embeds"
+          title="Client-side Embeds"
           focusId="client-side-embeds"
-          description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
           after={
             <Switch
               variant="Primary"
@@ -1022,7 +1033,7 @@ function Messages() {
         style={clientUrlPreview ? {} : { display: 'none' }}
       >
         <SettingTile
-          title="Client Embeds in Encrypted Rooms"
+          title="Client-side Embeds in Encrypted Rooms"
           focusId="encrypted-room-embeds"
           after={
             <Switch

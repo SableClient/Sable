@@ -32,6 +32,7 @@ import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
+import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
 import { markAsRead } from '$utils/notifications';
 import {
@@ -124,6 +125,8 @@ export function RoomTimeline({
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
+
+  const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
@@ -132,6 +135,7 @@ export function RoomTimeline({
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
@@ -166,7 +170,6 @@ export function RoomTimeline({
     return myPowerLevel < sendLevel;
   }, [powerLevels, mx]);
 
-  const [editId, setEditId] = useState<string>();
   const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
 
   const readUptoEventIdRef = useRef<string | undefined>(undefined);
@@ -327,6 +330,17 @@ export function RoomTimeline({
     []
   );
 
+  // If the timeline was blanked while content was already visible — e.g. a
+  // TimelineReset fired by mx.retryImmediately() when the app comes back from
+  // background — hide the timeline (opacity 0) and re-arm the initial-scroll so
+  // it runs again once events refill the live timeline.
+  useLayoutEffect(() => {
+    if (!isReady) return;
+    if (timelineSync.eventsLength > 0) return;
+    setIsReady(false);
+    hasInitialScrolledRef.current = false;
+  }, [isReady, timelineSync.eventsLength]);
+
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;
@@ -460,7 +474,6 @@ export function RoomTimeline({
     room,
     mx,
     editor,
-    alive,
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
@@ -469,8 +482,7 @@ export function RoomTimeline({
     setReplyDraft,
     openThreadId,
     setOpenThread,
-    setEditId,
-    onEditorReset,
+    handleEdit,
     handleOpenEvent: (id) => {
       const evtTimeline = getEventTimeline(room, id);
       const absoluteIndex = evtTimeline
@@ -550,6 +562,7 @@ export function RoomTimeline({
       hour24Clock,
       dateFormatString,
       mediaAutoLoad,
+      showBundledPreview,
       showUrlPreview,
       showClientUrlPreview,
       autoplayStickers,
@@ -638,7 +651,7 @@ export function RoomTimeline({
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -706,7 +719,7 @@ export function RoomTimeline({
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
   const vListIndices = useMemo(
@@ -838,7 +851,7 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: isReady ? 1 : 0,
+          opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
         <VList<ProcessedEvent>

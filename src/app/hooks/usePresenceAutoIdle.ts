@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { type MatrixClient, UserEvent, type UserEventHandlerMap } from '$types/matrix-sdk';
 import { presenceAutoIdledAtom } from '$state/settings';
+import { appEvents } from '$utils/appEvents';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('PresenceAutoIdle');
@@ -70,9 +71,18 @@ export function usePresenceAutoIdle(
       document.addEventListener(ev, handleActivity, { passive: true })
     );
 
+    // When the app returns to the foreground, treat it as activity so the user
+    // isn't shown as idle the moment they switch back to the tab/PWA.
+    const prevOnVisibilityChange = appEvents.onVisibilityChange;
+    appEvents.onVisibilityChange = (isVisible: boolean) => {
+      prevOnVisibilityChange?.(isVisible);
+      if (isVisible) handleActivity();
+    };
+
     return () => {
       ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, handleActivity));
       clearTimer();
+      appEvents.onVisibilityChange = prevOnVisibilityChange;
     };
   }, [clearTimer, presenceMode, sendPresence, setAutoIdled, timeoutMs]);
 

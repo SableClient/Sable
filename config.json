@@ -19,7 +19,7 @@
     "enabled": true
   },
 
-  "presenceAutoIdleTimeoutMs": 600000,
+  "presenceAutoIdleTimeoutMs": 300000,
 
   "featuredCommunities": {
     "openAsDefault": false,

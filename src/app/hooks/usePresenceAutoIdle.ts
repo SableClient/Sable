@@ -73,16 +73,14 @@ export function usePresenceAutoIdle(
 
     // When the app returns to the foreground, treat it as activity so the user
     // isn't shown as idle the moment they switch back to the tab/PWA.
-    const prevOnVisibilityChange = appEvents.onVisibilityChange;
-    appEvents.onVisibilityChange = (isVisible: boolean) => {
-      prevOnVisibilityChange?.(isVisible);
+    const unsubVisibility = appEvents.onVisibilityChange((isVisible: boolean) => {
       if (isVisible) handleActivity();
-    };
+    });
 
     return () => {
       ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, handleActivity));
       clearTimer();
-      appEvents.onVisibilityChange = prevOnVisibilityChange;
+      unsubVisibility();
     };
   }, [clearTimer, presenceMode, sendPresence, setAutoIdled, timeoutMs]);
 

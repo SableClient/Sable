@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { MatrixClient } from '$types/matrix-sdk';
-import { Session } from '$state/sessions';
 import { appEvents } from '../utils/appEvents';
 import { useClientConfig, useExperimentVariant } from './useClientConfig';
 import { createDebugLogger } from '../utils/debugLogger';
@@ -13,11 +12,11 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 const DEFAULT_RESUME_HEARTBEAT_SUPPRESS_MS = 60 * 1000;
 const DEFAULT_HEARTBEAT_MAX_BACKOFF_MS = 30 * 60 * 1000;
 
-export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: Session) {
+export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
 
   const sessionSyncConfig = clientConfig.sessionSync;
-  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', activeSession?.userId);
+  const sessionSyncVariant = useExperimentVariant('sessionSyncStrategy', mx?.getUserId() ?? undefined);
 
   // Derive phase flags from experiment variant; fall back to direct config when not in experiment.
   const inSessionSync = sessionSyncVariant.inExperiment;
@@ -55,9 +54,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
 
   const pushSessionNow = useCallback(
     (reason: 'foreground' | 'focus' | 'heartbeat'): 'sent' | 'skipped' => {
-      const baseUrl = activeSession?.baseUrl;
-      const accessToken = activeSession?.accessToken;
-      const userId = activeSession?.userId;
+      const baseUrl = mx?.getHomeserverUrl();
+      const accessToken = mx?.getAccessToken();
+      const userId = mx?.getUserId();
       const canPush =
         !!mx &&
         typeof baseUrl === 'string' &&
@@ -88,9 +87,6 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
       return 'sent';
     },
     [
-      activeSession?.accessToken,
-      activeSession?.baseUrl,
-      activeSession?.userId,
       mx,
       phase1ForegroundResync,
       phase2VisibleHeartbeat,
@@ -106,9 +102,9 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
         `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
         { visibilityState: document.visibilityState }
       );
-      appEvents.onVisibilityChange?.(isVisible);
+      appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
-        appEvents.onVisibilityHidden?.();
+        appEvents.emitVisibilityHidden();
         return;
       }
 
@@ -171,7 +167,7 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   ]);
 
   useEffect(() => {
-    if (!phase2VisibleHeartbeat || !mx) return undefined;
+    if (!phase2VisibleHeartbeat) return undefined;
 
     // Reset adaptive backoff/suppression so a config or session change starts fresh.
     heartbeatFailuresRef.current = 0;

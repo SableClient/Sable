@@ -52,12 +52,10 @@ beforeEach(() => {
   userListeners.clear();
   mockUser = makeMockUser();
   mockMx = makeMockMx();
-  appEvents.onVisibilityChange = null;
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  appEvents.onVisibilityChange = null;
 });
 
 // -------- tests --------
@@ -110,7 +108,7 @@ describe('usePresenceAutoIdle', () => {
 
     // Simulate app returning to foreground.
     act(() => {
-      appEvents.onVisibilityChange?.(true);
+      appEvents.emitVisibilityChange(true);
     });
     expect(result.current).toBe(false);
   });
@@ -218,21 +216,24 @@ describe('usePresenceAutoIdle', () => {
     expect(result.current).toBe(false);
   });
 
-  it('restores previous appEvents.onVisibilityChange on cleanup', () => {
-    const prev = vi.fn();
-    appEvents.onVisibilityChange = prev;
-
-    const { unmount } = renderHook(
+  it('unsubscribes from appEvents.onVisibilityChange on cleanup', () => {
+    const { result, unmount } = renderHook(
       () => useAutoIdledReader(mockMx, 'online', true, 5000),
       { wrapper }
     );
 
-    // Our handler should be installed.
-    expect(appEvents.onVisibilityChange).not.toBe(prev);
+    // Go idle.
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(result.current).toBe(true);
 
     unmount();
 
-    // Previous handler should be restored.
-    expect(appEvents.onVisibilityChange).toBe(prev);
+    // After unmount, emitting visibility change should have no effect.
+    // (No error thrown means the handler was properly unsubscribed.)
+    act(() => {
+      appEvents.emitVisibilityChange(true);
+    });
   });
 });

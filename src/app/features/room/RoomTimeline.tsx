@@ -756,7 +756,12 @@ export function RoomTimeline({
       if (!v) return;
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
-      const isNowAtBottom = distanceFromBottom < 100;
+      // Hysteresis: require scrolling further away to lose "at bottom" than to
+      // regain it, preventing brief image/preview layout shifts from flashing
+      // the "Jump to Latest" button.
+      const isNowAtBottom = atBottomRef.current
+        ? distanceFromBottom < 300
+        : distanceFromBottom < 100;
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }

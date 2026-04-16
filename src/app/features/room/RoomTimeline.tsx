@@ -226,6 +226,7 @@ export function RoomTimeline({
   hideReadsRef.current = hideReads;
 
   const prevViewportHeightRef = useRef(0);
+  const prevScrollSizeRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -759,6 +760,20 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+
+      // When the user is pinned to the bottom and content grows (images, embeds,
+      // video thumbnails loading), scrollSize increases while offset stays put,
+      // pushing distanceFromBottom above the threshold. Instead of flipping
+      // atBottom to false (which shows the "Jump to Latest" button), chase the
+      // bottom so the user stays pinned.
+      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      prevScrollSizeRef.current = v.scrollSize;
+
+      if (atBottomRef.current && !isNowAtBottom && contentGrew) {
+        v.scrollTo(v.scrollSize);
+        return;
+      }
+
       // Suppress atBottom flips during the initial scroll-to-bottom sequence:
       // VList fires intermediate scroll events before the scroll settles, and
       // if isReady is set in the same commit the button briefly flashes.

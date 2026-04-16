@@ -902,7 +902,5 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   );
 });
 
-if (self.__WB_MANIFEST) {
-  precacheAndRoute(self.__WB_MANIFEST);
-}
+precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();

@@ -1,31 +1,62 @@
 {
-    "allowCustomHomeservers": true,
-    "defaultHomeserver": 0,
-    "elementCallUrl": "matrix.cloudhub.social",
-    "featuredCommunities": {
-        "openAsDefault": false,
-        "rooms": [],
-        "servers": [
-            "matrixrooms.info",
-            "gitter.im",
-            "matrix.org"
-        ],
-        "spaces": []
-    },
-    "homeserverList": [
-        "https://matrix.cloudhub.social"
+  "defaultHomeserver": 0,
+  "homeserverList": [
+    "https://matrix.cloudhub.social",
+    "matrix.org",
+    "mozilla.org",
+    "unredacted.org",
+    "sable.moe",
+    "kendama.moe"
+  ],
+  "allowCustomHomeservers": true,
+  "elementCallUrl": "matrix.cloudhub.social",
+  "disableAccountSwitcher": false,
+  "hideUsernamePasswordFields": false,
+  "pushNotificationDetails": {
+    "pushNotifyUrl": "https://sygnal.cloudhub.social/_matrix/push/v1/notify",
+    "vapidPublicKey": "BEBdK6VUiqYxcOauFCM1ZB38llgiODAs6pR5EEcC7YBoUh2YvrULagwo5t-Ms0Is0lEmKDhpdUoMiy_i7ArI3oE",
+    "webPushAppID": "social.cloudhub.sable.web"
+  },
+
+  "settingsLinkBaseUrl": "https://app.sable.moe",
+
+  "presenceAutoIdleTimeoutMs": 300000,
+
+  "slidingSync": {
+    "enabled": true
+  },
+
+  "sessionSync": {
+    "phase1ForegroundResync": true,
+    "phase2VisibleHeartbeat": true,
+    "phase3AdaptiveBackoffJitter": true
+  },
+
+  "featuredCommunities": {
+    "openAsDefault": false,
+    "spaces": [
+      "#sable:sable.moe",
+      "#community:matrix.org",
+      "#space:unredacted.org",
+      "#science-space:matrix.org",
+      "#libregaming-games:tchncs.de",
+      "#mathematics-on:matrix.org"
     ],
-    "pushNotificationDetails": {
-        "pushNotifyUrl": "https://sygnal.cloudhub.social/_matrix/push/v1/notify",
-        "vapidPublicKey": "BEBdK6VUiqYxcOauFCM1ZB38llgiODAs6pR5EEcC7YBoUh2YvrULagwo5t-Ms0Is0lEmKDhpdUoMiy_i7ArI3oE",
-        "webPushAppID": "social.cloudhub.sable.web"
-    },
-    "sessionSync": {
-        "phase1ForegroundResync": true,
-        "phase2VisibleHeartbeat": true,
-        "phase3AdaptiveBackoffJitter": false
-    },
-    "slidingSync": {
-        "enabled": "true"
-    }
+    "rooms": [
+      "#announcements:sable.moe",
+      "#freesoftware:matrix.org",
+      "#pcapdroid:matrix.org",
+      "#gentoo:matrix.org",
+      "#PrivSec.dev:arcticfoxes.net",
+      "#disroot:aria-net.org"
+    ],
+    "servers": ["matrixrooms.info", "mozilla.org", "unredacted.org"]
+  },
+  "hashRouter": {
+    "enabled": false,
+    "basename": "/"
+  },
+  "features": {
+    "polls": true
+  }
 }

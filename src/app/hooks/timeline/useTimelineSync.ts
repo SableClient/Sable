@@ -1,4 +1,13 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
 import {
@@ -466,9 +475,6 @@ export function useTimelineSync({
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
 
-  const eventsLengthRef = useRef(eventsLength);
-  eventsLengthRef.current = eventsLength;
-
   useLiveEventArrive(
     room,
     useCallback(
@@ -490,9 +496,6 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
-          lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
-
           setTimeline((ct) => ({ ...ct }));
           return;
         }
@@ -502,7 +505,7 @@ export function useTimelineSync({
           setUnreadInfo(getRoomUnreadInfo(room));
         }
       },
-      [mx, room, isAtBottomRef, unreadInfo, scrollToBottom, setUnreadInfo, hideReadsRef]
+      [mx, room, isAtBottomRef, unreadInfo, setUnreadInfo, hideReadsRef]
     )
   );
 
@@ -527,10 +530,10 @@ export function useTimelineSync({
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      if (wasAtBottom) {
-        scrollToBottom('instant');
-      }
-    }, [room, isAtBottomRef, scrollToBottom])
+      // Scroll is handled by the useLayoutEffect auto-scroll recovery which
+      // fires after React commits the new timeline state — scrolling here
+      // would operate on the pre-commit DOM with a stale scrollSize.
+    }, [room, isAtBottomRef])
   );
 
   useRelationUpdate(
@@ -547,7 +550,9 @@ export function useTimelineSync({
     }, [])
   );
 
-  useEffect(() => {
+  // useLayoutEffect so scroll fires before paint — prevents the one-frame flash
+  // where new VList content is briefly visible at the wrong position.
+  useLayoutEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 

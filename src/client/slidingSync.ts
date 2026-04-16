@@ -36,9 +36,9 @@ export const LIST_ROOM_SEARCH = 'room_search';
 export const LIST_SPACE = 'space';
 // A small number of timeline events per list room. Unread counts come from
 // the server-side notification_count field, so a full history isn't needed.
-// When message previews are enabled, a higher limit (e.g. 5) avoids empty
-// timelines caused by reactions/edits whose parent event is absent.
-const DEFAULT_LIST_TIMELINE_LIMIT = 1;
+// Higher limit avoids empty previews when the most-recent events are
+// reactions/edits/state that useRoomLatestRenderedEvent skips over.
+const DEFAULT_LIST_TIMELINE_LIMIT = 3;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;

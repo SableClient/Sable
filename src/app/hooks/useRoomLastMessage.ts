@@ -94,17 +94,33 @@ export function useRoomLastMessage(
       setText(undefined);
       return undefined;
     }
-    setText(getLastMessageText(room, mx));
 
     const update = () => setText(getLastMessageText(room, mx));
+
+    // Subscribe before reading to close the race window: any decryption that
+    // completes after this point will trigger an update via the listener.
     room.on(RoomEventEnum.Timeline, update);
     room.on(RoomEventEnum.LocalEchoUpdated, update);
 
-    // Re-check when any event in this room is decrypted (encrypted → plaintext).
     const onDecrypted = (ev: MatrixEvent) => {
       if (ev.getRoomId() === room.roomId) update();
     };
     mx.on(MatrixEventEvent.Decrypted, onDecrypted);
+
+    // Read current state after subscribing to catch any events that decrypted
+    // between the initial render and the listener mount.
+    update();
+
+    // If the last displayable event is still encrypted, explicitly request
+    // decryption. Sliding sync may not auto-decrypt events in rooms that
+    // haven't been opened yet; this ensures the preview resolves on mount.
+    const events = room.getLiveTimeline().getEvents();
+    const lastDisplayable = [...events]
+      .reverse()
+      .find((ev) => eventToPreviewText(ev) !== undefined);
+    if (lastDisplayable && lastDisplayable.isEncrypted()) {
+      mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
+    }
 
     return () => {
       room.off(RoomEventEnum.Timeline, update);

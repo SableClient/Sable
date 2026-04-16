@@ -257,7 +257,7 @@ export function RoomTimeline({
   const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
     roomScrollCache.load(mxUserId, room.roomId)
   );
-  const [atBottomState, setAtBottomState] = useState(true);
+  const [atBottomState, setAtBottomState] = useState(!eventId);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
     setAtBottomState(val);
@@ -301,11 +301,18 @@ export function RoomTimeline({
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
   const timelineSyncRef = useRef<typeof timelineSync>(null as unknown as typeof timelineSync);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior?: 'instant' | 'smooth') => {
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
-    vListRef.current.scrollTo(vListRef.current.scrollSize);
+    if (behavior === 'smooth') {
+      vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: true });
+    } else {
+      // scrollToIndex works reliably regardless of VList measurement state.
+      // The auto-scroll useLayoutEffect fires after React commits new items,
+      // so lastIndex is always valid when this is called.
+      vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
+    }
   }, []);
 
   const timelineSync = useTimelineSync({
@@ -491,8 +498,11 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    // Ensure auto-scroll to bottom doesn't fire while we're navigating to a
+    // specific event — atBottom will be updated correctly once the user scrolls.
+    setAtBottom(false);
     timelineSyncRef.current.loadEventTimeline(eventId);
-  }, [eventId, room.roomId]);
+  }, [eventId, room.roomId, setAtBottom]);
 
   useEffect(() => {
     if (eventId) return;

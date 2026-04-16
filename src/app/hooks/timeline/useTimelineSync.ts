@@ -475,6 +475,9 @@ export function useTimelineSync({
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
 
+  const eventsLengthRef = useRef(eventsLength);
+  eventsLengthRef.current = eventsLength;
+
   useLiveEventArrive(
     room,
     useCallback(
@@ -496,6 +499,9 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
+          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
+          lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
+
           setTimeline((ct) => ({ ...ct }));
           return;
         }
@@ -505,7 +511,7 @@ export function useTimelineSync({
           setUnreadInfo(getRoomUnreadInfo(room));
         }
       },
-      [mx, room, isAtBottomRef, unreadInfo, setUnreadInfo, hideReadsRef]
+      [mx, room, isAtBottomRef, unreadInfo, scrollToBottom, setUnreadInfo, hideReadsRef]
     )
   );
 
@@ -530,10 +536,10 @@ export function useTimelineSync({
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      // Scroll is handled by the useLayoutEffect auto-scroll recovery which
-      // fires after React commits the new timeline state — scrolling here
-      // would operate on the pre-commit DOM with a stale scrollSize.
-    }, [room, isAtBottomRef])
+      if (wasAtBottom) {
+        scrollToBottom('instant');
+      }
+    }, [room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(

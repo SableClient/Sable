@@ -550,10 +550,8 @@ export function useTimelineSync({
     }, [])
   );
 
-  // useLayoutEffect so the scroll position is corrected before the browser
-  // paints. Without this, a sliding-sync subscription upgrade (timeline_limit
-  // 1 → 50) replaces the VList content and the user sees one frame at the
-  // wrong scroll position before the useEffect-based scroll fires.
+  // useLayoutEffect so scroll fires before paint — prevents the one-frame flash
+  // where new VList content is briefly visible at the wrong position.
   useLayoutEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;

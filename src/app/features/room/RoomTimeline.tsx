@@ -201,7 +201,14 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  const [atBottomState, setAtBottomState] = useState(true);
+  // Load any cached scroll state for this room on mount. A fresh RoomTimeline is
+  // mounted per room (via key={roomId} in RoomView) so this is the only place we
+  // need to read the cache — the render-phase room-change block below only fires
+  // in the (hypothetical) case where the room prop changes without a remount.
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
+    roomScrollCache.load(mxUserId, room.roomId)
+  );
+  const [atBottomState, setAtBottomState] = useState(!eventId);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
     setAtBottomState(val);
@@ -253,10 +260,14 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
-    // Guard against VList's intermediate height-correction scroll events that
-    // would otherwise call setAtBottom(false) before the scroll settles.
-    programmaticScrollToBottomRef.current = Date.now();
-    vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: behavior === 'smooth' });
+    if (behavior === 'smooth') {
+      vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: true });
+    } else {
+      // scrollToIndex works reliably regardless of VList measurement state.
+      // The auto-scroll useLayoutEffect fires after React commits new items,
+      // so lastIndex is always valid when this is called.
+      vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
+    }
   }, []);
 
   const timelineSync = useTimelineSync({
@@ -447,8 +458,11 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    // Ensure auto-scroll to bottom doesn't fire while we're navigating to a
+    // specific event — atBottom will be updated correctly once the user scrolls.
+    setAtBottom(false);
     timelineSyncRef.current.loadEventTimeline(eventId);
-  }, [eventId, room.roomId]);
+  }, [eventId, room.roomId, setAtBottom]);
 
   useEffect(() => {
     if (eventId) return;

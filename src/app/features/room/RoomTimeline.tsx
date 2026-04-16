@@ -255,10 +255,7 @@ export function RoomTimeline({
     if (behavior === 'smooth') {
       vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: true });
     } else {
-      // scrollToIndex works reliably regardless of VList measurement state.
-      // The auto-scroll useLayoutEffect fires after React commits new items,
-      // so lastIndex is always valid when this is called.
-      vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
+      vListRef.current.scrollTo(vListRef.current.scrollSize);
     }
   }, []);
 

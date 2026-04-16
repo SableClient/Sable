@@ -869,12 +869,24 @@ function PresenceFeature() {
     // - MSC4186 servers that have no presence extension see this immediately.
     // - When 'offline' (Invisible mode), we appear offline to others but still receive
     //   their presence events because the extension is still enabled above.
-    mx.setPresence({
+    const presencePayload = {
       presence: effectiveState,
       ...(sendPresence && effectiveMode === 'dnd' ? { status_msg: 'dnd' } : {}),
-    }).catch(() => {
-      // Server doesn't support presence — ignore.
-    });
+    };
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const trySetPresence = (attempt = 0) => {
+      mx.setPresence(presencePayload).catch(() => {
+        // Retry up to 3 times with back-off: the HTTP client may not have
+        // reconnected yet after the app resumes from background.
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => trySetPresence(attempt + 1), 2000 * (attempt + 1));
+        }
+      });
+    };
+    trySetPresence();
+    return () => {
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
+    };
   }, [mx, sendPresence, presenceMode, autoIdled]);
 
   return null;

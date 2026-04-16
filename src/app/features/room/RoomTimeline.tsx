@@ -758,12 +758,7 @@ export function RoomTimeline({
       if (!v) return;
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
-      // Hysteresis: require scrolling further away to lose "at bottom" than to
-      // regain it, preventing brief image/preview layout shifts from flashing
-      // the "Jump to Latest" button.
-      const isNowAtBottom = atBottomRef.current
-        ? distanceFromBottom < 300
-        : distanceFromBottom < 100;
+      const isNowAtBottom = distanceFromBottom < 100;
       // Suppress atBottom flips during the initial scroll-to-bottom sequence:
       // VList fires intermediate scroll events before the scroll settles, and
       // if isReady is set in the same commit the button briefly flashes.

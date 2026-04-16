@@ -48,13 +48,34 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
     if (msgtype === MsgType.Video) return '📹 Video';
     if (msgtype === MsgType.Audio) return '🎵 Audio';
     if (msgtype === MsgType.File) return '📎 File';
+    if (msgtype === 'm.location') return '📍 Location';
   }
 
   if (type === MessageEvent.Sticker) {
     return `🎉 ${content.body ?? 'Sticker'}`;
   }
 
+  // Polls — show the question text when available.
+  if (type === 'org.matrix.msc3381.poll.start' || type === 'm.poll.start') {
+    const pollBody =
+      content?.['org.matrix.msc3381.poll.start']?.question?.body ??
+      content?.['m.poll.start']?.question?.body;
+    return `📊 ${pollBody ?? 'Poll'}`;
+  }
+
   return undefined;
+}
+
+/**
+ * Extract a human-readable name from a Matrix user ID (@localpart:server).
+ * Falls back to the raw id if the format is unexpected.
+ */
+function displayNameFromMxid(mxid: string): string {
+  if (mxid.startsWith('@')) {
+    const localpart = mxid.slice(1).split(':')[0];
+    if (localpart) return localpart;
+  }
+  return mxid;
 }
 
 export function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
@@ -69,7 +90,8 @@ export function getLastMessageText(room: Room, mx: MatrixClient): string | undef
   if (senderId === mx.getUserId()) {
     prefix = 'You';
   } else {
-    prefix = room.getMember(senderId ?? '')?.name ?? senderId ?? 'Unknown';
+    prefix =
+      room.getMember(senderId ?? '')?.name ?? displayNameFromMxid(senderId ?? 'Unknown');
   }
   return `${prefix}: ${text}`;
 }
@@ -94,17 +116,33 @@ export function useRoomLastMessage(
       setText(undefined);
       return undefined;
     }
-    setText(getLastMessageText(room, mx));
 
     const update = () => setText(getLastMessageText(room, mx));
+
+    // Subscribe before reading to close the race window: any decryption that
+    // completes after this point will trigger an update via the listener.
     room.on(RoomEventEnum.Timeline, update);
     room.on(RoomEventEnum.LocalEchoUpdated, update);
 
-    // Re-check when any event in this room is decrypted (encrypted → plaintext).
     const onDecrypted = (ev: MatrixEvent) => {
       if (ev.getRoomId() === room.roomId) update();
     };
     mx.on(MatrixEventEvent.Decrypted, onDecrypted);
+
+    // Read current state after subscribing to catch any events that decrypted
+    // between the initial render and the listener mount.
+    update();
+
+    // If the last displayable event is still encrypted, explicitly request
+    // decryption. Sliding sync may not auto-decrypt events in rooms that
+    // haven't been opened yet; this ensures the preview resolves on mount.
+    const events = room.getLiveTimeline().getEvents();
+    const lastDisplayable = [...events]
+      .reverse()
+      .find((ev) => eventToPreviewText(ev) !== undefined);
+    if (lastDisplayable && lastDisplayable.isEncrypted()) {
+      mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
+    }
 
     return () => {
       room.off(RoomEventEnum.Timeline, update);

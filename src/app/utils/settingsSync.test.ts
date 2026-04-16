@@ -24,6 +24,8 @@ describe('NON_SYNCABLE_KEYS', () => {
   it('contains all device-local and security-sensitive keys', () => {
     const expected = [
       'usePushNotifications',
+      'backgroundPushEnabled',
+      'backgroundPushProvider',
       'useInAppNotifications',
       'useSystemNotifications',
       'pageZoom',
@@ -137,15 +139,26 @@ describe('deserializeFromSync', () => {
       v: SETTINGS_SYNC_VERSION,
       settings: {
         pageZoom: 200,
+        backgroundPushEnabled: false,
+        backgroundPushProvider: 'native',
         isPeopleDrawer: false,
         settingsSyncEnabled: true,
         developerTools: true,
       },
     };
-    const local = { ...base, pageZoom: 100, isPeopleDrawer: true, settingsSyncEnabled: false };
+    const local = {
+      ...base,
+      pageZoom: 100,
+      backgroundPushEnabled: true,
+      backgroundPushProvider: 'unifiedpush' as const,
+      isPeopleDrawer: true,
+      settingsSyncEnabled: false,
+    };
     const result = deserializeFromSync(remote, local);
     expect(result).not.toBeNull();
     expect(result!.pageZoom).toBe(100);
+    expect(result!.backgroundPushEnabled).toBe(true);
+    expect(result!.backgroundPushProvider).toBe('unifiedpush');
     expect(result!.isPeopleDrawer).toBe(true);
     expect(result!.settingsSyncEnabled).toBe(false);
     expect(result!.developerTools).toBe(false);

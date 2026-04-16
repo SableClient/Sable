@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Box, Text, color } from 'folds';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SSOAction } from '$types/matrix-sdk';
+import { isTauri } from '@tauri-apps/api/core';
 import { useAuthFlows } from '$hooks/useAuthFlows';
 import { useAuthServer } from '$hooks/useAuthServer';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
@@ -11,6 +12,7 @@ import { LoginPathSearchParams } from '$pages/paths';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { SSOLogin } from '$pages/auth/SSOLogin';
 import { OrDivider } from '$pages/auth/OrDivider';
+import { buildTauriSsoRedirectUrl } from '$pages/auth/SSOTauri';
 import { PasswordLoginForm } from './PasswordLoginForm';
 import { TokenLogin } from './TokenLogin';
 
@@ -41,7 +43,8 @@ export function Login() {
   const { loginFlows } = useAuthFlows();
   const [searchParams] = useSearchParams();
   const loginSearchParams = useLoginSearchParams(searchParams);
-  const ssoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
   const loginTokenForHashRouter = getLoginTokenSearchParam();
   const absoluteLoginPath = usePathWithOrigin(getLoginPath(server));
 

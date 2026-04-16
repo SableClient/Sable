@@ -259,6 +259,17 @@ describe('react custom html parser', () => {
     expect(logSpy).not.toHaveBeenCalled();
   });
 
+  it('does not fall back to rendering unsafe non-mxc image urls from unsanitized html', () => {
+    const unsafeUrl = ['javascript', 'alert(1)'].join(':');
+    const { container } = renderParsedHtml(
+      `<img src="${unsafeUrl}" alt="unsafe media" title="unsafe media" />`,
+      { sanitize: false }
+    );
+
+    expect(screen.getByText('unsafe media')).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('linkifies bare urls in formatted html text nodes even when abbreviation replacement runs', () => {
     const parserOptions = getReactCustomHtmlParser(createMatrixClient(), '!room:example.com', {
       settingsLinkBaseUrl,

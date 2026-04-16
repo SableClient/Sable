@@ -23,7 +23,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useRoom } from '$hooks/useRoom';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useNickname } from '$hooks/useNickname';
-import { useBlobCache } from '$hooks/useBlobCache';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
@@ -41,8 +41,8 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const [viewAvatar, setViewAvatar] = useState<string>();
   const [isFullStatus, setIsFullStatus] = useState(false);
 
-  const cachedBannerUrl = useBlobCache(bannerUrl);
-  const cachedAvatarUrl = useBlobCache(avatarUrl);
+  const cachedBannerUrl = useRenderableMediaUrl(bannerUrl);
+  const cachedAvatarUrl = useRenderableMediaUrl(avatarUrl);
 
   const coverUrl = cachedBannerUrl || cachedAvatarUrl;
   const isFallbackCover = !cachedBannerUrl && !!cachedAvatarUrl;

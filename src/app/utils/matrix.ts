@@ -20,6 +20,7 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
 import { getEventReactions, getReactionContent, getStateEvent } from './room';
+import { fetchMediaBlob, type MediaTransportOptions } from './mediaTransport';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
@@ -324,21 +325,15 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
-  const blob = await res.blob();
-  return blob;
-};
+export const downloadMedia = async (src: string, options?: MediaTransportOptions): Promise<Blob> =>
+  fetchMediaBlob(src, options);
 
 export const downloadEncryptedMedia = async (
   src: string,
   decryptContent: (buf: ArrayBuffer) => Promise<Blob>
 ): Promise<Blob> => {
   const encryptedContent = await downloadMedia(src);
-  const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
-
-  return decryptedContent;
+  return decryptContent(await encryptedContent.arrayBuffer());
 };
 
 export const rateLimitedActions = async <T, R = void>(

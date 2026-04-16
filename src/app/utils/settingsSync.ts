@@ -7,6 +7,8 @@ import { Settings } from '$state/settings';
 export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   // Platform / permission-level — differ per device/browser
   'usePushNotifications',
+  'backgroundPushEnabled',
+  'backgroundPushProvider',
   'useInAppNotifications',
   'useSystemNotifications',
   // Personal device-level preferences

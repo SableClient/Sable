@@ -100,7 +100,7 @@ import {
   UploadBoardImperativeHandlers,
 } from '$components/upload-board';
 import { Upload, UploadStatus, UploadSuccess, createUploadFamilyObserverAtom } from '$state/upload';
-import { getImageUrlBlob, loadImageElement } from '$utils/dom';
+import { loadImageElementFromMediaUrl } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
@@ -1099,10 +1099,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
       if (!stickerUrl) return;
 
-      const info = await getImageInfo(
-        await loadImageElement(stickerUrl),
-        await getImageUrlBlob(stickerUrl)
-      );
+      const { blob, image } = await loadImageElementFromMediaUrl(stickerUrl);
+      const info = getImageInfo(image, blob);
 
       const content: StickerEventContent & ReplyEventContent & IContent = {
         body: label,

@@ -53,13 +53,25 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
-import { getBlobCacheStats } from '$hooks/useBlobCache';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
+import { getRenderableMediaUrlStats } from '$hooks/useRenderableMediaUrl';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import {
+  NotificationTransportRuntime,
+  type NotificationTransportRuntimeContext,
+} from '../../features/settings/notifications/NotificationTransportRuntime';
+import {
+  normalizeNotificationTransportMode,
+  resolvePreferredNotificationTransportProvider,
+  type NotificationTransportPlatform,
+} from '../../features/settings/notifications/NotificationTransport';
 
 const pushRelayLog = createDebugLogger('push-relay');
+const transportLog = createDebugLogger('push-transport');
 
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
@@ -137,7 +149,7 @@ function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications) {
+      if (usePushNotifications && registration) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));
@@ -562,11 +574,11 @@ function PrivacyBlurFeature() {
 }
 
 // Periodically emits memory-health gauges so Sentry dashboards can surface
-// unbounded growth (e.g. blob cache never evicted, stale inflight requests).
+// unbounded growth (e.g. renderable media cache never evicted, stale inflight requests).
 function HealthMonitor() {
   useEffect(() => {
     const id = window.setInterval(() => {
-      const { cacheSize, inflightCount } = getBlobCacheStats();
+      const { cacheSize, inflightCount } = getRenderableMediaUrlStats();
       Sentry.metrics.gauge('sable.media.blob_cache_size', cacheSize);
       if (inflightCount > 0) {
         Sentry.metrics.gauge('sable.media.inflight_requests', inflightCount);
@@ -595,7 +607,7 @@ export function HandleNotificationClick() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
+    if (!('serviceWorker' in navigator) || isTauri()) return undefined;
 
     const handleMessage = (ev: MessageEvent) => {
       const { data } = ev;
@@ -651,7 +663,7 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator) || isTauri()) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.
@@ -840,6 +852,83 @@ function PresenceFeature() {
   return null;
 }
 
+function getNotificationTransportRuntimePlatform(): NotificationTransportPlatform {
+  if (!isTauri()) return 'web';
+
+  const platform = osType();
+  if (platform === 'android') return 'android';
+  if (platform === 'ios') return 'ios';
+  return 'desktop';
+}
+
+function NotificationTransportRuntimeFeature() {
+  const mx = useMatrixClient();
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
+  const [backgroundPushProvider] = useSetting(settingsAtom, 'backgroundPushProvider');
+  const [pushTransportMode] = useSetting(settingsAtom, 'pushTransportMode');
+  const [isNotificationSounds] = useSetting(settingsAtom, 'isNotificationSounds');
+  const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
+  const [showEncryptedMessageContent] = useSetting(
+    settingsAtom,
+    'showMessageContentInEncryptedNotifications'
+  );
+  const [useInAppNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
+
+  const runtimeRef = useRef<NotificationTransportRuntime | null>(null);
+  const contextRef = useRef<NotificationTransportRuntimeContext>({
+    mx,
+    showMessageContent,
+    showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
+    useInAppNotifications,
+  });
+  contextRef.current = {
+    mx,
+    showMessageContent,
+    showEncryptedMessageContent,
+    notificationSoundEnabled: isNotificationSounds,
+    useInAppNotifications,
+  };
+
+  if (!runtimeRef.current) {
+    runtimeRef.current = new NotificationTransportRuntime();
+  }
+
+  useEffect(() => {
+    if (!isTauri()) return undefined;
+
+    const runtimePlatform = getNotificationTransportRuntimePlatform();
+    const normalizedMode = normalizeNotificationTransportMode(pushTransportMode, runtimePlatform);
+    const provider = backgroundPushEnabled
+      ? (backgroundPushProvider ??
+        resolvePreferredNotificationTransportProvider(normalizedMode, runtimePlatform))
+      : null;
+    const runtime = runtimeRef.current;
+    if (!runtime) return undefined;
+
+    const syncPromise = runtime.sync(provider, () => contextRef.current);
+    syncPromise.catch((error) => {
+      transportLog.error(
+        'notification',
+        'Notification transport runtime failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    });
+    return () => {
+      const cleanupPromise = runtime.dispose();
+      cleanupPromise.catch((error) => {
+        transportLog.error(
+          'notification',
+          'Notification transport runtime cleanup failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
+      });
+    };
+  }, [backgroundPushEnabled, backgroundPushProvider, pushTransportMode]);
+
+  return null;
+}
+
 function SettingsSyncFeature() {
   useSettingsSyncEffect();
   return null;
@@ -858,6 +947,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <NotificationTransportRuntimeFeature />
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />

@@ -99,4 +99,5 @@ export const SPACE_SETTINGS_PATH = '/space-settings/';
 
 export const ROOM_SETTINGS_PATH = '/room-settings/';
 
+export const SSO_CALLBACK_PATH = '/lp/sso-callback';
 export const SETTINGS_PATH = '/settings/:section?/';

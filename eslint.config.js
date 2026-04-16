@@ -108,6 +108,44 @@ const projectOverrides = defineConfig([
     },
   },
   {
+    name: 'project/fetch-wrapper-enforcement',
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    ignores: ['src/sw.ts', 'src/**/*.test.*', 'src/app/utils/fetch.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message: 'Import fetch from $utils/fetch.',
+        },
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'window',
+          property: 'fetch',
+          message: 'Import fetch from $utils/fetch.',
+        },
+        {
+          object: 'globalThis',
+          property: 'fetch',
+          message: 'Import fetch from $utils/fetch.',
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@tauri-apps/plugin-http',
+              message: 'Use $utils/fetch instead of importing plugin-http directly.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     name: 'project/typescript-rule-overrides',
     files: tsFiles,
     rules: {

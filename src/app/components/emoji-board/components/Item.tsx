@@ -4,6 +4,7 @@ import { PackImageReader } from '$plugins/custom-emoji';
 import { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { EmojiItemInfo, EmojiType } from '$components/emoji-board/types';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './styles.css';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
@@ -23,12 +24,12 @@ const getPackImageSrc = (
   saveStickerEmojiBandwidth: boolean,
   width: number,
   height: number
-): string => {
+): string | undefined => {
   const preserveAnimation = isAnimatedPackImage(image);
 
   return preserveAnimation || !saveStickerEmojiBandwidth
-    ? (mxcUrlToHttp(mx, image.url, useAuthentication) ?? '')
-    : (mxcUrlToHttp(mx, image.url, useAuthentication, width, height) ?? '');
+    ? (mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined)
+    : (mxcUrlToHttp(mx, image.url, useAuthentication, width, height) ?? undefined);
 };
 
 export const getEmojiItemInfo = (element: Element): EmojiItemInfo | undefined => {
@@ -94,7 +95,7 @@ export function CustomEmojiItem({
       data-emoji-data={image.url}
       data-emoji-shortcode={image.shortcode}
     >
-      <img
+      <AuthenticatedImg
         loading="lazy"
         className={css.CustomEmojiImg}
         alt={image.body || image.shortcode}
@@ -130,7 +131,7 @@ export function StickerItem({
       data-emoji-data={image.url}
       data-emoji-shortcode={image.shortcode}
     >
-      <img
+      <AuthenticatedImg
         loading="lazy"
         className={css.StickerImg}
         alt={image.body || image.shortcode}

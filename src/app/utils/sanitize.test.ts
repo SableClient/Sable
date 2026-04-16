@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeCustomHtml } from './sanitize';
+import { getSafeMediaUrl, sanitizeCustomHtml } from './sanitize';
 
 describe('sanitizeCustomHtml', () => {
   it('keeps permitted Matrix v1.18 tags', () => {
@@ -136,5 +136,20 @@ describe('sanitizeCustomHtml', () => {
 
     expect(result).toContain('text');
     expect((result.match(/<div>/g) ?? []).length).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('getSafeMediaUrl', () => {
+  it('allows blob, http, https, and valid mxc urls only', () => {
+    const scriptUrl = ['javascript', 'alert(1)'].join(':');
+
+    expect(getSafeMediaUrl('blob:fake-url')).toBe('blob:fake-url');
+    expect(getSafeMediaUrl('https://example.com/image.png')).toBe('https://example.com/image.png');
+    expect(getSafeMediaUrl('http://example.com/image.png')).toBe('http://example.com/image.png');
+    expect(getSafeMediaUrl('mxc://example.com/abc123')).toBe('mxc://example.com/abc123');
+
+    expect(getSafeMediaUrl(scriptUrl)).toBeUndefined();
+    expect(getSafeMediaUrl('data:text/html,boom')).toBeUndefined();
+    expect(getSafeMediaUrl('/relative/path.png')).toBeUndefined();
   });
 });

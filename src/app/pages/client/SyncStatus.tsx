@@ -1,9 +1,15 @@
 import { MatrixClient, SyncState } from '$types/matrix-sdk';
-import { useCallback, useState } from 'react';
-import { Box, config, Line, Text } from 'folds';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
-import { ContainerColor } from '$styles/ContainerColor.css';
+import { titlebarStatusAtom, type TitlebarStatusView } from '$state/titlebarStatus';
+import {
+  getSyncConnectionStatusView,
+  SyncConnectionStatusBanner,
+} from '$components/SyncConnectionStatus';
 
 type StateData = {
   current: SyncState | null;
@@ -13,88 +19,83 @@ type StateData = {
 type SyncStatusProps = {
   mx: MatrixClient;
 };
+
+const DEMO_STATUS_STEP_MS = 1500;
+const DEMO_STATUS_SEQUENCE: readonly (TitlebarStatusView | null)[] = [
+  { text: 'Connecting...', variant: 'Success' },
+  null,
+  { text: 'Connection Lost! Reconnecting...', variant: 'Warning' },
+  null,
+  { text: 'Connection Lost!', variant: 'Critical' },
+  null,
+];
+
+const isSyncStatusDemoEnabled = (): boolean => {
+  if (import.meta.env.VITE_DEMO_SYNC_STATUS === '1') return true;
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('demoSyncStatus') === '1';
+};
+
 export function SyncStatus({ mx }: SyncStatusProps) {
   const [stateData, setStateData] = useState<StateData>({
     current: null,
     previous: undefined,
   });
+  const [demoIndex, setDemoIndex] = useState(0);
+  const useDemoStatusLoop = isSyncStatusDemoEnabled();
+  const setTitlebarStatus = useSetAtom(titlebarStatusAtom);
+  const { current, previous } = stateData;
 
   useSyncState(
     mx,
-    useCallback((current, previous) => {
+    useCallback((nextCurrent, nextPrevious) => {
       setStateData((s) => {
-        if (s.current === current && s.previous === previous) {
+        if (s.current === nextCurrent && s.previous === nextPrevious) {
           return s;
         }
-        return { current, previous };
+        return { current: nextCurrent, previous: nextPrevious };
       });
 
-      if (current === SyncState.Reconnecting || current === SyncState.Error) {
+      if (nextCurrent === SyncState.Reconnecting || nextCurrent === SyncState.Error) {
         Sentry.addBreadcrumb({
           category: 'sync',
-          message: `Sync state changed to ${current}`,
-          level: current === SyncState.Error ? 'error' : 'warning',
-          data: { previous },
+          message: `Sync state changed to ${nextCurrent}`,
+          level: nextCurrent === SyncState.Error ? 'error' : 'warning',
+          data: { previous: nextPrevious },
         });
         Sentry.metrics.count('sable.sync.degraded', 1, {
-          attributes: { state: current },
+          attributes: { state: nextCurrent },
         });
       }
     }, [])
   );
 
-  if (
-    (stateData.current === SyncState.Prepared ||
-      stateData.current === SyncState.Syncing ||
-      stateData.current === SyncState.Catchup) &&
-    stateData.previous !== SyncState.Syncing
-  ) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Success' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connecting...</Text>
-        </Box>
-        <Line variant="Success" size="300" />
-      </Box>
-    );
-  }
+  useEffect(() => {
+    if (!useDemoStatusLoop) return undefined;
+    const intervalId = window.setInterval(() => {
+      setDemoIndex((index) => (index + 1) % DEMO_STATUS_SEQUENCE.length);
+    }, DEMO_STATUS_STEP_MS);
 
-  if (stateData.current === SyncState.Reconnecting) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Warning' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost! Reconnecting...</Text>
-        </Box>
-        <Line variant="Warning" size="300" />
-      </Box>
-    );
-  }
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [useDemoStatusLoop]);
 
-  if (stateData.current === SyncState.Error) {
-    return (
-      <Box direction="Column" shrink="No">
-        <Box
-          className={ContainerColor({ variant: 'Critical' })}
-          style={{ padding: `${config.space.S100} 0` }}
-          alignItems="Center"
-          justifyContent="Center"
-        >
-          <Text size="L400">Connection Lost!</Text>
-        </Box>
-        <Line variant="Critical" size="300" />
-      </Box>
-    );
-  }
+  const statusView = useMemo(() => {
+    if (useDemoStatusLoop) return DEMO_STATUS_SEQUENCE[demoIndex];
+    return getSyncConnectionStatusView(current, previous);
+  }, [current, demoIndex, previous, useDemoStatusLoop]);
 
-  return null;
+  const useTitlebarSlot = isTauri() && osType() === 'windows';
+  useEffect(() => {
+    if (!useTitlebarSlot) return undefined;
+    setTitlebarStatus(statusView);
+    return () => {
+      setTitlebarStatus(null);
+    };
+  }, [statusView, setTitlebarStatus, useTitlebarSlot]);
+
+  if (useTitlebarSlot) return null;
+
+  return <SyncConnectionStatusBanner status={statusView} />;
 }

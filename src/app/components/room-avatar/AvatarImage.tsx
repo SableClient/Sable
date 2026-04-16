@@ -3,6 +3,8 @@ import { ReactEventHandler, useState, useEffect } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { fetch } from '$utils/fetch';
 import * as css from './RoomAvatar.css';
 
 type AvatarImageProps = {
@@ -15,7 +17,9 @@ type AvatarImageProps = {
 export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
   const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const [processedSrc, setProcessedSrc] = useState<string>(src);
+  const resolvedSrc = useRenderableMediaUrl(src);
+  const mediaSrc = resolvedSrc ?? src;
+  const [processedSrc, setProcessedSrc] = useState<string>(mediaSrc);
 
   const useUniformIcons = uniformIconsSetting && uniformIcons === true;
   const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
@@ -26,7 +30,7 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
 
     const processImage = async () => {
       try {
-        const res = await fetch(src, { mode: 'cors' });
+        const res = await fetch(mediaSrc, { mode: 'cors' });
         const contentType = res.headers.get('content-type');
 
         if (contentType && contentType.includes('image/svg+xml')) {
@@ -47,9 +51,9 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
 
           objectUrl = URL.createObjectURL(blob);
           if (isMounted) setProcessedSrc(objectUrl);
-        } else if (isMounted) setProcessedSrc(src);
+        } else if (isMounted) setProcessedSrc(mediaSrc);
       } catch {
-        if (isMounted) setProcessedSrc(src);
+        if (isMounted) setProcessedSrc(mediaSrc);
       }
     };
 
@@ -61,7 +65,7 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [src]);
+  }, [mediaSrc]);
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');

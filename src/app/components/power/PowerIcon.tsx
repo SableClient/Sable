@@ -1,4 +1,5 @@
 import { JUMBO_EMOJI_REG } from '$utils/regex';
+import { AuthenticatedImg } from '$components/AuthenticatedImg';
 import * as css from './style.css';
 
 type PowerIconProps = css.PowerIconVariants & {
@@ -9,6 +10,6 @@ export function PowerIcon({ size, iconSrc, name }: PowerIconProps) {
   return JUMBO_EMOJI_REG.test(iconSrc) ? (
     <span className={css.PowerIcon({ size })}>{iconSrc}</span>
   ) : (
-    <img className={css.PowerIcon({ size })} src={iconSrc} alt={name} />
+    <AuthenticatedImg className={css.PowerIcon({ size })} src={iconSrc} alt={name} />
   );
 }

@@ -23,3 +23,26 @@ build.sh
 
 # the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
 .lh
+
+# Tauri
+/build
+/target/
+/gen/schemas
+dist-js
+
+# Gradle / Android build artifacts
+**/android/build/
+**/android/.tauri/
+**/android/.gradle/
+**/.gradle/
+
+# Rust build artifacts
+src-tauri/target/
+# Tauri Android build outputs
+src-tauri/gen/android/app/build/
+
+# Tauri-typegen cache
+.typecache
+
+# Worktrees
+.worktrees

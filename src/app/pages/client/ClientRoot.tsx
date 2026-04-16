@@ -19,6 +19,8 @@ import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState 
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 import {
   clearCacheAndReload,
   clearLoginData,
@@ -49,6 +51,7 @@ import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { pushSessionToSW } from '../../../sw-session';
+import { createSessionRefreshHandler } from './sessionRefresh';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
@@ -75,6 +78,10 @@ type ClientRootOptionsProps = {
 };
 function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const isWindowsTauri = isTauri() && osType() === 'windows';
+  const topOffset = isWindowsTauri
+    ? `calc(var(--tauri-titlebar-height) + ${config.space.S100})`
+    : config.space.S100;
 
   const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const cords = evt.currentTarget.getBoundingClientRect();
@@ -88,7 +95,7 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
     <IconButton
       style={{
         position: 'absolute',
-        top: config.space.S100,
+        top: topOffset,
         right: config.space.S100,
       }}
       variant="Background"
@@ -177,6 +184,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   const navigate = useNavigate();
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const setSessions = useSetAtom(sessionsAtom);
 
@@ -201,11 +210,19 @@ export function ClientRoot({ children }: ClientRootProps) {
       }
       await clearMismatchedStores();
       log.log('initClient for', activeSession.userId);
-      const newMx = await initClient(activeSession);
+      const newMx = await initClient(
+        activeSession,
+        createSessionRefreshHandler(
+          activeSession.userId,
+          () => sessionsRef.current.find((session) => session.userId === activeSession.userId),
+          setSessions,
+          pushSessionToSW
+        )
+      );
       loadedUserIdRef.current = activeSession.userId;
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       return newMx;
-    }, [activeSession, activeSessionId, setActiveSessionId])
+    }, [activeSession, activeSessionId, setActiveSessionId, setSessions])
   );
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
@@ -232,7 +249,7 @@ export function ClientRoot({ children }: ClientRootProps) {
         activeSession.userId,
         '— reloading client'
       );
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       if (mx?.clientRunning) {
         stopClient(mx);
       }

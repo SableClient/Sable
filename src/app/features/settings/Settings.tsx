@@ -14,6 +14,7 @@ import {
   OverlayCenter,
   Text,
 } from 'folds';
+import { isTauri } from '@tauri-apps/api/core';
 import FocusTrap from 'focus-trap-react';
 import { PageNav, PageNavContent, PageNavHeader, PageRoot } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -37,6 +38,7 @@ import { EmojisStickers } from './emojis-stickers';
 import { Experimental } from './experimental/Experimental';
 import { General } from './general';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
+import { Desktop } from './desktop';
 import { Notifications } from './notifications';
 import { PerMessageProfilePage } from './Persona/ProfilesPage';
 import { settingsSections, type SettingsSectionId } from './routes';
@@ -51,6 +53,7 @@ export enum SettingsPages {
   PerMessageProfilesPage,
   NotificationPage,
   DevicesPage,
+  DesktopPage,
   EmojisStickersPage,
   CosmeticsPage,
   DeveloperToolsPage,
@@ -76,6 +79,7 @@ const settingsMenuIcons: Record<
   appearance: { icon: Icons.Alphabet, activeIcon: Icons.AlphabetUnderline },
   notifications: { icon: Icons.Bell },
   devices: { icon: Icons.Monitor },
+  desktop: { icon: Icons.Monitor },
   emojis: { icon: Icons.Smile },
   'developer-tools': { icon: Icons.Terminal },
   experimental: { icon: Icons.Funnel },
@@ -89,6 +93,7 @@ const settingsPageToSectionId: Record<SettingsPages, SettingsSectionId> = {
   [SettingsPages.PerMessageProfilesPage]: 'persona',
   [SettingsPages.NotificationPage]: 'notifications',
   [SettingsPages.DevicesPage]: 'devices',
+  [SettingsPages.DesktopPage]: 'desktop',
   [SettingsPages.EmojisStickersPage]: 'emojis',
   [SettingsPages.CosmeticsPage]: 'appearance',
   [SettingsPages.DeveloperToolsPage]: 'developer-tools',
@@ -104,6 +109,7 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
   appearance: SettingsPages.CosmeticsPage,
   notifications: SettingsPages.NotificationPage,
   devices: SettingsPages.DevicesPage,
+  desktop: SettingsPages.DesktopPage,
   emojis: SettingsPages.EmojisStickersPage,
   'developer-tools': SettingsPages.DeveloperToolsPage,
   experimental: SettingsPages.ExperimentalPage,
@@ -113,7 +119,7 @@ const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
 
 const settingsSectionComponents: Record<
   SettingsSectionId,
-  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element | null
 > = {
   general: General,
   account: Account,
@@ -121,6 +127,7 @@ const settingsSectionComponents: Record<
   appearance: Cosmetics,
   notifications: Notifications,
   devices: Devices,
+  desktop: Desktop,
   emojis: EmojisStickers,
   'developer-tools': DeveloperTools,
   experimental: Experimental,
@@ -167,6 +174,7 @@ export function Settings({
     : undefined;
 
   const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const showDesktop = isTauri();
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const screenSize = useScreenSizeContext();
   const isControlled = activeSection !== undefined;
@@ -180,7 +188,12 @@ export function Settings({
   });
 
   const visibleSection = useMemo<SettingsSectionId | null>(() => {
-    if (isControlled) return activeSection;
+    if (isControlled) {
+      if (activeSection === 'desktop' && !showDesktop) {
+        return null;
+      }
+      return activeSection;
+    }
 
     if (legacyActivePage === undefined) {
       return null;
@@ -190,19 +203,25 @@ export function Settings({
     if (section === 'persona' && !showPersona) {
       return 'general';
     }
+    if (section === 'desktop' && !showDesktop) {
+      return 'general';
+    }
     return section;
-  }, [activeSection, isControlled, legacyActivePage, showPersona]);
+  }, [activeSection, isControlled, legacyActivePage, showDesktop, showPersona]);
 
   const menuItems = useMemo<SettingsMenuItem[]>(
     () =>
       settingsSections
-        .filter((section) => showPersona || section.id !== 'persona')
+        .filter(
+          (section) =>
+            (showPersona || section.id !== 'persona') && (showDesktop || section.id !== 'desktop')
+        )
         .map((section) => ({
           id: section.id,
           name: section.label,
           ...settingsMenuIcons[section.id],
         })),
-    [showPersona]
+    [showDesktop, showPersona]
   );
 
   const handleSelectSection = (section: SettingsSectionId) => {

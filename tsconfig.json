@@ -19,6 +19,7 @@
       "$styles/*": ["src/app/styles/*"],
       "$utils/*": ["src/app/utils/*"],
       "$pages/*": ["src/app/pages/*"],
+      "$generated/*": ["src/app/generated/*"],
       "$types/*": ["src/types/*"],
       "$public/*": ["public/*"],
       "$client/*": ["src/client/*"]

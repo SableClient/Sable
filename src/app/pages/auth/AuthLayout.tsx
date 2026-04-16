@@ -23,6 +23,7 @@ import { AuthFlowsProvider } from '$hooks/useAuthFlows';
 import { AuthServerProvider } from '$hooks/useAuthServer';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
 import { getHomePath } from '$pages/pathUtils';
+import { fetch } from '$utils/fetch';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
 import * as css from './styles.css';

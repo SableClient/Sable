@@ -1,15 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
+  "entry": ["src/sw.ts", "scripts/**/*.js"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
+  "ignoreFiles": ["src/app/generated/**/*"],
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm",
-    "@testing-library/user-event"
+    "@matrix-org/matrix-sdk-crypto-wasm"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

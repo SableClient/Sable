@@ -1,0 +1,90 @@
+[package]
+name = "sable"
+version = "0.1.0"
+description = "Yet another matrix client but better"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.88.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+tauri-typegen = "0.5"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tokio = { version = "1", features = ["time", "sync"] }
+ts-rs = "12.0.0"
+
+tauri = { version = "2.10.3", default-features = false, features = ["tray-icon", "dynamic-acl", "compression", "devtools", "x11", "common-controls-v6", "dbus"] }
+
+tauri-plugin-log = "2.8.0"
+tauri-plugin-opener = "2.5.3"
+tauri-plugin-os = "2.3.2"
+tauri-plugin-deep-link = "2.4.8"
+tauri-plugin-http = "2.5.8"
+tauri-plugin-store = "2.4.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+enigo = "0.5.0"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_Threading",
+  "Win32_System_ProcessStatus"
+] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2.4.1", features = ["deep-link"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-window-state = "2.4.1"
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-notifications = { git = "https://github.com/SableClient/tauri-plugin-notifications.git", rev = "9d15b2b2c8798dc29ce723d743f0f3b4921d6a54", features = ["push-notifications", "unified-push"] }
+tauri-plugin-edge-to-edge = { git = "https://github.com/SableClient/tauri-plugin-edge-to-edge.git", rev = "33c6116c27be28c06df5a9d02231ecc5fdeb93c5" }
+
+[features]
+default = ["wry"]
+custom-protocol = ["tauri/custom-protocol"]
+wry = ["tauri/wry"]
+cef = []
+[patch.crates-io]
+tauri-typegen = { git = "https://github.com/SableClient/tauri-typegen", branch = "fix/nondeterministic-generation-cache" }
+tauri = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-build = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-plugin = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-utils = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-macros = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-runtime = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+tauri-runtime-wry = { git = "https://github.com/tauri-apps/tauri", branch = "dev" }
+
+# To test the CEF runtime path, switch this back to `cef = ["tauri/cef"]`
+# and uncomment the patch scaffold below.
+# cef = ["tauri/cef"]
+#
+# [patch.crates-io]
+# tauri = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-build = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-plugin = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-utils = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-macros = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-runtime = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-runtime-wry = { git = "https://github.com/tauri-apps/tauri", branch = "feat/cef" }
+# tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-os = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-deep-link = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-http = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+# tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }

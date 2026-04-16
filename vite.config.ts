@@ -49,6 +49,11 @@ const resolveBuildHash = (): string | undefined => {
 
 const appVersion = packageJson.version;
 const buildHash = resolveBuildHash();
+const tauriDevHost = process.env.TAURI_DEV_HOST;
+const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
+const isTauriDebug = process.env.TAURI_ENV_DEBUG === 'true';
+const tauriBuildTarget = process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13';
+const tauriBuildMinify = !isTauriDebug ? 'esbuild' : false;
 
 const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
@@ -124,9 +129,11 @@ function serverMatrixSdkCryptoWasm() {
 }
 
 export default defineConfig(({ command }) => ({
+  clearScreen: false,
   appType: 'spa',
   publicDir: false,
   base: buildConfig.base,
+  envPrefix: ['VITE_', 'TAURI_ENV_*'],
   define: {
     APP_VERSION: JSON.stringify(appVersion),
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
@@ -142,6 +149,7 @@ export default defineConfig(({ command }) => ({
       $styles: path.resolve(__dirname, 'src/app/styles'),
       $utils: path.resolve(__dirname, 'src/app/utils'),
       $pages: path.resolve(__dirname, 'src/app/pages'),
+      $generated: path.resolve(__dirname, 'src/app/generated'),
       $types: path.resolve(__dirname, 'src/types'),
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
@@ -149,7 +157,18 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 8080,
-    host: true,
+    strictPort: true,
+    host: tauriDevHost || true,
+    hmr: tauriDevHost
+      ? {
+          protocol: 'ws',
+          host: tauriDevHost,
+          port: 1421,
+        }
+      : undefined,
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
     allowedHosts: command === 'serve' ? true : undefined,
     fs: {
       // Allow serving files from one level up to the project root
@@ -186,23 +205,37 @@ export default defineConfig(({ command }) => ({
         enabled: true,
         type: 'module',
       },
-    }),
-    cloudflare({
-      config: {
-        compatibility_date: '2026-03-03',
-        assets: {
-          not_found_handling: 'single-page-application',
-        },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+        globIgnores: [
+          '**/matrix_sdk_crypto_wasm_bg-*.wasm',
+          '**/vision_wasm_internal-*.wasm',
+          '**/qcms_bg.wasm',
+          '**/openjpeg.wasm',
+          '**/jbig2.wasm',
+        ],
       },
     }),
-    compression({
-      algorithms: [
-        defineAlgorithm('brotliCompress', {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
-        }),
-      ],
-      include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,
-    }),
+    ...(!isTauriBuild
+      ? [
+          cloudflare({
+            config: {
+              compatibility_date: '2026-03-03',
+              assets: {
+                not_found_handling: 'single-page-application',
+              },
+            },
+          }),
+          compression({
+            algorithms: [
+              defineAlgorithm('brotliCompress', {
+                params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
+              }),
+            ],
+            include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,
+          }),
+        ]
+      : []),
     // Sentry source map upload — only active when credentials are provided at build time
     ...(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
       ? [
@@ -225,6 +258,8 @@ export default defineConfig(({ command }) => ({
       : []),
   ],
   optimizeDeps: {
+    // Include service worker entry so worker-only imports are discovered during startup.
+    entries: ['index.html', 'src/sw.ts'],
     // Rebuild dep optimizer cache on each dev start to avoid stale API shapes.
     force: true,
     // Keep matrix-widget-api prebundled so matrix-js-sdk can import its named exports in dev.
@@ -249,11 +284,22 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
+    target: isTauriBuild ? tauriBuildTarget : undefined,
+    minify: isTauriBuild ? tauriBuildMinify : undefined,
+    sourcemap: isTauriBuild ? isTauriDebug : true,
     outDir: 'dist',
-    sourcemap: true,
     copyPublicDir: false,
     rollupOptions: {
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('pdfjs-dist')) return 'pdf';
+          if (id.includes('@sableclient/sable-call-embedded')) return 'element-call';
+          if (id.includes('@matrix-org') || id.includes('matrix-js-sdk')) return 'matrix';
+          if (id.includes('react-prism') || id.includes('prism')) return 'prism';
+          return undefined;
+        },
+      },
     },
   },
 }));

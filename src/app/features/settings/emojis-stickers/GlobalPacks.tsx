@@ -29,6 +29,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import {
@@ -44,6 +45,11 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+
+function PackAvatarImage({ url }: { url: string }) {
+  const resolved = useRenderableMediaUrl(url);
+  return <AvatarImage style={{ objectFit: 'contain' }} src={resolved ?? url} />;
+}
 
 function GlobalPackSelector({
   packs,
@@ -192,7 +198,7 @@ function GlobalPackSelector({
                             <Box alignItems="Center" gap="300">
                               <Avatar size="300" radii="300">
                                 {avatarUrl ? (
-                                  <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                                  <PackAvatarImage url={avatarUrl} />
                                 ) : (
                                   <AvatarFallback>
                                     <Icon size="400" src={Icons.Sticker} filled />
@@ -392,7 +398,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
               )}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
-                  <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                  <PackAvatarImage url={avatarUrl} />
                 ) : (
                   <AvatarFallback>
                     <Icon size="400" src={Icons.Sticker} filled />

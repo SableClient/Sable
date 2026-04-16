@@ -11,6 +11,7 @@ import {
   PushProcessor,
 } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { isTauri } from '@tauri-apps/api/core';
 import {
   sessionsAtom,
   activeSessionIdAtom,
@@ -22,6 +23,7 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { fetch } from '$utils/fetch';
 import {
   getMemberDisplayName,
   getNotificationType,
@@ -58,6 +60,7 @@ const startBackgroundClient = async (
     accessToken: session.accessToken,
     userId: session.userId,
     deviceId: session.deviceId,
+    fetchFn: fetch,
     timelineSupport: false,
   });
   await startClient(mx, {
@@ -112,7 +115,6 @@ export function BackgroundNotifications() {
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
-  // Refs so handleTimeline callbacks always read current settings without stale closures
   const showNotificationsRef = useRef(showNotifications);
   showNotificationsRef.current = showNotifications;
   const notificationSoundRef = useRef(notificationSound);
@@ -126,7 +128,6 @@ export function BackgroundNotifications() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
   const setInAppBanner = useSetAtom(inAppBannerAtom);
-  // Stable setter refs so async handleTimeline closures never go stale.
   const setBackgroundUnreadsRef = useRef(setBackgroundUnreads);
   setBackgroundUnreadsRef.current = setBackgroundUnreads;
   const setInAppBannerRef = useRef(setInAppBanner);
@@ -145,22 +146,13 @@ export function BackgroundNotifications() {
   inactiveSessionsRef.current = inactiveSessions;
 
   interface NotifyOptions {
-    /** Title shown in the notification banner. */
     title: string;
-    /** Body text. */
     body?: string;
-    /** URL to an icon (browser) – ignored on native where the app icon is used. */
     icon?: string;
-    /** Badge icon URL shown by supported platforms. */
     badge?: string;
-    /** If `true` the notification plays no sound. */
     silent?: boolean;
-    /** Arbitrary payload attached to the notification.
-     * Must include { type, room_id, event_id, user_id } so the SW notificationclick
-     * handler can route the tap through HandleNotificationClick for account switching. */
+    /** Must include { type, room_id, event_id, user_id } for SW notificationclick routing. */
     data?: unknown;
-    /** Optional callback invoked when the user clicks the notification (window.Notification
-     * fallback path only; the SW path routes via its own notificationclick handler). */
     onClick?: () => void;
   }
 
@@ -173,11 +165,8 @@ export function BackgroundNotifications() {
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
-      // Prefer ServiceWorkerRegistration.showNotification so that taps are handled
-      // by the SW notificationclick event. This routes through HandleNotificationClick
-      // (postMessage path) which does the account switch + deep link reliably on all
-      // platforms including iOS where window.Notification onclick is not fired.
-      if ('serviceWorker' in navigator) {
+      // Prefer SW showNotification so taps route through the notificationclick handler.
+      if ('serviceWorker' in navigator && !isTauri()) {
         try {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification(opts.title, {
@@ -415,7 +404,6 @@ export function BackgroundNotifications() {
             const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
 
             notifiedEventsRef.current.add(dedupeId);
-            // Cap the set so it doesn't grow unbounded
             if (notifiedEventsRef.current.size > 200) {
               const first = notifiedEventsRef.current.values().next().value;
               if (first) notifiedEventsRef.current.delete(first);
@@ -433,7 +421,6 @@ export function BackgroundNotifications() {
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,
               }),
-              // Play sound only if the push rule requests it and the user has sounds enabled.
               silent: !notificationSoundRef.current || !loudByRule,
               eventId,
               data: {
@@ -446,7 +433,6 @@ export function BackgroundNotifications() {
 
             const notifOnClick = () => {
               window.focus();
-              // Always switch to the background account – jotai ignores no-op updates
               setActiveSessionId(session.userId);
               setPending({ roomId: room.roomId, eventId, targetSessionId: session.userId });
             };

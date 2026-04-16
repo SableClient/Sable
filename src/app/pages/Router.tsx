@@ -80,6 +80,7 @@ import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { TauriDeepLinkBridge } from './TauriDeepLinkBridge';
 
 /**
  * Returns true if there is at least one stored session.
@@ -105,271 +106,278 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
   const routes = createRoutesFromElements(
     <Route>
       <Route
-        index
-        loader={() => {
-          if (hasStoredSession()) return redirect(getHomePath());
-          const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
-          if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
-          return redirect(getLoginPath());
-        }}
-      />
-      <Route
-        loader={({ request }) => {
-          // Allow reaching the login page with ?addAccount=1 even when already logged in
-          const url = new URL(request.url);
-          if (url.searchParams.get('addAccount') === '1') return null;
-          if (hasStoredSession()) return redirect(getHomePath());
-          return null;
-        }}
         element={
-          <Sentry.ErrorBoundary
-            fallback={({ error, eventId }) => (
-              <ErrorPage
-                error={error instanceof Error ? error : new Error(String(error))}
-                eventId={eventId || undefined}
-              />
-            )}
-            beforeCapture={(scope) => scope.setTag('section', 'auth')}
-          >
-            <>
-              <AuthLayout />
-              <UnAuthRouteThemeManager />
-            </>
-          </Sentry.ErrorBoundary>
+          <>
+            <TauriDeepLinkBridge />
+            <Outlet />
+          </>
         }
       >
-        <Route path={LOGIN_PATH} element={<Login />} />
-        <Route path={REGISTER_PATH} element={<Register />} />
-        <Route path={RESET_PASSWORD_PATH} element={<ResetPassword />} />
-      </Route>
-
-      <Route
-        loader={() => {
-          const session = getFirstSession();
-          if (!session) {
-            const afterLoginPath = getAppPathFromHref(
-              getOriginBaseUrl(hashRouter),
-              window.location.href
-            );
+        <Route
+          index
+          loader={() => {
+            if (hasStoredSession()) return redirect(getHomePath());
+            const afterLoginPath = getAppPathFromHref(getOriginBaseUrl(), window.location.href);
             if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
             return redirect(getLoginPath());
-          }
-          return null;
-        }}
-        element={
-          <Sentry.ErrorBoundary
-            fallback={({ error, eventId }) => (
-              <ErrorPage
-                error={error instanceof Error ? error : new Error(String(error))}
-                eventId={eventId || undefined}
-              />
-            )}
-            beforeCapture={(scope) => scope.setTag('section', 'client')}
-          >
-            <AuthRouteThemeManager>
-              {/* HandleNotificationClick must live outside ClientRoot's loading gate so
-                SW notification-click postMessages are never dropped during client
-                reloads (e.g., account switches). It only needs navigate + Jotai atoms. */}
-              <HandleNotificationClick />
-              <ClientRoot>
-                <ClientInitStorageAtom>
-                  <ClientRoomsNotificationPreferences>
-                    <ClientBindAtoms>
-                      <ClientNonUIFeatures>
-                        <NotificationJumper />
-                        <CallEmbedProvider>
-                          <ClientLayout
-                            nav={
-                              <MobileFriendlyClientNav>
-                                <SidebarNav />
-                              </MobileFriendlyClientNav>
-                            }
-                          >
-                            <ClientRouteOutlet />
-                          </ClientLayout>
-                          <CallStatusRenderer />
-                        </CallEmbedProvider>
-                        <SearchModalRenderer />
-                        <UserRoomProfileRenderer />
-                        <CreateRoomModalRenderer />
-                        <CreateSpaceModalRenderer />
-                        <BugReportModalRenderer />
-                        <SettingsShallowRouteRenderer />
-                        <RoomSettingsRenderer />
-                        <SpaceSettingsRenderer />
-                        <GlobalKeyboardShortcuts />
-                        {/* Screen reader live region — populated by announce() in utils/announce.ts */}
-                        <div
-                          id="sable-announcements"
-                          role="status"
-                          aria-live="polite"
-                          aria-atomic="true"
-                          style={{
-                            position: 'absolute',
-                            width: '1px',
-                            height: '1px',
-                            overflow: 'hidden',
-                            clip: 'rect(0,0,0,0)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        />
-                        <ReceiveSelfDeviceVerification />
-                        <AutoRestoreBackupOnVerification />
-                      </ClientNonUIFeatures>
-                    </ClientBindAtoms>
-                  </ClientRoomsNotificationPreferences>
-                </ClientInitStorageAtom>
-              </ClientRoot>
-            </AuthRouteThemeManager>
-          </Sentry.ErrorBoundary>
-        }
-      >
+          }}
+        />
         <Route
-          path={HOME_PATH}
+          loader={({ request }) => {
+            const url = new URL(request.url);
+            if (url.searchParams.get('addAccount') === '1') return null;
+            if (hasStoredSession()) return redirect(getHomePath());
+            return null;
+          }}
           element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={HOME_PATH}>
-                  <Home />
-                </MobileFriendlyPageNav>
-              }
+            <Sentry.ErrorBoundary
+              fallback={({ error, eventId }) => (
+                <ErrorPage
+                  error={error instanceof Error ? error : new Error(String(error))}
+                  eventId={eventId || undefined}
+                />
+              )}
+              beforeCapture={(scope) => scope.setTag('section', 'auth')}
             >
-              <Outlet />
-            </PageRoot>
+              <>
+                <AuthLayout />
+                <UnAuthRouteThemeManager />
+              </>
+            </Sentry.ErrorBoundary>
           }
         >
-          {mobile ? null : <Route index element={<WelcomePage />} />}
-          <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
-          <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
-          <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
-          <Route
-            path={ROOM_PATH_SEGMENT}
-            element={
-              <HomeRouteRoomProvider>
-                <Room />
-              </HomeRouteRoomProvider>
-            }
-          />
+          <Route path={LOGIN_PATH} element={<Login />} />
+          <Route path={REGISTER_PATH} element={<Register />} />
+          <Route path={RESET_PASSWORD_PATH} element={<ResetPassword />} />
         </Route>
+
         <Route
-          path={DIRECT_PATH}
+          loader={() => {
+            const session = getFirstSession();
+            if (!session) {
+              const afterLoginPath = getAppPathFromHref(
+                getOriginBaseUrl(hashRouter),
+                window.location.href
+              );
+              if (afterLoginPath) setAfterLoginRedirectPath(afterLoginPath);
+              return redirect(getLoginPath());
+            }
+            return null;
+          }}
           element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={DIRECT_PATH}>
-                  <Direct />
-                </MobileFriendlyPageNav>
-              }
+            <Sentry.ErrorBoundary
+              fallback={({ error, eventId }) => (
+                <ErrorPage
+                  error={error instanceof Error ? error : new Error(String(error))}
+                  eventId={eventId || undefined}
+                />
+              )}
+              beforeCapture={(scope) => scope.setTag('section', 'client')}
             >
-              <Outlet />
-            </PageRoot>
+              <AuthRouteThemeManager>
+                {/* HandleNotificationClick must live outside ClientRoot's loading gate so
+                  SW notification-click postMessages are never dropped during client
+                  reloads (e.g., account switches). It only needs navigate + Jotai atoms. */}
+                <HandleNotificationClick />
+                <ClientRoot>
+                  <ClientInitStorageAtom>
+                    <ClientRoomsNotificationPreferences>
+                      <ClientBindAtoms>
+                        <ClientNonUIFeatures>
+                          <NotificationJumper />
+                          <CallEmbedProvider>
+                            <ClientLayout
+                              nav={
+                                <MobileFriendlyClientNav>
+                                  <SidebarNav />
+                                </MobileFriendlyClientNav>
+                              }
+                            >
+                              <ClientRouteOutlet />
+                            </ClientLayout>
+                            <CallStatusRenderer />
+                          </CallEmbedProvider>
+                          <SearchModalRenderer />
+                          <UserRoomProfileRenderer />
+                          <CreateRoomModalRenderer />
+                          <CreateSpaceModalRenderer />
+                          <BugReportModalRenderer />
+                          <SettingsShallowRouteRenderer />
+                          <RoomSettingsRenderer />
+                          <SpaceSettingsRenderer />
+                          <GlobalKeyboardShortcuts />
+                          <div
+                            id="sable-announcements"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            style={{
+                              position: 'absolute',
+                              width: '1px',
+                              height: '1px',
+                              overflow: 'hidden',
+                              clip: 'rect(0,0,0,0)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          />
+                          <ReceiveSelfDeviceVerification />
+                          <AutoRestoreBackupOnVerification />
+                        </ClientNonUIFeatures>
+                      </ClientBindAtoms>
+                    </ClientRoomsNotificationPreferences>
+                  </ClientInitStorageAtom>
+                </ClientRoot>
+              </AuthRouteThemeManager>
+            </Sentry.ErrorBoundary>
           }
         >
-          {mobile ? null : <Route index element={<WelcomePage />} />}
-          <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
           <Route
-            path={ROOM_PATH_SEGMENT}
+            path={HOME_PATH}
             element={
-              <DirectRouteRoomProvider>
-                <Room />
-              </DirectRouteRoomProvider>
-            }
-          />
-        </Route>
-        <Route
-          path={SPACE_PATH}
-          element={
-            <RouteSpaceProvider>
               <PageRoot
                 nav={
-                  <MobileFriendlyPageNav path={SPACE_PATH}>
-                    <Space />
+                  <MobileFriendlyPageNav path={HOME_PATH}>
+                    <Home />
                   </MobileFriendlyPageNav>
                 }
               >
                 <Outlet />
               </PageRoot>
-            </RouteSpaceProvider>
-          }
-        >
-          {mobile ? null : (
-            <Route
-              index
-              loader={({ params }) => {
-                const encodedSpaceIdOrAlias = params.spaceIdOrAlias;
-                const decodedSpaceIdOrAlias =
-                  encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
-
-                if (decodedSpaceIdOrAlias) {
-                  return redirect(getSpaceLobbyPath(decodedSpaceIdOrAlias));
-                }
-                return null;
-              }}
-              element={<WelcomePage />}
-            />
-          )}
-          <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
-          <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
-          <Route
-            path={ROOM_PATH_SEGMENT}
-            element={
-              <SpaceRouteRoomProvider>
-                <Room />
-              </SpaceRouteRoomProvider>
             }
-          />
-        </Route>
-        <Route
-          path={EXPLORE_PATH}
-          element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Explore />
-                </MobileFriendlyPageNav>
-              }
-            >
-              <Outlet />
-            </PageRoot>
-          }
-        >
-          {mobile ? null : (
+          >
+            {mobile ? null : <Route index element={<WelcomePage />} />}
+            <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
+            <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
+            <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
             <Route
-              index
-              loader={() => redirect(getExploreFeaturedPath())}
-              element={<WelcomePage />}
-            />
-          )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
-        </Route>
-        <Route path={CREATE_PATH} element={<Create />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
-        <Route
-          path={INBOX_PATH}
-          element={
-            <PageRoot
-              nav={
-                <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
-                </MobileFriendlyPageNav>
+              path={ROOM_PATH_SEGMENT}
+              element={
+                <HomeRouteRoomProvider>
+                  <Room />
+                </HomeRouteRoomProvider>
               }
-            >
-              <Outlet />
-            </PageRoot>
-          }
-        >
-          {mobile ? null : (
-            <Route
-              index
-              loader={() => redirect(getInboxNotificationsPath())}
-              element={<WelcomePage />}
             />
-          )}
-          <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
-          <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          </Route>
+          <Route
+            path={DIRECT_PATH}
+            element={
+              <PageRoot
+                nav={
+                  <MobileFriendlyPageNav path={DIRECT_PATH}>
+                    <Direct />
+                  </MobileFriendlyPageNav>
+                }
+              >
+                <Outlet />
+              </PageRoot>
+            }
+          >
+            {mobile ? null : <Route index element={<WelcomePage />} />}
+            <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
+            <Route
+              path={ROOM_PATH_SEGMENT}
+              element={
+                <DirectRouteRoomProvider>
+                  <Room />
+                </DirectRouteRoomProvider>
+              }
+            />
+          </Route>
+          <Route
+            path={SPACE_PATH}
+            element={
+              <RouteSpaceProvider>
+                <PageRoot
+                  nav={
+                    <MobileFriendlyPageNav path={SPACE_PATH}>
+                      <Space />
+                    </MobileFriendlyPageNav>
+                  }
+                >
+                  <Outlet />
+                </PageRoot>
+              </RouteSpaceProvider>
+            }
+          >
+            {mobile ? null : (
+              <Route
+                index
+                loader={({ params }) => {
+                  const encodedSpaceIdOrAlias = params.spaceIdOrAlias;
+                  const decodedSpaceIdOrAlias =
+                    encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
+
+                  if (decodedSpaceIdOrAlias) {
+                    return redirect(getSpaceLobbyPath(decodedSpaceIdOrAlias));
+                  }
+                  return null;
+                }}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
+            <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
+            <Route
+              path={ROOM_PATH_SEGMENT}
+              element={
+                <SpaceRouteRoomProvider>
+                  <Room />
+                </SpaceRouteRoomProvider>
+              }
+            />
+          </Route>
+          <Route
+            path={EXPLORE_PATH}
+            element={
+              <PageRoot
+                nav={
+                  <MobileFriendlyPageNav path={EXPLORE_PATH}>
+                    <Explore />
+                  </MobileFriendlyPageNav>
+                }
+              >
+                <Outlet />
+              </PageRoot>
+            }
+          >
+            {mobile ? null : (
+              <Route
+                index
+                loader={() => redirect(getExploreFeaturedPath())}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
+            <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
+          </Route>
+          <Route path={CREATE_PATH} element={<Create />} />
+          <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+          <Route
+            path={INBOX_PATH}
+            element={
+              <PageRoot
+                nav={
+                  <MobileFriendlyPageNav path={INBOX_PATH}>
+                    <Inbox />
+                  </MobileFriendlyPageNav>
+                }
+              >
+                <Outlet />
+              </PageRoot>
+            }
+          >
+            {mobile ? null : (
+              <Route
+                index
+                loader={() => redirect(getInboxNotificationsPath())}
+                element={<WelcomePage />}
+              />
+            )}
+            <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
+            <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          </Route>
+          <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
         </Route>
-        <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>

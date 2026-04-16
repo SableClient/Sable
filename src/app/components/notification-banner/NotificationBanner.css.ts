@@ -26,6 +26,8 @@ const slideOut = keyframes({
 // Positions at the top of the viewport, spanning full width.
 // Uses fixed positioning with safe-area-inset to handle iOS keyboard correctly.
 // On iOS, the banner stays at the top of the visual viewport even when keyboard is open.
+// On Android (Tauri) the insets are injected via JS from Kotlin; the
+// env() fallback handles the window between page load and injection.
 export const BannerContainer = style({
   position: 'fixed',
   // Use env(safe-area-inset-top) to respect device-specific safe areas (notches, etc)
@@ -38,6 +40,7 @@ export const BannerContainer = style({
   flexDirection: 'column',
   gap: config.space.S200,
   padding: config.space.S400,
+  paddingTop: `calc(${config.space.S400} + var(--sable-inset-top, env(safe-area-inset-top, 0px)))`,
   pointerEvents: 'none',
   alignItems: 'flex-end',
 

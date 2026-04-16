@@ -86,9 +86,6 @@ importers:
       dompurify:
         specifier: ^3.4.10
         version: 3.4.10
-      emoji-regex:
-        specifier: ^10.6.0
-        version: 10.6.0
       emojibase:
         specifier: ^17.0.0
         version: 17.0.0
@@ -3373,9 +3370,6 @@ packages:
 
   electron-to-chromium@1.5.374:
     resolution: {integrity: sha512-HCF5i7izveksHSGqa7mhDh6tr3Uz9Dar2RAjwuh69bw3QGPVObjQIgLwQWeO/Rxp9/r0KdboKy9RbpQDl97fjg==}
-
-  emoji-regex@10.6.0:
-    resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
 
   emojibase-data@17.0.0:
     resolution: {integrity: sha512-Yvgb5AWoHViHV/gq1qr5ZAarcBip+B27/ZLRsUJkbgAEaLlZ/fof9g882LTpmEpyhBNEC0m2SEmItljHsTygjA==}
@@ -7942,8 +7936,6 @@ snapshots:
       jake: 10.9.4
 
   electron-to-chromium@1.5.374: {}
-
-  emoji-regex@10.6.0: {}
 
   emojibase-data@17.0.0(emojibase@17.0.0):
     dependencies:

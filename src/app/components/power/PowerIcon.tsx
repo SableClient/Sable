@@ -1,4 +1,4 @@
-import { JUMBO_EMOJI_REG } from '$utils/regex';
+import { isJumboEmojiText } from '$utils/emojiDetection';
 import * as css from './style.css';
 
 type PowerIconProps = css.PowerIconVariants & {
@@ -18,7 +18,7 @@ function getSafeIconUrl(iconSrc: string): string | undefined {
 }
 
 export function PowerIcon({ size, iconSrc, name }: PowerIconProps) {
-  if (JUMBO_EMOJI_REG.test(iconSrc)) {
+  if (isJumboEmojiText(iconSrc, 1)) {
     return <span className={css.PowerIcon({ size })}>{iconSrc}</span>;
   }
 

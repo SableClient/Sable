@@ -10,6 +10,7 @@ import {
   getReactCustomHtmlParser,
   makeMentionCustomProps,
   renderMatrixMention,
+  scaleSystemEmoji,
 } from './react-custom-html-parser';
 
 const settingsLinkBaseUrl = 'https://app.example';
@@ -136,6 +137,19 @@ describe('getReactCustomHtmlParser code blocks', () => {
 });
 
 describe('react custom html parser', () => {
+  it.each(['🫩', '🫪', '🫯', '🇩🇪', '🙂‍↔️'])(
+    'wraps modern emoji text %s in emoticon markup',
+    (emoji) => {
+      const result = scaleSystemEmoji(emoji);
+      expect(result).toHaveLength(1);
+      expect(typeof result[0]).not.toBe('string');
+    }
+  );
+
+  it('does not wrap emojis inside urls', () => {
+    expect(scaleSystemEmoji('https://example.com/🫩')).toEqual(['https://example.com/🫩']);
+  });
+
   it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {
     const renderLink = factoryRenderLinkifyWithMention(
       settingsLinkBaseUrl,

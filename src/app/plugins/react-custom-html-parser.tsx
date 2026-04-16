@@ -30,7 +30,8 @@ import {
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
 import { type Nicknames } from '$state/nicknames';
-import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
+import { sanitizeForRegex, URL_REG } from '$utils/regex';
+import { splitEmojiText } from '$utils/emojiDetection';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -47,8 +48,6 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
-
-const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
 
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
@@ -311,19 +310,56 @@ export const factoryRenderLinkifyWithMention = (
   return renderLink;
 };
 
-export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] =>
-  findAndReplace(
-    text,
-    EMOJI_REG_G,
-    (match, pushIndex) => (
-      <span key={`scaleSystemEmoji-${pushIndex}`} className={css.EmoticonBase}>
-        <span className={css.Emoticon()} title={getShortcodeFor(getHexcodeForEmoji(match[0]))}>
-          {match[0]}
+const scaleEmojiChunk = (text: string, output: (string | JSX.Element)[]) => {
+  splitEmojiText(text).forEach((part) => {
+    if (part.type === 'text') {
+      output.push(part.value);
+      return;
+    }
+
+    output.push(
+      <span key={`scaleSystemEmoji-${output.length}`} className={css.EmoticonBase}>
+        <span className={css.Emoticon()} title={getShortcodeFor(getHexcodeForEmoji(part.value))}>
+          {part.value}
         </span>
       </span>
-    ),
-    (txt) => txt
-  );
+    );
+  });
+};
+
+export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] => {
+  const parts: (string | JSX.Element)[] = [];
+  const urlReg = new RegExp(URL_REG);
+  let lastIndex = 0;
+
+  [...text.matchAll(urlReg)].forEach((match) => {
+    const start = match.index ?? 0;
+    scaleEmojiChunk(text.slice(lastIndex, start), parts);
+    parts.push(match[0]);
+    lastIndex = start + match[0].length;
+  });
+
+  scaleEmojiChunk(text.slice(lastIndex), parts);
+
+  const normalized: (string | JSX.Element)[] = [];
+  parts.forEach((part) => {
+    if (typeof part !== 'string') {
+      normalized.push(part);
+      return;
+    }
+
+    if (part === '') return;
+    const previous = normalized.at(-1);
+    if (typeof previous === 'string') {
+      normalized[normalized.length - 1] = `${previous}${part}`;
+      return;
+    }
+
+    normalized.push(part);
+  });
+
+  return normalized.length > 0 ? normalized : [''];
+};
 
 export const makeHighlightRegex = (highlights: string[]): RegExp | undefined => {
   const pattern = highlights.map(sanitizeForRegex).join('|');

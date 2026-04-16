@@ -279,6 +279,8 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     // Load incoming room's scroll cache (undefined for first-visit rooms).
@@ -762,7 +764,10 @@ export function RoomTimeline({
       const isNowAtBottom = atBottomRef.current
         ? distanceFromBottom < 300
         : distanceFromBottom < 100;
-      if (isNowAtBottom !== atBottomRef.current) {
+      // Suppress atBottom flips during the initial scroll-to-bottom sequence:
+      // VList fires intermediate scroll events before the scroll settles, and
+      // if isReady is set in the same commit the button briefly flashes.
+      if (isNowAtBottom !== atBottomRef.current && isReadyRef.current) {
         setAtBottom(isNowAtBottom);
       }
 

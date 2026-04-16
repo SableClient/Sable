@@ -16,6 +16,7 @@ function makeEvent(overrides: {
   roomId?: string;
   redacted?: boolean;
   effectiveType?: string;
+  encrypted?: boolean;
 }) {
   const type = overrides.type ?? 'm.room.message';
   const content = overrides.content ?? { msgtype: 'm.text', body: 'hello' };
@@ -25,6 +26,7 @@ function makeEvent(overrides: {
     getSender: () => overrides.sender ?? '@alice:test',
     getRoomId: () => overrides.roomId ?? '!room:test',
     isRedacted: () => overrides.redacted ?? false,
+    isEncrypted: () => overrides.encrypted ?? false,
     getEffectiveEvent: () => ({ type: overrides.effectiveType ?? type, content }),
   } as never;
 }
@@ -141,6 +143,27 @@ describe('eventToPreviewText', () => {
     expect(eventToPreviewText(ev)).toBe('real message');
   });
 
+  it('returns poll text for MSC3381 poll start events', () => {
+    const ev = makeEvent({
+      type: 'org.matrix.msc3381.poll.start',
+      content: { 'org.matrix.msc3381.poll.start': { question: { body: 'Lunch?' } } },
+    });
+    expect(eventToPreviewText(ev)).toBe('📊 Lunch?');
+  });
+
+  it('returns poll text for stable poll start events', () => {
+    const ev = makeEvent({
+      type: 'm.poll.start',
+      content: { 'm.poll.start': { question: { body: 'Dinner?' } } },
+    });
+    expect(eventToPreviewText(ev)).toBe('📊 Dinner?');
+  });
+
+  it('returns location icon for m.location message', () => {
+    const ev = makeEvent({ content: { msgtype: 'm.location', body: 'geo:0,0' } });
+    expect(eventToPreviewText(ev)).toBe('📍 Location');
+  });
+
   it('returns undefined for unknown event types', () => {
     const ev = makeEvent({ type: 'm.room.power_levels', content: {} });
     expect(eventToPreviewText(ev)).toBeUndefined();
@@ -172,10 +195,10 @@ describe('getLastMessageText', () => {
     expect(getLastMessageText(room, makeMx())).toBe('Bob: hey');
   });
 
-  it('falls back to userId when no display name is available', () => {
+  it('falls back to localpart when no display name is available', () => {
     const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
     const room = makeRoom([ev]);
-    expect(getLastMessageText(room, makeMx())).toBe('@bob:test: hey');
+    expect(getLastMessageText(room, makeMx())).toBe('bob: hey');
   });
 
   it('skips reactions and picks the last real message', () => {

@@ -420,6 +420,19 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
   }, [isReady, timelineSync.eventsLength]);
 
+  // When a genuine TimelineReset replaces the timeline chain (new
+  // EventTimeline objects from the SDK), hide content behind opacity 0 and
+  // re-arm the initial-scroll so the new data renders invisibly, gets
+  // measured, and only then becomes visible — preventing a visible flash.
+  const prevResetTokenRef = useRef(timelineSync.timelineResetToken);
+  useLayoutEffect(() => {
+    if (timelineSync.timelineResetToken === prevResetTokenRef.current) return;
+    prevResetTokenRef.current = timelineSync.timelineResetToken;
+    if (!isReady) return;
+    setIsReady(false);
+    hasInitialScrolledRef.current = false;
+  }, [isReady, timelineSync.timelineResetToken]);
+
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;

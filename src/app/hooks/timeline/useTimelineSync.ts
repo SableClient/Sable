@@ -398,6 +398,11 @@ export function useTimelineSync({
   const timelineRef = useRef(timeline);
   timelineRef.current = timeline;
 
+  // Incremented each time a genuine TimelineReset replaces the timeline chain.
+  // RoomTimeline watches this to hide content (opacity 0) and re-arm initial
+  // scroll so the replacement renders behind the curtain.
+  const [timelineResetToken, setTimelineResetToken] = useState(0);
+
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
@@ -548,6 +553,7 @@ export function useTimelineSync({
       }
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
+      setTimelineResetToken((t) => t + 1);
       setTimeline({ linkedTimelines: newLinked });
       if (wasAtBottom) {
         scrollToBottom();
@@ -618,5 +624,6 @@ export function useTimelineSync({
     focusItem,
     setFocusItem,
     mutationVersion,
+    timelineResetToken,
   };
 }

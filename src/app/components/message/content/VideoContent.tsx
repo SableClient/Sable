@@ -110,9 +110,12 @@ export const VideoContent = as<'div', VideoContentProps>(
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
 
+    const hasDimensions = typeof info?.w === 'number' && typeof info?.h === 'number';
+
     return (
       <Box
         className={classNames(css.RelativeBase, className)}
+        style={hasDimensions ? { aspectRatio: `${info.w} / ${info.h}` } : undefined}
         {...props}
         ref={ref}
         onPointerEnter={() => setIsHovered(true)}

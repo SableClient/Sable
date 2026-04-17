@@ -858,6 +858,7 @@ export function RoomTimeline({
           ref={vListRef}
           data={processedEvents}
           shift={shift}
+          itemSize={80}
           className={css.messageList}
           style={{
             flex: 1,

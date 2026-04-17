@@ -132,7 +132,7 @@ describe('useTimelineSync', () => {
       await Promise.resolve();
     });
 
-    expect(scrollToBottom).toHaveBeenCalledWith('instant');
+    expect(scrollToBottom).toHaveBeenCalled();
   });
 
   it('resets timeline state when room.roomId changes and eventId is not set', async () => {

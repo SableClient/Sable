@@ -826,6 +826,13 @@ export function RoomTimeline({
     timelineSync.eventsLength === 0 &&
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
+  // Show a skeleton overlay when content is not ready and there is no
+  // cached scroll state to restore from (first visit or timeline reset).
+  // The VList still renders underneath at opacity 0 so it can measure real
+  // item heights — the overlay just gives the user something to look at.
+  const showSkeletonOverlay =
+    !isReady && !scrollCacheForRoomRef.current && !showLoadingPlaceholders;
+
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
     if (timelineSync.backwardStatus === 'error') {
@@ -1040,9 +1047,32 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
+        {showSkeletonOverlay && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              padding: `${config.space.S600} 0`,
+              overflow: 'hidden',
+            }}
+          >
+            {Array.from({ length: 8 }, (_, i) => (
+              <MessageBase key={`skeleton-${i}`}>
+                {messageLayout === MessageLayout.Compact ? (
+                  <CompactPlaceholder />
+                ) : (
+                  <DefaultPlaceholder />
+                )}
+              </MessageBase>
+            ))}
+          </div>
+        )}
         <VList<ProcessedEvent>
           key={room.roomId}
           ref={vListRef}
@@ -1057,6 +1087,7 @@ export function RoomTimeline({
             flexDirection: 'column',
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
+            opacity: isReady || showLoadingPlaceholders ? 1 : 0,
           }}
           onScroll={handleVListScroll}
         >

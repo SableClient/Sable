@@ -766,15 +766,18 @@ export function RoomTimeline({
       const contentGrew = v.scrollSize > prevScrollSizeRef.current;
       prevScrollSizeRef.current = v.scrollSize;
 
+      // Skip content-chase and cache saves during init: the timeline is hidden
+      // (opacity 0) while VList measures items and fires intermediate scroll
+      // events.  Chasing the bottom here causes cascading scrollTo calls that
+      // upstream doesn't have, producing visible layout churn after isReady.
+      if (!isReadyRef.current) return;
+
       if (atBottomRef.current && !isNowAtBottom && contentGrew) {
         v.scrollTo(v.scrollSize);
         return;
       }
 
-      // Suppress atBottom flips during the initial scroll-to-bottom sequence:
-      // VList fires intermediate scroll events before the scroll settles, and
-      // if isReady is set in the same commit the button briefly flashes.
-      if (isNowAtBottom !== atBottomRef.current && isReadyRef.current) {
+      if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }
 

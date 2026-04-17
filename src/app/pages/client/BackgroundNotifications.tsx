@@ -35,6 +35,7 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import LogoSVG from '$public/res/svg/cinny-logo.svg';
 import { nicknamesAtom } from '$state/nicknames';
+import { activeRoomIdAtom } from '$state/room/activeRoomId';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -110,8 +111,11 @@ export function BackgroundNotifications() {
   );
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
+  const activeRoomId = useAtomValue(activeRoomIdAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
+  const activeRoomIdRef = useRef(activeRoomId);
+  activeRoomIdRef.current = activeRoomId;
   // Refs so handleTimeline callbacks always read current settings without stale closures
   const showNotificationsRef = useRef(showNotifications);
   showNotificationsRef.current = showNotifications;
@@ -455,6 +459,17 @@ export function BackgroundNotifications() {
               setActiveSessionId(session.userId);
               setPending({ roomId: room.roomId, eventId, targetSessionId: session.userId });
             };
+
+            // Skip notifications entirely when the active session is viewing
+            // this exact room and the window has focus — the user is already
+            // looking at the messages.
+            if (room.roomId === activeRoomIdRef.current && document.hasFocus()) {
+              debugLog.debug('notification', 'Skipping notification — room is active', {
+                roomId: room.roomId,
+                eventId,
+              });
+              return;
+            }
 
             // Show in-app banner when app is visible, mobile, and in-app notifications enabled
             const canShowInAppBanner =

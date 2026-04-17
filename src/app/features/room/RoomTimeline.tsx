@@ -116,6 +116,10 @@ export type RoomTimelineProps = {
   onEditLastMessageRef?: React.MutableRefObject<(() => void) | undefined>;
 };
 
+type ScrollCacheEntry = { offset: number; atBottom: boolean };
+/** Survives component remounts so revisiting a room restores scroll position instantly. */
+const roomScrollCache = new Map<string, ScrollCacheEntry>();
+
 export function RoomTimeline({
   room,
   eventId,
@@ -143,7 +147,6 @@ export function RoomTimeline({
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [showDeveloperTools] = useSetting(settingsAtom, 'developerTools');
-  const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
@@ -225,6 +228,8 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;
@@ -236,6 +241,12 @@ export function RoomTimeline({
       initialScrollTimerRef.current = undefined;
     }
     setIsReady(false);
+    // Reset per-room scroll/layout state so the new room starts clean.
+    setAtBottom(true);
+    setShift(false);
+    setTopSpacerHeight(0);
+    topSpacerHeightRef.current = 0;
+    setUnreadInfo(getRoomUnreadInfo(room, true));
   }
 
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
@@ -298,6 +309,24 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
+      // Fast path: revisiting a room — restore the last scroll position instantly
+      // without the 80 ms timer so there's no opacity flash.
+      const cached = roomScrollCache.get(room.roomId);
+      if (cached !== undefined) {
+        hasInitialScrolledRef.current = true;
+        const v = vListRef.current;
+        requestAnimationFrame(() => {
+          if (!v) return;
+          if (cached.atBottom) {
+            v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+          } else {
+            v.scrollTo(cached.offset);
+          }
+          setIsReady(true);
+        });
+        return;
+      }
+
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
       // Store in a ref rather than a local so subsequent eventsLength changes
       // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
@@ -328,6 +357,21 @@ export function RoomTimeline({
       if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
     },
     []
+  );
+
+  // Save scroll position on unmount or room change so revisits restore instantly.
+  useEffect(
+    () => () => {
+      if (!isReadyRef.current) return;
+      const v = vListRef.current;
+      if (!v) return;
+      const distFromBottom = v.scrollSize - v.scrollOffset - v.viewportSize;
+      roomScrollCache.set(room.roomId, {
+        offset: v.scrollOffset,
+        atBottom: distFromBottom < 100,
+      });
+    },
+    [room.roomId]
   );
 
   // If the timeline was blanked while content was already visible — e.g. a
@@ -371,7 +415,9 @@ export function RoomTimeline({
     prevBackwardStatusRef.current = timelineSync.backwardStatus;
     if (timelineSync.backwardStatus === 'loading') {
       wasAtBottomBeforePaginationRef.current = atBottomRef.current;
-      if (!atBottomRef.current) setShift(true);
+      // Always anchor during backward pagination — even when at the bottom — so
+      // prepended items don't cause a visible jump (e.g. sliding-sync fill).
+      setShift(true);
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
       if (wasAtBottomBeforePaginationRef.current) {
@@ -381,29 +427,41 @@ export function RoomTimeline({
   }, [timelineSync.backwardStatus]);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    let outerRafId: ReturnType<typeof requestAnimationFrame> | undefined;
+    let clearId: ReturnType<typeof setTimeout> | undefined;
+
     if (timelineSync.focusItem) {
       if (timelineSync.focusItem.scrollTo && vListRef.current) {
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          // Setting scrollTo=false triggers effect cleanup then re-run; the reveal
+          // rAFs below restart from the new run so Virtua has time to settle first.
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         }
       }
-      timeoutId = setTimeout(() => {
-        timelineSync.setFocusItem(undefined);
-      }, 2000);
-    }
-    return () => {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-    };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
 
-  useEffect(() => {
-    if (timelineSync.focusItem) {
-      setIsReady(true);
+      // Reveal the timeline and begin the highlight timer after two frames so
+      // Virtua has completed the scroll before the content becomes visible.
+      outerRafId = requestAnimationFrame(() => {
+        if (cancelled) return;
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          setIsReady(true);
+          clearId = setTimeout(() => {
+            timelineSync.setFocusItem(undefined);
+          }, 2000);
+        });
+      });
     }
-  }, [timelineSync.focusItem]);
+
+    return () => {
+      cancelled = true;
+      if (outerRafId !== undefined) cancelAnimationFrame(outerRafId);
+      if (clearId !== undefined) clearTimeout(clearId);
+    };
+  }, [timelineSync.focusItem, timelineSync, getRawIndexToProcessedIndex]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -724,8 +782,7 @@ export function RoomTimeline({
       : timelineSync.eventsLength;
   const vListIndices = useMemo(
     () => Array.from({ length: vListItemCount }, (_, i) => i),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
+    [vListItemCount]
   );
 
   const processedEvents = useProcessedTimeline({

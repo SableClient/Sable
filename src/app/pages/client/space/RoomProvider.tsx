@@ -43,7 +43,7 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   if (developerTools && room.isSpaceRoom() && room.roomId === space.roomId) {
     // allow to view space timeline
     return (
-      <RoomProvider key={room.roomId} value={room}>
+      <RoomProvider value={room}>
         <IsDirectRoomProvider value={mDirects.has(room.roomId)}>{children}</IsDirectRoomProvider>
       </RoomProvider>
     );
@@ -69,7 +69,7 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RoomProvider key={room.roomId} value={room}>
+    <RoomProvider value={room}>
       <IsDirectRoomProvider value={mDirects.has(room.roomId)}>{children}</IsDirectRoomProvider>
     </RoomProvider>
   );

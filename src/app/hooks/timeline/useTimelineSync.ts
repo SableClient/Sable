@@ -387,6 +387,9 @@ export function useTimelineSync({
 
   const resetAutoScrollPendingRef = useRef(false);
 
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
+
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
 
@@ -524,12 +527,27 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
-      const wasAtBottom = isAtBottomRef.current;
-      resetAutoScrollPendingRef.current = wasAtBottom;
-      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      if (wasAtBottom) {
-        scrollToBottom('instant');
+      const newLinked = getInitialTimeline(room).linkedTimelines;
+      const prev = timelineRef.current.linkedTimelines;
+      if (prev.length === newLinked.length && prev.every((tl, i) => tl === newLinked[i])) {
+        return;
       }
+      // Only trigger the auto-scroll reset for destructive resets where the
+      // live-end event changed (e.g. reconnect). Sliding sync fires TimelineReset
+      // to replace the EventTimeline container while keeping the same live-end
+      // events — treating that as destructive would scroll the user unnecessarily.
+      const prevLastEventId = prev.at(-1)?.getEvents().at(-1)?.getId();
+      const newLastEventId = newLinked.at(-1)?.getEvents().at(-1)?.getId();
+      const isDestructive = prevLastEventId !== newLastEventId;
+
+      if (isDestructive) {
+        const wasAtBottom = isAtBottomRef.current;
+        resetAutoScrollPendingRef.current = wasAtBottom;
+        if (wasAtBottom) {
+          scrollToBottom('instant');
+        }
+      }
+      setTimeline({ linkedTimelines: newLinked });
     }, [room, isAtBottomRef, scrollToBottom])
   );
 

@@ -106,8 +106,8 @@ describe('useTimelineSync', () => {
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
-  it('keeps a bottom-pinned user anchored after TimelineReset', async () => {
-    const { room, timelineSet } = createRoom();
+  it('keeps a bottom-pinned user anchored after destructive TimelineReset', async () => {
+    const { room, timelineSet } = createRoom('!room:test', [{ getId: () => 'event-before' }]);
     const scrollToBottom = vi.fn();
 
     renderHook(() =>
@@ -124,12 +124,46 @@ describe('useTimelineSync', () => {
       })
     );
 
+    // Replace with a new timeline object with a new last event (destructive reset)
+    const newTimeline = createTimeline([{ getId: () => 'event-after' }]);
+    timelineSet.getLiveTimeline = () => newTimeline as never;
+
     await act(async () => {
       timelineSet.emit(RoomEvent.TimelineReset);
       await Promise.resolve();
     });
 
     expect(scrollToBottom).toHaveBeenCalledWith('instant');
+  });
+
+  it('does not scroll after additive TimelineReset (same last event, new container)', async () => {
+    const { room, timelineSet } = createRoom('!room:test', [{ getId: () => 'same-event' }]);
+    const scrollToBottom = vi.fn();
+
+    renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: { getUserId: () => '@alice:test' } as never,
+        isAtBottom: true,
+        isAtBottomRef: { current: true },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    // Replace with a new timeline object but same last event ID (additive/structural reset)
+    const newTimeline = createTimeline([{ getId: () => 'same-event' }]);
+    timelineSet.getLiveTimeline = () => newTimeline as never;
+
+    await act(async () => {
+      timelineSet.emit(RoomEvent.TimelineReset);
+      await Promise.resolve();
+    });
+
+    expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
   it('resets timeline state when room.roomId changes and eventId is not set', async () => {

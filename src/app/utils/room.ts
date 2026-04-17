@@ -276,7 +276,7 @@ export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
     if (event.getId() === readUpToId) {
       return false;
     }
-    if (isNotificationEvent(event, room, userId)) {
+    if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
       return true;
     }
   }

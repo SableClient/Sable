@@ -34,9 +34,9 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// One event of timeline per list room is enough to compute unread counts;
-// the full history is loaded when the user opens the room.
-const LIST_TIMELINE_LIMIT = 1;
+// Higher limit avoids empty previews when the most-recent events are
+// reactions/edits/state that useRoomLatestRenderedEvent skips over.
+const LIST_TIMELINE_LIMIT = 3;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;

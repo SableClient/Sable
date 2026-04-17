@@ -351,7 +351,7 @@ export interface UseTimelineSyncOptions {
   eventId?: string;
   isAtBottom: boolean;
   isAtBottomRef: React.MutableRefObject<boolean>;
-  scrollToBottom: (behavior?: 'instant' | 'smooth') => void;
+  scrollToBottom: () => void;
   unreadInfo: ReturnType<typeof getRoomUnreadInfo>;
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
@@ -376,6 +376,16 @@ export function useTimelineSync({
     eventId ? getEmptyTimeline() : { linkedTimelines: getInitialTimeline(room).linkedTimelines }
   );
 
+  // Incremented whenever existing event content mutates (reactions, edits, thread
+  // updates, local-echo status) but NOT on live-event arrivals (those are signalled
+  // by eventsLength increasing).  Consumers use this to decide whether to
+  // re-create ProcessedEvent objects for stable-ref memoization.
+  const [mutationVersion, setMutationVersion] = useState(0);
+  const triggerMutation = useCallback(() => {
+    setTimeline((ct) => ({ ...ct }));
+    setMutationVersion((v) => v + 1);
+  }, []);
+
   const [focusItem, setFocusItem] = useState<
     | {
         index: number;
@@ -385,10 +395,10 @@ export function useTimelineSync({
     | undefined
   >();
 
-  const resetAutoScrollPendingRef = useRef(false);
-
   const timelineRef = useRef(timeline);
   timelineRef.current = timeline;
+
+  const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
@@ -463,7 +473,7 @@ export function useTimelineSync({
     useCallback(() => {
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      scrollToBottom('instant');
+      scrollToBottom();
     }, [alive, room, scrollToBottom])
   );
 
@@ -493,7 +503,7 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
+          scrollToBottom();
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));
@@ -515,14 +525,14 @@ export function useTimelineSync({
       eventRoom: Room | undefined
     ) => {
       if (eventRoom?.roomId !== room.roomId) return;
-      setTimeline((ct) => ({ ...ct }));
+      triggerMutation();
     };
 
     room.on(RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
     return () => {
       room.removeListener(RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
     };
-  }, [room, setTimeline]);
+  }, [room, triggerMutation]);
 
   useLiveTimelineRefresh(
     room,
@@ -532,38 +542,43 @@ export function useTimelineSync({
       if (prev.length === newLinked.length && prev.every((tl, i) => tl === newLinked[i])) {
         return;
       }
+
       // Only trigger the auto-scroll reset for destructive resets where the
       // live-end event changed (e.g. reconnect). Sliding sync fires TimelineReset
       // to replace the EventTimeline container while keeping the same live-end
       // events — treating that as destructive would scroll the user unnecessarily.
       const prevLastEventId = prev.at(-1)?.getEvents().at(-1)?.getId();
-      const newLastEventId = newLinked.at(-1)?.getEvents().at(-1)?.getId();
-      const isDestructive = prevLastEventId !== newLastEventId;
 
-      if (isDestructive) {
-        const wasAtBottom = isAtBottomRef.current;
-        resetAutoScrollPendingRef.current = wasAtBottom;
-        if (wasAtBottom) {
-          scrollToBottom('instant');
+      const applyUpdate = (linkedTimelines: EventTimeline[]) => {
+        const lastEventId = linkedTimelines.at(-1)?.getEvents().at(-1)?.getId();
+        const isDestructive = prevLastEventId !== lastEventId;
+        if (isDestructive) {
+          const wasAtBottom = isAtBottomRef.current;
+          resetAutoScrollPendingRef.current = wasAtBottom;
+          if (wasAtBottom) scrollToBottom();
         }
+        setTimeline({ linkedTimelines });
+      };
+
+      // If the new timeline is transiently empty (the SDK fires TimelineReset
+      // *before* it finishes adding events to the new timeline), defer the state
+      // update via a microtask so the SDK can finish populating the timeline.
+      // This prevents the briefly-empty timeline from triggering the blanked
+      // effect, which would hide the content and cause a visible flash.
+      if (getTimelinesEventsCount(newLinked) === 0 && getTimelinesEventsCount(prev) > 0) {
+        Promise.resolve().then(() => {
+          applyUpdate(getInitialTimeline(room).linkedTimelines);
+        });
+        return;
       }
-      setTimeline({ linkedTimelines: newLinked });
+
+      applyUpdate(newLinked);
     }, [room, isAtBottomRef, scrollToBottom])
   );
 
-  useRelationUpdate(
-    room,
-    useCallback(() => {
-      setTimeline((ct) => ({ ...ct }));
-    }, [])
-  );
+  useRelationUpdate(room, triggerMutation);
 
-  useThreadUpdate(
-    room,
-    useCallback(() => {
-      setTimeline((ct) => ({ ...ct }));
-    }, [])
-  );
+  useThreadUpdate(room, triggerMutation);
 
   useEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
@@ -583,7 +598,7 @@ export function useTimelineSync({
     if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetAutoScrollPending) return;
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
-    scrollToBottom('instant');
+    scrollToBottom();
   }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
 
   useEffect(() => {
@@ -623,5 +638,6 @@ export function useTimelineSync({
     loadEventTimeline,
     focusItem,
     setFocusItem,
+    mutationVersion,
   };
 }

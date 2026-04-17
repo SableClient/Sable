@@ -129,11 +129,15 @@ describe('useTimelineSync', () => {
     timelineSet.getLiveTimeline = () => newTimeline as never;
 
     await act(async () => {
+      // Simulate the SDK replacing the live timeline object, which is what
+      // a real TimelineReset does (resetLiveTimeline creates a new
+      // EventTimeline and swaps liveTimeline to it).
+      // getLiveTimeline was already updated above with newTimeline (new last event).
       timelineSet.emit(RoomEvent.TimelineReset);
       await Promise.resolve();
     });
 
-    expect(scrollToBottom).toHaveBeenCalledWith('instant');
+    expect(scrollToBottom).toHaveBeenCalled();
   });
 
   it('does not scroll after additive TimelineReset (same last event, new container)', async () => {

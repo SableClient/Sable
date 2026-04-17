@@ -1,6 +1,7 @@
 import {
   Fragment,
   ReactNode,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,6 +14,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
+import { roomScrollCache, RoomScrollCache } from '$utils/roomScrollCache';
 import {
   as,
   Box,
@@ -79,6 +81,51 @@ import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcess
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
+/** Render function type passed to the memoized TimelineItem via a ref. */
+type TimelineRenderFn = (eventData: ProcessedEvent) => ReactNode;
+
+/**
+ * Renders one timeline item.  Defined outside RoomTimeline so React never
+ * recreates the component type, and wrapped in `memo` so it skips re-renders
+ * when neither the event data nor any per-item volatile state changed.
+ *
+ * The actual rendering is delegated to `renderRef.current` (always the latest
+ * version of `renderMatrixEvent`, set synchronously during each render cycle)
+ * so stale-closure issues are avoided.
+ *
+ * The custom `areEqual` comparator checks `data`, `isHighlighted`, `isEditing`,
+ * `isReplying`, `isOpenThread`, and `settingsEpoch` — re-rendering only the
+ * specific item whose volatile state changed.
+ */
+/* eslint-disable react/no-unused-prop-types -- props consumed in areEqual, not component body */
+interface TimelineItemProps {
+  data: ProcessedEvent;
+  renderRef: React.MutableRefObject<TimelineRenderFn | null>;
+  isHighlighted: boolean;
+  isEditing: boolean;
+  isReplying: boolean;
+  isOpenThread: boolean;
+  settingsEpoch: object;
+}
+/* eslint-enable react/no-unused-prop-types */
+
+// Declared outside memo() so the callback receives a reference, not an inline
+// function expression (satisfies prefer-arrow-callback).
+function TimelineItemInner({ data, renderRef }: TimelineItemProps) {
+  return <>{renderRef.current?.(data)}</>;
+}
+const TimelineItem = memo(
+  TimelineItemInner,
+  (prev, next) =>
+    prev.data === next.data &&
+    prev.isHighlighted === next.isHighlighted &&
+    prev.isEditing === next.isEditing &&
+    prev.isReplying === next.isReplying &&
+    prev.isOpenThread === next.isOpenThread &&
+    prev.settingsEpoch === next.settingsEpoch
+);
+TimelineItem.displayName = 'TimelineItem';
+
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
     <Box
@@ -116,10 +163,6 @@ export type RoomTimelineProps = {
   onEditLastMessageRef?: React.MutableRefObject<(() => void) | undefined>;
 };
 
-type ScrollCacheEntry = { offset: number; atBottom: boolean };
-/** Survives component remounts so revisiting a room restores scroll position instantly. */
-const roomScrollCache = new Map<string, ScrollCacheEntry>();
-
 export function RoomTimeline({
   room,
   eventId,
@@ -128,6 +171,7 @@ export function RoomTimeline({
   onEditLastMessageRef,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
+  const mxUserId = mx.getUserId()!;
   const alive = useAlive();
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
@@ -152,6 +196,7 @@ export function RoomTimeline({
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -181,6 +226,7 @@ export function RoomTimeline({
   hideReadsRef.current = hideReads;
 
   const prevViewportHeightRef = useRef(0);
+  const prevScrollSizeRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -204,7 +250,10 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  const [atBottomState, setAtBottomState] = useState(true);
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
+    roomScrollCache.load(mxUserId, room.roomId)
+  );
+  const [atBottomState, setAtBottomState] = useState(!eventId);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
     setAtBottomState(val);
@@ -215,7 +264,6 @@ export function RoomTimeline({
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
 
   const topSpacerHeightRef = useRef(0);
-  const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
@@ -225,6 +273,10 @@ export function RoomTimeline({
   // A recovery useLayoutEffect watches for processedEvents becoming non-empty
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
+  // Set to true when the 80 ms timer fires but the viewport isn't yet filled
+  // by backward pagination. A recovery effect watches backwardStatus/eventsLength
+  // and reveals content once pagination is idle and the viewport is filled.
+  const readyBlockedByPaginationRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
@@ -232,10 +284,14 @@ export function RoomTimeline({
   isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
+    // Load incoming room's scroll cache (undefined for first-visit rooms).
+    // Covers the rare case where room prop changes without a remount.
+    scrollCacheForRoomRef.current = roomScrollCache.load(mxUserId, room.roomId);
+
     hasInitialScrolledRef.current = false;
-    mountScrollWindowRef.current = Date.now() + 3000;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
+    readyBlockedByPaginationRef.current = false;
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
@@ -309,46 +365,62 @@ export function RoomTimeline({
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
-      // Fast path: revisiting a room — restore the last scroll position instantly
-      // without the 80 ms timer so there's no opacity flash.
-      const cached = roomScrollCache.get(room.roomId);
-      if (cached !== undefined) {
-        hasInitialScrolledRef.current = true;
-        const v = vListRef.current;
-        requestAnimationFrame(() => {
-          if (!v) return;
-          if (cached.atBottom) {
-            v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-          } else {
-            v.scrollTo(cached.offset);
-          }
-          setIsReady(true);
-        });
-        return;
-      }
-
-      vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-      // Store in a ref rather than a local so subsequent eventsLength changes
-      // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
-      // cancel this timer through the useLayoutEffect cleanup.
-      initialScrollTimerRef.current = setTimeout(() => {
-        initialScrollTimerRef.current = undefined;
-        if (processedEventsRef.current.length > 0) {
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-          // Only mark ready once we've successfully scrolled.  If processedEvents
-          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
-          // timeline within the 80 ms window), defer setIsReady until the recovery
-          // effect below fires once events repopulate.
-          setIsReady(true);
-        } else {
-          pendingReadyRef.current = true;
-        }
-      }, 80);
+      const savedCache = scrollCacheForRoomRef.current;
       hasInitialScrolledRef.current = true;
+
+      if (savedCache) {
+        // Revisiting a room with a cached scroll state — restore position
+        // immediately and skip the 80 ms stabilisation timer entirely.
+        if (savedCache.atBottom) {
+          vListRef.current.scrollTo(vListRef.current.scrollSize);
+        } else {
+          vListRef.current.scrollTo(savedCache.scrollOffset);
+        }
+        setIsReady(true);
+      } else {
+        // First visit — scroll to bottom, then wait 80 ms for VList to finish
+        // measuring item heights before revealing the timeline.
+        vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+        // Store in a ref rather than a local so subsequent eventsLength changes
+        // (e.g. the onLifecycle timeline reset firing within 80 ms) do NOT
+        // cancel this timer through the useLayoutEffect cleanup.
+        initialScrollTimerRef.current = setTimeout(() => {
+          initialScrollTimerRef.current = undefined;
+          if (processedEventsRef.current.length > 0) {
+            vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
+              align: 'end',
+            });
+            const v = vListRef.current;
+            // If backward pagination can still fill the viewport, delay revealing
+            // until that pagination settles so the user never sees the 3→60 event jump.
+            const needsFill =
+              canPaginateBackRef.current &&
+              v &&
+              v.scrollSize <= v.viewportSize + 300 &&
+              backwardStatusRef.current !== 'error';
+            if (needsFill) {
+              readyBlockedByPaginationRef.current = true;
+              return;
+            }
+            // Persist the now-measured item heights so the next visit to this room
+            // can provide them to VList upfront and skip this 80 ms wait entirely.
+            if (v) {
+              roomScrollCache.save(mxUserId, room.roomId, {
+                cache: v.cache,
+                scrollOffset: v.scrollOffset,
+                atBottom: true,
+              });
+            }
+            setIsReady(true);
+          } else {
+            pendingReadyRef.current = true;
+          }
+        }, 80);
+      }
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId, mxUserId]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -359,21 +431,6 @@ export function RoomTimeline({
     []
   );
 
-  // Save scroll position on unmount or room change so revisits restore instantly.
-  useEffect(
-    () => () => {
-      if (!isReadyRef.current) return;
-      const v = vListRef.current;
-      if (!v) return;
-      const distFromBottom = v.scrollSize - v.scrollOffset - v.viewportSize;
-      roomScrollCache.set(room.roomId, {
-        offset: v.scrollOffset,
-        atBottom: distFromBottom < 100,
-      });
-    },
-    [room.roomId]
-  );
-
   // If the timeline was blanked while content was already visible — e.g. a
   // TimelineReset fired by mx.retryImmediately() when the app comes back from
   // background — hide the timeline (opacity 0) and re-arm the initial-scroll so
@@ -382,8 +439,38 @@ export function RoomTimeline({
     if (!isReady) return;
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
+    readyBlockedByPaginationRef.current = false;
     hasInitialScrolledRef.current = false;
   }, [isReady, timelineSync.eventsLength]);
+
+  // When a genuine TimelineReset replaces the timeline chain (new
+  // EventTimeline objects from the SDK), hide content behind opacity 0 and
+  // re-arm the initial-scroll so the new data renders invisibly, gets
+  // measured, and only then becomes visible — preventing a visible flash.
+  // filled. This handles the case where the 80 ms timer fired before sliding sync
+  // had delivered enough events to fill the screen (readyBlockedByPaginationRef=true).
+  useLayoutEffect(() => {
+    if (!readyBlockedByPaginationRef.current) return;
+    if (timelineSync.backwardStatus === 'loading') return;
+    const v = vListRef.current;
+    if (!v) return;
+    // Still not filled and can paginate more — keep waiting.
+    if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + 100) return;
+    readyBlockedByPaginationRef.current = false;
+    v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+    roomScrollCache.save(mxUserId, room.roomId, {
+      cache: v.cache,
+      scrollOffset: v.scrollOffset,
+      atBottom: true,
+    });
+    setIsReady(true);
+  }, [
+    timelineSync.backwardStatus,
+    timelineSync.eventsLength,
+    timelineSync.canPaginateBack,
+    mxUserId,
+    room.roomId,
+  ]);
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -463,11 +550,36 @@ export function RoomTimeline({
     };
   }, [timelineSync.focusItem, timelineSync, getRawIndexToProcessedIndex]);
 
+  // Recovery: if event timeline load failed and fell back to live timeline,
+  // reveal the timeline so the user doesn't see a blank page.
+  // Skip when focusItem is set — that means loadEventTimeline succeeded and
+  // the success effects (415–419) already handle setIsReady.
+  useEffect(() => {
+    if (
+      eventId &&
+      !isReady &&
+      !timelineSync.focusItem &&
+      timelineSync.liveTimelineLinked &&
+      timelineSync.eventsLength > 0
+    ) {
+      scrollToBottom();
+      setIsReady(true);
+    }
+  }, [
+    eventId,
+    isReady,
+    timelineSync.focusItem,
+    timelineSync.liveTimelineLinked,
+    timelineSync.eventsLength,
+    scrollToBottom,
+  ]);
+
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    setAtBottom(false);
     timelineSyncRef.current.loadEventTimeline(eventId);
-  }, [eventId, room.roomId]);
+  }, [eventId, room.roomId, setAtBottom]);
 
   useEffect(() => {
     if (eventId) return;
@@ -651,6 +763,52 @@ export function RoomTimeline({
     utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
   });
 
+  // Render function ref — updated synchronously each render so TimelineItem
+  // always calls the latest version (which has the current focusItem, editId,
+  // etc. in its closure) without needing to be a prop dep.
+  const renderFnRef = useRef<TimelineRenderFn | null>(null);
+  renderFnRef.current = (eventData: ProcessedEvent) =>
+    renderMatrixEvent(
+      eventData.mEvent.getType(),
+      typeof eventData.mEvent.getStateKey() === 'string',
+      eventData.id,
+      eventData.mEvent,
+      eventData.itemIndex,
+      eventData.timelineSet,
+      eventData.collapsed
+    );
+
+  // Object whose identity changes when any global render-affecting setting
+  // changes. TimelineItem memo sees the new reference and re-renders all items.
+  const settingsEpoch = useMemo(
+    () => ({}),
+    // Any setting that changes how ALL items are rendered should be listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      messageLayout,
+      messageSpacing,
+      hideReads,
+      showDeveloperTools,
+      hour24Clock,
+      dateFormatString,
+      mediaAutoLoad,
+      showBundledPreview,
+      showUrlPreview,
+      showClientUrlPreview,
+      autoplayStickers,
+      hideMemberInReadOnly,
+      isReadOnly,
+      hideMembershipEvents,
+      hideNickAvatarEvents,
+      showHiddenEvents,
+      reducedMotion,
+      nicknames,
+      imagePackRooms,
+      htmlReactParserOptions,
+      linkifyOpts,
+    ]
+  );
+
   const tryAutoMarkAsRead = useCallback(() => {
     if (!readUptoEventIdRef.current) {
       requestAnimationFrame(() => markAsRead(mx, room.roomId, hideReads));
@@ -689,8 +847,42 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+
+      // When the user is pinned to the bottom and content grows (images, embeds,
+      // video thumbnails loading), scrollSize increases while offset stays put,
+      // pushing distanceFromBottom above the threshold. Instead of flipping
+      // atBottom to false (which shows the "Jump to Latest" button), chase the
+      // bottom so the user stays pinned.
+      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      prevScrollSizeRef.current = v.scrollSize;
+
+      // Skip content-chase and cache saves during init: the timeline is hidden
+      // (opacity 0) while VList measures items and fires intermediate scroll
+      // events.  Chasing the bottom here causes cascading scrollTo calls that
+      // upstream doesn't have, producing visible layout churn after isReady.
+      if (!isReadyRef.current) return;
+
+      if (atBottomRef.current && !isNowAtBottom && contentGrew) {
+        v.scrollTo(v.scrollSize);
+        return;
+      }
+
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
+      }
+
+      // Keep the scroll cache fresh so the next visit to this room can restore
+      // position (and skip the 80 ms measurement wait) immediately on mount.
+      // Skip when viewing a historical slice via eventId: those item heights are
+      // for a sparse subset of events and would corrupt the cache for the next
+      // live-timeline visit, producing stale VList measurements and making the
+      // room appear to be at the wrong position (or visually empty) on re-entry.
+      if (!eventId) {
+        roomScrollCache.save(mxUserId, room.roomId, {
+          cache: v.cache,
+          scrollOffset: offset,
+          atBottom: isNowAtBottom,
+        });
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
@@ -704,12 +896,19 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom]
+    [setAtBottom, room.roomId, eventId, mxUserId]
   );
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+
+  // Show a skeleton overlay when content is not ready and there is no
+  // cached scroll state to restore from (first visit or timeline reset).
+  // The VList still renders underneath at opacity 0 so it can measure real
+  // item heights — the overlay just gives the user something to look at.
+  const showSkeletonOverlay =
+    !isReady && !scrollCacheForRoomRef.current && !showLoadingPlaceholders;
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -782,16 +981,24 @@ export function RoomTimeline({
       : timelineSync.eventsLength;
   const vListIndices = useMemo(
     () => Array.from({ length: vListItemCount }, (_, i) => i),
-    [vListItemCount]
+    // timelineSync.timeline.linkedTimelines: recompute when the timeline structure
+    // changes (pagination, room switch). timelineSync.mutationVersion: recompute
+    // when event content mutates (reactions, edits) without changing the count.
+    // Using the linkedTimelines reference (not the timeline wrapper object) means
+    // a setTimeline spread for a live event arrival does NOT recompute this — the
+    // eventsLength / vListItemCount change already covers that case.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vListItemCount, timelineSync.timeline.linkedTimelines, timelineSync.mutationVersion]
   );
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
+    mutationVersion: timelineSync.mutationVersion,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,
-    mxUserId: mx.getUserId(),
+    mxUserId,
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,
     hideNickAvatarEvents,
@@ -810,8 +1017,17 @@ export function RoomTimeline({
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
     vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    // Save now so the next visit skips the timer.
+    const v = vListRef.current;
+    if (v) {
+      roomScrollCache.save(mxUserId, room.roomId, {
+        cache: v.cache,
+        scrollOffset: v.scrollOffset,
+        atBottom: true,
+      });
+    }
     setIsReady(true);
-  }, [processedEvents.length]);
+  }, [processedEvents.length, room.roomId, mxUserId]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;
@@ -908,12 +1124,37 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
+        {showSkeletonOverlay && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              padding: `${config.space.S600} 0`,
+              overflow: 'hidden',
+            }}
+          >
+            {Array.from({ length: 8 }, (_, i) => (
+              <MessageBase key={`skeleton-${i}`}>
+                {messageLayout === MessageLayout.Compact ? (
+                  <CompactPlaceholder />
+                ) : (
+                  <DefaultPlaceholder />
+                )}
+              </MessageBase>
+            ))}
+          </div>
+        )}
         <VList<ProcessedEvent>
+          key={room.roomId}
           ref={vListRef}
           data={processedEvents}
+          cache={!eventId ? scrollCacheForRoomRef.current?.cache : undefined}
           shift={shift}
           itemSize={80}
           className={css.messageList}
@@ -924,6 +1165,7 @@ export function RoomTimeline({
             flexDirection: 'column',
             paddingTop: topSpacerHeight > 0 ? topSpacerHeight : config.space.S600,
             paddingBottom: config.space.S600,
+            opacity: isReady || showLoadingPlaceholders ? 1 : 0,
           }}
           onScroll={handleVListScroll}
         >
@@ -959,14 +1201,19 @@ export function RoomTimeline({
               return <Fragment key={index} />;
             }
 
-            const renderedEvent = renderMatrixEvent(
-              eventData.mEvent.getType(),
-              typeof eventData.mEvent.getStateKey() === 'string',
-              eventData.id,
-              eventData.mEvent,
-              eventData.itemIndex,
-              eventData.timelineSet,
-              eventData.collapsed
+            const renderedEvent = (
+              <TimelineItem
+                data={eventData}
+                renderRef={renderFnRef}
+                isHighlighted={
+                  timelineSync.focusItem?.index === eventData.itemIndex &&
+                  (timelineSync.focusItem?.highlight ?? false)
+                }
+                isEditing={editId === eventData.mEvent.getId()}
+                isReplying={activeReplyId === eventData.mEvent.getId()}
+                isOpenThread={openThreadId === eventData.mEvent.getId()}
+                settingsEpoch={settingsEpoch}
+              />
             );
 
             const dividers = (

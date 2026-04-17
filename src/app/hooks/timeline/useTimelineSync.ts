@@ -1,13 +1,4 @@
-import {
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-  useEffect,
-  useLayoutEffect,
-  Dispatch,
-  SetStateAction,
-} from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
 import {
@@ -360,7 +351,7 @@ export interface UseTimelineSyncOptions {
   eventId?: string;
   isAtBottom: boolean;
   isAtBottomRef: React.MutableRefObject<boolean>;
-  scrollToBottom: (behavior?: 'instant' | 'smooth') => void;
+  scrollToBottom: () => void;
   unreadInfo: ReturnType<typeof getRoomUnreadInfo>;
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
@@ -469,7 +460,7 @@ export function useTimelineSync({
     useCallback(() => {
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
-      scrollToBottom('instant');
+      scrollToBottom();
     }, [alive, room, scrollToBottom])
   );
 
@@ -499,7 +490,7 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
+          scrollToBottom();
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));
@@ -537,7 +528,7 @@ export function useTimelineSync({
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
-        scrollToBottom('instant');
+        scrollToBottom();
       }
     }, [room, isAtBottomRef, scrollToBottom])
   );
@@ -556,9 +547,7 @@ export function useTimelineSync({
     }, [])
   );
 
-  // useLayoutEffect so scroll fires before paint — prevents the one-frame flash
-  // where new VList content is briefly visible at the wrong position.
-  useLayoutEffect(() => {
+  useEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 
@@ -576,7 +565,7 @@ export function useTimelineSync({
     if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetAutoScrollPending) return;
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
-    scrollToBottom('instant');
+    scrollToBottom();
   }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
 
   useEffect(() => {

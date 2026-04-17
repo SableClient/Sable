@@ -201,13 +201,6 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  // Load any cached scroll state for this room on mount. A fresh RoomTimeline is
-  // mounted per room (via key={roomId} in RoomView) so this is the only place we
-  // need to read the cache — the render-phase room-change block below only fires
-  // in the (hypothetical) case where the room prop changes without a remount.
-  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
-    roomScrollCache.load(mxUserId, room.roomId)
-  );
   const [atBottomState, setAtBottomState] = useState(!eventId);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
@@ -252,11 +245,7 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
-    if (behavior === 'smooth') {
-      vListRef.current.scrollToIndex(lastIndex, { align: 'end', smooth: true });
-    } else {
-      vListRef.current.scrollTo(vListRef.current.scrollSize);
-    }
+    vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, []);
 
   const timelineSync = useTimelineSync({
@@ -419,8 +408,6 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    // Ensure auto-scroll to bottom doesn't fire while we're navigating to a
-    // specific event — atBottom will be updated correctly once the user scrolls.
     setAtBottom(false);
     timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId, setAtBottom]);

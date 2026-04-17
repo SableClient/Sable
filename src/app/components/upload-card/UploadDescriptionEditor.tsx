@@ -1,4 +1,8 @@
-import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
+import type { KeyboardEventHandler} from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Chip,
@@ -7,7 +11,6 @@ import {
   Icons,
   Line,
   PopOut,
-  RectCords,
   Spinner,
   Text,
   config,
@@ -15,9 +18,10 @@ import {
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
+import type {
+  AutocompleteQuery} from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   Toolbar,
@@ -40,9 +44,9 @@ import { mobileOrTablet } from '$utils/user-agent';
 import * as css from './UploadDescriptionEditor.css';
 
 type DescriptionEditorProps = {
-  value?: string | any;
+  value?: string;
   isSaving?: boolean;
-  imagePackRooms?: any[];
+  imagePackRooms?: Room[];
   onSave: (plaintext: string, htmlContent: string) => void;
   onCancel: () => void;
 };

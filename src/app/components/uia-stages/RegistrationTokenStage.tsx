@@ -1,7 +1,8 @@
-import { useEffect, useCallback, FormEventHandler } from 'react';
+import type { FormEventHandler } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Dialog, Text, Box, Button, config, Input } from 'folds';
 import { AuthType } from '$types/matrix-sdk';
-import { StageComponentProps } from './types';
+import type { StageComponentProps } from './types';
 
 function RegistrationTokenErrorDialog({
   title,

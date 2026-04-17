@@ -1,28 +1,31 @@
+import type {
+  MatrixClient,
+  MatrixEvent,
+  Room} from 'matrix-js-sdk';
 import {
   ClientEvent,
   KnownMembership,
-  MatrixClient,
-  MatrixEvent,
   MatrixEventEvent,
-  Room,
   RoomStateEvent,
 } from 'matrix-js-sdk';
+import type {
+  IRoomEvent,
+  IWidget,
+  WidgetDriver} from 'matrix-widget-api';
 import {
   ClientWidgetApi,
   type IWidgetApiRequest,
-  IRoomEvent,
-  IWidget,
   Widget,
   WidgetApiFromWidgetAction,
-  WidgetApiToWidgetAction,
-  WidgetDriver,
+  WidgetApiToWidgetAction
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
+import type {
+  ElementCallThemeKind,
+  ElementMediaStateDetail} from './types';
 import {
   ElementCallIntent,
-  ElementCallThemeKind,
-  ElementMediaStateDetail,
   ElementWidgetActions,
 } from './types';
 import { CallControl } from './CallControl';
@@ -158,7 +161,9 @@ export class CallEmbed {
     this.disposables.push(
       this.listenAction(WidgetApiFromWidgetAction.UpdateAlwaysOnScreen, (evt) => {
         evt.preventDefault();
-        this.call.transport.reply(evt.detail as IWidgetApiRequest, { success: true });
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {
+          success: true,
+        });
       })
     );
     this.disposables.push(
@@ -208,7 +213,7 @@ export class CallEmbed {
     return this.listenEvent('preparing', callback);
   }
 
-  public onPreparingError(callback: (error: any) => void) {
+  public onPreparingError(callback: (error: unknown) => void) {
     return this.listenEvent('error:preparing', callback);
   }
 
@@ -314,6 +319,7 @@ export class CallEmbed {
     if (this.call === null) return;
     const raw = ev.getEffectiveEvent();
     this.call.feedStateUpdate(raw as IRoomEvent).catch((e) => {
+      // eslint-disable-next-line no-console -- Error logging for widget communication debugging
       console.error('Error sending state update to widget: ', e);
     });
   }
@@ -360,7 +366,7 @@ export class CallEmbed {
     // Timelines are most recent last, so reverse the order and limit ourselves to 100 events
     // to avoid overusing the CPU.
     const timeline = room.getLiveTimeline();
-    const events = [...timeline.getEvents()].reverse().slice(0, 100);
+    const events = [...timeline.getEvents()].toReversed().slice(0, 100);
     function isRelevantTimelineEvent(timelineEvent: MatrixEvent): boolean {
       return timelineEvent.getId() === upToEventId || timelineEvent.getId() === ev.getId();
     }
@@ -420,6 +426,7 @@ export class CallEmbed {
       } else {
         const raw = ev.getEffectiveEvent();
         this.call.feedEvent(raw as IRoomEvent).catch((e) => {
+          // eslint-disable-next-line no-console -- Error logging for widget communication debugging
           console.error('Error sending event to widget: ', e);
         });
       }

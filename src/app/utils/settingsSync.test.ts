@@ -125,7 +125,10 @@ describe('deserializeFromSync', () => {
   });
 
   it('merges remote settings over local', () => {
-    const remote = { v: SETTINGS_SYNC_VERSION, settings: { isMarkdown: false, urlPreview: false } };
+    const remote = {
+      v: SETTINGS_SYNC_VERSION,
+      settings: { isMarkdown: false, urlPreview: false },
+    };
     const result = deserializeFromSync(remote, { ...base, isMarkdown: true, urlPreview: true });
     expect(result).not.toBeNull();
     expect(result!.isMarkdown).toBe(false);

@@ -1,5 +1,8 @@
-import { MouseEventHandler, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   IconButton,
@@ -9,15 +12,15 @@ import {
   Menu,
   MenuItem,
   Text,
-  RectCords,
   config,
   Line,
   Spinner,
   toRem,
 } from 'folds';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { MSpaceChildContent, StateEvent } from '$types/matrix/room';
+import type { MSpaceChildContent} from '$types/matrix/room';
+import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
@@ -26,7 +29,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
@@ -51,7 +54,7 @@ function SuggestMenuItem({
   const [toggleState, handleToggleSuggested] = useAsyncCallback(
     useCallback(() => {
       const newContent: MSpaceChildContent = { ...content, suggested: !content.suggested };
-      return mx.sendStateEvent(parentId, StateEvent.SpaceChild as any, newContent, roomId);
+      return mx.sendStateEvent(parentId, StateEvent.SpaceChild as string, newContent, roomId);
     }, [mx, parentId, roomId, content])
   );
 
@@ -88,7 +91,7 @@ function RemoveMenuItem({
 
   const [removeState, handleRemove] = useAsyncCallback(
     useCallback(
-      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as any, {}, roomId),
+      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as string, {}, roomId),
       [mx, parentId, roomId]
     )
   );

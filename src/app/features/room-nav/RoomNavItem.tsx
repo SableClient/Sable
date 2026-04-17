@@ -1,5 +1,9 @@
-import { MouseEventHandler, forwardRef, useState, MouseEvent, useEffect } from 'react';
-import { Room, RoomEvent as RoomEventEnum } from '$types/matrix-sdk';
+import type { MouseEventHandler, MouseEvent} from 'react';
+import { forwardRef, useState, useEffect } from 'react';
+import type { Room} from '$types/matrix-sdk';
+import { RoomEvent as RoomEventEnum } from '$types/matrix-sdk';
+import type {
+  RectCords} from 'folds';
 import {
   Avatar,
   Box,
@@ -13,7 +17,6 @@ import {
   PopOut,
   toRem,
   Line,
-  RectCords,
   Badge,
   Spinner,
   Tooltip,

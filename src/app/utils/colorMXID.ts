@@ -7,7 +7,7 @@ function hashCode(str?: string): number {
   }
   for (let i = 0; i < str.length; i += 1) {
     const chr = str.codePointAt(i) ?? 0;
-    // eslint-disable-next-line no-bitwise
+    // oxlint-disable-next-line no-bitwise
     hash = (hash << 5) - hash + chr;
 
     hash = Math.trunc(hash);

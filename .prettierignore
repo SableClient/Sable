@@ -1,8 +1,0 @@
-dist
-node_modules
-package.json
-pnpm-lock.yaml
-LICENSE
-README.md
-CHANGELOG.md
-./changeset

@@ -1,5 +1,5 @@
 import { isKeyHotkey } from 'is-hotkey';
-import { KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Editor, Element as SlateElement, Range, Transforms } from 'slate';
 import { isAnyMarkActive, isBlockActive, removeAllMark, toggleBlock, toggleMark } from './utils';
 import { BlockType, MarkType } from './types';

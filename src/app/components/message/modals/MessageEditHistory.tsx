@@ -1,5 +1,5 @@
-import { MouseEvent } from 'react';
-import { Room, MatrixEvent } from '$types/matrix-sdk';
+import type { MouseEvent } from 'react';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Icon, Icons, Text } from 'folds';
 import { getEventEdits } from '$utils/room';

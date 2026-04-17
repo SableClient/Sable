@@ -1,4 +1,5 @@
-import { MatrixEvent, Room } from 'matrix-js-sdk';
+import type { Room } from 'matrix-js-sdk';
+import { MatrixEvent } from 'matrix-js-sdk';
 
 export function sendFeedback(msg: string, room: Room, userId: string) {
   const localNotice = new MatrixEvent({
@@ -8,5 +9,5 @@ export function sendFeedback(msg: string, room: Room, userId: string) {
     room_id: room.roomId,
     sender: userId,
   });
-  room.addLiveEvents([localNotice], { duplicateStrategy: 'ignore' } as any);
+  room.addLiveEvents([localNotice], { duplicateStrategy: 'ignore' as DuplicateStrategy });
 }

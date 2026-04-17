@@ -1,6 +1,7 @@
-import {
+import type {
   ChangeEventHandler,
-  FormEventHandler,
+  FormEventHandler} from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -29,7 +30,8 @@ import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile, useUserProfile, MSC4440Bio } from '$hooks/useUserProfile';
+import type { UserProfile, MSC4440Bio } from '$hooks/useUserProfile';
+import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -41,13 +43,14 @@ import { stopPropagation } from '$utils/keyboard';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
-import { MSC1767Text } from '$types/matrix/common';
+import type { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
@@ -218,7 +221,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// oxlint-disable-next-line @typescript-eslint/no-unused-vars
 function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -394,7 +397,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
   const disableSetDisplayname = capabilities['m.set_displayname']?.enabled === false;
 
   const defaultDisplayName = profile.displayName ?? getMxIdLocalPart(userId) ?? userId;
-  const [displayName, setDisplayName] = useState<string>(defaultDisplayName);
+  const [displayName, setDisplayName] = useState(defaultDisplayName);
 
   const [changeState, changeDisplayName] = useAsyncCallback(
     useCallback((name: string) => mx.setDisplayName(name), [mx])
@@ -498,7 +501,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
   );
 
   const handleSaveField = useCallback(
-    async (key: string, value: any) => {
+    async (key: string, value: unknown) => {
       await mx.setExtendedProfileProperty?.(key, value);
       setGlobalProfiles((prev) => {
         const newCache = { ...prev };
@@ -650,6 +653,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
           return (
             <SequenceCard
+              key={key}
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"

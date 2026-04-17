@@ -1,7 +1,10 @@
-import { MouseEventHandler, useCallback, ReactNode } from 'react';
-import { IconSrc, Icons, Text } from 'folds';
-import { MatrixEvent, Room } from '$types/matrix-sdk';
-import { IMemberContent, Membership } from '$types/matrix/room';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useCallback } from 'react';
+import type { IconSrc} from 'folds';
+import { Icons, Text } from 'folds';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import type { IMemberContent} from '$types/matrix/room';
+import { Membership } from '$types/matrix/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';

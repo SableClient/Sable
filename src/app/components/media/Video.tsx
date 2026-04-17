@@ -1,10 +1,11 @@
-import { VideoHTMLAttributes, forwardRef, useEffect, useRef } from 'react';
+import type { VideoHTMLAttributes} from 'react';
+import { forwardRef, useEffect, useRef } from 'react';
 import classNames from 'classnames';
 import * as css from './media.css';
 
 export const Video = forwardRef<HTMLVideoElement, VideoHTMLAttributes<HTMLVideoElement>>(
   ({ className, ...props }, ref) => (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <video className={classNames(css.Video, className)} {...props} ref={ref} />
   )
 );

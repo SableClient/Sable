@@ -1,13 +1,15 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
+import type { ReactNode} from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type {
+  RoomEventHandlerMap} from '$types/matrix-sdk';
 import {
   MatrixEvent,
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  RoomEventHandlerMap,
   SetPresence,
 } from '$types/matrix-sdk';
 import parse from 'html-react-parser';
@@ -227,7 +229,7 @@ function InviteNotifications() {
   ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={InviteSound} type="audio/ogg" />
     </audio>
@@ -236,7 +238,7 @@ function InviteNotifications() {
 
 function MessageNotifications() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const notifiedEventsRef = useRef<Set<string>>(new Set());
+  const notifiedEventsRef = useRef(new Set());
   // Record mount time so we can distinguish live events from historical backfill
   // on sliding sync proxies that don't set num_live (which causes liveEvent=false
   // for all events, including actually-new messages).
@@ -283,8 +285,8 @@ function MessageNotifications() {
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
       room,
-      toStartOfTimeline,
-      removed,
+      _toStartOfTimeline,
+      _removed,
       data
     ) => {
       if (mx.getSyncState() !== 'SYNCING') return;
@@ -361,7 +363,12 @@ function MessageNotifications() {
         Sentry.metrics.distribution(
           'sable.notification.delivery_ms',
           performance.now() - arrivalMs,
-          { attributes: { encrypted: String(mEvent.isEncrypted()), dm: String(isDM) } }
+          {
+            attributes: {
+              encrypted: String(mEvent.isEncrypted()),
+              dm: String(isDM),
+            },
+          }
         );
         notifyTimerMap.delete(eventId);
       }
@@ -431,7 +438,11 @@ function MessageNotifications() {
           const { roomId } = room;
           noti.onclick = () => {
             window.focus();
-            setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
+            setPending({
+              roomId,
+              eventId,
+              targetSessionId: mx.getUserId() ?? undefined,
+            });
             noti.close();
           };
         } catch {
@@ -508,7 +519,11 @@ function MessageNotifications() {
           icon: roomAvatar,
           onClick: () => {
             window.focus();
-            setPending({ roomId, eventId: capturedEventId, targetSessionId: capturedUserId });
+            setPending({
+              roomId,
+              eventId: capturedEventId,
+              targetSessionId: capturedUserId,
+            });
           },
         });
       }
@@ -540,7 +555,7 @@ function MessageNotifications() {
   ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={NotificationSound} type="audio/ogg" />
     </audio>
@@ -773,7 +788,7 @@ function HandleDecryptPushEvent() {
       const decryptStart = performance.now();
 
       try {
-        const mxEvent = new MatrixEvent(rawEvent as any);
+        const mxEvent = new MatrixEvent(rawEvent as unknown as Parameters<typeof MatrixEvent>[0]);
         await mx.decryptEventIfNeeded(mxEvent);
 
         const room = mx.getRoom(roomId);
@@ -803,6 +818,7 @@ function HandleDecryptPushEvent() {
           visibilityState: document.visibilityState,
         });
       } catch (err) {
+        // eslint-disable-next-line no-console -- Warning logging for push decryption failure
         console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
           'notification',

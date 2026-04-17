@@ -1,4 +1,4 @@
-import { Settings } from '$state/settings';
+import type { Settings } from '$state/settings';
 
 /**
  * Keys excluded from cross-device sync.

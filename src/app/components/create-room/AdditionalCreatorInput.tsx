@@ -1,3 +1,5 @@
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Button,
@@ -10,17 +12,17 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Text,
   toRem,
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
-import {
+import type {
   ChangeEventHandler,
   KeyboardEventHandler,
-  MouseEventHandler,
+  MouseEventHandler} from 'react';
+import {
   useMemo,
   useState,
 } from 'react';
@@ -28,7 +30,8 @@ import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { stopPropagation } from '$utils/keyboard';
-import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { SettingTile } from '$components/setting-tile';
 
@@ -101,7 +104,7 @@ export function AdditionalCreatorInput({
 
   const suggestionUsers = result
     ? result.items
-    : filteredUsers.sort((a, b) => (a.toLocaleLowerCase() >= b.toLocaleLowerCase() ? 1 : -1));
+    : filteredUsers.toSorted((a, b) => (a.toLocaleLowerCase() >= b.toLocaleLowerCase() ? 1 : -1));
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -224,7 +227,10 @@ export function AdditionalCreatorInput({
                             grow="Yes"
                             direction="Column"
                             gap="100"
-                            style={{ padding: config.space.S200, paddingRight: 0 }}
+                            style={{
+                              padding: config.space.S200,
+                              paddingRight: 0,
+                            }}
                           >
                             {suggestionUsers.map((userId) => (
                               <MenuItem

@@ -1,8 +1,9 @@
-import { ReactNode } from 'react';
-import { CryptoApi } from '$types/matrix-sdk';
+import type { ReactNode } from 'react';
+import type { CryptoApi } from '$types/matrix-sdk';
+import type {
+  VerificationStatus} from '$hooks/useDeviceVerificationStatus';
 import {
-  useDeviceVerificationStatus,
-  VerificationStatus,
+  useDeviceVerificationStatus
 } from '$hooks/useDeviceVerificationStatus';
 
 type DeviceVerificationStatusProps = {

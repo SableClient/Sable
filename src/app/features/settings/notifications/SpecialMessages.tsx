@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { ConditionKind, IPushRules, PushRuleKind, RuleId } from '$types/matrix-sdk';
+import type { IPushRules} from '$types/matrix-sdk';
+import { ConditionKind, PushRuleKind, RuleId } from '$types/matrix-sdk';
 import { Box, Text, Badge } from 'folds';
 import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
@@ -9,11 +10,13 @@ import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart } from '$utils/matrix';
-import { makePushRuleData, PushRuleData, usePushRule } from '$hooks/usePushRule';
+import type { PushRuleData} from '$hooks/usePushRule';
+import { makePushRuleData, usePushRule } from '$hooks/usePushRule';
+import type {
+  NotificationModeOptions} from '$hooks/useNotificationMode';
 import {
   getNotificationModeActions,
   NotificationMode,
-  NotificationModeOptions,
   useNotificationActionsMode,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';

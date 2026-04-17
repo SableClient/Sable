@@ -1,7 +1,8 @@
-import {
+import type {
   MouseEventHandler,
   ReactNode,
-  RefObject,
+  RefObject} from 'react';
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -10,6 +11,8 @@ import {
   useState,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Icon,
@@ -19,22 +22,22 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   config,
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import {
   draggable,
   dropTargetForElements,
   monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import type {
+  Instruction} from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import {
   attachInstruction,
-  extractInstruction,
-  Instruction,
+  extractInstruction
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -63,10 +66,11 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
-import {
+import type {
   ISidebarFolder,
   SidebarItems,
-  TSidebarItem,
+  TSidebarItem} from '$hooks/useSidebarItems';
+import {
   makeCinnySpacesContent,
   parseSidebar,
   sidebarItemWithout,
@@ -729,7 +733,10 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               }
               if (sameFolders && typeof i === 'object') {
                 // remove from folder if placing around itself
-                const newI = { ...i, content: i.content.filter((sId) => sId !== item.spaceId) };
+                const newI = {
+                  ...i,
+                  content: i.content.filter((sId) => sId !== item.spaceId),
+                };
                 if (newI.content.length > 0) newItems.push(newI);
               } else {
                 newItems.push(i);

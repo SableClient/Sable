@@ -1,4 +1,5 @@
-import { ClientEvent, ClientEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import type { ClientEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import { ClientEvent } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 
 export const useAccountDataCallback = (

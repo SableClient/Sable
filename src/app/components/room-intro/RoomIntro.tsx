@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar, Box, Button, Icon, Icons, Spinner, Text, as } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import { IRoomCreateContent, Membership, StateEvent } from '$types/matrix/room';
+import type { IRoomCreateContent} from '$types/matrix/room';
+import { Membership, StateEvent } from '$types/matrix/room';
 import { getMemberDisplayName, getStateEvent } from '$utils/room';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';

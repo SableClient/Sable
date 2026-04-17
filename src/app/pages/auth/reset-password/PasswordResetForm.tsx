@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEventHandler} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -14,7 +15,8 @@ import {
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
-import { AuthDict, AuthType, MatrixError, createClient } from '$types/matrix-sdk';
+import type { AuthDict, MatrixError} from '$types/matrix-sdk';
+import { AuthType, createClient } from '$types/matrix-sdk';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAuthServer } from '$hooks/useAuthServer';
@@ -24,10 +26,11 @@ import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
 import { EmailStageDialog } from '$components/uia-stages';
 import { getLoginPath, withSearchParam } from '$pages/pathUtils';
-import { LoginPathSearchParams } from '$pages/paths';
+import type { LoginPathSearchParams } from '$pages/paths';
 import { getUIAError, getUIAErrorCode } from '$utils/matrix-uia';
 import { FieldError } from '$pages/auth/FiledError';
-import { ResetPasswordResult, resetPassword } from './resetPasswordUtil';
+import type { ResetPasswordResult} from './resetPasswordUtil';
+import { resetPassword } from './resetPasswordUtil';
 
 type FormData = {
   email: string;

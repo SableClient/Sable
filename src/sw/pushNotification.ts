@@ -23,7 +23,7 @@ export const createPushNotifications = (
   const showNotificationWithData = async (
     title: string,
     body: string | undefined,
-    data: any,
+    data: Record<string, unknown>,
     silent?: boolean,
     icon?: string,
     badge?: string
@@ -45,11 +45,12 @@ export const createPushNotifications = (
       silent,
       data,
     };
+    // eslint-disable-next-line no-console -- Service worker debug logging for notifications
     console.debug('[SW showNotification] title:', title, '| data:', JSON.stringify(data, null, 2));
     await self.registration.showNotification(title, notifOptions as NotificationOptions);
   };
 
-  const handleCallNotification = async (pushData: any) => {
+  const handleCallNotification = async (pushData: Record<string, unknown>) => {
     const content = pushData?.content;
     if (content?.notification_type !== 'ring') return;
 
@@ -72,7 +73,7 @@ export const createPushNotifications = (
     await showNotificationWithData(title, body, data, resolveSilent(), pushData?.room_avatar_url);
   };
 
-  const handleRoomMessageNotification = async (pushData: any) => {
+  const handleRoomMessageNotification = async (pushData: Record<string, unknown>) => {
     const data = {
       type: pushData?.type,
       room_id: pushData?.room_id,
@@ -107,7 +108,7 @@ export const createPushNotifications = (
     );
   };
 
-  const handleEncryptedMessageNotification = async (pushData: any) => {
+  const handleEncryptedMessageNotification = async (pushData: Record<string, unknown>) => {
     const data = {
       type: pushData?.type,
       room_id: pushData?.room_id,
@@ -142,7 +143,7 @@ export const createPushNotifications = (
     );
   };
 
-  const handleInvitationNotification = async (pushData: any) => {
+  const handleInvitationNotification = async (pushData: Record<string, unknown>) => {
     const senderDisplayName = pushData?.sender_display_name;
     const roomName = pushData?.room_name;
 
@@ -163,9 +164,10 @@ export const createPushNotifications = (
     await showNotificationWithData('New Invitation', body, data, resolveSilent());
   };
 
-  const handlePushNotificationPushData = async (pushData: any) => {
+  const handlePushNotificationPushData = async (pushData: Record<string, unknown>) => {
     const eventType = pushData?.type as EventType | undefined;
     if (!eventType) {
+      // eslint-disable-next-line no-console -- Service worker debug logging
       console.warn('no event type');
     }
 
@@ -193,3 +195,5 @@ export const createPushNotifications = (
 
   return { handlePushNotificationPushData };
 };
+
+

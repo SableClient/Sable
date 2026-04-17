@@ -1,11 +1,13 @@
-import {
+import type {
   ShowSasCallbacks,
-  VerificationPhase,
   VerificationRequest,
-  Verifier,
+  Verifier} from '$types/matrix-sdk';
+import {
+  VerificationPhase,
   VerificationMethod,
 } from '$types/matrix-sdk';
-import { CSSProperties, useCallback, useEffect, useState } from 'react';
+import type { CSSProperties} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -138,7 +140,7 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
       >
         {sasData.sas.emoji?.map(([emoji, name], index) => (
           <Box
-            // eslint-disable-next-line react/no-array-index-key
+            // oxlint-disable-next-line react/no-array-index-key
             key={`${emoji}${name}${index}`}
             direction="Column"
             gap="100"

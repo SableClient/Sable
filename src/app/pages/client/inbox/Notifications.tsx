@@ -1,5 +1,5 @@
-/* eslint-disable react/destructuring-assignment */
-import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -14,24 +14,25 @@ import {
   toRem,
 } from 'folds';
 import { useSearchParams } from 'react-router-dom';
-import {
+import type {
   INotification,
   INotificationsResponse,
   IRoomEvent,
+  Room} from '$types/matrix-sdk';
+import {
   JoinRule,
   Method,
-  RelationType,
-  Room,
+  RelationType
 } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { InboxNotificationsPathSearchParams } from '$pages/paths';
+import type { InboxNotificationsPathSearchParams } from '$pages/paths';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -68,7 +69,8 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Image } from '$components/media';
 import { ImageViewer } from '$components/image-viewer';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import type { GetContentCallback} from '$types/matrix/room';
+import { MessageEvent, StateEvent } from '$types/matrix/room';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -309,7 +311,7 @@ function RoomNotificationsGroupComp({
       [MessageEvent.RoomMessageEncrypted]: (evt, displayName) => {
         const evtTimeline = room.getTimelineForEvent(evt.event_id);
 
-        const mEvent = evtTimeline?.getEvents().find((e: any) => e.getId() === evt.event_id);
+        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
 
         if (!mEvent || !evtTimeline) {
           return (
@@ -763,7 +765,9 @@ export function Notifications() {
                 {timelineState.status === AsyncStatus.Success &&
                   notificationTimeline.groups.length === 0 && (
                     <Box
-                      className={ContainerColor({ variant: 'SurfaceVariant' })}
+                      className={ContainerColor({
+                        variant: 'SurfaceVariant',
+                      })}
                       style={{
                         padding: config.space.S300,
                         borderRadius: config.radii.R400,

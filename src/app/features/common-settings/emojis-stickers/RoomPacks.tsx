@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -16,14 +17,15 @@ import {
   IconButton,
   Menu,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
-import {
+import type {
   ImagePack,
-  ImageUsage,
   PackAddress,
-  packAddressEqual,
-  PackContent,
+  PackContent} from '$plugins/custom-emoji';
+import {
+  ImageUsage,
+  packAddressEqual
 } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';
@@ -57,7 +59,7 @@ function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
             display_name: name,
           },
         };
-        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes as any, content, stateKey);
+        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes as string, content, stateKey);
       },
       [mx, roomId]
     )
@@ -163,8 +165,8 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     useCallback(async () => {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
-        // eslint-disable-next-line no-await-in-loop
-        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes as any, {}, addr.stateKey);
+        // oxlint-disable-next-line no-await-in-loop
+        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes as string, {}, addr.stateKey);
       }
     }, [mx, room, removedPacks])
   );

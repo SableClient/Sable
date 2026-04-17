@@ -1,3 +1,5 @@
+import type {
+  RectCords} from 'folds';
 import {
   Avatar,
   Box,
@@ -9,16 +11,16 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   as,
   config,
 } from 'folds';
-import {
+import type {
   MouseEventHandler,
   MouseEvent,
   PointerEvent,
-  ReactNode,
+  ReactNode} from 'react';
+import {
   memo,
   useCallback,
   useRef,
@@ -28,12 +30,13 @@ import {
 } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
-import {
-  EventStatus,
+import type {
   MatrixEvent,
   Room,
   Relations,
-  RoomPinnedEventsEventContent,
+  RoomPinnedEventsEventContent} from '$types/matrix-sdk';
+import {
+  EventStatus,
   MatrixEventEvent,
   RoomEvent,
 } from '$types/matrix-sdk';
@@ -52,7 +55,8 @@ import {
 } from '$components/message';
 import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { getSettings, MessageLayout, MessageSpacing, settingsAtom } from '$state/settings';
+import type { MessageSpacing} from '$state/settings';
+import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
@@ -64,7 +68,8 @@ import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
-import { MemberPowerTag, StateEvent } from '$types/matrix/room';
+import type { MemberPowerTag} from '$types/matrix/room';
+import { StateEvent } from '$types/matrix/room';
 import { PowerIcon } from '$components/power';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
@@ -86,9 +91,10 @@ import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
 } from '$utils/addStickerToDefaultStickerPack';
+import type {
+  PerMessageProfileBeeperFormat} from '$hooks/usePerMessageProfile';
 import {
-  convertBeeperFormatToOurPerMessageProfile,
-  PerMessageProfileBeeperFormat,
+  convertBeeperFormatToOurPerMessageProfile
 } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
@@ -188,7 +194,7 @@ export const MessagePinItem = as<
     if (!isPinned && eventId) {
       pinContent.pinned.push(eventId);
     }
-    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as any, pinContent);
+    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as string, pinContent);
     onClose?.();
   };
 
@@ -264,10 +270,10 @@ export type MessageProps = {
 };
 
 function useMobileDoubleTap(callback: () => void, delay = 300) {
-  const lastTapRef = useRef<number>(0);
+  const lastTapRef = useRef(0);
 
   return useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // oxlint-disable-next-line @typescript-eslint/no-unused-vars
     (e: PointerEvent<HTMLElement>) => {
       if (!mobileOrTablet()) return;
 
@@ -292,7 +298,7 @@ function useMobileDoubleTap(callback: () => void, delay = 300) {
 const Pronouns = as<
   'span',
   {
-    pronouns?: any[];
+    pronouns?: PronounSet[];
     tagColor: string;
   }
 >(({ as: AsPronouns = 'span', pronouns, tagColor, ...props }, ref) => {
@@ -376,7 +382,7 @@ function MessageInternal(
     msc2723ForwardedMessageProps,
     ...props
   }: MessageProps & { className?: string; children?: ReactNode },
-  ref: any
+  ref: React.Ref<unknown>
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -428,7 +434,7 @@ function MessageInternal(
     return resolvedContent?.['com.beeper.per_message_profile'] as
       | PerMessageProfileBeeperFormat
       | undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [mEvent, room, contentVersion]);
 
   /**
@@ -563,7 +569,12 @@ function MessageInternal(
             <Text as="span">
               <Text
                 as="span"
-                style={{ paddingLeft: 0, paddingRight: 5, fontWeight: 100, fontSize: 11 }}
+                style={{
+                  paddingLeft: 0,
+                  paddingRight: 5,
+                  fontWeight: 100,
+                  fontSize: 11,
+                }}
               >
                 via
               </Text>
@@ -768,7 +779,7 @@ function MessageInternal(
             variant="SurfaceVariant"
             radii="Pill"
             outlined
-            onClick={(evt: any) => {
+            onClick={(evt: React.MouseEvent) => {
               evt.preventDefault();
               evt.stopPropagation();
               const eventId = mEvent.getId();
@@ -792,7 +803,7 @@ function MessageInternal(
     }
 
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
-    const tag = (evt.target as any).tagName;
+    const tag = (evt.target as HTMLElement).tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
     evt.preventDefault();
     setMenuAnchor({
@@ -1035,7 +1046,7 @@ function MessageInternal(
                           after={<Icon size="100" src={Icons.ReplyArrow} />}
                           radii="300"
                           data-event-id={mEvent.getId()}
-                          onClick={(evt: any) => {
+                          onClick={(evt: React.MouseEvent) => {
                             onReplyClick(evt);
                             closeMenu();
                           }}
@@ -1050,7 +1061,7 @@ function MessageInternal(
                             after={<Icon src={Icons.ThreadPlus} size="100" />}
                             radii="300"
                             data-event-id={mEvent.getId()}
-                            onClick={(evt: any) => {
+                            onClick={(evt: React.MouseEvent) => {
                               onReplyClick(evt, true);
                               closeMenu();
                             }}
@@ -1109,11 +1120,13 @@ function MessageInternal(
                             <Box
                               direction="Column"
                               gap="100"
-                              style={{ padding: `${config.space.S100} ${config.space.S200}` }}
+                              style={{
+                                padding: `${config.space.S100} ${config.space.S200}`,
+                              }}
                             >
                               <Text size="L400">Nickname</Text>
                               <input
-                                // eslint-disable-next-line jsx-a11y/no-autofocus
+                                // oxlint-disable-next-line jsx-a11y/no-autofocus
                                 autoFocus
                                 value={nickDraft}
                                 onChange={(e) => setNickDraft(e.target.value)}
@@ -1302,7 +1315,7 @@ export const Event = as<'div', EventProps>(
       }
 
       if (evt.altKey || !window.getSelection()?.isCollapsed) return;
-      const tag = (evt.target as any).tagName;
+      const tag = (evt.target as HTMLElement).tagName;
       if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
       evt.preventDefault();
       setMenuAnchor({
@@ -1405,7 +1418,7 @@ export const Event = as<'div', EventProps>(
                               after={<Icon size="100" src={Icons.ReplyArrow} />}
                               radii="300"
                               data-event-id={mEvent.getId()}
-                              onClick={(evt: any) => {
+                              onClick={(evt: React.MouseEvent) => {
                                 onReplyClick(evt);
                                 closeMenu();
                               }}

@@ -9,6 +9,9 @@
  *   truthy — and returned an empty list instead of falling back to the live
  *   timeline.  The fix: filter first, then check.
  */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { describe, it, expect } from 'vitest';
 import { RelationType } from '$types/matrix-sdk';
 import { getThreadReplyEvents } from './ThreadDrawer';

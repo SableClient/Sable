@@ -4,11 +4,12 @@ import { Badge, Box, Button, Chip, config, Icon, Icons, Menu, Spinner, Text } fr
 import { produce } from 'immer';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import type {
+  IPowerLevels,
+  PermissionLocation} from '$hooks/usePowerLevels';
 import {
   applyPermissionPower,
-  getPermissionPower,
-  IPowerLevels,
-  PermissionLocation,
+  getPermissionPower
 } from '$hooks/usePowerLevels';
 import { getPowerLevelTag, getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
@@ -18,7 +19,7 @@ import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { PermissionGroup } from './types';
+import type { PermissionGroup } from './types';
 
 const USER_DEFAULT_LOCATION: PermissionLocation = {
   user: true,
@@ -85,7 +86,7 @@ export function PermissionGroups({
 
         return draftPowerLevels;
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels as any, editedPowerLevels);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels as string, editedPowerLevels);
     }, [mx, room, powerLevels, permissionUpdate, permissionGroups])
   );
 

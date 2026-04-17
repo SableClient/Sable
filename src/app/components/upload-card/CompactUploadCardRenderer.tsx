@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { Chip, Icon, IconButton, Icons, Text, color } from 'folds';
-import { TUploadAtom, UploadStatus, UploadSuccess, useBindUploadAtom } from '$state/upload';
+import type { TUploadAtom, UploadSuccess} from '$state/upload';
+import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { TUploadContent } from '$utils/matrix';
+import type { TUploadContent } from '$utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '$utils/common';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { UploadCard, UploadCardError, CompactUploadCardProgress } from './UploadCard';

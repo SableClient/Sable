@@ -1,4 +1,5 @@
-import { AuthType, IAuthData, UIAFlow } from '$types/matrix-sdk';
+import type { IAuthData, UIAFlow } from '$types/matrix-sdk';
+import { AuthType } from '$types/matrix-sdk';
 
 export const getSupportedUIAFlows = (uiaFlows: UIAFlow[], supportedStages: string[]): UIAFlow[] => {
   const supportedUIAFlows = uiaFlows.filter((flow) =>
@@ -72,7 +73,7 @@ export const getLoginTermUrl = (params: UIAParams): string | undefined => {
     if (terms.policies === null) return undefined;
     if ('privacy_policy' in terms.policies && typeof terms.policies.privacy_policy === 'object') {
       if (terms.policies.privacy_policy === null) return undefined;
-      const langToPolicy = terms.policies.privacy_policy as Record<string, any>;
+      const langToPolicy = terms.policies.privacy_policy as Record<string, unknown>;
       const url = langToPolicy.en?.url;
       if (typeof url === 'string') return url;
 

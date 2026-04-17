@@ -1,5 +1,7 @@
-type ArboriumModule = typeof import('@arborium/arborium');
-type ArboriumModuleWithAvailability = ArboriumModule & {
+import type * as ArboriumModule from '@arborium/arborium';
+
+type ArboriumModuleType = typeof ArboriumModule;
+type ArboriumModuleWithAvailability = ArboriumModuleType & {
   availableLanguages?: string[];
   isLanguageAvailable?: (language: string) => boolean | Promise<boolean>;
 };

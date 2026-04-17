@@ -1,13 +1,16 @@
-import {
+import type {
   ChangeEventHandler,
   FormEventHandler,
   KeyboardEventHandler,
-  MouseEventHandler,
+  MouseEventHandler} from 'react';
+import {
   useEffect,
   useState,
 } from 'react';
 import dayjs from 'dayjs';
 import { useAtomValue, useSetAtom } from 'jotai';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Button,
@@ -20,7 +23,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Switch,
   Text,
@@ -30,12 +32,13 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import {
+import type {
   DateFormat,
-  MessageLayout,
   MessageSpacing,
+  CaptionPosition} from '$state/settings';
+import {
+  MessageLayout,
   RightSwipeAction,
-  CaptionPosition,
   settingsAtom,
 } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';

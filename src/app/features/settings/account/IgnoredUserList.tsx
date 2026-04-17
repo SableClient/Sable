@@ -1,4 +1,5 @@
-import { ChangeEventHandler, FormEventHandler, useCallback, useState } from 'react';
+import type { ChangeEventHandler, FormEventHandler} from 'react';
+import { useCallback, useState } from 'react';
 import { Box, Button, Chip, Icon, IconButton, Icons, Input, Spinner, Text, config } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -11,7 +12,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 
 function IgnoreUserInput({ userList }: { userList: string[] }) {
   const mx = useMatrixClient();
-  const [userId, setUserId] = useState<string>('');
+  const [userId, setUserId] = useState('');
   const alive = useAlive();
 
   const [ignoreState, ignore] = useAsyncCallback(

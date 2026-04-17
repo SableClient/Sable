@@ -94,13 +94,13 @@ if (dsn && sentryEnabled) {
       if (log.level === 'debug' && environment === 'production') return null;
       // Redact Matrix IDs and tokens from the log message string
       if (typeof log.message === 'string') {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         log.message = scrubMatrixIds(log.message);
       }
       // Redact Matrix IDs from any string-valued log attributes (e.g. roomId, userId)
       // These are flattened from the structured data object and sent as searchable attributes.
       if (log.attributes && typeof log.attributes === 'object') {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         log.attributes = scrubDataObject(log.attributes) as typeof log.attributes;
       }
       return log;
@@ -113,7 +113,7 @@ if (dsn && sentryEnabled) {
       // React Router normally parameterises routes (e.g. /home/:roomIdOrAlias/) but falls
       // back to the raw URL when matching fails, so we scrub defensively here.
       if (event.transaction) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.transaction = scrubMatrixUrl(event.transaction);
       }
 
@@ -126,7 +126,7 @@ if (dsn && sentryEnabled) {
       // For each string value: apply URL scrubbing when the value starts with "http",
       // then apply ID scrubbing to catch any remaining bare Matrix IDs.
       if (event.spans) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.spans = event.spans.map((span) => {
           const newDesc = span.description ? scrubMatrixUrl(span.description) : span.description;
           const spanData = span.data as Record<string, unknown> | undefined;
@@ -217,13 +217,13 @@ if (dsn && sentryEnabled) {
       ) {
         const errcode = (originalException as Record<string, unknown>).errcode as string;
         // Preserve default grouping AND split by errcode
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.fingerprint = ['{{ default }}', errcode];
       }
 
       // Scrub sensitive data from error messages and exception values using shared helpers
       if (event.message) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.message = scrubMatrixIds(event.message);
       }
 
@@ -231,7 +231,7 @@ if (dsn && sentryEnabled) {
       if (event.exception?.values) {
         event.exception.values.forEach((exception) => {
           if (exception.value) {
-            // eslint-disable-next-line no-param-reassign
+            // oxlint-disable-next-line no-param-reassign
             exception.value = scrubMatrixUrl(scrubMatrixIds(exception.value));
           }
         });
@@ -240,13 +240,13 @@ if (dsn && sentryEnabled) {
       // Scrub contexts (e.g. debugLog context from captureMessage in debugLogger.ts,
       // which can carry structured data fields like roomId, targetEventId, etc.)
       if (event.contexts) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.contexts = scrubDataObject(event.contexts) as typeof event.contexts;
       }
 
       // Scrub request data
       if (event.request?.url) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.request.url = scrubMatrixUrl(
           event.request.url.replace(
             /(access_token|password|token)([=:]\s*)([^\s&]+)/gi,
@@ -258,7 +258,7 @@ if (dsn && sentryEnabled) {
       // Scrub the transaction name on error events (set when the error occurred during a
       // page-load or navigation transaction — raw URL leaks here when route matching fails)
       if (event.transaction) {
-        // eslint-disable-next-line no-param-reassign
+        // oxlint-disable-next-line no-param-reassign
         event.transaction = scrubMatrixUrl(event.transaction);
       }
 
@@ -289,19 +289,19 @@ if (dsn && sentryEnabled) {
   // @ts-expect-error - Adding to window for debugging
   window.Sentry = Sentry;
 
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.info(
     `[Sentry] Initialized for ${environment} environment${replayEnabled ? ' with Session Replay' : ''}`
   );
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.info(`[Sentry] DSN configured: ${dsn?.substring(0, 30)}...`);
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.info(`[Sentry] Release: ${release || 'not set'}`);
 } else if (!sentryEnabled) {
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.info('[Sentry] Disabled by user preference');
 } else {
-  // eslint-disable-next-line no-console
+  // oxlint-disable-next-line no-console
   console.info('[Sentry] Disabled - no DSN provided');
 }
 

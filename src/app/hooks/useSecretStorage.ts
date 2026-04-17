@@ -1,7 +1,8 @@
-import {
-  AccountDataEvent,
+import type {
   SecretStorageDefaultKeyContent,
-  SecretStorageKeyContent,
+  SecretStorageKeyContent} from '$types/matrix/accountData';
+import {
+  AccountDataEvent
 } from '$types/matrix/accountData';
 import { useAccountData } from './useAccountData';
 

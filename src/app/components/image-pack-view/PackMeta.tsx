@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -21,7 +22,8 @@ import { LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { PackMetaReader } from '$plugins/custom-emoji';
 import { CompactUploadCardRenderer } from '$components/upload-card';

@@ -1,14 +1,16 @@
 import { useCallback, useMemo } from 'react';
 import { color, Text } from 'folds';
+import type {
+  MatrixError,
+  RoomJoinRulesEventContent} from '$types/matrix-sdk';
 import {
   JoinRule,
-  MatrixError,
-  RestrictedAllowType,
-  RoomJoinRulesEventContent,
+  RestrictedAllowType
 } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
+import type {
+  ExtendedJoinRules} from '$components/JoinRulesSwitcher';
 import {
-  ExtendedJoinRules,
   JoinRulesSwitcher,
   useJoinRuleIcons,
   useRoomJoinRuleLabel,
@@ -27,7 +29,7 @@ import { useRecursiveChildSpaceScopeFactory, useSpaceChildren } from '$state/hoo
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { knockRestrictedSupported, knockSupported, restrictedSupported } from '$utils/matrix';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 type RestrictedRoomAllowContent = {
   room_id: string;
@@ -108,7 +110,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
           join_rule: joinRule as JoinRule,
         };
         if (allow.length > 0) c.allow = allow;
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as any, c);
+        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as string, c);
       },
       [mx, room, space, subspaces, roomIdToParents]
     )

@@ -1,6 +1,9 @@
-import { MouseEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Avatar,
@@ -19,17 +22,17 @@ import {
   config,
   Line,
   PopOut,
-  RectCords,
   Badge,
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
+import type {
+  Room,
+  MatrixEvent} from '$types/matrix-sdk';
 import {
   EventTimeline,
-  Room,
   ThreadEvent,
   RoomEvent,
-  MatrixEvent,
   NotificationCountType,
 } from '$types/matrix-sdk';
 
@@ -96,7 +99,7 @@ import { RoomCallButton } from './RoomCallButton';
 const log = createLogger('RoomViewHeader');
 
 async function getPinsHash(pinnedIds: string[]): Promise<string> {
-  const sorted = [...pinnedIds].sort().join(',');
+  const sorted = [...pinnedIds].toSorted().join(',');
   const encoder = new TextEncoder();
   const data = encoder.encode(sorted);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -386,7 +389,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [unreadThreadsCount, setUnreadThreadsCount] = useState(0);
   const [hasThreadHighlights, setHasThreadHighlights] = useState(false);
 
-  const [currentHash, setCurrentHash] = useState<string>('');
+  const [currentHash, setCurrentHash] = useState('');
 
   useEffect(() => {
     getPinsHash(pinnedIds)
@@ -428,7 +431,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   // Initialize Thread objects from room history on mount and create them for new timeline events
   useEffect(() => {
-    const scanTimelineForThreads = (timeline: any) => {
+    const scanTimelineForThreads = (timeline: EventTimeline) => {
       const events = timeline.getEvents();
       const threadRoots = new Set<string>();
 
@@ -465,10 +468,10 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     scanTimelineForThreads(liveTimeline);
 
     // Also scan backward timelines (historical messages already loaded)
-    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as any);
+    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as string);
     while (backwardTimeline) {
       scanTimelineForThreads(backwardTimeline);
-      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as any);
+      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as string);
     }
 
     // Listen for new timeline events (including pagination)
@@ -494,9 +497,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
       }
     };
 
-    mx.on(RoomEvent.Timeline as any, handleTimelineEvent);
+    mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
-      mx.off(RoomEvent.Timeline as any, handleTimelineEvent);
+      mx.off(RoomEvent.Timeline, handleTimelineEvent);
     };
   }, [room, mx]);
 
@@ -525,14 +528,14 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
     // Listen for thread updates
     const onThreadUpdate = () => checkThreadUnreads();
-    room.on(ThreadEvent.New as any, onThreadUpdate);
-    room.on(ThreadEvent.Update as any, onThreadUpdate);
-    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
+    room.on(ThreadEvent.New as string, onThreadUpdate);
+    room.on(ThreadEvent.Update as string, onThreadUpdate);
+    room.on(ThreadEvent.NewReply as string, onThreadUpdate);
 
     return () => {
-      room.off(ThreadEvent.New as any, onThreadUpdate);
-      room.off(ThreadEvent.Update as any, onThreadUpdate);
-      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
+      room.off(ThreadEvent.New as string, onThreadUpdate);
+      room.off(ThreadEvent.Update as string, onThreadUpdate);
+      room.off(ThreadEvent.NewReply as string, onThreadUpdate);
     };
   }, [room, mx]);
 

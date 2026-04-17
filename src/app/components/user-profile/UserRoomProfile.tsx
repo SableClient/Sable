@@ -1,9 +1,10 @@
 import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
-import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
+import type { SyntheticEvent} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { getMxIdServer, mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -19,9 +20,10 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { getDirectCreatePath, withSearchParam } from '$pages/pathUtils';
-import { DirectCreateSearchParams } from '$pages/paths';
+import type { DirectCreateSearchParams } from '$pages/paths';
 import { nicknamesAtom } from '$state/nicknames';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import type { UserProfile} from '$hooks/useUserProfile';
+import { useUserProfile } from '$hooks/useUserProfile';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -41,7 +43,7 @@ import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
 
-const KNOWN_KEYS = [
+const KNOWN_KEYS = new Set([
   'moe.sable.app.bio',
   'chat.commet.profile_bio',
   'chat.commet.profile_banner',
@@ -54,7 +56,7 @@ const KNOWN_KEYS = [
   'displayname',
   'kitty.meow.has_cats',
   'kitty.meow.is_cat',
-];
+]);
 
 type UserExtendedSectionProps = {
   profile: UserProfile;
@@ -67,7 +69,7 @@ function UserExtendedSection({
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
-  const clamp = (str: any, len: number) => {
+  const clamp = (str: string | null | undefined, len: number) => {
     const stringified = String(str ?? '');
     return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
   };
@@ -85,7 +87,7 @@ function UserExtendedSection({
     return null;
   }, [renderAnimals, isCat, hasCats]);
 
-  const renderValue = (val: any) => {
+  const renderValue = (val: unknown) => {
     if (val === null || val === undefined) return 'n/a';
     if (typeof val === 'boolean') return val ? 'Yes' : 'No';
     if (typeof val === 'object') return JSON.stringify(val);
@@ -145,7 +147,7 @@ function UserExtendedSection({
   }, [profile]);
 
   const unknownFields = Object.entries(profile.extended || {}).filter(
-    ([key]) => !KNOWN_KEYS.includes(key)
+    ([key]) => !KNOWN_KEYS.has(key)
   );
 
   return (
@@ -215,7 +217,11 @@ function UserExtendedSection({
             fill="None"
             onClick={() => setShowMore(!showMore)}
             after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
-            style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
+            style={{
+              padding: '1rem',
+              justifyContent: 'flex-start',
+              width: 'fit-content',
+            }}
           >
             <Text size="T200" priority="400">
               {showMore ? 'Show less' : `+ ${unknownFields.length} more info`}

@@ -8,7 +8,7 @@ import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
 import { SupportedUIAFlowsLoader } from '$components/SupportedUIAFlowsLoader';
 import { getLoginPath } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
-import { RegisterPathSearchParams } from '$pages/paths';
+import type { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';
 import { OrDivider } from '$pages/auth/OrDivider';
 import { PasswordRegisterForm, SUPPORTED_REGISTER_STAGES } from './PasswordRegisterForm';

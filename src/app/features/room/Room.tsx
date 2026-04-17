@@ -48,7 +48,10 @@ export function Room() {
 
   // Log drawer state changes
   useEffect(() => {
-    debugLog.debug('ui', 'Members drawer state changed', { roomId: room.roomId, isOpen: isDrawer });
+    debugLog.debug('ui', 'Members drawer state changed', {
+      roomId: room.roomId,
+      isOpen: isDrawer,
+    });
   }, [isDrawer, room.roomId]);
 
   useEffect(() => {

@@ -1,6 +1,8 @@
-import { Box, Chip, Icon, IconSrc, Icons, Text, as, color, toRem } from 'folds';
-import { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
-import { MouseEventHandler, ReactNode, useCallback, useMemo } from 'react';
+import type { IconSrc} from 'folds';
+import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
+import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
+import type { MouseEventHandler, ReactNode} from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';
 import parse from 'html-react-parser';
@@ -299,7 +301,9 @@ export const Reply = as<'div', ReplyProps>(
             before={<Icon size="50" src={Icons.Reload} />}
             onClick={(evt) => {
               evt.stopPropagation();
-              queryClient.invalidateQueries({ queryKey: [room.roomId, replyEventId] });
+              queryClient.invalidateQueries({
+                queryKey: [room.roomId, replyEventId],
+              });
             }}
           />
         )}

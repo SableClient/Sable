@@ -1,6 +1,7 @@
-import {
+import type {
   MouseEventHandler,
-  ReactElement,
+  ReactElement} from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -20,20 +21,23 @@ import {
   color,
   config,
 } from 'folds';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import type { VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import {
-  JoinRule,
-  RestrictedAllowType,
+import type {
   Room,
   RoomJoinRulesEventContent,
-  IHierarchyRoom,
+  IHierarchyRoom} from '$types/matrix-sdk';
+import {
+  JoinRule,
+  RestrictedAllowType
 } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
-import { HierarchyItem, HierarchyItemSpace, useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem, HierarchyItemSpace} from '$hooks/useSpaceHierarchy';
+import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -41,8 +45,9 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { settingsAtom } from '$state/settings';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
+import type {
+  IPowerLevels} from '$hooks/usePowerLevels';
 import {
-  IPowerLevels,
   PowerLevelsContextProvider,
   usePowerLevels,
   useRoomsPowerLevels,
@@ -73,7 +78,8 @@ import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
-import { CanDropCallback, useDnDMonitor } from './DnD';
+import type { CanDropCallback} from './DnD';
+import { useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
@@ -384,7 +390,7 @@ export function Lobby() {
             if (!reorder.item.parentId) return;
             await mx.sendStateEvent(
               reorder.item.parentId,
-              StateEvent.SpaceChild as any,
+              StateEvent.SpaceChild as string,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -409,7 +415,7 @@ export function Lobby() {
 
         // remove from current space
         if (item.parentId !== containerParentId) {
-          await mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as any, {}, item.roomId);
+          await mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as string, {}, item.roomId);
         }
 
         if (
@@ -427,8 +433,11 @@ export function Lobby() {
             const allow =
               joinRuleContent.allow?.filter((allowRule) => allowRule.room_id !== item.parentId) ??
               [];
-            allow.push({ type: RestrictedAllowType.RoomMembership, room_id: containerParentId });
-            await mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as any, {
+            allow.push({
+              type: RestrictedAllowType.RoomMembership,
+              room_id: containerParentId,
+            });
+            await mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as string, {
               ...joinRuleContent,
               allow,
             });
@@ -470,7 +479,7 @@ export function Lobby() {
           await rateLimitedActions(reorders, async (reorder) => {
             await mx.sendStateEvent(
               containerParentId,
-              StateEvent.SpaceChild as any,
+              StateEvent.SpaceChild as string,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -541,7 +550,7 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
+      mx.setAccountData(AccountDataEvent.CinnySpaces as string, newSpacesContent as unknown);
     },
     [mx, sidebarItems, sidebarSpaces]
   );

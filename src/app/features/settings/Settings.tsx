@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import type {
+  IconSrc} from 'folds';
 import {
   Avatar,
   Box,
@@ -7,7 +9,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,

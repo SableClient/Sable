@@ -1,8 +1,9 @@
-import {
-  forwardRef,
+import type {
   KeyboardEventHandler,
   MouseEvent,
-  RefObject,
+  RefObject} from 'react';
+import {
+  forwardRef,
   useCallback,
   useEffect,
   useRef,
@@ -11,18 +12,21 @@ import {
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import {
-  EventType,
+import type {
   IContent,
   MatrixEvent,
-  MsgType,
-  RelationType,
   Room,
   IEventRelation,
-  StickerEventContent,
+  StickerEventContent} from '$types/matrix-sdk';
+import {
+  EventType,
+  MsgType,
+  RelationType
 } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   color,
@@ -38,16 +42,16 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
   Scroll,
   Text,
   toRem,
 } from 'folds';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import type {
+  AutocompleteQuery} from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
@@ -72,8 +76,9 @@ import {
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
+import type {
+  TUploadContent} from '$utils/matrix';
 import {
-  TUploadContent,
   encryptFile,
   getImageInfo,
   mxcUrlToHttp,
@@ -83,23 +88,26 @@ import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
+import type {
+  TUploadItem,
+  TUploadMetadata,
+  IReplyDraft} from '$state/room/roomInputDrafts';
 import {
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
-  roomUploadAtomFamily,
-  TUploadItem,
-  TUploadMetadata,
-  IReplyDraft,
+  roomUploadAtomFamily
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
+import type {
+  UploadBoardImperativeHandlers} from '$components/upload-board';
 import {
   UploadBoard,
   UploadBoardContent,
-  UploadBoardHeader,
-  UploadBoardImperativeHandlers,
+  UploadBoardHeader
 } from '$components/upload-board';
-import { Upload, UploadStatus, UploadSuccess, createUploadFamilyObserverAtom } from '$state/upload';
+import type { Upload, UploadSuccess} from '$state/upload';
+import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
 import { getImageUrlBlob, loadImageElement } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
@@ -156,10 +164,11 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import {
-  AudioMessageRecorder,
+import type {
   AudioMessageRecorderHandle,
-  AudioRecordingCompletePayload,
+  AudioRecordingCompletePayload} from './AudioMessageRecorder';
+import {
+  AudioMessageRecorder
 } from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
@@ -298,7 +307,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
-    const micHoldStartRef = useRef<number>(0);
+    const micHoldStartRef = useRef(0);
     const HOLD_THRESHOLD_MS = 400;
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
@@ -540,7 +549,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          // eslint-disable-next-line no-param-reassign
+          // oxlint-disable-next-line no-param-reassign
           c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
             perMessageProfile,
             false
@@ -612,6 +621,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await Promise.all(
           contents.map((content) =>
             mx
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .sendMessage(roomId, threadRootId ?? null, content as any)
               .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
@@ -892,8 +902,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             roomId,
             scheduledDelayId: editingScheduledDelayId,
           });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res = await mx.sendMessage(roomId, threadRootId ?? null, content as any);
-          debugLog.info('message', 'Message sent successfully', { roomId, eventId: res.event_id });
+          debugLog.info('message', 'Message sent successfully', {
+            roomId,
+            eventId: res.event_id,
+          });
           invalidate();
           setEditingScheduledDelayId(null);
           resetInput();
@@ -907,13 +921,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else {
         const msgSendStart = performance.now();
         resetInput();
-        debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
+        debugLog.info('message', 'Sending message', {
+          roomId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          msgtype: (content as any).msgtype,
+        });
         Sentry.startSpan(
           {
             name: 'message.send',
             op: 'matrix.message',
             attributes: { encrypted: String(isEncrypted) },
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
         )
           .then((res: { event_id: string }) => {
@@ -1159,10 +1178,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               <Scroll size="300" hideTrack visibility="Hover">
                 <UploadBoardContent>
                   {Array.from(selectedFiles)
-                    .reverse()
+                    .toReversed()
                     .map((fileItem, index) => (
                       <UploadCardRenderer
-                        // eslint-disable-next-line react/no-array-index-key
+                        // oxlint-disable-next-line react/no-array-index-key
                         key={index}
                         isEncrypted={!!fileItem.encInfo}
                         fileItem={fileItem}
@@ -1272,7 +1291,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <Box
                     alignItems="Center"
                     gap="300"
-                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
                   >
                     <IconButton
                       onClick={() => {
@@ -1301,7 +1322,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <Box
                     alignItems="Center"
                     gap="300"
-                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
                   >
                     <IconButton
                       onClick={() => {
@@ -1310,7 +1333,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             userId: mx.getUserId() ?? '',
                             eventId: threadRootId,
                             body: '',
-                            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+                            relation: {
+                              rel_type: RelationType.Thread,
+                              event_id: threadRootId,
+                            },
                           });
                         } else {
                           setReplyDraft(undefined);
@@ -1402,8 +1428,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   micHoldStartRef.current = Date.now();
                   setShowAudioRecorder(true);
 
-                  let cleanup: () => void;
-                  const onUp = () => {
+                  function onUp() {
+                    // oxlint-disable-next-line eslint(no-use-before-define)
                     cleanup();
                     const held = Date.now() - micHoldStartRef.current;
                     if (held >= HOLD_THRESHOLD_MS) {
@@ -1415,11 +1441,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         audioRecorderRef.current?.cancel();
                       }, 50);
                     }
-                  };
-                  cleanup = () => {
+                  }
+                  function cleanup() {
                     window.removeEventListener('pointerup', onUp);
                     window.removeEventListener('pointercancel', cleanup);
-                  };
+                  }
                   window.addEventListener('pointerup', onUp);
                   window.addEventListener('pointercancel', cleanup);
                 }}

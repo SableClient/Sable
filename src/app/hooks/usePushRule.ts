@@ -1,10 +1,11 @@
-import {
+import type {
   IPushRule,
   IPushRules,
   PushRuleAction,
   PushRuleCondition,
-  PushRuleKind,
-  RuleId,
+  RuleId} from '$types/matrix-sdk';
+import {
+  PushRuleKind
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 

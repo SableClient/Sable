@@ -1,4 +1,4 @@
-import { InlineMDRule } from './type';
+import type { InlineMDRule } from './type';
 
 const MIN_ANY = '(.+?)';
 const URL_NEG_LB = '(?<!(https?|ftp|mailto|magnet):\\/\\/\\S*)';

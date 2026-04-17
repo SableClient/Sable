@@ -2,7 +2,8 @@ import { Box, Chip, Icon, IconButton, Icons, Spinner, Text, Tooltip, TooltipProv
 import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { StatusDivider } from './components';
-import { CallEmbed, useCallControlState } from '../../plugins/call';
+import type { CallEmbed} from '../../plugins/call';
+import { useCallControlState } from '../../plugins/call';
 import { AsyncStatus, useAsyncCallback } from '../../hooks/useAsyncCallback';
 import { callEmbedAtom } from '../../state/callEmbed';
 

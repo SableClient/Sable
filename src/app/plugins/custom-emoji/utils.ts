@@ -1,11 +1,11 @@
-import { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { getAccountData, getStateEvent, getStateEvents } from '$utils/room';
 import { AccountDataEvent } from '$types/matrix/accountData';
-import { ImageUsage } from './types';
+import type { ImageUsage } from './types';
 import { ImagePack } from './ImagePack';
-import { PackMetaReader } from './PackMetaReader';
-import { PackAddress } from './PackAddress';
+import type { PackMetaReader } from './PackMetaReader';
+import type { PackAddress } from './PackAddress';
 
 export function packAddressEqual(a1?: PackAddress, a2?: PackAddress): boolean {
   if (!a1 && !a2) return true;

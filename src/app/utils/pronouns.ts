@@ -51,14 +51,16 @@ export function filterPronounsByLanguage(
     return pronouns.map(sanitize);
   }
 
-  const normalizedLanguages = (languages ?? [])
-    .filter((lang): lang is string => typeof lang === 'string')
-    .map((lang) => lang.trim().toLowerCase());
+  const normalizedLanguages = new Set(
+    (languages ?? [])
+      .filter((lang): lang is string => typeof lang === 'string')
+      .map((lang) => lang.trim().toLowerCase())
+  );
 
   const filteredPronouns = pronouns
     .filter((p) => {
       const lang = (p?.language ?? 'en').trim().toLowerCase();
-      return normalizedLanguages.includes(lang);
+      return normalizedLanguages.has(lang);
     })
     .map(sanitize);
 

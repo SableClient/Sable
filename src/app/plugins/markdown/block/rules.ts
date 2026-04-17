@@ -1,4 +1,4 @@
-import { BlockMDRule } from './type';
+import type { BlockMDRule } from './type';
 
 const HEADING_REG_1 = /^(#{1,6}) +(.+)\n?/m;
 export const HeadingRule: BlockMDRule = {

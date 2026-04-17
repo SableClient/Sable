@@ -1,6 +1,8 @@
 import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
-import { FormEventHandler, useCallback, useState } from 'react';
-import { ICreateRoomStateEvent, MatrixError, Preset, Visibility } from '$types/matrix-sdk';
+import type { FormEventHandler} from 'react';
+import { useCallback, useState } from 'react';
+import type { ICreateRoomStateEvent} from '$types/matrix-sdk';
+import { MatrixError, Preset, Visibility } from '$types/matrix-sdk';
 import { useNavigate } from 'react-router-dom';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';

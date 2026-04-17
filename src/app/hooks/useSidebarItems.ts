@@ -1,5 +1,6 @@
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { Dispatch, SetStateAction} from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership } from '$types/matrix/room';
 import { getAccountData, isSpace } from '$utils/room';

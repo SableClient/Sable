@@ -1,6 +1,6 @@
 import { IconButton, Icon, Icons, TooltipProvider, Tooltip, Text } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -26,7 +26,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
     try {
       const now = Date.now();
       // TODO not use as any one day someday i swear
-      await mx.sendEvent(room.roomId, 'org.matrix.msc4075.rtc.notification' as any, {
+      await mx.sendEvent(room.roomId, 'org.matrix.msc4075.rtc.notification' as string, {
         notification_type: 'ring',
         sender_ts: now,
         lifetime: 30000,
@@ -36,7 +36,9 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
         application: 'm.call',
         call_id: room.roomId,
         'm.text': [
-          { body: `Call started by ${mx.getUser(mx.getSafeUserId())?.displayName || 'User'} 🎶` },
+          {
+            body: `Call started by ${mx.getUser(mx.getSafeUserId())?.displayName || 'User'} 🎶`,
+          },
         ],
       });
     } catch {

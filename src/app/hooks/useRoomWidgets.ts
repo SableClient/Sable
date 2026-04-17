@@ -1,6 +1,6 @@
-import { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
+import type { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { IWidget } from 'matrix-widget-api';
+import type { IWidget } from 'matrix-widget-api';
 import { StateEvent } from '$types/matrix/room';
 import { getStateEvents } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';
@@ -131,6 +131,6 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
 
       return widgets;
     }, []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room, updateCount]);
 };

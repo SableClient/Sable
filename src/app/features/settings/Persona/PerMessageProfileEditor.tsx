@@ -1,6 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
 import { Box, Button, Text, Avatar, config, Icon, IconButton, Icons, Input } from 'folds';
-import { MatrixClient } from 'matrix-js-sdk';
+import type { MatrixClient } from 'matrix-js-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useFilePicker } from '$hooks/useFilePicker';
@@ -14,7 +14,8 @@ import {
   deletePerMessageProfile,
   renamePerMessageProfile,
 } from '$hooks/usePerMessageProfile';
-import { parsePronounsStringToPronounsSetArray, PronounSet } from '$utils/pronouns';
+import type { PronounSet } from '$utils/pronouns';
+import { parsePronounsStringToPronounsSetArray } from '$utils/pronouns';
 import { SequenceCardStyle } from '../styles.css';
 
 /**
@@ -44,11 +45,12 @@ export function PerMessageProfileEditor({
   const [currentId, setCurrentId] = useState(profileId);
   const [newId, setNewId] = useState(profileId);
 
+  // eslint-disable-next-line no-console -- Debug logging for pronouns
   console.warn(pronouns);
 
   // Pronouns
-  const [currentPronouns, setCurrentPronouns] = useState<PronounSet[]>(pronouns);
-  const [newPronouns, setNewPronouns] = useState<PronounSet[]>(pronouns);
+  const [currentPronouns, setCurrentPronouns] = useState(pronouns);
+  const [newPronouns, setNewPronouns] = useState(pronouns);
   const currentPronounsString = useMemo(
     () =>
       Array.isArray(currentPronouns)
@@ -88,7 +90,12 @@ export function PerMessageProfileEditor({
     (upload: { status: string; mxc: string }) => {
       if (upload?.status === 'success') {
         setAvatarMxc(upload.mxc);
-        if (onChange) onChange({ id: profileId, name: newDisplayName, avatarUrl: upload.mxc });
+        if (onChange)
+          onChange({
+            id: profileId,
+            name: newDisplayName,
+            avatarUrl: upload.mxc,
+          });
         setImageHasChanges(true);
       }
       setImageFile(undefined);
@@ -305,7 +312,12 @@ export function PerMessageProfileEditor({
               <Box
                 gap="100"
                 direction="Column"
-                style={{ width: '100%', maxWidth: 100, maxHeight: 100, overflow: 'visible' }}
+                style={{
+                  width: '100%',
+                  maxWidth: 100,
+                  maxHeight: 100,
+                  overflow: 'visible',
+                }}
                 aria-label="Upload area"
               >
                 <CompactUploadCardRenderer
@@ -323,7 +335,13 @@ export function PerMessageProfileEditor({
             style={{ flex: 1, minWidth: 0, height: '100%' }}
             aria-label="Display name input"
           >
-            <Text size="T300" style={{ marginBottom: config.space.S200, alignSelf: 'flex-start' }}>
+            <Text
+              size="T300"
+              style={{
+                marginBottom: config.space.S200,
+                alignSelf: 'flex-start',
+              }}
+            >
               Display Name:
             </Text>
             <Input
@@ -417,7 +435,12 @@ export function PerMessageProfileEditor({
             direction="Column"
             alignItems="Center"
             justifyContent="Center"
-            style={{ minWidth: 120, maxWidth: 140, flexShrink: 0, height: '100%' }}
+            style={{
+              minWidth: 120,
+              maxWidth: 140,
+              flexShrink: 0,
+              height: '100%',
+            }}
             aria-label={`Save button area for ${profileId}`}
           >
             <Button

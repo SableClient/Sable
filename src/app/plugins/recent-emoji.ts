@@ -1,7 +1,8 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { getAccountData } from '$utils/room';
-import { IEmoji, emojis } from './emoji';
+import type { IEmoji} from './emoji';
+import { emojis } from './emoji';
 
 type EmojiUnicode = string;
 type EmojiUsageCount = number;
@@ -16,7 +17,7 @@ export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
   if (!Array.isArray(recentEmoji)) return [];
 
   return recentEmoji
-    .sort((e1, e2) => e2[1] - e1[1])
+    .toSorted((e1, e2) => e2[1] - e1[1])
     .slice(0, limit)
     .reduce<IEmoji[]>((list, [unicode]) => {
       const emoji = emojis.find((e) => e.unicode === unicode);

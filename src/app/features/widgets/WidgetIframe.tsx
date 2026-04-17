@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { ClientWidgetApi, IWidget, IRoomEvent, Widget, WidgetKind } from 'matrix-widget-api';
+import type { IWidget, IRoomEvent} from 'matrix-widget-api';
+import { ClientWidgetApi, Widget, WidgetKind } from 'matrix-widget-api';
+import type {
+  IEvent,
+  MatrixClient,
+  MatrixEvent} from '$types/matrix-sdk';
 import {
   ClientEvent,
   Direction,
-  IEvent,
-  MatrixClient,
-  MatrixEvent,
   MatrixEventEvent,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { resolveWidgetUrl } from '$hooks/useRoomWidgets';
-import { GenericWidgetDriver, CapabilityApprovalCallback } from './GenericWidgetDriver';
+import type { CapabilityApprovalCallback } from './GenericWidgetDriver';
+import { GenericWidgetDriver } from './GenericWidgetDriver';
 
 const log = createLogger('WidgetIframe');
 
@@ -134,12 +137,14 @@ export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: Widget
       messagingRef.current = null;
       setReady(false);
     };
-  }, [widget.id, roomId, mx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [widget.id, roomId, mx]); // oxlint-disable-line react-hooks/exhaustive-deps
+
+  const iframeTitle = widget.name ?? 'Widget';
 
   return (
     <iframe
       ref={iframeRef}
-      title={widget.name || 'Widget'}
+      title={iframeTitle}
       sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
       allow="camera;microphone;clipboard-write;display-capture;autoplay;encrypted-media"
       style={{

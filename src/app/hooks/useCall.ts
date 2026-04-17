@@ -1,9 +1,9 @@
-import { Room } from 'matrix-js-sdk';
+import type { Room } from 'matrix-js-sdk';
 import {
   MatrixRTCSession,
   MatrixRTCSessionEvent,
 } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import { useEffect, useState } from 'react';
 import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 import { useMatrixClient } from './useMatrixClient';
@@ -34,7 +34,7 @@ export const useCallSession = (room: Room): MatrixRTCSession => {
 };
 
 export const useCallMembers = (room: Room, session: MatrixRTCSession): CallMembership[] => {
-  const [memberships, setMemberships] = useState<CallMembership[]>(
+  const [memberships, setMemberships] = useState(
     MatrixRTCSession.sessionMembershipsForRoom(room, session.sessionDescription)
   );
 

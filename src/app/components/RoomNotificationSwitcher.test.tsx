@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
+
 import { RoomNotificationMode } from '$hooks/useRoomsNotificationPreferences';
 
 import { RoomNotificationModeSwitcher } from './RoomNotificationSwitcher';

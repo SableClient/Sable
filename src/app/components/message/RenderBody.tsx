@@ -1,12 +1,17 @@
-import { MouseEventHandler, useEffect, useState } from 'react';
-import parse, { HTMLReactParserOptions } from 'html-react-parser';
+import type { MouseEventHandler} from 'react';
+import { useEffect, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import parse from 'html-react-parser';
 import Linkify from 'linkify-react';
-import { find, Opts } from 'linkifyjs';
-import { PopOut, RectCords, Text, Tooltip, TooltipProvider, toRem } from 'folds';
+import type { Opts } from 'linkifyjs';
+import { find } from 'linkifyjs';
+import type { RectCords} from 'folds';
+import { PopOut, Text, Tooltip, TooltipProvider, toRem } from 'folds';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { highlightText, scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
-import { splitByAbbreviations, TextSegment } from '$utils/abbreviations';
+import type { TextSegment } from '$utils/abbreviations';
+import { splitByAbbreviations } from '$utils/abbreviations';
 import { MessageEmptyContent } from './content';
 
 function getRenderedBodyText(text: string, highlightRegex?: RegExp): (string | JSX.Element)[] {
@@ -64,9 +69,14 @@ function splitBodyTextByAbbreviations(
     );
   }
 
-  return segments.length > 0
-    ? segments.map((segment, index) => ({ ...segment, id: `txt-${index}` }))
-    : [{ id: 'txt-0', text }];
+  if (segments.length === 0) {
+    return [{ id: 'txt-0', text }];
+  }
+  const result = segments as TextSegment[];
+  for (let i = 0; i < result.length; i += 1) {
+    result[i].id = `txt-${i}`;
+  }
+  return result;
 }
 
 type AbbreviationTermProps = {
@@ -101,7 +111,7 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
     <>
       <TooltipProvider position="Top" tooltip={tooltipContent}>
         {(triggerRef) => (
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events
           <abbr
             ref={triggerRef as React.Ref<HTMLElement>}
             onClick={handleClick}

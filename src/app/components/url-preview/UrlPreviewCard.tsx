@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -17,12 +17,12 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) — the same URL shows the same preview
+// Inner cache keyed by URL only (not ts) â€” the same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
-const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse>>>();
+const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
 
-const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
+const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlResponse>> => {
   let clientCache = previewRequestCache.get(mx);
   if (!clientCache) {
     clientCache = new Map();
@@ -33,6 +33,7 @@ const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
 
 const openMediaInNewTab = async (url: string | undefined) => {
   if (!url) {
+    // eslint-disable-next-line no-console -- Warning for debugging
     console.warn('Attempted to open an empty url');
     return;
   }
@@ -94,6 +95,7 @@ export const UrlPreviewCard = as<
     );
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
+        // eslint-disable-next-line no-console -- Debug logging for missing image
         console.warn('No image');
         return;
       }
@@ -101,6 +103,7 @@ export const UrlPreviewCard = as<
         ev.preventDefault();
         const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
         if (!mxcUrl) {
+          // eslint-disable-next-line no-console -- Error logging for URL conversion failure
           console.error('Error converting mxc:// url.');
           return;
         }
@@ -183,7 +186,12 @@ export const UrlPreviewCard = as<
                 }}
               >
                 <ImageContent
-                  style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'absolute',
+                    inset: 0,
+                  }}
                   autoPlay
                   onAuxClick={handleAuxClick}
                   body={prev['og:title']}
@@ -349,7 +357,11 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
             {children}
             {canScrollRight && (
               <>
-                <div className={css.UrlPreviewHolderGradient({ position: 'Right' })} />
+                <div
+                  className={css.UrlPreviewHolderGradient({
+                    position: 'Right',
+                  })}
+                />
                 <IconButton
                   className={css.UrlPreviewHolderBtn({ position: 'Right' })}
                   variant="Primary"

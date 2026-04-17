@@ -1,10 +1,13 @@
-import { useEffect, useState, useCallback, useMemo, MouseEventHandler } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { Box, Text, Button, color, config, Badge, Menu, MenuItem, PopOut, RectCords } from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Text, Button, color, config, Badge, Menu, MenuItem, PopOut } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 
 import { debugLoggerEnabledAtom, debugLogsAtom, clearDebugLogsAtom } from '$state/debugLogger';
-import { LogEntry, getDebugLogger, LogLevel, LogCategory } from '$utils/debugLogger';
+import type { LogEntry, LogLevel, LogCategory } from '$utils/debugLogger';
+import { getDebugLogger } from '$utils/debugLogger';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 
 const formatTimestamp = (timestamp: number): string => {

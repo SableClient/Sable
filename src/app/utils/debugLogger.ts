@@ -84,6 +84,7 @@ class DebugLoggerService {
         listener(entry);
       } catch (error) {
         // Silently catch listener errors to prevent debug logging from breaking the app
+        // eslint-disable-next-line no-console -- Error logging for debugging
         console.error('[DebugLogger] Listener error:', error);
       }
     });
@@ -122,7 +123,7 @@ class DebugLoggerService {
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
     const consoleLevel = level === 'debug' ? 'log' : level;
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console[consoleLevel](prefix, message, data !== undefined ? data : '');
   }
 
@@ -182,7 +183,11 @@ class DebugLoggerService {
         }
       });
     }
-    const logAttrs = { category: entry.category, namespace: entry.namespace, ...logDataAttrs };
+    const logAttrs = {
+      category: entry.category,
+      namespace: entry.namespace,
+      ...logDataAttrs,
+    };
     if (entry.level === 'debug') Sentry.logger.debug(logMsg, logAttrs);
     else if (entry.level === 'info') Sentry.logger.info(logMsg, logAttrs);
     else if (entry.level === 'warn') Sentry.logger.warn(logMsg, logAttrs);

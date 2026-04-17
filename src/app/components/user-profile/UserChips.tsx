@@ -1,6 +1,7 @@
-import {
+import type {
   KeyboardEventHandler,
-  MouseEventHandler,
+  MouseEventHandler} from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,7 +11,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import type {
+  RectCords} from 'folds';
 import {
   PopOut,
   Menu,
@@ -21,7 +24,6 @@ import {
   Chip,
   Icon,
   Icons,
-  RectCords,
   Spinner,
   toRem,
   Box,
@@ -268,7 +270,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
 
     if (mutualRoomsState.status === AsyncStatus.Success) {
       const mutualRooms = mutualRoomsState.data
-        .sort(factoryRoomIdByAtoZ(mx))
+        .toSorted(factoryRoomIdByAtoZ(mx))
         .map(getRoom)
         .filter((room) => !!room);
       mutualRooms.forEach((room) => {

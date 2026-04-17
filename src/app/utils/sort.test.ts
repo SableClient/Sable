@@ -2,6 +2,9 @@
 // Shows how to build lightweight fakes/stubs instead of using a full mock library —
 // for factoryRoomIdByActivity and factoryRoomIdByAtoZ the MatrixClient is stubbed
 // with a plain object, keeping tests readable without heavy setup.
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { describe, it, expect } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import {

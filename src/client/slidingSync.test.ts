@@ -14,7 +14,10 @@
  *    subscriptions accumulate across the session so returning to a room is
  *    instant (matching Element Web's model).
  */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────

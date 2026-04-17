@@ -1,8 +1,9 @@
-/* eslint-disable no-param-reassign */
-import {
+/* oxlint-disable no-param-reassign */
+import type {
   ClipboardEventHandler,
   KeyboardEventHandler,
-  ReactNode,
+  ReactNode} from 'react';
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -11,21 +12,23 @@ import {
   useState,
 } from 'react';
 import { Box, Scroll, Text } from 'folds';
-import { Descendant, Editor, Node, createEditor } from 'slate';
+import type { Descendant, Editor} from 'slate';
+import { Node, createEditor } from 'slate';
+import type {
+  RenderLeafProps,
+  RenderElementProps,
+  RenderPlaceholderProps} from 'slate-react';
 import {
   Slate,
   Editable,
   withReact,
-  RenderLeafProps,
-  RenderElementProps,
-  RenderPlaceholderProps,
   ReactEditor,
 } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';
 import { RenderElement, RenderLeaf } from './Elements';
-import { CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import * as css from './Editor.css';
 import { toggleKeyboardShortcut } from './keyboard';
 
@@ -436,7 +439,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
             <Scroll
               className={`${css.EditorTextareaScroll} ${layoutIsMultiline ? css.EditorTextareaScrollMultiline : ''}`}
               variant={variant}
-              style={{ maxHeight: showResponsiveAfterInFooter ? undefined : maxHeight }}
+              style={{
+                maxHeight: showResponsiveAfterInFooter ? undefined : maxHeight,
+              }}
               size="300"
               visibility="Always"
               hideTrack

@@ -55,7 +55,9 @@ function UnverifiedIndicator() {
                 onClick={() => openSettings('devices')}
               >
                 <Icon
-                  style={{ color: unverified ? color.Critical.Main : color.Warning.Main }}
+                  style={{
+                    color: unverified ? color.Critical.Main : color.Warning.Main,
+                  }}
                   src={Icons.ShieldUser}
                 />
               </SidebarAvatar>

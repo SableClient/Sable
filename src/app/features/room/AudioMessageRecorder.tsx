@@ -176,7 +176,7 @@ export const AudioMessageRecorder = forwardRef<
         >
           {bars.map((level, i) => (
             <div
-              // eslint-disable-next-line react/no-array-index-key
+              // oxlint-disable-next-line react/no-array-index-key
               key={i}
               className={css.WaveformBar}
               style={{ height: Math.max(3, Math.round(level * 20)) }}

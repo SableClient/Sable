@@ -4,7 +4,6 @@ import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 
 import { createPushNotifications } from './sw/pushNotification';
 
-export type {};
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
@@ -71,7 +70,9 @@ async function persistSession(session: SessionInfo): Promise<void> {
     const cache = await self.caches.open(SW_SESSION_CACHE);
     await cache.put(
       SW_SESSION_URL,
-      new Response(JSON.stringify(session), { headers: { 'Content-Type': 'application/json' } })
+      new Response(JSON.stringify(session), {
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
   } catch {
     // Ignore — caches may be unavailable in some environments.
@@ -152,6 +153,7 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     sessions.set(clientId, info);
     // A real session has arrived — discard the preloaded fallback.
     preloadedSession = undefined;
+    // eslint-disable-next-line no-console -- Service worker debug logging for session management
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
@@ -159,6 +161,7 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     // Logout or invalid session
     sessions.delete(clientId);
     preloadedSession = undefined;
+    // eslint-disable-next-line no-console -- Service worker debug logging
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
   }
@@ -192,6 +195,7 @@ async function requestSessionWithTimeout(
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {
+    // eslint-disable-next-line no-console -- Service worker warning for debugging
     console.warn('[SW] requestSessionWithTimeout: client not found', clientId);
     return undefined;
   }
@@ -200,6 +204,7 @@ async function requestSessionWithTimeout(
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
+      // eslint-disable-next-line no-console -- Service worker warning for debugging
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
       resolve(undefined);
     }, timeoutMs);
@@ -246,11 +251,13 @@ async function fetchRawEvent(
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {
+      // eslint-disable-next-line no-console -- Service worker debug logging for HTTP errors
       console.warn('[SW fetchRawEvent] HTTP', res.status, 'for', eventId);
       return undefined;
     }
     return (await res.json()) as Record<string, unknown>;
   } catch (err) {
+    // eslint-disable-next-line no-console -- Service worker debug logging for errors
     console.warn('[SW fetchRawEvent] error', err);
     return undefined;
   }
@@ -267,7 +274,9 @@ async function fetchRoomName(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.name`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const { name } = data;
@@ -294,7 +303,9 @@ async function fetchMemberInfo(
 ): Promise<MemberInfo> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(userId)}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return { displayname: undefined, avatarUrl: undefined };
     const data = (await res.json()) as Record<string, unknown>;
     const displayname =
@@ -322,7 +333,9 @@ async function fetchRoomAvatar(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.avatar`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const avatarUrl = data.url;
@@ -382,15 +395,20 @@ async function requestDecryptionFromClient(
       const timeout = new Promise<undefined>((resolve) => {
         setTimeout(() => {
           decryptionPendingMap.delete(eventId);
+          // eslint-disable-next-line no-console -- Service worker debug logging for timeout
           console.warn('[SW decryptRelay] timed out waiting for client', client.id);
           resolve(undefined);
         }, 5000);
       });
 
       try {
-        (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+        (client as WindowClient).postMessage({
+          type: 'decryptPushEvent',
+          rawEvent,
+        });
       } catch (err) {
         decryptionPendingMap.delete(eventId);
+        // eslint-disable-next-line no-console -- Service worker error logging for postMessage failure
         console.warn('[SW decryptRelay] postMessage error', err);
         return undefined;
       }
@@ -419,6 +437,7 @@ async function handleMinimalPushPayload(
   if (!session) {
     // No session anywhere — app was never opened since install, or the user logged out.
     // Show a minimal actionable notification so the user can tap through to the room.
+    // eslint-disable-next-line no-console -- Service worker debug logging for push notifications
     console.debug('[SW push] minimal payload: no session, showing generic notification');
     await self.registration.showNotification('New Message', {
       body: undefined,
@@ -697,7 +716,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+          return fetch(url, {
+            ...fetchConfig(persisted.accessToken),
+            redirect,
+          });
         }
         return fetch(event.request);
       })
@@ -717,6 +739,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
         return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
+      // eslint-disable-next-line no-console -- Service worker warning for media fetch fallback
       console.warn(
         '[SW fetch] No valid session for media request',
         { url, clientId, hasSession: !!s },
@@ -753,19 +776,23 @@ const onPushNotification = async (event: PushEvent) => {
   // because iOS Safari PWA often returns empty or stale results from matchAll().
   const hasVisibleClient =
     appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+  // eslint-disable-next-line no-console -- Service worker debug logging for visibility check
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
+  // eslint-disable-next-line no-console -- Service worker debug logging for visibility check
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
+    // eslint-disable-next-line no-console -- Service worker debug logging for visibility check
     console.debug('[SW push] suppressing OS notification — app is visible');
     return;
   }
 
   const pushData = event.data.json();
+  // eslint-disable-next-line no-console -- Service worker debug logging for push data
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   try {
@@ -773,7 +800,7 @@ const onPushNotification = async (event: PushEvent) => {
       if (pushData.unread === 0) {
         // All messages read elsewhere — clear the home-screen badge and,
         // if the user opted in, dismiss outstanding lock-screen notifications.
-        await (self.navigator as any).clearAppBadge();
+        await (self.navigator as unknown as { clearAppBadge?: () => Promise<void> }).clearAppBadge();
         if (clearNotificationsOnRead) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
@@ -781,10 +808,10 @@ const onPushNotification = async (event: PushEvent) => {
         return;
       }
       // unread > 0: update the PWA badge with the current count.
-      await (self.navigator as any).setAppBadge(pushData.unread);
+      await (self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }).setAppBadge(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.
-      await (self.navigator as any).clearAppBadge();
+      await (self.navigator as unknown as { clearAppBadge?: () => Promise<void> }).clearAppBadge();
     }
   } catch {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
@@ -793,6 +820,7 @@ const onPushNotification = async (event: PushEvent) => {
   // event_id_only format: fetch the event ourselves and (for E2EE rooms) try
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
+    // eslint-disable-next-line no-console -- Service worker debug logging for minimal payload
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
     await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
     return;
@@ -818,7 +846,9 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const pushEventId: string | undefined = data?.event_id ?? undefined;
   const isInvite = data?.content?.membership === 'invite';
 
+  // eslint-disable-next-line no-console -- Service worker debug logging for notification click
   console.debug('[SW notificationclick] notification data:', JSON.stringify(data, null, 2));
+  // eslint-disable-next-line no-console -- Service worker debug logging for notification click
   console.debug('[SW notificationclick] resolved fields:', {
     pushUserId,
     pushRoomId,
@@ -854,6 +884,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     targetUrl = new URL('inbox/notifications/', scope).href;
   }
 
+  // eslint-disable-next-line no-console -- Service worker debug logging for notification click
   console.debug('[SW notificationclick] targetUrl:', targetUrl);
 
   event.waitUntil(
@@ -863,13 +894,18 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         includeUncontrolled: true,
       })) as WindowClient[];
 
+      // eslint-disable-next-line no-console -- Service worker debug logging for notification click
       console.debug(
         '[SW notificationclick] window clients:',
-        clientList.map((c) => ({ url: c.url, visibility: c.visibilityState, focused: c.focused }))
+        clientList.map((c) => ({
+          url: c.url,
+          visibility: c.visibilityState,
+          focused: c.focused,
+        }))
       );
 
-      // eslint-disable-next-line no-restricted-syntax
       for (const wc of clientList) {
+        // eslint-disable-next-line no-console -- Service worker debug logging for notification click
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
           // Post notification data directly to the running app so its
@@ -884,16 +920,18 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             isInvite,
             isCall,
           });
-          // eslint-disable-next-line no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await wc.focus();
           return;
         } catch (err) {
+          // eslint-disable-next-line no-console -- Service worker debug logging for notification click
           console.debug('[SW notificationclick] postMessage/focus failed:', err);
         }
       }
 
       // No existing window clients — open a new window.
       // ToRoomEvent handles the /to/ URL on cold launch (account switch + pending atom).
+      // eslint-disable-next-line no-console -- Service worker debug logging for notification click
       console.debug('[SW notificationclick] falling back to openWindow()', targetUrl);
       if (self.clients.openWindow) {
         await self.clients.openWindow(targetUrl);

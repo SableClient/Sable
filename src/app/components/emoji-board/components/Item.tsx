@@ -1,9 +1,10 @@
 import { Box } from 'folds';
-import { MatrixClient } from '$types/matrix-sdk';
-import { PackImageReader } from '$plugins/custom-emoji';
-import { IEmoji } from '$plugins/emoji';
+import type { MatrixClient } from '$types/matrix-sdk';
+import type { PackImageReader } from '$plugins/custom-emoji';
+import type { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { EmojiItemInfo, EmojiType } from '$components/emoji-board/types';
+import type { EmojiItemInfo} from '$components/emoji-board/types';
+import { EmojiType } from '$components/emoji-board/types';
 import * as css from './styles.css';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);

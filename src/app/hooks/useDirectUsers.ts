@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { AccountDataEvent, MDirectContent } from '$types/matrix/accountData';
+import { AccountDataEvent } from '$types/matrix/accountData';
 import { useAccountData } from './useAccountData';
 import { useAllJoinedRoomsSet, useGetRoom } from './useGetRoom';
 
 export const useDirectUsers = (): string[] => {
   const directEvent = useAccountData(AccountDataEvent.Direct);
-  const content = directEvent?.getContent<MDirectContent>();
+  const content = directEvent?.getContent();
 
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);

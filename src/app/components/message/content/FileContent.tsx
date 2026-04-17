@@ -1,4 +1,5 @@
-import { ReactNode, useCallback, useState } from 'react';
+import type { ReactNode} from 'react';
+import { useCallback, useState } from 'react';
 import {
   Box,
   Button,
@@ -15,9 +16,9 @@ import {
   as,
 } from 'folds';
 import FileSaver from 'file-saver';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FocusTrap from 'focus-trap-react';
-import { IFileInfo } from '$types/matrix/common';
+import type { IFileInfo } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { bytesToSize } from '$utils/common';
@@ -109,7 +110,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
               <Modal
                 className={ModalWide}
                 size="500"
-                onContextMenu={(evt: any) => evt.stopPropagation()}
+                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
               >
                 {renderViewer({
                   name: body,
@@ -198,7 +199,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
               <Modal
                 className={ModalWide}
                 size="500"
-                onContextMenu={(evt: any) => evt.stopPropagation()}
+                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
               >
                 {renderViewer({
                   name: body,

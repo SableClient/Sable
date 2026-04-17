@@ -1,7 +1,7 @@
-/* eslint-disable no-nested-ternary */
+/* oxlint-disable no-nested-ternary */
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Text, Switch, Button, color, Spinner, config } from 'folds';
-import { IPusherRequest } from '$types/matrix-sdk';
+import type { IPusherRequest } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -99,7 +99,7 @@ function EmailNotification() {
 function WebPushNotificationSetting() {
   const mx = useMatrixClient();
   const clientConfig = useClientConfig();
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [usePushNotifications, setPushNotifications] = useSetting(
     settingsAtom,
     'usePushNotifications'

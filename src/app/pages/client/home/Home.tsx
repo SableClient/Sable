@@ -1,5 +1,8 @@
-import { MouseEventHandler, forwardRef, useMemo, useRef, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { forwardRef, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type {
+  RectCords} from 'folds';
 import {
   Avatar,
   Box,
@@ -10,7 +13,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   config,
   toRem,
@@ -60,7 +62,7 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import { RoomSearchParams } from '$pages/paths';
+import type { RoomSearchParams } from '$pages/paths';
 import { useHomeRooms } from './useHomeRooms';
 
 type HomeMenuProps = {
@@ -207,7 +209,7 @@ export function Home() {
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   const sortedRooms = useMemo(() => {
-    const items = Array.from(rooms).sort(
+    const items = Array.from(rooms).toSorted(
       closedCategories.has(DEFAULT_CATEGORY_ID)
         ? factoryRoomIdByActivity(mx)
         : factoryRoomIdByAtoZ(mx)

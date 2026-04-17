@@ -1,6 +1,7 @@
-import {
+import type {
   MouseEventHandler,
-  ReactElement,
+  ReactElement} from 'react';
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -9,6 +10,8 @@ import {
   useState,
 } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
+import type {
+  RectCords} from 'folds';
 import {
   Avatar,
   Box,
@@ -20,17 +23,18 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
   color,
   config,
   toRem,
 } from 'folds';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import type { VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import { JoinRule, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import type { Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import { JoinRule } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
@@ -48,7 +52,8 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { useRoomName } from '$hooks/useRoomMeta';
-import { HierarchyItem, useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem} from '$hooks/useSpaceHierarchy';
+import { useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -347,7 +352,7 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
         <Text size="T200">This space has been replaced and is no longer active.</Text>
         {joinState.status === AsyncStatus.Error && (
           <Text className={BreakWord} style={{ color: color.Critical.Main }} size="T200">
-            {(joinState.error as any)?.message ?? 'Failed to join replacement space!'}
+            {(joinState.error as Error)?.message ?? 'Failed to join replacement space!'}
           </Text>
         )}
       </Box>
@@ -775,7 +780,11 @@ export function Space() {
                       key={vItem.index}
                       ref={virtualizer.measureElement}
                     >
-                      <div style={{ paddingLeft: `calc(${renderDepth} * ${config.space.S400})` }}>
+                      <div
+                        style={{
+                          paddingLeft: `calc(${renderDepth} * ${config.space.S400})`,
+                        }}
+                      >
                         <SpaceNavItem
                           room={room}
                           selected={selectedRoomId === roomId}

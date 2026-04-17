@@ -1,4 +1,5 @@
-import { Room, RoomEvent, RoomEventHandlerMap } from '$types/matrix-sdk';
+import type { Room, RoomEventHandlerMap } from '$types/matrix-sdk';
+import { RoomEvent } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';
 
 const getEventReaders = (room: Room, evtId?: string) => {

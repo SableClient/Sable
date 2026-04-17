@@ -21,7 +21,7 @@ import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths'
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
-import { Room } from 'matrix-js-sdk';
+import type { Room } from 'matrix-js-sdk';
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -82,7 +82,7 @@ export function GlobalKeyboardShortcuts() {
       if (!isKeyHotkey('alt+n', evt)) return;
       const unreadEntries = Array.from(roomToUnread.entries())
         .filter(([id, u]) => u.total > 0 && id !== currentRoom?.roomId)
-        .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
+        .toSorted((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       unreadIndexRef.current = 0;
@@ -100,7 +100,7 @@ export function GlobalKeyboardShortcuts() {
       if (!isDown && !isUp) return;
       const unreadEntries = Array.from(roomToUnread.entries())
         .filter(([, u]) => u.total > 0)
-        .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
+        .toSorted((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       if (isDown) {

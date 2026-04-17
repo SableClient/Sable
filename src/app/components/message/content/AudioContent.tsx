@@ -1,13 +1,15 @@
-/* eslint-disable jsx-a11y/media-has-caption */
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+/* oxlint-disable jsx-a11y/media-has-caption */
+import type { ReactNode} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { IAudioInfo } from '$types/matrix/common';
+import type { IAudioInfo } from '$types/matrix/common';
+import type {
+  PlayTimeCallback} from '$hooks/media';
 import {
-  PlayTimeCallback,
   useMediaLoading,
   useMediaPlay,
   useMediaPlayTimeCallback,
@@ -105,7 +107,7 @@ export function AudioContent({
         values={[currentTime]}
         onChange={(values) => seek(values[0])}
         renderTrack={(params) => {
-          const { key, ...restProps } = params.props as any;
+          const { key, ...restProps } = params.props as unknown;
           return (
             <div key={key} {...restProps}>
               {params.children}
@@ -122,7 +124,7 @@ export function AudioContent({
           );
         }}
         renderThumb={(params) => {
-          const { key, style, ...restProps } = params.props as any;
+          const { key, style, ...restProps } = params.props as unknown;
           return (
             <Badge
               key={key}
@@ -182,7 +184,7 @@ export function AudioContent({
           values={[volume]}
           onChange={(values) => setVolume(values[0])}
           renderTrack={(params) => {
-            const { key, ...restProps } = params.props as any;
+            const { key, ...restProps } = params.props as unknown;
             return (
               <div key={key} {...restProps}>
                 {params.children}
@@ -199,7 +201,7 @@ export function AudioContent({
             );
           }}
           renderThumb={(params) => {
-            const { key, style, ...restProps } = params.props as any;
+            const { key, style, ...restProps } = params.props as unknown;
             return (
               <Badge
                 key={key}

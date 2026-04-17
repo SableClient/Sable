@@ -1,15 +1,16 @@
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { StateEvent } from '$types/matrix/room';
+import type {
+  ImagePack,
+  ImageUsage} from '$plugins/custom-emoji';
 import {
   getGlobalImagePacks,
   getRoomImagePack,
   getRoomImagePacks,
   getUserImagePack,
   globalPacksScope,
-  ImagePack,
-  ImageUsage,
   readCachedPack,
   readCachedPacks,
   roomPacksScope,
@@ -65,7 +66,7 @@ export const useUserImagePack = (): ImagePack | undefined => {
       if (!userId) return current;
       return readCachedPack(userId, userPackScope()) ?? current;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
       const cached = readCachedPacks(userId, globalPacksScope());
       return cached.length > 0 ? cached : current;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -171,7 +172,7 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
         ) ?? current
       );
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -217,7 +218,7 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
       const cached = readCachedPacks(userId, roomPacksScope(room.roomId));
       return cached.length > 0 ? cached : current;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -263,7 +264,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
       });
       return cached.length > 0 ? cached : current;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

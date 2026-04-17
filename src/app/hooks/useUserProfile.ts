@@ -1,17 +1,19 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import { EventTimeline, Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import { EventTimeline } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { MSC1767Text } from '$types/matrix/common';
+import type { MSC1767Text } from '$types/matrix/common';
+import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
 
-const inFlightProfiles = new Map<string, Promise<any>>();
+const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
@@ -20,7 +22,7 @@ export type MSC4440Bio = {
 export type UserProfile = {
   avatarUrl?: string;
   displayName?: string;
-  pronouns?: any[];
+  pronouns?: PronounSet[];
   timezone?: string;
   bio?: string;
   status?: string;
@@ -30,11 +32,11 @@ export type UserProfile = {
   nameColorLight?: string;
   isCat?: boolean;
   hasCats?: boolean;
-  extended?: Record<string, any>;
+  extended?: Record<string, unknown>;
   _fetched?: boolean;
 };
 
-const normalizeInfo = (info: any): UserProfile => {
+const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
   const msc4440Bio = info['gay.fomx.biography'] as MSC4440Bio | undefined;
   const knownKeys = new Set([
     'avatar_url',
@@ -54,7 +56,7 @@ const normalizeInfo = (info: any): UserProfile => {
     'kitty.meow.is_cat',
   ]);
 
-  const extended: Record<string, any> = {};
+  const extended: Record<string, unknown> = {};
   Object.entries(info).forEach(([key, value]) => {
     if (!knownKeys.has(key)) {
       extended[key] = value;
@@ -82,7 +84,7 @@ const normalizeInfo = (info: any): UserProfile => {
   };
 };
 
-const isValidHex = (c: any): string | undefined => {
+const isValidHex = (c: unknown): string | undefined => {
   if (typeof c !== 'string') return undefined;
   // silly tuwunel smh
   const cleaned = c.replaceAll(/["']/g, '').trim();
@@ -98,7 +100,7 @@ export const useUserProfile = (
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
-  resolvedPronouns?: any[];
+  resolvedPronouns?: PronounSet[];
 } => {
   const mx = useMatrixClient();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -132,7 +134,7 @@ export const useUserProfile = (
     let isMounted = true;
 
     fetchPromise
-      .then((info: any) => {
+      .then((info: Record<string, unknown>) => {
         if (!isMounted) return;
         const normalized = normalizeInfo(info);
         setGlobalProfiles((prev) => ({
@@ -207,6 +209,14 @@ export const useUserProfile = (
             Array.isArray(spaceFontEvent) ? spaceFontEvent[0] : spaceFontEvent
           )?.getContent()?.font;
         }
+
+        const spacePronounEvent = pState?.getStateEvents(
+          StateEvent.RoomCosmeticsPronouns as string,
+          userId
+        );
+        spacePronouns = (
+          Array.isArray(spacePronounEvent) ? spacePronounEvent[0] : spacePronounEvent
+        )?.getContent()?.pronouns;
       }
     }
     const validGlobalVal = isValidHex(data?.nameColor);

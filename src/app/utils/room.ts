@@ -1,34 +1,36 @@
-import { IconName, IconSrc } from 'folds';
+import type { IconName, IconSrc } from 'folds';
 
-import {
-  EventTimeline,
+import type {
   EventTimelineSet,
-  EventType,
   IMentions,
   IPowerLevelsContent,
   IPushRule,
   IPushRules,
-  JoinRule,
   MatrixClient,
   MatrixEvent,
+  Room,
+  RoomMember,
+  CryptoBackend} from '$types/matrix-sdk';
+import {
+  EventTimeline,
+  EventType,
+  JoinRule,
   NotificationCountType,
   PushProcessor,
   RelationType,
-  Room,
-  RoomMember,
-  CryptoBackend,
   MsgType,
 } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import {
+import type { AccountDataEvent } from '$types/matrix/accountData';
+import type {
   IRoomCreateContent,
+  RoomToParents,
+  UnreadInfo} from '$types/matrix/room';
+import {
   Membership,
   NotificationType,
-  RoomToParents,
   RoomType,
   MessageEvent,
-  StateEvent,
-  UnreadInfo,
+  StateEvent
 } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
 
@@ -46,7 +48,7 @@ export const getStateEvents = (room: Room, eventType: StateEvent): MatrixEvent[]
 export const getAccountData = (
   mx: MatrixClient,
   eventType: AccountDataEvent
-): MatrixEvent | undefined => mx.getAccountData(eventType as any);
+): MatrixEvent | undefined => mx.getAccountData(eventType);
 
 export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
   const roomIds = new Set<string>();
@@ -207,17 +209,17 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
   return NotificationType.MentionsAndKeywords;
 };
 
-const NOTIFICATION_EVENT_TYPES = [
+const NOTIFICATION_EVENT_TYPES = new Set([
   'm.room.create',
   'm.room.message',
   'm.room.encrypted',
   'm.room.member',
   'm.sticker',
   'm.reaction',
-];
+]);
 export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
-  if (!NOTIFICATION_EVENT_TYPES.includes(eType)) {
+  if (!NOTIFICATION_EVENT_TYPES.has(eType)) {
     return false;
   }
   if (eType === 'm.room.member') return false;
@@ -317,7 +319,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       // Exclude the user's own messages: own sent events are always "read" (hasUserReadEvent
       // returns true for them), which would cause the clamp to fire incorrectly.
       const latestNotification = [...liveEvents]
-        .reverse()
+        .toReversed()
         .find(
           (event) =>
             !event.isSending() &&
@@ -352,7 +354,11 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       }
     }
     if (fallbackTotal > 0) {
-      return { roomId: room.roomId, highlight: fallbackHighlight, total: fallbackTotal };
+      return {
+        roomId: room.roomId,
+        highlight: fallbackHighlight,
+        total: fallbackTotal,
+      };
     }
   }
 
@@ -530,7 +536,11 @@ export const getMemberDisplayName = (
   const name = member?.rawDisplayName;
   if (name === userId) return undefined;
   if (
-    name?.replace(/[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\u200B-\u200D\t\n ]/gu, '').length === 0
+    name?.replace(
+      // eslint-disable-next-line regexp/no-misleading-character-class -- Stripping invisible formatting characters from display names
+      /[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\u200B-\u200D\t\n ]/gu,
+      ''
+    ).length === 0
   )
     return undefined;
   return name;
@@ -560,7 +570,7 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
   const decryptionPromises = timeline
     .getEvents()
     .filter((event) => event.isEncrypted())
-    .reverse()
+    .toReversed()
     .map((event) => event.attemptDecryption(crypto as CryptoBackend, { isRetry: true }));
   const decryptStart = performance.now();
   await Sentry.startSpan(
@@ -605,7 +615,7 @@ export const getLatestEdit = (
 ): MatrixEvent | undefined => {
   const eventByTargetSender = (rEvent: MatrixEvent) =>
     rEvent.getSender() === targetEvent.getSender();
-  return editEvents.sort((m1, m2) => m2.getTs() - m1.getTs()).find(eventByTargetSender);
+  return editEvents.toSorted((m1, m2) => m2.getTs() - m1.getTs()).find(eventByTargetSender);
 };
 
 export const getEditedEvent = (

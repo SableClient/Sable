@@ -1,5 +1,7 @@
-import { ChangeEventHandler, FormEventHandler, useCallback, useMemo, useState } from 'react';
-import { IPushRule, IPushRules, PushRuleKind } from '$types/matrix-sdk';
+import type { ChangeEventHandler, FormEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { IPushRule, IPushRules} from '$types/matrix-sdk';
+import { PushRuleKind } from '$types/matrix-sdk';
 import { Box, Text, Badge, Button, Input, config, IconButton, Icons, Icon, Spinner } from 'folds';
 import { useAccountData } from '$hooks/useAccountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
@@ -8,10 +10,11 @@ import { SettingTile } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
+import type {
+  NotificationModeOptions} from '$hooks/useNotificationMode';
 import {
   getNotificationModeActions,
   NotificationMode,
-  NotificationModeOptions,
   useNotificationActionsMode,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
@@ -26,7 +29,7 @@ const NOTIFY_MODE_OPS: NotificationModeOptions = {
 
 function KeywordInput() {
   const mx = useMatrixClient();
-  const [keyword, setKeyword] = useState<string>('');
+  const [keyword, setKeyword] = useState('');
 
   const [keywordState, addKeyword] = useAsyncCallback(
     useCallback(

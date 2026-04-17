@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
@@ -39,12 +39,12 @@ export interface ProcessedEvent {
   willRenderDayDivider: boolean;
 }
 
-const MESSAGE_EVENT_TYPES = [
+const MESSAGE_EVENT_TYPES = new Set([
   'm.room.message',
   'm.room.message.encrypted',
   'm.sticker',
   'm.room.encrypted',
-];
+]);
 
 const normalizeMessageType = (t: string): string =>
   t === 'm.room.encrypted' || t === 'm.room.message.encrypted' ? 'm.room.message' : t;
@@ -137,7 +137,7 @@ export function useProcessedTimeline({
         dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), getEvtTs.call(mEvent)) : false;
       }
 
-      const isMessageEvent = MESSAGE_EVENT_TYPES.includes(type);
+      const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
 
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
@@ -160,7 +160,7 @@ export function useProcessedTimeline({
             withinTimeThreshold &&
             getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
-          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.includes(getPrevType.call(prevEvent));
+          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(getPrevType.call(prevEvent));
           collapsed = !prevIsMessageEvent;
         }
       }

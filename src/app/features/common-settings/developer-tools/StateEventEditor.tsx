@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEventHandler} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
@@ -13,13 +14,13 @@ import {
   Spinner,
   Button,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import { Page, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { TextViewerContent } from '$components/text-viewer';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoom } from '$hooks/useRoom';
-import { StateEvent } from '$types/matrix/room';
+import type { StateEvent } from '$types/matrix/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
 import { Cursor } from '$plugins/text-area';
@@ -59,7 +60,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
 
   const [submitState, submit] = useAsyncCallback<object, MatrixError, [object]>(
     useCallback(
-      (c) => mx.sendStateEvent(room.roomId, type as any, c, stateKey),
+      (c) => mx.sendStateEvent(room.roomId, type as string, c, stateKey),
       [mx, room, type, stateKey]
     )
   );

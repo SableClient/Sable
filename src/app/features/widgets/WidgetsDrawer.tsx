@@ -1,4 +1,5 @@
-import { FormEventHandler, MouseEventHandler, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler} from 'react';
+import { useState } from 'react';
 import {
   Box,
   Header,
@@ -15,10 +16,11 @@ import {
   Button,
   Line,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useRoomWidgets, RoomWidget, enrichWidgetUrl } from '$hooks/useRoomWidgets';
+import type { RoomWidget} from '$hooks/useRoomWidgets';
+import { useRoomWidgets, enrichWidgetUrl } from '$hooks/useRoomWidgets';
 import { useSetSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
@@ -102,14 +104,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
       const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomWidget as any,
+        StateEvent.RoomWidget as string,
         {
           type: 'm.custom',
           url: enrichWidgetUrl(url.trim()),
           name: name.trim(),
           id: widgetId,
           creatorUserId: mx.getUserId(),
-        } as any,
+        } as unknown,
         widgetId
       );
       setName('');
@@ -133,14 +135,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
           size="300"
           placeholder="Widget Name"
           value={name}
-          onChange={(e: any) => setName(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
         />
         <Input
           className={css.AddWidgetInput}
           size="300"
           placeholder="Widget URL (https://...)"
           value={url}
-          onChange={(e: any) => setUrl(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
         />
         <Button
           type="submit"
@@ -228,7 +230,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
 
   const handleRemoveWidget = async (widget: RoomWidget) => {
     try {
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomWidget as any, {} as any, widget.id);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomWidget as string, {} as unknown, widget.id);
       if (activeWidget?.id === widget.id) {
         setActiveWidget(null);
       }
@@ -274,7 +276,9 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                   <Box
                     direction="Column"
                     gap="100"
-                    style={{ padding: `${config.space.S100} ${config.space.S300}` }}
+                    style={{
+                      padding: `${config.space.S100} ${config.space.S300}`,
+                    }}
                   >
                     <Button
                       size="300"

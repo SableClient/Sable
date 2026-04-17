@@ -1,11 +1,12 @@
-import {
+import type {
   ClientWidgetApi,
   IWidgetApiAcknowledgeResponseData,
   IWidgetApiRequestData,
 } from 'matrix-widget-api';
 import { useCallback, useEffect, useState } from 'react';
-import { CallControl, CallControlEvent } from './CallControl';
-import { CallControlState } from './CallControlState';
+import type { CallControl} from './CallControl';
+import { CallControlEvent } from './CallControl';
+import type { CallControlState } from './CallControlState';
 
 export const useClientWidgetApiEvent = <T>(
   api: ClientWidgetApi | undefined,

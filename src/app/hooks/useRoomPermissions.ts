@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import {
+import type {
   IPowerLevels,
   PowerLevelActions,
-  PowerLevelNotificationsAction,
+  PowerLevelNotificationsAction} from './usePowerLevels';
+import {
   readPowerLevel,
 } from './usePowerLevels';
 

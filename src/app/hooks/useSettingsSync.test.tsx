@@ -267,7 +267,11 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     const before = Date.now();
     act(() => {
       callbackHolder.current?.(
-        makeSableSettingsEvent({ v: SETTINGS_SYNC_VERSION, synctoken: echoToken, settings: {} })
+        makeSableSettingsEvent({
+          v: SETTINGS_SYNC_VERSION,
+          synctoken: echoToken,
+          settings: {},
+        })
       );
     });
     const after = Date.now();

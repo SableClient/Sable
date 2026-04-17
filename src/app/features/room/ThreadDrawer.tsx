@@ -1,20 +1,22 @@
-import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config } from 'folds';
+import type {
+  IEvent,
+  Room} from '$types/matrix-sdk';
 import {
   Direction,
-  IEvent,
   MatrixEvent,
   PushProcessor,
   ReceiptType,
   RelationType,
-  Room,
   RoomEvent,
   ThreadEvent,
 } from '$types/matrix-sdk';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactEditor } from 'slate-react';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -41,13 +43,15 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
-import { IReplyDraft, roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import type { IReplyDraft} from '$state/room/roomInputDrafts';
+import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMessageEdit } from '$hooks/useMessageEdit';
-import { useProcessedTimeline, ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
+import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
+import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
@@ -226,7 +230,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const totalEvents = threadTimeline?.getEvents().length ?? 0;
   const linkedTimelines = useMemo(
     () => (threadTimeline ? [threadTimeline] : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
     [threadTimeline, totalEvents]
   );
   const items = useMemo(() => Array.from({ length: totalEvents }, (_, i) => i), [totalEvents]);
@@ -264,7 +268,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       willRenderDayDivider: false,
     }));
     // forceUpdateCounter makes this recompute whenever events arrive
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room, threadRootId, thread, processedEvents, forceUpdateCounter]);
 
   processedEventsRef.current = displayReplies;
@@ -369,15 +373,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       }
     };
     const onThreadUpdate = () => forceUpdate((n) => n + 1);
-    mx.on(RoomEvent.Timeline, onTimeline as any);
-    room.on(RoomEvent.Redaction, onRedaction as any);
-    room.on(ThreadEvent.Update, onThreadUpdate as any);
-    room.on(ThreadEvent.NewReply, onThreadUpdate as any);
+    mx.on(RoomEvent.Timeline, onTimeline as unknown);
+    room.on(RoomEvent.Redaction, onRedaction as unknown);
+    room.on(ThreadEvent.Update, onThreadUpdate as unknown);
+    room.on(ThreadEvent.NewReply, onThreadUpdate as unknown);
     return () => {
-      mx.off(RoomEvent.Timeline, onTimeline as any);
-      room.removeListener(RoomEvent.Redaction, onRedaction as any);
-      room.removeListener(ThreadEvent.Update, onThreadUpdate as any);
-      room.removeListener(ThreadEvent.NewReply, onThreadUpdate as any);
+      mx.off(RoomEvent.Timeline, onTimeline as unknown);
+      room.removeListener(RoomEvent.Redaction, onRedaction as unknown);
+      room.removeListener(ThreadEvent.Update, onThreadUpdate as unknown);
+      room.removeListener(ThreadEvent.NewReply, onThreadUpdate as unknown);
     };
   }, [mx, room, threadRootId]);
 
@@ -404,7 +408,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         try {
           await mx.sendReadReceipt(lastEvent, ReceiptType.Read);
         } catch (err) {
-          // eslint-disable-next-line no-console
+          // oxlint-disable-next-line no-console
           console.warn('Failed to send thread read receipt:', err);
         }
       }
@@ -586,7 +590,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const handleEditLastMessage = useCallback(() => {
     const userId = mx.getUserId();
     const ownReply = [...processedEventsRef.current]
-      .reverse()
+      .toReversed()
       .find(
         (e) =>
           e.id !== threadRootId &&
@@ -643,7 +647,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const jumpIndex = jumpToEventId ? processedEvents.findIndex((e) => e.id === jumpToEventId) : -1;
   const focusItem =
     jumpIndex >= 0
-      ? { index: processedEvents[jumpIndex].itemIndex, highlight: true, scrollTo: false as const }
+      ? {
+          index: processedEvents[jumpIndex].itemIndex,
+          highlight: true,
+          scrollTo: false as const,
+        }
       : undefined;
 
   const renderMatrixEvent = useTimelineEventRenderer({

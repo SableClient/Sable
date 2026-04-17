@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { SpecVersions } from '../cs-api';
+import type { SpecVersions } from '../cs-api';
 
 const SpecVersionsContext = createContext<SpecVersions | null>(null);
 

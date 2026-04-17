@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MatrixClient, Room } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 
 export type GroupMemberInfo = {
   userId: string;
@@ -67,7 +67,7 @@ export const useGroupDMMembers = (
         }
 
         // Sort allUserIds by who appears first in recentSenders
-        const sortedUserIds = allUserIds.sort((a, b) => {
+        const sortedUserIds = allUserIds.toSorted((a, b) => {
           const aIndex = recentSenders.indexOf(a);
           const bIndex = recentSenders.indexOf(b);
 

@@ -1,26 +1,28 @@
-import { MouseEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAtomValue } from 'jotai';
-import {
+import type {
   IThreadBundledRelationship,
   MatrixClient,
   MatrixEvent,
-  NotificationCountType,
   Room,
-  RoomEvent,
-  ThreadEvent,
   PushProcessor,
   EventTimelineSet,
-  IContent,
+  IContent} from '$types/matrix-sdk';
+import {
+  NotificationCountType,
+  RoomEvent,
+  ThreadEvent
 } from '$types/matrix-sdk';
-import { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
-import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
-import { useMemberEventParser } from '$hooks/useMemberEventParser';
+import type { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
+import type { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
@@ -39,7 +41,8 @@ import { ImageViewer } from '$components/image-viewer';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { UserAvatar } from '$components/user-avatar';
-import { MessageEvent, StateEvent, GetContentCallback } from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
+import { MessageEvent, StateEvent } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
   getEditedEvent,
@@ -52,10 +55,11 @@ import {
 import { getLinkedTimelines, getLiveTimeline } from '$utils/timeline';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import type {
+  ForwardedMessageProps} from '$features/room/message';
 import {
   EncryptedContent,
   Event,
-  ForwardedMessageProps,
   Message,
   Reactions,
 } from '$features/room/message';
@@ -117,13 +121,13 @@ function ThreadReplyChip({
   useEffect(() => {
     if (!thread) return () => {};
     const onUpdate = () => forceUpdate((n) => n + 1);
-    thread.on(ThreadEvent.NewReply as any, onUpdate);
-    thread.on(ThreadEvent.Update as any, onUpdate);
-    room.on(RoomEvent.Redaction as any, onUpdate);
+    thread.on(ThreadEvent.NewReply as string, onUpdate);
+    thread.on(ThreadEvent.Update as string, onUpdate);
+    room.on(RoomEvent.Redaction as string, onUpdate);
     return () => {
-      thread.off(ThreadEvent.NewReply as any, onUpdate);
-      thread.off(ThreadEvent.Update as any, onUpdate);
-      room.off(RoomEvent.Redaction as any, onUpdate);
+      thread.off(ThreadEvent.NewReply as string, onUpdate);
+      thread.off(ThreadEvent.Update as string, onUpdate);
+      room.off(RoomEvent.Redaction as string, onUpdate);
     };
   }, [room, thread]);
 
@@ -142,7 +146,7 @@ function ThreadReplyChip({
       .filter(
         (ev) => ev.threadRootId === mEventId && ev.getId() !== mEventId && !reactionOrEditEvent(ev)
       );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- counter is a cache-busting key, not used directly in body
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- counter is a cache-busting key, not used directly in body
   }, [room, mEventId, thread, counter]);
 
   if (!thread) return null;
@@ -210,7 +214,13 @@ function ThreadReplyChip({
                     src={avatarUrl}
                     alt={displayName}
                     renderFallback={() => (
-                      <span style={{ fontSize: '10px', fontWeight: 'bold', lineHeight: 1 }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          lineHeight: 1,
+                        }}
+                      >
                         {displayName[0]?.toUpperCase() ?? '?'}
                       </span>
                     )}
@@ -257,7 +267,7 @@ export interface TimelineEventRendererOptions {
   imagePackRooms: Room[];
   settings: {
     messageLayout: MessageLayout;
-    messageSpacing: any;
+    messageSpacing: number;
     hideReads: boolean;
     showDeveloperTools: boolean;
     hour24Clock: boolean;
@@ -381,7 +391,7 @@ export function useTimelineEventRenderer({
         }
 
         const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
-        let editedNewContent: any;
+        let editedNewContent: unknown;
         if (editedEvent) {
           const { getContent: getEditedContent } = editedEvent;
           editedNewContent = getEditedContent.call(editedEvent)['m.new_content'];
@@ -630,7 +640,7 @@ export function useTimelineEventRenderer({
                 if (type === MessageEvent.Sticker)
                   return (
                     <MSticker
-                      content={getEventContent.call(mEvent) as any}
+                      content={getEventContent.call(mEvent) as unknown}
                       renderImageContent={(props) => (
                         <ImageContent
                           {...props}
@@ -652,18 +662,18 @@ export function useTimelineEventRenderer({
                   );
                 if (type === MessageEvent.RoomMessage) {
                   const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
-                  let editedNewContent: any;
+                  let editedNewContent: unknown;
                   if (editedEvent) {
                     const { getContent: getEditedContent } = editedEvent;
                     editedNewContent = getEditedContent.call(editedEvent)['m.new_content'];
                   }
 
-                  const baseContent = (getEventContent.call(mEvent) || {}) as Record<string, any>;
+                  const baseContent = (getEventContent.call(mEvent) || {}) as Record<string, unknown>;
                   const safeContent = (
                     Object.keys(baseContent).length > 0
                       ? baseContent
                       : getOriginalContent.call(mEvent)
-                  ) as Record<string, any>;
+                  ) as Record<string, unknown>;
 
                   const getContent = (() => editedNewContent ?? safeContent) as GetContentCallback;
 
@@ -795,7 +805,7 @@ export function useTimelineEventRenderer({
               <RedactedContent reason={getUnsigned.call(mEvent).redacted_because?.content.reason} />
             ) : (
               <MSticker
-                content={getEventContent.call(mEvent) as any}
+                content={getEventContent.call(mEvent) as unknown}
                 renderImageContent={(props) => (
                   <ImageContent
                     {...props}
@@ -1127,6 +1137,7 @@ export function useTimelineEventRenderer({
                       .slice(0, 4)
                       .map((x: string) => (
                         <Reply
+                          key={x}
                           style={{ opacity: '80%' }}
                           room={room}
                           replyEventId={x}

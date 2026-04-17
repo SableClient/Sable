@@ -36,7 +36,7 @@ export function RoomTombstone({ roomId, body, replacementRoomId }: RoomTombstone
         <Text size="T400">{body || 'This room has been replaced and is no longer active.'}</Text>
         {joinState.status === AsyncStatus.Error && (
           <Text style={{ color: color.Critical.Main }} size="T200">
-            {(joinState.error as any)?.message ?? 'Failed to join replacement room!'}
+            {(joinState.error as Error)?.message ?? 'Failed to join replacement room!'}
           </Text>
         )}
       </Box>

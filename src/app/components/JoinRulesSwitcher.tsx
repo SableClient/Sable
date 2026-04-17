@@ -1,4 +1,8 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type {
+  IconSrc,
+  RectCords} from 'folds';
 import {
   config,
   Box,
@@ -6,8 +10,6 @@ import {
   Text,
   Icon,
   Icons,
-  IconSrc,
-  RectCords,
   PopOut,
   Menu,
   Button,

@@ -1,7 +1,9 @@
-import { useState, useEffect, ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from 'folds';
 import { SettingTile } from '$components/setting-tile';
-import { parsePronounsInput, PronounSet } from '$utils/pronouns';
+import type { PronounSet } from '$utils/pronouns';
+import { parsePronounsInput } from '$utils/pronouns';
 
 type PronounEditorProps = {
   title: string;

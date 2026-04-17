@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Reply } from './Reply';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
   mockUseRoomEvent: vi.fn(),
   mockInvalidateQueries: vi.fn(),
@@ -14,7 +16,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('jotai', async (importActual) => {
-  const actual = await importActual<typeof import('jotai')>();
+  const actual = await importActual();
   return {
     ...actual,
     useAtomValue: () => ({}),
@@ -65,7 +67,7 @@ vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
 }));
 
 vi.mock('$utils/room', async (importActual) => {
-  const actual = await importActual<typeof import('$utils/room')>();
+  const actual = await importActual();
   return {
     ...actual,
     getMemberDisplayName: () => 'Alice',

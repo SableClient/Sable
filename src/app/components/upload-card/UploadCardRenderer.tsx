@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
@@ -13,18 +14,20 @@ import {
   config,
   toRem,
 } from 'folds';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Play, Pause } from '@phosphor-icons/react';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { RenderBody } from '$components/message';
-import { UploadStatus, UploadSuccess, useBindUploadAtom } from '$state/upload';
+import type { UploadSuccess} from '$state/upload';
+import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { TUploadContent } from '$utils/matrix';
+import type { TUploadContent } from '$utils/matrix';
 import { bytesToSize, getFileTypeIcon } from '$utils/common';
-import { roomUploadAtomFamily, TUploadItem, TUploadMetadata } from '$state/room/roomInputDrafts';
+import type { TUploadItem, TUploadMetadata } from '$state/room/roomInputDrafts';
+import { roomUploadAtomFamily } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -61,7 +64,7 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
   const fileUrl = useObjectURL(originalFile);
 
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <video
       style={{
         objectFit: 'contain',
@@ -272,7 +275,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
           const played = progress > 0 && barRatio <= progress;
           return (
             <div
-              // eslint-disable-next-line react/no-array-index-key
+              // oxlint-disable-next-line react/no-array-index-key
               key={i}
               className={`${css.AudioWaveformBar} ${played ? css.AudioWaveformBarPlayed : css.AudioWaveformBarUnplayed}`}
               style={{ height: Math.max(3, Math.round(level * 24)) }}

@@ -1,4 +1,7 @@
-import { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Button,
@@ -9,14 +12,14 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
-import { CallEmbed, useCallControlState } from '$plugins/call';
+import type { CallEmbed} from '$plugins/call';
+import { useCallControlState } from '$plugins/call';
 import { stopPropagation } from '$utils/keyboard';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoom } from '$hooks/useRoom';
@@ -205,7 +208,10 @@ export function CallControls({ callEmbed }: CallControlsProps) {
           </PopOut>
 
           <Button
-            style={{ minWidth: compact ? toRem(48) : toRem(88), padding: compact ? 0 : undefined }}
+            style={{
+              minWidth: compact ? toRem(48) : toRem(88),
+              padding: compact ? 0 : undefined,
+            }}
             variant="Critical"
             fill="Solid"
             onClick={hangup}

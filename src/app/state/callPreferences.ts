@@ -1,4 +1,4 @@
-import { WritableAtom } from 'jotai';
+import type { WritableAtom } from 'jotai';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,
@@ -27,7 +27,7 @@ export const makeCallPreferencesAtom = (userId: string): CallPreferencesAtom => 
   const callPreferencesAtom = atomWithLocalStorage<CallPreferences>(
     storeKey,
     (key) => {
-      const v = getLocalStorageItem<CallPreferences>(key, DEFAULT_PREFERENCES);
+      const v = getLocalStorageItem(key, DEFAULT_PREFERENCES);
       return v;
     },
     (key, value) => {

@@ -1,9 +1,10 @@
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import { useCallback } from 'react';
-import {
+import type {
   IRoomIdToTypingMembers,
-  TypingReceipt,
+  TypingReceipt} from '$state/typingMembers';
+import {
   roomIdToTypingMembersAtom,
 } from '$state/typingMembers';
 

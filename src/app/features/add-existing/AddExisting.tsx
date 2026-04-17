@@ -19,9 +19,10 @@ import {
   Spinner,
   Text,
 } from 'folds';
-import {
+import type {
   ChangeEventHandler,
-  MouseEventHandler,
+  MouseEventHandler} from 'react';
+import {
   useCallback,
   useMemo,
   useRef,
@@ -29,7 +30,7 @@ import {
 } from 'react';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirects, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -43,7 +44,8 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { StateEvent } from '$types/matrix/room';
@@ -114,7 +116,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
     return rIds
       .filter((rId) => rId !== parentId && !isAncestor(rId, parentId))
-      .sort(factoryRoomIdByAtoZ(mx));
+      .toSorted(factoryRoomIdByAtoZ(mx));
   }, [space, spaces, rooms, directs, mx, parentId, isAncestor]);
 
   const getRoomNameStr: SearchItemStrGetter<string> = useCallback(
@@ -158,7 +160,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
           await mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as any,
+            StateEvent.SpaceChild as string,
             {
               auto_join: false,
               suggested: false,
@@ -237,7 +239,11 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                   >
                     <Box
                       direction="Column"
-                      style={{ position: 'sticky', top: config.space.S300, zIndex: 1 }}
+                      style={{
+                        position: 'sticky',
+                        top: config.space.S300,
+                        zIndex: 1,
+                      }}
                     >
                       <Input
                         onChange={handleSearchChange}

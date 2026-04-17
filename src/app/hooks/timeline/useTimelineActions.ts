@@ -1,6 +1,8 @@
-import { useCallback, MouseEventHandler } from 'react';
-import { MatrixClient, Room, MatrixEvent, EventStatus, IContent } from '$types/matrix-sdk';
-import { Editor } from 'slate';
+import type { MouseEventHandler } from 'react';
+import { useCallback } from 'react';
+import type { MatrixClient, Room, MatrixEvent, IContent } from '$types/matrix-sdk';
+import { EventStatus } from '$types/matrix-sdk';
+import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
@@ -12,7 +14,7 @@ export interface UseTimelineActionsOptions {
   mx: MatrixClient;
   editor: Editor;
   nicknames: Record<string, string>;
-  globalProfiles: Record<string, any>;
+  globalProfiles: Record<string, UserProfile>;
   spaceId?: string;
   openUserRoomProfile: (
     roomId: string,
@@ -20,10 +22,10 @@ export interface UseTimelineActionsOptions {
     userId: string,
     rect: DOMRect,
     undefinedArg?: undefined,
-    options?: any
+    options?: unknown
   ) => void;
   activeReplyId?: string;
-  setReplyDraft: (draft: any) => void;
+  setReplyDraft: (draft: unknown) => void;
   openThreadId?: string;
   setOpenThread: (threadId: string | undefined) => void;
   handleEdit: (editId?: string) => void;
@@ -131,7 +133,7 @@ export function useTimelineActions({
       const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
 
       const { getContent, getWireContent, getSender } = replyEvt;
-      let editedNewContent: any;
+      let editedNewContent: unknown;
 
       if (editedReply) {
         const { getContent: getEditedContent } = editedReply;

@@ -15,10 +15,11 @@ import {
   Text,
   toRem,
 } from 'folds';
-import {
+import type {
   ChangeEventHandler,
   KeyboardEventHandler,
-  MouseEventHandler,
+  MouseEventHandler} from 'react';
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -27,12 +28,13 @@ import {
 } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useDirects, useOrphanSpaces, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import {
@@ -83,12 +85,12 @@ const useTopActiveRooms = (
       return spaces;
     }
     if (searchRoomType === SearchRoomType.Directs) {
-      return [...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return [...directs].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
     if (searchRoomType === SearchRoomType.Rooms) {
-      return [...rooms].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return [...rooms].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
-    return [...rooms, ...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+    return [...rooms, ...directs].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
   }, [mx, rooms, directs, spaces, searchRoomType]);
 };
 
@@ -174,7 +176,7 @@ export function Search({ requestClose }: SearchProps) {
     const items = result ? result.items : topActiveRooms;
     if (!selectedSpaceId) return items;
 
-    return [...items].sort((a, b) => {
+    return [...items].toSorted((a, b) => {
       const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
       const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
       return bInSpace - aInSpace;
@@ -306,7 +308,12 @@ export function Search({ requestClose }: SearchProps) {
               )}
               {roomsToRender.length > 0 && (
                 <Scroll ref={scrollRef} size="300" hideTrack>
-                  <div style={{ padding: config.space.S400, paddingRight: config.space.S200 }}>
+                  <div
+                    style={{
+                      padding: config.space.S400,
+                      paddingRight: config.space.S200,
+                    }}
+                  >
                     {roomsToRender.map((roomId, index) => {
                       const room = getRoom(roomId);
                       if (!room) return null;

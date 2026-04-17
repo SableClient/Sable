@@ -1,4 +1,5 @@
-import { CompactEmoji, fromUnicodeToHexcode } from 'emojibase';
+import type { CompactEmoji} from 'emojibase';
+import { fromUnicodeToHexcode } from 'emojibase';
 import emojisData from 'emojibase-data/en/compact.json';
 import joypixels from 'emojibase-data/en/shortcodes/joypixels.json';
 import emojibase from 'emojibase-data/en/shortcodes/emojibase.json';

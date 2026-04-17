@@ -1,7 +1,8 @@
-import {
+import type {
   ChangeEventHandler,
   FormEventHandler,
-  KeyboardEventHandler,
+  KeyboardEventHandler} from 'react';
+import {
   useCallback,
   useMemo,
   useRef,
@@ -29,14 +30,15 @@ import {
   Scroll,
   MenuItem,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { Membership } from '$types/matrix/room';
-import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -215,9 +217,20 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                         }}
                       >
                         <Box style={{ position: 'relative' }}>
-                          <Menu style={{ position: 'absolute', top: 0, zIndex: 1, width: '100%' }}>
+                          <Menu
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              zIndex: 1,
+                              width: '100%',
+                            }}
+                          >
                             <Scroll size="300" style={{ maxHeight: toRem(100) }}>
-                              <div style={{ padding: config.space.S100 }}>
+                              <div
+                                style={{
+                                  padding: config.space.S100,
+                                }}
+                              >
                                 {result.items.map((userId) => {
                                   const username = `${getMxIdLocalPart(userId)}`;
                                   const userServer = getMxIdServer(userId);

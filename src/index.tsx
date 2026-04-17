@@ -18,10 +18,11 @@ import './app/styles/themes.css';
 import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
 import { pushSessionToSW } from './sw-session';
+import type {
+  Sessions} from './app/state/sessions';
 import {
   getFallbackSession,
   MATRIX_SESSIONS_KEY,
-  Sessions,
   ACTIVE_SESSION_KEY,
 } from './app/state/sessions';
 import { createLogger } from './app/utils/debug';
@@ -51,6 +52,7 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
+    // oxlint-disable-next-line eslint(no-alert) -- PWA update prompt requires browser confirm dialog
     if (window.confirm('A new version of the app is available. Refresh to update?')) {
       if (registration.waiting) {
         registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
@@ -123,7 +125,10 @@ const injectIOSMetaTags = () => {
   const metaTags = [
     { name: 'theme-color', content: '#0C0B0F' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
-    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    {
+      name: 'apple-mobile-web-app-status-bar-style',
+      content: 'black-translucent',
+    },
   ];
 
   metaTags.forEach((tag) => {

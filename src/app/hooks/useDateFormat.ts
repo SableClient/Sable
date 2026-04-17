@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { DateFormat } from '$state/settings';
+import type { DateFormat } from '$state/settings';
 
 export type DateFormatItem = {
   name: string;

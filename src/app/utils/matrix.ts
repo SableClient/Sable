@@ -1,21 +1,23 @@
+import type {
+  EncryptedAttachmentInfo} from 'browser-encrypt-attachment';
 import {
-  EncryptedAttachmentInfo,
   decryptAttachment,
   encryptAttachment,
 } from 'browser-encrypt-attachment';
-import {
-  EventTimeline,
+import type {
   EventTimelineSet,
   MatrixClient,
-  MatrixError,
   MatrixEvent,
   Room,
   RoomMember,
   UploadProgress,
-  UploadResponse,
+  UploadResponse} from '$types/matrix-sdk';
+import {
+  EventTimeline,
+  MatrixError
 } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
+import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
@@ -189,13 +191,18 @@ export const uploadContent = async (
       });
       onSuccess(mxc);
     } else {
-      Sentry.metrics.count('sable.media.upload_error', 1, { attributes: { reason: 'no_uri' } });
+      Sentry.metrics.count('sable.media.upload_error', 1, {
+        attributes: { reason: 'no_uri' },
+      });
       onError(new MatrixError(data));
     }
-  } catch (e: any) {
-    Sentry.metrics.count('sable.media.upload_error', 1, { attributes: { reason: 'exception' } });
-    const error = typeof e?.message === 'string' ? e.message : undefined;
-    const errcode = typeof e?.name === 'string' ? e.message : undefined;
+  } catch (e: unknown) {
+    Sentry.metrics.count('sable.media.upload_error', 1, {
+      attributes: { reason: 'exception' },
+    });
+    const err = e as { message?: string; name?: string };
+    const error = typeof err?.message === 'string' ? err.message : undefined;
+    const errcode = typeof err?.name === 'string' ? err.name : undefined;
     onError(new MatrixError({ error, errcode }));
   }
 };
@@ -259,7 +266,7 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -284,11 +291,11 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -302,7 +309,7 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
 };
 
 export const mxcUrlToHttp = (
@@ -375,10 +382,10 @@ export const rateLimitedActions = async <T, R = void>(
   for (let i = 0; i < data.length; i += 1) {
     const dataItem = data[i];
     retryCount = 0;
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await performAction(dataItem, i);
     if (actionInterval > 0) {
-      // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await sleepForMs(actionInterval);
     }
   }
@@ -414,19 +421,19 @@ export const toggleReaction = (
     targetEventId
   );
   const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
-  const [, reactionsSet] = allReactions.find(([k]: [string, any]) => k === key) ?? [];
+  const [, reactionsSet] = allReactions.find(([k]) => k === key) ?? [];
   const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
-  if (myReaction && !!(myReaction as any)?.isRelation()) {
-    mx.redactEvent(room.roomId, (myReaction as any).getId());
+  if (myReaction && !!(myReaction).isRelation?.()) {
+    mx.redactEvent(room.roomId, myReaction.getId());
     return;
   }
   const rShortcode =
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
   mx.sendEvent(
     room.roomId,
-    MessageEvent.Reaction as any,
+    MessageEvent.Reaction,
     getReactionContent(targetEventId, key, rShortcode)
   );
 };

@@ -1,4 +1,7 @@
-import { FormEventHandler, MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Text,
@@ -9,7 +12,6 @@ import {
   Scroll,
   Button,
   Input,
-  RectCords,
   PopOut,
   Menu,
   config,
@@ -21,13 +23,14 @@ import {
 import { HexColorPicker } from 'react-colorful';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import type {
+  PowerLevelTags} from '$hooks/usePowerLevelTags';
 import {
   getPowers,
   getUsedPowers,
-  PowerLevelTags,
   usePowerLevelTags,
 } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
@@ -41,9 +44,11 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '$components/upload-card';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { MemberPowerTag, MemberPowerTagIcon, StateEvent } from '$types/matrix/room';
+import type { MemberPowerTag, MemberPowerTagIcon} from '$types/matrix/room';
+import { StateEvent } from '$types/matrix/room';
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
@@ -352,7 +357,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
       deleted.forEach((power) => {
         delete content[power];
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as any, content);
+      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as string, content);
     }, [mx, room, powerLevelTags, editedPowerTags, deleted])
   );
 

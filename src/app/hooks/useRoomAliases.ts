@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { MatrixError, Room, RoomCanonicalAliasEventContent } from '$types/matrix-sdk';
+import type { MatrixError, Room, RoomCanonicalAliasEventContent } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { getStateEvent } from '$utils/room';
-import { AsyncState, useAsyncCallback } from './useAsyncCallback';
+import type { AsyncState} from './useAsyncCallback';
+import { useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';
 import { useAlive } from './useAlive';
 import { useStateEvent } from './useStateEvent';
@@ -55,7 +56,7 @@ export const useSetMainAlias = (room: Room): ((alias: string | undefined) => Pro
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as string, newContent);
     },
     [mx, room]
   );
@@ -89,7 +90,7 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as string, newContent);
     },
     [mx, room]
   );
@@ -113,7 +114,7 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as string, newContent);
     },
     [mx, room]
   );

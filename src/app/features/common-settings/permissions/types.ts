@@ -1,4 +1,4 @@
-import { PermissionLocation } from '$hooks/usePowerLevels';
+import type { PermissionLocation } from '$hooks/usePowerLevels';
 
 export type PermissionItem = {
   location: PermissionLocation;

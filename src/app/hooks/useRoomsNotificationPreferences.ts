@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
-import { ConditionKind, IPushRules, MatrixClient, PushRuleKind } from '$types/matrix-sdk';
-import { Icons, IconSrc } from 'folds';
+import type { IPushRules, MatrixClient} from '$types/matrix-sdk';
+import { ConditionKind, PushRuleKind } from '$types/matrix-sdk';
+import type { IconSrc } from 'folds';
+import { Icons } from 'folds';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { isRoomId } from '$utils/matrix';
 import { useAccountData } from './useAccountData';

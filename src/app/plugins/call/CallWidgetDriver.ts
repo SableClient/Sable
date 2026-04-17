@@ -1,3 +1,6 @@
+import type {
+  SimpleObservable,
+  IOpenIDUpdate} from 'matrix-widget-api';
 import {
   type Capability,
   type ISendDelayedEventDetails,
@@ -9,10 +12,10 @@ import {
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
-  OpenIDRequestState,
-  SimpleObservable,
-  IOpenIDUpdate,
+  OpenIDRequestState
 } from 'matrix-widget-api';
+import type {
+  MatrixClient} from 'matrix-js-sdk';
 import {
   EventType,
   type IContent,
@@ -21,8 +24,7 @@ import {
   Direction,
   type SendDelayedEventResponse,
   type StateEvents,
-  type TimelineEvents,
-  MatrixClient,
+  type TimelineEvents
 } from 'matrix-js-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
@@ -191,10 +193,9 @@ export class CallWidgetDriver extends WidgetDriver {
       // attempt to re-batch these up into a single request
       const invertedContentMap: Record<string, { userId: string; deviceId: string }[]> = {};
 
-      // eslint-disable-next-line no-restricted-syntax
       for (const userId of Object.keys(contentMap)) {
         const userContentMap = contentMap[userId];
-        // eslint-disable-next-line no-restricted-syntax
+
         for (const deviceId of Object.keys(userContentMap)) {
           const content = userContentMap[deviceId];
           const stringifiedContent = JSON.stringify(content);
@@ -363,7 +364,7 @@ export class CallWidgetDriver extends WidgetDriver {
     return this.mx.getVisibleRooms().map((r) => r.roomId);
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  // oxlint-disable-next-line class-methods-use-this
   public processError(error: unknown): IWidgetApiErrorResponseDataDetails | undefined {
     return error instanceof MatrixError
       ? { matrix_api_error: error.asWidgetApiErrorData() }

@@ -1,18 +1,20 @@
+import type {
+  MatrixClient,
+  ISyncStateData} from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
-  MatrixClient,
   IndexedDBStore,
   IndexedDBCryptoStore,
-  SyncState,
-  ISyncStateData,
+  SyncState
 } from '$types/matrix-sdk';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
-import {
+import type {
   Session,
   Sessions,
-  SessionStoreName,
+  SessionStoreName} from '$state/sessions';
+import {
   getSessionStoreName,
   MATRIX_SESSIONS_KEY,
 } from '$state/sessions';
@@ -22,7 +24,8 @@ import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
-import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from './slidingSync';
+import type { SlidingSyncConfig, SlidingSyncDiagnostics} from './slidingSync';
+import { SlidingSyncManager } from './slidingSync';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -286,7 +289,7 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     cryptoStore: legacyCryptoStore,
     deviceId: session.deviceId,
     timelineSupport: true,
-    cryptoCallbacks: cryptoCallbacks as any,
+    cryptoCallbacks: cryptoCallbacks as unknown,
     verificationMethods: ['m.sas.v1'],
   });
 
@@ -442,7 +445,9 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       data?: ISyncStateData
     ) => {
       classicSyncCount += 1;
-      Sentry.metrics.count('sable.sync.cycle', 1, { attributes: { transport: 'classic', state } });
+      Sentry.metrics.count('sable.sync.cycle', 1, {
+        attributes: { transport: 'classic', state },
+      });
       debugLog.info('sync', `Classic sync state: ${state}`, {
         state,
         prevState: prevState ?? 'null',
@@ -463,7 +468,12 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
           category: 'sync.classic',
           message: `Classic sync problem: ${state}`,
           level: 'warning',
-          data: { state, prevState, error: data?.error?.message, syncNumber: classicSyncCount },
+          data: {
+            state,
+            prevState,
+            error: data?.error?.message,
+            syncNumber: classicSyncCount,
+          },
         });
       }
       if (
@@ -559,7 +569,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   }
 
   const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...(slidingConfig ?? {}),
+    ...slidingConfig,
     includeInviteList: true,
     pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
   });

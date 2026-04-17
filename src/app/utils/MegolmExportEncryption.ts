@@ -1,5 +1,5 @@
-/* eslint-disable no-bitwise */
-/* eslint-disable no-plusplus */
+/* oxlint-disable no-bitwise */
+/* oxlint-disable no-plusplus */
 // https://github.com/element-hq/element-web/blob/a5b63d582fde59ea4dd3c7fdcad7266ab70dd695/apps/web/src/utils/MegolmExportEncryption.ts
 
 import { createLogger } from './debug';
@@ -83,7 +83,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
 
   // look for the start line
   let lineStart = 0;
-  // eslint-disable-next-line no-constant-condition
+  // oxlint-disable-next-line no-constant-condition
   while (1) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     if (lineEnd < 0) {
@@ -102,7 +102,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
   const dataStart = lineStart;
 
   // look for the end line
-  // eslint-disable-next-line no-constant-condition
+  // oxlint-disable-next-line no-constant-condition
   while (1) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     const line = fileStr.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).trim();

@@ -11,10 +11,12 @@ import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 
+type VersionResult = { error?: { message: string } } | { server?: { name?: string; version?: string; compiler?: string } } | undefined;
+
 export function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
-  const [version, setVersion] = useState<any>(undefined);
+  const [version, setVersion] = useState<VersionResult>(undefined);
 
   if (!version)
     mx.http
@@ -30,7 +32,7 @@ export function HomeserverInfo() {
               prefix: '/.well-known/matrix',
               baseUrl: `https://${mx.getSafeUserId().split(':')[1]}`,
             })
-            .then((well_known: any) => {
+            .then((well_known: unknown) => {
               const newUrl = `https://${well_known['m.server'].split(':')[0]}`;
               if (newUrl !== federationUrl) {
                 setFederationUrl(newUrl);

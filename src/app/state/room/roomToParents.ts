@@ -1,16 +1,18 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
-import {
-  ClientEvent,
+import type {
   MatrixClient,
   MatrixEvent,
-  Room,
+  Room} from '$types/matrix-sdk';
+import {
+  ClientEvent,
   RoomEvent,
   RoomStateEvent,
   SyncState,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect } from 'react';
-import { Membership, RoomToParents, StateEvent } from '$types/matrix/room';
+import type { RoomToParents} from '$types/matrix/room';
+import { Membership, StateEvent } from '$types/matrix/room';
 import {
   getRoomToParents,
   getSpaceChildren,
@@ -40,7 +42,7 @@ export type RoomToParentsAction =
       roomId: string;
     };
 
-const baseRoomToParents = atom<RoomToParents>(new Map());
+const baseRoomToParents = atom(new Map());
 export const roomToParentsAtom = atom<RoomToParents, [RoomToParentsAction], undefined>(
   (get) => get(baseRoomToParents),
   (get, set, action) => {
@@ -120,7 +122,11 @@ export const useBindRoomToParentsAtom = (
 
     const handleAddRoom = (room: Room) => {
       if (isSpace(room) && room.getMyMembership() === Membership.Join) {
-        setRoomToParents({ type: 'PUT', parent: room.roomId, children: getSpaceChildren(room) });
+        setRoomToParents({
+          type: 'PUT',
+          parent: room.roomId,
+          children: getSpaceChildren(room),
+        });
       }
     };
 
@@ -130,7 +136,11 @@ export const useBindRoomToParentsAtom = (
         return;
       }
       if (isSpace(room) && membership === Membership.Join) {
-        setRoomToParents({ type: 'PUT', parent: room.roomId, children: getSpaceChildren(room) });
+        setRoomToParents({
+          type: 'PUT',
+          parent: room.roomId,
+          children: getSpaceChildren(room),
+        });
       }
     };
 

@@ -1,8 +1,9 @@
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import type {
+  PerMessageProfile} from '$hooks/usePerMessageProfile';
 import {
   addOrUpdatePerMessageProfile,
-  getAllPerMessageProfiles,
-  PerMessageProfile,
+  getAllPerMessageProfiles
 } from '$hooks/usePerMessageProfile';
 import { useEffect, useState } from 'react';
 import { Box, Button, Text } from 'folds';

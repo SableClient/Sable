@@ -1,6 +1,7 @@
-/* eslint-disable react/no-unused-prop-types, react/destructuring-assignment */
-import { forwardRef, MouseEventHandler, ReactNode, useCallback, useMemo, useRef } from 'react';
-import { MatrixEvent, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
+/* eslint-disable react/no-unused-prop-types */
+import type { MouseEventHandler, ReactNode} from 'react';
+import { forwardRef, useCallback, useMemo, useRef } from 'react';
+import type { MatrixEvent, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
 import {
   Avatar,
   Box,
@@ -17,8 +18,8 @@ import {
   Text,
   toRem,
 } from 'folds';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createLogger } from '$utils/debug';
@@ -49,7 +50,8 @@ import {
   getMemberDisplayName,
   getStateEvent,
 } from '$utils/room';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import type { GetContentCallback} from '$types/matrix/room';
+import { MessageEvent, StateEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -60,7 +62,8 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
-import { RenderMatrixEvent, useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
+import type { RenderMatrixEvent} from '$hooks/useMatrixEventRenderer';
+import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -77,8 +80,9 @@ import { useTheme } from '$hooks/useTheme';
 import { PowerIcon } from '$components/power';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import type {
+  GetMemberPowerTag} from '$hooks/useMemberPowerTag';
 import {
-  GetMemberPowerTag,
   getPowerTagIconSrc,
   useAccessiblePowerTagColors,
   useGetMemberPowerTag,
@@ -207,7 +211,7 @@ function PinnedMessage(props: PinnedMessageProps) {
         pinned: content.pinned.filter((id: string) => id !== eventId),
       };
 
-      return mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as any, newContent);
+      return mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as string, newContent);
     }, [room, eventId, mx])
   );
 
@@ -639,3 +643,4 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
 );
 
 RoomPinMenu.displayName = 'RoomPinMenu';
+

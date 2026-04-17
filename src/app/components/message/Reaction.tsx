@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Box, Icon, Icons, Text, as } from 'folds';
 import classNames from 'classnames';
-import { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
 import { getMemberDisplayName } from '$utils/room';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';

@@ -1,6 +1,6 @@
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { StateEvent } from '$types/matrix/room';
+import type { StateEvent } from '$types/matrix/room';
 import { getStateEvent } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
@@ -26,7 +26,7 @@ export const useStateEvent = (room: Room, eventType: StateEvent, stateKey = '') 
 
   return useMemo(
     () => getStateEvent(room, eventType, stateKey),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
     [room, eventType, stateKey, updateCount]
   );
 };

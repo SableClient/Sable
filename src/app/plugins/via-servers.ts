@@ -1,6 +1,7 @@
-import { Room } from '$types/matrix-sdk';
-import { IRoomCreateContent, StateEvent } from '$types/matrix/room';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import type { Room } from '$types/matrix-sdk';
+import type { IRoomCreateContent} from '$types/matrix/room';
+import { StateEvent } from '$types/matrix/room';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { creatorsSupported, getMxIdServer } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
 
@@ -61,7 +62,7 @@ export const getViaServers = (room: Room): string[] => {
     if (server) via.push(server);
   }
   const serverToPop = getServerToPopulation();
-  const sortedServers = Object.keys(serverToPop).sort(
+  const sortedServers = Object.keys(serverToPop).toSorted(
     (svrA, svrB) => serverToPop[svrB] - serverToPop[svrA]
   );
   const mostPop3 = sortedServers.slice(0, 3);

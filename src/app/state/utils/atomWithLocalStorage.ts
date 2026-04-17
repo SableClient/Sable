@@ -25,7 +25,7 @@ export const atomWithLocalStorage = <T>(
 ) => {
   const value = getItem(key);
 
-  const baseAtom = atom<T>(value);
+  const baseAtom = atom(value);
 
   baseAtom.onMount = (setAtom) => {
     const handleChange = (evt: StorageEvent) => {

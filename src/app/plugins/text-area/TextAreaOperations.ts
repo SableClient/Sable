@@ -1,6 +1,6 @@
 import { Cursor } from './Cursor';
-import { Operations } from './Operations';
-import { GetTarget } from './type';
+import type { Operations } from './Operations';
+import type { GetTarget } from './type';
 
 export class TextAreaOperations implements Operations {
   private readonly getTarget: GetTarget;

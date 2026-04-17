@@ -1,4 +1,7 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type {
+  RectCords} from 'folds';
 import {
   Button,
   color,
@@ -8,14 +11,14 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
 } from 'folds';
-import {
-  HistoryVisibility,
+import type {
   MatrixError,
-  RoomHistoryVisibilityEventContent,
+  RoomHistoryVisibilityEventContent} from '$types/matrix-sdk';
+import {
+  HistoryVisibility
 } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
@@ -27,7 +30,7 @@ import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 const useVisibilityStr = () =>
   useMemo(
@@ -79,7 +82,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         const content: RoomHistoryVisibilityEventContent = {
           history_visibility: visibility,
         };
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility as any, content);
+        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility as string, content);
       },
       [mx, room.roomId]
     )

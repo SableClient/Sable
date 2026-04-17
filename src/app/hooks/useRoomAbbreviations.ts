@@ -1,8 +1,9 @@
 import { createContext, useContext, useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
-import { buildAbbreviationsMap, RoomAbbreviationsContent } from '$utils/abbreviations';
+import type { RoomAbbreviationsContent } from '$utils/abbreviations';
+import { buildAbbreviationsMap } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from './useMatrixClient';
@@ -12,7 +13,7 @@ import { useForceUpdate } from './useForceUpdate';
 
 const EMPTY_MAP: Map<string, string> = new Map();
 
-export const RoomAbbreviationsContext = createContext<Map<string, string>>(EMPTY_MAP);
+export const RoomAbbreviationsContext = createContext(EMPTY_MAP);
 
 export const useRoomAbbreviationsContext = () => useContext(RoomAbbreviationsContext);
 
@@ -74,6 +75,6 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
     if (ancestorEntries.length === 0 && roomEntries.length === 0) return EMPTY_MAP;
     // Ancestor entries first; room entries appended so they override duplicates.
     return buildAbbreviationsMap([...ancestorEntries, ...roomEntries]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [mx, roomToParents, room, updateCount]);
 };

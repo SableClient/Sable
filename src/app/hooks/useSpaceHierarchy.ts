@@ -1,12 +1,16 @@
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MatrixError, MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
-import { QueryFunction, useInfiniteQuery } from '@tanstack/react-query';
-import { MSpaceChildContent, StateEvent } from '$types/matrix/room';
+import type { MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
+import type { QueryFunction} from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import type { MSpaceChildContent} from '$types/matrix/room';
+import { StateEvent } from '$types/matrix/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { getAllParents, getStateEvents, isValidChild } from '$utils/room';
 import { isRoomId } from '$utils/matrix';
-import { SortFunc, byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
+import type { SortFunc} from '$utils/sort';
+import { byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
 import { useMatrixClient } from './useMatrixClient';
 import { makeLobbyCategoryId } from '../state/closedLobbyCategories';
 import { useStateEventCallback } from './useStateEventCallback';
@@ -83,8 +87,8 @@ const getHierarchySpaces = (
         // cache which we maintain as we load summary in UI.
         return getRoom(childId)?.isSpaceRoom() || spaceRooms.has(childId);
       })
-      .sort(childEventTs)
-      .sort(childEventByOrder);
+      .toSorted(childEventTs)
+      .toSorted(childEventByOrder);
 
     childEvents.forEach((childEvent) => {
       const childId = childEvent.getStateKey();
@@ -151,7 +155,7 @@ const getSpaceHierarchy = (
 
     return {
       space: spaceItem,
-      rooms: childItems.sort(hierarchyItemTs).sort(hierarchyItemByOrder),
+      rooms: childItems.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder),
     };
   });
 
@@ -273,7 +277,7 @@ const getSpaceJoinedHierarchy = (
       };
       childItems.push(childItem);
     });
-    return [spaceItem, ...sortRoomItems(spaceItem.roomId, childItems)];
+    return ([spaceItem] as HierarchyItem[]).concat(sortRoomItems(spaceItem.roomId, childItems));
   });
 
   return hierarchy;
@@ -294,7 +298,7 @@ export const useSpaceJoinedHierarchy = (
         items.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
         return items;
       }
-      items.sort(hierarchyItemTs).sort(hierarchyItemByOrder);
+      items.toSorted(hierarchyItemTs).sort(hierarchyItemByOrder);
       return items;
     },
     [mx, sortByActivity]

@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { Badge, Box, Text } from 'folds';
+import type {
+  IPushRules,
+  PushRuleCondition} from '$types/matrix-sdk';
 import {
   ConditionKind,
-  IPushRules,
-  PushRuleCondition,
   PushRuleKind,
   RuleId,
 } from '$types/matrix-sdk';
@@ -12,7 +13,8 @@ import { AccountDataEvent } from '$types/matrix/accountData';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
-import { PushRuleData, usePushRule } from '$hooks/usePushRule';
+import type { PushRuleData} from '$hooks/usePushRule';
+import { usePushRule } from '$hooks/usePushRule';
 import {
   getNotificationModeActions,
   NotificationMode,

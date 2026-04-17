@@ -1,16 +1,18 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
-import {
+import type {
   MatrixClient,
   Room,
   MatrixEvent,
-  Direction,
   EventTimeline,
   EventTimelineSetHandlerMap,
-  RoomEvent,
   IRoomTimelineData,
-  RoomEventHandlerMap,
+  RoomEventHandlerMap} from '$types/matrix-sdk';
+import {
+  Direction,
+  RoomEvent,
   RelationType,
   ThreadEvent,
 } from '$types/matrix-sdk';
@@ -590,7 +592,7 @@ export function useTimelineSync({
     setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
     // Intentionally only depends on room: we want this to fire when the room
     // identity changes, not on every eventId change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
 
   return {

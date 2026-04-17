@@ -1,6 +1,8 @@
-import { Descendant, Text } from 'slate';
+import type { Descendant} from 'slate';
+import { Text } from 'slate';
 import parse from 'html-dom-parser';
-import { ChildNode, Element, isText, isTag } from 'domhandler';
+import type { ChildNode, Element} from 'domhandler';
+import { isText, isTag } from 'domhandler';
 
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
@@ -11,7 +13,7 @@ import {
 } from '$plugins/matrix-to';
 import { escapeMarkdownInlineSequences, escapeMarkdownBlockSequences } from '$plugins/markdown';
 import { BlockType, MarkType } from './types';
-import {
+import type {
   BlockQuoteElement,
   CodeBlockElement,
   CodeLineElement,

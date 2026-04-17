@@ -1,4 +1,6 @@
 import FocusTrap from 'focus-trap-react';
+import type {
+  RectCords} from 'folds';
 import {
   Box,
   Button,
@@ -8,7 +10,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
 } from 'folds';

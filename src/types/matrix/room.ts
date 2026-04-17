@@ -1,4 +1,4 @@
-import { IImageInfo } from './common';
+import type { IImageInfo } from './common';
 
 export enum Membership {
   Invite = 'invite',

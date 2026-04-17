@@ -1,4 +1,4 @@
-import { IconName, IconSrc } from 'folds';
+import type { IconName, IconSrc } from 'folds';
 
 export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -57,7 +57,7 @@ export const promiseFulfilledResult = <T>(
   if (settledResult.status === 'fulfilled') return settledResult.value;
   return undefined;
 };
-export const promiseRejectedResult = <T>(settledResult: PromiseSettledResult<T>): any => {
+export const promiseRejectedResult = <T>(settledResult: PromiseSettledResult<T>): unknown => {
   if (settledResult.status === 'rejected') return settledResult.reason;
   return undefined;
 };

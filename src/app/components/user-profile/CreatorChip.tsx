@@ -1,5 +1,7 @@
-import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text } from 'folds';
-import { MouseEventHandler, useState } from 'react';
+import type { RectCords} from 'folds';
+import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
+import type { MouseEventHandler} from 'react';
+import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';

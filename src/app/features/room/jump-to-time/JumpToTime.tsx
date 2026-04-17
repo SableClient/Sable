@@ -1,5 +1,8 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import type { MouseEventHandler} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
+import type {
+  RectCords} from 'folds';
 import {
   Dialog,
   Overlay,
@@ -16,10 +19,10 @@ import {
   Button,
   Spinner,
   Chip,
-  PopOut,
-  RectCords,
+  PopOut
 } from 'folds';
-import { Direction, MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
+import { Direction } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';

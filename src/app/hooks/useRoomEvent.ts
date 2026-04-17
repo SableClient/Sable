@@ -1,10 +1,11 @@
-import {
+import type {
   IEvent,
+  Room,
+  CryptoBackend} from '$types/matrix-sdk';
+import {
   MatrixEvent,
   MatrixEventEvent,
-  Room,
-  RoomEvent,
-  CryptoBackend,
+  RoomEvent
 } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import to from 'await-to-js';
@@ -75,7 +76,7 @@ export const useRoomEvent = (
     // without a network round-trip.
     const local = getLocally?.();
     return local ?? room.findEventById(eventId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick intentionally forces re-eval on new timeline events
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- tick intentionally forces re-eval on new timeline events
   }, [room, eventId, getLocally, tick]);
 
   // Re-evaluate the local lookup the moment the target event arrives in the

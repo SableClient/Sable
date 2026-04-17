@@ -1,12 +1,13 @@
 import { memo, useMemo, useCallback } from 'react';
-import { IPreviewUrlResponse, MsgType } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse} from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts } from 'linkifyjs';
 import { Box, config } from 'folds';
 import {
   AudioContent,
@@ -80,7 +81,7 @@ function RenderMessageContentInternal({
   outlineAttachment,
   hideCaption,
 }: RenderMessageContentProps) {
-  const content = useMemo(() => getContent<any>(), [getContent]);
+  const content = useMemo(() => getContent<Record<string, unknown>>(), [getContent]);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
@@ -94,7 +95,7 @@ function RenderMessageContentInternal({
   const attachmentDirection = captionPositionMap[captionPosition];
 
   const renderBody = useCallback(
-    (props: any) => (
+    (props: Record<string, unknown>) => (
       <RenderBody
         {...props}
         highlightRegex={highlightRegex}
@@ -126,7 +127,7 @@ function RenderMessageContentInternal({
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
             if (clientUrlPreview && youtubeUrl(url)) {
-              return <ClientPreview url={url} />;
+              return <ClientPreview key={url} url={url} />;
             }
             if (urlPreview) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { RoomPinnedEventsEventContent, Room } from '$types/matrix-sdk';
+import type { RoomPinnedEventsEventContent, Room } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { useStateEvent } from './useStateEvent';
 

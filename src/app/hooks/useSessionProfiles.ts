@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Session } from '$state/sessions';
+import type { Session } from '$state/sessions';
 
 export type SessionProfile = {
   displayName?: string;

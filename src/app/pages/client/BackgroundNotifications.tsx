@@ -247,7 +247,7 @@ export function BackgroundNotifications() {
           } else {
             await new Promise<void>((resolve) => {
               const handler = (event: MatrixEvent) => {
-                if (event.getType() === AccountDataEvent.Direct) {
+                if (event.getType() === (AccountDataEvent.Direct as string)) {
                   mDirectsSet = getMDirects(event);
                   mx.off(ClientEvent.AccountData, handler);
                   resolve();
@@ -264,7 +264,7 @@ export function BackgroundNotifications() {
           const pushProcessor = new PushProcessor(mx);
 
           const handleAccountData = (event: MatrixEvent) => {
-            if (event.getType() === AccountDataEvent.Direct) {
+            if (event.getType() === (AccountDataEvent.Direct as string)) {
               mDirectsSet = getMDirects(event);
             }
           };

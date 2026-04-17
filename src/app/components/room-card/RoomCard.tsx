@@ -197,7 +197,7 @@ export const RoomCard = as<'div', RoomCardProps>(
           if (
             joinedRoom &&
             event.getRoomId() === joinedRoom.roomId &&
-            event.getType() === StateEvent.RoomTopic
+            event.getType() === (StateEvent.RoomTopic as string)
           ) {
             setTopicEvent(getStateEvent(joinedRoom, StateEvent.RoomTopic));
           }

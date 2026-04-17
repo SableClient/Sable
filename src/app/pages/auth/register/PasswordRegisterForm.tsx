@@ -123,7 +123,7 @@ function RegisterUIAFlow({
       stepCount={flow.stages.length}
       onCancel={handleCancel}
     >
-      {stageToComplete.type === AuthType.RegistrationToken && (
+      {stageToComplete.type === (AuthType.RegistrationToken as string) && (
         <RegistrationTokenStageDialog
           token={formData.token}
           stageData={stageToComplete}
@@ -131,21 +131,21 @@ function RegisterUIAFlow({
           onCancel={handleCancel}
         />
       )}
-      {stageToComplete.type === AuthType.Terms && (
+      {stageToComplete.type === (AuthType.Terms as string) && (
         <AutoTermsStageDialog
           stageData={stageToComplete}
           submitAuthDict={handleAuthDict}
           onCancel={handleCancel}
         />
       )}
-      {stageToComplete.type === AuthType.Recaptcha && (
+      {stageToComplete.type === (AuthType.Recaptcha as string) && (
         <ReCaptchaStageDialog
           stageData={stageToComplete}
           submitAuthDict={handleAuthDict}
           onCancel={handleCancel}
         />
       )}
-      {stageToComplete.type === AuthType.Email && (
+      {stageToComplete.type === (AuthType.Email as string) && (
         <EmailStageDialog
           email={formData.email}
           clientSecret={formData.clientSecret}
@@ -156,7 +156,7 @@ function RegisterUIAFlow({
           onCancel={handleCancel}
         />
       )}
-      {stageToComplete.type === AuthType.Dummy && (
+      {stageToComplete.type === (AuthType.Dummy as string) && (
         <AutoDummyStageDialog
           stageData={stageToComplete}
           submitAuthDict={handleAuthDict}

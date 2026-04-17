@@ -31,6 +31,7 @@ export default defineConfig({
     'typescript/only-throw-error': 'error',
     'typescript/no-unsafe-type-assertion': 'off',
     'typescript/no-floating-promises': 'off',
+    'typescript/no-unnecessary-type-arguments': 'off',
   },
   overrides: [
     {

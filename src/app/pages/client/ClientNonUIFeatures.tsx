@@ -10,6 +10,7 @@ import {
   PushProcessor,
   RoomEvent,
   SetPresence,
+  SyncState,
 } from '$types/matrix-sdk';
 import parse from 'html-react-parser';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
@@ -199,7 +200,7 @@ function InviteNotifications() {
   }, []);
 
   useEffect(() => {
-    if (invites.length <= perviousInviteLen || mx.getSyncState() !== 'SYNCING') return;
+    if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
     // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
     if (document.visibilityState !== 'visible' && usePushNotifications) return;
@@ -288,7 +289,7 @@ function MessageNotifications() {
       _removed,
       data
     ) => {
-      if (mx.getSyncState() !== 'SYNCING') return;
+      if (mx.getSyncState() !== SyncState.Syncing) return;
 
       const eventId = mEvent.getId();
       // Record event arrival time once per eventId (re-entry via handleDecrypted must not reset it)
@@ -741,7 +742,7 @@ function SentryTagsFeature() {
   useEffect(() => {
     // Core rendering tags — indexed in Sentry for filtering/search
     Sentry.setTag('message_layout', String(settings.messageLayout));
-    Sentry.setTag('message_spacing', String(settings.messageSpacing));
+    Sentry.setTag('message_spacing', settings.messageSpacing);
     Sentry.setTag('twitter_emoji', String(settings.twitterEmoji));
     Sentry.setTag('is_markdown', String(settings.isMarkdown));
     Sentry.setTag('page_zoom', String(settings.pageZoom));
@@ -755,9 +756,9 @@ function SentryTagsFeature() {
     Sentry.setTag('url_preview', String(settings.urlPreview));
     Sentry.setTag('use_system_theme', String(settings.useSystemTheme));
     Sentry.setTag('uniform_icons', String(settings.uniformIcons));
-    Sentry.setTag('jumbo_emoji_size', String(settings.jumboEmojiSize));
-    Sentry.setTag('caption_position', String(settings.captionPosition));
-    Sentry.setTag('right_swipe_action', String(settings.rightSwipeAction));
+    Sentry.setTag('jumbo_emoji_size', settings.jumboEmojiSize);
+    Sentry.setTag('caption_position', settings.captionPosition);
+    Sentry.setTag('right_swipe_action', settings.rightSwipeAction);
     // Full settings snapshot as structured Additional Data on every event
     Sentry.setContext('settings', { ...settings });
   }, [settings]);

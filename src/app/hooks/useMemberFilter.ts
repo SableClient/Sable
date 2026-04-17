@@ -53,5 +53,11 @@ export const useMembershipFilter = (
   membershipFilter: MembershipFilterItem[]
 ): MembershipFilterItem => {
   const filter = membershipFilter[index] ?? membershipFilter[0];
+  if (!filter) {
+    return {
+      name: 'Joined',
+      filterFn: MembershipFilter.filterJoined,
+    };
+  }
   return filter;
 };

@@ -164,7 +164,8 @@ function ThirdPartyProtocolsSelector({
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
 
-  const instances = data && Object.keys(data).flatMap((protocol) => data[protocol].instances);
+  const instances =
+    data && Object.keys(data).flatMap((protocol) => data[protocol]?.instances ?? []);
   if (!instances || instances.length === 0) return null;
   const selectedInstance = instances.find((instance) => instanceId === instance.instance_id);
 

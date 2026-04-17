@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { color, Text } from 'folds';
-import type { MatrixError, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import type { MatrixError, RoomJoinRulesEventContent, StateEvents } from '$types/matrix-sdk';
 import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
@@ -104,7 +104,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
           join_rule: joinRule as JoinRule,
         };
         if (allow.length > 0) c.allow = allow;
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as string, c);
+        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as keyof StateEvents, c);
       },
       [mx, room, space, subspaces, roomIdToParents]
     )

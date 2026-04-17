@@ -601,7 +601,7 @@ export function EmojiBoard({
               }}
             >
               {vItems.map((vItem) => {
-                const group = groups[vItem.index];
+                const group = groups[vItem.index]!;
 
                 return (
                   <VirtualTile

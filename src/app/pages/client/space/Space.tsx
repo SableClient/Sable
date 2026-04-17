@@ -546,7 +546,10 @@ export function Space() {
     // Holder for the paths
     const pathHolder: ReactElement[] = [];
     virtualizedItems.forEach((vItem) => {
-      const { roomId, depth } = hierarchy[vItem.index] ?? {};
+      const hierarchyItem = hierarchy[vItem.index];
+      if (!hierarchyItem) return;
+      const { roomId, depth: itemDepth } = hierarchyItem;
+      const depth = itemDepth ?? 0;
       const room = getRoom(roomId);
       // We will render spaces at a level above their normal depth, since we want their children to be "under" them
       const renderDepth = room?.isSpaceRoom() ? depth : depth + 1;
@@ -581,6 +584,7 @@ export function Space() {
       }
 
       const lastConnector = connectorStack[connectorStack.length - 1];
+      if (!lastConnector) return;
 
       // aX: numeric x where the vertical connector starts
       // aY: end of parent (already numeric)
@@ -759,7 +763,10 @@ export function Space() {
               }}
             >
               {virtualizedItems.map((vItem) => {
-                const { roomId, depth } = hierarchy[vItem.index] ?? {};
+                const hierarchyItem = hierarchy[vItem.index];
+                if (!hierarchyItem) return null;
+                const { roomId, depth: itemDepth } = hierarchyItem;
+                const depth = itemDepth ?? 0;
                 const room = mx.getRoom(roomId);
                 const renderDepth = room?.isSpaceRoom() ? depth - 2 : depth - 1;
                 if (!room) return null;

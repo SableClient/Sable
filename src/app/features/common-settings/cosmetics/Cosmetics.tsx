@@ -38,7 +38,7 @@ import type { UserProfile } from '$hooks/useUserProfile';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { Room, RoomMember } from '$types/matrix-sdk';
+import type { Room, RoomMember, StateEvents } from '$types/matrix-sdk';
 import { Command, useCommands } from '$hooks/useCommands';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { useObjectURL } from '$hooks/useObjectURL';
@@ -318,7 +318,7 @@ export function CosmeticsFont({
 }) {
   const mx = useMatrixClient();
 
-  const initialFont = (/^"?(.*?)"?, var\(--font-secondary\)$/.exec(font ?? '') ?? [''])[1];
+  const initialFont = (/^"?(.*?)"?, var\(--font-secondary\)$/.exec(font ?? '') ?? [''])[1] ?? '';
   const [val, setVal] = useState(initialFont);
 
   useEffect(() => setVal(initialFont), [initialFont]);
@@ -392,7 +392,12 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
       };
 
       try {
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels as string, newContent, '');
+        await mx.sendStateEvent(
+          room.roomId,
+          StateEvent.RoomPowerLevels as keyof StateEvents,
+          newContent,
+          ''
+        );
       } catch (e) {
         log.error(`Failed to update permissions for ${eventType}:`, e);
       }

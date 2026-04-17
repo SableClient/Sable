@@ -27,7 +27,7 @@ import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useForceUpdate } from '$hooks/useForceUpdate';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import type { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -105,7 +105,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
         const newContent: RoomAbbreviationsContent = { entries: newEntries };
         await mx.sendStateEvent(
           room.roomId,
-          StateEvent.RoomAbbreviations as string,
+          StateEvent.RoomAbbreviations as keyof StateEvents,
           newContent,
           ''
         );

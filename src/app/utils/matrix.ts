@@ -1,11 +1,13 @@
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { decryptAttachment, encryptAttachment } from 'browser-encrypt-attachment';
 import type {
+  AccountDataEvents,
   EventTimelineSet,
   MatrixClient,
   MatrixEvent,
   Room,
   RoomMember,
+  TimelineEvents,
   UploadProgress,
   UploadResponse,
 } from '$types/matrix-sdk';
@@ -260,7 +262,7 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as keyof AccountDataEvents);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -269,7 +271,7 @@ export const addRoomIdToMDirect = async (
   // remove it from the lists of any others users
   // (it can only be a DM room for one person)
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId];
+    const roomIds = userIdToRoomIds[targetUserId]!;
 
     if (targetUserId !== userId) {
       const indexOfRoomId = roomIds.indexOf(roomId);
@@ -285,25 +287,25 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
+  await mx.setAccountData(AccountDataEvent.Direct as keyof AccountDataEvents, userIdToRoomIds);
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as keyof AccountDataEvents);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
     userIdToRoomIds = structuredClone(mDirectsEvent.getContent());
 
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId];
+    const roomIds = userIdToRoomIds[targetUserId]!;
     const indexOfRoomId = roomIds.indexOf(roomId);
     if (indexOfRoomId > -1) {
       roomIds.splice(indexOfRoomId, 1);
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct, userIdToRoomIds);
+  await mx.setAccountData(AccountDataEvent.Direct as keyof AccountDataEvents, userIdToRoomIds);
 };
 
 export const mxcUrlToHttp = (
@@ -374,7 +376,7 @@ export const rateLimitedActions = async <T, R = void>(
   };
 
   for (let i = 0; i < data.length; i += 1) {
-    const dataItem = data[i];
+    const dataItem = data[i]!;
     retryCount = 0;
     // oxlint-disable-next-line no-await-in-loop
     await performAction(dataItem, i);
@@ -420,14 +422,16 @@ export const toggleReaction = (
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
   if (myReaction && !!myReaction.isRelation?.()) {
-    mx.redactEvent(room.roomId, myReaction.getId());
+    const eventId = myReaction.getId();
+    if (eventId) mx.redactEvent(room.roomId, eventId);
     return;
   }
   const rShortcode =
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
   mx.sendEvent(
     room.roomId,
-    MessageEvent.Reaction,
-    getReactionContent(targetEventId, key, rShortcode)
+    MessageEvent.Reaction as unknown as keyof TimelineEvents,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getReactionContent(targetEventId, key, rShortcode) as any
   );
 };

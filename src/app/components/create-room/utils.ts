@@ -7,6 +7,7 @@ import type {
 } from '$types/matrix-sdk';
 import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
 import { RoomType, StateEvent } from '$types/matrix/room';
+import type { StateEvents } from '$types/matrix-sdk';
 import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from '$utils/matrix';
 import { CreateRoomAccess } from './types';
@@ -151,12 +152,12 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
   if (data.parent) {
     await mx.sendStateEvent(
       data.parent.roomId,
-      StateEvent.SpaceChild as string,
+      StateEvent.SpaceChild as keyof StateEvents,
       {
         auto_join: false,
         suggested: false,
         via: [getMxIdServer(mx.getUserId() ?? '') ?? ''],
-      },
+      } as StateEvents[keyof StateEvents],
       result.room_id
     );
   }

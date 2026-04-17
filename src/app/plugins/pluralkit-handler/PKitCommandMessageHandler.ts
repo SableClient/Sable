@@ -91,6 +91,10 @@ export class PKitCommandMessageHandler {
         return;
       }
       const memberName = cmdParts[2];
+      if (!memberName) {
+        sendFeedback(`malformed input, ${helpTextPkMemberNew}`, this.room, this.mx.getSafeUserId());
+        return;
+      }
       const generatedID = generateShortId(5);
       sendFeedback(
         `adding new member has been created with id: ${generatedID} and name ${memberName}`,
@@ -150,6 +154,14 @@ export class PKitCommandMessageHandler {
         return;
       }
       // actually change the name
+      if (!newName) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberRename}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
       pmp.name = newName;
       sendFeedback(
         `renaming your profile ${pmpId} from ${oldName} to ${newName}`,
@@ -174,6 +186,14 @@ export class PKitCommandMessageHandler {
         return;
       }
 
+      if (!matchAgainst) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberRemoveProxy}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
       dropProxyAssociationForPMP(this.mx, matchAgainst);
 
       sendFeedback(
@@ -192,6 +212,14 @@ export class PKitCommandMessageHandler {
       if (!pmpId) {
         sendFeedback(
           `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
+      if (!matchAgainst) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberNewProxy}`,
           this.room,
           this.mx.getSafeUserId()
         );

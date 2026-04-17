@@ -604,7 +604,18 @@ export class SlidingSyncManager {
     let expandedAny = false;
 
     const expansionStartTime = performance.now();
-    const expansionDetails: Record<string, unknown> = {};
+    const expansionDetails: Record<
+      string,
+      {
+        status: string;
+        knownCount: number;
+        currentEnd?: number;
+        desiredEnd?: number;
+        previousEnd?: number;
+        newEnd?: number;
+        roomsToLoad?: number;
+      }
+    > = {};
 
     this.listKeys.forEach((key) => {
       const listData = this.slidingSync.getListData(key);
@@ -712,7 +723,7 @@ export class SlidingSyncManager {
       debugLog.warn('sync', 'Slow list expansion detected', {
         duration: `${expansionDuration.toFixed(2)}ms`,
         expandedLists: Object.keys(expansionDetails).filter(
-          (key) => expansionDetails[key].status === 'expanding'
+          (key) => expansionDetails[key]?.status === 'expanding'
         ),
       });
     }

@@ -47,12 +47,13 @@ const fillMissingPowers = (powerLevels: IPowerLevels): IPowerLevels =>
     keys.forEach((key) => {
       if (draftPl[key] === undefined) {
         // oxlint-disable-next-line no-param-reassign
-        draftPl[key] = DEFAULT_POWER_LEVELS[key];
+        (draftPl as Record<string, unknown>)[key] =
+          (DEFAULT_POWER_LEVELS as Record<string, unknown>)[key] ?? 0;
       }
     });
     if (draftPl.notifications && typeof draftPl.notifications.room !== 'number') {
       // oxlint-disable-next-line no-param-reassign
-      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room;
+      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room as number;
     }
     return draftPl;
   });
@@ -164,7 +165,7 @@ export const readPowerLevel: ReadPowerLevelAPI = {
     if (typeof powerLevel === 'number') {
       return powerLevel;
     }
-    return DEFAULT_POWER_LEVELS.notifications[action];
+    return DEFAULT_POWER_LEVELS.notifications[action] ?? 50;
   },
 };
 

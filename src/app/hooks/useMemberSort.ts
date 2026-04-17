@@ -44,6 +44,12 @@ export const useMemberSortMenu = (): MemberSortItem[] =>
 
 export const useMemberSort = (index: number, memberSort: MemberSortItem[]): MemberSortItem => {
   const item = memberSort[index] ?? memberSort[0];
+  if (!item) {
+    return {
+      name: 'A to Z',
+      sortFn: MemberSort.Ascending,
+    };
+  }
   return item;
 };
 

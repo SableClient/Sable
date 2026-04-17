@@ -140,6 +140,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
     if (isKeyHotkey('tab', evt) && result && result.items.length > 0) {
       evt.preventDefault();
       const userId = result.items[0];
+      if (!userId) return;
       handleUserId(userId);
     }
   };

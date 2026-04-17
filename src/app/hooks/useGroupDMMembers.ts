@@ -32,7 +32,7 @@ export const useGroupDMMembers = (
 
         // Filter out bridge bots (not bridged users)
         const isBridgeBot = (userId: string): boolean => {
-          const localpart = userId.split(':')[0].substring(1); // Remove @ prefix
+          const localpart = userId.split(':')[0]?.substring(1) ?? '';
           const lowerLocalpart = localpart.toLowerCase();
 
           // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
@@ -55,7 +55,9 @@ export const useGroupDMMembers = (
         // Extract senders in reverse chronological order (most recent first)
         const recentSenders: string[] = [];
         for (let i = events.length - 1; i >= 0; i -= 1) {
-          const sender = events[i].getSender();
+          const evt = events[i];
+          if (!evt) continue;
+          const sender = evt.getSender();
           if (
             sender &&
             sender !== currentUserId &&

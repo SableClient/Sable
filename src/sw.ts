@@ -352,7 +352,7 @@ async function fetchRoomAvatar(
  */
 function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefined {
   const match = mxcUrl.match(/^mxc:\/\/([^/]+)\/([^?#]+)/);
-  if (!match) return undefined;
+  if (!match || !match[1] || !match[2]) return undefined;
   const [, server, mediaId] = match;
   return `${baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(server)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`;
 }
@@ -802,7 +802,7 @@ const onPushNotification = async (event: PushEvent) => {
         // if the user opted in, dismiss outstanding lock-screen notifications.
         await (
           self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
-        ).clearAppBadge();
+        ).clearAppBadge?.();
         if (clearNotificationsOnRead) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
@@ -812,10 +812,12 @@ const onPushNotification = async (event: PushEvent) => {
       // unread > 0: update the PWA badge with the current count.
       await (
         self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
-      ).setAppBadge(pushData.unread);
+      ).setAppBadge?.(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.
-      await (self.navigator as unknown as { clearAppBadge?: () => Promise<void> }).clearAppBadge();
+      await (
+        self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+      ).clearAppBadge?.();
     }
   } catch {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.

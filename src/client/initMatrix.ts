@@ -1,4 +1,4 @@
-import type { MatrixClient, ISyncStateData } from '$types/matrix-sdk';
+import type { CryptoCallbacks, MatrixClient, ISyncStateData } from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
@@ -281,7 +281,7 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     cryptoStore: legacyCryptoStore,
     deviceId: session.deviceId,
     timelineSupport: true,
-    cryptoCallbacks: cryptoCallbacks as unknown,
+    cryptoCallbacks: cryptoCallbacks as unknown as CryptoCallbacks,
     verificationMethods: ['m.sas.v1'],
   });
 

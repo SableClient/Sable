@@ -304,9 +304,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   // always be a no-op and left threadsReady=true prematurely.
   useEffect(() => {
     const onUpdate = () => forceUpdate((n) => n + 1);
-    room.on(ThreadEvent.New as string, onUpdate);
-    room.on(ThreadEvent.Update as string, onUpdate);
-    room.on(ThreadEvent.NewReply as string, onUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.New as any, onUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.Update as any, onUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.NewReply as any, onUpdate);
 
     let cancelled = false;
     const loadThreads = async () => {
@@ -344,28 +347,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             const id = event.getId()!;
             const existingThread = room.getThread(id);
 
-            const bundled = event.getUnsigned()?.['m.relations']?.['m.thread'];
-            const bundledCount: number | undefined =
-              typeof bundled?.count === 'number' ? bundled.count : undefined;
             if (!existingThread) {
               room.createThread(id, event, [], false);
             } else {
               if (!existingThread.rootEvent) {
                 existingThread.rootEvent = event;
                 existingThread.setEventMetadata(event);
-              }
-              // Seed/update replyCount from bundled aggregations.  This is needed
-              // for threads that were created by sliding-sync BEFORE fetchRoomThreads
-              // ran: SS delivers root events without bundled aggregations, so
-              // room.createThread() sets replyCount=0 and the SDK's fast-path
-              // ("replyCount===0 → initialEventsFetched=true, no server fetch") fires.
-              // Later, fetchRoomThreads() brings events WITH bundled counts, but
-              // createThread() is idempotent and returns the stale thread unchanged.
-              // Backfilling replyCount here lets ThreadPreview show the right count
-              // and lets Case C in ThreadDrawer know there are replies to fetch.
-
-              if (bundledCount !== undefined && existingThread.replyCount === 0) {
-                existingThread.replyCount = bundledCount;
               }
             }
           });
@@ -383,9 +370,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
 
     return () => {
       cancelled = true;
-      room.off(ThreadEvent.New as string, onUpdate);
-      room.off(ThreadEvent.Update as string, onUpdate);
-      room.off(ThreadEvent.NewReply as string, onUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.New as any, onUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.Update as any, onUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.NewReply as any, onUpdate);
     };
   }, [room, mx]);
 
@@ -405,19 +395,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           const id = event.getId()!;
           const existingThread = room.getThread(id);
 
-          const bundled = event.getUnsigned()?.['m.relations']?.['m.thread'];
-          const bundledCount: number | undefined =
-            typeof bundled?.count === 'number' ? bundled.count : undefined;
           if (!existingThread) {
             room.createThread(id, event, [], false);
           } else {
             if (!existingThread.rootEvent) {
               existingThread.rootEvent = event;
               existingThread.setEventMetadata(event);
-            }
-
-            if (bundledCount !== undefined && existingThread.replyCount === 0) {
-              existingThread.replyCount = bundledCount;
             }
           }
         });

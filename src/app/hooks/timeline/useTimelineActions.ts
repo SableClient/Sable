@@ -1,6 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback } from 'react';
 import type { MatrixClient, Room, MatrixEvent, IContent } from '$types/matrix-sdk';
+import type { UserProfile } from '$hooks/useUserProfile';
 import { EventStatus } from '$types/matrix-sdk';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';

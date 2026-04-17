@@ -27,7 +27,9 @@ const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boo
   const bImages = Array.from(b.images.collection.entries());
   if (aImages.length !== bImages.length) return false;
   const sameImages = aImages.every(([shortcode, image], index) => {
-    const [otherShortcode, otherImage] = bImages[index];
+    const other = bImages[index];
+    if (!other) return false;
+    const [otherShortcode, otherImage] = other;
     if (shortcode !== otherShortcode) return false;
     return (
       image.url === otherImage.url &&

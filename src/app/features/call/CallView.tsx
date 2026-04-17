@@ -182,7 +182,7 @@ export function CallView({ resizable }: CallViewProps) {
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (e.cancelable) e.preventDefault();
-      handleMove(e.touches[0].clientY);
+      if (e.touches[0]) handleMove(e.touches[0].clientY);
     },
     [handleMove]
   );

@@ -16,7 +16,7 @@ import {
   Text,
 } from 'folds';
 import { useCallback, useState } from 'react';
-import type { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
@@ -46,7 +46,7 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
 
   const [enableState, enable] = useAsyncCallback(
     useCallback(async () => {
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomEncryption as string, {
+      await mx.sendStateEvent(room.roomId, StateEvent.RoomEncryption as keyof StateEvents, {
         algorithm: ROOM_ENC_ALGO,
       });
     }, [mx, room.roomId])

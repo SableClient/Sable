@@ -256,7 +256,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     if (filtered.length > 0) return filtered;
     const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
     return getThreadReplyEvents(room, threadRootId).map((ev, idx) => ({
-      id: ev.getId()!,
+      id: ev.getId() ?? `thread-reply-${idx}`,
       itemIndex: idx,
       mEvent: ev,
       timelineSet,
@@ -371,15 +371,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       }
     };
     const onThreadUpdate = () => forceUpdate((n) => n + 1);
-    mx.on(RoomEvent.Timeline, onTimeline as unknown);
-    room.on(RoomEvent.Redaction, onRedaction as unknown);
-    room.on(ThreadEvent.Update, onThreadUpdate as unknown);
-    room.on(ThreadEvent.NewReply, onThreadUpdate as unknown);
+    mx.on(RoomEvent.Timeline, onTimeline);
+    room.on(RoomEvent.Redaction, onRedaction);
+    room.on(ThreadEvent.Update, onThreadUpdate);
+    room.on(ThreadEvent.NewReply, onThreadUpdate);
     return () => {
-      mx.off(RoomEvent.Timeline, onTimeline as unknown);
-      room.removeListener(RoomEvent.Redaction, onRedaction as unknown);
-      room.removeListener(ThreadEvent.Update, onThreadUpdate as unknown);
-      room.removeListener(ThreadEvent.NewReply, onThreadUpdate as unknown);
+      mx.off(RoomEvent.Timeline, onTimeline);
+      room.removeListener(RoomEvent.Redaction, onRedaction);
+      room.removeListener(ThreadEvent.Update, onThreadUpdate);
+      room.removeListener(ThreadEvent.NewReply, onThreadUpdate);
     };
   }, [mx, room, threadRootId]);
 
@@ -644,9 +644,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // Map jumpToEventId to a focusItem index for useTimelineEventRenderer highlighting
   const jumpIndex = jumpToEventId ? processedEvents.findIndex((e) => e.id === jumpToEventId) : -1;
   const focusItem =
-    jumpIndex >= 0
+    jumpIndex >= 0 && processedEvents[jumpIndex]
       ? {
-          index: processedEvents[jumpIndex].itemIndex,
+          index: processedEvents[jumpIndex]!.itemIndex,
           highlight: true,
           scrollTo: false as const,
         }

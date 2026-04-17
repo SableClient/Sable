@@ -67,18 +67,26 @@ export const hasStageInFlows = (uiaFlows: UIAFlow[], stage: string) =>
 export const requiredStageInFlows = (uiaFlows: UIAFlow[], stage: string) =>
   uiaFlows.every((flow) => flow.stages.includes(stage));
 
+interface PolicyInfo {
+  url?: string;
+}
+
+interface LangToPolicy {
+  [key: string]: PolicyInfo | undefined;
+}
+
 export const getLoginTermUrl = (params: UIAParams): string | undefined => {
   const terms = params[AuthType.Terms];
   if (terms && 'policies' in terms && typeof terms.policies === 'object') {
     if (terms.policies === null) return undefined;
     if ('privacy_policy' in terms.policies && typeof terms.policies.privacy_policy === 'object') {
       if (terms.policies.privacy_policy === null) return undefined;
-      const langToPolicy = terms.policies.privacy_policy as Record<string, unknown>;
+      const langToPolicy = terms.policies.privacy_policy as LangToPolicy;
       const url = langToPolicy.en?.url;
       if (typeof url === 'string') return url;
 
       const firstKey = Object.keys(langToPolicy)[0];
-      return langToPolicy[firstKey]?.url;
+      if (firstKey) return langToPolicy[firstKey]?.url;
     }
   }
   return undefined;

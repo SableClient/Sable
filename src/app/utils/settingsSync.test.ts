@@ -209,15 +209,17 @@ describe('exportSettingsAsJson', () => {
   it('calls URL.createObjectURL with a JSON Blob', () => {
     exportSettingsAsJson(base);
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
-    const blob: Blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
     expect(blob).toBeInstanceOf(Blob);
-    expect(blob.type).toBe('application/json');
+    expect(blob!.type).toBe('application/json');
   });
 
   it('Blob content is valid JSON with the correct schema version and all settings', async () => {
     exportSettingsAsJson(base);
-    const blob: Blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const text = await blob.text();
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
+    const text = await blob!.text();
     const parsed = JSON.parse(text);
     expect(parsed.v).toBe(SETTINGS_SYNC_VERSION);
     expect(typeof parsed.settings).toBe('object');

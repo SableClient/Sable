@@ -3,6 +3,7 @@ import type {
   MatrixClient,
   Room,
   RoomMember,
+  RoomMessageEventContent,
   RoomServerAclEventContent,
 } from '$types/matrix-sdk';
 import { Direction, EventTimeline, Method, Preset, Visibility, MsgType } from '$types/matrix-sdk';
@@ -68,13 +69,16 @@ export const parseFlags = (flags: string | undefined): Record<string, string | u
   const matches: { key: string; index: number; match: string }[] = [];
 
   for (let match = FLAG_REG_G.exec(flags); match !== null; match = FLAG_REG_G.exec(flags)) {
+    if (!match[1] || !match[0]) continue;
     matches.push({ key: match[1], index: match.index, match: match[0] });
   }
 
   for (let i = 0; i < matches.length; i += 1) {
-    const { key, match } = matches[i];
-    const start = matches[i].index + match.length;
-    const end = i + 1 < matches.length ? matches[i + 1].index : flags.length;
+    const current = matches[i];
+    if (!current) continue;
+    const { key, match } = current;
+    const start = current.index + match.length;
+    const end = i + 1 < matches.length ? (matches[i + 1]?.index ?? flags.length) : flags.length;
     const value = flags.slice(start, end).trim();
     result[key] = value;
   }
@@ -121,7 +125,7 @@ export const parseTimestampFlag = (input: string): number | undefined => {
     return undefined;
   }
 
-  const value = Number.parseFloat(match[1]); // supports decimal values
+  const value = Number.parseFloat(match[1]!); // supports decimal values
   const unit = match[2];
 
   const now = Date.now(); // in milliseconds
@@ -322,7 +326,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const userIds = rawIds.filter((id) => isUserId(id) && id !== mx.getSafeUserId());
           if (userIds.length === 0) return;
           if (userIds.length === 1) {
-            const dmRoomId = getDMRoomFor(mx, userIds[0])?.roomId;
+            const dmRoomId = getDMRoomFor(mx, userIds[0]!)?.roomId;
             if (dmRoomId) {
               navigateRoom(dmRoomId);
               return;
@@ -335,7 +339,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             preset: Preset.TrustedPrivateChat,
             initial_state: [createRoomEncryptionState()],
           });
-          addRoomIdToMDirect(mx, result.room_id, userIds[0]);
+          addRoomIdToMDirect(mx, result.room_id, userIds[0]!);
           navigateRoom(result.room_id);
         },
       },
@@ -481,11 +485,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           if (!content) return;
           await mx.sendStateEvent(
             room.roomId,
-            StateEvent.RoomMember as string,
-            {
-              ...content,
-              displayname: nick,
-            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            StateEvent.RoomMember as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            content as any,
             mx.getSafeUserId()
           );
         },
@@ -542,7 +545,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             sendFeedback('Cannot delete reserved profile ID "index".', room, mx.getSafeUserId());
             return;
           }
-          await deletePerMessageProfile(mx, profileId)
+          await deletePerMessageProfile(mx, profileId ?? '')
             .then(() => {
               sendFeedback(
                 `Per message profile "${profileId}" deleted from account.`,
@@ -573,7 +576,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const globalFlag = args[2] !== undefined;
           const onceFlag = args[3] !== undefined;
           // const untilFlag = args[4] !== undefined;
-          const validUntil = Number.parseInt(args[5], 10);
+          const validUntil = Number.parseInt(args[5] ?? '', 10);
           if (onceFlag || globalFlag) {
             sendFeedback(
               'Currently not implemented, consider using shorthands, with /pmpproxy id ✨:text',
@@ -583,14 +586,14 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             return;
           }
 
-          if (profileId.normalize() === 'reset') {
+          if ((profileId ?? '').normalize() === 'reset') {
             setCurrentlyUsedPerMessageProfileIdForRoom(mx, room.roomId, undefined, undefined, true)
               .then(() => {
                 sendFeedback('Per message profile reset for this room.', room, mx.getSafeUserId());
               })
               .catch((e) => {
                 sendFeedback(
-                  `Failed to reset per message profile for this room. Failed with: "${e.message}"`,
+                  `Failed to reset per message profile for this room. Failed with: "${(e as Error).message}"`,
                   room,
                   mx.getSafeUserId()
                 );
@@ -609,7 +612,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             })
             .catch((e) => {
               sendFeedback(
-                `Failed to set per message profile for this room. Failed with: "${e.message}"`,
+                `Failed to set per message profile for this room. Failed with: "${(e as Error).message}"`,
                 room,
                 mx.getSafeUserId()
               );
@@ -620,8 +623,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         name: Command.AssociateProxyPerMessageProfile,
         description: 'Associate proxy with a profile. Example /pmpproxy id ✨:text',
         exe: async (payload) => {
-          const pid: string = splitWithSpace(payload)[0];
-          const proxy: string = splitWithSpace(payload)[1];
+          const pid: string = splitWithSpace(payload)[0] ?? '';
+          const proxy: string = splitWithSpace(payload)[1] ?? '';
           pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
         },
       },
@@ -645,11 +648,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           if (!content) return;
           await mx.sendStateEvent(
             room.roomId,
-            StateEvent.RoomMember as string,
-            {
-              ...content,
-              avatar_url: newAvatar,
-            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            StateEvent.RoomMember as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            content as any,
             mx.getSafeUserId()
           );
         },
@@ -783,7 +785,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           aclContent.allow?.sort();
           aclContent.deny?.sort();
 
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomServerAcl as string, aclContent);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await mx.sendStateEvent(room.roomId, StateEvent.RoomServerAcl as any, aclContent as any);
         },
       },
       // Sable commands
@@ -812,8 +815,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             if (input === 'reset' || input === 'clear') {
               await mx.sendStateEvent(
                 room.roomId,
-                StateEvent.RoomCosmeticsColor as string,
-                {},
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsColor as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {} as any,
                 userId
               );
               sendFeedback('Room color has been reset.', room, userId);
@@ -823,8 +828,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             if (/^#[0-9A-F]{6}$/i.test(input)) {
               await mx.sendStateEvent(
                 room.roomId,
-                StateEvent.RoomCosmeticsColor as string,
-                { color: input },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsColor as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { color: input } as any,
                 userId
               );
               sendFeedback(`Room color set to ${input}.`, room, userId);
@@ -832,7 +839,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               sendFeedback('Invalid format. Use #RRGGBB.', room, userId);
             }
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback(
                 'Permission Denied. An admin must enable "Room Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
                 room,
@@ -856,14 +864,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(StateEvent.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
 
           try {
             if (input === 'reset' || input === 'clear') {
               await mx.sendStateEvent(
                 targetSpaceId as string,
-                StateEvent.RoomCosmeticsColor as string,
-                {},
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsColor as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {} as any,
                 userId
               );
               sendFeedback('Global space color reset.', room, userId);
@@ -873,8 +883,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             if (/^#[0-9A-F]{6}$/i.test(input)) {
               await mx.sendStateEvent(
                 targetSpaceId as string,
-                StateEvent.RoomCosmeticsColor as string,
-                { color: input },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsColor as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                { color: input } as any,
                 userId
               );
               sendFeedback(`Global space color set to ${input}.`, room, userId);
@@ -882,7 +894,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               sendFeedback('Invalid format. Use #RRGGBB.', room, userId);
             }
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback(
                 'Permission Denied. An admin must enable "Space-Wide Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
                 room,
@@ -904,25 +917,24 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
           try {
             if (input.toLowerCase() === 'reset' || input === '') {
-              await mx.sendStateEvent(
-                room.roomId,
-                StateEvent.RoomCosmeticsFont as string,
-                {},
-                userId
-              );
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await mx.sendStateEvent(room.roomId, StateEvent.RoomCosmeticsFont as any, {}, userId);
               sendFeedback('Room font reset.', room, userId);
               return;
             }
 
             await mx.sendStateEvent(
               room.roomId,
-              StateEvent.RoomCosmeticsFont as string,
-              { font: input },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              StateEvent.RoomCosmeticsFont as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { font: input } as any,
               userId
             );
             sendFeedback(`Room font set to "${input}".`, room, userId);
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback(
                 'Permission Denied. An admin must enable "Room Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
                 room,
@@ -948,14 +960,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(StateEvent.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
 
           try {
             if (input.toLowerCase() === 'reset' || input === '') {
               await mx.sendStateEvent(
                 targetSpaceId as string,
-                StateEvent.RoomCosmeticsFont as string,
-                {},
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsFont as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {} as any,
                 userId
               );
               sendFeedback('Space font reset.', room, userId);
@@ -964,13 +978,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             await mx.sendStateEvent(
               targetSpaceId as string,
-              StateEvent.RoomCosmeticsFont as string,
-              { font: input },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              StateEvent.RoomCosmeticsFont as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { font: input } as any,
               userId
             );
             sendFeedback(`Space font set to "${input}".`, room, userId);
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback(
                 'Permission Denied. An admin must enable "Space-Wide Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
                 room,
@@ -1007,26 +1024,33 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             await mx.sendStateEvent(
               room.roomId,
-              StateEvent.RoomWidget as string,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              StateEvent.RoomWidget as any,
               {
                 type: 'm.custom',
                 url: enrichWidgetUrl(parsedUrl.toString()),
                 name,
                 id: widgetId,
                 creatorUserId: userId,
-              } as unknown,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
               widgetId
             );
             sendFeedback(`Widget "${name}" added.`, room, userId);
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback(
                 'Permission denied. You need permission to manage widgets in this room.',
                 room,
                 userId
               );
             } else {
-              sendFeedback(`Failed to add widget: ${e.message || 'Unknown error'}`, room, userId);
+              sendFeedback(
+                `Failed to add widget: ${(e as Error).message || 'Unknown error'}`,
+                room,
+                userId
+              );
             }
           }
         },
@@ -1037,15 +1061,17 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           'Set your pronouns for this room. Example: /pronoun "en:they/them, de:sie/ihr" | /pronoun reset',
         exe: async (payload) => {
           const match = payload.trim().match(/^"(.*)"$/);
-          const rawInput = match ? match[1].trim() : payload.trim();
+          const rawInput = match ? (match[1] ?? '').trim() : payload.trim();
           const userId = mx.getSafeUserId();
 
           try {
             if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {
               await mx.sendStateEvent(
                 room.roomId,
-                StateEvent.RoomCosmeticsPronouns as string,
-                {},
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsPronouns as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {} as any,
                 userId
               );
               sendFeedback('Room pronouns have been reset.', room, userId);
@@ -1056,8 +1082,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             await mx.sendStateEvent(
               room.roomId,
-              StateEvent.RoomCosmeticsPronouns as string,
-              { pronouns: pronounsArray },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              StateEvent.RoomCosmeticsPronouns as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { pronouns: pronounsArray } as any,
               userId
             );
 
@@ -1067,7 +1095,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             sendFeedback(`Room pronouns set: ${feedbackString}`, room, userId);
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback('Permission Denied. Could not update room pronouns.', room, userId);
             }
           }
@@ -1079,7 +1108,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           'Set your pronouns for this space. Example: /spronoun "en:they/them, de:sie/ihr" | /spronoun reset',
         exe: async (payload) => {
           const match = payload.trim().match(/^"(.*)"$/);
-          const rawInput = match ? match[1].trim() : payload.trim();
+          const rawInput = match ? (match[1] ?? '').trim() : payload.trim();
           const userId = mx.getSafeUserId();
 
           const parents = room
@@ -1088,14 +1117,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(StateEvent.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
 
           try {
             if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {
               await mx.sendStateEvent(
                 targetSpaceId as string,
-                StateEvent.RoomCosmeticsPronouns as string,
-                {},
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                StateEvent.RoomCosmeticsPronouns as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {} as any,
                 userId
               );
               sendFeedback('Global space pronouns reset.', room, userId);
@@ -1106,8 +1137,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             await mx.sendStateEvent(
               targetSpaceId as string,
-              StateEvent.RoomCosmeticsPronouns as string,
-              { pronouns: pronounsArray },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              StateEvent.RoomCosmeticsPronouns as any,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { pronouns: pronounsArray } as any,
               userId
             );
 
@@ -1117,7 +1150,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             sendFeedback(`Global space pronouns set: ${feedbackString}`, room, userId);
           } catch (e: unknown) {
-            if (e.errcode === 'M_FORBIDDEN') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((e as any).errcode === 'M_FORBIDDEN') {
               sendFeedback('Permission Denied. Could not update space pronouns.', room, userId);
             }
           }
@@ -1152,7 +1186,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const content = JSON.parse(payload);
             await mx.sendMessage(room.roomId, content);
           } catch (e: unknown) {
-            sendFeedback(`Invalid JSON: ${e.message}`, room, userId);
+            sendFeedback(`Invalid JSON: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1171,7 +1205,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const flagMap = parseFlags(flags);
           const stateKey = flagMap.s;
           const parts = mainPayload.trim().split(/\s+/);
-          const eventType = parts[0];
+          const eventType = parts[0] ?? '';
           const jsonString = mainPayload.trim().substring(eventType.length).trim();
 
           if (!eventType || !jsonString) {
@@ -1183,18 +1217,29 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const content = JSON.parse(jsonString);
 
             if (typeof stateKey === 'string') {
-              await mx.sendStateEvent(room.roomId, eventType as string, content, stateKey);
+              await mx.sendStateEvent(
+                room.roomId,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                eventType as any,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                content as any,
+                stateKey
+              );
               sendFeedback(
                 `State event "${eventType}" sent with state key "${stateKey}".`,
                 room,
                 userId
               );
             } else {
-              await mx.sendEvent(room.roomId, eventType as string, content);
+              await mx.sendEvent(
+                room.roomId,
+                eventType as unknown as Parameters<typeof mx.sendEvent>[2],
+                content
+              );
               sendFeedback(`Event "${eventType}" sent.`, room, userId);
             }
           } catch (e: unknown) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1222,15 +1267,17 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           try {
             const newContent = JSON.parse(jsonString);
 
-            const existingEvent = mx.getAccountData(type as string);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const existingEvent = mx.getAccountData(type as any);
             const existingContent = existingEvent ? existingEvent.getContent() : {};
 
             const mergedContent = { ...existingContent, ...newContent };
 
-            await mx.setAccountData(type as string, mergedContent);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await mx.setAccountData(type as any, mergedContent as any);
             sendFeedback(`Account data "${type}" merged successfully.`, room, userId);
           } catch (e: unknown) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1246,21 +1293,27 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           }
           const [type, key] = parts;
           try {
-            const existingEvent = mx.getAccountData(type as string);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const existingEvent = mx.getAccountData(type as any);
             if (!existingEvent) {
               sendFeedback(`No account data found for type "${type}".`, room, userId);
               return;
             }
-            const content = { ...existingEvent.getContent() };
+            if (!key) {
+              sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
+              return;
+            }
+            const content = { ...(existingEvent?.getContent() ?? {}) };
             if (!(key in content)) {
               sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
               return;
             }
-            delete content[key];
-            await mx.setAccountData(type as string, content as unknown);
+            delete content[key as keyof typeof content];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await mx.setAccountData(type as any, content as any);
             sendFeedback(`Key "${key}" removed from "${type}".`, room, userId);
           } catch (e: unknown) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1286,7 +1339,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           else if (!Number.isNaN(Number(value)) && value.trim() !== '') finalValue = Number(value);
           try {
             if (typeof mx.setExtendedProfileProperty === 'function') {
-              await mx.setExtendedProfileProperty(key, finalValue);
+              await mx.setExtendedProfileProperty(key ?? '', finalValue);
               sendFeedback(
                 `Extended profile property "${key}" set to: ${finalValue}`,
                 room,
@@ -1296,7 +1349,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               sendFeedback('Error: setExtendedProfileProperty is not supported.', room, userId);
             }
           } catch (e: unknown) {
-            sendFeedback(`Failed to set extended profile: ${e.message}`, room, userId);
+            sendFeedback(`Failed to set extended profile: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1325,7 +1378,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               sendFeedback('Error: setExtendedProfileProperty is not supported.', room, userId);
             }
           } catch (e: unknown) {
-            sendFeedback(`Failed to remove property: ${e.message}`, room, userId);
+            sendFeedback(`Failed to remove property: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1344,7 +1397,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             await crypto.forceDiscardSession(room.roomId);
             sendFeedback('Outbound encryption session discarded.', room, userId);
           } catch (e: unknown) {
-            sendFeedback(`Failed to discard session: ${e.message}`, room, userId);
+            sendFeedback(`Failed to discard session: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1403,7 +1456,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               );
             })
             .catch((e) => {
-              sendFeedback(`Failed to share E2EE history: ${e.message}`, room, mx.getSafeUserId());
+              sendFeedback(
+                `Failed to share E2EE history: ${(e as Error).message}`,
+                room,
+                mx.getSafeUserId()
+              );
             });
         },
       },
@@ -1420,7 +1477,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             },
             cute_type: 'hug',
             body: `🤗`,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Cuddle]: {
@@ -1435,7 +1492,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `😊`,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Wave]: {
@@ -1450,7 +1507,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `👋`,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Poke]: {
@@ -1465,7 +1522,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `🫵`,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Headpat]: {
@@ -1482,7 +1539,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             },
             body: `pats ${target || 'you'}`,
             'fyi.cisnt.headpat': true,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       // Meta commands
@@ -1519,7 +1576,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             msgtype: 'm.location',
             geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
             body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-          } as unknown);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.ShareMyLocation]: {
@@ -1556,7 +1613,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               msgtype: 'm.location',
               geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=${macc}`,
               body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-            } as unknown);
+            } as unknown as RoomMessageEventContent);
           }
 
           function error(err: GeolocationPositionError) {

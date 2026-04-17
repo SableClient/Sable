@@ -23,7 +23,7 @@ import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { Room } from '$types/matrix-sdk';
+import type { Room, StateEvents } from '$types/matrix-sdk';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirects, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -153,7 +153,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
           await mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as string,
+            StateEvent.SpaceChild as keyof StateEvents,
             {
               auto_join: false,
               suggested: false,
@@ -274,6 +274,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                     >
                       {vItems.map((vItem) => {
                         const roomId = items[vItem.index];
+                        if (!roomId) return null;
                         const room = getRoom(roomId);
                         if (!room) return null;
                         const selectedItem = selected?.includes(roomId);

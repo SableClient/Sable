@@ -127,7 +127,7 @@ function UserExtendedSection({
     if (!rawBio) return null;
 
     if (typeof rawBio === 'object' && rawBio !== null && 'formatted_body' in rawBio) {
-      rawBio = rawBio.formatted_body;
+      rawBio = (rawBio as { formatted_body: string }).formatted_body;
     }
 
     if (typeof rawBio !== 'string') {

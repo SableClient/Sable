@@ -139,7 +139,7 @@ export function UserMentionAutocomplete({
         handleAutocomplete(userId, userId);
         return;
       }
-      const roomMember = autoCompleteMembers[0];
+      const roomMember = autoCompleteMembers[0]!;
       handleAutocomplete(roomMember.userId, getName(roomMember));
     });
   });

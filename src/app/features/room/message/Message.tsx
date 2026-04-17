@@ -49,6 +49,7 @@ import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import type { MemberPowerTag } from '$types/matrix/room';
+import type { StateEvents } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { PowerIcon } from '$components/power';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
@@ -66,6 +67,7 @@ import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
+import type { PronounSet } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import {
   addStickerToDefaultPack,
@@ -171,7 +173,7 @@ export const MessagePinItem = as<
     if (!isPinned && eventId) {
       pinContent.pinned.push(eventId);
     }
-    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as string, pinContent);
+    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as keyof StateEvents, pinContent);
     onClose?.();
   };
 
@@ -359,7 +361,11 @@ function MessageInternal(
     msc2723ForwardedMessageProps,
     ...props
   }: MessageProps & { className?: string; children?: ReactNode },
-  ref: React.Ref<unknown>
+  ref:
+    | ((instance: HTMLDivElement | null) => void)
+    | React.RefObject<HTMLDivElement>
+    | null
+    | undefined
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -1024,7 +1030,9 @@ function MessageInternal(
                           radii="300"
                           data-event-id={mEvent.getId()}
                           onClick={(evt: React.MouseEvent) => {
-                            onReplyClick(evt);
+                            onReplyClick(
+                              evt as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0]
+                            );
                             closeMenu();
                           }}
                         >
@@ -1039,7 +1047,12 @@ function MessageInternal(
                             radii="300"
                             data-event-id={mEvent.getId()}
                             onClick={(evt: React.MouseEvent) => {
-                              onReplyClick(evt, true);
+                              onReplyClick(
+                                evt as unknown as Parameters<
+                                  MouseEventHandler<HTMLButtonElement>
+                                >[0],
+                                true
+                              );
                               closeMenu();
                             }}
                           >
@@ -1396,7 +1409,11 @@ export const Event = as<'div', EventProps>(
                               radii="300"
                               data-event-id={mEvent.getId()}
                               onClick={(evt: React.MouseEvent) => {
-                                onReplyClick(evt);
+                                onReplyClick(
+                                  evt as unknown as Parameters<
+                                    MouseEventHandler<HTMLButtonElement>
+                                  >[0]
+                                );
                                 closeMenu();
                               }}
                             >

@@ -37,9 +37,8 @@ import {
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 
-interface BundleContent {
+interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
-  [key: string]: unknown;
 }
 
 export function MBadEncrypted() {

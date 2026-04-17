@@ -244,7 +244,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                     }}
                   >
                     {vItems.map((vItem) => {
-                      const roomId = rooms[vItem.index];
+                      const roomId = rooms[vItem.index]!;
                       const room = mx.getRoom(roomId);
                       if (!room) return null;
                       const selected = localSelected?.includes(roomId);

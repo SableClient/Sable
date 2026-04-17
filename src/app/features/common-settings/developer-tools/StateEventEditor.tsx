@@ -14,7 +14,7 @@ import {
   Spinner,
   Button,
 } from 'folds';
-import type { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import { Page, PageHeader } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { TextViewerContent } from '$components/text-viewer';
@@ -60,7 +60,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
 
   const [submitState, submit] = useAsyncCallback<object, MatrixError, [object]>(
     useCallback(
-      (c) => mx.sendStateEvent(room.roomId, type as string, c, stateKey),
+      (c) => mx.sendStateEvent(room.roomId, type as keyof StateEvents, c, stateKey),
       [mx, room, type, stateKey]
     )
   );

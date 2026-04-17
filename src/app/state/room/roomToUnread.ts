@@ -319,12 +319,11 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       }
       setUnreadAtom({ type: 'PUT', unreadInfo });
     };
-    (mx as unknown as MatrixClient).on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mx as any).on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
     return () => {
-      (mx as unknown as MatrixClient).removeListener(
-        RoomEvent.UnreadNotifications,
-        handleUnreadNotifications
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mx as any).removeListener(RoomEvent.UnreadNotifications, handleUnreadNotifications);
     };
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 

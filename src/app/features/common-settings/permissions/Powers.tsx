@@ -168,7 +168,7 @@ export function Powers({ powerLevels, permissionGroups, onEdit }: PowersProps) {
         <SettingTile>
           <Box gap="200" wrap="Wrap">
             {getPowers(powerLevelTags).map((power) => {
-              const tag = powerLevelTags[power];
+              const tag = powerLevelTags[power]!;
               const tagIconSrc = tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 
               return (

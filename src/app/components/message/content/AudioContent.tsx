@@ -104,9 +104,12 @@ export function AudioContent({
         min={0}
         max={duration || 1}
         values={[currentTime]}
-        onChange={(values) => seek(values[0])}
+        onChange={(values) => seek(values[0] ?? 0)}
         renderTrack={(params) => {
-          const { key, ...restProps } = params.props as unknown;
+          const { key, ...restProps } = params.props as unknown as {
+            key?: string;
+            [key: string]: unknown;
+          };
           return (
             <div key={key} {...restProps}>
               {params.children}
@@ -123,18 +126,22 @@ export function AudioContent({
           );
         }}
         renderThumb={(params) => {
-          const { key, style, ...restProps } = params.props as unknown;
+          const { key, style, ...restProps } = params.props as unknown as {
+            key?: unknown;
+            style?: Record<string, unknown>;
+            [key: string]: unknown;
+          };
           return (
             <Badge
-              key={key}
+              key={key as unknown as string}
               size="300"
               variant="Secondary"
               fill="Solid"
               radii="Pill"
               outlined
-              {...restProps}
+              {...(restProps as Record<string, unknown>)}
               style={{
-                ...style,
+                ...(style as Record<string, unknown>),
                 zIndex: 0,
               }}
             />
@@ -181,9 +188,12 @@ export function AudioContent({
           min={0}
           max={1}
           values={[volume]}
-          onChange={(values) => setVolume(values[0])}
+          onChange={(values) => setVolume(values[0] ?? 1)}
           renderTrack={(params) => {
-            const { key, ...restProps } = params.props as unknown;
+            const { key, ...restProps } = params.props as unknown as {
+              key?: string;
+              [key: string]: unknown;
+            };
             return (
               <div key={key} {...restProps}>
                 {params.children}
@@ -200,18 +210,22 @@ export function AudioContent({
             );
           }}
           renderThumb={(params) => {
-            const { key, style, ...restProps } = params.props as unknown;
+            const { key, style, ...restProps } = params.props as unknown as {
+              key?: unknown;
+              style?: Record<string, unknown>;
+              [key: string]: unknown;
+            };
             return (
               <Badge
-                key={key}
+                key={key as unknown as string}
                 size="300"
                 variant="Secondary"
                 fill="Solid"
                 radii="Pill"
                 outlined
-                {...restProps}
+                {...(restProps as Record<string, unknown>)}
                 style={{
-                  ...style,
+                  ...(style as Record<string, unknown>),
                   zIndex: 0,
                 }}
               />

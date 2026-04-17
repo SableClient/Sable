@@ -327,7 +327,7 @@ function MessageNotifications() {
 
         const handleDecrypted = () => {
           // After decryption, run the notification logic with the decrypted event
-          handleTimelineEvent(mEvent, room, undefined, removed, data);
+          handleTimelineEvent(mEvent, room, undefined, true, data);
           // Clean up the skip-focus marker
           if (eventId) {
             skipFocusCheckEvents.delete(eventId);
@@ -787,7 +787,8 @@ function HandleDecryptPushEvent() {
       const decryptStart = performance.now();
 
       try {
-        const mxEvent = new MatrixEvent(rawEvent as unknown as Parameters<typeof MatrixEvent>[0]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mxEvent = new MatrixEvent(rawEvent as any);
         await mx.decryptEventIfNeeded(mxEvent);
 
         const room = mx.getRoom(roomId);

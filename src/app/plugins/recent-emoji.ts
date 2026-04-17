@@ -39,7 +39,8 @@ export function addRecentEmoji(mx: MatrixClient, unicode: string) {
   if (emojiIndex < 0) {
     entry = [unicode, 1];
   } else {
-    [entry] = recentEmoji.splice(emojiIndex, 1);
+    const spliced = recentEmoji.splice(emojiIndex, 1);
+    entry = spliced[0] ?? [unicode, 1];
     entry[1] += 1;
   }
   recentEmoji.unshift(entry);

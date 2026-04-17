@@ -51,6 +51,7 @@ import {
   getStateEvent,
 } from '$utils/room';
 import type { GetContentCallback } from '$types/matrix/room';
+import type { StateEvents } from '$types/matrix-sdk';
 import { MessageEvent, StateEvent } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
@@ -210,7 +211,11 @@ function PinnedMessage(props: PinnedMessageProps) {
         pinned: content.pinned.filter((id: string) => id !== eventId),
       };
 
-      return mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as string, newContent);
+      return mx.sendStateEvent(
+        room.roomId,
+        StateEvent.RoomPinnedEvents as keyof StateEvents,
+        newContent
+      );
     }, [room, eventId, mx])
   );
 

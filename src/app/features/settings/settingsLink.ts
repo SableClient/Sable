@@ -61,7 +61,7 @@ export const parseSettingsLink = (baseUrl: string, href: string): SettingsLink |
     const appPath = getAppPathFromHref(baseUrl, href);
     if (!appPath.startsWith('/settings/')) return undefined;
 
-    const [pathname, search = ''] = appPath.split('?');
+    const [pathname = '', search = ''] = appPath.split('?');
     const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/?$/);
     if (!sectionMatch) return undefined;
 

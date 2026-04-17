@@ -354,8 +354,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [startState]);
 
   return (
-    <AutoDiscovery userId={userId} baseUrl={baseUrl}>
-      <SpecVersions baseUrl={baseUrl}>
+    <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
+      <SpecVersions baseUrl={baseUrl ?? ''}>
         {mx && <SyncStatus mx={mx} />}
         {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (

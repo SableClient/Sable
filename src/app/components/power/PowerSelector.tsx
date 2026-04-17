@@ -36,11 +36,11 @@ export const PowerSelector = forwardRef<HTMLDivElement, PowerSelectorProps>(
                   aria-pressed={selected}
                   radii="300"
                   onClick={selected ? undefined : () => onChange(power)}
-                  before={<PowerColorBadge color={tag.color} />}
+                  before={<PowerColorBadge color={tag!.color} />}
                   after={<Text size="L400">{power}</Text>}
                 >
                   <Text style={{ flexGrow: 1 }} size="B400" truncate>
-                    {tag.name}
+                    {tag!.name}
                   </Text>
                 </MenuItem>
               );

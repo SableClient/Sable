@@ -23,13 +23,15 @@ export const getViaServers = (room: Room): string[] => {
     let powerUserId: string | undefined;
 
     Object.keys(userIdToPower).forEach((userId) => {
-      if (userIdToPower[userId] <= (powerLevels.users_default ?? 0)) return;
+      const userPower = userIdToPower[userId];
+      if (userPower === undefined || userPower <= (powerLevels.users_default ?? 0)) return;
 
       if (!powerUserId) {
         powerUserId = userId;
         return;
       }
-      if (userIdToPower[userId] > userIdToPower[powerUserId]) {
+      const currentPower = userIdToPower[powerUserId];
+      if (currentPower !== undefined && userPower > currentPower) {
         powerUserId = userId;
       }
     });
@@ -63,12 +65,13 @@ export const getViaServers = (room: Room): string[] => {
   }
   const serverToPop = getServerToPopulation();
   const sortedServers = Object.keys(serverToPop).toSorted(
-    (svrA, svrB) => serverToPop[svrB] - serverToPop[svrA]
+    (svrA, svrB) => (serverToPop[svrB] ?? 0) - (serverToPop[svrA] ?? 0)
   );
   const mostPop3 = sortedServers.slice(0, 3);
   if (via.length === 0) return mostPop3;
-  if (mostPop3.includes(via[0])) {
-    mostPop3.splice(mostPop3.indexOf(via[0]), 1);
+  const firstVia = via[0];
+  if (firstVia && mostPop3.includes(firstVia)) {
+    mostPop3.splice(mostPop3.indexOf(firstVia), 1);
   }
   return via.concat(mostPop3.slice(0, 2));
 };

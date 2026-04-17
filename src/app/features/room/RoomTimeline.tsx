@@ -458,7 +458,7 @@ export function RoomTimeline({
     if (!el) return () => {};
 
     const observer = new ResizeObserver((entries) => {
-      const newHeight = entries[0].contentRect.height;
+      const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;
@@ -480,11 +480,18 @@ export function RoomTimeline({
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
-    openUserRoomProfile,
+    openUserRoomProfile: openUserRoomProfile as unknown as (
+      roomId: string,
+      spaceId: string | undefined,
+      userId: string,
+      rect: DOMRect,
+      undefinedArg?: undefined,
+      options?: unknown
+    ) => void,
     activeReplyId,
-    setReplyDraft,
+    setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
-    setOpenThread,
+    setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
     handleEdit,
     handleOpenEvent: (id) => {
       const evtTimeline = getEventTimeline(room, id);

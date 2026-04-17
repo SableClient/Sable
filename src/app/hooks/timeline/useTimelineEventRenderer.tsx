@@ -11,11 +11,13 @@ import type {
   EventTimelineSet,
   IContent,
 } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import type { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
+import type { MessageSpacing } from '$state/settings';
 import { MessageLayout } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import type { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -112,13 +114,13 @@ function ThreadReplyChip({
   useEffect(() => {
     if (!thread) return () => {};
     const onUpdate = () => forceUpdate((n) => n + 1);
-    thread.on(ThreadEvent.NewReply as string, onUpdate);
-    thread.on(ThreadEvent.Update as string, onUpdate);
-    room.on(RoomEvent.Redaction as string, onUpdate);
+    thread.on(ThreadEvent.NewReply, onUpdate);
+    thread.on(ThreadEvent.Update, onUpdate);
+    room.on(RoomEvent.Redaction, onUpdate);
     return () => {
-      thread.off(ThreadEvent.NewReply as string, onUpdate);
-      thread.off(ThreadEvent.Update as string, onUpdate);
-      room.off(RoomEvent.Redaction as string, onUpdate);
+      thread.off(ThreadEvent.NewReply, onUpdate);
+      thread.off(ThreadEvent.Update, onUpdate);
+      room.off(RoomEvent.Redaction, onUpdate);
     };
   }, [room, thread]);
 
@@ -258,7 +260,7 @@ export interface TimelineEventRendererOptions {
   imagePackRooms: Room[];
   settings: {
     messageLayout: MessageLayout;
-    messageSpacing: number;
+    messageSpacing: MessageSpacing;
     hideReads: boolean;
     showDeveloperTools: boolean;
     hour24Clock: boolean;
@@ -502,7 +504,7 @@ export function useTimelineEventRenderer({
             ) : (
               <RenderMessageContent
                 displayName={senderDisplayName}
-                msgType={(editedNewContent ?? safeContent).msgtype ?? ''}
+                msgType={((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''}
                 ts={getTs.call(mEvent)}
                 edited={!!editedEvent}
                 getContent={getContent}
@@ -631,7 +633,7 @@ export function useTimelineEventRenderer({
                 if (type === MessageEvent.Sticker)
                   return (
                     <MSticker
-                      content={getEventContent.call(mEvent) as unknown}
+                      content={getEventContent.call(mEvent) as unknown as IImageContent}
                       renderImageContent={(props) => (
                         <ImageContent
                           {...props}
@@ -674,7 +676,9 @@ export function useTimelineEventRenderer({
                   return (
                     <RenderMessageContent
                       displayName={senderDisplayName}
-                      msgType={(editedNewContent ?? safeContent).msgtype ?? ''}
+                      msgType={
+                        ((editedNewContent ?? safeContent) as { msgtype?: string }).msgtype ?? ''
+                      }
                       ts={getTs.call(mEvent)}
                       edited={!!editedEvent}
                       getContent={getContent}
@@ -799,7 +803,7 @@ export function useTimelineEventRenderer({
               <RedactedContent reason={getUnsigned.call(mEvent).redacted_because?.content.reason} />
             ) : (
               <MSticker
-                content={getEventContent.call(mEvent) as unknown}
+                content={getEventContent.call(mEvent) as unknown as IImageContent}
                 renderImageContent={(props) => (
                   <ImageContent
                     {...props}

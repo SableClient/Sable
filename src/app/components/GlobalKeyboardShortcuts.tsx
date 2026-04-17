@@ -63,6 +63,10 @@ export function GlobalKeyboardShortcuts() {
         const parents = roomToParents.get(roomId);
         if (parents && parents.size > 0) {
           const spaceId = Array.from(parents)[0];
+          if (!spaceId) {
+            navigate(getHomeRoomPath(roomIdOrAliasToNav));
+            return;
+          }
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, spaceId);
           navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAliasToNav));
         } else {
@@ -86,7 +90,7 @@ export function GlobalKeyboardShortcuts() {
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       unreadIndexRef.current = 0;
-      const [roomId] = unreadEntries[0];
+      const [roomId] = unreadEntries[0]!;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
     [roomToUnread, currentRoom?.roomId, navigateToRoom]
@@ -109,7 +113,9 @@ export function GlobalKeyboardShortcuts() {
         unreadIndexRef.current =
           (unreadIndexRef.current - 1 + unreadEntries.length) % unreadEntries.length;
       }
-      const [roomId] = unreadEntries[unreadIndexRef.current];
+      const currentEntry = unreadEntries[unreadIndexRef.current];
+      if (!currentEntry) return;
+      const [roomId] = currentEntry;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
     [roomToUnread, navigateToRoom]
@@ -137,6 +143,7 @@ export function GlobalKeyboardShortcuts() {
       const currentReplyIndex = events.findIndex((e) => e.event.event_id === replyDraft.eventId);
       if (currentReplyIndex === events.length - 1 && isDown) return; // you cant go further down than that idiot
       const newTargetEvent = isUp ? events[currentReplyIndex - 1] : events[currentReplyIndex + 1];
+      if (!newTargetEvent) return;
       const eventId = newTargetEvent.event.event_id;
       if (eventId === undefined) return;
       setReplyDraft({ userId: currentRoom.myUserId, eventId, body: '' });

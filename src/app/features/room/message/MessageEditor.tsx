@@ -10,6 +10,7 @@ import type {
   MatrixEvent,
   ReplacementEvent,
   Room,
+  RoomMessageEventContent,
   RoomMessageTextEventContent,
 } from '$types/matrix-sdk';
 import { RelationType, MsgType } from '$types/matrix-sdk';
@@ -246,7 +247,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           }
         }
 
-        return mx.sendMessage(roomId, content as unknown);
+        return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])
     );
 

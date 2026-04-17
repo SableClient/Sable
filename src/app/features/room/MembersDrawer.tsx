@@ -422,6 +422,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
                   const tagOrMember = PLTagOrRoomMember[vItem.index];
+                  if (!tagOrMember) return null;
                   if (!('userId' in tagOrMember)) {
                     return (
                       <Text

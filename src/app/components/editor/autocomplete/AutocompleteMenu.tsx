@@ -62,7 +62,10 @@ export function AutocompleteMenu({
           escapeDeactivates: stopPropagation,
         }}
       >
-        <Menu className={css.AutocompleteMenu} onKeyDown={(evt) => handleInput(evt)}>
+        <Menu
+          className={css.AutocompleteMenu}
+          onKeyDown={(evt) => handleInput(evt as unknown as KeyboardEvent)}
+        >
           <Header className={css.AutocompleteMenuHeader} size="400">
             {headerContent}
           </Header>

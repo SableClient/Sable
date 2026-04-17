@@ -235,8 +235,10 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     });
 
     // Capture the echo token that was uploaded.
-    const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent.synctoken as string;
+    const uploadedContent = mockMx.setAccountData.mock.calls[0]?.[1] as
+      | Record<string, unknown>
+      | undefined;
+    const echoToken = uploadedContent?.synctoken as string;
 
     // Simulate the homeserver echoing our own event back.
     const echoEvent = makeSableSettingsEvent({
@@ -261,8 +263,10 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent.synctoken as string;
+    const uploadedContent = mockMx.setAccountData.mock.calls[0]?.[1] as
+      | Record<string, unknown>
+      | undefined;
+    const echoToken = uploadedContent?.synctoken as string;
 
     const before = Date.now();
     act(() => {

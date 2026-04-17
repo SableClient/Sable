@@ -244,7 +244,9 @@ export async function getPerMessageProfileById(
   mx: MatrixClient,
   id: string
 ): Promise<PerMessageProfile | undefined> {
-  const profile = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.${id}` as string);
+  const profile = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.${id}` as Parameters<typeof mx.getAccountData>[0]
+  );
   return profile ? (profile.getContent() as unknown as PerMessageProfile) : undefined;
 }
 
@@ -256,7 +258,9 @@ export async function getPerMessageProfileById(
  * @return {*}  {Promise<PerMessageProfile[]>} a array containing all per-message-profiles saved
  */
 export async function getAllPerMessageProfiles(mx: MatrixClient): Promise<PerMessageProfile[]> {
-  const profileData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.index` as string);
+  const profileData = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.index` as Parameters<typeof mx.getAccountData>[0]
+  );
   const profileIds = (profileData?.getContent() as PerMessageProfileIndex)?.profileIds || [];
   const profiles = await Promise.all(profileIds.map((id) => getPerMessageProfileById(mx, id)));
   return profiles.filter((profile): profile is PerMessageProfile => profile !== undefined);
@@ -269,7 +273,9 @@ export async function getAllPerMessageProfiles(mx: MatrixClient): Promise<PerMes
  * @returns void
  */
 export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessageProfile) {
-  const profileListIndex = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.index` as string);
+  const profileListIndex = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.index` as Parameters<typeof mx.getAccountData>[0]
+  );
   const profileWithCompat = {
     ...profile,
     compat: {
@@ -278,23 +284,21 @@ export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessa
     } satisfies AccountDataCompatVersion,
   } satisfies PerMessageProfile;
   if (profileListIndex?.getContent()?.profileIds.includes(profile.id)) {
-    // profile already exists, just update it
     return mx.setAccountData(
-      `${ACCOUNT_DATA_PREFIX}.${profile.id}` as string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      profileWithCompat as any
+      `${ACCOUNT_DATA_PREFIX}.${profile.id}` as Parameters<typeof mx.setAccountData>[0],
+      profileWithCompat as Parameters<typeof mx.setAccountData>[1]
     );
   }
-  // profile doesn't exist, add it to the index and then add the profile data
   const newProfileIds = [...(profileListIndex?.getContent()?.profileIds || []), profile.id];
   return Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mx.setAccountData(
-      `${ACCOUNT_DATA_PREFIX}.index` as string,
-      { profileIds: newProfileIds } as any
+      `${ACCOUNT_DATA_PREFIX}.index` as Parameters<typeof mx.setAccountData>[0],
+      { profileIds: newProfileIds } as Parameters<typeof mx.setAccountData>[1]
     ),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${profile.id}` as string, profileWithCompat as any),
+    mx.setAccountData(
+      `${ACCOUNT_DATA_PREFIX}.${profile.id}` as Parameters<typeof mx.setAccountData>[0],
+      profileWithCompat as Parameters<typeof mx.setAccountData>[1]
+    ),
   ]);
 }
 
@@ -307,18 +311,21 @@ export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessa
  * @param id the id to drop from the index
  */
 async function dropIdFromIndex(mx: MatrixClient, id: string) {
-  const profileListIndex = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.index` as string);
+  const profileListIndex = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.index` as Parameters<typeof mx.getAccountData>[0]
+  );
   const profileIds = profileListIndex?.getContent()?.profileIds || [];
   const newProfileIds = profileIds.filter((profileId: string) => profileId !== id);
   await mx.setAccountData(
-    `${ACCOUNT_DATA_PREFIX}.index` as string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { profileIds: newProfileIds } as any
+    `${ACCOUNT_DATA_PREFIX}.index` as Parameters<typeof mx.setAccountData>[0],
+    { profileIds: newProfileIds } as Parameters<typeof mx.setAccountData>[1]
   );
 }
 
 async function getRoomsUsingProfile(mx: MatrixClient, profileId: string): Promise<string[]> {
-  const accountData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.roomassociation` as string);
+  const accountData = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.getAccountData>[0]
+  );
   const content: PerMessageProfileRoomAssociationWrapper | undefined = accountData?.getContent();
   const associations = getAssociationsMap(content);
   const roomsUsingProfile: string[] = [];
@@ -344,16 +351,19 @@ export async function setCurrentlyUsedPerMessageProfileIdForRoom(
   validUntil?: number,
   reset?: boolean
 ) {
-  const accountData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.roomassociation` as string);
+  const accountData = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.getAccountData>[0]
+  );
   const content: PerMessageProfileRoomAssociationWrapper | undefined = accountData?.getContent();
   const associations = getAssociationsMap(content);
 
   if (reset) {
     associations.delete(roomId);
     mx.setAccountData(
-      `${ACCOUNT_DATA_PREFIX}.roomassociation` as string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { associations: associationsMapToObject(associations) } as any
+      `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.setAccountData>[0],
+      { associations: associationsMapToObject(associations) } as Parameters<
+        typeof mx.setAccountData
+      >[1]
     );
     return;
   }
@@ -362,9 +372,10 @@ export async function setCurrentlyUsedPerMessageProfileIdForRoom(
   }
   associations.set(roomId, { profileId, validUntil });
   mx.setAccountData(
-    `${ACCOUNT_DATA_PREFIX}.roomassociation` as string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { associations: associationsMapToObject(associations) } as any
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.setAccountData>[0],
+    { associations: associationsMapToObject(associations) } as Parameters<
+      typeof mx.setAccountData
+    >[1]
   );
 }
 
@@ -384,7 +395,11 @@ export async function associateProxyWithProfile(
   reset: boolean
 ) {
   const associations = getProxyAssociationMap(
-    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as string)?.getContent()
+    mx
+      .getAccountData(
+        `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]
+      )
+      ?.getContent()
   );
 
   if (reset) associations.delete(proxy);
@@ -396,9 +411,10 @@ export async function associateProxyWithProfile(
       regexString: proxyRegExp.toString(),
     } satisfies PerMessageProfileProxyAssociation);
   mx.setAccountData(
-    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { associations: proxyAssociationsMapToObject(associations) } as any
+    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.setAccountData>[0],
+    { associations: proxyAssociationsMapToObject(associations) } as Parameters<
+      typeof mx.setAccountData
+    >[1]
   );
 }
 
@@ -413,7 +429,11 @@ export async function getProfileAssociatedWithProxy(
   proxy: string
 ): Promise<PerMessageProfile | undefined> {
   const profileId = getAssociationsMap(
-    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as string)?.getContent()
+    mx
+      .getAccountData(
+        `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]
+      )
+      ?.getContent()
   ).get(proxy)?.profileId;
   if (!profileId) return undefined;
   return getPerMessageProfileById(mx, profileId);
@@ -430,7 +450,9 @@ export async function getAllPerMessageProfileProxies(
   mx: MatrixClient
 ): Promise<PerMessageProfileProxyAssociation[]> {
   const cont: PerMessageProfileProxyAssociationWrapper | undefined = mx
-    .getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as string)
+    .getAccountData(
+      `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]
+    )
     ?.getContent();
   if (!cont) return [];
   const pmap = getProxyAssociationMap(cont);
@@ -441,14 +463,19 @@ export async function getAllPerMessageProfileProxies(
 
 export async function dropProxyAssociationForPMP(mx: MatrixClient, proxy: string) {
   const associations = getProxyAssociationMap(
-    mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.proxyassociation` as string)?.getContent()
+    mx
+      .getAccountData(
+        `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]
+      )
+      ?.getContent()
   );
   if (!associations) return;
   associations.delete(proxy);
   mx.setAccountData(
-    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { associations: proxyAssociationsMapToObject(associations) } as any
+    `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.setAccountData>[0],
+    { associations: proxyAssociationsMapToObject(associations) } as Parameters<
+      typeof mx.setAccountData
+    >[1]
   );
 }
 
@@ -460,7 +487,9 @@ export async function dropProxyAssociationForPMP(mx: MatrixClient, proxy: string
  * @param {string} id the id of the profile to drop associations for
  */
 async function dropPerMessageProfileRoomAssociations(mx: MatrixClient, id: string) {
-  const accountData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.roomassociation` as string);
+  const accountData = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.getAccountData>[0]
+  );
   const content: PerMessageProfileRoomAssociationWrapper | undefined = accountData?.getContent();
   if (!content) return;
   const associations = getAssociationsMap(content);
@@ -470,9 +499,10 @@ async function dropPerMessageProfileRoomAssociations(mx: MatrixClient, id: strin
     associations.delete(roomId);
   });
   await mx.setAccountData(
-    `${ACCOUNT_DATA_PREFIX}.roomassociation` as string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { associations: associationsMapToObject(associations) } as any
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.setAccountData>[0],
+    { associations: associationsMapToObject(associations) } as Parameters<
+      typeof mx.setAccountData
+    >[1]
   );
 }
 
@@ -483,7 +513,10 @@ async function dropPerMessageProfileRoomAssociations(mx: MatrixClient, id: strin
  */
 export async function deletePerMessageProfile(mx: MatrixClient, id: string) {
   await dropPerMessageProfileRoomAssociations(mx, id);
-  await mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${id}` as string, {});
+  await mx.setAccountData(
+    `${ACCOUNT_DATA_PREFIX}.${id}` as Parameters<typeof mx.setAccountData>[0],
+    {}
+  );
   await dropIdFromIndex(mx, id);
 }
 
@@ -521,7 +554,9 @@ export async function getCurrentlyUsedPerMessageProfileForRoom(
   mx: MatrixClient,
   roomId: string
 ): Promise<PerMessageProfile | undefined> {
-  const accountData = mx.getAccountData(`${ACCOUNT_DATA_PREFIX}.roomassociation` as string);
+  const accountData = mx.getAccountData(
+    `${ACCOUNT_DATA_PREFIX}.roomassociation` as Parameters<typeof mx.getAccountData>[0]
+  );
   const content: PerMessageProfileRoomAssociationWrapper | undefined = accountData?.getContent();
   const associations = getAssociationsMap(content);
   const profileId = associations.get(roomId)?.profileId;

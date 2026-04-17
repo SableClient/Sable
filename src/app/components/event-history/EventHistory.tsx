@@ -59,7 +59,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const getName = (userId: string) =>
       getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
 
-    const readerId = mEvents[0].event.sender ?? '';
+    const readerId = mEvents[0]?.event.sender ?? '';
     const name = getName(readerId ?? '');
     const avatarMxcUrl = room.getMember(readerId ?? '')?.getMxcAvatarUrl();
     const avatarUrl = avatarMxcUrl
@@ -73,7 +73,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const spoilerClickHandler = useSpoilerClickHandler();
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
-        getReactCustomHtmlParser(mx, mEvents[0].getRoomId(), {
+        getReactCustomHtmlParser(mx, mEvents[0]!.getRoomId(), {
           settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,
@@ -86,7 +86,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const permissions = useRoomPermissions(creators, powerLevels);
     const canRedact = permissions.action('redact', mx.getSafeUserId());
     const canDeleteOwn = permissions.event(MessageEvent.RoomRedaction, mx.getSafeUserId());
-    const canDelete = canRedact || (canDeleteOwn && mEvents[0].getSender() === mx.getUserId());
+    const canDelete = canRedact || (canDeleteOwn && mEvents[0]?.getSender() === mx.getUserId());
 
     const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(room.roomId));
     const triggerReply = useCallback(

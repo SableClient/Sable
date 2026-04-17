@@ -68,7 +68,7 @@ export const binarySearch = <T>(items: T[], match: (item: T) => -1 | 0 | 1): T |
 
     const mid = Math.floor((start + end) / 2);
 
-    const result = match(items[mid]);
+    const result = match(items[mid]!);
     if (result === 0) return items[mid];
 
     if (result === 1) return search(start, mid - 1);

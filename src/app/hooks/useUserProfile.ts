@@ -64,19 +64,19 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
   });
 
   return {
-    avatarUrl: info.avatar_url,
-    displayName: info.displayname,
-    pronouns: info['io.fsky.nyx.pronouns'],
-    timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
+    avatarUrl: info.avatar_url as string | undefined,
+    displayName: info.displayname as string | undefined,
+    pronouns: info['io.fsky.nyx.pronouns'] as PronounSet[] | undefined,
+    timezone: (info['us.cloke.msc4175.tz'] || info['m.tz']) as string | undefined,
     bio:
       msc4440Bio?.['m.text']?.[0]?.body ||
-      info['moe.sable.app.bio'] ||
-      info['chat.commet.profile_bio'],
-    status: info['chat.commet.profile_status'],
-    bannerUrl: info['chat.commet.profile_banner'],
-    nameColor: info['moe.sable.app.name_color'],
-    nameColorDark: info['moe.sable.app.name_color_dark_theme'],
-    nameColorLight: info['moe.sable.app.name_color_light_theme'],
+      (info['moe.sable.app.bio'] as string | undefined) ||
+      (info['chat.commet.profile_bio'] as string | undefined),
+    status: info['chat.commet.profile_status'] as string | undefined,
+    bannerUrl: info['chat.commet.profile_banner'] as string | undefined,
+    nameColor: info['moe.sable.app.name_color'] as string | undefined,
+    nameColorDark: info['moe.sable.app.name_color_dark_theme'] as string | undefined,
+    nameColorLight: info['moe.sable.app.name_color_light_theme'] as string | undefined,
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
     extended,
@@ -194,7 +194,8 @@ export const useUserProfile = (
 
       const parents = state?.getStateEvents(StateEvent.SpaceParent);
       if (parents && parents.length > 0) {
-        const parentSpace = mx.getRoom(parents[0].getStateKey());
+        const parent = parents[0];
+        const parentSpace = parent ? mx.getRoom(parent.getStateKey()) : undefined;
         const pState = parentSpace?.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
         if (renderRoomColors) {

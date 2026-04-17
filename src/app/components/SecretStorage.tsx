@@ -40,7 +40,7 @@ export function SecretStorageRecoveryPassphrase({
           bits
         );
 
-        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent);
+        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent as never);
 
         if (!match) {
           throw new Error('Invalid recovery passphrase.');
@@ -132,7 +132,7 @@ export function SecretStorageRecoveryKey({
       async (recoveryKey) => {
         const decodedRecoveryKey = decodeRecoveryKey(recoveryKey);
 
-        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent);
+        const match = await mx.secretStorage.checkKey(decodedRecoveryKey, keyContent as never);
 
         if (!match) {
           throw new Error('Invalid recovery key.');

@@ -74,7 +74,7 @@ function splitBodyTextByAbbreviations(
   }
   const result = segments as TextSegment[];
   for (let i = 0; i < result.length; i += 1) {
-    result[i].id = `txt-${i}`;
+    result[i]!.id = `txt-${i}`;
   }
   return result;
 }

@@ -538,7 +538,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           title="General Global Name Color"
           description="Custom name color everywhere names have color!"
           focusId="name-color"
-          current={profile.nameColor || profile.extended?.['moe.sable.app.name_color']}
+          current={
+            profile.nameColor ||
+            (profile.extended?.['moe.sable.app.name_color'] as string | undefined)
+          }
           onSave={(color) => handleSaveField('moe.sable.app.name_color', color)}
         />
         <NameColorEditor
@@ -546,7 +549,8 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           description="Your name's color for a dark theme user."
           focusId="name-color-dark-theme"
           current={
-            profile.nameColorDark || profile.extended?.['moe.sable.app.name_color_dark_theme']
+            profile.nameColorDark ||
+            (profile.extended?.['moe.sable.app.name_color_dark_theme'] as string | undefined)
           }
           onSave={(color) => handleSaveField('moe.sable.app.name_color_dark_theme', color)}
         />
@@ -555,7 +559,8 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           description="Your name's color for a light theme user."
           focusId="name-color-light-theme"
           current={
-            profile.nameColorLight || profile.extended?.['moe.sable.app.name_color_light_theme']
+            profile.nameColorLight ||
+            (profile.extended?.['moe.sable.app.name_color_light_theme'] as string | undefined)
           }
           onSave={(color) => handleSaveField('moe.sable.app.name_color_light_theme', color)}
         />
@@ -594,9 +599,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
       >
         <BioEditor
           value={
-            (profile.extended?.['gay.fomx.biography'] satisfies MSC4440Bio)?.formatted_body ||
-            profile.extended?.['moe.sable.app.bio'] ||
-            profile.extended?.['chat.commet.profile_bio'] ||
+            ((profile.extended?.['gay.fomx.biography'] as MSC4440Bio | undefined)?.['m.text']?.[0]
+              ?.body as string | undefined) ||
+            (profile.extended?.['moe.sable.app.bio'] as string | undefined) ||
+            (profile.extended?.['chat.commet.profile_bio'] as string | undefined) ||
             profile.bio
           }
           onSave={(htmlBio, plainTextBio) => {

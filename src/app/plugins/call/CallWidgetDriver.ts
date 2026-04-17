@@ -192,6 +192,7 @@ export class CallWidgetDriver extends WidgetDriver {
 
       for (const userId of Object.keys(contentMap)) {
         const userContentMap = contentMap[userId];
+        if (!userContentMap) continue;
 
         for (const deviceId of Object.keys(userContentMap)) {
           const content = userContentMap[deviceId];
@@ -244,6 +245,7 @@ export class CallWidgetDriver extends WidgetDriver {
 
     for (let i = events.length - 1; i >= 0; i -= 1) {
       const ev = events[i];
+      if (!ev) continue;
       if (results.length >= safeLimit) break;
       if (since !== undefined && ev.getId() === since) break;
 

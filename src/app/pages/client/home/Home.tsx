@@ -332,6 +332,7 @@ export function Home() {
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
                   const roomId = sortedRooms[vItem.index];
+                  if (!roomId) return null;
                   const room = mx.getRoom(roomId);
                   if (!room) return null;
                   const selected = selectedRoomId === roomId;

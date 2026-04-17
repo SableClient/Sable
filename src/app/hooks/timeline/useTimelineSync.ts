@@ -115,6 +115,7 @@ const useTimelinePagination = (
   const paginate = useMemo(() => {
     const recalibratePagination = (linkedTimelines: EventTimeline[]) => {
       const topTimeline = linkedTimelines[0];
+      if (!topTimeline) return;
       const newLTimelines = getLinkedTimelines(topTimeline);
       setTimeline(() => ({ linkedTimelines: newLTimelines }));
     };
@@ -183,16 +184,19 @@ const useTimelinePagination = (
           // ensures recalibratePagination rebuilds from the current live chain and
           // that countAfter/stillHasToken comparisons are meaningful.
           const freshLTimelines = timelineRef.current.linkedTimelines;
+          const firstTimeline = freshLTimelines[0];
+          if (!firstTimeline) return;
           recalibratePagination(freshLTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
-          const countAfter = getTimelinesEventsCount(getLinkedTimelines(freshLTimelines[0]));
+          const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
             const checkTimeline = backwards
               ? freshLTimelines[0]
               : freshLTimelines[freshLTimelines.length - 1];
+            if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
               typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===

@@ -83,7 +83,7 @@ export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): bo
   const blockToggled = BLOCK_KEYS.find((hotkey) => {
     if (isKeyHotkey(hotkey, event)) {
       event.preventDefault();
-      toggleBlock(editor, BLOCK_HOTKEYS[hotkey]);
+      toggleBlock(editor, BLOCK_HOTKEYS[hotkey]!);
       return true;
     }
     return false;
@@ -107,7 +107,7 @@ export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): bo
     : INLINE_KEYS.find((hotkey) => {
         if (isKeyHotkey(hotkey, event)) {
           event.preventDefault();
-          toggleMark(editor, INLINE_HOTKEYS[hotkey]);
+          toggleMark(editor, INLINE_HOTKEYS[hotkey]!);
           return true;
         }
         return false;

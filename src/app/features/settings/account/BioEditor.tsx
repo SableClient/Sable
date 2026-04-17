@@ -83,13 +83,13 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
     if (valueChanged || isFirstValidLoad) {
       prevValue.current = value;
 
-      let normalizedValue = value;
+      let normalizedValue: string | undefined = value;
       if (
         typeof normalizedValue === 'object' &&
         normalizedValue !== null &&
         'formatted_body' in normalizedValue
       ) {
-        normalizedValue = normalizedValue.formatted_body;
+        normalizedValue = (normalizedValue as { formatted_body?: string }).formatted_body;
       }
 
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';

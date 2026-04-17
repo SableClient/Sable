@@ -53,12 +53,11 @@ function DMItem({ room, selected }: DMItemProps) {
 
   // Determine avatar src for single group DM member to avoid nested ternary
   const getSingleMemberAvatarSrc = () => {
-    if (groupMembers.length !== 1 || !groupMembers[0].avatarUrl) {
+    const member = groupMembers[0];
+    if (groupMembers.length !== 1 || !member?.avatarUrl) {
       return undefined;
     }
-    return (
-      mxcUrlToHttp(mx, groupMembers[0].avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined
-    );
+    return mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
   };
 
   // Render appropriate avatar based on DM type
@@ -85,16 +84,17 @@ function DMItem({ room, selected }: DMItemProps) {
     }
 
     if (groupMembers.length === 1) {
-      // Single member in group DM - fill the space like a normal DM
+      const member = groupMembers[0];
+      if (!member) return null;
       return (
         <Avatar size="400" radii="400">
           <UserAvatar
-            userId={groupMembers[0].userId}
+            userId={member.userId}
             src={getSingleMemberAvatarSrc()}
-            alt={groupMembers[0].displayName || groupMembers[0].userId}
+            alt={member.displayName || member.userId}
             renderFallback={() => (
               <Text as="span" size="H6">
-                {nameInitials(groupMembers[0].displayName || groupMembers[0].userId)}
+                {nameInitials(member.displayName || member.userId)}
               </Text>
             )}
           />

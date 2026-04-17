@@ -126,7 +126,7 @@ export function useIntegrationManager(): IntegrationManagerState & {
       const managers = await discoverManagers(mx);
       let scalarToken: string | null = null;
 
-      if (managers.length > 0) {
+      if (managers.length > 0 && managers[0]) {
         scalarToken = await getScalarToken(mx, managers[0].apiUrl);
       }
 

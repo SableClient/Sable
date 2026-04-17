@@ -44,7 +44,7 @@ export const useRoomNavigate = () => {
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
           parentSpace = spaceSelectedId;
         } else {
-          parentSpace = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0];
+          parentSpace = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0] ?? roomId;
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);

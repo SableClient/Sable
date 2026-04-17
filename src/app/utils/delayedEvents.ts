@@ -31,8 +31,9 @@ export async function sendDelayedMessage(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    EventType.RoomMessage,
-    content as unknown as Parameters<typeof mx._unstable_sendDelayedEvent>[3]
+    EventType.RoomMessage as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    content as any
   );
 }
 
@@ -80,8 +81,9 @@ export async function sendDelayedMessageE2EE(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    event.getWireType(),
-    event.getWireContent()
+    event.getWireType() as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    event.getWireContent() as any
   );
 }
 

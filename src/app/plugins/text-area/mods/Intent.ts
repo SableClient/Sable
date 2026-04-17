@@ -60,7 +60,7 @@ export class Intent {
     });
     const intentCursor = this.operations.insert(linesCursor, intentLines.join('\n'));
 
-    const firstLineTrimLength = lines[0].length - intentLines[0].length;
+    const firstLineTrimLength = (lines[0]?.length ?? 0) - (intentLines[0]?.length ?? 0);
     const lastLine = this.textArea.cursorLines(
       new Cursor(intentCursor.end, intentCursor.end, 'none')
     );

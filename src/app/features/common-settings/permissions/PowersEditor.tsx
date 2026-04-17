@@ -42,6 +42,7 @@ import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { MemberPowerTag, MemberPowerTagIcon } from '$types/matrix/room';
+import type { StateEvents } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
@@ -351,7 +352,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
       deleted.forEach((power) => {
         delete content[power];
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as string, content);
+      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as keyof StateEvents, content);
     }, [mx, room, powerLevelTags, editedPowerTags, deleted])
   );
 
@@ -436,7 +437,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
                   )}
                 </SequenceCard>
                 {getPowers(powerTags).map((power) => {
-                  const tag = powerTags[power];
+                  const tag = powerTags[power]!;
                   const tagIconSrc =
                     tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 

@@ -1,6 +1,7 @@
 import type { IconName, IconSrc } from 'folds';
 
 import type {
+  AccountDataEvents,
   EventTimelineSet,
   IMentions,
   IPowerLevelsContent,
@@ -46,7 +47,7 @@ export const getStateEvents = (room: Room, eventType: StateEvent): MatrixEvent[]
 export const getAccountData = (
   mx: MatrixClient,
   eventType: AccountDataEvent
-): MatrixEvent | undefined => mx.getAccountData(eventType);
+): MatrixEvent | undefined => mx.getAccountData(eventType as keyof AccountDataEvents);
 
 export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
   const roomIds = new Set<string>();
@@ -650,7 +651,7 @@ export const getLatestEditableEvt = (
 
   for (let i = events.length - 1; i >= 0; i -= 1) {
     const evt = events[i];
-    if (canEdit(evt)) return evt;
+    if (evt && canEdit(evt)) return evt;
   }
   return undefined;
 };
@@ -752,7 +753,7 @@ export const guessPerfectParent = (
 
     if (typeof users === 'object')
       Object.keys(users).forEach((userId) => {
-        if (users[userId] > defaultPower) {
+        if (users[userId]! > defaultPower) {
           specialUsers.add(userId);
         }
       });

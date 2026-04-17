@@ -8,6 +8,7 @@ import {
   SyncState,
   PushProcessor,
 } from '$types/matrix-sdk';
+import { AccountDataEvent } from '$types/matrix/accountData';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { Session } from '$state/sessions';
 import {
@@ -21,6 +22,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
+  getAccountData,
   getMemberDisplayName,
   getNotificationType,
   getStateEvent,
@@ -239,23 +241,21 @@ export function BackgroundNotifications() {
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
           let mDirectsSet: Set<string> | undefined;
-          const mDirectEvent = mx.getAccountData('m.direct' as string);
+          const mDirectEvent = getAccountData(mx, AccountDataEvent.Direct);
           if (mDirectEvent) {
             mDirectsSet = getMDirects(mDirectEvent);
           } else {
-            // Account data not loaded yet; wait for it
             await new Promise<void>((resolve) => {
               const handler = (event: MatrixEvent) => {
-                if (event.getType() === 'm.direct') {
+                if (event.getType() === AccountDataEvent.Direct) {
                   mDirectsSet = getMDirects(event);
-                  mx.off(ClientEvent.AccountData as string, handler);
+                  mx.off(ClientEvent.AccountData, handler);
                   resolve();
                 }
               };
-              mx.on(ClientEvent.AccountData as string, handler);
-              // Timeout after 5s to avoid blocking forever if m.direct never arrives
+              mx.on(ClientEvent.AccountData, handler);
               setTimeout(() => {
-                mx.off(ClientEvent.AccountData as string, handler);
+                mx.off(ClientEvent.AccountData, handler);
                 resolve();
               }, 5000);
             });
@@ -263,13 +263,12 @@ export function BackgroundNotifications() {
 
           const pushProcessor = new PushProcessor(mx);
 
-          // Keep mDirectsSet updated when m.direct account data changes
           const handleAccountData = (event: MatrixEvent) => {
-            if (event.getType() === 'm.direct') {
+            if (event.getType() === AccountDataEvent.Direct) {
               mDirectsSet = getMDirects(event);
             }
           };
-          mx.on(ClientEvent.AccountData as string, handleAccountData);
+          mx.on(ClientEvent.AccountData, handleAccountData);
 
           // Track encrypted events that are being decrypted to avoid re-checking the
           // encryption guard when the Decrypted callback fires.
@@ -307,7 +306,7 @@ export function BackgroundNotifications() {
               const handleDecrypted = () => {
                 // After decryption, run the notification logic with the decrypted event.
                 // Force liveEvent=true since the SDK's re-emission sets it to false.
-                handleTimeline(mEvent, room, toStartOfTimeline, removed, {
+                handleTimeline(mEvent, room, true, false, {
                   liveEvent: true,
                 });
                 // Clean up the tracking flag
@@ -502,7 +501,7 @@ export function BackgroundNotifications() {
 
           // Register teardown so these listeners are removed when this client is stopped.
           clientCleanupRef.current.set(session.userId, () => {
-            mx.off(ClientEvent.AccountData as string, handleAccountData);
+            mx.off(ClientEvent.AccountData, handleAccountData);
             mx.off(RoomEvent.Timeline, handleTimeline as unknown as (...args: unknown[]) => void);
           });
         })

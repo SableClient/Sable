@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MatrixClient } from '$types/matrix-sdk';
 import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

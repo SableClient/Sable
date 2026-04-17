@@ -14,6 +14,7 @@ export const BoldRule: InlineMDRule = {
   match: (text) => text.match(BOLD_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<strong data-md="${BOLD_MD_1}">${parse(g2)}</strong>`;
   },
 };
@@ -28,6 +29,7 @@ export const ItalicRule1: InlineMDRule = {
   match: (text) => text.match(ITALIC_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<i data-md="${ITALIC_MD_1}">${parse(g2)}</i>`;
   },
 };
@@ -42,6 +44,7 @@ export const ItalicRule2: InlineMDRule = {
   match: (text) => text.match(ITALIC_REG_2),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<i data-md="${ITALIC_MD_2}">${parse(g2)}</i>`;
   },
 };
@@ -56,6 +59,7 @@ export const UnderlineRule: InlineMDRule = {
   match: (text) => text.match(UNDERLINE_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<u data-md="${UNDERLINE_MD_1}">${parse(g2)}</u>`;
   },
 };
@@ -70,6 +74,7 @@ export const StrikeRule: InlineMDRule = {
   match: (text) => text.match(STRIKE_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<s data-md="${STRIKE_MD_1}">${parse(g2)}</s>`;
   },
 };
@@ -82,6 +87,7 @@ export const CodeRule: InlineMDRule = {
   match: (text) => text.match(CODE_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<code data-md="${CODE_MD_1}">${g2}</code>`;
   },
 };
@@ -96,6 +102,7 @@ export const SpoilerRule: InlineMDRule = {
   match: (text) => text.match(SPOILER_REG_1),
   html: (parse, match) => {
     const [, , g2] = match;
+    if (!g2) return '';
     return `<span data-md="${SPOILER_MD_1}" data-mx-spoiler>${parse(g2)}</span>`;
   },
 };
@@ -107,6 +114,7 @@ export const LinkRule: InlineMDRule = {
   match: (text) => text.match(LINK_REG_1),
   html: (parse, match) => {
     const [, g1, g2] = match;
+    if (!g1 || !g2) return '';
     return `<a data-md href="${g2}">${parse(g1)}</a>`;
   },
 };
@@ -117,8 +125,8 @@ const ESC_SEQ_1 = `\\\\(${INLINE_SEQUENCE_SET})`;
 const ESC_REG_1 = new RegExp(`${URL_NEG_LB}${ESC_SEQ_1}`);
 export const EscapeRule: InlineMDRule = {
   match: (text) => text.match(ESC_REG_1),
-  html: (parse, match) => {
+  html: (_parse, match) => {
     const [, , g2] = match;
-    return g2;
+    return g2 ?? '';
   },
 };

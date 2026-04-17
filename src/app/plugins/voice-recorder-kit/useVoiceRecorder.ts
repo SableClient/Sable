@@ -227,7 +227,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const bufferLength = dataArray.length;
       let sum = 0;
       for (let i = 0; i < bufferLength; i += 1) {
-        sum += dataArray[i];
+        sum += dataArray[i] ?? 0;
       }
       const avg = sum / bufferLength;
       let normalized = (avg / 255) * 3.5;

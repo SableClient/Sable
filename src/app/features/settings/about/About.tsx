@@ -12,8 +12,8 @@ import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type VersionResult =
-  | { error?: { message: string } }
-  | { server?: { name?: string; version?: string; compiler?: string } }
+  | { error: { message: string } }
+  | { server: { name?: string; version?: string; compiler?: string } }
   | undefined;
 
 export function HomeserverInfo() {
@@ -27,7 +27,11 @@ export function HomeserverInfo() {
         prefix: '/_matrix/federation/v1',
         baseUrl: federationUrl,
       })
-      .then((fetched_version) => setVersion(fetched_version))
+      .then((fetched_version) =>
+        setVersion({
+          server: fetched_version as { name?: string; version?: string; compiler?: string },
+        })
+      )
       .catch((error) => {
         if (federationUrl === mx.baseUrl) {
           mx.http
@@ -35,15 +39,16 @@ export function HomeserverInfo() {
               prefix: '/.well-known/matrix',
               baseUrl: `https://${mx.getSafeUserId().split(':')[1]}`,
             })
-            .then((well_known: unknown) => {
-              const newUrl = `https://${well_known['m.server'].split(':')[0]}`;
+            .then((well_known) => {
+              const mServer = (well_known as { 'm.server'?: string })['m.server'];
+              const newUrl = mServer ? `https://${mServer.split(':')[0]}` : federationUrl;
               if (newUrl !== federationUrl) {
                 setFederationUrl(newUrl);
               }
             })
-            .catch((error_) => setVersion({ error: error_ }));
+            .catch((error_) => setVersion({ error: { message: String(error_) } }));
         } else {
-          setVersion({ error });
+          setVersion({ error: { message: String(error) } });
         }
       });
 
@@ -98,7 +103,7 @@ export function HomeserverInfo() {
       )}
       {version ? (
         <>
-          {version.error && (
+          {'error' in version && version.error && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
@@ -108,7 +113,7 @@ export function HomeserverInfo() {
               {version.error.message}
             </SequenceCard>
           )}
-          {version.server?.name && (
+          {'server' in version && version.server?.name && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
@@ -122,7 +127,7 @@ export function HomeserverInfo() {
               />
             </SequenceCard>
           )}
-          {version.server?.version && (
+          {'server' in version && version.server?.version && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
@@ -136,7 +141,7 @@ export function HomeserverInfo() {
               />
             </SequenceCard>
           )}
-          {version.server?.compiler && (
+          {'server' in version && version.server?.compiler && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"

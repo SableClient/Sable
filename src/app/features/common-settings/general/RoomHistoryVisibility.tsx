@@ -2,7 +2,11 @@ import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
 import { Button, color, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
-import type { MatrixError, RoomHistoryVisibilityEventContent } from '$types/matrix-sdk';
+import type {
+  MatrixError,
+  RoomHistoryVisibilityEventContent,
+  StateEvents,
+} from '$types/matrix-sdk';
 import { HistoryVisibility } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
@@ -66,7 +70,11 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         const content: RoomHistoryVisibilityEventContent = {
           history_visibility: visibility,
         };
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility as string, content);
+        await mx.sendStateEvent(
+          room.roomId,
+          StateEvent.RoomHistoryVisibility as keyof StateEvents,
+          content
+        );
       },
       [mx, room.roomId]
     )

@@ -17,7 +17,7 @@ import {
   IconButton,
   Menu,
 } from 'folds';
-import type { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
 import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
@@ -53,7 +53,12 @@ function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
             display_name: name,
           },
         };
-        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes as string, content, stateKey);
+        await mx.sendStateEvent(
+          roomId,
+          StateEvent.PoniesRoomEmotes as keyof StateEvents,
+          content,
+          stateKey
+        );
       },
       [mx, roomId]
     )
@@ -159,10 +164,11 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     useCallback(async () => {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
+        if (!addr) continue;
         // oxlint-disable-next-line no-await-in-loop
         await mx.sendStateEvent(
           room.roomId,
-          StateEvent.PoniesRoomEmotes as string,
+          StateEvent.PoniesRoomEmotes as keyof StateEvents,
           {},
           addr.stateKey
         );

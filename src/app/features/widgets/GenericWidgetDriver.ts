@@ -235,6 +235,7 @@ export class GenericWidgetDriver extends WidgetDriver {
 
     for (let i = events.length - 1; i >= 0; i -= 1) {
       const ev = events[i];
+      if (!ev) break;
       const reachedLimit = results.length >= eventLimit;
       const reachedSince = since !== undefined && ev.getId() === since;
       if (reachedLimit || reachedSince) break;

@@ -82,7 +82,7 @@ export function DescriptionEditor({
         normalizedValue !== null &&
         'formatted_body' in normalizedValue
       ) {
-        normalizedValue = normalizedValue.formatted_body;
+        normalizedValue = (normalizedValue as { formatted_body: string }).formatted_body;
       }
 
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';

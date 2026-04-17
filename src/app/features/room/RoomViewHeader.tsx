@@ -26,7 +26,13 @@ import {
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
-import { EventTimeline, ThreadEvent, RoomEvent, NotificationCountType } from '$types/matrix-sdk';
+import {
+  Direction,
+  EventTimeline,
+  NotificationCountType,
+  ThreadEvent,
+  RoomEvent,
+} from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
 import { PageHeader } from '$components/page';
@@ -460,10 +466,10 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     scanTimelineForThreads(liveTimeline);
 
     // Also scan backward timelines (historical messages already loaded)
-    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as string);
+    let backwardTimeline = liveTimeline.getNeighbouringTimeline(Direction.Backward);
     while (backwardTimeline) {
       scanTimelineForThreads(backwardTimeline);
-      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as string);
+      backwardTimeline = backwardTimeline.getNeighbouringTimeline(Direction.Backward);
     }
 
     // Listen for new timeline events (including pagination)
@@ -520,14 +526,20 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
     // Listen for thread updates
     const onThreadUpdate = () => checkThreadUnreads();
-    room.on(ThreadEvent.New as string, onThreadUpdate);
-    room.on(ThreadEvent.Update as string, onThreadUpdate);
-    room.on(ThreadEvent.NewReply as string, onThreadUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.New as any, onThreadUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.Update as any, onThreadUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
 
     return () => {
-      room.off(ThreadEvent.New as string, onThreadUpdate);
-      room.off(ThreadEvent.Update as string, onThreadUpdate);
-      room.off(ThreadEvent.NewReply as string, onThreadUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.New as any, onThreadUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.Update as any, onThreadUpdate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
     };
   }, [room, mx]);
 

@@ -9,7 +9,10 @@ const typingReceiptEqual = (a: TypingReceipt, b: TypingReceipt): boolean =>
 
 const equalTypingMembers = (x: TypingReceipt[], y: TypingReceipt[]): boolean => {
   if (x.length !== y.length) return false;
-  return x.every((a, i) => typingReceiptEqual(a, y[i]));
+  return x.every((a, i) => {
+    const b = y[i];
+    return b ? typingReceiptEqual(a, b) : false;
+  });
 };
 
 export const useRoomTypingMember = (roomId: string) => {

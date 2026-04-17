@@ -281,6 +281,7 @@ export function Direct() {
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
                   const roomId = sortedDirects[vItem.index];
+                  if (!roomId) return null;
                   const room = mx.getRoom(roomId);
                   if (!room) return null;
                   const selected = selectedRoomId === roomId;

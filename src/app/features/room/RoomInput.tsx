@@ -150,7 +150,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
   );
   if (filtered.length > 0) {
-    return filtered[filtered.length - 1].getId() ?? threadRootId;
+    return filtered[filtered.length - 1]!.getId() ?? threadRootId;
   }
   // Fall back to the live timeline if the Thread object hasn't been registered yet
   const liveEvents = room
@@ -162,7 +162,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1].getId() ?? threadRootId;
+    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -530,7 +530,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
-        if (replyContent) contents[0]['m.relates_to'] = replyContent;
+        if (replyContent) contents[0]!['m.relates_to'] = replyContent;
         if (threadRootId) {
           setReplyDraft({
             userId: mx.getUserId() ?? '',

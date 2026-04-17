@@ -1,4 +1,4 @@
-import type { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import { ReceiptType } from '$types/matrix-sdk';
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
@@ -8,9 +8,10 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
   const timeline = room.getLiveTimeline().getEvents();
   const readEventId = room.getEventReadUpTo(mx.getUserId()!);
 
-  const getLatestValidEvent = () => {
+  const getLatestValidEvent = (): MatrixEvent | null => {
     for (let i = timeline.length - 1; i >= 0; i -= 1) {
       const latestEvent = timeline[i];
+      if (!latestEvent) continue;
       if (latestEvent.getId() === readEventId) return null;
       if (!latestEvent.isSending()) return latestEvent;
     }

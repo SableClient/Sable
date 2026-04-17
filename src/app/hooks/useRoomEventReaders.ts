@@ -13,8 +13,10 @@ const getEventReaders = (room: Room, evtId?: string) => {
   const userIds: string[] = [];
 
   for (let i = liveEvents.length - 1; i >= 0; i -= 1) {
-    userIds.splice(userIds.length, 0, ...room.getUsersReadUpTo(liveEvents[i]));
-    if (liveEvents[i].getId() === evtId) break;
+    const evt = liveEvents[i];
+    if (!evt) continue;
+    userIds.splice(userIds.length, 0, ...room.getUsersReadUpTo(evt));
+    if (evt.getId() === evtId) break;
   }
 
   return [...new Set(userIds)];

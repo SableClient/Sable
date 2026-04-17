@@ -28,11 +28,11 @@ export const createPushNotifications = (
     icon?: string,
     badge?: string
   ) => {
-    const roomId: string | undefined = data?.room_id;
+    const roomId: string | undefined = data?.room_id as string | undefined;
     // Group by room so new messages in the same room replace the previous
     // notification rather than stacking individually. renotify: true ensures
     // the user is still alerted when the existing tag is replaced.
-    const tag = roomId ? `room-${roomId}` : (data?.event_id ?? 'Cinny');
+    const tag: string = roomId ? `room-${roomId}` : ((data?.event_id as string) ?? 'Cinny');
     const renotify = !!roomId;
     // `renotify` is a valid Web API property absent from TypeScript's NotificationOptions type.
     // Build the options object separately to avoid the excess-property check, then cast.
@@ -51,7 +51,7 @@ export const createPushNotifications = (
   };
 
   const handleCallNotification = async (pushData: Record<string, unknown>) => {
-    const content = pushData?.content;
+    const content = pushData?.content as { notification_type?: string } | undefined;
     if (content?.notification_type !== 'ring') return;
 
     const senderDisplayName = pushData?.sender_display_name;
@@ -67,79 +67,85 @@ export const createPushNotifications = (
       user_id: pushData?.user_id,
       timestamp: Date.now(),
       isCall: true,
-      ...pushData.data,
+      ...(pushData.data as Record<string, unknown> | undefined),
     };
 
-    await showNotificationWithData(title, body, data, resolveSilent(), pushData?.room_avatar_url);
+    await showNotificationWithData(
+      title,
+      body as string,
+      data,
+      resolveSilent(),
+      pushData?.room_avatar_url as string | undefined
+    );
   };
 
   const handleRoomMessageNotification = async (pushData: Record<string, unknown>) => {
-    const data = {
+    const data: Record<string, unknown> = {
       type: pushData?.type,
       room_id: pushData?.room_id,
       event_id: pushData?.event_id,
       user_id: pushData?.user_id,
       timestamp: Date.now(),
-      ...pushData.data,
+      ...(pushData.data as Record<string, unknown> | undefined),
     };
     const notificationPayload = buildRoomMessageNotification({
-      roomName: pushData?.room_name,
-      username: pushData?.sender_display_name,
-      roomAvatar: pushData?.room_avatar_url,
+      roomName: pushData?.room_name as string | undefined,
+      username: pushData?.sender_display_name as string | undefined,
+      roomAvatar: pushData?.room_avatar_url as string | undefined,
       previewText: resolveNotificationPreviewText({
-        content: pushData?.content,
-        eventType: pushData?.type,
+        content: pushData?.content as string | undefined,
+        eventType: pushData?.type as string | undefined,
         isEncryptedRoom: false,
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
       }),
       silent: resolveSilent(),
-      eventId: pushData?.event_id,
+      eventId: pushData?.event_id as string | undefined,
       recipientId: typeof pushData?.user_id === 'string' ? pushData.user_id : undefined,
       data,
     });
     await showNotificationWithData(
       notificationPayload.title,
-      notificationPayload.options.body,
+      notificationPayload.options.body as string | undefined,
       data,
       notificationPayload.options.silent ?? undefined,
-      notificationPayload.options.icon,
-      notificationPayload.options.badge
+      notificationPayload.options.icon as string | undefined,
+      notificationPayload.options.badge as string | undefined
     );
   };
 
   const handleEncryptedMessageNotification = async (pushData: Record<string, unknown>) => {
-    const data = {
+    const data: Record<string, unknown> = {
       type: pushData?.type,
       room_id: pushData?.room_id,
       event_id: pushData?.event_id,
       user_id: pushData?.user_id,
       timestamp: Date.now(),
-      ...pushData.data,
+      ...(pushData.data as Record<string, unknown> | undefined),
     };
     const notificationPayload = buildRoomMessageNotification({
-      roomName: pushData?.room_name,
-      username: pushData?.sender_display_name,
-      roomAvatar: pushData?.room_avatar_url,
+      roomName: pushData?.room_name as string | undefined,
+      username: pushData?.sender_display_name as string | undefined,
+      roomAvatar: pushData?.room_avatar_url as string | undefined,
       previewText: resolveNotificationPreviewText({
-        content: pushData?.content,
-        eventType: pushData?.type,
+        content: pushData?.content as string | undefined,
+        eventType: pushData?.type as string | undefined,
         isEncryptedRoom: true,
         showMessageContent: getNotificationSettings().showMessageContent,
         showEncryptedMessageContent: getNotificationSettings().showEncryptedMessageContent,
       }),
       silent: resolveSilent(),
-      eventId: pushData?.event_id,
+      eventId: pushData?.event_id as string | undefined,
       recipientId: typeof pushData?.user_id === 'string' ? pushData.user_id : undefined,
       data,
     });
     await showNotificationWithData(
       notificationPayload.title,
-      notificationPayload.options.body,
+      notificationPayload.options.body as string | undefined,
       data,
       notificationPayload.options.silent ?? undefined,
-      notificationPayload.options.icon,
-      notificationPayload.options.badge
+      notificationPayload.options.icon as string | undefined,
+      notificationPayload.options.badge as string | undefined
     );
   };
 
@@ -158,7 +164,7 @@ export const createPushNotifications = (
       content: pushData?.content,
       user_id: pushData?.user_id,
       timestamp: Date.now(),
-      ...pushData.data,
+      ...(pushData.data as Record<string, unknown> | undefined),
     };
 
     await showNotificationWithData('New Invitation', body, data, resolveSilent());
@@ -180,7 +186,8 @@ export const createPushNotifications = (
         await handleEncryptedMessageNotification(pushData);
         break;
       case EventType.RoomMember:
-        if (!(pushData?.content?.membership === 'invite')) break;
+        if (!((pushData?.content as { membership?: string } | undefined)?.membership === 'invite'))
+          break;
         await handleInvitationNotification(pushData);
         break;
       case 'org.matrix.msc4075.call.notify':

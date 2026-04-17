@@ -98,6 +98,7 @@ function RenderMessageContentInternal({
     (props: Record<string, unknown>) => (
       <RenderBody
         {...props}
+        body={props.body as string}
         highlightRegex={highlightRegex}
         htmlReactParserOptions={htmlReactParserOptions}
         linkifyOpts={linkifyOpts}
@@ -119,10 +120,11 @@ function RenderMessageContentInternal({
       }));
 
       const mediaLinks = analyzed.filter((item) => item.type !== null);
-      const toRender = mediaLinks.length > 0 ? mediaLinks : [analyzed[0]];
+      const toRender = mediaLinks.length > 0 ? mediaLinks : analyzed.slice(0, 1);
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => {
+          {toRender.map((item) => {
+            const { url, type } = item;
             if (type) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
@@ -158,9 +160,13 @@ function RenderMessageContentInternal({
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
-    const hasCaption = content.body && content.body.trim().length > 0;
+    const hasCaption = content.body && (content.body as string).trim().length > 0;
     if (captionPosition === CaptionPosition.Hidden || hideCaption) return null;
-    if (hasCaption && content.filename && content.filename !== content.body) {
+    if (
+      hasCaption &&
+      (content as { filename?: string }).filename &&
+      (content as { filename?: string }).filename !== content.body
+    ) {
       if (captionPosition !== CaptionPosition.Inline)
         return (
           <MText
@@ -214,7 +220,7 @@ function RenderMessageContentInternal({
   const renderFile = () =>
     renderCaptionedAttachment(
       <MFile
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.File }}
         renderFileContent={({ body, mimeType, info, encInfo, url }) => (
           <FileContent
             body={body}
@@ -249,7 +255,7 @@ function RenderMessageContentInternal({
     return (
       <MText
         edited={edited}
-        content={content}
+        content={content as Record<string, unknown>}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -258,12 +264,14 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === MsgType.Emote) {
-    if (content['fyi.cisnt.headpat']) {
+    if ((content as { 'fyi.cisnt.headpat'?: boolean })['fyi.cisnt.headpat']) {
       return (
         <MCuteEvent
-          content={content}
+          content={(content as { body?: string }).body}
           type={CuteEventType.Headpat}
-          mentionedUserIds={content?.['m.mentions']?.user_ids}
+          mentionedUserIds={
+            (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+          }
         />
       );
     }
@@ -271,7 +279,7 @@ function RenderMessageContentInternal({
       <MEmote
         displayName={displayName}
         edited={edited}
-        content={content}
+        content={content as Record<string, unknown>}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -283,7 +291,7 @@ function RenderMessageContentInternal({
     return (
       <MNotice
         edited={edited}
-        content={content}
+        content={content as Record<string, unknown>}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -292,16 +300,18 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === MsgType.Image) {
+    const info = (content as { info?: { mimetype?: string } }).info;
     const isGif =
-      content.info?.mimetype === 'image/gif' ||
-      content.info?.mimetype === 'image/webp' ||
-      content.body?.toLowerCase().endsWith('.gif') ||
-      content.body?.toLowerCase().endsWith('.webp') ||
-      (typeof content.url === 'string' && content.url.toLowerCase().includes('gif'));
+      info?.mimetype === 'image/gif' ||
+      info?.mimetype === 'image/webp' ||
+      (content.body as string)?.toLowerCase().endsWith('.gif') ||
+      (content.body as string)?.toLowerCase().endsWith('.webp') ||
+      (typeof (content as { url?: string }).url === 'string' &&
+        (content as { url?: string }).url?.toLowerCase().includes('gif'));
 
     return renderCaptionedAttachment(
       <MImage
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Image }}
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}
@@ -327,7 +337,7 @@ function RenderMessageContentInternal({
   if (msgType === MsgType.Video) {
     return renderCaptionedAttachment(
       <MVideo
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Video }}
         renderAsFile={renderFile}
         renderVideoContent={({ body, info, ...videoProps }) => (
           <VideoContent
@@ -357,7 +367,7 @@ function RenderMessageContentInternal({
   if (msgType === MsgType.Audio) {
     return renderCaptionedAttachment(
       <MAudio
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Audio }}
         renderAsFile={renderFile}
         renderAudioContent={(audioProps) => (
           <AudioContent {...audioProps} renderMediaControl={(p) => <MediaControl {...p} />} />
@@ -375,21 +385,25 @@ function RenderMessageContentInternal({
   if (msgType === 'im.fluffychat.cute_event')
     return (
       <MCuteEvent
-        content={content}
-        type={content?.cute_type}
-        mentionedUserIds={content?.['m.mentions']?.user_ids}
+        content={(content as { body?: string }).body}
+        type={(content as { cute_type: CuteEventType }).cute_type ?? CuteEventType.Hug}
+        mentionedUserIds={
+          (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+        }
       />
     );
   // as fallback to render older events where msgtype was set instead of m.emote with a custom property
   if (msgType === 'fyi.cisnt.headpat')
     return (
       <MCuteEvent
-        content={content}
+        content={(content as { body?: string }).body}
         type={CuteEventType.Headpat}
-        mentionedUserIds={content?.['m.mentions']?.user_ids}
+        mentionedUserIds={
+          (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+        }
       />
     );
-  return <UnsupportedContent body={content?.body} />;
+  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

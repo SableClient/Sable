@@ -136,7 +136,7 @@ export const useDnDMonitor = (
           onDragging(undefined);
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) return;
-          onReorder(source.data as HierarchyItem, dropTargets[0].data as DropContainerData);
+          onReorder(source.data as HierarchyItem, dropTargets[0]!.data as DropContainerData);
         },
       }),
       autoScrollForElements({

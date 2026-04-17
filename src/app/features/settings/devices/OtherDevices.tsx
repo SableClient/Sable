@@ -77,7 +77,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const deleteDevices = useAsync(
     useCallback(
       async (authDict?: AuthDict) => {
-        await mx.deleteMultipleDevices(Array.from(deleted), authDict);
+        await mx.deleteMultipleDevices(Array.from(deleted) as string[], authDict);
       },
       [mx, deleted]
     ),

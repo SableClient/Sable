@@ -18,7 +18,7 @@ export const useMatrixEventRenderer =
   ): RenderMatrixEvent<T> =>
   (eventType, isStateEvent, ...args) => {
     const renderer = typeToRenderer[eventType];
-    if (typeToRenderer[eventType]) return renderer(...args);
+    if (renderer) return renderer(...args);
 
     if (isStateEvent && renderStateEvent) {
       return renderStateEvent(...args);

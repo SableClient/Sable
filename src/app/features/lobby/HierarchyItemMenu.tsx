@@ -19,6 +19,7 @@ import {
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { MSpaceChildContent } from '$types/matrix/room';
+import type { StateEvents } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -53,7 +54,12 @@ function SuggestMenuItem({
   const [toggleState, handleToggleSuggested] = useAsyncCallback(
     useCallback(() => {
       const newContent: MSpaceChildContent = { ...content, suggested: !content.suggested };
-      return mx.sendStateEvent(parentId, StateEvent.SpaceChild as string, newContent, roomId);
+      return mx.sendStateEvent(
+        parentId,
+        StateEvent.SpaceChild as keyof StateEvents,
+        newContent,
+        roomId
+      );
     }, [mx, parentId, roomId, content])
   );
 
@@ -90,7 +96,7 @@ function RemoveMenuItem({
 
   const [removeState, handleRemove] = useAsyncCallback(
     useCallback(
-      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as string, {}, roomId),
+      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as keyof StateEvents, {}, roomId),
       [mx, parentId, roomId]
     )
   );

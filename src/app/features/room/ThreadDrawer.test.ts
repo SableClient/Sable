@@ -71,7 +71,7 @@ describe('getThreadReplyEvents', () => {
     const result = getThreadReplyEvents(room as any, ROOT_ID);
 
     expect(result).toHaveLength(1);
-    expect(result[0].getId()).toBe(REPLY_ID);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 
   it('excludes reactions from thread events', () => {
@@ -91,7 +91,7 @@ describe('getThreadReplyEvents', () => {
     const result = getThreadReplyEvents(room as any, ROOT_ID);
 
     expect(result).toHaveLength(1);
-    expect(result[0].getId()).toBe(REPLY_ID);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 
   // ── Classic-sync empty-thread regression ──────────────────────────────────
@@ -111,7 +111,7 @@ describe('getThreadReplyEvents', () => {
     // Without the fix: `fromThread.length > 0` was truthy → returned filtered
     // empty array.  With the fix: filtered array is empty → falls back to live.
     expect(result).toHaveLength(1);
-    expect(result[0].getId()).toBe(REPLY_ID);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 
   it('falls back to the live timeline when there is no Thread object at all', () => {
@@ -125,7 +125,7 @@ describe('getThreadReplyEvents', () => {
     const result = getThreadReplyEvents(room as any, ROOT_ID);
 
     expect(result).toHaveLength(1);
-    expect(result[0].getId()).toBe(REPLY_ID);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 
   it('excludes events from the live timeline that belong to a different thread', () => {
@@ -140,7 +140,7 @@ describe('getThreadReplyEvents', () => {
     const result = getThreadReplyEvents(room as any, ROOT_ID);
 
     expect(result).toHaveLength(1);
-    expect(result[0].getId()).toBe(REPLY_ID);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 
   it('returns an empty array when neither the thread nor the live timeline has replies', () => {

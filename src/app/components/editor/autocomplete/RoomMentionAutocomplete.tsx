@@ -133,7 +133,7 @@ export function RoomMentionAutocomplete({
       const rId = autoCompleteRoomIds[0];
       const r = mx.getRoom(rId);
       const name = r?.name ?? rId;
-      handleAutocomplete(r?.getCanonicalAlias() ?? rId, name);
+      handleAutocomplete(r?.getCanonicalAlias() ?? rId ?? '', name as string);
     });
   });
 

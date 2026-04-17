@@ -100,7 +100,7 @@ export function EmoticonAutocomplete({
   useKeyDown(window, (evt: KeyboardEvent) => {
     onTabPress(evt, () => {
       if (autoCompleteEmoticon.length === 0) return;
-      const emoticon = autoCompleteEmoticon[0];
+      const emoticon = autoCompleteEmoticon[0]!;
       const key = 'url' in emoticon ? emoticon.url : emoticon.unicode;
       handleAutocomplete(key, emoticon.shortcode);
     });

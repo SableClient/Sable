@@ -319,7 +319,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
 
       removedPacks.forEach((addr) => {
         if (updatedContent.rooms?.[addr.roomId]?.[addr.stateKey]) {
-          delete updatedContent.rooms?.[addr.roomId][addr.stateKey];
+          delete updatedContent.rooms[addr.roomId]![addr.stateKey];
         }
       });
 

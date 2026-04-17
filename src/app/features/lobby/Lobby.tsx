@@ -17,7 +17,13 @@ import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import type { Room, RoomJoinRulesEventContent, IHierarchyRoom } from '$types/matrix-sdk';
+import type {
+  Room,
+  RoomJoinRulesEventContent,
+  IHierarchyRoom,
+  StateEvents,
+  AccountDataEvents,
+} from '$types/matrix-sdk';
 import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
@@ -48,6 +54,7 @@ import { StateEvent } from '$types/matrix/room';
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
 import { getStateEvent } from '$utils/room';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
+import type { InCinnySpacesContent } from '$hooks/useSidebarItems';
 import {
   makeCinnySpacesContent,
   sidebarItemWithout,
@@ -360,7 +367,7 @@ export function Lobby() {
             orderKey,
           }))
           .filter((reorder, index) => {
-            if (!reorder.item.parentId) return false;
+            if (!reorder.item || !reorder.item.parentId) return false;
             const parentPL = roomsPowerLevels.get(reorder.item.parentId);
             if (!parentPL) return false;
 
@@ -372,10 +379,10 @@ export function Lobby() {
 
         if (reorders) {
           await rateLimitedActions(reorders, async (reorder) => {
-            if (!reorder.item.parentId) return;
+            if (!reorder.item || !reorder.item.parentId) return;
             await mx.sendStateEvent(
               reorder.item.parentId,
-              StateEvent.SpaceChild as string,
+              StateEvent.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -400,7 +407,12 @@ export function Lobby() {
 
         // remove from current space
         if (item.parentId !== containerParentId) {
-          await mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as string, {}, item.roomId);
+          await mx.sendStateEvent(
+            item.parentId,
+            StateEvent.SpaceChild as keyof StateEvents,
+            {},
+            item.roomId
+          );
         }
 
         if (
@@ -422,10 +434,14 @@ export function Lobby() {
               type: RestrictedAllowType.RoomMembership,
               room_id: containerParentId,
             });
-            await mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as string, {
-              ...joinRuleContent,
-              allow,
-            });
+            await mx.sendStateEvent(
+              itemRoom.roomId,
+              StateEvent.RoomJoinRules as keyof StateEvents,
+              {
+                ...joinRuleContent,
+                allow,
+              }
+            );
           }
         }
 
@@ -462,9 +478,10 @@ export function Lobby() {
 
         if (reorders) {
           await rateLimitedActions(reorders, async (reorder) => {
+            if (!reorder.item) return;
             await mx.sendStateEvent(
               containerParentId,
-              StateEvent.SpaceChild as string,
+              StateEvent.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -513,7 +530,7 @@ export function Lobby() {
     const [spaceId, roomId] = getLobbyCategoryIdParts(categoryId);
 
     // Prevent collapsing if all parents are collapsed
-    const toggleable = !getAllAncestorsCollapsed(spaceId, roomId);
+    const toggleable = !getAllAncestorsCollapsed(spaceId ?? '', roomId ?? '');
 
     if (toggleable) {
       return collapsed;
@@ -535,7 +552,10 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(AccountDataEvent.CinnySpaces as string, newSpacesContent as unknown);
+      mx.setAccountData(
+        AccountDataEvent.CinnySpaces as keyof AccountDataEvents,
+        newSpacesContent as InCinnySpacesContent
+      );
     },
     [mx, sidebarItems, sidebarSpaces]
   );
@@ -543,8 +563,8 @@ export function Lobby() {
   const getPaddingTop = (vItem: VirtualItem) => {
     if (vItem.index === 0) return 0;
     const prevDepth = hierarchy[vItem.index - 1]?.space.depth ?? 0;
-    const { depth } = hierarchy[vItem.index].space;
-    if (depth !== 1 && depth >= prevDepth) return config.space.S200;
+    const { depth } = hierarchy[vItem.index]?.space ?? {};
+    if (depth !== 1 && (depth ?? 0) >= prevDepth) return config.space.S200;
     return config.space.S500;
   };
 
@@ -557,11 +577,11 @@ export function Lobby() {
       // Holder for the paths
       const pathHolder: ReactElement[] = [];
       virtualizedItems.forEach((vItem) => {
-        const { depth } = hierarchy[vItem.index].space ?? {};
+        const { depth } = hierarchy[vItem.index]?.space ?? {};
 
         // We will render spaces at a level above their normal depth, since we want their children to be "under" them
         // for the root items, we are not doing anything with it.
-        if (depth < 1) {
+        if ((depth ?? 0) < 1) {
           return;
         }
         // for the sub-root items, we will not draw any arcs from root to it.
@@ -573,7 +593,7 @@ export function Lobby() {
 
         const pathStrings: string[] = [];
 
-        for (let iDepth = 0; iDepth < depth; iDepth += 1) {
+        for (let iDepth = 0; iDepth < (depth ?? 0); iDepth += 1) {
           const X = iDepth * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START;
 
           const bY = vItem.end;

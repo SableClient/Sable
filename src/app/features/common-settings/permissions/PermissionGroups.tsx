@@ -9,6 +9,7 @@ import { applyPermissionPower, getPermissionPower } from '$hooks/usePowerLevels'
 import { getPowerLevelTag, getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import type { StateEvents } from '$types/matrix-sdk';
 import { StateEvent } from '$types/matrix/room';
 import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -81,7 +82,11 @@ export function PermissionGroups({
 
         return draftPowerLevels;
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomPowerLevels as string, editedPowerLevels);
+      await mx.sendStateEvent(
+        room.roomId,
+        StateEvent.RoomPowerLevels as keyof StateEvents,
+        editedPowerLevels
+      );
     }, [mx, room, powerLevels, permissionUpdate, permissionGroups])
   );
 

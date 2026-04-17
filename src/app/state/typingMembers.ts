@@ -115,7 +115,9 @@ export const roomIdToTypingMembersAtom = atom<
 
     if (
       action.type === 'DELETE' &&
-      rToTyping.get(action.roomId)?.find((receipt) => receipt.userId === action.userId)
+      rToTyping
+        .get(action.roomId)
+        ?.find((receipt: { userId: string }) => receipt.userId === action.userId)
     ) {
       set(
         baseRoomIdToTypingMembersAtom,

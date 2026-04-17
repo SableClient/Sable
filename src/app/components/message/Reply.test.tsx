@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('jotai', async (importActual) => {
-  const actual = await importActual();
+  const actual = (await importActual()) as object;
   return {
     ...actual,
     useAtomValue: () => ({}),
@@ -67,7 +67,7 @@ vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
 }));
 
 vi.mock('$utils/room', async (importActual) => {
-  const actual = await importActual();
+  const actual = (await importActual()) as object;
   return {
     ...actual,
     getMemberDisplayName: () => 'Alice',

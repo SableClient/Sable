@@ -68,7 +68,7 @@ export function CommandAutocomplete({
       if (autoCompleteNames.length === 0) {
         return;
       }
-      const cmdName = autoCompleteNames[0];
+      const cmdName = autoCompleteNames[0]!;
       handleAutocomplete(cmdName);
     });
   });

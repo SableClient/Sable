@@ -16,7 +16,7 @@ import {
   Button,
   Line,
 } from 'folds';
-import type { Room } from '$types/matrix-sdk';
+import type { Room, StateEvents } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { RoomWidget } from '$hooks/useRoomWidgets';
@@ -104,14 +104,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
       const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomWidget as string,
+        StateEvent.RoomWidget as string as keyof StateEvents,
         {
           type: 'm.custom',
           url: enrichWidgetUrl(url.trim()),
           name: name.trim(),
           id: widgetId,
           creatorUserId: mx.getUserId(),
-        } as unknown,
+        } as StateEvents[keyof StateEvents],
         widgetId
       );
       setName('');
@@ -232,8 +232,8 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
     try {
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomWidget as string,
-        {} as unknown,
+        StateEvent.RoomWidget as string as keyof StateEvents,
+        {} as StateEvents[keyof StateEvents],
         widget.id
       );
       if (activeWidget?.id === widget.id) {

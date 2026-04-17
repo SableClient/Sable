@@ -355,8 +355,9 @@ const useDnDMonitor = (
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) return;
           const item = source.data.item as SidebarDraggable;
-          const containerItem = dropTargets[0].data.item as SidebarDraggable;
-          const instructionType = dropTargets[0].data.instructionType as
+          const containerItem = dropTargets[0]?.data?.item as SidebarDraggable | undefined;
+          if (!containerItem) return;
+          const instructionType = dropTargets[0]?.data?.instructionType as
             | InstructionType
             | undefined;
           if (!instructionType) return;

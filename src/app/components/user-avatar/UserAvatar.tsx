@@ -1,5 +1,5 @@
 import { AvatarFallback, AvatarImage, color } from 'folds';
-import type { ReactEventHandler, ReactNode} from 'react';
+import type { ReactEventHandler, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';

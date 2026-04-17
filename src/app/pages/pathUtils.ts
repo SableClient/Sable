@@ -2,8 +2,7 @@ import type { Path } from 'react-router-dom';
 import { generatePath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
 import type { HashRouterConfig } from '$hooks/useClientConfig';
-import type {
-  SettingsPathSearchParams} from './paths';
+import type { SettingsPathSearchParams } from './paths';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
@@ -28,7 +27,7 @@ import {
   SPACE_PATH,
   SPACE_ROOM_PATH,
   SPACE_SEARCH_PATH,
-  CREATE_PATH
+  CREATE_PATH,
 } from './paths';
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;

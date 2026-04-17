@@ -1,33 +1,17 @@
-import type {
-  MatrixClient,
-  MatrixEvent,
-  Room} from 'matrix-js-sdk';
-import {
-  ClientEvent,
-  KnownMembership,
-  MatrixEventEvent,
-  RoomStateEvent,
-} from 'matrix-js-sdk';
-import type {
-  IRoomEvent,
-  IWidget,
-  WidgetDriver} from 'matrix-widget-api';
+import type { MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
+import { ClientEvent, KnownMembership, MatrixEventEvent, RoomStateEvent } from 'matrix-js-sdk';
+import type { IRoomEvent, IWidget, WidgetDriver } from 'matrix-widget-api';
 import {
   ClientWidgetApi,
   type IWidgetApiRequest,
   Widget,
   WidgetApiFromWidgetAction,
-  WidgetApiToWidgetAction
+  WidgetApiToWidgetAction,
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
-import type {
-  ElementCallThemeKind,
-  ElementMediaStateDetail} from './types';
-import {
-  ElementCallIntent,
-  ElementWidgetActions,
-} from './types';
+import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
+import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
 import { createDebugLogger } from '../../utils/debugLogger';

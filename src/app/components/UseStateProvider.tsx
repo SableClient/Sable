@@ -1,4 +1,4 @@
-import type { Dispatch, ReactElement, SetStateAction} from 'react';
+import type { Dispatch, ReactElement, SetStateAction } from 'react';
 import { useState } from 'react';
 
 type UseStateProviderProps<T> = {

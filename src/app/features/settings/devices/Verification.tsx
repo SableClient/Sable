@@ -1,7 +1,6 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Badge,
   Box,
@@ -26,7 +25,7 @@ import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
 import { InfoCard } from '$components/info-card';
 import { ManualVerificationTile } from '$components/ManualVerification';
 import type { SecretStorageKeyContent } from '$types/matrix/accountData';
-import type { AsyncState} from '$hooks/useAsyncCallback';
+import type { AsyncState } from '$hooks/useAsyncCallback';
 import { AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { DeviceVerification } from '$components/DeviceVerification';

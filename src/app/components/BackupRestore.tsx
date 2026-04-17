@@ -1,9 +1,8 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
 import type { CryptoApi, KeyBackupInfo } from '$types/matrix-sdk';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Badge,
   Box,

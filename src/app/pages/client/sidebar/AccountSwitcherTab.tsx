@@ -1,7 +1,6 @@
-import type { MouseEvent, MouseEventHandler} from 'react';
+import type { MouseEvent, MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -22,13 +21,8 @@ import {
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import type {
-  Session} from '$state/sessions';
-import {
-  sessionsAtom,
-  activeSessionIdAtom,
-  backgroundUnreadCountsAtom,
-} from '$state/sessions';
+import type { Session } from '$state/sessions';
+import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
   SidebarItem,
   SidebarItemTooltip,

@@ -1,12 +1,8 @@
-import type { IContent, MatrixClient} from '$types/matrix-sdk';
+import type { IContent, MatrixClient } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import type {
-  IThumbnailContent} from '$types/matrix/common';
-import {
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-  MATRIX_SPOILER_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { IThumbnailContent } from '$types/matrix/common';
+import { MATRIX_BLUR_HASH_PROPERTY_NAME, MATRIX_SPOILER_PROPERTY_NAME } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,

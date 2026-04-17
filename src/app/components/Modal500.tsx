@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { Modal, Overlay, OverlayBackdrop, OverlayCenter } from 'folds';

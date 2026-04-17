@@ -1,13 +1,5 @@
-import type {
-  ChangeEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Header,
@@ -22,16 +14,8 @@ import {
   config,
   Chip,
 } from 'folds';
-import type {
-  EventTimelineSet,
-  MatrixEvent,
-  Room,
-  Thread} from '$types/matrix-sdk';
-import {
-  NotificationCountType,
-  RoomEvent,
-  ThreadEvent,
-} from '$types/matrix-sdk';
+import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
+import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -360,7 +344,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             const id = event.getId()!;
             const existingThread = room.getThread(id);
 
-            const bundled = (event.getUnsigned())?.['m.relations']?.['m.thread'];
+            const bundled = event.getUnsigned()?.['m.relations']?.['m.thread'];
             const bundledCount: number | undefined =
               typeof bundled?.count === 'number' ? bundled.count : undefined;
             if (!existingThread) {
@@ -380,8 +364,8 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
               // Backfilling replyCount here lets ThreadPreview show the right count
               // and lets Case C in ThreadDrawer know there are replies to fetch.
 
-              if (bundledCount !== undefined && (existingThread).replyCount === 0) {
-                (existingThread).replyCount = bundledCount;
+              if (bundledCount !== undefined && existingThread.replyCount === 0) {
+                existingThread.replyCount = bundledCount;
               }
             }
           });
@@ -421,7 +405,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           const id = event.getId()!;
           const existingThread = room.getThread(id);
 
-          const bundled = (event.getUnsigned())?.['m.relations']?.['m.thread'];
+          const bundled = event.getUnsigned()?.['m.relations']?.['m.thread'];
           const bundledCount: number | undefined =
             typeof bundled?.count === 'number' ? bundled.count : undefined;
           if (!existingThread) {
@@ -432,8 +416,8 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
               existingThread.setEventMetadata(event);
             }
 
-            if (bundledCount !== undefined && (existingThread).replyCount === 0) {
-              (existingThread).replyCount = bundledCount;
+            if (bundledCount !== undefined && existingThread.replyCount === 0) {
+              existingThread.replyCount = bundledCount;
             }
           }
         });

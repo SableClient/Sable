@@ -1,5 +1,5 @@
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse} from '$types/matrix-sdk';
+import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';

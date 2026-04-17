@@ -1,7 +1,6 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Text,
@@ -33,14 +32,8 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
-import type {
-  EmoteRoomsContent,
-  ImagePack,
-  PackAddress} from '$plugins/custom-emoji';
-import {
-  ImageUsage,
-  packAddressEqual,
-} from '$plugins/custom-emoji';
+import type { EmoteRoomsContent, ImagePack, PackAddress } from '$plugins/custom-emoji';
+import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { LineClamp2 } from '$styles/Text.css';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { AccountDataEvent } from '$types/matrix/accountData';

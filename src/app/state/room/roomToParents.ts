@@ -1,17 +1,9 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
-import type {
-  MatrixClient,
-  MatrixEvent,
-  Room} from '$types/matrix-sdk';
-import {
-  ClientEvent,
-  RoomEvent,
-  RoomStateEvent,
-  SyncState,
-} from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import { ClientEvent, RoomEvent, RoomStateEvent, SyncState } from '$types/matrix-sdk';
 import { useCallback, useEffect } from 'react';
-import type { RoomToParents} from '$types/matrix/room';
+import type { RoomToParents } from '$types/matrix/room';
 import { Membership, StateEvent } from '$types/matrix/room';
 import {
   getRoomToParents,

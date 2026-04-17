@@ -1,5 +1,4 @@
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -17,7 +16,7 @@ import {
 import type { HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
 import { HttpApiEvent } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useRef, useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';

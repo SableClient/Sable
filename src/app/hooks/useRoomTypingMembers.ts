@@ -1,12 +1,8 @@
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import { useCallback } from 'react';
-import type {
-  IRoomIdToTypingMembers,
-  TypingReceipt} from '$state/typingMembers';
-import {
-  roomIdToTypingMembersAtom,
-} from '$state/typingMembers';
+import type { IRoomIdToTypingMembers, TypingReceipt } from '$state/typingMembers';
+import { roomIdToTypingMembersAtom } from '$state/typingMembers';
 
 const typingReceiptEqual = (a: TypingReceipt, b: TypingReceipt): boolean =>
   a.userId === b.userId && a.ts === b.ts;

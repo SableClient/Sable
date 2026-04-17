@@ -1,11 +1,11 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import parse from 'html-react-parser';
 import Linkify from 'linkify-react';
 import type { Opts } from 'linkifyjs';
 import { find } from 'linkifyjs';
-import type { RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import { PopOut, Text, Tooltip, TooltipProvider, toRem } from 'folds';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { highlightText, scaleSystemEmoji } from '$plugins/react-custom-html-parser';

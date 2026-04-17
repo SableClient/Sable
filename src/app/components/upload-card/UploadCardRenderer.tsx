@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
@@ -21,7 +21,7 @@ import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { RenderBody } from '$components/message';
-import type { UploadSuccess} from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
 import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { TUploadContent } from '$utils/matrix';

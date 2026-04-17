@@ -3,15 +3,9 @@ import type {
   MatrixClient,
   Room,
   RoomMember,
-  RoomServerAclEventContent} from '$types/matrix-sdk';
-import {
-  Direction,
-  EventTimeline,
-  Method,
-  Preset,
-  Visibility,
-  MsgType,
+  RoomServerAclEventContent,
 } from '$types/matrix-sdk';
+import { Direction, EventTimeline, Method, Preset, Visibility, MsgType } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 import { Membership, StateEvent } from '$types/matrix/room';
 import {
@@ -37,8 +31,7 @@ import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitComman
 import { useRoomNavigate } from './useRoomNavigate';
 import { enrichWidgetUrl } from './useRoomWidgets';
 import { useUserProfile } from './useUserProfile';
-import type {
-  PerMessageProfile} from './usePerMessageProfile';
+import type { PerMessageProfile } from './usePerMessageProfile';
 import {
   addOrUpdatePerMessageProfile,
   deletePerMessageProfile,
@@ -911,7 +904,12 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
           try {
             if (input.toLowerCase() === 'reset' || input === '') {
-              await mx.sendStateEvent(room.roomId, StateEvent.RoomCosmeticsFont as string, {}, userId);
+              await mx.sendStateEvent(
+                room.roomId,
+                StateEvent.RoomCosmeticsFont as string,
+                {},
+                userId
+              );
               sendFeedback('Room font reset.', room, userId);
               return;
             }

@@ -1,4 +1,4 @@
-import type { ComponentProps, HTMLAttributes} from 'react';
+import type { ComponentProps, HTMLAttributes } from 'react';
 import { forwardRef } from 'react';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Scroll, Text, as } from 'folds';

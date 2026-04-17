@@ -1,4 +1,4 @@
-import type { DragEventHandler, RefObject} from 'react';
+import type { DragEventHandler, RefObject } from 'react';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { getDataTransferFiles } from '$utils/dom';
 

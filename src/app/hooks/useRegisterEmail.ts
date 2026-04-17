@@ -1,6 +1,6 @@
 import type { MatrixClient, MatrixError } from '$types/matrix-sdk';
 import { useCallback, useRef } from 'react';
-import type { AsyncState} from './useAsyncCallback';
+import type { AsyncState } from './useAsyncCallback';
 import { useAsyncCallback } from './useAsyncCallback';
 import type { RequestEmailTokenCallback, RequestEmailTokenResponse } from './types';
 

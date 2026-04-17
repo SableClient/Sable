@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Box,
@@ -19,14 +19,8 @@ import {
 } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
-import type {
-  ImagePack,
-  PackAddress,
-  PackContent} from '$plugins/custom-emoji';
-import {
-  ImageUsage,
-  packAddressEqual
-} from '$plugins/custom-emoji';
+import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
+import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';
 import { LineClamp2 } from '$styles/Text.css';
@@ -166,7 +160,12 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
         // oxlint-disable-next-line no-await-in-loop
-        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes as string, {}, addr.stateKey);
+        await mx.sendStateEvent(
+          room.roomId,
+          StateEvent.PoniesRoomEmotes as string,
+          {},
+          addr.stateKey
+        );
       }
     }, [mx, room, removedPacks])
   );

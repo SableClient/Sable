@@ -1,5 +1,5 @@
 import { createVar } from '@vanilla-extract/css';
-import type { RecipeVariants} from '@vanilla-extract/recipes';
+import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 import { config } from 'folds';
 

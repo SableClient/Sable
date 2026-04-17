@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type {
-  MatrixClient,
-  MatrixEvent,
-  Room} from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
@@ -12,8 +9,7 @@ import {
   PushProcessor,
 } from '$types/matrix-sdk';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import type {
-  Session} from '$state/sessions';
+import type { Session } from '$state/sessions';
 import {
   sessionsAtom,
   activeSessionIdAtom,

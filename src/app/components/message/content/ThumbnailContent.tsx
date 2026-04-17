@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
 import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';

@@ -1,5 +1,5 @@
 import type { Room } from '$types/matrix-sdk';
-import type { IRoomCreateContent} from '$types/matrix/room';
+import type { IRoomCreateContent } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { creatorsSupported, getMxIdServer } from '$utils/matrix';

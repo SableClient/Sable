@@ -1,15 +1,5 @@
-import type {
-  KeyboardEventHandler,
-  MouseEvent,
-  RefObject} from 'react';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
+import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
 import type {
@@ -17,16 +7,12 @@ import type {
   MatrixEvent,
   Room,
   IEventRelation,
-  StickerEventContent} from '$types/matrix-sdk';
-import {
-  EventType,
-  MsgType,
-  RelationType
+  StickerEventContent,
 } from '$types/matrix-sdk';
+import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   color,
@@ -48,8 +34,7 @@ import {
 } from 'folds';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type {
-  AutocompleteQuery} from '$components/editor';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
   createEmoticonElement,
@@ -76,37 +61,23 @@ import {
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
-import type {
-  TUploadContent} from '$utils/matrix';
-import {
-  encryptFile,
-  getImageInfo,
-  mxcUrlToHttp,
-  toggleReaction,
-} from '$utils/matrix';
+import type { TUploadContent } from '$utils/matrix';
+import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
-import type {
-  TUploadItem,
-  TUploadMetadata,
-  IReplyDraft} from '$state/room/roomInputDrafts';
+import type { TUploadItem, TUploadMetadata, IReplyDraft } from '$state/room/roomInputDrafts';
 import {
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
-  roomUploadAtomFamily
+  roomUploadAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
-import type {
-  UploadBoardImperativeHandlers} from '$components/upload-board';
-import {
-  UploadBoard,
-  UploadBoardContent,
-  UploadBoardHeader
-} from '$components/upload-board';
-import type { Upload, UploadSuccess} from '$state/upload';
+import type { UploadBoardImperativeHandlers } from '$components/upload-board';
+import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
+import type { Upload, UploadSuccess } from '$state/upload';
 import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
 import { getImageUrlBlob, loadImageElement } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
@@ -166,10 +137,9 @@ import {
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
-  AudioRecordingCompletePayload} from './AudioMessageRecorder';
-import {
-  AudioMessageRecorder
+  AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
+import { AudioMessageRecorder } from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.

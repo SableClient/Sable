@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import {
@@ -103,7 +103,12 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
     useCallback(
       async (newEntries) => {
         const newContent: RoomAbbreviationsContent = { entries: newEntries };
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomAbbreviations as string, newContent, '');
+        await mx.sendStateEvent(
+          room.roomId,
+          StateEvent.RoomAbbreviations as string,
+          newContent,
+          ''
+        );
       },
       [mx, room.roomId]
     )

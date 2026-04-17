@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction} from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';

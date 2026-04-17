@@ -1,4 +1,4 @@
-import type { PackContent} from '$plugins/custom-emoji';
+import type { PackContent } from '$plugins/custom-emoji';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import type { IImageInfo } from '$types/matrix/common';

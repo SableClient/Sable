@@ -1,8 +1,8 @@
-import type { FormEventHandler, ReactNode} from 'react';
+import type { FormEventHandler, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
 import { mxcUrlToHttp } from '$utils/matrix';
-import type { ImageUsage} from '$plugins/custom-emoji';
+import type { ImageUsage } from '$plugins/custom-emoji';
 import { imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useObjectURL } from '$hooks/useObjectURL';

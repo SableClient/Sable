@@ -1,5 +1,5 @@
 import to from 'await-to-js';
-import type { LoginRequest, LoginResponse} from '$types/matrix-sdk';
+import type { LoginRequest, LoginResponse } from '$types/matrix-sdk';
 import { createClient, MatrixError } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

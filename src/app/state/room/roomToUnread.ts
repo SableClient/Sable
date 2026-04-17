@@ -5,23 +5,12 @@ import type {
   MatrixClient,
   MatrixEvent,
   Room,
-  ReceiptType} from '$types/matrix-sdk';
-import {
-  RoomEvent,
-  SyncState,
-  EventType,
-  ClientEvent,
+  ReceiptType,
 } from '$types/matrix-sdk';
+import { RoomEvent, SyncState, EventType, ClientEvent } from '$types/matrix-sdk';
 import { useCallback, useEffect, useRef } from 'react';
-import type {
-  RoomToUnread,
-  UnreadInfo,
-  Unread} from '$types/matrix/room';
-import {
-  Membership,
-  NotificationType,
-  StateEvent,
-} from '$types/matrix/room';
+import type { RoomToUnread, UnreadInfo, Unread } from '$types/matrix/room';
+import { Membership, NotificationType, StateEvent } from '$types/matrix/room';
 import {
   getAllParents,
   getNotificationType,
@@ -332,7 +321,10 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     };
     (mx as unknown as MatrixClient).on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
     return () => {
-      (mx as unknown as MatrixClient).removeListener(RoomEvent.UnreadNotifications, handleUnreadNotifications);
+      (mx as unknown as MatrixClient).removeListener(
+        RoomEvent.UnreadNotifications,
+        handleUnreadNotifications
+      );
     };
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 

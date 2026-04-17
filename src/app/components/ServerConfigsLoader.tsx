@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useMemo } from 'react';
 import type { Capabilities, ValidatedAuthMetadata } from '$types/matrix-sdk';
 import { validateAuthMetadata } from '$types/matrix-sdk';

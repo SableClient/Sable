@@ -1,7 +1,6 @@
-import type { FormEventHandler, MouseEventHandler} from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Text,
@@ -26,13 +25,8 @@ import { Page, PageContent, PageHeader } from '$components/page';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import type {
-  PowerLevelTags} from '$hooks/usePowerLevelTags';
-import {
-  getPowers,
-  getUsedPowers,
-  usePowerLevelTags,
-} from '$hooks/usePowerLevelTags';
+import type { PowerLevelTags } from '$hooks/usePowerLevelTags';
+import { getPowers, getUsedPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
 import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
 import { PowerColorBadge, PowerIcon } from '$components/power';
@@ -47,7 +41,7 @@ import { CompactUploadCardRenderer } from '$components/upload-card';
 import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { MemberPowerTag, MemberPowerTagIcon} from '$types/matrix/room';
+import type { MemberPowerTag, MemberPowerTagIcon } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';

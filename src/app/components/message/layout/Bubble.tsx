@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import classNames from 'classnames';
-import type { ContainerColor} from 'folds';
+import type { ContainerColor } from 'folds';
 import { Box, as, color } from 'folds';
 import * as css from './layout.css';
 

@@ -1,6 +1,6 @@
-import type { RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';

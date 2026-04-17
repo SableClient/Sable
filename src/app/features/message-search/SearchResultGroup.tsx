@@ -1,4 +1,4 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useMemo } from 'react';
 import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
 import { JoinRule, RelationType } from '$types/matrix-sdk';
@@ -16,7 +16,7 @@ import {
 } from '$plugins/react-custom-html-parser';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import type { GetContentCallback} from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
 import { MessageEvent, StateEvent } from '$types/matrix/room';
 import {
   AvatarBase,

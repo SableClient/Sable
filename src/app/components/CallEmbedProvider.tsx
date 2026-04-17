@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useAutoJoinCall } from '$hooks/useAutoJoinCall';
@@ -10,7 +10,7 @@ import {
   useCallThemeSync,
   useCallMemberSoundSync,
 } from '$hooks/useCallEmbed';
-import type { CallEmbed} from '$plugins/call';
+import type { CallEmbed } from '$plugins/call';
 import { useClientWidgetApiEvent, ElementWidgetActions } from '$plugins/call';
 import { callChatAtom, callEmbedAtom } from '$state/callEmbed';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';

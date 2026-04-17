@@ -113,8 +113,12 @@ export function useCallSignaling() {
             session.sessionDescription
           );
 
-          const remoteMembers = memberships.filter((m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== myUserId);
-          const isSelfInCall = memberships.some((m: { userId?: string; sender?: string }) => (m.userId || m.sender) === myUserId);
+          const remoteMembers = memberships.filter(
+            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== myUserId
+          );
+          const isSelfInCall = memberships.some(
+            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === myUserId
+          );
           const currentPhase = callPhaseRef.current[roomId] || 'IDLE';
 
           // no one here

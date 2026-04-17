@@ -1,4 +1,4 @@
-import type { Atom} from 'jotai';
+import type { Atom } from 'jotai';
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { MatrixClient } from '$types/matrix-sdk';

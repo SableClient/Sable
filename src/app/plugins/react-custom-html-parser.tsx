@@ -1,22 +1,8 @@
 /* oxlint-disable jsx-a11y/alt-text */
-import type {
-  CSSProperties,
-  ComponentPropsWithoutRef,
-  ReactEventHandler,
-  ReactNode} from 'react';
-import {
-  Fragment,
-  useMemo,
-  useState,
-} from 'react';
-import type {
-  HTMLReactParserOptions} from 'html-react-parser';
-import {
-  attributesToProps,
-  domToReact,
-  Element,
-  Text as DOMText,
-} from 'html-react-parser';
+import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
 import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
@@ -552,7 +538,8 @@ export const getReactCustomHtmlParser = (
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
-        const renderChildren = () => domToReact(children as unknown as Parameters<typeof domToReact>[0], opts);
+        const renderChildren = () =>
+          domToReact(children as unknown as Parameters<typeof domToReact>[0], opts);
         const props = stripIncomingStyle(attribs);
         const matrixColorStyle = getMatrixColorStyle(attribs);
 

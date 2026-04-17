@@ -1,18 +1,6 @@
 import FocusTrap from 'focus-trap-react';
-import type {
-  RectCords} from 'folds';
-import {
-  Box,
-  Button,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  Spinner,
-  Text,
-} from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
 import {
   type ComponentPropsWithoutRef,
   type MouseEventHandler,

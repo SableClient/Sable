@@ -1,8 +1,7 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { forwardRef, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,

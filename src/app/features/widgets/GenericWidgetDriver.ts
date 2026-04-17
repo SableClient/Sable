@@ -1,7 +1,4 @@
-import type {
-  WidgetKind,
-  SimpleObservable,
-  IOpenIDUpdate} from 'matrix-widget-api';
+import type { WidgetKind, SimpleObservable, IOpenIDUpdate } from 'matrix-widget-api';
 import {
   type Capability,
   type ISendDelayedEventDetails,
@@ -14,11 +11,9 @@ import {
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
-  OpenIDRequestState
+  OpenIDRequestState,
 } from 'matrix-widget-api';
-import type {
-  MatrixClient,
-  Room} from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import {
   EventType,
   type IContent,
@@ -27,7 +22,7 @@ import {
   Direction,
   type SendDelayedEventResponse,
   type StateEvents,
-  type TimelineEvents
+  type TimelineEvents,
 } from '$types/matrix-sdk';
 
 export type CapabilityApprovalCallback = (requested: Set<Capability>) => Promise<Set<Capability>>;
@@ -319,11 +314,13 @@ export class GenericWidgetDriver extends WidgetDriver {
     });
     return {
       limited,
-      results: results.map((r: { user_id: string; display_name?: string; avatar_url?: string }) => ({
-        userId: r.user_id,
-        displayName: r.display_name,
-        avatarUrl: r.avatar_url,
-      })),
+      results: results.map(
+        (r: { user_id: string; display_name?: string; avatar_url?: string }) => ({
+          userId: r.user_id,
+          displayName: r.display_name,
+          avatarUrl: r.avatar_url,
+        })
+      ),
     };
   }
 
@@ -347,4 +344,3 @@ export class GenericWidgetDriver extends WidgetDriver {
       : undefined;
   }
 }
-

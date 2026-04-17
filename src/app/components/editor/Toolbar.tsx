@@ -1,7 +1,5 @@
 import FocusTrap from 'focus-trap-react';
-import type {
-  IconSrc,
-  RectCords} from 'folds';
+import type { IconSrc, RectCords } from 'folds';
 import {
   Badge,
   Box,
@@ -18,7 +16,7 @@ import {
   TooltipProvider,
   toRem,
 } from 'folds';
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useState } from 'react';
 import { ReactEditor, useSlate } from 'slate-react';
 import { isMacOS } from '$utils/user-agent';

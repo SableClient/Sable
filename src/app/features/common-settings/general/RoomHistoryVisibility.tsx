@@ -1,25 +1,9 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import type {
-  RectCords} from 'folds';
-import {
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  Spinner,
-  Text,
-} from 'folds';
-import type {
-  MatrixError,
-  RoomHistoryVisibilityEventContent} from '$types/matrix-sdk';
-import {
-  HistoryVisibility
-} from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
+import { Button, color, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import type { MatrixError, RoomHistoryVisibilityEventContent } from '$types/matrix-sdk';
+import { HistoryVisibility } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';

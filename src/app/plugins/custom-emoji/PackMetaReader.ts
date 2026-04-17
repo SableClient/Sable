@@ -1,4 +1,4 @@
-import type { PackMeta} from './types';
+import type { PackMeta } from './types';
 import { ImageUsage } from './types';
 
 export class PackMetaReader {

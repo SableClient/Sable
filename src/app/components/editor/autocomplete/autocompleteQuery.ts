@@ -1,4 +1,4 @@
-import type { BaseRange} from 'slate';
+import type { BaseRange } from 'slate';
 import { Editor } from 'slate';
 
 export enum AutocompletePrefix {

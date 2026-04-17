@@ -1,4 +1,4 @@
-import type { FormEventHandler, MouseEventHandler} from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
 import { useState } from 'react';
 import {
   Box,
@@ -19,7 +19,7 @@ import {
 import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { RoomWidget} from '$hooks/useRoomWidgets';
+import type { RoomWidget } from '$hooks/useRoomWidgets';
 import { useRoomWidgets, enrichWidgetUrl } from '$hooks/useRoomWidgets';
 import { useSetSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -230,7 +230,12 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
 
   const handleRemoveWidget = async (widget: RoomWidget) => {
     try {
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomWidget as string, {} as unknown, widget.id);
+      await mx.sendStateEvent(
+        room.roomId,
+        StateEvent.RoomWidget as string,
+        {} as unknown,
+        widget.id
+      );
       if (activeWidget?.id === widget.id) {
         setActiveWidget(null);
       }

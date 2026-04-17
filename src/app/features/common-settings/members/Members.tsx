@@ -1,14 +1,6 @@
-import type {
-  ChangeEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import type {
-  RectCords} from 'folds';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Chip,

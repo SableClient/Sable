@@ -1,12 +1,6 @@
 import to from 'await-to-js';
-import type {
-  IAuthData,
-  MatrixClient,
-  RegisterRequest,
-  RegisterResponse} from '$types/matrix-sdk';
-import {
-  MatrixError
-} from '$types/matrix-sdk';
+import type { IAuthData, MatrixClient, RegisterRequest, RegisterResponse } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom } from 'jotai';

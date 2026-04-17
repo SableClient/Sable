@@ -195,5 +195,3 @@ export const createPushNotifications = (
 
   return { handlePushNotificationPushData };
 };
-
-

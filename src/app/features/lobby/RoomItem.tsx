@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef } from 'react';
 import {
   Avatar,

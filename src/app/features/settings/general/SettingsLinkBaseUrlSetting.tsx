@@ -1,4 +1,4 @@
-import type { ChangeEventHandler, FormEventHandler} from 'react';
+import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, config, Icon, IconButton, Icons, Input, Text } from 'folds';
 import { useClientConfig } from '$hooks/useClientConfig';

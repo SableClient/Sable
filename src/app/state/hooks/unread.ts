@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { RoomToUnread, Unread } from '$types/matrix/room';
-import type { roomToUnreadAtom} from '$state/room/roomToUnread';
+import type { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { unreadEqual } from '$state/room/roomToUnread';
 
 const compareUnreadEqual = (u1?: Unread, u2?: Unread): boolean => {

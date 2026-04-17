@@ -1,5 +1,5 @@
 import { Badge, Box, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback } from 'react';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import FileSaver from 'file-saver';

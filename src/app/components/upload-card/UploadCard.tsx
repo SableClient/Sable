@@ -1,5 +1,5 @@
 import { Badge, Box, Icon, Icons, ProgressBar, Text, percent } from 'folds';
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { forwardRef } from 'react';
 
 import { bytesToSize } from '$utils/common';

@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent} from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
@@ -10,7 +10,7 @@ import { useAtomValue } from 'jotai';
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdServer, isRoomAlias } from '$utils/matrix';
-import type { UseAsyncSearchOptions} from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';

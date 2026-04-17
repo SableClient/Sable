@@ -1,6 +1,6 @@
 import type { Room } from '$types/matrix-sdk';
 import { useMemo } from 'react';
-import type { MemberPowerTag} from '$types/matrix/room';
+import type { MemberPowerTag } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import type { IPowerLevels } from './usePowerLevels';
 import { useStateEvent } from './useStateEvent';

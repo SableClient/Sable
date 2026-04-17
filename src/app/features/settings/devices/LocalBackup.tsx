@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, color, Icon, Icons, Spinner, Text, toRem } from 'folds';
 import FileSaver from 'file-saver';

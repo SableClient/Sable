@@ -1,5 +1,5 @@
 import { AvatarImage as FoldsAvatarImage } from 'folds';
-import type { ReactEventHandler} from 'react';
+import type { ReactEventHandler } from 'react';
 import { useState, useEffect } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';

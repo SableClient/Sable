@@ -1,6 +1,4 @@
-import type {
-  SimpleObservable,
-  IOpenIDUpdate} from 'matrix-widget-api';
+import type { SimpleObservable, IOpenIDUpdate } from 'matrix-widget-api';
 import {
   type Capability,
   type ISendDelayedEventDetails,
@@ -12,10 +10,9 @@ import {
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
-  OpenIDRequestState
+  OpenIDRequestState,
 } from 'matrix-widget-api';
-import type {
-  MatrixClient} from 'matrix-js-sdk';
+import type { MatrixClient } from 'matrix-js-sdk';
 import {
   EventType,
   type IContent,
@@ -24,7 +21,7 @@ import {
   Direction,
   type SendDelayedEventResponse,
   type StateEvents,
-  type TimelineEvents
+  type TimelineEvents,
 } from 'matrix-js-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';

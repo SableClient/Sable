@@ -1,27 +1,7 @@
-import type {
-  KeyboardEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import type {
-  RectCords} from 'folds';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  Spinner,
-  Text,
-  as,
-  config,
-} from 'folds';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, Line, PopOut, Spinner, Text, as, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type {
@@ -30,14 +10,11 @@ import type {
   MatrixEvent,
   ReplacementEvent,
   Room,
-  RoomMessageTextEventContent} from '$types/matrix-sdk';
-import {
-  RelationType,
-  MsgType,
+  RoomMessageTextEventContent,
 } from '$types/matrix-sdk';
+import { RelationType, MsgType } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
-import type {
-  AutocompleteQuery} from '$components/editor';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
   CustomEditor,

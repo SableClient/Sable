@@ -1,8 +1,7 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   IconButton,
@@ -19,7 +18,7 @@ import {
 } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { MSpaceChildContent} from '$types/matrix/room';
+import type { MSpaceChildContent } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { UseStateProvider } from '$components/UseStateProvider';

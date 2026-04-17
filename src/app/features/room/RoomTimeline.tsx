@@ -1,5 +1,4 @@
-import type {
-  ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import {
   Fragment,
   useCallback,
@@ -11,13 +10,12 @@ import {
 } from 'react';
 import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom } from 'jotai';
-import type { Room} from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
-import type {
-  ContainerColor} from 'folds';
+import type { ContainerColor } from 'folds';
 import {
   as,
   Box,
@@ -79,7 +77,7 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import type { ProcessedEvent} from '$hooks/timeline/useProcessedTimeline';
+import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
 import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useMatrixClient } from './useMatrixClient';
-import type { AsyncState} from './useAsyncCallback';
+import type { AsyncState } from './useAsyncCallback';
 import { useAsyncCallbackValue } from './useAsyncCallback';
 import { useSpecVersions } from './useSpecVersions';
 

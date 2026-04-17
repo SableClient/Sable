@@ -1,4 +1,4 @@
-import type { MatchResult} from '$plugins/markdown/internal';
+import type { MatchResult } from '$plugins/markdown/internal';
 import { replaceMatch } from '$plugins/markdown/internal';
 import type { InlineMDParser, InlineMDRule } from './type';
 

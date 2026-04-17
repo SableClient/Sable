@@ -121,7 +121,10 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                     escapeDeactivates: stopPropagation,
                   }}
                 >
-                  <Modal size="500" onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}>
+                  <Modal
+                    size="500"
+                    onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+                  >
                     <ImageViewer
                       src={viewAvatar}
                       alt={userId}

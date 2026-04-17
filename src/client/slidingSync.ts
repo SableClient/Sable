@@ -5,7 +5,8 @@ import type {
   MSC3575List,
   MSC3575RoomData,
   MSC3575RoomSubscription,
-  MSC3575SlidingSyncResponse} from '$types/matrix-sdk';
+  MSC3575SlidingSyncResponse,
+} from '$types/matrix-sdk';
 import {
   ClientEvent,
   ExtensionState,
@@ -468,7 +469,9 @@ export class SlidingSyncManager {
     this.onConnectionChange = () => {
       const isOnline = navigator.onLine;
       const connectionInfo =
-        typeof navigator !== 'undefined' ? ((navigator as unknown) as { connection?: NetworkInformation }).connection : undefined;
+        typeof navigator !== 'undefined'
+          ? (navigator as unknown as { connection?: NetworkInformation }).connection
+          : undefined;
       const effectiveType = connectionInfo?.effectiveType;
       const downlink = connectionInfo?.downlink;
 
@@ -509,7 +512,9 @@ export class SlidingSyncManager {
     this.slidingSync.on(SlidingSyncEvent.Lifecycle, this.onLifecycle);
     this.mx.on(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
-      typeof navigator !== 'undefined' ? ((navigator as unknown) as { connection?: NetworkInformation }).connection : undefined
+      typeof navigator !== 'undefined'
+        ? (navigator as unknown as { connection?: NetworkInformation }).connection
+        : undefined
     ) as
       | {
           addEventListener?: (e: string, cb: () => void) => void;
@@ -548,7 +553,9 @@ export class SlidingSyncManager {
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
     this.mx.removeListener(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
-      typeof navigator !== 'undefined' ? ((navigator as unknown) as { connection?: NetworkInformation }).connection : undefined
+      typeof navigator !== 'undefined'
+        ? (navigator as unknown as { connection?: NetworkInformation }).connection
+        : undefined
     ) as
       | {
           addEventListener?: (e: string, cb: () => void) => void;

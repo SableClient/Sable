@@ -5,12 +5,9 @@ import type {
   VerificationRequest,
   VerificationRequestEventHandlerMap,
   Verifier,
-  VerifierEventHandlerMap} from '$types/matrix-sdk';
-import {
-  CryptoEvent,
-  VerificationRequestEvent,
-  VerifierEvent
+  VerifierEventHandlerMap,
 } from '$types/matrix-sdk';
+import { CryptoEvent, VerificationRequestEvent, VerifierEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export const useVerificationRequestReceived = (

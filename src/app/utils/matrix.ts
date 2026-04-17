@@ -1,9 +1,5 @@
-import type {
-  EncryptedAttachmentInfo} from 'browser-encrypt-attachment';
-import {
-  decryptAttachment,
-  encryptAttachment,
-} from 'browser-encrypt-attachment';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import { decryptAttachment, encryptAttachment } from 'browser-encrypt-attachment';
 import type {
   EventTimelineSet,
   MatrixClient,
@@ -11,11 +7,9 @@ import type {
   Room,
   RoomMember,
   UploadProgress,
-  UploadResponse} from '$types/matrix-sdk';
-import {
-  EventTimeline,
-  MatrixError
+  UploadResponse,
 } from '$types/matrix-sdk';
+import { EventTimeline, MatrixError } from '$types/matrix-sdk';
 import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { AccountDataEvent } from '$types/matrix/accountData';
@@ -425,7 +419,7 @@ export const toggleReaction = (
   const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
-  if (myReaction && !!(myReaction).isRelation?.()) {
+  if (myReaction && !!myReaction.isRelation?.()) {
     mx.redactEvent(room.roomId, myReaction.getId());
     return;
   }

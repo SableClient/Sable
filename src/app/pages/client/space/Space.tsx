@@ -1,17 +1,7 @@
-import type {
-  MouseEventHandler,
-  ReactElement} from 'react';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { MouseEventHandler, ReactElement } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
@@ -52,7 +42,7 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { useRoomName } from '$hooks/useRoomMeta';
-import type { HierarchyItem} from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';

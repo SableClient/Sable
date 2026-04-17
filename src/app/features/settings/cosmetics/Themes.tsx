@@ -1,4 +1,4 @@
-import type { ChangeEventHandler, KeyboardEventHandler} from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useState } from 'react';
 import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
@@ -12,8 +12,7 @@ import {
   getArboriumThemeLabel,
   getArboriumThemeOptions,
 } from '$plugins/arborium';
-import type {
-  Theme} from '$hooks/useTheme';
+import type { Theme } from '$hooks/useTheme';
 import {
   DarkTheme,
   LightTheme,

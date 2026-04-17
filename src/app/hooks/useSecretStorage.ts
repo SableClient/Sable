@@ -1,9 +1,8 @@
 import type {
   SecretStorageDefaultKeyContent,
-  SecretStorageKeyContent} from '$types/matrix/accountData';
-import {
-  AccountDataEvent
+  SecretStorageKeyContent,
 } from '$types/matrix/accountData';
+import { AccountDataEvent } from '$types/matrix/accountData';
 import { useAccountData } from './useAccountData';
 
 export const getSecretStorageKeyEventType = (key: string): string => `m.secret_storage.key.${key}`;

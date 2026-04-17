@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { forwardRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';

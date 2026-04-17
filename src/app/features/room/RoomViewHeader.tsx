@@ -1,9 +1,8 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -26,15 +25,8 @@ import {
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
-import type {
-  Room,
-  MatrixEvent} from '$types/matrix-sdk';
-import {
-  EventTimeline,
-  ThreadEvent,
-  RoomEvent,
-  NotificationCountType,
-} from '$types/matrix-sdk';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
+import { EventTimeline, ThreadEvent, RoomEvent, NotificationCountType } from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
 import { PageHeader } from '$components/page';

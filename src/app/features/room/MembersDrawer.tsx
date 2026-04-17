@@ -1,14 +1,6 @@
-import type {
-  ChangeEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import type {
-  RectCords} from 'folds';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Badge,
@@ -37,7 +29,7 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UseStateProvider } from '$components/UseStateProvider';
-import type { SearchItemStrGetter, UseAsyncSearchOptions} from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';

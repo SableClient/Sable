@@ -1,9 +1,7 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config } from 'folds';
-import type {
-  IEvent,
-  Room} from '$types/matrix-sdk';
+import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
   MatrixEvent,
@@ -43,7 +41,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
-import type { IReplyDraft} from '$state/room/roomInputDrafts';
+import type { IReplyDraft } from '$state/room/roomInputDrafts';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';

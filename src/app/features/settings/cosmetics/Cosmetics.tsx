@@ -1,7 +1,6 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -19,7 +18,7 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import type { JumboEmojiSize} from '$state/settings';
+import type { JumboEmojiSize } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';

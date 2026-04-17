@@ -1,5 +1,5 @@
 import { isKeyHotkey } from 'is-hotkey';
-import type { KeyboardEventHandler} from 'react';
+import type { KeyboardEventHandler } from 'react';
 import { useCallback } from 'react';
 import type { Intent, Operations, TextArea } from '$plugins/text-area';
 import { Cursor } from '$plugins/text-area';

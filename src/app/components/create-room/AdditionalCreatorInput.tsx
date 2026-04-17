@@ -1,5 +1,4 @@
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -18,14 +17,8 @@ import {
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
-import type {
-  ChangeEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useMemo,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useMemo, useState } from 'react';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { useMatrixClient } from '$hooks/useMatrixClient';

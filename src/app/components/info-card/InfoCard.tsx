@@ -1,4 +1,4 @@
-import type { ContainerColor} from 'folds';
+import type { ContainerColor } from 'folds';
 import { Box, Text } from 'folds';
 import type { ReactNode } from 'react';
 import classNames from 'classnames';

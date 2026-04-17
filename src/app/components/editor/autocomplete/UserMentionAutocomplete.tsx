@@ -7,7 +7,7 @@ import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { SearchItemStrGetter, UseAsyncSearchOptions} from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';

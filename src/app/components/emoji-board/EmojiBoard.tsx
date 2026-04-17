@@ -3,21 +3,17 @@ import type {
   FocusEventHandler,
   MouseEventHandler,
   ReactNode,
-  RefObject} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
+  RefObject,
 } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, config, Icons, Scroll } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import type { Room } from '$types/matrix-sdk';
-import type { PrimitiveAtom} from 'jotai';
+import type { PrimitiveAtom } from 'jotai';
 import { atom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { IEmoji} from '$plugins/emoji';
+import type { IEmoji } from '$plugins/emoji';
 import { emojiGroups, emojis } from '$plugins/emoji';
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
@@ -39,8 +35,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEmojiGroupIcons } from './useEmojiGroupIcons';
 import { useEmojiGroupLabels } from './useEmojiGroupLabels';
-import type {
-  PreviewData} from './components';
+import type { PreviewData } from './components';
 import {
   SearchInput,
   EmojiBoardTabs,

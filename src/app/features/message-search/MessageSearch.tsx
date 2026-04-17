@@ -1,4 +1,4 @@
-import type { RefObject} from 'react';
+import type { RefObject } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
 import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
@@ -20,7 +20,7 @@ import { useRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';
-import type { MessageSearchParams} from './useMessageSearch';
+import type { MessageSearchParams } from './useMessageSearch';
 import { useMessageSearch } from './useMessageSearch';
 import { SearchResultGroup } from './SearchResultGroup';
 import { SearchInput } from './SearchInput';

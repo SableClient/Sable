@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent} from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
@@ -6,12 +6,12 @@ import { Box, MenuItem, Text, toRem } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { UseAsyncSearchOptions} from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
-import type { IEmoji} from '$plugins/emoji';
+import type { IEmoji } from '$plugins/emoji';
 import { emojis } from '$plugins/emoji';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { mxcUrlToHttp } from '$utils/matrix';

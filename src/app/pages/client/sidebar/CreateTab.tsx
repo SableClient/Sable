@@ -1,6 +1,6 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
-import type { RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import { Box, config, Icon, Icons, Menu, PopOut, Text } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';

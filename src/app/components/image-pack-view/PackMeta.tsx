@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Box,

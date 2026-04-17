@@ -11,7 +11,10 @@ import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 
-type VersionResult = { error?: { message: string } } | { server?: { name?: string; version?: string; compiler?: string } } | undefined;
+type VersionResult =
+  | { error?: { message: string } }
+  | { server?: { name?: string; version?: string; compiler?: string } }
+  | undefined;
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();

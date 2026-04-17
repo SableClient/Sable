@@ -1,16 +1,11 @@
-import type { RefObject} from 'react';
+import type { RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 import type { MatrixClient, Room } from 'matrix-js-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import type {
-  ElementCallThemeKind} from '../plugins/call';
-import {
-  CallEmbed,
-  ElementWidgetActions,
-  useClientWidgetApiEvent,
-} from '../plugins/call';
+import type { ElementCallThemeKind } from '../plugins/call';
+import { CallEmbed, ElementWidgetActions, useClientWidgetApiEvent } from '../plugins/call';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useTheme } from './useTheme';
 import { callEmbedAtom } from '../state/callEmbed';

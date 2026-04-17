@@ -5,12 +5,9 @@ import type {
   AsyncSearchOption,
   MatchQueryOption,
   NormalizeOption,
-  ResultHandler} from '$utils/AsyncSearch';
-import {
-  AsyncSearch,
-  normalize,
-  matchQuery
+  ResultHandler,
 } from '$utils/AsyncSearch';
+import { AsyncSearch, normalize, matchQuery } from '$utils/AsyncSearch';
 import { sanitizeForRegex } from '$utils/regex';
 
 export type UseAsyncSearchOptions = AsyncSearchOption & {

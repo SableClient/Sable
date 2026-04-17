@@ -1,5 +1,5 @@
 /* oxlint-disable jsx-a11y/media-has-caption */
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
@@ -7,8 +7,7 @@ import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { IAudioInfo } from '$types/matrix/common';
-import type {
-  PlayTimeCallback} from '$hooks/media';
+import type { PlayTimeCallback } from '$hooks/media';
 import {
   useMediaLoading,
   useMediaPlay,

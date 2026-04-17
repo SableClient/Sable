@@ -1,4 +1,4 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { forwardRef, useEffect, useMemo } from 'react';
 import type { Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
@@ -6,10 +6,9 @@ import { Box, config, Text } from 'folds';
 import type {
   HierarchyItem,
   HierarchyItemRoom,
-  HierarchyItemSpace} from '$hooks/useSpaceHierarchy';
-import {
-  useFetchSpaceHierarchyLevel,
+  HierarchyItemSpace,
 } from '$hooks/useSpaceHierarchy';
+import { useFetchSpaceHierarchyLevel } from '$hooks/useSpaceHierarchy';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomType, StateEvent } from '$types/matrix/room';

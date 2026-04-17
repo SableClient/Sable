@@ -1,19 +1,18 @@
-import type { KeyboardEvent as ReactKeyboardEvent} from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { Box, config, MenuItem, Text } from 'folds';
 import type { Room } from '$types/matrix-sdk';
-import type { Command} from '$hooks/useCommands';
+import type { Command } from '$hooks/useCommands';
 import { useCommands } from '$hooks/useCommands';
-import type {
-  AutocompleteQuery} from '$components/editor';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompleteMenu,
   createCommandElement,
   moveCursor,
   replaceWithElement,
 } from '$components/editor';
-import type { UseAsyncSearchOptions} from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useKeyDown } from '$hooks/useKeyDown';

@@ -10,7 +10,8 @@ import type {
   MatrixEvent,
   Room,
   RoomMember,
-  CryptoBackend} from '$types/matrix-sdk';
+  CryptoBackend,
+} from '$types/matrix-sdk';
 import {
   EventTimeline,
   EventType,
@@ -21,16 +22,13 @@ import {
   MsgType,
 } from '$types/matrix-sdk';
 import type { AccountDataEvent } from '$types/matrix/accountData';
-import type {
-  IRoomCreateContent,
-  RoomToParents,
-  UnreadInfo} from '$types/matrix/room';
+import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
 import {
   Membership,
   NotificationType,
   RoomType,
   MessageEvent,
-  StateEvent
+  StateEvent,
 } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
 

@@ -18,13 +18,8 @@ import './app/styles/themes.css';
 import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
 import { pushSessionToSW } from './sw-session';
-import type {
-  Sessions} from './app/state/sessions';
-import {
-  getFallbackSession,
-  MATRIX_SESSIONS_KEY,
-  ACTIVE_SESSION_KEY,
-} from './app/state/sessions';
+import type { Sessions } from './app/state/sessions';
+import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 

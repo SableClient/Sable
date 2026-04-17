@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject} from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import { useDebounce } from '$hooks/useDebounce';
 

@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
@@ -19,12 +19,8 @@ import {
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import type {
-  IThumbnailContent,
-  IVideoInfo} from '$types/matrix/common';
-import {
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
+import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';

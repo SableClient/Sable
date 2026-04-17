@@ -1,4 +1,4 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAtomValue } from 'jotai';
@@ -9,12 +9,9 @@ import type {
   Room,
   PushProcessor,
   EventTimelineSet,
-  IContent} from '$types/matrix-sdk';
-import {
-  NotificationCountType,
-  RoomEvent,
-  ThreadEvent
+  IContent,
 } from '$types/matrix-sdk';
+import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import type { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -55,14 +52,8 @@ import {
 import { getLinkedTimelines, getLiveTimeline } from '$utils/timeline';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import type {
-  ForwardedMessageProps} from '$features/room/message';
-import {
-  EncryptedContent,
-  Event,
-  Message,
-  Reactions,
-} from '$features/room/message';
+import type { ForwardedMessageProps } from '$features/room/message';
+import { EncryptedContent, Event, Message, Reactions } from '$features/room/message';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 
@@ -668,7 +659,10 @@ export function useTimelineEventRenderer({
                     editedNewContent = getEditedContent.call(editedEvent)['m.new_content'];
                   }
 
-                  const baseContent = (getEventContent.call(mEvent) || {}) as Record<string, unknown>;
+                  const baseContent = (getEventContent.call(mEvent) || {}) as Record<
+                    string,
+                    unknown
+                  >;
                   const safeContent = (
                     Object.keys(baseContent).length > 0
                       ? baseContent

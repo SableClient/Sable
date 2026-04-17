@@ -1,4 +1,4 @@
-import type { BasePoint, BaseRange} from 'slate';
+import type { BasePoint, BaseRange } from 'slate';
 import { Editor, Element, Point, Range, Text, Transforms } from 'slate';
 import { BlockType, MarkType } from './types';
 import type {

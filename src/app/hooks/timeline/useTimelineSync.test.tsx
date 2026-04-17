@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Room} from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useTimelineSync } from './useTimelineSync';
 

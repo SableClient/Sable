@@ -1,4 +1,4 @@
-import type { AccountDataCompatVersion} from '$types/matrix/accountData';
+import type { AccountDataCompatVersion } from '$types/matrix/accountData';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import type { PronounSet } from '$utils/pronouns';
 import type { MatrixClient } from 'matrix-js-sdk';
@@ -281,7 +281,7 @@ export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessa
     // profile already exists, just update it
     return mx.setAccountData(
       `${ACCOUNT_DATA_PREFIX}.${profile.id}` as string,
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       profileWithCompat as any
     );
   }
@@ -289,7 +289,10 @@ export function addOrUpdatePerMessageProfile(mx: MatrixClient, profile: PerMessa
   const newProfileIds = [...(profileListIndex?.getContent()?.profileIds || []), profile.id];
   return Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.index` as string, { profileIds: newProfileIds } as any),
+    mx.setAccountData(
+      `${ACCOUNT_DATA_PREFIX}.index` as string,
+      { profileIds: newProfileIds } as any
+    ),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mx.setAccountData(`${ACCOUNT_DATA_PREFIX}.${profile.id}` as string, profileWithCompat as any),
   ]);
@@ -309,7 +312,7 @@ async function dropIdFromIndex(mx: MatrixClient, id: string) {
   const newProfileIds = profileIds.filter((profileId: string) => profileId !== id);
   await mx.setAccountData(
     `${ACCOUNT_DATA_PREFIX}.index` as string,
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { profileIds: newProfileIds } as any
   );
 }
@@ -361,7 +364,7 @@ export async function setCurrentlyUsedPerMessageProfileIdForRoom(
   mx.setAccountData(
     `${ACCOUNT_DATA_PREFIX}.roomassociation` as string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { associations: associationsMapToObject(associations) } as any
+    { associations: associationsMapToObject(associations) } as any
   );
 }
 
@@ -469,7 +472,7 @@ async function dropPerMessageProfileRoomAssociations(mx: MatrixClient, id: strin
   await mx.setAccountData(
     `${ACCOUNT_DATA_PREFIX}.roomassociation` as string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { associations: associationsMapToObject(associations) } as any
+    { associations: associationsMapToObject(associations) } as any
   );
 }
 

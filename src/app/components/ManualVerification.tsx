@@ -1,19 +1,7 @@
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import type {
-  RectCords} from 'folds';
-import {
-  Box,
-  Text,
-  Chip,
-  Icon,
-  Icons,
-  PopOut,
-  Menu,
-  config,
-  MenuItem,
-  color,
-} from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Text, Chip, Icon, Icons, PopOut, Menu, config, MenuItem, color } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import type { SecretStorageKeyContent } from '$types/matrix/accountData';
 import { storePrivateKey } from '$client/secretStorageKeys';

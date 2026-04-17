@@ -1,7 +1,7 @@
 import type { ComplexStyleRule } from '@vanilla-extract/css';
-import type { RecipeVariants} from '@vanilla-extract/recipes';
+import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
-import type { ContainerColor as TContainerColor} from 'folds';
+import type { ContainerColor as TContainerColor } from 'folds';
 import { DefaultReset, color, config } from 'folds';
 
 const getVariant = (variant: TContainerColor): ComplexStyleRule => ({

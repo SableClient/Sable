@@ -9,13 +9,9 @@ import type {
   EventTimeline,
   EventTimelineSetHandlerMap,
   IRoomTimelineData,
-  RoomEventHandlerMap} from '$types/matrix-sdk';
-import {
-  Direction,
-  RoomEvent,
-  RelationType,
-  ThreadEvent,
+  RoomEventHandlerMap,
 } from '$types/matrix-sdk';
+import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
 
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';

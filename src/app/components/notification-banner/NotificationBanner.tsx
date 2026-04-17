@@ -1,5 +1,5 @@
 import { useAtom } from 'jotai';
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Icon, IconButton, Icons, Text } from 'folds';
 import { createLogger } from '$utils/debug';

@@ -19,15 +19,8 @@ import {
   Spinner,
   Text,
 } from 'folds';
-import type {
-  ChangeEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Room } from '$types/matrix-sdk';

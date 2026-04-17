@@ -1,7 +1,7 @@
-import type { IconSrc} from 'folds';
+import type { IconSrc } from 'folds';
 import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
 import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import classNames from 'classnames';

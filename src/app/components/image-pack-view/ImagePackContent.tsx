@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { as, Box, Text, config, Button, Menu, Spinner } from 'folds';
-import type {
-  ImagePack,
-  ImageUsage,
-  PackContent,
-  PackImage} from '$plugins/custom-emoji';
-import {
-  PackImageReader,
-  packMetaEqual,
-  PackMetaReader,
-} from '$plugins/custom-emoji';
+import type { ImagePack, ImageUsage, PackContent, PackImage } from '$plugins/custom-emoji';
+import { PackImageReader, packMetaEqual, PackMetaReader } from '$plugins/custom-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useFilePicker } from '$hooks/useFilePicker';
 import type { UploadSuccess } from '$state/upload';

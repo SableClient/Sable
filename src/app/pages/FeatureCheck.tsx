@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { Box, Dialog, Text, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

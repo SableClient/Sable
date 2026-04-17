@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { IWidget, IRoomEvent} from 'matrix-widget-api';
+import type { IWidget, IRoomEvent } from 'matrix-widget-api';
 import { ClientWidgetApi, Widget, WidgetKind } from 'matrix-widget-api';
-import type {
-  IEvent,
-  MatrixClient,
-  MatrixEvent} from '$types/matrix-sdk';
-import {
-  ClientEvent,
-  Direction,
-  MatrixEventEvent,
-} from '$types/matrix-sdk';
+import type { IEvent, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import { ClientEvent, Direction, MatrixEventEvent } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { resolveWidgetUrl } from '$hooks/useRoomWidgets';
 import type { CapabilityApprovalCallback } from './GenericWidgetDriver';

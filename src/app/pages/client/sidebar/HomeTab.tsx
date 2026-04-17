@@ -1,7 +1,7 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';

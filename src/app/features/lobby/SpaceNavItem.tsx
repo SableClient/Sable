@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import { Avatar, Badge, Box, Chip, Icon, Icons, as, Text } from 'folds';
 import classNames from 'classnames';

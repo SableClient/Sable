@@ -1,19 +1,10 @@
-import type {
-  KeyboardEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import type { Room } from '$types/matrix-sdk';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   PopOut,
   Menu,

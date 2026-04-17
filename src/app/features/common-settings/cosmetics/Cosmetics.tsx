@@ -1,13 +1,5 @@
-import type {
-  ChangeEvent,
-  ChangeEventHandler,
-  FormEventHandler} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import type { ChangeEvent, ChangeEventHandler, FormEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -42,7 +34,7 @@ import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import type { UserProfile} from '$hooks/useUserProfile';
+import type { UserProfile } from '$hooks/useUserProfile';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

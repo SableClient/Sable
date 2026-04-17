@@ -15,17 +15,8 @@ import {
   Text,
   toRem,
 } from 'folds';
-import type {
-  ChangeEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';

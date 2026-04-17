@@ -1,5 +1,4 @@
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Box,
@@ -15,31 +14,12 @@ import {
   as,
   config,
 } from 'folds';
-import type {
-  MouseEventHandler,
-  MouseEvent,
-  PointerEvent,
-  ReactNode} from 'react';
-import {
-  memo,
-  useCallback,
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-} from 'react';
+import type { MouseEventHandler, MouseEvent, PointerEvent, ReactNode } from 'react';
+import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
-import type {
-  MatrixEvent,
-  Room,
-  Relations,
-  RoomPinnedEventsEventContent} from '$types/matrix-sdk';
-import {
-  EventStatus,
-  MatrixEventEvent,
-  RoomEvent,
-} from '$types/matrix-sdk';
+import type { MatrixEvent, Room, Relations, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
+import { EventStatus, MatrixEventEvent, RoomEvent } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
@@ -55,7 +35,7 @@ import {
 } from '$components/message';
 import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
-import type { MessageSpacing} from '$state/settings';
+import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -68,7 +48,7 @@ import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
-import type { MemberPowerTag} from '$types/matrix/room';
+import type { MemberPowerTag } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import { PowerIcon } from '$components/power';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
@@ -91,11 +71,8 @@ import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
 } from '$utils/addStickerToDefaultStickerPack';
-import type {
-  PerMessageProfileBeeperFormat} from '$hooks/usePerMessageProfile';
-import {
-  convertBeeperFormatToOurPerMessageProfile
-} from '$hooks/usePerMessageProfile';
+import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
+import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 

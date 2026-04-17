@@ -1,8 +1,11 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback } from 'react';
 import { Box, Text, Button, Spinner, color } from 'folds';
 import { decodeRecoveryKey, deriveRecoveryKeyFromPassphrase } from '$types/matrix-sdk';
-import type { SecretStorageKeyContent, SecretStoragePassphraseContent } from '$types/matrix/accountData';
+import type {
+  SecretStorageKeyContent,
+  SecretStoragePassphraseContent,
+} from '$types/matrix/accountData';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';

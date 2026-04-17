@@ -1,4 +1,4 @@
-import type { WritableAtom} from 'jotai';
+import type { WritableAtom } from 'jotai';
 import { atom } from 'jotai';
 import { produce } from 'immer';
 import type { Path } from 'react-router-dom';

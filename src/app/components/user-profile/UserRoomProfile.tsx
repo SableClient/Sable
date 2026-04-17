@@ -1,5 +1,5 @@
 import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
-import type { SyntheticEvent} from 'react';
+import type { SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -22,7 +22,7 @@ import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { getDirectCreatePath, withSearchParam } from '$pages/pathUtils';
 import type { DirectCreateSearchParams } from '$pages/paths';
 import { nicknamesAtom } from '$state/nicknames';
-import type { UserProfile} from '$hooks/useUserProfile';
+import type { UserProfile } from '$hooks/useUserProfile';
 import { useUserProfile } from '$hooks/useUserProfile';
 import {
   factoryRenderLinkifyWithMention,

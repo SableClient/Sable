@@ -1,4 +1,4 @@
-import type { MatrixClient} from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { SyncState } from '$types/matrix-sdk';
 import { useCallback, useState } from 'react';
 import { Box, config, Line, Text } from 'folds';

@@ -1,7 +1,7 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { getAccountData } from '$utils/room';
-import type { IEmoji} from './emoji';
+import type { IEmoji } from './emoji';
 import { emojis } from './emoji';
 
 type EmojiUnicode = string;

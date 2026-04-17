@@ -1,4 +1,4 @@
-import type { ReactEventHandler} from 'react';
+import type { ReactEventHandler } from 'react';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isRoomId, isUserId } from '$utils/matrix';

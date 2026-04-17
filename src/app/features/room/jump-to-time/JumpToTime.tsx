@@ -1,8 +1,7 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Dialog,
   Overlay,
@@ -19,7 +18,7 @@ import {
   Button,
   Spinner,
   Chip,
-  PopOut
+  PopOut,
 } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
 import { Direction } from '$types/matrix-sdk';

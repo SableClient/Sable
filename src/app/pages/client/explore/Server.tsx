@@ -1,16 +1,6 @@
-import type {
-  FormEventHandler,
-  MouseEventHandler,
-  RefObject} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import type {
-  RectCords} from 'folds';
+import type { FormEventHandler, MouseEventHandler, RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -33,7 +23,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
-import type { MatrixClient} from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { Method, RoomType } from '$types/matrix-sdk';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';

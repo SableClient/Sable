@@ -800,7 +800,9 @@ const onPushNotification = async (event: PushEvent) => {
       if (pushData.unread === 0) {
         // All messages read elsewhere — clear the home-screen badge and,
         // if the user opted in, dismiss outstanding lock-screen notifications.
-        await (self.navigator as unknown as { clearAppBadge?: () => Promise<void> }).clearAppBadge();
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge();
         if (clearNotificationsOnRead) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
@@ -808,7 +810,9 @@ const onPushNotification = async (event: PushEvent) => {
         return;
       }
       // unread > 0: update the PWA badge with the current count.
-      await (self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }).setAppBadge(pushData.unread);
+      await (
+        self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+      ).setAppBadge(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.
       await (self.navigator as unknown as { clearAppBadge?: () => Promise<void> }).clearAppBadge();

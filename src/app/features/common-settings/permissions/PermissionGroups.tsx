@@ -4,13 +4,8 @@ import { Badge, Box, Button, Chip, config, Icon, Icons, Menu, Spinner, Text } fr
 import { produce } from 'immer';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import type {
-  IPowerLevels,
-  PermissionLocation} from '$hooks/usePowerLevels';
-import {
-  applyPermissionPower,
-  getPermissionPower
-} from '$hooks/usePowerLevels';
+import type { IPowerLevels, PermissionLocation } from '$hooks/usePowerLevels';
+import { applyPermissionPower, getPermissionPower } from '$hooks/usePowerLevels';
 import { getPowerLevelTag, getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';

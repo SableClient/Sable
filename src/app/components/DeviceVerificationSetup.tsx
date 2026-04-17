@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
 import {
   Dialog,

@@ -3,7 +3,7 @@ import { Box, Button, config, Menu, Spinner, Text } from 'folds';
 import type { AuthDict, IMyDevice, MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { ActionUIA, ActionUIAFlowsLoader } from '$components/ActionUIA';
-import type { AsyncState} from '$hooks/useAsyncCallback';
+import type { AsyncState } from '$hooks/useAsyncCallback';
 import { AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUIAMatrixError } from '$hooks/useUIAFlows';

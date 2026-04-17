@@ -42,17 +42,19 @@ async function discoverManagers(mx: MatrixClient): Promise<IntegrationManager[]>
     const widgetsEvent = mx.getAccountData('m.widgets' as never);
     if (widgetsEvent) {
       const content = widgetsEvent.getContent();
-      Object.values(content).forEach((widget: { type?: string; url?: string; data?: { api_url?: string } }) => {
-        if (widget?.type === 'm.integration_manager' && widget?.url) {
-          const existing = managers.some((m) => m.uiUrl === widget.url);
-          if (!existing) {
-            managers.push({
-              apiUrl: widget.data?.api_url || widget.url,
-              uiUrl: widget.url,
-            });
+      Object.values(content).forEach(
+        (widget: { type?: string; url?: string; data?: { api_url?: string } }) => {
+          if (widget?.type === 'm.integration_manager' && widget?.url) {
+            const existing = managers.some((m) => m.uiUrl === widget.url);
+            if (!existing) {
+              managers.push({
+                apiUrl: widget.data?.api_url || widget.url,
+                uiUrl: widget.url,
+              });
+            }
           }
         }
-      });
+      );
     }
   } catch {
     // ignore malformed widget account data

@@ -1,4 +1,4 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
@@ -14,16 +14,8 @@ import {
   toRem,
 } from 'folds';
 import { useSearchParams } from 'react-router-dom';
-import type {
-  INotification,
-  INotificationsResponse,
-  IRoomEvent,
-  Room} from '$types/matrix-sdk';
-import {
-  JoinRule,
-  Method,
-  RelationType
-} from '$types/matrix-sdk';
+import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
+import { JoinRule, Method, RelationType } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -69,7 +61,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Image } from '$components/media';
 import { ImageViewer } from '$components/image-viewer';
-import type { GetContentCallback} from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
 import { MessageEvent, StateEvent } from '$types/matrix/room';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import * as customHtmlCss from '$styles/CustomHtml.css';

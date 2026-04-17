@@ -1,6 +1,6 @@
 import { useMotionValue, useSpring, useTransform, motion } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { config, Icon, Icons } from 'folds';

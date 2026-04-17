@@ -1,4 +1,4 @@
-import type { FormEventHandler} from 'react';
+import type { FormEventHandler } from 'react';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import type { MatrixError } from '$types/matrix-sdk';
 import {

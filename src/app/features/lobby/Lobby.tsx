@@ -1,13 +1,5 @@
-import type {
-  MouseEventHandler,
-  ReactElement} from 'react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { MouseEventHandler, ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
@@ -25,18 +17,12 @@ import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import type {
-  Room,
-  RoomJoinRulesEventContent,
-  IHierarchyRoom} from '$types/matrix-sdk';
-import {
-  JoinRule,
-  RestrictedAllowType
-} from '$types/matrix-sdk';
+import type { Room, RoomJoinRulesEventContent, IHierarchyRoom } from '$types/matrix-sdk';
+import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
-import type { HierarchyItem, HierarchyItemSpace} from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
 import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
@@ -45,8 +31,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { settingsAtom } from '$state/settings';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
-import type {
-  IPowerLevels} from '$hooks/usePowerLevels';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import {
   PowerLevelsContextProvider,
   usePowerLevels,
@@ -78,7 +63,7 @@ import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
-import type { CanDropCallback} from './DnD';
+import type { CanDropCallback } from './DnD';
 import { useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';

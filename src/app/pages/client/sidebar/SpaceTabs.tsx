@@ -1,18 +1,7 @@
-import type {
-  MouseEventHandler,
-  ReactNode,
-  RefObject} from 'react';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { MouseEventHandler, ReactNode, RefObject } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Icon,
@@ -33,11 +22,10 @@ import {
   dropTargetForElements,
   monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import type {
-  Instruction} from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
+import type { Instruction } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import {
   attachInstruction,
-  extractInstruction
+  extractInstruction,
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -66,10 +54,7 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
-import type {
-  ISidebarFolder,
-  SidebarItems,
-  TSidebarItem} from '$hooks/useSidebarItems';
+import type { ISidebarFolder, SidebarItems, TSidebarItem } from '$hooks/useSidebarItems';
 import {
   makeCinnySpacesContent,
   parseSidebar,

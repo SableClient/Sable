@@ -1,10 +1,9 @@
 /* oxlint-disable no-param-reassign */
 
-import type { FormEventHandler, MouseEventHandler} from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,

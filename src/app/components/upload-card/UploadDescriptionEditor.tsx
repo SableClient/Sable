@@ -1,25 +1,12 @@
-import type { KeyboardEventHandler} from 'react';
+import type { KeyboardEventHandler } from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
-import type {
-  RectCords} from 'folds';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, Line, PopOut, Spinner, Text, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
-import type {
-  AutocompleteQuery} from '$components/editor';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
   CustomEditor,

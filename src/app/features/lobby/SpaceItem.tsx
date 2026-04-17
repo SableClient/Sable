@@ -1,7 +1,6 @@
-import type { MouseEventHandler, ReactNode} from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -16,7 +15,7 @@ import {
   PopOut,
   config,
   Menu,
-  MenuItem
+  MenuItem,
 } from 'folds';
 import classNames from 'classnames';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';

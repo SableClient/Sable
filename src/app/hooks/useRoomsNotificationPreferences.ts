@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
-import type { IPushRules, MatrixClient} from '$types/matrix-sdk';
+import type { IPushRules, MatrixClient } from '$types/matrix-sdk';
 import { ConditionKind, PushRuleKind } from '$types/matrix-sdk';
 import type { IconSrc } from 'folds';
 import { Icons } from 'folds';

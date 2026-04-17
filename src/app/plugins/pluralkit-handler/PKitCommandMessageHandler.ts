@@ -1,11 +1,10 @@
-import type {
-  PerMessageProfile} from '$hooks/usePerMessageProfile';
+import type { PerMessageProfile } from '$hooks/usePerMessageProfile';
 import {
   addOrUpdatePerMessageProfile,
   associateProxyWithProfile,
   dropProxyAssociationForPMP,
   getAllPerMessageProfiles,
-  getPerMessageProfileById
+  getPerMessageProfileById,
 } from '$hooks/usePerMessageProfile';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
 import type { MatrixClient, Room } from 'matrix-js-sdk';

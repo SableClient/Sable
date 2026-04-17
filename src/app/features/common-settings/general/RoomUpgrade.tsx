@@ -23,7 +23,7 @@ import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { IRoomCreateContent} from '$types/matrix/room';
+import type { IRoomCreateContent } from '$types/matrix/room';
 import { StateEvent } from '$types/matrix/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';

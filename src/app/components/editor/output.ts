@@ -1,4 +1,4 @@
-import type { Descendant, Editor} from 'slate';
+import type { Descendant, Editor } from 'slate';
 import { Text } from 'slate';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';

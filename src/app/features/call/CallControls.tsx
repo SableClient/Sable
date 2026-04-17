@@ -1,7 +1,6 @@
-import type { MouseEventHandler} from 'react';
+import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  RectCords} from 'folds';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -18,7 +17,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
-import type { CallEmbed} from '$plugins/call';
+import type { CallEmbed } from '$plugins/call';
 import { useCallControlState } from '$plugins/call';
 import { stopPropagation } from '$utils/keyboard';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';

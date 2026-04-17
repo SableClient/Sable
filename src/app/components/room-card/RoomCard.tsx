@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { MatrixError, Room } from '$types/matrix-sdk';
 import { JoinRule } from '$types/matrix-sdk';

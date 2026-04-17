@@ -1,4 +1,4 @@
-import type { MatrixClient, MatrixEvent, RoomMember} from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, RoomMember } from '$types/matrix-sdk';
 import { RoomMemberEvent } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';
 

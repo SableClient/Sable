@@ -1,10 +1,11 @@
 import type {
   InternalPerMessageProfileProxyAssociation,
-  PerMessageProfile} from '$hooks/usePerMessageProfile';
+  PerMessageProfile,
+} from '$hooks/usePerMessageProfile';
 import {
   getAllPerMessageProfileProxies,
   getPerMessageProfileById,
-  parsePerMessageProfileProxyAssociation
+  parsePerMessageProfileProxyAssociation,
 } from '$hooks/usePerMessageProfile';
 import type { MatrixClient } from 'matrix-js-sdk';
 

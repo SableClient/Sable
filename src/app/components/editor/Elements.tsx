@@ -1,12 +1,6 @@
 import { Scroll, Text } from 'folds';
-import type {
-  RenderElementProps,
-  RenderLeafProps} from 'slate-react';
-import {
-  useFocused,
-  useSelected,
-  useSlate,
-} from 'slate-react';
+import type { RenderElementProps, RenderLeafProps } from 'slate-react';
+import { useFocused, useSelected, useSlate } from 'slate-react';
 import { useAtomValue } from 'jotai';
 
 import * as css from '$styles/CustomHtml.css';

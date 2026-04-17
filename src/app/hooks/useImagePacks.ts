@@ -2,9 +2,7 @@ import type { Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AccountDataEvent } from '$types/matrix/accountData';
 import { StateEvent } from '$types/matrix/room';
-import type {
-  ImagePack,
-  ImageUsage} from '$plugins/custom-emoji';
+import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
   getGlobalImagePacks,
   getRoomImagePack,

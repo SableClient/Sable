@@ -1,5 +1,5 @@
 import { Box, Text } from 'folds';
-import type { Atom} from 'jotai';
+import type { Atom } from 'jotai';
 import { atom, useAtomValue } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';

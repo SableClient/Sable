@@ -1,29 +1,11 @@
 /* oxlint-disable no-param-reassign */
-import type {
-  ClipboardEventHandler,
-  KeyboardEventHandler,
-  ReactNode} from 'react';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll, Text } from 'folds';
-import type { Descendant, Editor} from 'slate';
+import type { Descendant, Editor } from 'slate';
 import { Node, createEditor } from 'slate';
-import type {
-  RenderLeafProps,
-  RenderElementProps,
-  RenderPlaceholderProps} from 'slate-react';
-import {
-  Slate,
-  Editable,
-  withReact,
-  ReactEditor,
-} from 'slate-react';
+import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
+import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { mobileOrTablet } from '$utils/user-agent';
 import { BlockType } from './types';

@@ -4,7 +4,7 @@ export default defineConfig({
   options: {
     typeAware: true,
   },
-  plugins: ['react', 'jsx-a11y', 'typescript', 'import', 'unicorn', 'oxc', 'vitest'],
+  plugins: ['react', 'jsx-a11y', 'typescript', 'import', 'unicorn', 'oxc', 'vitest', 'promise'],
   categories: {
     correctness: 'error',
     suspicious: 'warn',
@@ -33,6 +33,7 @@ export default defineConfig({
     'typescript/no-floating-promises': 'off',
     'typescript/no-unnecessary-type-arguments': 'off',
     'oxc/no-map-spread': 'off',
+    'promise/always-return': 'off',
   },
   overrides: [
     {

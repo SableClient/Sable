@@ -90,14 +90,20 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
  */
 const readStoredAccount = (dbName: string): Promise<string | undefined> =>
   new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: string | undefined) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
     const req = window.indexedDB.open(dbName);
-    req.addEventListener('error', () => resolve(undefined));
+    req.addEventListener('error', () => finish(undefined));
     req.addEventListener('success', () => {
       const db = req.result;
       try {
         if (!db.objectStoreNames.contains('account')) {
           db.close();
-          resolve(undefined);
+          finish(undefined);
         } else {
           const tx = db.transaction('account', 'readonly');
           const store = tx.objectStore('account');
@@ -106,19 +112,19 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
             db.close();
             const record = getReq.result;
             if (!record?.account_data) {
-              resolve(undefined);
+              finish(undefined);
             } else {
               try {
                 const data = JSON.parse(record.account_data);
-                resolve(data?.user_id ?? undefined);
+                finish(data?.user_id ?? undefined);
               } catch {
-                resolve(undefined);
+                finish(undefined);
               }
             }
           });
           getReq.addEventListener('error', () => {
             db.close();
-            resolve(undefined);
+            finish(undefined);
           });
         }
       } catch {
@@ -127,7 +133,7 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
         } catch {
           /* ignore */
         }
-        resolve(undefined);
+        finish(undefined);
       }
     });
   });
@@ -155,30 +161,11 @@ const isMismatch = (err: unknown): boolean => {
 };
 
 const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
+  /* eslint-disable promise/no-multiple-resolved */
   new Promise((resolve) => {
     const waitStart = performance.now();
-    if (isClientReadyForUi(mx.getSyncState())) {
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
-        attributes: { timed_out: 'false' },
-      });
-      resolve();
-      return;
-    }
-
-    let timer = 0;
-    let timedOut = false;
-    // eslint-disable-next-line unicorn/consistent-function-scoping
-    let finish = () => {};
-    const onSync = (state: string) => {
-      debugLog.info('sync', `Sync state changed: ${state}`, {
-        state,
-        ready: isClientReadyForUi(state),
-      });
-      if (isClientReadyForUi(state)) finish();
-    };
-
     let settled = false;
-    finish = () => {
+    const finish = () => {
       if (settled) return;
       settled = true;
       mx.removeListener(ClientEvent.Sync, onSync);
@@ -196,6 +183,25 @@ const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> 
         });
       }
       resolve();
+    };
+    /* eslint-enable promise/no-multiple-resolved */
+
+    if (isClientReadyForUi(mx.getSyncState())) {
+      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
+        attributes: { timed_out: 'false' },
+      });
+      finish();
+      return;
+    }
+
+    let timer = 0;
+    let timedOut = false;
+    const onSync = (state: string) => {
+      debugLog.info('sync', `Sync state changed: ${state}`, {
+        state,
+        ready: isClientReadyForUi(state),
+      });
+      if (isClientReadyForUi(state)) finish();
     };
 
     timer = window.setTimeout(() => {

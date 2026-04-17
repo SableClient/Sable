@@ -93,6 +93,14 @@ if ('serviceWorker' in navigator) {
     log.warn('SW ready failed:', err);
   });
 
+  // When the SW updates (skipWaiting + clients.claim), the old SW is killed and
+  // the new one has an empty sessions Map. Re-push the session immediately so
+  // push notifications and authenticated media fetches keep working.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    log.log('SW controller changed — re-sending session');
+    sendSessionToSW();
+  });
+
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const { data } = ev;
     if (!data || typeof data !== 'object') return;

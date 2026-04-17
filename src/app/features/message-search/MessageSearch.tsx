@@ -255,7 +255,7 @@ export function MessageSearch({
       {((msgSearchParams.term && status === 'pending') ||
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
-          {[...new Array(8).keys()].map((key) => (
+          {Array.from({ length: 8 }).map((_, key) => (
             <SequenceCard variant="SurfaceVariant" key={key} style={{ minHeight: toRem(80) }} />
           ))}
         </Box>

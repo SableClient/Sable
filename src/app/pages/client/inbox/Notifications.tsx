@@ -111,7 +111,7 @@ const groupNotifications = (
 ): RoomNotificationsGroup[] => {
   const groups: RoomNotificationsGroup[] = [];
   notifications.forEach((notification) => {
-    if (notification.event.type === StateEvent.RoomMember) return;
+    if (notification.event.type === (StateEvent.RoomMember as string)) return;
     if (!allowRooms.has(notification.room_id)) return;
 
     const groupIndex = groups.length - 1;
@@ -320,7 +320,7 @@ function RoomNotificationsGroupComp({
           <EncryptedContent mEvent={mEvent}>
             {() => {
               if (mEvent.isRedacted()) return <RedactedContent />;
-              if (mEvent.getType() === MessageEvent.Sticker)
+              if (mEvent.getType() === (MessageEvent.Sticker as string))
                 return (
                   <MSticker
                     content={mEvent.getContent()}
@@ -334,7 +334,7 @@ function RoomNotificationsGroupComp({
                     )}
                   />
                 );
-              if (mEvent.getType() === MessageEvent.RoomMessage) {
+              if (mEvent.getType() === (MessageEvent.RoomMessage as string)) {
                 const editedEvent = getEditedEvent(
                   evt.event_id,
                   mEvent,
@@ -776,7 +776,7 @@ export function Notifications() {
 
                 {timelineState.status === AsyncStatus.Loading && (
                   <Box direction="Column" gap="100">
-                    {[...new Array(8).keys()].map((key) => (
+                    {Array.from({ length: 8 }).map((_, key) => (
                       <SequenceCard
                         variant="SurfaceVariant"
                         key={key}

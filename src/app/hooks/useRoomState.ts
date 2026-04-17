@@ -14,7 +14,7 @@ export const useRoomState = (room: Room): StateTypeToState => {
     if (!roomState) return state;
 
     roomState.events.forEach((stateKeyToEvents, eventType) => {
-      if (eventType === StateEvent.RoomMember) {
+      if (eventType === (StateEvent.RoomMember as string)) {
         // Ignore room members from state on purpose;
         return;
       }

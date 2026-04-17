@@ -64,15 +64,23 @@ type UserExtendedSectionProps = {
   linkifyOpts: LinkifyOpts;
 };
 
+const renderValue = (val: unknown) => {
+  if (val === null || val === undefined) return 'n/a';
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val as string | number | boolean);
+};
+
+const clamp = (str: string | null | undefined, len: number) => {
+  const stringified = str ?? '';
+  return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
+};
+
 function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
-  const clamp = (str: string | null | undefined, len: number) => {
-    const stringified = String(str ?? '');
-    return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
-  };
   const [showMore, setShowMore] = useState(false);
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
@@ -86,13 +94,6 @@ function UserExtendedSection({
     if (hasCats) return 'Has cats—send love!';
     return null;
   }, [renderAnimals, isCat, hasCats]);
-
-  const renderValue = (val: unknown) => {
-    if (val === null || val === undefined) return 'n/a';
-    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-    if (typeof val === 'object') return JSON.stringify(val);
-    return String(val);
-  };
 
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];

@@ -417,11 +417,11 @@ export class CallEmbed {
     }
   }
 
-  public listenAction<T>(type: string, callback: (event: CustomEvent<T>) => void) {
+  public listenAction(type: string, callback: (event: CustomEvent<unknown>) => void) {
     return this.listenEvent(`action:${type}`, callback);
   }
 
-  public listenEvent<T>(type: string, callback: (event: T) => void) {
+  public listenEvent(type: string, callback: (event: unknown) => void) {
     this.call.on(type, callback);
     return () => {
       this.call.off(type, callback);

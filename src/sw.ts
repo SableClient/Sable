@@ -1,5 +1,6 @@
 /// <reference lib="WebWorker" />
 
+/* oxlint-disable unicorn/require-post-message-target-origin */
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 
 import { createPushNotifications } from './sw/pushNotification';

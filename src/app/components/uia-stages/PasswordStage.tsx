@@ -69,7 +69,7 @@ export function PasswordStage({
                 <Icon size="50" src={Icons.Warning} filled />
                 <Text size="T200">
                   <b>
-                    {errorCode === ErrorCode.M_FORBIDDEN
+                    {errorCode === (ErrorCode.M_FORBIDDEN as string)
                       ? 'Invalid Password!'
                       : `${errorCode}: ${error}`}
                   </b>

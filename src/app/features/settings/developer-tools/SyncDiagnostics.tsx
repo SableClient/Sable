@@ -39,8 +39,8 @@ const getRoomRenderingDiagnostics = (rooms: Room[]): RoomRenderingDiagnostics =>
 
   rooms.forEach((room) => {
     const membership = room.getMyMembership();
-    if (membership === Membership.Join) joinedRooms += 1;
-    if (membership === Membership.Invite) inviteRooms += 1;
+    if (membership === (Membership.Join as string)) joinedRooms += 1;
+    if (membership === (Membership.Invite as string)) inviteRooms += 1;
 
     if (!room.name || room.name.trim().length === 0) roomsMissingName += 1;
 
@@ -70,7 +70,7 @@ const getUnreadDriftRooms = (mx: ReturnType<typeof useMatrixClient>): UnreadDrif
 
   return mx
     .getRooms()
-    .filter((room) => !room.isSpaceRoom() && room.getMyMembership() === Membership.Join)
+    .filter((room) => !room.isSpaceRoom() && room.getMyMembership() === (Membership.Join as string))
     .reduce<UnreadDriftRoom[]>((driftRooms, room) => {
       const reconciledUnread = getUnreadInfo(room);
       const sdkTotal = room.getUnreadNotificationCount(NotificationCountType.Total);

@@ -84,7 +84,7 @@ export class CallWidgetDriver extends WidgetDriver {
         content as StateEvents[keyof StateEvents],
         stateKey
       );
-    } else if (eventType === EventType.RoomRedaction) {
+    } else if (eventType === (EventType.RoomRedaction as string)) {
       // special case: extract the `redacts` property and call redact
       r = await client.redactEvent(roomId, content.redacts);
     } else {
@@ -252,7 +252,7 @@ export class CallWidgetDriver extends WidgetDriver {
       if (
         ev.getType() === eventType &&
         !ev.isState() &&
-        (eventType !== EventType.RoomMessage || !msgtype || msgtype === ev.getContent().msgtype) &&
+        (eventType !== (EventType.RoomMessage as string) || !msgtype || msgtype === ev.getContent().msgtype) &&
         (ev.getStateKey() === undefined || stateKey === undefined || ev.getStateKey() === stateKey)
       ) {
         results.push(ev);

@@ -4,7 +4,7 @@ import { Box, IconButton, Button, Icon, Icons, Input, Text } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 
 interface IntlWithSupportedValues {
-  supportedValuesOf(key: 'timeZone' | string): string[];
+  supportedValuesOf(key: 'timeZone' | (string & {})): string[];
 }
 
 type TimezoneEditorProps = {

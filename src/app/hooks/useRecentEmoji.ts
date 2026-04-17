@@ -10,7 +10,7 @@ export const useRecentEmoji = (mx: MatrixClient, limit?: number): IEmoji[] => {
 
   useEffect(() => {
     const handleAccountData = (event: MatrixEvent) => {
-      if (event.getType() !== AccountDataEvent.ElementRecentEmoji) return;
+      if (event.getType() !== (AccountDataEvent.ElementRecentEmoji as string)) return;
       setRecentEmoji(getRecentEmojis(mx, limit));
     };
 

@@ -184,10 +184,10 @@ describe('exportSettingsAsJson', () => {
 
   beforeEach(() => {
     fakeUrl = 'blob:fake-url';
-    anchorClick = vi.fn();
+    anchorClick = vi.fn<() => void>();
     vi.stubGlobal('URL', {
-      createObjectURL: vi.fn().mockReturnValue(fakeUrl),
-      revokeObjectURL: vi.fn(),
+      createObjectURL: vi.fn<() => string>().mockReturnValue(fakeUrl),
+      revokeObjectURL: vi.fn<() => void>(),
     });
 
     // Intercept anchor element creation to capture click calls.
@@ -246,7 +246,7 @@ describe('importSettingsFromJson', () => {
     accept: string;
     files: FileList | null;
     onchange: ((ev: Event) => void) | null;
-    click: ReturnType<typeof vi.fn>;
+    click: vi.fn<() => void>;
   };
 
   beforeEach(() => {
@@ -255,7 +255,7 @@ describe('importSettingsFromJson', () => {
       accept: '',
       files: null,
       onchange: null,
-      click: vi.fn(),
+      click: vi.fn<() => void>(),
     };
 
     const realCreate = document.createElement.bind(document);

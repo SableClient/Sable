@@ -35,7 +35,7 @@ export function ActionUIA({ authData, ongoingFlow, action, onCancel }: ActionUIA
       stepCount={ongoingFlow.stages.length}
       onCancel={onCancel}
     >
-      {stageToComplete.type === AuthType.Password && (
+      {stageToComplete.type === (AuthType.Password as string) && (
         <PasswordStage
           userId={mx.getUserId()!}
           stageData={stageToComplete}
@@ -43,7 +43,7 @@ export function ActionUIA({ authData, ongoingFlow, action, onCancel }: ActionUIA
           submitAuthDict={action}
         />
       )}
-      {stageToComplete.type === AuthType.Sso && stageToComplete.session && (
+      {stageToComplete.type === (AuthType.Sso as string) && stageToComplete.session && (
         <SSOStage
           ssoRedirectURL={mx.getFallbackAuthUrl(AuthType.Sso, stageToComplete.session)}
           stageData={stageToComplete}

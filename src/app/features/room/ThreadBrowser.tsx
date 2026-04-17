@@ -154,9 +154,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   // Use Math.max so we never show fewer replies than the server reports.
   const replyCount = Math.max(localReplyCount, thread.length ?? 0);
 
-  const lastReply = thread.events
-    .filter((ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev))
-    .at(-1);
+  const lastReply = thread.events.findLast(
+    (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
+  );
   const lastSenderId = lastReply?.getSender() ?? '';
   const lastDisplayName =
     getMemberDisplayName(room, lastSenderId, nicknames) ??

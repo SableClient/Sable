@@ -5,7 +5,7 @@ import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { SettingTile } from '$components/setting-tile';
 import { Settings } from './Settings';
 
-const writeText = vi.fn();
+const writeText = vi.fn<() => Promise<void>>();
 
 const { mockMatrixClient, mockProfile } = vi.hoisted(() => ({
   mockMatrixClient: { getUserId: () => '@alice:server' },
@@ -29,10 +29,10 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
 vi.mock('$state/hooks/settings', () => ({
   useSetting: (_atom: unknown, key: string) => {
     if (key === 'settingsLinkBaseUrlOverride') {
-      return [settingsLinkBaseUrlOverride, vi.fn()] as const;
+      return [settingsLinkBaseUrlOverride, vi.fn<(url: string | undefined) => void>()] as const;
     }
 
-    return [true, vi.fn()] as const;
+    return [true, vi.fn<(value: boolean) => void>()] as const;
   },
 }));
 
@@ -153,7 +153,7 @@ describe('Settings', () => {
     render(
       <ClientConfigProvider value={{ settingsLinkBaseUrl: 'https://config.example' }}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
-          <Settings activeSection="appearance" requestClose={vi.fn()} />
+          <Settings activeSection="appearance" requestClose={vi.fn<() => void>()} />
         </ScreenSizeProvider>
       </ClientConfigProvider>
     );
@@ -174,7 +174,7 @@ describe('Settings', () => {
     render(
       <ClientConfigProvider value={{ settingsLinkBaseUrl: 'https://config.example' }}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
-          <Settings activeSection="appearance" requestClose={vi.fn()} />
+          <Settings activeSection="appearance" requestClose={vi.fn<() => void>()} />
         </ScreenSizeProvider>
       </ClientConfigProvider>
     );

@@ -63,9 +63,9 @@ export const resolveSlidingEnabled = (enabled: SlidingSyncConfig['enabled']): bo
 const deleteDatabase = (name: string): Promise<void> =>
   new Promise((resolve) => {
     const req = window.indexedDB.deleteDatabase(name);
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve(); // resolve anyway — we tried
-    req.onblocked = () => resolve();
+    req.addEventListener('success', () => resolve());
+    req.addEventListener('error', () => resolve()); // resolve anyway — we tried
+    req.addEventListener('blocked', () => resolve());
   });
 
 const deleteSyncStoreGroup = async (syncStoreName: string): Promise<void> => {
@@ -91,8 +91,8 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
 const readStoredAccount = (dbName: string): Promise<string | undefined> =>
   new Promise((resolve) => {
     const req = window.indexedDB.open(dbName);
-    req.onerror = () => resolve(undefined);
-    req.onsuccess = () => {
+    req.addEventListener('error', () => resolve(undefined));
+    req.addEventListener('success', () => {
       const db = req.result;
       try {
         if (!db.objectStoreNames.contains('account')) {
@@ -116,10 +116,10 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
               }
             }
           };
-          getReq.onerror = () => {
+          getReq.addEventListener('error', () => {
             db.close();
             resolve(undefined);
-          };
+          });
         }
       } catch {
         try {

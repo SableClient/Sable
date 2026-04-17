@@ -90,7 +90,7 @@ export type IRoomCreateContent = {
   };
 };
 
-export type GetContentCallback = <T>() => T;
+export type GetContentCallback = () => unknown;
 
 export type RoomToParents = Map<string, Set<string>>;
 export type Unread = {

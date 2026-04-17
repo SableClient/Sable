@@ -49,6 +49,9 @@ const MESSAGE_EVENT_TYPES = new Set([
 const normalizeMessageType = (t: string): string =>
   t === 'm.room.encrypted' || t === 'm.room.message.encrypted' ? 'm.room.message' : t;
 
+const getPmpId = (ev: MatrixEvent): string | null =>
+  ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
+
 export function useProcessedTimeline({
   items,
   linkedTimelines,
@@ -78,24 +81,17 @@ export function useProcessedTimeline({
 
       if (!mEvent) return acc;
 
-      const {
-        getId: getEvtId,
-        getSender: getEvtSender,
-        isRedacted: getEvtIsRedacted,
-        getTs: getEvtTs,
-        getType: getEvtType,
-        threadRootId,
-      } = mEvent;
+      const { threadRootId } = mEvent;
 
-      const mEventId = getEvtId.call(mEvent);
+      const mEventId = mEvent.getId();
       if (!mEventId) return acc;
 
-      const eventSender = getEvtSender.call(mEvent) ?? null;
+      const eventSender = mEvent.getSender() ?? null;
 
       if (eventSender && ignoredUsersSet.has(eventSender)) return acc;
-      if (getEvtIsRedacted.call(mEvent) && !(showHiddenEvents || showTombstoneEvents)) return acc;
+      if (mEvent.isRedacted() && !(showHiddenEvents || showTombstoneEvents)) return acc;
 
-      const type = getEvtType.call(mEvent);
+      const type = mEvent.getType();
 
       if (type === 'm.room.member') {
         const membershipChanged = isMembershipChanged(mEvent);
@@ -134,24 +130,19 @@ export function useProcessedTimeline({
       }
 
       if (!dayDivider) {
-        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), getEvtTs.call(mEvent)) : false;
+        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
       }
 
       const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
 
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
-        const { getSender: getPrevSender, getType: getPrevType, getTs: getPrevTs } = prevEvent;
-
         if (isMessageEvent) {
-          const withinTimeThreshold =
-            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) < 2;
-          const senderMatch = getPrevSender.call(prevEvent) === eventSender;
+          const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+          const senderMatch = prevEvent.getSender() === eventSender;
           const typeMatch =
-            normalizeMessageType(getPrevType.call(prevEvent)) === normalizeMessageType(type);
+            normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
           const dividerOk = !newDivider || eventSender === mxUserId;
-          const getPmpId = (ev: MatrixEvent): string | null =>
-            ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
           collapsed =
             dividerOk &&
@@ -160,7 +151,7 @@ export function useProcessedTimeline({
             withinTimeThreshold &&
             getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
-          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(getPrevType.call(prevEvent));
+          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
           collapsed = !prevIsMessageEvent;
         }
       }

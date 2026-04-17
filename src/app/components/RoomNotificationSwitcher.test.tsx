@@ -8,7 +8,7 @@ import { RoomNotificationMode } from '$hooks/useRoomsNotificationPreferences';
 import { RoomNotificationModeSwitcher } from './RoomNotificationSwitcher';
 
 const { mockSetMode, modeStateStatus } = vi.hoisted(() => ({
-  mockSetMode: vi.fn(),
+  mockSetMode: vi.fn<(mode: RoomNotificationMode, current: RoomNotificationMode) => void>(),
   modeStateStatus: { current: 'idle' as 'idle' | 'loading' },
 }));
 

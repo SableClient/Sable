@@ -1088,7 +1088,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
       if (!stickerUrl) return;
 
-      const info = await getImageInfo(
+      const info = getImageInfo(
         await loadImageElement(stickerUrl),
         await getImageUrlBlob(stickerUrl)
       );

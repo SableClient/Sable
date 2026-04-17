@@ -91,7 +91,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}">${node.children}</a>`;
+      return `<a href="${encodeURI(node.href)}">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:
@@ -185,7 +185,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
-      return `[${node.children}](${node.href})`;
+      return `[${children}](${node.href})`;
     case BlockType.Command:
       return `/${node.command}`;
     case BlockType.Small:

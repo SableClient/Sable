@@ -33,7 +33,7 @@ export const parseSidebar = (
   const safeToAdd = (spaceId: string): boolean => {
     if (typeof spaceId !== 'string') return false;
     const space = mx.getRoom(spaceId);
-    if (space?.getMyMembership() !== Membership.Join) return false;
+    if (space?.getMyMembership() !== (Membership.Join as string)) return false;
     return isSpace(space);
   };
 
@@ -89,7 +89,7 @@ export const useSidebarItems = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.CinnySpaces) {
+        if (mEvent.getType() === (AccountDataEvent.CinnySpaces as string)) {
           const newContent = mEvent.getContent<InCinnySpacesContent>();
           setSidebarItems(parseSidebar(mx, orphanSpaces, newContent));
         }

@@ -5,8 +5,8 @@ import { Reply } from './Reply';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
-  mockUseRoomEvent: vi.fn(),
-  mockInvalidateQueries: vi.fn(),
+  mockUseRoomEvent: vi.fn<() => unknown>(),
+  mockInvalidateQueries: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -55,7 +55,7 @@ vi.mock('$hooks/useMatrixClient', () => ({
 }));
 
 vi.mock('$hooks/useMemberEventParser', () => ({
-  useMemberEventParser: () => vi.fn(),
+  useMemberEventParser: () => vi.fn<() => unknown>(),
 }));
 
 vi.mock('$hooks/useMentionClickHandler', () => ({
@@ -114,7 +114,7 @@ describe('Reply', () => {
   });
 
   it('does not render unresolved mxc images as raw browser img tags in reply previews', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn<() => void>());
 
     mockUseRoomEvent.mockReturnValue(
       createReplyEvent(

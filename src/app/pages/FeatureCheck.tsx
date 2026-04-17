@@ -12,7 +12,7 @@ export function FeatureCheck({ children }: { children: ReactNode }) {
     checkIDBSupport();
   }, [checkIDBSupport]);
 
-  if (idbSupportState.status === AsyncStatus.Success && idbSupportState.data === false) {
+  if (idbSupportState.status === AsyncStatus.Success && !idbSupportState.data) {
     return (
       <SplashScreen>
         <Box grow="Yes" alignItems="Center" justifyContent="Center">

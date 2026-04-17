@@ -43,7 +43,7 @@ type RenderMessageContentProps = {
   msgType: string;
   ts: number;
   edited?: boolean;
-  getContent: <T>() => T;
+  getContent: () => unknown;
   mediaAutoLoad?: boolean;
   bundledPreview?: boolean;
   urlPreview?: boolean;
@@ -251,11 +251,11 @@ function RenderMessageContentInternal({
       />
     );
 
-  if (msgType === MsgType.Text) {
+  if (msgType === (MsgType.Text as string)) {
     return (
       <MText
         edited={edited}
-        content={content as Record<string, unknown>}
+        content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -263,7 +263,7 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Emote) {
+  if (msgType === (MsgType.Emote as string)) {
     if ((content as { 'fyi.cisnt.headpat'?: boolean })['fyi.cisnt.headpat']) {
       return (
         <MCuteEvent
@@ -279,7 +279,7 @@ function RenderMessageContentInternal({
       <MEmote
         displayName={displayName}
         edited={edited}
-        content={content as Record<string, unknown>}
+        content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -287,11 +287,11 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Notice) {
+  if (msgType === (MsgType.Notice as string)) {
     return (
       <MNotice
         edited={edited}
-        content={content as Record<string, unknown>}
+        content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -299,7 +299,7 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Image) {
+  if (msgType === (MsgType.Image as string)) {
     const info = (content as { info?: { mimetype?: string } }).info;
     const isGif =
       info?.mimetype === 'image/gif' ||
@@ -334,7 +334,7 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Video) {
+  if (msgType === (MsgType.Video as string)) {
     return renderCaptionedAttachment(
       <MVideo
         content={content as Record<string, never> & { msgtype: MsgType.Video }}
@@ -364,7 +364,7 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Audio) {
+  if (msgType === (MsgType.Audio as string)) {
     return renderCaptionedAttachment(
       <MAudio
         content={content as Record<string, never> & { msgtype: MsgType.Audio }}
@@ -377,8 +377,8 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.File) return renderFile();
-  if (msgType === MsgType.Location) return <MLocation content={content} />;
+  if (msgType === (MsgType.File as string)) return renderFile();
+  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events

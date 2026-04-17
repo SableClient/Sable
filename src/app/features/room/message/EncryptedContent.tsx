@@ -13,10 +13,10 @@ type EncryptedContentProps = {
 
 export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
   const mx = useMatrixClient();
-  const [, toggleEncrypted] = useState(mEvent.getType() === MessageEvent.RoomMessageEncrypted);
+  const [, toggleEncrypted] = useState(mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string));
 
   useEffect(() => {
-    if (mEvent.getType() !== MessageEvent.RoomMessageEncrypted) return;
+    if (mEvent.getType() !== (MessageEvent.RoomMessageEncrypted as string)) return;
     // Sample 5% of events for per-event decryption latency profiling
     if (Math.random() < 0.05) {
       const start = performance.now();
@@ -31,14 +31,14 @@ export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
   }, [mx, mEvent]);
 
   useEffect(() => {
-    toggleEncrypted(mEvent.getType() === MessageEvent.RoomMessageEncrypted);
+    toggleEncrypted(mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string));
     const handleDecrypted: MatrixEventHandlerMap[MatrixEventEvent.Decrypted] = (event) => {
       if (event.isDecryptionFailure()) {
         Sentry.metrics.count('sable.decryption.failure', 1, {
           attributes: { reason: event.decryptionFailureReason ?? 'UNKNOWN_ERROR' },
         });
       }
-      toggleEncrypted(event.getType() === MessageEvent.RoomMessageEncrypted);
+      toggleEncrypted(event.getType() === (MessageEvent.RoomMessageEncrypted as string));
     };
     mEvent.on(MatrixEventEvent.Decrypted, handleDecrypted);
     return () => {

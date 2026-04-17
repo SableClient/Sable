@@ -185,7 +185,7 @@ export const useSpaceHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== StateEvent.SpaceChild) return;
+        if (mEvent.getType() !== (StateEvent.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
@@ -317,7 +317,7 @@ export const useSpaceJoinedHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== StateEvent.SpaceChild) return;
+        if (mEvent.getType() !== (StateEvent.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
@@ -367,7 +367,7 @@ export const useFetchSpaceHierarchyLevel = (
     },
     retry: 5,
     retryDelay: (failureCount, error) => {
-      if (error instanceof MatrixError && error.errcode === ErrorCode.M_LIMIT_EXCEEDED) {
+      if (error instanceof MatrixError && error.errcode === (ErrorCode.M_LIMIT_EXCEEDED as string)) {
         const { retry_after_ms: delay } = error.data;
         if (typeof delay === 'number') {
           return delay;

@@ -646,7 +646,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const focusItem =
     jumpIndex >= 0 && processedEvents[jumpIndex]
       ? {
-          index: processedEvents[jumpIndex]!.itemIndex,
+          index: processedEvents[jumpIndex].itemIndex,
           highlight: true,
           scrollTo: false as const,
         }

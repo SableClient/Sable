@@ -776,10 +776,10 @@ export function Notifications() {
 
                 {timelineState.status === AsyncStatus.Loading && (
                   <Box direction="Column" gap="100">
-                    {Array.from({ length: 8 }).map((_, key) => (
+                    {Array.from({ length: 8 }).map(() => (
                       <SequenceCard
                         variant="SurfaceVariant"
-                        key={key}
+                        key={crypto.randomUUID()}
                         style={{ minHeight: toRem(80) }}
                       />
                     ))}

@@ -12,19 +12,19 @@ afterEach(() => {
 
 describe('highlightCode', () => {
   it('normalizes explicit aliases before highlighting', async () => {
-    const normalizeLanguage = vi.fn((language: string) =>
-      language === 'ts' ? 'typescript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>(
+      (language: string) => language === 'ts' ? 'typescript' : language
     );
-    const detectLanguage = vi.fn(() => null);
-    const highlight = vi.fn(
-      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
-    );
+    const detectLanguage = vi.fn<() => null>();
+    const highlight = vi.fn<
+      (language: string, code: string) => Promise<string>
+    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -48,18 +48,18 @@ describe('highlightCode', () => {
   });
 
   it('maps jsx to tsx when Arborium supports tsx', async () => {
-    const normalizeLanguage = vi.fn((language: string) => language);
-    const detectLanguage = vi.fn(() => null);
-    const highlight = vi.fn(
-      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
-    );
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
+    const detectLanguage = vi.fn<() => null>();
+    const highlight = vi.fn<
+      (language: string, code: string) => Promise<string>
+    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
       availableLanguages: ['tsx', 'html'],
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -83,18 +83,18 @@ describe('highlightCode', () => {
   });
 
   it('maps markup to html when Arborium supports html', async () => {
-    const normalizeLanguage = vi.fn((language: string) => language);
-    const detectLanguage = vi.fn(() => null);
-    const highlight = vi.fn(
-      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
-    );
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
+    const detectLanguage = vi.fn<() => null>();
+    const highlight = vi.fn<
+      (language: string, code: string) => Promise<string>
+    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
       availableLanguages: ['tsx', 'html'],
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -120,7 +120,7 @@ describe('highlightCode', () => {
   it.each(['txt', 'plaintext', 'plain', 'text', 'log', 'csv', 'makefile', 'make'])(
     'returns plain fallback for %s when Arborium reports it unavailable',
     async (language) => {
-      const normalizeLanguage = vi.fn((nextLanguage: string) => {
+      const normalizeLanguage = vi.fn<(nextLanguage: string) => string>((nextLanguage: string) => {
         if (nextLanguage === 'txt' || nextLanguage === 'plaintext' || nextLanguage === 'plain') {
           return 'text';
         }
@@ -129,9 +129,9 @@ describe('highlightCode', () => {
         }
         return nextLanguage;
       });
-      const detectLanguage = vi.fn(() => null);
-      const highlight = vi.fn(async () => '<pre data-language="unexpected"></pre>');
-      const isLanguageAvailable = vi.fn(
+      const detectLanguage = vi.fn<() => null>();
+      const highlight = vi.fn<() => Promise<string>>(async () => '<pre data-language="unexpected"></pre>');
+      const isLanguageAvailable = vi.fn<(nextLanguage: string) => Promise<boolean>>(
         async (nextLanguage: string) => !['text', 'log', 'csv', 'make'].includes(nextLanguage)
       );
       const module = {
@@ -140,7 +140,7 @@ describe('highlightCode', () => {
         highlight,
         isLanguageAvailable,
       } as unknown as ArboriumModule;
-      const loadModule = vi.fn(async () => module);
+      const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
       const { highlightCode } = await import('.');
 
@@ -165,15 +165,15 @@ describe('highlightCode', () => {
   );
 
   it('does not detect a language when allowDetect is false', async () => {
-    const normalizeLanguage = vi.fn((language: string) => language);
-    const detectLanguage = vi.fn(() => 'javascript');
-    const highlight = vi.fn(async () => '<pre></pre>');
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
+    const detectLanguage = vi.fn<() => string>();
+    const highlight = vi.fn<() => Promise<string>>(async () => '<pre></pre>');
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -196,19 +196,19 @@ describe('highlightCode', () => {
   });
 
   it('detects a language only when allowDetect is true', async () => {
-    const normalizeLanguage = vi.fn((language: string) =>
-      language === 'js' ? 'javascript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>(
+      (language: string) => language === 'js' ? 'javascript' : language
     );
-    const detectLanguage = vi.fn(() => 'js');
-    const highlight = vi.fn(
-      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
-    );
+    const detectLanguage = vi.fn<() => string>();
+    const highlight = vi.fn<
+      (language: string, code: string) => Promise<string>
+    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -231,7 +231,7 @@ describe('highlightCode', () => {
   });
 
   it('returns plain escaped code when Arborium fails to load', async () => {
-    const loadModule = vi.fn(async () => {
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => {
       throw new Error('boom');
     });
 
@@ -254,15 +254,15 @@ describe('highlightCode', () => {
   });
 
   it('treats escaped Arborium output as plain fallback', async () => {
-    const normalizeLanguage = vi.fn((language: string) => language);
-    const detectLanguage = vi.fn(() => null);
-    const highlight = vi.fn(async () => '&lt;span&gt;');
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
+    const detectLanguage = vi.fn<() => null>();
+    const highlight = vi.fn<() => Promise<string>>(async () => '&lt;span&gt;');
     const module = {
       normalizeLanguage,
       detectLanguage,
       highlight,
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 
@@ -283,11 +283,11 @@ describe('highlightCode', () => {
   });
 
   it('returns plain escaped code with the resolved language when highlighting fails', async () => {
-    const normalizeLanguage = vi.fn((language: string) =>
-      language === 'ts' ? 'typescript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>(
+      (language: string) => language === 'ts' ? 'typescript' : language
     );
-    const detectLanguage = vi.fn(() => null);
-    const highlight = vi.fn(async () => {
+    const detectLanguage = vi.fn<() => null>();
+    const highlight = vi.fn<() => Promise<string>>(async () => {
       throw new Error('bad highlight');
     });
     const module = {
@@ -295,7 +295,7 @@ describe('highlightCode', () => {
       detectLanguage,
       highlight,
     } as unknown as ArboriumModule;
-    const loadModule = vi.fn(async () => module);
+    const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
     const { highlightCode } = await import('.');
 

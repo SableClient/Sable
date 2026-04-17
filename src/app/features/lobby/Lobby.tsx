@@ -54,7 +54,6 @@ import { StateEvent } from '$types/matrix/room';
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
 import { getStateEvent } from '$utils/room';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
-import type { InCinnySpacesContent } from '$hooks/useSidebarItems';
 import {
   makeCinnySpacesContent,
   sidebarItemWithout,
@@ -552,10 +551,7 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(
-        AccountDataEvent.CinnySpaces as keyof AccountDataEvents,
-        newSpacesContent as InCinnySpacesContent
-      );
+      mx.setAccountData(AccountDataEvent.CinnySpaces as keyof AccountDataEvents, newSpacesContent);
     },
     [mx, sidebarItems, sidebarSpaces]
   );

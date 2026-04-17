@@ -569,7 +569,11 @@ export function PublicRooms() {
                   {isLoading && (
                     <RoomCardGrid>
                       {Array.from({ length: currentLimit }).map((_, item) => (
-                        <RoomCardBase key={item} style={{ minHeight: toRem(260) }} />
+                        <RoomCardBase
+                          // oxlint-disable-next-line react/no-array-index-key
+                          key={`placeholder-${item}`}
+                          style={{ minHeight: toRem(260) }}
+                        />
                       ))}
                     </RoomCardGrid>
                   )}

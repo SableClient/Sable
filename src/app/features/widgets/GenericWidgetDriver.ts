@@ -82,7 +82,7 @@ export class GenericWidgetDriver extends WidgetDriver {
         content as StateEvents[keyof StateEvents],
         stateKey
       );
-    } else if (eventType === EventType.RoomRedaction) {
+    } else if (eventType === (EventType.RoomRedaction as string)) {
       r = await client.redactEvent(roomId, content.redacts);
     } else {
       r = await client.sendEvent(
@@ -242,7 +242,7 @@ export class GenericWidgetDriver extends WidgetDriver {
 
       const matchesEventType = ev.getType() === eventType && !ev.isState();
       const matchesMsgType =
-        eventType !== EventType.RoomMessage || !msgtype || msgtype === ev.getContent().msgtype;
+        eventType !== (EventType.RoomMessage as string) || !msgtype || msgtype === ev.getContent().msgtype;
       const eventStateKey = ev.getStateKey();
       const matchesStateKey =
         eventStateKey === undefined || stateKey === undefined || eventStateKey === stateKey;

@@ -7,6 +7,18 @@ export type GroupMemberInfo = {
   avatarUrl?: string;
 };
 
+// Filter out bridge bots (not bridged users)
+const isBridgeBot = (userId: string): boolean => {
+  const localpart = userId.split(':')[0]?.substring(1) ?? '';
+  const lowerLocalpart = localpart.toLowerCase();
+
+  // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
+  // Don't filter bridge users with IDs like discord_378405164077547520
+  if (lowerLocalpart.endsWith('bot')) return true;
+
+  return false;
+};
+
 /**
  * Fetches member information for a group DM.
  * Gets all joined members from room state and fetches their profiles.
@@ -29,18 +41,6 @@ export const useGroupDMMembers = (
 
         // Now get all members
         const allMembers = room.getMembers();
-
-        // Filter out bridge bots (not bridged users)
-        const isBridgeBot = (userId: string): boolean => {
-          const localpart = userId.split(':')[0]?.substring(1) ?? '';
-          const lowerLocalpart = localpart.toLowerCase();
-
-          // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
-          // Don't filter bridge users with IDs like discord_378405164077547520
-          if (lowerLocalpart.endsWith('bot')) return true;
-
-          return false;
-        };
 
         const allUserIds = allMembers
           .filter(

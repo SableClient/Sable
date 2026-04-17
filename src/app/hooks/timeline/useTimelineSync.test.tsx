@@ -7,11 +7,11 @@ import { useTimelineSync } from './useTimelineSync';
 
 vi.mock('@sentry/react', () => ({
   default: {},
-  startSpan: async (_options: unknown, fn: () => Promise<unknown>) => fn(),
-  addBreadcrumb: vi.fn(),
-  captureMessage: vi.fn(),
+  startSpan: vi.fn<(_options: unknown, fn: () => Promise<unknown>) => Promise<unknown>>(),
+  addBreadcrumb: vi.fn<() => void>(),
+  captureMessage: vi.fn<(msg: string) => void>(),
   metrics: {
-    distribution: vi.fn(),
+    distribution: vi.fn<() => void>(),
   },
 }));
 
@@ -77,7 +77,7 @@ function createRoom(
 describe('useTimelineSync', () => {
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {
     const { room, timelineSet, events } = createRoom();
-    const scrollToBottom = vi.fn();
+    const scrollToBottom = vi.fn<() => void>();
 
     renderHook(() =>
       useTimelineSync({
@@ -87,7 +87,7 @@ describe('useTimelineSync', () => {
         isAtBottomRef: { current: false },
         scrollToBottom,
         unreadInfo: undefined,
-        setUnreadInfo: vi.fn(),
+        setUnreadInfo: vi.fn<() => void>(),
         hideReadsRef: { current: false },
         readUptoEventIdRef: { current: undefined },
       })
@@ -109,7 +109,7 @@ describe('useTimelineSync', () => {
 
   it('keeps a bottom-pinned user anchored after TimelineReset', async () => {
     const { room, timelineSet } = createRoom();
-    const scrollToBottom = vi.fn();
+    const scrollToBottom = vi.fn<() => void>();
 
     renderHook(() =>
       useTimelineSync({
@@ -119,7 +119,7 @@ describe('useTimelineSync', () => {
         isAtBottomRef: { current: true },
         scrollToBottom,
         unreadInfo: undefined,
-        setUnreadInfo: vi.fn(),
+        setUnreadInfo: vi.fn<() => void>(),
         hideReadsRef: { current: false },
         readUptoEventIdRef: { current: undefined },
       })
@@ -136,7 +136,7 @@ describe('useTimelineSync', () => {
   it('resets timeline state when room.roomId changes and eventId is not set', async () => {
     const roomOne = createRoom('!room:one');
     const roomTwo = createRoom('!room:two');
-    const scrollToBottom = vi.fn();
+    const scrollToBottom = vi.fn<() => void>();
 
     const { result, rerender } = renderHook(
       ({ room, eventId }) =>
@@ -148,7 +148,7 @@ describe('useTimelineSync', () => {
           isAtBottomRef: { current: false },
           scrollToBottom,
           unreadInfo: undefined,
-          setUnreadInfo: vi.fn(),
+          setUnreadInfo: vi.fn<() => void>(),
           hideReadsRef: { current: false },
           readUptoEventIdRef: { current: undefined },
         }),
@@ -173,7 +173,7 @@ describe('useTimelineSync', () => {
   it('does not reset timeline when eventId is set during a room change', async () => {
     const roomOne = createRoom('!room:one');
     const roomTwo = createRoom('!room:two');
-    const scrollToBottom = vi.fn();
+    const scrollToBottom = vi.fn<() => void>();
 
     const { result, rerender } = renderHook(
       ({ room, eventId }) =>
@@ -185,7 +185,7 @@ describe('useTimelineSync', () => {
           isAtBottomRef: { current: false },
           scrollToBottom,
           unreadInfo: undefined,
-          setUnreadInfo: vi.fn(),
+          setUnreadInfo: vi.fn<() => void>(),
           hideReadsRef: { current: false },
           readUptoEventIdRef: { current: undefined },
         }),
@@ -208,7 +208,7 @@ describe('useTimelineSync', () => {
   it('does not reset timeline when the roomId stays the same', async () => {
     const roomOne = createRoom('!room:one');
     const sameRoomId = createRoom('!room:one');
-    const scrollToBottom = vi.fn();
+    const scrollToBottom = vi.fn<() => void>();
 
     const { result, rerender } = renderHook(
       ({ room }) =>
@@ -220,7 +220,7 @@ describe('useTimelineSync', () => {
           isAtBottomRef: { current: false },
           scrollToBottom,
           unreadInfo: undefined,
-          setUnreadInfo: vi.fn(),
+          setUnreadInfo: vi.fn<() => void>(),
           hideReadsRef: { current: false },
           readUptoEventIdRef: { current: undefined },
         }),

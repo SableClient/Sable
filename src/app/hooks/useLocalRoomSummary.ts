@@ -25,10 +25,10 @@ export const useLocalRoomSummary = (room: Room): LocalRoomSummary => {
   const historyContent = historyEvent?.getContent();
   const worldReadable =
     historyContent && typeof historyContent.history_visibility === 'string'
-      ? historyContent.history_visibility === HistoryVisibility.WorldReadable
+      ? historyContent.history_visibility === (HistoryVisibility.WorldReadable as string)
       : undefined;
 
-  const guestCanJoin = room.getGuestAccess() === GuestAccess.CanJoin;
+  const guestCanJoin = (room.getGuestAccess() as string) === (GuestAccess.CanJoin as string);
 
   return {
     roomId: room.roomId,

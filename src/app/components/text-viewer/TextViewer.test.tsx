@@ -5,12 +5,8 @@ import { TextViewer } from './TextViewer';
 import * as css from './TextViewer.css';
 
 const { copyToClipboard, CodeHighlightRenderer } = vi.hoisted(() => ({
-  copyToClipboard: vi.fn(),
-  CodeHighlightRenderer: vi.fn(({ code, language, allowDetect }) => (
-    <code data-testid="highlight" data-language={language} data-allow-detect={String(allowDetect)}>
-      {code}
-    </code>
-  )),
+  copyToClipboard: vi.fn<() => Promise<void>>(),
+  CodeHighlightRenderer: vi.fn<(props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element>(),
 }));
 
 vi.mock('$utils/dom', () => ({
@@ -30,7 +26,7 @@ describe('TextViewer', () => {
     const user = userEvent.setup();
 
     render(
-      <TextViewer name="notes.txt" text={'line 1\nline 2'} langName="txt" requestClose={vi.fn()} />
+      <TextViewer name="notes.txt" text={'line 1\nline 2'} langName="txt" requestClose={vi.fn<() => void>()} />
     );
 
     expect(CodeHighlightRenderer).toHaveBeenCalled();

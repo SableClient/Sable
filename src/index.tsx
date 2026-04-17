@@ -28,6 +28,24 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
+const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
+  const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
+  const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
+
+  if (userPreference === 'true') {
+    return;
+  }
+
+  // oxlint-disable-next-line eslint(no-alert) -- PWA update prompt requires browser confirm dialog
+  if (window.confirm('A new version of the app is available. Refresh to update?')) {
+    if (registration.waiting) {
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+    }
+    window.location.reload();
+  }
+};
+
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
   const swUrl = isProduction
@@ -39,34 +57,17 @@ if ('serviceWorker' in navigator) {
     swRegisterOptions.type = 'module';
   }
 
-  const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-    const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-    const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-    if (userPreference === 'true') {
-      return;
-    }
-
-    // oxlint-disable-next-line eslint(no-alert) -- PWA update prompt requires browser confirm dialog
-    if (window.confirm('A new version of the app is available. Refresh to update?')) {
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-      }
-      window.location.reload();
-    }
-  };
-
   navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
     registration.addEventListener('updatefound', () => {
       const installingWorker = registration.installing;
       if (installingWorker) {
-        installingWorker.onstatechange = () => {
+        installingWorker.addEventListener('statechange', () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               showUpdateAvailablePrompt(registration);
             }
           }
-        };
+        });
       }
     });
   });
@@ -101,6 +102,7 @@ if ('serviceWorker' in navigator) {
 
     if (data.type === 'token' && data.id) {
       const token = localStorage.getItem('cinny_access_token') ?? undefined;
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
       ev.source?.postMessage({
         replyTo: data.id,
         payload: token,

@@ -348,7 +348,7 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
   let text = '';
 
   nodes.forEach((node) => {
-    if (node.type === 'text') {
+    if ((node.type as unknown as string) === 'text') {
       text += node.data;
     } else if (node instanceof Element && node.children) {
       text += extractTextFromChildren(node.children);

@@ -64,7 +64,7 @@ export function useSettingsSyncEffect(): void {
   // Live updates from other devices
   const onAccountData = useCallback(
     (event: MatrixEvent) => {
-      if (event.getType() !== AccountDataEvent.SableSettings) return;
+      if (event.getType() !== (AccountDataEvent.SableSettings as string)) return;
       if (!settingsRef.current.settingsSyncEnabled) return;
 
       const rawContent = event.getContent();

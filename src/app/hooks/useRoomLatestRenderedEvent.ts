@@ -21,7 +21,7 @@ export const useRoomLatestRenderedEvent = (room: Room) => {
 
         if (!evt) continue;
         if (reactionOrEditEvent(evt)) continue;
-        if (evt.getType() === StateEvent.RoomMember) {
+        if (evt.getType() === (StateEvent.RoomMember as string)) {
           const membershipChanged = isMembershipChanged(evt);
           if (membershipChanged && hideMembershipEvents) continue;
           if (!membershipChanged && hideNickAvatarEvents) continue;
@@ -29,12 +29,12 @@ export const useRoomLatestRenderedEvent = (room: Room) => {
         }
 
         if (
-          evt.getType() === MessageEvent.RoomMessage ||
-          evt.getType() === MessageEvent.RoomMessageEncrypted ||
-          evt.getType() === MessageEvent.Sticker ||
-          evt.getType() === StateEvent.RoomName ||
-          evt.getType() === StateEvent.RoomTopic ||
-          evt.getType() === StateEvent.RoomAvatar
+          evt.getType() === (MessageEvent.RoomMessage as string) ||
+          evt.getType() === (MessageEvent.RoomMessageEncrypted as string) ||
+          evt.getType() === (MessageEvent.Sticker as string) ||
+          evt.getType() === (StateEvent.RoomName as string) ||
+          evt.getType() === (StateEvent.RoomTopic as string) ||
+          evt.getType() === (StateEvent.RoomAvatar as string)
         ) {
           return evt;
         }

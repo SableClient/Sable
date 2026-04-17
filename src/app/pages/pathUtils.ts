@@ -32,9 +32,9 @@ import {
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
 
-export const withSearchParam = <T extends Record<string, string>>(
+export const withSearchParam = (
   path: string,
-  searchParam: T
+  searchParam: Record<string, string>
 ): string => {
   const params = new URLSearchParams(searchParam);
 

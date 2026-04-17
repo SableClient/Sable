@@ -120,7 +120,7 @@ export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
 
 export function isValidChild(mEvent: MatrixEvent): boolean {
   return (
-    mEvent.getType() === StateEvent.SpaceChild &&
+    mEvent.getType() === (StateEvent.SpaceChild as string) &&
     Array.isArray(mEvent.getContent<{ via: string[] }>().via)
   );
 }
@@ -169,7 +169,7 @@ export const mapParentWithChildren = (
 export const getRoomToParents = (mx: MatrixClient): RoomToParents => {
   const map: RoomToParents = new Map();
   mx.getRooms()
-    .filter((room) => isSpace(room) && room.getMyMembership() === Membership.Join)
+    .filter((room) => isSpace(room) && room.getMyMembership() === (Membership.Join as string))
     .forEach((room) => mapParentWithChildren(map, room.roomId, getSpaceChildren(room)));
 
   return map;
@@ -180,9 +180,11 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 export const isMutedRule = (rule: IPushRule) =>
   // Check for empty actions (new spec) or dont_notify (deprecated)
-  (rule.actions.length === 0 || rule.actions[0] === 'dont_notify') &&
+  (rule.actions.length === 0 || (rule.actions[0] as unknown as string[]) === 'dont_notify') &&
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
   rule.conditions?.[0]?.kind === 'event_match';
 
 export const findMutedRule = (overrideRules: IPushRule[], roomId: string) =>
@@ -204,7 +206,7 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return findMutedRule(overrideRules, roomId) ? NotificationType.Mute : NotificationType.Default;
   }
 
-  if (roomPushRule.actions[0] === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
@@ -631,8 +633,8 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
   const relationType = content['m.relates_to']?.rel_type;
   return (
     mEvent.getSender() === mx.getUserId() &&
-    mEvent.getType() === MessageEvent.RoomMessage &&
-    (!relationType || relationType === RelationType.Thread) &&
+    mEvent.getType() === (MessageEvent.RoomMessage as string) &&
+    (!relationType || relationType === (RelationType.Thread as string)) &&
     (content.msgtype === MsgType.Text ||
       content.msgtype === MsgType.Emote ||
       content.msgtype === MsgType.Notice ||
@@ -658,7 +660,7 @@ export const getLatestEditableEvt = (
 
 export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   const relType = mEvent.getRelation()?.rel_type;
-  if (relType === RelationType.Annotation || relType === RelationType.Replace) return true;
+  if (relType === (RelationType.Annotation as string) || relType === (RelationType.Replace as string)) return true;
 
   // Sliding sync proxies may omit m.relates_to on the initial delivery of timeline
   // events.  Detect edit events by the presence of m.new_content in the event
@@ -690,7 +692,7 @@ export const getCommonRooms = (
 
   rooms.forEach((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== Membership.Join) return;
+    if (!room || room.getMyMembership() !== (Membership.Join as string)) return;
 
     const common = room.hasMembershipState(otherUserId, Membership.Join);
     if (common) {
@@ -704,7 +706,7 @@ export const getCommonRooms = (
 export const bannedInRooms = (mx: MatrixClient, rooms: string[], otherUserId: string): boolean =>
   rooms.some((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== Membership.Join) return false;
+    if (!room || room.getMyMembership() !== (Membership.Join as string)) return false;
 
     return room.hasMembershipState(otherUserId, Membership.Ban);
   });

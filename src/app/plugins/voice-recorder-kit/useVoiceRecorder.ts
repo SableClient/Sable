@@ -610,24 +610,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(urlToPlay);
       audioRef.current = audio;
 
-      audio.onended = () => {
+      const handleEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(pausedTimeRef.current); // Reset to total recorded time
       };
-      audio.onpause = () => {
+      const handlePause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      audio.onplay = () => {
+      const handlePlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('pause', handlePause);
+      audio.addEventListener('play', handlePlay);
     }
 
     const audio = audioRef.current;
@@ -660,24 +663,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      audio.onended = () => {
+      const handleEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(0);
       };
-      audio.onpause = () => {
+      const handlePause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      audio.onplay = () => {
+      const handlePlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('pause', handlePause);
+      audio.addEventListener('play', handlePlay);
     }
 
     const audio = audioRef.current;

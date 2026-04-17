@@ -73,7 +73,7 @@ export const login = async (
   if (urlError) {
     throw new MatrixError({
       errcode:
-        urlError.message === GetBaseUrlError.NotAllow
+        urlError.message === (GetBaseUrlError.NotAllow as string)
           ? LoginError.ServerNotAllowed
           : LoginError.InvalidServer,
     });
@@ -106,7 +106,7 @@ export const login = async (
             errcode: LoginError.RateLimited,
           });
         }
-        if (err.errcode === ErrorCode.M_USER_DEACTIVATED) {
+        if (err.errcode === (ErrorCode.M_USER_DEACTIVATED as string)) {
           debugLog.error('general', 'Login failed - user deactivated', {
             errcode: err.errcode,
           });

@@ -1219,10 +1219,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             if (typeof stateKey === 'string') {
               await mx.sendStateEvent(
                 room.roomId,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                eventType as any,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                content as any,
+                eventType,
+                content,
                 stateKey
               );
               sendFeedback(
@@ -1273,8 +1271,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             const mergedContent = { ...existingContent, ...newContent };
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await mx.setAccountData(type as any, mergedContent as any);
+            await mx.setAccountData(type, mergedContent);
             sendFeedback(`Account data "${type}" merged successfully.`, room, userId);
           } catch (e: unknown) {
             sendFeedback(`Error: ${(e as Error).message}`, room, userId);

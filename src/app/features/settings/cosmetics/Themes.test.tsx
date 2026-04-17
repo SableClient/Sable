@@ -27,11 +27,11 @@ type SettingsShape = {
 };
 
 let currentSettings: SettingsShape;
-const setters = new Map<string, ReturnType<typeof vi.fn>>();
+const setters = new Map<string, vi.fn<() => void>>();
 
 const getSetter = (key: string) => {
   if (!setters.has(key)) {
-    setters.set(key, vi.fn());
+    setters.set(key, vi.fn<() => void>());
   }
 
   return setters.get(key)!;
@@ -54,10 +54,10 @@ beforeEach(() => {
   setters.clear();
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(() => ({
+    value: vi.fn<() => { matches: boolean; addEventListener: () => void; removeEventListener: () => void }>().mockImplementation(() => ({
       matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: vi.fn<() => void>(),
+      removeEventListener: vi.fn<() => void>(),
     })),
   });
   currentSettings = {

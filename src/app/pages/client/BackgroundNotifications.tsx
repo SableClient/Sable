@@ -201,10 +201,10 @@ export function BackgroundNotifications() {
           data: opts.data,
         });
         if (opts.onClick) {
-          noti.onclick = () => {
+          noti.addEventListener('click', () => {
             opts.onClick?.();
             noti.close();
-          };
+          });
         }
       }
     }

@@ -35,6 +35,23 @@ export type TimelineState = {
   linkedTimelines: EventTimeline[];
 };
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => {
+      reject(new Error('Timed out loading event timeline'));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        globalThis.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        globalThis.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
 const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
@@ -45,22 +62,6 @@ const useEventTimelineLoader = (
     async (eventId: string) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
-        const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
-          new Promise<T>((resolve, reject) => {
-            const timeoutId = globalThis.setTimeout(() => {
-              reject(new Error('Timed out loading event timeline'));
-            }, timeoutMs);
-
-            promise
-              .then((value) => {
-                globalThis.clearTimeout(timeoutId);
-                resolve(value);
-              })
-              .catch((error) => {
-                globalThis.clearTimeout(timeoutId);
-                reject(error);
-              });
-          });
 
         if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
           await withTimeout(
@@ -255,13 +256,12 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
         registeredAt = Date.now();
       }
 
-      const { getTs } = mEvent;
       const isLive =
         data.liveEvent ||
         (!toStartOfTimeline &&
           !removed &&
           data.timeline === liveTimeline &&
-          getTs.call(mEvent) >= registeredAt - 60_000);
+          mEvent.getTs() >= registeredAt - 60_000);
       if (!isLive) return;
       onArriveRef.current(mEvent);
     };
@@ -295,8 +295,7 @@ const useRelationUpdate = (room: Room, onRelation: () => void) => {
       data: IRoomTimelineData
     ) => {
       if (eventRoom?.roomId !== room.roomId || data.liveEvent) return;
-      const { getRelation } = mEvent;
-      if (getRelation.call(mEvent)?.rel_type === RelationType.Replace) {
+      if (mEvent.getRelation()?.rel_type === RelationType.Replace) {
         onRelationRef.current();
       }
     };
@@ -475,24 +474,22 @@ export function useTimelineSync({
     room,
     useCallback(
       (mEvt: MatrixEvent) => {
-        const { threadRootId, getSender, getRoomId } = mEvt;
+        const { threadRootId } = mEvt;
         if (threadRootId !== undefined) return;
 
         if (isAtBottomRef.current && atLiveEndRef.current) {
           if (
             document.hasFocus() &&
-            (!unreadInfo?.readUptoEventId || getSender.call(mEvt) === mx.getUserId())
+            (!unreadInfo?.readUptoEventId || mEvt.getSender() === mx.getUserId())
           ) {
-            requestAnimationFrame(() =>
-              markAsRead(mx, getRoomId.call(mEvt)!, hideReadsRef.current)
-            );
+            requestAnimationFrame(() => markAsRead(mx, mEvt.getRoomId()!, hideReadsRef.current));
           }
 
           if (!document.hasFocus() && !unreadInfo) {
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
+          scrollToBottom(mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth');
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));

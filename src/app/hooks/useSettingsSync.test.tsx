@@ -20,8 +20,8 @@ const { callbackHolder, mockMx } = vi.hoisted(() => {
     current: ((event: { getType: () => string; getContent: () => unknown }) => void) | null;
   } = { current: null };
   const mx = {
-    getAccountData: vi.fn().mockReturnValue(null),
-    setAccountData: vi.fn().mockResolvedValue(undefined),
+    getAccountData: vi.fn<() => unknown>().mockReturnValue(null),
+    setAccountData: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   };
   return { callbackHolder: holder, mockMx: mx };
 });

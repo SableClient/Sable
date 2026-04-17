@@ -213,8 +213,7 @@ export function AccountSwitcherTab() {
         if (session.userId === mx.getUserId()) {
           await logoutClient(mx, session);
           setSessions({ type: 'DELETE', session });
-          const remaining = sessions.filter((s) => s.userId !== session.userId);
-          setActiveSessionId(remaining[0]?.userId ?? undefined);
+          setActiveSessionId(sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined);
           window.location.reload();
         } else {
           try {
@@ -225,8 +224,7 @@ export function AccountSwitcherTab() {
           }
           setSessions({ type: 'DELETE', session });
           if (activeSessionId === session.userId) {
-            const remaining = sessions.filter((s) => s.userId !== session.userId);
-            setActiveSessionId(remaining[0]?.userId ?? undefined);
+            setActiveSessionId(sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined);
           }
         }
       } catch (err) {

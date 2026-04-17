@@ -216,7 +216,7 @@ export const getDMRoomFor = (mx: MatrixClient, userId: string): Room | undefined
     .getRooms()
     .filter(
       (room) =>
-        room.getMyMembership() === Membership.Join &&
+        room.getMyMembership() === (Membership.Join as string) &&
         room.hasEncryptionStateEvent() &&
         room.getMembers().length <= 2
     );
@@ -262,7 +262,7 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as keyof AccountDataEvents);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -287,11 +287,11 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct as keyof AccountDataEvents, userIdToRoomIds);
+  await mx.setAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents, userIdToRoomIds);
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as keyof AccountDataEvents);
+  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents);
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -305,7 +305,7 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct as keyof AccountDataEvents, userIdToRoomIds);
+  await mx.setAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents, userIdToRoomIds);
 };
 
 export const mxcUrlToHttp = (
@@ -421,7 +421,7 @@ export const toggleReaction = (
   const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
-  if (myReaction && !!myReaction.isRelation?.()) {
+  if (myReaction && myReaction.isRelation?.()) {
     const eventId = myReaction.getId();
     if (eventId) mx.redactEvent(room.roomId, eventId);
     return;
@@ -430,7 +430,7 @@ export const toggleReaction = (
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
   mx.sendEvent(
     room.roomId,
-    MessageEvent.Reaction as unknown as keyof TimelineEvents,
+    MessageEvent.Reaction as string as unknown as keyof TimelineEvents,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getReactionContent(targetEventId, key, rShortcode) as any
   );

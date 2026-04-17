@@ -34,10 +34,11 @@ function regexEscapeFallBackFunc(template: string): string {
  * @return {*}  {RegExp}
  */
 function buildRegex(template: string): RegExp {
-  const [before, after] = template.split('text');
-  // RegExp.escape is baseline since May 2025
-  // @ts-ignore TS2322
-  const escape = RegExp.escape ?? regexEscapeFallBackFunc;
+  const [before = '', after = ''] = template.split('text');
+  const escape = (s: string) =>
+    // @ts-ignore TS2339 - RegExp.escape is a new/proposed method
+    typeof RegExp.escape === 'function' ? RegExp.escape(s) : regexEscapeFallBackFunc(s);
+
   const pattern = `${escape(before)}(.+)${escape(after)}`;
   return new RegExp(`^${pattern}$`);
 }

@@ -133,22 +133,20 @@ export function useTimelineActions({
 
       const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
 
-      const { getContent, getWireContent, getSender } = replyEvt;
       let editedNewContent: unknown;
 
       if (editedReply) {
-        const { getContent: getEditedContent } = editedReply;
-        editedNewContent = getEditedContent.call(editedReply)['m.new_content'];
+        editedNewContent = editedReply.getContent()['m.new_content'];
       }
 
-      const content: IContent = editedNewContent ?? getContent.call(replyEvt);
+      const content: IContent = (editedNewContent ?? replyEvt.getContent()) as IContent;
       const { body, formatted_body: formattedBody } = content;
 
       const { 'm.relates_to': relation } = startThread
         ? { 'm.relates_to': { rel_type: 'm.thread', event_id: replyId } }
-        : getWireContent.call(replyEvt);
+        : replyEvt.getWireContent();
 
-      const senderId = getSender.call(replyEvt);
+      const senderId = replyEvt.getSender();
 
       if (senderId) {
         setReplyDraft({
@@ -192,8 +190,7 @@ export function useTimelineActions({
 
   const handleResend = useCallback(
     (mEvent: MatrixEvent) => {
-      const { getAssociatedStatus } = mEvent;
-      if (getAssociatedStatus.call(mEvent) !== EventStatus.NOT_SENT) return;
+      if (mEvent.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
       mx.resendEvent(mEvent, room).catch(() => undefined);
     },
     [mx, room]
@@ -201,8 +198,7 @@ export function useTimelineActions({
 
   const handleDeleteFailedSend = useCallback(
     (mEvent: MatrixEvent) => {
-      const { getAssociatedStatus } = mEvent;
-      if (getAssociatedStatus.call(mEvent) !== EventStatus.NOT_SENT) return;
+      if (mEvent.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
       mx.cancelPendingEvent(mEvent);
     },
     [mx]

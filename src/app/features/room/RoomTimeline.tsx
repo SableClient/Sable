@@ -772,7 +772,7 @@ export function RoomTimeline({
     ref.current = () => {
       const myUserId = mx.getUserId();
       const found = [...processedEventsRef.current]
-        .reverse()
+        .toReversed()
         .find(
           (e) =>
             e.mEvent.getSender() === myUserId &&

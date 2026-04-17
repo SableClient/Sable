@@ -14,7 +14,7 @@ export const useStateEvent = (room: Room, eventType: StateEvent, stateKey = '') 
       (event) => {
         if (
           event.getRoomId() === room.roomId &&
-          event.getType() === eventType &&
+          event.getType() === (eventType as string) &&
           event.getStateKey() === stateKey
         ) {
           forceUpdate();

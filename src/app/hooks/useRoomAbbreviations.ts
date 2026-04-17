@@ -40,7 +40,7 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
     mx,
     useCallback(
       (event) => {
-        if (event.getType() !== StateEvent.RoomAbbreviations) return;
+        if (event.getType() !== (StateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (!eventRoomId) return;
         if (

@@ -23,9 +23,9 @@ export const useClientWidgetApiEvent = <T>(
 
 export const useSendClientWidgetApiAction = (api: ClientWidgetApi) => {
   const sendWidgetAction = useCallback(
-    async <T extends IWidgetApiRequestData = IWidgetApiRequestData>(
+    async (
       action: string,
-      data: T
+      data: IWidgetApiRequestData
     ): Promise<IWidgetApiAcknowledgeResponseData> => api.transport.send(action, data),
     [api]
   );

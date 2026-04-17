@@ -307,7 +307,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
       room: Room
     ) => {
       if (!room || room.isSpaceRoom()) return;
-      if (room.getMyMembership() !== Membership.Join) return;
+      if (room.getMyMembership() !== (Membership.Join as string)) return;
 
       const unreadInfo = getUnreadInfo(room, {
         applyFixup: shouldApplyUnreadFixup(),
@@ -330,7 +330,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   useEffect(() => {
     const handleRoomAccountData = (mEvent: MatrixEvent, room: Room) => {
       if (room.isSpaceRoom()) return;
-      if (mEvent.getType() !== EventType.FullyRead) return;
+      if (mEvent.getType() !== (EventType.FullyRead as string)) return;
 
       const unreadInfo = getUnreadInfo(room, {
         applyFixup: shouldApplyUnreadFixup(),
@@ -360,7 +360,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
 
   useEffect(() => {
     const handleMembershipChange = (room: Room, membership: string) => {
-      if (membership !== Membership.Join) {
+      if (membership !== (Membership.Join as string)) {
         setUnreadAtom({
           type: 'DELETE',
           roomId: room.roomId,
@@ -380,7 +380,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   // ClientNonUIFeatures handles live notification pop-ups via its own listener.
   useEffect(() => {
     const handleRoomAdded = (room: Room) => {
-      if (room.isSpaceRoom() || room.getMyMembership() !== Membership.Join) return;
+      if (room.isSpaceRoom() || room.getMyMembership() !== (Membership.Join as string)) return;
       const unreadInfo = getUnreadInfo(room, {
         applyFixup: shouldApplyUnreadFixup(),
         mDirects,
@@ -409,11 +409,11 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === StateEvent.SpaceChild) {
+        if (mEvent.getType() === (StateEvent.SpaceChild as string)) {
           const roomId = mEvent.getRoomId();
           if (!roomId) return;
           const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== Membership.Join) return;
+          if (!parentRoom || parentRoom.getMyMembership() !== (Membership.Join as string)) return;
 
           if (spaceChildResetTimerRef.current !== null) {
             window.clearTimeout(spaceChildResetTimerRef.current);

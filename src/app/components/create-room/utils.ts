@@ -21,7 +21,7 @@ export const createRoomCreationContent = (
   if (typeof type === 'string') {
     content.type = type;
   }
-  if (allowFederation === false) {
+  if (!allowFederation) {
     content['m.federate'] = false;
   }
   if (Array.isArray(additionalCreators)) {

@@ -336,7 +336,7 @@ export function CreateRoomForm({
           <Icon src={Icons.Warning} filled size="100" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
-              {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED
+              {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)
                 ? `Server rate-limited your request for ${millisecondsToMinutes(
                     (error.data.retry_after_ms as number | undefined) ?? 0
                   )} minutes!`

@@ -39,32 +39,31 @@ type RouterInitialEntry =
       key?: string;
     };
 
-const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
-  const mockSettingsHook = vi.fn(() => [true, vi.fn()] as const);
-
-  const createMockSection = (title: string) =>
-    function MockSection({
-      requestBack,
-      requestClose,
-    }: {
-      requestBack?: () => void;
-      requestClose: () => void;
-    }) {
-      return (
-        <div>
-          <h1>{title}</h1>
-          {requestBack && (
-            <button type="button" onClick={requestBack}>
-              Back
-            </button>
-          )}
-          <button type="button" onClick={requestClose}>
-            Close
+const createMockSection = (title: string) =>
+  function MockSection({
+    requestBack,
+    requestClose,
+  }: {
+    requestBack?: () => void;
+    requestClose: () => void;
+  }) {
+    return (
+      <div>
+        <h1>{title}</h1>
+        {requestBack && (
+          <button type="button" onClick={requestBack}>
+            Back
           </button>
-        </div>
-      );
-    };
+        )}
+        <button type="button" onClick={requestClose}>
+          Close
+        </button>
+      </div>
+    );
+  };
 
+const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
+  const mockSettingsHook = vi.fn<() => readonly [boolean, (value: boolean) => void]>();
   return {
     mockMatrixClient: { getUserId: () => '@alice:server' },
     mockProfile: { displayName: 'Alice', avatarUrl: undefined },
@@ -346,7 +345,11 @@ describe('SettingsSectionPage', () => {
   it('shows back on the left and close on the right for mobile section pages', () => {
     render(
       <ScreenSizeProvider value={ScreenSize.Mobile}>
-        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+        <SettingsSectionPage
+          title="Devices"
+          requestBack={vi.fn<() => void>()}
+          requestClose={vi.fn<() => void>()}
+        />
       </ScreenSizeProvider>
     );
 
@@ -362,8 +365,8 @@ describe('SettingsSectionPage', () => {
           title="Keyboard Shortcuts"
           titleAs="h1"
           actionLabel="Close keyboard shortcuts"
-          requestBack={vi.fn()}
-          requestClose={vi.fn()}
+          requestBack={vi.fn<() => void>()}
+          requestClose={vi.fn<() => void>()}
         />
       </ScreenSizeProvider>
     );
@@ -376,7 +379,11 @@ describe('SettingsSectionPage', () => {
   it('uses the default outlined page header treatment', () => {
     render(
       <ScreenSizeProvider value={ScreenSize.Desktop}>
-        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+        <SettingsSectionPage
+          title="Devices"
+          requestBack={vi.fn<() => void>()}
+          requestClose={vi.fn<() => void>()}
+        />
       </ScreenSizeProvider>
     );
 
@@ -391,7 +398,11 @@ describe('SettingsSectionPage', () => {
 
     render(
       <ScreenSizeProvider value={ScreenSize.Mobile}>
-        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+        <SettingsSectionPage
+          title="Devices"
+          requestBack={vi.fn<() => void>()}
+          requestClose={vi.fn<() => void>()}
+        />
       </ScreenSizeProvider>
     );
 
@@ -401,7 +412,11 @@ describe('SettingsSectionPage', () => {
   it('uses settings header spacing that matches the main settings shell', () => {
     render(
       <ScreenSizeProvider value={ScreenSize.Mobile}>
-        <SettingsSectionPage title="Devices" requestBack={vi.fn()} requestClose={vi.fn()} />
+        <SettingsSectionPage
+          title="Devices"
+          requestBack={vi.fn<() => void>()}
+          requestClose={vi.fn<() => void>()}
+        />
       </ScreenSizeProvider>
     );
 

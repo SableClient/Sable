@@ -270,6 +270,8 @@ function useMobileDoubleTap(callback: () => void, delay = 300) {
   );
 }
 
+const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
+
 /**
  * Component to render pronouns in the chat timeline.
  * It also filters them.
@@ -283,7 +285,7 @@ const Pronouns = as<
 >(({ as: AsPronouns = 'span', pronouns, tagColor, ...props }, ref) => {
   if (!pronouns || pronouns.length === 0) return null;
 
-  const languageFilterEnabled = Boolean(getSettings().filterPronounsBasedOnLanguage ?? false);
+  const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   // if no language is given use english
   const selectedLanguages = (getSettings().filterPronounsLanguages ?? ['en'])
     .map((lang) => lang.trim().toLowerCase())
@@ -302,7 +304,6 @@ const Pronouns = as<
     selectedLanguages
   );
 
-  const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
   const limit = mobileOrTablet() ? 1 : 3;
 
   // if language specific pronouns can't be found matching the filter return unfiltered

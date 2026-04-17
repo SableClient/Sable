@@ -24,7 +24,7 @@ export const useBindRoomsWithMembershipsAtom = (
 
   useEffect(() => {
     const satisfyMembership = (room: Room): boolean =>
-      !!memberships.find((membership) => membership === room.getMyMembership());
+      !!memberships.find((membership) => (membership as string) === room.getMyMembership());
     setRoomsAtom({
       type: 'INITIALIZE',
       rooms: mx

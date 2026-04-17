@@ -138,7 +138,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
     audio.load();
     audioRef.current = audio;
 
-    audio.onended = () => {
+    const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
       if (rafRef.current !== null) {
@@ -146,9 +146,11 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         rafRef.current = null;
       }
     };
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.pause();
+      audio.removeEventListener('ended', handleEnded);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }

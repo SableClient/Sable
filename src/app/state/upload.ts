@@ -123,9 +123,9 @@ export const useBindUploadAtom = (
     [mx, file, hideFilename, setUpload, handleProgress]
   );
 
-  const cancelUpload = useCallback(async () => {
+  const cancelUpload = useCallback(() => {
     if (upload.status === UploadStatus.Loading) {
-      await mx.cancelUpload(upload.promise);
+      mx.cancelUpload(upload.promise);
     }
   }, [mx, upload]);
 

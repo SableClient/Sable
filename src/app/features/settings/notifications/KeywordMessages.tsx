@@ -170,7 +170,7 @@ export function KeywordMessagesNotifications() {
   const keywordPushRules = useMemo(() => {
     const content = pushRules.global.content ?? [];
     return content.filter(
-      (pushRule) => pushRule.default === false && typeof pushRule.pattern === 'string'
+      (pushRule) => !pushRule.default && typeof pushRule.pattern === 'string'
     );
   }, [pushRules]);
 

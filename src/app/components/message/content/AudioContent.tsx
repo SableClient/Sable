@@ -133,7 +133,7 @@ export function AudioContent({
           };
           return (
             <Badge
-              key={key as unknown as string}
+              key={String(key)}
               size="300"
               variant="Secondary"
               fill="Solid"
@@ -217,7 +217,7 @@ export function AudioContent({
             };
             return (
               <Badge
-                key={key as unknown as string}
+                key={String(key)}
                 size="300"
                 variant="Secondary"
                 fill="Solid"

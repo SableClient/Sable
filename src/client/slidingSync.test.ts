@@ -25,34 +25,28 @@ import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 // (vi.mock calls are hoisted above all imports by vitest's transformer).
 const mocks = vi.hoisted(() => ({
   slidingSyncInstance: {
-    on: vi.fn(),
-    off: vi.fn(),
-    removeListener: vi.fn(),
-    stop: vi.fn(),
-    modifyRoomSubscriptions: vi.fn(),
-    modifyRoomSubscriptionInfo: vi.fn(),
-    addCustomSubscription: vi.fn(),
-    useCustomSubscription: vi.fn(),
-    registerExtension: vi.fn(),
-    getListData: vi.fn(() => null),
-    getListParams: vi.fn(() => null),
-    setList: vi.fn(),
-    setListRanges: vi.fn(),
+    on: vi.fn<() => void>(),
+    off: vi.fn<() => void>(),
+    removeListener: vi.fn<() => void>(),
+    stop: vi.fn<() => void>(),
+    modifyRoomSubscriptions: vi.fn<() => void>(),
+    modifyRoomSubscriptionInfo: vi.fn<() => void>(),
+    addCustomSubscription: vi.fn<() => void>(),
+    useCustomSubscription: vi.fn<() => void>(),
+    registerExtension: vi.fn<() => void>(),
+    getListData: vi.fn<() => null>(),
+    getListParams: vi.fn<() => null>(),
+    setList: vi.fn<() => void>(),
+    setListRanges: vi.fn<() => void>(),
   },
 }));
 
 // ── Sentry stub ──────────────────────────────────────────────────────────────
 vi.mock('@sentry/react', () => ({
-  metrics: { count: vi.fn(), gauge: vi.fn(), distribution: vi.fn() },
-  addBreadcrumb: vi.fn(),
-  startInactiveSpan: vi.fn(() => ({
-    setAttribute: vi.fn(),
-    setAttributes: vi.fn(),
-    end: vi.fn(),
-  })),
-  startSpan: vi.fn(async (_opts: unknown, fn: (span: object) => unknown) =>
-    fn({ setAttributes: vi.fn(), setAttribute: vi.fn(), end: vi.fn() })
-  ),
+  metrics: { count: vi.fn<() => void>(), gauge: vi.fn<() => void>(), distribution: vi.fn<() => void>() },
+  addBreadcrumb: vi.fn<() => void>(),
+  startInactiveSpan: vi.fn<() => { setAttribute: () => void; setAttributes: () => void; end: () => void }>(),
+  startSpan: vi.fn<() => Promise<unknown>>(),
 }));
 
 // ── SlidingSync SDK mock ─────────────────────────────────────────────────────
@@ -70,13 +64,13 @@ vi.mock('$types/matrix-sdk', async (importOriginal) => {
 
 function makeMockMx(overrides: Record<string, unknown> = {}) {
   return {
-    getUserId: vi.fn().mockReturnValue('@user:example.com'),
-    getSafeUserId: vi.fn().mockReturnValue('@user:example.com'),
-    isRoomEncrypted: vi.fn().mockReturnValue(false),
-    getRoom: vi.fn().mockReturnValue(null),
-    on: vi.fn(),
-    off: vi.fn(),
-    removeListener: vi.fn(),
+    getUserId: vi.fn<() => string>().mockReturnValue('@user:example.com'),
+    getSafeUserId: vi.fn<() => string>().mockReturnValue('@user:example.com'),
+    isRoomEncrypted: vi.fn<() => boolean>().mockReturnValue(false),
+    getRoom: vi.fn<() => null>().mockReturnValue(null),
+    on: vi.fn<() => void>(),
+    off: vi.fn<() => void>(),
+    removeListener: vi.fn<() => void>(),
     ...overrides,
   } as unknown as import('$types/matrix-sdk').MatrixClient;
 }

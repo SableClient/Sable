@@ -4,7 +4,7 @@ import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { SettingsLinkBaseUrlSetting } from './SettingsLinkBaseUrlSetting';
 
 let settingsLinkBaseUrlOverride: string | undefined;
-const setSettingsLinkBaseUrlOverride = vi.fn();
+const setSettingsLinkBaseUrlOverride = vi.fn<(url: string | undefined) => void>();
 
 vi.mock('$state/hooks/settings', () => ({
   useSetting: () => [settingsLinkBaseUrlOverride, setSettingsLinkBaseUrlOverride] as const,

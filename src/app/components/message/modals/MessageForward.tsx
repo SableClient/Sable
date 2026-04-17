@@ -266,7 +266,7 @@ export function MessageForwardInternal({
       };
     }
 
-    const msgtype = String(originalContent.msgtype ?? 'unknown');
+    const msgtype = originalContent.msgtype ?? 'unknown';
     debugLog.info('ui', 'Forwarding message', {
       sourceRoomId: room.roomId,
       targetRoomId: targetRoom.roomId,

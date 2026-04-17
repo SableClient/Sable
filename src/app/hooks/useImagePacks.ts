@@ -78,7 +78,7 @@ export const useUserImagePack = (): ImagePack | undefined => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.PoniesUserEmotes) {
+        if (mEvent.getType() === (AccountDataEvent.PoniesUserEmotes as string)) {
           setUserPack((prev) => {
             const next = getUserImagePack(mx);
             return imagePackEqual(prev, next) ? prev : next;
@@ -117,7 +117,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.PoniesEmoteRooms) {
+        if (mEvent.getType() === (AccountDataEvent.PoniesEmoteRooms as string)) {
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;
@@ -135,7 +135,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
         const eventType = mEvent.getType();
         const roomId = mEvent.getRoomId();
         const stateKey = mEvent.getStateKey();
-        if (eventType === StateEvent.PoniesRoomEmotes && roomId && typeof stateKey === 'string') {
+        if (eventType === (StateEvent.PoniesRoomEmotes as string) && roomId && typeof stateKey === 'string') {
           setGlobalPacks((prev) => {
             const global = !!prev.find(
               (pack) =>
@@ -189,7 +189,7 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes &&
+          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string) &&
           mEvent.getStateKey() === stateKey
         ) {
           setRoomPack((prev) => {
@@ -232,7 +232,7 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes
+          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = getRoomImagePacks(room);
@@ -289,7 +289,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
       (mEvent) => {
         if (
           rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes
+          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = rooms.flatMap(getRoomImagePacks);

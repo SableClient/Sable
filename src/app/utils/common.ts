@@ -113,7 +113,7 @@ export const trimSlash = (str: string): string => trimLeadingSlash(trimTrailingS
 
 export const nameInitials = (str: string | undefined | null, len = 1): string => {
   if (!str) return '';
-  return [...str].slice(0, len).join('') || '';
+  return Array.from(str).slice(0, len).join('') || '';
 };
 
 export const randomStr = (len = 12): string => {

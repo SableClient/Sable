@@ -185,10 +185,10 @@ function InviteNotifications() {
         silent: true,
       });
 
-      noti.onclick = () => {
+      noti.addEventListener('click', () => {
         if (!window.closed) navigate(getInboxInvitesPath());
         noti.close();
-      };
+      });
     },
     [navigate]
   );
@@ -436,7 +436,7 @@ function MessageNotifications() {
           });
           const noti = new window.Notification(osPayload.title, osPayload.options);
           const { roomId } = room;
-          noti.onclick = () => {
+          noti.addEventListener('click', () => {
             window.focus();
             setPending({
               roomId,
@@ -444,7 +444,7 @@ function MessageNotifications() {
               targetSessionId: mx.getUserId() ?? undefined,
             });
             noti.close();
-          };
+          });
         } catch {
           // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
         }

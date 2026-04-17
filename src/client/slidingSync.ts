@@ -523,6 +523,7 @@ export class SlidingSyncManager {
         }
       | undefined;
     connection?.addEventListener?.('change', this.onConnectionChange);
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
     if (connection && connection.onchange === null) connection.onchange = this.onConnectionChange;
     if (typeof window !== 'undefined') {
       window.addEventListener('online', this.onConnectionChange);
@@ -564,6 +565,7 @@ export class SlidingSyncManager {
         }
       | undefined;
     connection?.removeEventListener?.('change', this.onConnectionChange);
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
     if (connection?.onchange === this.onConnectionChange) connection.onchange = null;
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', this.onConnectionChange);

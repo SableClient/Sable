@@ -77,6 +77,10 @@ function ResetPasswordComplete({ email }: { email?: string }) {
 type PasswordResetFormProps = {
   defaultEmail?: string;
 };
+
+const handleCancel = () => {
+  window.location.reload();
+};
 export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
   const server = useAuthServer();
 
@@ -152,10 +156,6 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
       password,
       clientSecret,
     });
-  };
-
-  const handleCancel = () => {
-    window.location.reload();
   };
 
   const handleSubmitRequest = useCallback(

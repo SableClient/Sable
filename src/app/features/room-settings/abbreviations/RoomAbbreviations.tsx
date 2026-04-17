@@ -58,7 +58,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
     mx,
     useCallback(
       (event) => {
-        if (event.getType() !== StateEvent.RoomAbbreviations) return;
+        if (event.getType() !== (StateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (eventRoomId && getAllParents(roomToParents, room.roomId).has(eventRoomId)) {
           forceAncestorUpdate();

@@ -64,10 +64,12 @@ export const getTimelineAndBaseIndex = (
       const len = events ? events.length : 0;
 
       if (index < acc.baseIndex + len) {
-        return { ...acc, found: timeline };
+        acc.found = timeline;
+        return acc;
       }
 
-      return { ...acc, baseIndex: acc.baseIndex + len };
+      acc.baseIndex += len;
+      return acc;
     },
     { baseIndex: 0 }
   );

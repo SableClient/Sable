@@ -113,7 +113,7 @@ export const useBindRoomToParentsAtom = (
     resetRoomToParents();
 
     const handleAddRoom = (room: Room) => {
-      if (isSpace(room) && room.getMyMembership() === Membership.Join) {
+      if (isSpace(room) && room.getMyMembership() === (Membership.Join as string)) {
         setRoomToParents({
           type: 'PUT',
           parent: room.roomId,
@@ -123,11 +123,11 @@ export const useBindRoomToParentsAtom = (
     };
 
     const handleMembershipChange = (room: Room, membership: string) => {
-      if (isSpace(room) && membership !== Membership.Join) {
+      if (isSpace(room) && membership !== (Membership.Join as string)) {
         setRoomToParents({ type: 'DELETE', roomId: room.roomId });
         return;
       }
-      if (isSpace(room) && membership === Membership.Join) {
+      if (isSpace(room) && membership === (Membership.Join as string)) {
         setRoomToParents({
           type: 'PUT',
           parent: room.roomId,
@@ -137,12 +137,12 @@ export const useBindRoomToParentsAtom = (
     };
 
     const handleStateChange = (mEvent: MatrixEvent) => {
-      if (mEvent.getType() === StateEvent.SpaceChild) {
+      if (mEvent.getType() === (StateEvent.SpaceChild as string)) {
         const childId = mEvent.getStateKey();
         const roomId = mEvent.getRoomId();
         if (childId && roomId) {
           const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== Membership.Join) return;
+          if (!parentRoom || parentRoom.getMyMembership() !== (Membership.Join as string)) return;
           if (isValidChild(mEvent)) {
             setRoomToParents({ type: 'PUT', parent: roomId, children: [childId] });
           } else {

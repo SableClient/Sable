@@ -10,7 +10,7 @@ import {
   settingTileSettingLinkActionTransparentBackground,
 } from './SettingTile.css';
 
-const writeText = vi.fn();
+const writeText = vi.fn<() => Promise<void>>();
 
 function renderTile(
   screenSize: ScreenSize,

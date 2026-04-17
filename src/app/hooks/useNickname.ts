@@ -38,7 +38,7 @@ export const useSyncNicknames = (mx?: MatrixClient) => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.SableNicknames) {
+        if (mEvent.getType() === (AccountDataEvent.SableNicknames as string)) {
           setNicknames(mEvent.getContent() || {});
         }
       },

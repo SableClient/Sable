@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isRoomId, isUserId } from '$utils/matrix';
 import { getHomeRoomPath, withSearchParam } from '$pages/pathUtils';
-import type { RoomSearchParams } from '$pages/paths';
 import { isSettingsSectionId } from '$features/settings/routes';
 import { useOpenSettings } from '$features/settings/useOpenSettings';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
@@ -49,7 +48,7 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
       const viaServers = target.getAttribute('data-mention-via') || undefined;
       const path = getHomeRoomPath(mentionId, eventId);
 
-      navigate(viaServers ? withSearchParam<RoomSearchParams>(path, { viaServers }) : path);
+      navigate(viaServers ? withSearchParam(path, { viaServers }) : path);
     },
     [mx, navigate, navigateRoom, navigateSpace, openProfile, openSettings, roomId, space]
   );

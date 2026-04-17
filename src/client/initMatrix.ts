@@ -102,7 +102,7 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
           const tx = db.transaction('account', 'readonly');
           const store = tx.objectStore('account');
           const getReq = store.get('account');
-          getReq.onsuccess = () => {
+          getReq.addEventListener('success', () => {
             db.close();
             const record = getReq.result;
             if (!record?.account_data) {
@@ -115,7 +115,7 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
                 resolve(undefined);
               }
             }
-          };
+          });
           getReq.addEventListener('error', () => {
             db.close();
             resolve(undefined);
@@ -129,7 +129,7 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
         }
         resolve(undefined);
       }
-    };
+    });
   });
 
 const databaseExists = async (dbName: string): Promise<boolean> => {
@@ -144,6 +144,16 @@ const databaseExists = async (dbName: string): Promise<boolean> => {
 const isClientReadyForUi = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
 
+const isMismatch = (err: unknown): boolean => {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("doesn't match") ||
+    msg.includes('does not match') ||
+    msg.includes('account in the store') ||
+    msg.includes('account in the constructor')
+  );
+};
+
 const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
   new Promise((resolve) => {
     const waitStart = performance.now();
@@ -157,6 +167,7 @@ const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> 
 
     let timer = 0;
     let timedOut = false;
+    // eslint-disable-next-line unicorn/consistent-function-scoping
     let finish = () => {};
     const onSync = (state: string) => {
       debugLog.info('sync', `Sync state changed: ${state}`, {
@@ -295,16 +306,6 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     userId: session.userId,
     baseUrl: session.baseUrl,
   });
-
-  const isMismatch = (err: unknown): boolean => {
-    const msg = err instanceof Error ? err.message : String(err);
-    return (
-      msg.includes("doesn't match") ||
-      msg.includes('does not match') ||
-      msg.includes('account in the store') ||
-      msg.includes('account in the constructor')
-    );
-  };
 
   const wipeAllStores = async () => {
     log.warn('initClient: wiping all stores for', session.userId);

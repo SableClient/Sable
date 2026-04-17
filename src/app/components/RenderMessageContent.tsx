@@ -81,7 +81,7 @@ function RenderMessageContentInternal({
   outlineAttachment,
   hideCaption,
 }: RenderMessageContentProps) {
-  const content = useMemo(() => getContent<Record<string, unknown>>(), [getContent]);
+  const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');

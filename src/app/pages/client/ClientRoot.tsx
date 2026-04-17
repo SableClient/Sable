@@ -249,7 +249,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     if (!mx || !activeSession) return;
     await logoutClient(mx, activeSession);
     setSessions({ type: 'DELETE', session: activeSession } as SessionsAction);
-    setActiveSessionId(sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined);
+    setActiveSessionId(
+      sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
+    );
     window.location.reload();
   }, [mx, activeSession, sessions, setSessions, setActiveSessionId]);
 

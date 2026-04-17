@@ -510,7 +510,7 @@ async function handleMinimalPushPayload(
       await handlePushNotificationPushData({
         ...baseData,
         type: result.eventType,
-        content: result.content,
+        content: result.content as { notification_type?: string; membership?: string } | undefined,
         sender_display_name: senderDisplay,
         // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.
         room_name: result.room_name || resolvedRoomName,
@@ -532,7 +532,7 @@ async function handleMinimalPushPayload(
     await handlePushNotificationPushData({
       ...baseData,
       type: eventType,
-      content: rawEvent.content,
+      content: rawEvent.content as { notification_type?: string; membership?: string } | undefined,
       sender_display_name: senderDisplay,
       room_name: resolvedRoomName,
       room_avatar_url: notificationAvatarUrl,

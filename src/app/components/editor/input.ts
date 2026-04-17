@@ -85,7 +85,12 @@ const getInlineMarkElement = (
     children.push({ text: mdSequence });
     return children;
   }
-  return children.map((child) => (Text.isText(child) ? { ...child, [markType]: true } : child));
+  return children.map((child) => {
+    if (Text.isText(child)) {
+      return { ...child, [markType]: true };
+    }
+    return child;
+  });
 };
 
 const getInlineNonMarkElement = (node: Element): MentionElement | EmoticonElement | undefined => {

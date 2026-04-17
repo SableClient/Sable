@@ -77,45 +77,46 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(
                 >
                   <Text size="T300">{day}</Text>
                 </Chip>
-              ))}
+              )
+            )}
           </PickerColumn>
           <PickerColumn title="Month">
             {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                <Chip
-                  key={month}
-                  size="500"
-                  variant={selectedMonth === month ? 'Primary' : 'SurfaceVariant'}
-                  fill="None"
-                  radii="300"
-                  aria-selected={selectedMonth === month}
-                  onClick={() => handleMonth(month)}
-                  disabled={
-                    (selectedYear === minYear && month < minMonth) ||
-                    (selectedYear === maxYear && month > maxMonth)
-                  }
-                >
-                  <Text size="T300">
-                    {dayjs()
-                      .month(month - 1)
-                      .format('MMM')}
-                  </Text>
-                </Chip>
-              ))}
+              <Chip
+                key={month}
+                size="500"
+                variant={selectedMonth === month ? 'Primary' : 'SurfaceVariant'}
+                fill="None"
+                radii="300"
+                aria-selected={selectedMonth === month}
+                onClick={() => handleMonth(month)}
+                disabled={
+                  (selectedYear === minYear && month < minMonth) ||
+                  (selectedYear === maxYear && month > maxMonth)
+                }
+              >
+                <Text size="T300">
+                  {dayjs()
+                    .month(month - 1)
+                    .format('MMM')}
+                </Text>
+              </Chip>
+            ))}
           </PickerColumn>
           <PickerColumn title="Year">
             {Array.from({ length: yearsRange }, (_, i) => minYear + i).map((year) => (
-                <Chip
-                  key={year}
-                  size="500"
-                  variant={selectedYear === year ? 'Primary' : 'SurfaceVariant'}
-                  fill="None"
-                  radii="300"
-                  aria-selected={selectedYear === year}
-                  onClick={() => handleYear(year)}
-                >
-                  <Text size="T300">{year}</Text>
-                </Chip>
-              ))}
+              <Chip
+                key={year}
+                size="500"
+                variant={selectedYear === year ? 'Primary' : 'SurfaceVariant'}
+                fill="None"
+                radii="300"
+                aria-selected={selectedYear === year}
+                onClick={() => handleYear(year)}
+              >
+                <Text size="T300">{year}</Text>
+              </Chip>
+            ))}
           </PickerColumn>
         </Box>
       </Menu>

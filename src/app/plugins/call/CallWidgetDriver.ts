@@ -252,7 +252,9 @@ export class CallWidgetDriver extends WidgetDriver {
       if (
         ev.getType() === eventType &&
         !ev.isState() &&
-        (eventType !== (EventType.RoomMessage as string) || !msgtype || msgtype === ev.getContent().msgtype) &&
+        (eventType !== (EventType.RoomMessage as string) ||
+          !msgtype ||
+          msgtype === ev.getContent().msgtype) &&
         (ev.getStateKey() === undefined || stateKey === undefined || ev.getStateKey() === stateKey)
       ) {
         results.push(ev);

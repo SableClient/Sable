@@ -207,6 +207,7 @@ export function DebugLogViewer() {
               category: filterCategory !== 'all' ? filterCategory : 'none',
             },
             logsCount: logsToExport.length,
+            // oxlint-disable-next-line oxc/no-map-spread
             logs: logsToExport.map((log) => ({
               ...log,
               timestamp: new Date(log.timestamp).toISOString(),
@@ -216,7 +217,6 @@ export function DebugLogViewer() {
           2
         );
       } else {
-        // Export all logs
         jsonData = debugLogger.exportLogs();
       }
 
@@ -256,6 +256,7 @@ export function DebugLogViewer() {
               category: filterCategory !== 'all' ? filterCategory : 'none',
             },
             logsCount: logsToExport.length,
+            // oxlint-disable-next-line oxc/no-map-spread
             logs: logsToExport.map((log) => ({
               ...log,
               timestamp: new Date(log.timestamp).toISOString(),

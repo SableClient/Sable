@@ -35,17 +35,17 @@ export function parsePronounsStringToPronounsSetArray(pronouns?: string | null):
   return parsePronounsInput(pronouns) as PronounSet[];
 }
 
+const sanitize = (p: { summary: string; language?: string }) => ({
+  ...p,
+  summary: (p?.summary ?? '').slice(0, 16),
+});
+
 export function filterPronounsByLanguage(
   pronouns?: { summary: string; language?: string }[] | null,
   enabled?: boolean,
   languages?: (string | null | undefined)[]
 ): { summary: string; language?: string }[] {
   if (!Array.isArray(pronouns)) return [];
-
-  const sanitize = (p: { summary: string; language?: string }) => ({
-    ...p,
-    summary: (p?.summary ?? '').slice(0, 16),
-  });
 
   if (!enabled) {
     return pronouns.map(sanitize);

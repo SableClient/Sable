@@ -21,7 +21,9 @@ const { callbackHolder, mockMx } = vi.hoisted(() => {
   } = { current: null };
   const mx = {
     getAccountData: vi.fn<() => unknown>().mockReturnValue(null),
-    setAccountData: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    setAccountData: vi
+      .fn<(type: string, content: Record<string, unknown>) => Promise<void>>()
+      .mockResolvedValue(undefined),
   };
   return { callbackHolder: holder, mockMx: mx };
 });
@@ -235,9 +237,8 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     });
 
     // Capture the echo token that was uploaded.
-    const uploadedContent = mockMx.setAccountData.mock.calls[0]?.[1] as
-      | Record<string, unknown>
-      | undefined;
+    const uploadedContent: Record<string, unknown> | undefined =
+      mockMx.setAccountData.mock.calls[0]?.[1];
     const echoToken = uploadedContent?.synctoken as string;
 
     // Simulate the homeserver echoing our own event back.
@@ -263,9 +264,8 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    const uploadedContent = mockMx.setAccountData.mock.calls[0]?.[1] as
-      | Record<string, unknown>
-      | undefined;
+    const uploadedContent: Record<string, unknown> | undefined =
+      mockMx.setAccountData.mock.calls[0]?.[1];
     const echoToken = uploadedContent?.synctoken as string;
 
     const before = Date.now();

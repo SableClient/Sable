@@ -14,19 +14,19 @@ type MockAnalyserNode = MockNode & {
   fftSize: number;
   smoothingTimeConstant: number;
   frequencyBinCount: number;
-  getByteFrequencyData: vi.fn<(data: Uint8Array) => void>;
+  getByteFrequencyData: (data: Uint8Array) => void;
 };
 
 type MockAudioContextInstance = {
   state: AudioContextState;
   destination: MockNode;
-  close: vi.fn<() => Promise<void>>;
-  resume: vi.fn<() => Promise<void>>;
-  suspend: vi.fn<() => Promise<void>>;
-  createMediaStreamSource: vi.fn<() => MockNode>;
-  createAnalyser: vi.fn<() => MockAnalyserNode>;
-  createMediaStreamDestination: vi.fn<() => { stream: { getTracks: () => MockTrack[] } }>;
-  createMediaElementSource: vi.fn<() => MockNode>;
+  close: () => Promise<void>;
+  resume: () => Promise<void>;
+  suspend: () => Promise<void>;
+  createMediaStreamSource: () => MockNode;
+  createAnalyser: () => MockAnalyserNode;
+  createMediaStreamDestination: () => { stream: { getTracks: () => MockTrack[] } };
+  createMediaElementSource: () => MockNode;
 };
 
 const nativeAudioContext = globalThis.AudioContext;
@@ -36,7 +36,6 @@ const nativeCancelAnimationFrame = globalThis.cancelAnimationFrame;
 const nativeMediaDevices = navigator.mediaDevices;
 
 let inputTrack: MockTrack;
-let inputStream: MockStream;
 let destinationTrack: MockTrack;
 let createdAudioContexts: MockAudioContextInstance[];
 
@@ -125,9 +124,6 @@ function MockAudioContext(): MockAudioContextInstance {
 beforeEach(() => {
   inputTrack = createMockTrack();
   destinationTrack = createMockTrack();
-  inputStream = {
-    getTracks: () => [inputTrack],
-  } as unknown as MockStream;
   createdAudioContexts = [];
 
   Object.defineProperty(navigator, 'mediaDevices', {

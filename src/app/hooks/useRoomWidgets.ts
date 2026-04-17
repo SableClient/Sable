@@ -99,7 +99,10 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
     room.client,
     useCallback(
       (event) => {
-        if (event.getRoomId() === room.roomId && event.getType() === (StateEvent.RoomWidget as string)) {
+        if (
+          event.getRoomId() === room.roomId &&
+          event.getType() === (StateEvent.RoomWidget as string)
+        ) {
           forceUpdate();
         }
       },

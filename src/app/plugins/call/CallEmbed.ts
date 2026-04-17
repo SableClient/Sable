@@ -159,7 +159,7 @@ export class CallEmbed {
 
     let initialMediaEvent = true;
     this.disposables.push(
-      this.listenAction<ElementMediaStateDetail>(ElementWidgetActions.DeviceMute, (evt) => {
+      this.listenAction(ElementWidgetActions.DeviceMute, (evt) => {
         evt.preventDefault();
         this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
         if (initialMediaEvent) {
@@ -167,7 +167,7 @@ export class CallEmbed {
           this.control.applyState();
           return;
         }
-        this.control.onMediaState(evt);
+        this.control.onMediaState(evt as CustomEvent<ElementMediaStateDetail>);
       })
     );
 
@@ -418,7 +418,7 @@ export class CallEmbed {
   }
 
   public listenAction(type: string, callback: (event: CustomEvent<unknown>) => void) {
-    return this.listenEvent(`action:${type}`, callback);
+    return this.listenEvent(`action:${type}`, callback as (event: unknown) => void);
   }
 
   public listenEvent(type: string, callback: (event: unknown) => void) {

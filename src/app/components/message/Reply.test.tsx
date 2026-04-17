@@ -5,7 +5,8 @@ import { Reply } from './Reply';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
-  mockUseRoomEvent: vi.fn<() => unknown>(),
+  mockUseRoomEvent:
+    vi.fn<(_room: unknown, _replyEventId: unknown, _getFromLocalTimeline: unknown) => unknown>(),
   mockInvalidateQueries: vi.fn<() => Promise<void>>(),
 }));
 
@@ -30,7 +31,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('$hooks/useRoomEvent', () => ({
-  useRoomEvent: (...args: unknown[]) => mockUseRoomEvent(...args),
+  useRoomEvent: (...args: unknown[]) => mockUseRoomEvent(args[0], args[1], args[2]),
 }));
 
 vi.mock('$hooks/useSableCosmetics', () => ({

@@ -12,7 +12,10 @@ vi.mock('$hooks/useMatrixClient', () => ({
 }));
 
 vi.mock('$hooks/useRoomNavigate', () => ({
-  useRoomNavigate: () => ({ navigateRoom: vi.fn<() => void>(), navigateSpace: vi.fn<() => void>() }),
+  useRoomNavigate: () => ({
+    navigateRoom: vi.fn<() => void>(),
+    navigateSpace: vi.fn<() => void>(),
+  }),
 }));
 
 vi.mock('$hooks/useSpace', () => ({

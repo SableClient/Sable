@@ -18,7 +18,9 @@ export const useEmailNotifications = (): [
   const [emailState, refresh] = useAsyncCallbackValue<EmailNotificationResult, Error>(
     useCallback(async () => {
       const tpIDs = (await mx.getThreePids())?.threepids;
-      const emailAddresses = tpIDs.filter((id) => (id.medium as string) === 'email').map((id) => id.address);
+      const emailAddresses = tpIDs
+        .filter((id) => (id.medium as string) === 'email')
+        .map((id) => id.address);
       if (emailAddresses.length === 0)
         return {
           enabled: false,

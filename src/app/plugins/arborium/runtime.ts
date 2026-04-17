@@ -83,9 +83,7 @@ async function loadArborium(
   }
 
   if (!arboriumModulePromise) {
-    arboriumModulePromise = import('@arborium/arborium')
-      .then((m) => m)
-      .catch(() => null);
+    arboriumModulePromise = import('@arborium/arborium').then((m) => m).catch(() => null);
   }
 
   return arboriumModulePromise;

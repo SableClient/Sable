@@ -43,9 +43,14 @@ const mocks = vi.hoisted(() => ({
 
 // ── Sentry stub ──────────────────────────────────────────────────────────────
 vi.mock('@sentry/react', () => ({
-  metrics: { count: vi.fn<() => void>(), gauge: vi.fn<() => void>(), distribution: vi.fn<() => void>() },
+  metrics: {
+    count: vi.fn<() => void>(),
+    gauge: vi.fn<() => void>(),
+    distribution: vi.fn<() => void>(),
+  },
   addBreadcrumb: vi.fn<() => void>(),
-  startInactiveSpan: vi.fn<() => { setAttribute: () => void; setAttributes: () => void; end: () => void }>(),
+  startInactiveSpan:
+    vi.fn<() => { setAttribute: () => void; setAttributes: () => void; end: () => void }>(),
   startSpan: vi.fn<() => Promise<unknown>>(),
 }));
 

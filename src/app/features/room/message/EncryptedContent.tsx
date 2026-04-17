@@ -13,7 +13,9 @@ type EncryptedContentProps = {
 
 export function EncryptedContent({ mEvent, children }: EncryptedContentProps) {
   const mx = useMatrixClient();
-  const [, toggleEncrypted] = useState(mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string));
+  const [, toggleEncrypted] = useState(
+    mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string)
+  );
 
   useEffect(() => {
     if (mEvent.getType() !== (MessageEvent.RoomMessageEncrypted as string)) return;

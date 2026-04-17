@@ -32,6 +32,7 @@ export default defineConfig({
     'typescript/no-unsafe-type-assertion': 'off',
     'typescript/no-floating-promises': 'off',
     'typescript/no-unnecessary-type-arguments': 'off',
+    'oxc/no-map-spread': 'off',
   },
   overrides: [
     {

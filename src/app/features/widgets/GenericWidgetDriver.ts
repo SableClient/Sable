@@ -242,7 +242,9 @@ export class GenericWidgetDriver extends WidgetDriver {
 
       const matchesEventType = ev.getType() === eventType && !ev.isState();
       const matchesMsgType =
-        eventType !== (EventType.RoomMessage as string) || !msgtype || msgtype === ev.getContent().msgtype;
+        eventType !== (EventType.RoomMessage as string) ||
+        !msgtype ||
+        msgtype === ev.getContent().msgtype;
       const eventStateKey = ev.getStateKey();
       const matchesStateKey =
         eventStateKey === undefined || stateKey === undefined || eventStateKey === stateKey;

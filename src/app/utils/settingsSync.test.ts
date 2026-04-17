@@ -246,7 +246,7 @@ describe('importSettingsFromJson', () => {
     accept: string;
     files: FileList | null;
     onchange: ((ev: Event) => void) | null;
-    click: vi.fn<() => void>;
+    click: () => void;
   };
 
   beforeEach(() => {

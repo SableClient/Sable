@@ -262,7 +262,9 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents);
+  const mDirectsEvent = mx.getAccountData(
+    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents
+  );
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -287,11 +289,16 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents, userIdToRoomIds);
+  await mx.setAccountData(
+    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents,
+    userIdToRoomIds
+  );
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents);
+  const mDirectsEvent = mx.getAccountData(
+    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents
+  );
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -305,7 +312,10 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents, userIdToRoomIds);
+  await mx.setAccountData(
+    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents,
+    userIdToRoomIds
+  );
 };
 
 export const mxcUrlToHttp = (
@@ -344,6 +354,11 @@ export const downloadEncryptedMedia = async (
   return decryptedContent;
 };
 
+const sleepForMs = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 export const rateLimitedActions = async <T, R = void>(
   data: T[],
   callback: (item: T, index: number) => Promise<R>,
@@ -352,11 +367,6 @@ export const rateLimitedActions = async <T, R = void>(
   let retryCount = 0;
 
   let actionInterval = 0;
-
-  const sleepForMs = (ms: number) =>
-    new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    });
 
   const performAction = async (dataItem: T, index: number) => {
     const [err] = await to<R, MatrixError>(callback(dataItem, index));

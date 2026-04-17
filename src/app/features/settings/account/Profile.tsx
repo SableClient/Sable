@@ -599,8 +599,8 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
       >
         <BioEditor
           value={
-            ((profile.extended?.['gay.fomx.biography'])?.['m.text']?.[0]
-              ?.body) ||
+            (profile.extended?.['gay.fomx.biography'] as MSC4440Bio | undefined)?.['m.text']?.[0]
+              ?.body ||
             (profile.extended?.['moe.sable.app.bio'] as string | undefined) ||
             (profile.extended?.['chat.commet.profile_bio'] as string | undefined) ||
             profile.bio

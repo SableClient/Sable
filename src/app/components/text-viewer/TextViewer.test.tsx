@@ -6,7 +6,8 @@ import * as css from './TextViewer.css';
 
 const { copyToClipboard, CodeHighlightRenderer } = vi.hoisted(() => ({
   copyToClipboard: vi.fn<() => Promise<void>>(),
-  CodeHighlightRenderer: vi.fn<(props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element>(),
+  CodeHighlightRenderer:
+    vi.fn<(props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element>(),
 }));
 
 vi.mock('$utils/dom', () => ({
@@ -26,7 +27,12 @@ describe('TextViewer', () => {
     const user = userEvent.setup();
 
     render(
-      <TextViewer name="notes.txt" text={'line 1\nline 2'} langName="txt" requestClose={vi.fn<() => void>()} />
+      <TextViewer
+        name="notes.txt"
+        text={'line 1\nline 2'}
+        langName="txt"
+        requestClose={vi.fn<() => void>()}
+      />
     );
 
     expect(CodeHighlightRenderer).toHaveBeenCalled();

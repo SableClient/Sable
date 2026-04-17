@@ -386,7 +386,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
       const newContent = {
         ...powerLevels,
         events: {
-          ...(powerLevels.events ?? {}),
+          ...powerLevels.events,
           [eventType]: newLevel,
         },
       };

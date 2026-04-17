@@ -26,7 +26,6 @@ import { ConfirmPasswordMatch } from '$components/ConfirmPasswordMatch';
 import { UIAFlowOverlay } from '$components/UIAFlowOverlay';
 import { EmailStageDialog } from '$components/uia-stages';
 import { getLoginPath, withSearchParam } from '$pages/pathUtils';
-import type { LoginPathSearchParams } from '$pages/paths';
 import { getUIAError, getUIAErrorCode } from '$utils/matrix-uia';
 import { FieldError } from '$pages/auth/FiledError';
 import type { ResetPasswordResult } from './resetPasswordUtil';
@@ -46,7 +45,7 @@ function ResetPasswordComplete({ email }: { email?: string }) {
   const handleClick = () => {
     const path = getLoginPath(server);
     if (email) {
-      navigate(withSearchParam<LoginPathSearchParams>(path, { email }));
+      navigate(withSearchParam(path, { email }));
       return;
     }
     navigate(path);

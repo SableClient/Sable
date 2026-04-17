@@ -206,7 +206,10 @@ async function deriveKeys(
   const aesProm = subtleCrypto
     .importKey('raw', aesKey, { name: 'AES-CTR' }, false, ['encrypt', 'decrypt'])
     .catch((error) => {
-      throw friendlyError(`subtleCrypto.importKey failed for AES key: ${String(error)}`, cryptoFailMsg());
+      throw friendlyError(
+        `subtleCrypto.importKey failed for AES key: ${String(error)}`,
+        cryptoFailMsg()
+      );
     });
 
   const hmacProm = subtleCrypto
@@ -221,7 +224,10 @@ async function deriveKeys(
       ['sign', 'verify']
     )
     .catch((error) => {
-      throw friendlyError(`subtleCrypto.importKey failed for HMAC key: ${String(error)}`, cryptoFailMsg());
+      throw friendlyError(
+        `subtleCrypto.importKey failed for HMAC key: ${String(error)}`,
+        cryptoFailMsg()
+      );
     });
 
   return Promise.all([aesProm, hmacProm]);

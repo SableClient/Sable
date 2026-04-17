@@ -1219,7 +1219,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             if (typeof stateKey === 'string') {
               await mx.sendStateEvent(
                 room.roomId,
-                eventType,
+                eventType as Parameters<typeof mx.sendStateEvent>[1],
                 content,
                 stateKey
               );
@@ -1271,7 +1271,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             const mergedContent = { ...existingContent, ...newContent };
 
-            await mx.setAccountData(type, mergedContent);
+            await mx.setAccountData(type as Parameters<typeof mx.setAccountData>[0], mergedContent);
             sendFeedback(`Account data "${type}" merged successfully.`, room, userId);
           } catch (e: unknown) {
             sendFeedback(`Error: ${(e as Error).message}`, room, userId);
@@ -1300,7 +1300,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
               return;
             }
-            const content = { ...(existingEvent?.getContent() ?? {}) };
+            const content = { ...existingEvent?.getContent() };
             if (!(key in content)) {
               sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
               return;

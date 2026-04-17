@@ -135,7 +135,11 @@ export const useGlobalImagePacks = (): ImagePack[] => {
         const eventType = mEvent.getType();
         const roomId = mEvent.getRoomId();
         const stateKey = mEvent.getStateKey();
-        if (eventType === (StateEvent.PoniesRoomEmotes as string) && roomId && typeof stateKey === 'string') {
+        if (
+          eventType === (StateEvent.PoniesRoomEmotes as string) &&
+          roomId &&
+          typeof stateKey === 'string'
+        ) {
           setGlobalPacks((prev) => {
             const global = !!prev.find(
               (pack) =>

@@ -79,26 +79,25 @@ export const TimePicker = forwardRef<HTMLDivElement, TimePickerProps>(
                   </Chip>
                 ))
               : Array.from({ length: 12 }, (_, i) => {
-                    if (i === 0) return 12;
-                    return i;
-                  })
-                  .map((hour) => (
-                    <Chip
-                      key={hour}
-                      size="500"
-                      variant={hour === selectedHour ? 'Primary' : 'Background'}
-                      fill="None"
-                      radii="300"
-                      aria-selected={hour === selectedHour}
-                      onClick={() => handleHour(hour)}
-                      disabled={
-                        (minDay && hour12to24(hour, selectedPM) < minHour24) ||
-                        (maxDay && hour12to24(hour, selectedPM) > maxHour24)
-                      }
-                    >
-                      <Text size="T300">{hour < 10 ? `0${hour}` : hour}</Text>
-                    </Chip>
-                  ))}
+                  if (i === 0) return 12;
+                  return i;
+                }).map((hour) => (
+                  <Chip
+                    key={hour}
+                    size="500"
+                    variant={hour === selectedHour ? 'Primary' : 'Background'}
+                    fill="None"
+                    radii="300"
+                    aria-selected={hour === selectedHour}
+                    onClick={() => handleHour(hour)}
+                    disabled={
+                      (minDay && hour12to24(hour, selectedPM) < minHour24) ||
+                      (maxDay && hour12to24(hour, selectedPM) > maxHour24)
+                    }
+                  >
+                    <Text size="T300">{hour < 10 ? `0${hour}` : hour}</Text>
+                  </Chip>
+                ))}
           </PickerColumn>
           <PickerColumn title="Minutes">
             {Array.from({ length: 60 }, (_, i) => i).map((minute) => (

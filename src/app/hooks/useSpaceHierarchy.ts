@@ -367,7 +367,10 @@ export const useFetchSpaceHierarchyLevel = (
     },
     retry: 5,
     retryDelay: (failureCount, error) => {
-      if (error instanceof MatrixError && error.errcode === (ErrorCode.M_LIMIT_EXCEEDED as string)) {
+      if (
+        error instanceof MatrixError &&
+        error.errcode === (ErrorCode.M_LIMIT_EXCEEDED as string)
+      ) {
         const { retry_after_ms: delay } = error.data;
         if (typeof delay === 'number') {
           return delay;

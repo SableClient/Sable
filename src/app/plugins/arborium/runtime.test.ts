@@ -12,13 +12,13 @@ afterEach(() => {
 
 describe('highlightCode', () => {
   it('normalizes explicit aliases before highlighting', async () => {
-    const normalizeLanguage = vi.fn<(language: string) => string>(
-      (language: string) => language === 'ts' ? 'typescript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) =>
+      language === 'ts' ? 'typescript' : language
     );
     const detectLanguage = vi.fn<() => null>();
-    const highlight = vi.fn<
-      (language: string, code: string) => Promise<string>
-    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
+    const highlight = vi.fn<(language: string, code: string) => Promise<string>>(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
     const module = {
       normalizeLanguage,
       detectLanguage,
@@ -50,9 +50,9 @@ describe('highlightCode', () => {
   it('maps jsx to tsx when Arborium supports tsx', async () => {
     const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
     const detectLanguage = vi.fn<() => null>();
-    const highlight = vi.fn<
-      (language: string, code: string) => Promise<string>
-    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
+    const highlight = vi.fn<(language: string, code: string) => Promise<string>>(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
     const module = {
       normalizeLanguage,
       detectLanguage,
@@ -85,9 +85,9 @@ describe('highlightCode', () => {
   it('maps markup to html when Arborium supports html', async () => {
     const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);
     const detectLanguage = vi.fn<() => null>();
-    const highlight = vi.fn<
-      (language: string, code: string) => Promise<string>
-    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
+    const highlight = vi.fn<(language: string, code: string) => Promise<string>>(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
     const module = {
       normalizeLanguage,
       detectLanguage,
@@ -130,7 +130,9 @@ describe('highlightCode', () => {
         return nextLanguage;
       });
       const detectLanguage = vi.fn<() => null>();
-      const highlight = vi.fn<() => Promise<string>>(async () => '<pre data-language="unexpected"></pre>');
+      const highlight = vi.fn<() => Promise<string>>(
+        async () => '<pre data-language="unexpected"></pre>'
+      );
       const isLanguageAvailable = vi.fn<(nextLanguage: string) => Promise<boolean>>(
         async (nextLanguage: string) => !['text', 'log', 'csv', 'make'].includes(nextLanguage)
       );
@@ -196,13 +198,13 @@ describe('highlightCode', () => {
   });
 
   it('detects a language only when allowDetect is true', async () => {
-    const normalizeLanguage = vi.fn<(language: string) => string>(
-      (language: string) => language === 'js' ? 'javascript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) =>
+      language === 'js' ? 'javascript' : language
     );
     const detectLanguage = vi.fn<() => string>();
-    const highlight = vi.fn<
-      (language: string, code: string) => Promise<string>
-    >(async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`);
+    const highlight = vi.fn<(language: string, code: string) => Promise<string>>(
+      async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
+    );
     const module = {
       normalizeLanguage,
       detectLanguage,
@@ -283,8 +285,8 @@ describe('highlightCode', () => {
   });
 
   it('returns plain escaped code with the resolved language when highlighting fails', async () => {
-    const normalizeLanguage = vi.fn<(language: string) => string>(
-      (language: string) => language === 'ts' ? 'typescript' : language
+    const normalizeLanguage = vi.fn<(language: string) => string>((language: string) =>
+      language === 'ts' ? 'typescript' : language
     );
     const detectLanguage = vi.fn<() => null>();
     const highlight = vi.fn<() => Promise<string>>(async () => {

@@ -256,7 +256,11 @@ export function MessageSearch({
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (
-            <SequenceCard variant="SurfaceVariant" key={crypto.randomUUID()} style={{ minHeight: toRem(80) }} />
+            <SequenceCard
+              variant="SurfaceVariant"
+              key={crypto.randomUUID()}
+              style={{ minHeight: toRem(80) }}
+            />
           ))}
         </Box>
       )}

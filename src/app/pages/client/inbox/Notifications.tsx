@@ -15,6 +15,7 @@ import {
 } from 'folds';
 import { useSearchParams } from 'react-router-dom';
 import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
 import { JoinRule, Method, RelationType } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -379,7 +380,7 @@ function RoomNotificationsGroupComp({
         }
         return (
           <MSticker
-            content={getContent()}
+            content={getContent() as IImageContent}
             renderImageContent={(props) => (
               <ImageContent
                 {...props}

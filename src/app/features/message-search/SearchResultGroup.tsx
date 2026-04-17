@@ -2,6 +2,7 @@ import type { MouseEventHandler } from 'react';
 import { useMemo } from 'react';
 import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
 import { JoinRule, RelationType } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -168,7 +169,7 @@ export function SearchResultGroup({
         }
         return (
           <MSticker
-            content={getContent()}
+            content={getContent() as IImageContent}
             renderImageContent={(props) => (
               <ImageContent
                 {...props}

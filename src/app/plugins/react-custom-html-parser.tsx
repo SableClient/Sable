@@ -38,6 +38,10 @@ import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
 
+const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
+
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
     target: '_blank',
@@ -349,7 +353,7 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
 
   nodes.forEach((node) => {
     if ((node.type as unknown as string) === 'text') {
-      text += node.data;
+      text += (node as unknown as Text).data;
     } else if (node instanceof Element && node.children) {
       text += extractTextFromChildren(node.children);
     }
@@ -496,10 +500,6 @@ export const getReactCustomHtmlParser = (
   }
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
-
-  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
 
   const decorateText = (text: string) => {
     let jsx = scaleSystemEmoji(text);

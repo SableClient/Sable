@@ -183,7 +183,7 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 export const isMutedRule = (rule: IPushRule) =>
   // Check for empty actions (new spec) or dont_notify (deprecated)
-  (rule.actions.length === 0 || (rule.actions[0] as unknown as string[]) === 'dont_notify') &&
+  (rule.actions.length === 0 || (rule.actions[0] as unknown as string) === 'dont_notify') &&
   // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
   rule.conditions?.[0]?.kind === 'event_match';
 
@@ -660,7 +660,11 @@ export const getLatestEditableEvt = (
 
 export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   const relType = mEvent.getRelation()?.rel_type;
-  if (relType === (RelationType.Annotation as string) || relType === (RelationType.Replace as string)) return true;
+  if (
+    relType === (RelationType.Annotation as string) ||
+    relType === (RelationType.Replace as string)
+  )
+    return true;
 
   // Sliding sync proxies may omit m.relates_to on the initial delivery of timeline
   // events.  Detect edit events by the presence of m.new_content in the event

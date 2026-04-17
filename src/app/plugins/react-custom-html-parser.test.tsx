@@ -15,13 +15,8 @@ import {
 const settingsLinkBaseUrl = 'https://app.example';
 
 const { CodeHighlightRenderer } = vi.hoisted(() => ({
-  CodeHighlightRenderer: vi.fn<
-    (props: {
-      code: string;
-      language?: string;
-      allowDetect?: boolean;
-    }) => JSX.Element
-  >(),
+  CodeHighlightRenderer:
+    vi.fn<(props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element>(),
 }));
 
 vi.mock('$components/code-highlight', () => ({

@@ -2,6 +2,7 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import type { MatrixEvent, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
 import {
   Avatar,
   Box,
@@ -496,7 +497,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
           }
           return (
             <MSticker
-              content={getContent()}
+              content={getContent() as IImageContent}
               renderImageContent={(props) => (
                 <ImageContent
                   {...props}

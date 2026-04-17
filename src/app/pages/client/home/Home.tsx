@@ -61,7 +61,6 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
-import type { RoomSearchParams } from '$pages/paths';
 import { useHomeRooms } from './useHomeRooms';
 
 type HomeMenuProps = {
@@ -286,7 +285,7 @@ export function Home() {
                           const path = getHomeRoomPath(roomIdOrAlias, eventId);
                           navigate(
                             viaServers
-                              ? withSearchParam<RoomSearchParams>(path, {
+                              ? withSearchParam(path, {
                                   viaServers: encodeSearchParamValueArray(viaServers),
                                 })
                               : path

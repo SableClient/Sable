@@ -610,27 +610,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(urlToPlay);
       audioRef.current = audio;
 
-      const handleEnded = () => {
+      const onEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(pausedTimeRef.current); // Reset to total recorded time
       };
-      const handlePause = () => {
+      const onPause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      const handlePlay = () => {
+      const onPlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('pause', handlePause);
-      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('play', onPlay);
     }
 
     const audio = audioRef.current;
@@ -663,27 +663,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      const handleEnded = () => {
+      const onEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(0);
       };
-      const handlePause = () => {
+      const onPause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      const handlePlay = () => {
+      const onPlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('pause', handlePause);
-      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('play', onPlay);
     }
 
     const audio = audioRef.current;

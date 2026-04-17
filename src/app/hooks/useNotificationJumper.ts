@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import { SyncState, ClientEvent } from '$types/matrix-sdk';
+import { SyncState, ClientEvent, RoomEvent, Room, MatrixEvent } from '$types/matrix-sdk';
 import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
 import { mDirectAtom } from '../state/mDirectList';
 import { useSyncState } from './useSyncState';
@@ -11,6 +11,10 @@ import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '../pages/p
 import { getOrphanParents, guessPerfectParent } from '../utils/room';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
+
+// How long to wait for the notification event to appear in the live timeline
+// before falling back to opening the room at the live bottom.
+const JUMP_TIMEOUT_MS = 15_000;
 
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);
@@ -27,6 +31,9 @@ export function NotificationJumper() {
   // churn re-calls performJump (from the ClientEvent.Room listener or effect
   // re-runs) before React has committed the null, causing repeated navigation.
   const jumpingRef = useRef(false);
+  // Tracks when we first started waiting for the target event to appear in the
+  // live timeline. Reset whenever `pending` changes.
+  const jumpStartTimeRef = useRef<number | null>(null);
 
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
@@ -52,13 +59,46 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      log.log('jumping to:', pending.roomId, pending.eventId);
+      const liveEvents =
+        room?.getUnfilteredTimelineSet?.()?.getLiveTimeline?.()?.getEvents?.() ?? [];
+      const eventInLive = pending.eventId
+        ? liveEvents.some((event) => event.getId() === pending.eventId)
+        : false;
+
+      // Defer while the target event hasn't arrived in the live timeline yet.
+      // Navigating with an eventId not in the live timeline triggers a sparse
+      // historical context load — the room appears empty or shows only one message.
+      // Retry on each RoomEvent.Timeline until the event appears, then navigate
+      // with the eventId so the room scrolls to and highlights it in full context.
+      // After JUMP_TIMEOUT_MS fall back to opening the room at the live bottom.
+      if (pending.eventId && !eventInLive) {
+        if (jumpStartTimeRef.current === null) {
+          jumpStartTimeRef.current = Date.now();
+        }
+        if (Date.now() - jumpStartTimeRef.current < JUMP_TIMEOUT_MS) {
+          log.log('event not yet in live timeline, deferring jump...', {
+            roomId: pending.roomId,
+            eventId: pending.eventId,
+          });
+          return;
+        }
+        log.log('timed out waiting for event in live; falling back to live bottom', {
+          roomId: pending.roomId,
+          eventId: pending.eventId,
+        });
+      }
+
+      // Pass eventId only when confirmed in the live timeline — scrolls to and
+      // highlights the event in full room context without a sparse historical load.
+      // Falls back to undefined (live bottom) when the event never appears in live.
+      const targetEventId = eventInLive ? pending.eventId : undefined;
+      log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, pending.eventId));
+        navigate(getDirectRoomPath(roomIdOrAlias, targetEventId));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -74,11 +114,11 @@ export function NotificationJumper() {
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace),
               roomIdOrAlias,
-              pending.eventId
+              targetEventId
             )
           );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, pending.eventId));
+          navigate(getHomeRoomPath(roomIdOrAlias, targetEventId));
         }
       }
       setPending(null);
@@ -92,9 +132,10 @@ export function NotificationJumper() {
     }
   }, [pending, activeSessionId, mx, mDirects, roomToParents, navigate, setPending, log]);
 
-  // Reset the guard only when pending is replaced (new notification or cleared).
+  // Reset guards only when pending is replaced (new notification or cleared).
   useEffect(() => {
     jumpingRef.current = false;
+    jumpStartTimeRef.current = null;
   }, [pending]);
 
   // Keep a stable ref to the latest performJump so that the listeners below
@@ -117,11 +158,16 @@ export function NotificationJumper() {
     if (!pending) return undefined;
 
     const onRoom = () => performJumpRef.current();
+    const onTimeline = (_event: MatrixEvent, eventRoom: Room | undefined) => {
+      if (eventRoom?.roomId === pending.roomId) performJumpRef.current();
+    };
     mx.on(ClientEvent.Room, onRoom);
+    mx.on(RoomEvent.Timeline, onTimeline);
     performJumpRef.current();
 
     return () => {
       mx.removeListener(ClientEvent.Room, onRoom);
+      mx.removeListener(RoomEvent.Timeline, onTimeline);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
 

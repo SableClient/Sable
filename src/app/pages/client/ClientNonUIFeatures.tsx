@@ -336,7 +336,12 @@ function MessageNotifications() {
         return;
       }
 
-      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent)) {
+      if (
+        !room ||
+        isHistoricalEvent ||
+        room.isSpaceRoom() ||
+        !isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)
+      ) {
         return;
       }
 

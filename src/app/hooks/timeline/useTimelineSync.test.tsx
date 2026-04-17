@@ -125,6 +125,11 @@ describe('useTimelineSync', () => {
     );
 
     await act(async () => {
+      // Simulate the SDK replacing the live timeline object, which is what
+      // a real TimelineReset does (resetLiveTimeline creates a new
+      // EventTimeline and swaps liveTimeline to it).
+      const newTimeline = createTimeline([{}, {}]);
+      timelineSet.getLiveTimeline = () => newTimeline;
       timelineSet.emit(RoomEvent.TimelineReset);
       await Promise.resolve();
     });

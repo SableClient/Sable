@@ -395,6 +395,9 @@ export function useTimelineSync({
     | undefined
   >();
 
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
+
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
@@ -534,9 +537,18 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
+      const newLinked = getInitialTimeline(room).linkedTimelines;
+      const prev = timelineRef.current.linkedTimelines;
+      // Skip update when the linked-timeline chain is identical (same
+      // EventTimeline references).  TimelineReset often fires during initial
+      // room load after the SDK already populated the timeline we are
+      // showing — re-rendering would only produce a visible flash.
+      if (prev.length === newLinked.length && prev.every((tl, i) => tl === newLinked[i])) {
+        return;
+      }
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
-      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+      setTimeline({ linkedTimelines: newLinked });
       if (wasAtBottom) {
         scrollToBottom();
       }

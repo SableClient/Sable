@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
@@ -21,11 +21,26 @@ export interface UseProcessedTimelineOptions {
   isReadOnly: boolean;
   hideMemberInReadOnly: boolean;
   /**
+  /**
    * When true, skip the filter that removes events whose `threadRootId` points
    * to a different event.  Required when processing a thread's own timeline
    * where every reply legitimately has `threadRootId` set to the root.
    */
   skipThreadFilter?: boolean;
+  /**
+   * Increment this whenever existing event content mutates (reactions, edits,
+   * thread updates, local-echo).  When it changes, `useProcessedTimeline`
+   * creates fresh `ProcessedEvent` objects so downstream `React.memo` item
+   * components re-render to reflect updated content.  When unchanged (e.g. a
+   * new event was appended), existing objects are reused by identity, letting
+   * memo bail out for unchanged items.
+   *
+   * Optional — defaults to 0 (stable refs always applied after first render).
+   * Call sites that do NOT use `React.memo` item components (e.g. `ThreadDrawer`)
+   * can omit this; the SDK mutates `mEvent` in place so rendered content stays
+   * correct regardless of object identity.
+   */
+  mutationVersion?: number;
 }
 
 export interface ProcessedEvent {
@@ -62,8 +77,23 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
+  mutationVersion = 0,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
+  // Stable-ref cache: reuse the same ProcessedEvent object for an event when
+  // nothing structural changed. This lets React.memo on item components bail
+  // out for the majority of items when only a new message was appended.
+  const stableRefsCache = useRef<Map<string, ProcessedEvent>>(new Map());
+  const prevMutationVersionRef = useRef(-1);
+
   return useMemo(() => {
+    // When mutationVersion changes, existing event content has mutated (reaction
+    // added, message edited, local-echo updated, thread reply). Create fresh
+    // objects so memo item components re-render. When version is unchanged (only
+    // items count changed), reuse cached refs for structurally-identical events.
+    const isMutation = mutationVersion !== prevMutationVersionRef.current;
+    prevMutationVersionRef.current = mutationVersion;
+    const prevCache = isMutation ? null : stableRefsCache.current;
+
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
     let newDivider = false;
@@ -179,18 +209,39 @@ export function useProcessedTimeline({
         willRenderDayDivider,
       };
 
+      // Reuse the previous ProcessedEvent object if all structural fields match,
+      // so that React.memo on timeline item components can bail out cheaply.
+      // itemIndex must also be equal: after back-pagination the same eventId
+      // shifts to a higher VList index, so a stale itemIndex would break
+      // getRawIndexToProcessedIndex and focus-highlight comparisons.
+      const prev = prevCache?.get(mEventId);
+      const stable =
+        prev &&
+        prev.mEvent === mEvent &&
+        prev.timelineSet === timelineSet &&
+        prev.itemIndex === processed.itemIndex &&
+        prev.collapsed === collapsed &&
+        prev.willRenderNewDivider === willRenderNewDivider &&
+        prev.willRenderDayDivider === willRenderDayDivider &&
+        prev.eventSender === eventSender
+          ? prev
+          : processed;
+
       prevEvent = mEvent;
       isPrevRendered = true;
       if (willRenderNewDivider) newDivider = false;
       if (willRenderDayDivider) dayDivider = false;
 
-      acc.push(processed);
+      acc.push(stable);
       return acc;
     }, []);
+    // Update the stable-ref cache for the next render.
+    stableRefsCache.current = new Map(result.map((e) => [e.id, e]));
     return result;
   }, [
     items,
     linkedTimelines,
+    mutationVersion,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,

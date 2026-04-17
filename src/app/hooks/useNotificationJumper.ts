@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import { SyncState, ClientEvent } from '$types/matrix-sdk';
+import { SyncState, ClientEvent, Room, RoomEvent, RoomEventHandlerMap } from '$types/matrix-sdk';
 import { activeSessionIdAtom, pendingNotificationAtom } from '../state/sessions';
 import { mDirectAtom } from '../state/mDirectList';
 import { useSyncState } from './useSyncState';
@@ -52,13 +52,38 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      log.log('jumping to:', pending.roomId, pending.eventId);
+      // If the notification event is already in the room's live timeline (i.e.
+      // sliding sync has already delivered it), open the room at the live bottom
+      // rather than using the eventId URL path.  The eventId path triggers
+      // loadEventTimeline → roomInitialSync which loads a historical slice that
+      // (a) may look like a brand-new chat if the event is the only one in the
+      // slice, and (b) makes the room appear empty when the user navigates away
+      // and returns without the eventId, because the sliding-sync live timeline
+      // hasn't been populated yet.  Omitting the eventId for events already in
+      // the live timeline lets the room open normally at the bottom where the
+      // new message is visible.  Historical events (not in live timeline) still
+      // use the eventId so loadEventTimeline can jump to the right context.
+      const liveEvents =
+        room?.getUnfilteredTimelineSet?.()?.getLiveTimeline?.()?.getEvents?.() ?? [];
+      const eventInLive = pending.eventId
+        ? liveEvents.some((e) => e.getId() === pending.eventId)
+        : false;
+      // If the live timeline is empty the room hasn't been populated by sliding
+      // sync yet.  Defer navigation and let the RoomEvent.Timeline listener below
+      // retry once events arrive — by then the notification event will almost
+      // certainly be in the live timeline and we can skip loadEventTimeline.
+      if (!eventInLive && liveEvents.length === 0) {
+        log.log('live timeline empty, deferring jump...', { roomId: pending.roomId });
+        return;
+      }
+      const resolvedEventId = eventInLive ? undefined : pending.eventId;
+      log.log('jumping to:', pending.roomId, resolvedEventId, { eventInLive });
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, pending.eventId));
+        navigate(getDirectRoomPath(roomIdOrAlias, resolvedEventId));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -74,11 +99,11 @@ export function NotificationJumper() {
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace),
               roomIdOrAlias,
-              pending.eventId
+              resolvedEventId
             )
           );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, pending.eventId));
+          navigate(getHomeRoomPath(roomIdOrAlias, resolvedEventId));
         }
       }
       setPending(null);
@@ -117,11 +142,21 @@ export function NotificationJumper() {
     if (!pending) return undefined;
 
     const onRoom = () => performJumpRef.current();
+    // Re-check once events arrive in the target room — this fires shortly after
+    // the initial sync populates the live timeline, letting us verify whether
+    // the notification event is already there before falling back to
+    // loadEventTimeline (which creates a sparse historical slice that may make
+    // the room appear empty on subsequent visits without the eventId).
+    const onTimeline = (_evt: unknown, eventRoom: Room | undefined) => {
+      if (eventRoom?.roomId === pending.roomId) performJumpRef.current();
+    };
     mx.on(ClientEvent.Room, onRoom);
+    mx.on(RoomEvent.Timeline, onTimeline as RoomEventHandlerMap[RoomEvent.Timeline]);
     performJumpRef.current();
 
     return () => {
       mx.removeListener(ClientEvent.Room, onRoom);
+      mx.removeListener(RoomEvent.Timeline, onTimeline as RoomEventHandlerMap[RoomEvent.Timeline]);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
 

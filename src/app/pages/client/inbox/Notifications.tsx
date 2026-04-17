@@ -358,7 +358,7 @@ function RoomNotificationsGroupComp({
                   />
                 );
               }
-              if (mEvent.getType() === MessageEvent.RoomMessageEncrypted)
+              if (mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string))
                 return (
                   <Text>
                     <MessageNotDecryptedContent />

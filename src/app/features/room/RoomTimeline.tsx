@@ -371,12 +371,19 @@ export function RoomTimeline({
       if (savedCache) {
         // Revisiting a room with a cached scroll state — restore position
         // immediately and skip the 80 ms stabilisation timer entirely.
-        if (savedCache.atBottom) {
-          vListRef.current.scrollTo(vListRef.current.scrollSize);
+        // Guard: only reveal when processedEvents are populated. If they're
+        // still empty (React hasn't yet processed the new timeline), defer
+        // to the pendingReady recovery path which runs on the next render.
+        if (processedEventsRef.current.length === 0) {
+          pendingReadyRef.current = true;
         } else {
-          vListRef.current.scrollTo(savedCache.scrollOffset);
+          if (savedCache.atBottom) {
+            vListRef.current.scrollTo(vListRef.current.scrollSize);
+          } else {
+            vListRef.current.scrollTo(savedCache.scrollOffset);
+          }
+          setIsReady(true);
         }
-        setIsReady(true);
       } else {
         // First visit — scroll to bottom, then wait 80 ms for VList to finish
         // measuring item heights before revealing the timeline.
@@ -862,6 +869,12 @@ export function RoomTimeline({
       // upstream doesn't have, producing visible layout churn after isReady.
       if (!isReadyRef.current) return;
 
+      // While a jump is in progress (focusItem set), VList fires scroll events
+      // from scrollToIndex that can incorrectly flip atBottom=true — especially
+      // if the target happens to be near the end.  Ignore scroll-position
+      // updates until the jump transition finishes and focusItem is cleared.
+      if (timelineSyncRef.current.focusItem) return;
+
       if (atBottomRef.current && !isNowAtBottom && contentGrew) {
         v.scrollTo(v.scrollSize);
         return;
@@ -1016,14 +1029,28 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
-    vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+
+    // If there's a cached scroll state (deferred from the initial-scroll
+    // path because processedEvents weren't ready yet), restore that position
+    // instead of blindly scrolling to bottom.
+    const savedCache = scrollCacheForRoomRef.current;
+    if (savedCache) {
+      if (savedCache.atBottom) {
+        vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+      } else {
+        vListRef.current?.scrollTo(savedCache.scrollOffset);
+      }
+    } else {
+      vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    }
+
     // Save now so the next visit skips the timer.
     const v = vListRef.current;
     if (v) {
       roomScrollCache.save(mxUserId, room.roomId, {
         cache: v.cache,
         scrollOffset: v.scrollOffset,
-        atBottom: true,
+        atBottom: savedCache?.atBottom ?? true,
       });
     }
     setIsReady(true);

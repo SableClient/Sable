@@ -356,31 +356,6 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
-  // Sliding sync limitation: unvisited rooms don't have read receipt data, but may have
-  // timeline activity. Check for notification events from others in the timeline to show a
-  // badge even when SDK counts are 0 (or unreliable without receipts).
-  if (userId) {
-    const readUpToId = room.getEventReadUpTo(userId);
-
-    // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
-    if (!readUpToId) {
-      const liveEvents = room.getLiveTimeline().getEvents();
-
-      const hasActivity = liveEvents.some(
-        (event) => event.getSender() !== userId && isNotificationEvent(event, room, userId)
-      );
-
-      if (hasActivity) {
-        // If SDK already has counts, use those. Otherwise show dot badge (count=1).
-        if (total === 0 && highlight === 0) {
-          return { roomId: room.roomId, highlight: 0, total: 1 };
-        }
-        // SDK has counts but no receipt - trust the counts and show them
-        return { roomId: room.roomId, highlight, total };
-      }
-    }
-  }
-
   // For DMs with Default or AllMessages notification type: if there are unread messages,
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with

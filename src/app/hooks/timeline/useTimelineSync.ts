@@ -453,6 +453,11 @@ export function useTimelineSync({
     }
   }, [eventsLength, liveTimelineLinked, isAtBottom]);
 
+  const lastScrolledAtEventsLengthRef = useRef(eventsLength);
+
+  const eventsLengthRef = useRef(eventsLength);
+  eventsLengthRef.current = eventsLength;
+
   const loadEventTimeline = useEventTimelineLoader(
     mx,
     room,
@@ -461,6 +466,10 @@ export function useTimelineSync({
         if (!alive()) return;
 
         setTimeline({ linkedTimelines: lTimelines });
+
+        // Sync the auto-scroll ref so the eventsLength watcher doesn't see a
+        // delta and immediately scroll-to-bottom after the jump lands.
+        lastScrolledAtEventsLengthRef.current = getTimelinesEventsCount(lTimelines);
 
         setFocusItem({
           index: evtAbsIndex,
@@ -476,11 +485,6 @@ export function useTimelineSync({
       scrollToBottom();
     }, [alive, room, scrollToBottom])
   );
-
-  const lastScrolledAtEventsLengthRef = useRef(eventsLength);
-
-  const eventsLengthRef = useRef(eventsLength);
-  eventsLengthRef.current = eventsLength;
 
   useLiveEventArrive(
     room,

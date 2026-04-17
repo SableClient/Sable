@@ -157,7 +157,6 @@ export function RoomView({ eventId }: { eventId?: string }) {
                 </Box>
               )}
               <RoomTimeline
-                key={roomId}
                 room={room}
                 eventId={eventId}
                 editor={editor}

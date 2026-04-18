@@ -160,7 +160,7 @@ describe('react custom html parser', () => {
     expect(link).toHaveAttribute('data-settings-link-section', 'appearance');
     expect(link).toHaveAttribute('data-settings-link-focus', 'message-link-preview');
     expect(link.className).toContain(customHtmlCss.Mention({}));
-    expect(link).not.toHaveTextContent('Settings:');
+    expect(link).not.toHaveTextContent('Settings >');
     expect(link.className).toContain(customHtmlCss.MentionWithIcon);
   });
 
@@ -170,7 +170,7 @@ describe('react custom html parser', () => {
       { sanitize: false }
     );
 
-    const link = screen.getByRole('link', { name: 'Appearance' });
+    const link = screen.getByRole('link', { name: 'Appearance / Message Link Preview' });
     expect(link).toHaveAttribute(
       'href',
       'https://app.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
@@ -188,13 +188,56 @@ describe('react custom html parser', () => {
       { sanitize: false }
     );
 
-    const link = screen.getByRole('link', { name: 'Account' });
+    const link = screen.getByRole('link', { name: 'Account / Status' });
     expect(link).toHaveAttribute(
       'href',
       'https://other.example/#/client/settings/account?focus=status&moe.sable.client.action=settings'
     );
     expect(link).toHaveAttribute('data-settings-link-section', 'account');
     expect(link).toHaveAttribute('data-settings-link-focus', 'status');
+  });
+
+  it('keeps malformed settings-looking linkified tokens as normal links', () => {
+    const renderLink = factoryRenderLinkifyWithMention(
+      settingsLinkBaseUrl,
+      () => undefined,
+      undefined
+    ) as (ir: never) => JSX.Element;
+    const malformedToken =
+      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings">Settings';
+
+    render(
+      <div>
+        {renderLink({
+          tagName: 'a',
+          attributes: {
+            href: malformedToken,
+          },
+          content: malformedToken,
+        } as never)}
+      </div>
+    );
+
+    const link = screen.getByRole('link', { name: malformedToken });
+    expect(link).not.toHaveAttribute('data-settings-link-section');
+    expect(link).not.toHaveAttribute('data-settings-link-focus');
+    expect(link.className).not.toContain(customHtmlCss.MentionWithIcon);
+  });
+
+  it('keeps settings links with unknown focus ids as normal links', () => {
+    renderParsedHtml(
+      '<a href="https://app.example/settings/account?focus=display-name2">Settings &gt; Account &gt; Display Name2</a>',
+      { sanitize: false }
+    );
+
+    const link = screen.getByRole('link', { name: 'Settings > Account > Display Name2' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://app.example/settings/account?focus=display-name2'
+    );
+    expect(link).not.toHaveAttribute('data-settings-link-section');
+    expect(link).not.toHaveAttribute('data-settings-link-focus');
+    expect(link.className).not.toContain(customHtmlCss.MentionWithIcon);
   });
 
   it('renders matrix message permalinks with an icon instead of the Message prefix', () => {

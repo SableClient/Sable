@@ -55,4 +55,24 @@ describe('RenderMessageContent', () => {
     expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
   });
+
+  it('still renders url previews for malformed settings-looking links', () => {
+    renderMessage(
+      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings">Settings'
+    );
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings">Settings'
+    );
+  });
+
+  it('still renders url previews for settings links with unknown focus ids', () => {
+    renderMessage('https://app.example/settings/account?focus=display-name2');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
+      'https://app.example/settings/account?focus=display-name2'
+    );
+  });
 });

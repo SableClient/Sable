@@ -536,6 +536,16 @@ export const getMemberDisplayName = (
   return name;
 };
 
+/**
+ * Returns the room's display name, normalising the case where the SDK computes
+ * a raw Matrix user ID for unnamed DMs. In that case, use the localpart so
+ * notifications and banners do not show the full MXID.
+ */
+export const getRoomDisplayName = (room: Room): string => {
+  const { name } = room;
+  return name.match(/^@([^:]+):/)?.[1] ?? name;
+};
+
 export const getMemberSearchStr = (
   member: RoomMember,
   query: string,

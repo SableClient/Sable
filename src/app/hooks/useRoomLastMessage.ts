@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   MatrixClient,
   MatrixEvent,
@@ -90,8 +90,7 @@ export function getLastMessageText(room: Room, mx: MatrixClient): string | undef
   if (senderId === mx.getUserId()) {
     prefix = 'You';
   } else {
-    prefix =
-      room.getMember(senderId ?? '')?.name ?? displayNameFromMxid(senderId ?? 'Unknown');
+    prefix = room.getMember(senderId ?? '')?.name ?? displayNameFromMxid(senderId ?? 'Unknown');
   }
   return `${prefix}: ${text}`;
 }
@@ -111,13 +110,21 @@ export function useRoomLastMessage(
     room && mx ? getLastMessageText(room, mx) : undefined
   );
 
+  // Debounce timer ref — cleared on unmount and room change.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
     if (!room || !mx) {
       setText(undefined);
       return undefined;
     }
 
-    const update = () => setText(getLastMessageText(room, mx));
+    const update = () => {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        setText(getLastMessageText(room, mx));
+      }, 300);
+    };
 
     // Subscribe before reading to close the race window: any decryption that
     // completes after this point will trigger an update via the listener.
@@ -145,6 +152,7 @@ export function useRoomLastMessage(
     }
 
     return () => {
+      clearTimeout(debounceRef.current);
       room.off(RoomEventEnum.Timeline, update);
       room.off(RoomEventEnum.LocalEchoUpdated, update);
       mx.off(MatrixEventEvent.Decrypted, onDecrypted);

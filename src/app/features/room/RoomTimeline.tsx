@@ -172,6 +172,8 @@ export function RoomTimeline({
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const mxUserId = mx.getUserId()!;
+  const initialUnreadInfo = getRoomUnreadInfo(room, true);
+  const initialScrollCache = roomScrollCache.load(mxUserId, room.roomId);
   const alive = useAlive();
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
@@ -218,7 +220,7 @@ export function RoomTimeline({
     return myPowerLevel < sendLevel;
   }, [powerLevels, mx]);
 
-  const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
+  const [unreadInfo, setUnreadInfo] = useState(initialUnreadInfo);
 
   const readUptoEventIdRef = useRef<string | undefined>(undefined);
   if (unreadInfo) readUptoEventIdRef.current = unreadInfo.readUptoEventId;
@@ -250,10 +252,10 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(
-    roomScrollCache.load(mxUserId, room.roomId)
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(initialScrollCache);
+  const [atBottomState, setAtBottomState] = useState(
+    eventId ? false : (initialScrollCache?.atBottom ?? !initialUnreadInfo?.scrollTo)
   );
-  const [atBottomState, setAtBottomState] = useState(!eventId);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
     setAtBottomState(val);
@@ -284,9 +286,11 @@ export function RoomTimeline({
   isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
+    const nextScrollCache = roomScrollCache.load(mxUserId, room.roomId);
+    const nextUnreadInfo = getRoomUnreadInfo(room, true);
     // Load incoming room's scroll cache (undefined for first-visit rooms).
     // Covers the rare case where room prop changes without a remount.
-    scrollCacheForRoomRef.current = roomScrollCache.load(mxUserId, room.roomId);
+    scrollCacheForRoomRef.current = nextScrollCache;
 
     hasInitialScrolledRef.current = false;
     currentRoomIdRef.current = room.roomId;
@@ -298,11 +302,11 @@ export function RoomTimeline({
     }
     setIsReady(false);
     // Reset per-room scroll/layout state so the new room starts clean.
-    setAtBottom(true);
+    setAtBottom(eventId ? false : (nextScrollCache?.atBottom ?? !nextUnreadInfo?.scrollTo));
     setShift(false);
     setTopSpacerHeight(0);
     topSpacerHeightRef.current = 0;
-    setUnreadInfo(getRoomUnreadInfo(room, true));
+    setUnreadInfo(nextUnreadInfo);
   }
 
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
@@ -612,6 +616,7 @@ export function RoomTimeline({
         : undefined;
 
       if (absoluteIndex !== undefined) {
+        setAtBottom(false);
         const processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
         if (processedIndex !== undefined && vListRef.current) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'start' });
@@ -630,6 +635,7 @@ export function RoomTimeline({
     eventId,
     isReady,
     getRawIndexToProcessedIndex,
+    setAtBottom,
   ]);
 
   useEffect(() => {
@@ -1194,7 +1200,6 @@ export function RoomTimeline({
           data={processedEvents}
           cache={!eventId ? scrollCacheForRoomRef.current?.cache : undefined}
           shift={shift}
-          itemSize={80}
           className={css.messageList}
           style={{
             flex: 1,
@@ -1297,7 +1302,7 @@ export function RoomTimeline({
             }
 
             return (
-              <Fragment key={eventData.id}>
+              <Fragment key={`${eventData.id}:${eventData.itemIndex}`}>
                 {dividers}
                 {renderedEvent}
               </Fragment>

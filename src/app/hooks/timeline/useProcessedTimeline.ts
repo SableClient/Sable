@@ -93,6 +93,7 @@ export function useProcessedTimeline({
     const isMutation = mutationVersion !== prevMutationVersionRef.current;
     prevMutationVersionRef.current = mutationVersion;
     const prevCache = isMutation ? null : stableRefsCache.current;
+    const seenRenderedEventIds = new Set<string>();
 
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
@@ -157,6 +158,13 @@ export function useProcessedTimeline({
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;
+
+      // Sliding-sync timeline resets and overlapping linked timelines can
+      // transiently surface the same event twice. Rendering duplicate event IDs
+      // causes unstable React keys and visible timeline artifacts, so keep the
+      // first visible occurrence only.
+      if (seenRenderedEventIds.has(mEventId)) return acc;
+      seenRenderedEventIds.add(mEventId);
 
       if (!newDivider && readUptoEventId) {
         const prevId = prevEvent ? prevEvent.getId() : undefined;

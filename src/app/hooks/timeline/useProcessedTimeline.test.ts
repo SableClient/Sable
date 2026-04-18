@@ -287,4 +287,20 @@ describe('useProcessedTimeline', () => {
 
     expect(result.current[1].willRenderDayDivider).toBe(true);
   });
+
+  it('deduplicates overlapping event IDs across linked timelines', () => {
+    const shared = makeEvent('$shared', { ts: 2_000 });
+    const earlier = makeEvent('$earlier', { ts: 1_000 });
+    const later = makeEvent('$later', { ts: 3_000 });
+
+    const { result } = renderHook(() =>
+      useProcessedTimeline({
+        ...defaults,
+        items: makeItems(4),
+        linkedTimelines: [makeTimeline([earlier, shared]), makeTimeline([shared, later])],
+      })
+    );
+
+    expect(result.current.map((event) => event.id)).toEqual(['$earlier', '$shared', '$later']);
+  });
 });

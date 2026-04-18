@@ -259,13 +259,13 @@ describe('useRoomLastMessage', () => {
   });
 
   it('updates when a Timeline event fires', () => {
+    vi.useFakeTimers();
     const ev1 = makeEvent({ content: { msgtype: 'm.text', body: 'first' } });
     const events = [ev1];
     const room = makeRoom(events);
     const mx = makeMx();
 
     const { result } = renderHook(() => useRoomLastMessage(room as never, mx as never));
-    expect(result.current).toBe('You: first');
 
     // Simulate a new message arriving.
     const ev2 = makeEvent({ content: { msgtype: 'm.text', body: 'second' } });
@@ -276,6 +276,12 @@ describe('useRoomLastMessage', () => {
       timelineHandlers.forEach((h) => h());
     });
 
+    // The update is debounced — advance past the 300ms timer.
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+
     expect(result.current).toBe('You: second');
+    vi.useRealTimers();
   });
 });

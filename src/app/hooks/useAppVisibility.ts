@@ -64,6 +64,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   const lastForegroundPushAtRef = useRef(0);
   const suppressHeartbeatUntilRef = useRef(0);
   const heartbeatFailuresRef = useRef(0);
+  const lastEmittedVisibilityRef = useRef<boolean | undefined>(undefined);
 
   const pushSessionNow = useCallback(
     (reason: 'foreground' | 'focus' | 'heartbeat'): 'sent' | 'skipped' => {
@@ -103,12 +104,14 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   );
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      const isVisible = document.visibilityState === 'visible';
+    const handleVisibilityState = (isVisible: boolean, source: 'visibilitychange' | 'pagehide') => {
+      if (lastEmittedVisibilityRef.current === isVisible) return;
+      lastEmittedVisibilityRef.current = isVisible;
+
       debugLog.info(
         'general',
         `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
-        { visibilityState: document.visibilityState }
+        { visibilityState: document.visibilityState, source }
       );
       appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
@@ -140,6 +143,14 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       }
     };
 
+    const handleVisibilityChange = () => {
+      handleVisibilityState(document.visibilityState === 'visible', 'visibilitychange');
+    };
+
+    const handlePageHide = () => {
+      handleVisibilityState(false, 'pagehide');
+    };
+
     const handleFocus = () => {
       if (document.visibilityState !== 'visible') return;
 
@@ -162,10 +173,12 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('focus', handleFocus);
     };
   }, [

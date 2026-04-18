@@ -445,10 +445,15 @@ export function RoomTimeline({
   useLayoutEffect(() => {
     if (!isReady) return;
     if (timelineSync.eventsLength > 0) return;
+    // The SDK may have already added events to the new timeline but React state
+    // hasn't caught up yet (e.g. useLiveTimelineRefresh deferred via microtask).
+    // Check the SDK's live timeline directly before blanking to avoid a double
+    // skeleton cycle (skeleton→content→blank→skeleton→content).
+    if (room.getLiveTimeline().getEvents().length > 0) return;
     setIsReady(false);
     readyBlockedByPaginationRef.current = false;
     hasInitialScrolledRef.current = false;
-  }, [isReady, timelineSync.eventsLength]);
+  }, [isReady, timelineSync.eventsLength, room]);
 
   // When a genuine TimelineReset replaces the timeline chain (new
   // EventTimeline objects from the SDK), hide content behind opacity 0 and
@@ -876,7 +881,13 @@ export function RoomTimeline({
       if (timelineSyncRef.current.focusItem) return;
 
       if (atBottomRef.current && !isNowAtBottom && contentGrew) {
-        v.scrollTo(v.scrollSize);
+        // Defer the chase to the next animation frame so VList finishes its
+        // current layout pass. Synchronous scrollTo causes cascading scroll
+        // events that produce visible jumps when images/embeds load.
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (vl && atBottomRef.current) vl.scrollTo(vl.scrollSize);
+        });
         return;
       }
 

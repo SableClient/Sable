@@ -571,7 +571,13 @@ export function useTimelineSync({
       // effect, which would hide the content and cause a visible flash.
       if (getTimelinesEventsCount(newLinked) === 0 && getTimelinesEventsCount(prev) > 0) {
         Promise.resolve().then(() => {
-          applyUpdate(getInitialTimeline(room).linkedTimelines);
+          const refreshed = getInitialTimeline(room).linkedTimelines;
+          // If still empty after the microtask, the SDK may need more time.
+          // Skip the update — the blanked effect checks the SDK's live timeline
+          // directly and won't blank while the room genuinely has events.
+          if (getTimelinesEventsCount(refreshed) > 0) {
+            applyUpdate(refreshed);
+          }
         });
         return;
       }

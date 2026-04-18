@@ -8,6 +8,7 @@ import {
   RoomEvent as RoomEventEnum,
 } from '$types/matrix-sdk';
 import { MessageEvent } from '$types/matrix/room';
+import { getMemberDisplayName } from '$utils/room';
 
 /**
  * Strip the legacy reply fallback (lines starting with `> `) that some
@@ -90,7 +91,8 @@ export function getLastMessageText(room: Room, mx: MatrixClient): string | undef
   if (senderId === mx.getUserId()) {
     prefix = 'You';
   } else {
-    prefix = room.getMember(senderId ?? '')?.name ?? displayNameFromMxid(senderId ?? 'Unknown');
+    prefix =
+      getMemberDisplayName(room, senderId ?? '') ?? displayNameFromMxid(senderId ?? 'Unknown');
   }
   return `${prefix}: ${text}`;
 }

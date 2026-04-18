@@ -181,7 +181,8 @@ describe('getLastMessageText', () => {
       getLiveTimeline: () => ({
         getEvents: () => events,
       }),
-      getMember: (id: string) => (members?.[id] ? { name: members[id] } : null),
+      getMember: (id: string) =>
+        members?.[id] ? { name: members[id], rawDisplayName: members[id] } : null,
     }) as never;
 
   it('returns "You: text" when the sender is the current user', () => {
@@ -198,6 +199,12 @@ describe('getLastMessageText', () => {
   it('falls back to localpart when no display name is available', () => {
     const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
     const room = makeRoom([ev]);
+    expect(getLastMessageText(room, makeMx())).toBe('bob: hey');
+  });
+
+  it('falls back to localpart when member is loaded but has no display name', () => {
+    const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
+    const room = makeRoom([ev], { '@bob:test': '@bob:test' });
     expect(getLastMessageText(room, makeMx())).toBe('bob: hey');
   });
 

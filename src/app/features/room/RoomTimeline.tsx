@@ -459,12 +459,9 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
   }, [isReady, timelineSync.eventsLength, room]);
 
-  // When a genuine TimelineReset replaces the timeline chain (new
-  // EventTimeline objects from the SDK), hide content behind opacity 0 and
-  // re-arm the initial-scroll so the new data renders invisibly, gets
-  // measured, and only then becomes visible — preventing a visible flash.
+  // Reveal the timeline once backward pagination has settled and the viewport is
   // filled. This handles the case where the 80 ms timer fired before sliding sync
-  // had delivered enough events to fill the screen (readyBlockedByPaginationRef=true).
+  // had delivered enough events to fill the screen.
   useLayoutEffect(() => {
     if (!readyBlockedByPaginationRef.current) return;
     if (timelineSync.backwardStatus === 'loading') return;

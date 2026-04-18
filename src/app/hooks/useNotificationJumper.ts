@@ -13,8 +13,8 @@ import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
 
 // How long to wait for the notification event to appear in the live timeline
-// before falling back to opening the room at the live bottom.
-const JUMP_TIMEOUT_MS = 15_000;
+// before navigating with the eventId anyway (triggers historical context load).
+const JUMP_TIMEOUT_MS = 30_000;
 
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);
@@ -88,10 +88,11 @@ export function NotificationJumper() {
         });
       }
 
-      // Pass eventId only when confirmed in the live timeline — scrolls to and
-      // highlights the event in full room context without a sparse historical load.
-      // Falls back to undefined (live bottom) when the event never appears in live.
-      const targetEventId = eventInLive ? pending.eventId : undefined;
+      // Pass eventId when confirmed in the live timeline (best case — scrolls to
+      // and highlights the event in full room context), OR when the timeout fires
+      // (triggers a historical context load so the user at least sees the message
+      // they tapped). Only omit eventId when we never had one in the first place.
+      const targetEventId = pending.eventId ?? undefined;
       log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
       // Navigate directly to home or direct path — bypasses space routing which

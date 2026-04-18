@@ -31,6 +31,21 @@ function makeEvent(overrides: {
   } as never;
 }
 
+const makeLastMessageMx = (userId = '@alice:test') => ({ getUserId: () => userId }) as never;
+
+const makeLastMessageRoom = (
+  events: ReturnType<typeof makeEvent>[],
+  members?: Record<string, string>
+) =>
+  ({
+    roomId: '!room:test',
+    getLiveTimeline: () => ({
+      getEvents: () => events,
+    }),
+    getMember: (id: string) =>
+      members?.[id] ? { name: members[id], rawDisplayName: members[id] } : null,
+  }) as never;
+
 // -------- stripReplyFallback --------
 
 describe('stripReplyFallback', () => {
@@ -173,47 +188,46 @@ describe('eventToPreviewText', () => {
 // -------- getLastMessageText --------
 
 describe('getLastMessageText', () => {
-  const makeMx = (userId = '@alice:test') => ({ getUserId: () => userId }) as never;
-
-  const makeRoom = (events: ReturnType<typeof makeEvent>[], members?: Record<string, string>) =>
-    ({
-      roomId: '!room:test',
-      getLiveTimeline: () => ({
-        getEvents: () => events,
-      }),
-      getMember: (id: string) => (members?.[id] ? { name: members[id] } : null),
-    }) as never;
-
   it('returns "You: text" when the sender is the current user', () => {
     const ev = makeEvent({ sender: '@alice:test', content: { msgtype: 'm.text', body: 'hi' } });
-    expect(getLastMessageText(makeRoom([ev]), makeMx())).toBe('You: hi');
+    expect(getLastMessageText(makeLastMessageRoom([ev]), makeLastMessageMx())).toBe('You: hi');
   });
 
   it('returns "DisplayName: text" for another user', () => {
     const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
-    const room = makeRoom([ev], { '@bob:test': 'Bob' });
-    expect(getLastMessageText(room, makeMx())).toBe('Bob: hey');
+    const room = makeLastMessageRoom([ev], { '@bob:test': 'Bob' });
+    expect(getLastMessageText(room, makeLastMessageMx())).toBe('Bob: hey');
   });
 
   it('falls back to localpart when no display name is available', () => {
     const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
-    const room = makeRoom([ev]);
-    expect(getLastMessageText(room, makeMx())).toBe('bob: hey');
+    const room = makeLastMessageRoom([ev]);
+    expect(getLastMessageText(room, makeLastMessageMx())).toBe('bob: hey');
+  });
+
+  it('falls back to localpart when member is loaded but has no display name', () => {
+    const ev = makeEvent({ sender: '@bob:test', content: { msgtype: 'm.text', body: 'hey' } });
+    const room = makeLastMessageRoom([ev], { '@bob:test': '@bob:test' });
+    expect(getLastMessageText(room, makeLastMessageMx())).toBe('bob: hey');
   });
 
   it('skips reactions and picks the last real message', () => {
     const msg = makeEvent({ content: { msgtype: 'm.text', body: 'real' } });
     const reaction = makeEvent({ type: 'm.reaction', content: {} });
-    expect(getLastMessageText(makeRoom([msg, reaction]), makeMx())).toBe('You: real');
+    expect(getLastMessageText(makeLastMessageRoom([msg, reaction]), makeLastMessageMx())).toBe(
+      'You: real'
+    );
   });
 
   it('returns undefined when there are no displayable events', () => {
     const reaction = makeEvent({ type: 'm.reaction', content: {} });
-    expect(getLastMessageText(makeRoom([reaction]), makeMx())).toBeUndefined();
+    expect(
+      getLastMessageText(makeLastMessageRoom([reaction]), makeLastMessageMx())
+    ).toBeUndefined();
   });
 
   it('returns undefined for an empty timeline', () => {
-    expect(getLastMessageText(makeRoom([]), makeMx())).toBeUndefined();
+    expect(getLastMessageText(makeLastMessageRoom([]), makeLastMessageMx())).toBeUndefined();
   });
 });
 

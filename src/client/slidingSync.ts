@@ -45,9 +45,9 @@ export const LIST_ROOM_SEARCH = 'room_search';
 export const LIST_SPACE = 'space';
 // A small number of timeline events per list room. Unread counts come from
 // the server-side notification_count field, so a full history isn't needed.
-// Higher limit avoids empty previews when the most-recent events are
-// reactions/edits/state that useRoomLatestRenderedEvent skips over.
-const DEFAULT_LIST_TIMELINE_LIMIT = 3;
+// Matches upstream's LIST_TIMELINE_LIMIT=1 baseline; message-preview feature
+// requests 3 events via ClientRoot when previews are enabled.
+const DEFAULT_LIST_TIMELINE_LIMIT = 1;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -106,8 +106,11 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 // Notes:
 //   - RoomName/RoomCanonicalAlias are omitted: sliding sync returns the room name as a
 //     top-level field in every list response, so fetching them as state events is redundant.
-//   - MSC3575_STATE_KEY_LAZY is omitted: lazy-loading members is only needed when the
-//     user is actively viewing a room; loading them for every list entry wastes bandwidth.
+//   - MSC3575_STATE_KEY_LAZY is included only when `includeMembers=true` (i.e. when
+//     message previews are enabled and listTimelineLimit > 0). Lazy loading brings in
+//     m.room.member state events for senders of the preview timeline events so that
+//     display names resolve correctly. When previews are disabled, lazy loading is
+//     omitted to avoid wasteful member fetches for every list entry.
 //   - SpaceChild with wildcard is required: the roomToParents atom reads m.space.child
 //     state events (one per child, keyed by child room ID) to build the space hierarchy.
 //     Without these events the SDK has no parent→child mapping, so all rooms appear as
@@ -125,7 +128,9 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 //     for non-active rooms — notification serverName extraction, mention autocomplete
 //     alias display, and getCanonicalAliasOrRoomId for navigation. Without it, aliases
 //     fall back silently to room IDs.
-const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
+const buildListRequiredState = (
+  includeMembers: boolean
+): MSC3575RoomSubscription['required_state'] => [
   [EventType.RoomJoinRules, ''],
   [EventType.RoomAvatar, ''],
   [EventType.RoomTombstone, ''],
@@ -134,6 +139,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomTopic, ''],
   [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+  ...(includeMembers ? [[EventType.RoomMember, MSC3575_STATE_KEY_LAZY] as [string, string]] : []),
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
   ['moe.sable.room.abbreviations', ''],
@@ -162,7 +168,7 @@ const buildLists = (
   listTimelineLimit: number
 ): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
-  const listRequiredState = buildListRequiredState();
+  const listRequiredState = buildListRequiredState(listTimelineLimit > 0);
 
   // Start with a reasonable initial range that will quickly expand to full list
   // Since timeline_limit=1, loading many rooms is very cheap
@@ -754,7 +760,7 @@ export class SlidingSyncManager {
         ranges: [[0, 20]],
         sort: LIST_SORT_ORDER,
         timeline_limit: this.listTimelineLimit,
-        required_state: buildListRequiredState(),
+        required_state: buildListRequiredState(this.listTimelineLimit > 0),
         ...updateArgs,
       };
     } else {

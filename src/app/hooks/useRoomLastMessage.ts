@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  EventType,
   MatrixClient,
   MatrixEvent,
   MatrixEventEvent,
@@ -7,7 +8,12 @@ import {
   Room,
   RoomEvent as RoomEventEnum,
 } from '$types/matrix-sdk';
-import { MessageEvent } from '$types/matrix/room';
+import { getMemberDisplayName } from '$utils/room';
+
+const REACTION_EVENT_TYPE: string = EventType.Reaction;
+const ENCRYPTED_EVENT_TYPE: string = EventType.RoomMessageEncrypted;
+const ROOM_MESSAGE_EVENT_TYPE: string = EventType.RoomMessage;
+const STICKER_EVENT_TYPE: string = EventType.Sticker;
 
 /**
  * Strip the legacy reply fallback (lines starting with `> `) that some
@@ -16,7 +22,7 @@ import { MessageEvent } from '$types/matrix/room';
 export function stripReplyFallback(body: string): string {
   const lines = body.split('\n');
   let i = 0;
-  while (i < lines.length && lines[i].startsWith('> ')) i += 1;
+  while (i < lines.length && lines[i]?.startsWith('> ')) i += 1;
   // Skip the blank separator line that follows the fallback block.
   if (i > 0 && i < lines.length && lines[i] === '') i += 1;
   return lines.slice(i).join('\n');
@@ -32,14 +38,14 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
   const content = ev.getContent();
 
   // Skip reactions and edits — they aren't standalone messages.
-  if (type === MessageEvent.Reaction) return undefined;
+  if (type === REACTION_EVENT_TYPE) return undefined;
   const relType = content?.['m.relates_to']?.rel_type;
   if (relType === 'm.replace') return undefined;
 
   // Only show encrypted placeholder if the event is still encrypted (not yet decrypted).
-  if (type === MessageEvent.RoomMessageEncrypted) return '🔒 Encrypted message';
+  if (type === ENCRYPTED_EVENT_TYPE) return '🔒 Encrypted message';
 
-  if (type === MessageEvent.RoomMessage) {
+  if (type === ROOM_MESSAGE_EVENT_TYPE) {
     const { msgtype } = content;
     if (msgtype === MsgType.Text || msgtype === MsgType.Emote || msgtype === MsgType.Notice) {
       return stripReplyFallback(content.body);
@@ -51,16 +57,29 @@ export function eventToPreviewText(ev: MatrixEvent): string | undefined {
     if (msgtype === 'm.location') return '📍 Location';
   }
 
-  if (type === MessageEvent.Sticker) {
+  if (type === STICKER_EVENT_TYPE) {
     return `🎉 ${content.body ?? 'Sticker'}`;
   }
 
   // Polls — show the question text when available.
   if (type === 'org.matrix.msc3381.poll.start' || type === 'm.poll.start') {
+    const pollContent = content?.['org.matrix.msc3381.poll.start'] ?? content?.['m.poll.start'];
+    const question =
+      typeof pollContent === 'object' && pollContent !== null
+        ? (pollContent as { question?: Record<string, unknown> }).question
+        : undefined;
+    const textParts = question?.['m.text'];
+    const pollBodyCandidate =
+      (Array.isArray(textParts)
+        ? (textParts[0] as { body?: unknown } | undefined)?.body
+        : undefined) ??
+      question?.['org.matrix.msc1767.text'] ??
+      question?.body;
     const pollBody =
-      content?.['org.matrix.msc3381.poll.start']?.question?.body ??
-      content?.['m.poll.start']?.question?.body;
-    return `📊 ${pollBody ?? 'Poll'}`;
+      typeof pollBodyCandidate === 'string' && pollBodyCandidate.trim()
+        ? pollBodyCandidate.trim()
+        : 'Poll';
+    return `📊 ${pollBody}`;
   }
 
   return undefined;
@@ -78,9 +97,17 @@ function displayNameFromMxid(mxid: string): string {
   return mxid;
 }
 
+function findLastDisplayableEvent(events: MatrixEvent[]): MatrixEvent | undefined {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event && eventToPreviewText(event) !== undefined) return event;
+  }
+  return undefined;
+}
+
 export function getLastMessageText(room: Room, mx: MatrixClient): string | undefined {
   const events = room.getLiveTimeline().getEvents();
-  const match = [...events].reverse().find((ev) => eventToPreviewText(ev) !== undefined);
+  const match = findLastDisplayableEvent(events);
   if (!match) return undefined;
   const text = eventToPreviewText(match);
   if (!text) return undefined;
@@ -90,7 +117,8 @@ export function getLastMessageText(room: Room, mx: MatrixClient): string | undef
   if (senderId === mx.getUserId()) {
     prefix = 'You';
   } else {
-    prefix = room.getMember(senderId ?? '')?.name ?? displayNameFromMxid(senderId ?? 'Unknown');
+    prefix =
+      getMemberDisplayName(room, senderId ?? '') ?? displayNameFromMxid(senderId ?? 'Unknown');
   }
   return `${prefix}: ${text}`;
 }
@@ -144,9 +172,7 @@ export function useRoomLastMessage(
     // decryption. Sliding sync may not auto-decrypt events in rooms that
     // haven't been opened yet; this ensures the preview resolves on mount.
     const events = room.getLiveTimeline().getEvents();
-    const lastDisplayable = [...events]
-      .reverse()
-      .find((ev) => eventToPreviewText(ev) !== undefined);
+    const lastDisplayable = findLastDisplayableEvent(events);
     if (lastDisplayable && lastDisplayable.isEncrypted()) {
       mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
     }

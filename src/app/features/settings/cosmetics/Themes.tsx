@@ -842,7 +842,9 @@ export function Appearance({
                 title="Customize DM cards"
                 focusId="customize-dm-cards"
                 description="Show a custom DM card instead of the DM-ed's details"
-                after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
+                after={
+                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
+                }
               />
             </SequenceCard>
 
@@ -852,7 +854,11 @@ export function Appearance({
                 focusId="dm-message-preview"
                 description="Show a preview of the last message below DM room names."
                 after={
-                  <Switch variant="Primary" value={dmMessagePreview} onChange={setDmMessagePreview} />
+                  <Switch
+                    variant="Primary"
+                    value={dmMessagePreview}
+                    onChange={setDmMessagePreview}
+                  />
                 }
               />
             </SequenceCard>
@@ -863,7 +869,11 @@ export function Appearance({
                 focusId="room-topic-preview"
                 description="Show the room topic below room names in spaces and Home."
                 after={
-                  <Switch variant="Primary" value={roomTopicPreview} onChange={setRoomTopicPreview} />
+                  <Switch
+                    variant="Primary"
+                    value={roomTopicPreview}
+                    onChange={setRoomTopicPreview}
+                  />
                 }
               />
             </SequenceCard>

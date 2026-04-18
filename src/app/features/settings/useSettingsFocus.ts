@@ -5,6 +5,12 @@ import { focusedSettingTile } from './styles.css';
 const focusedSettingTileClasses = focusedSettingTile.split(' ').filter(Boolean);
 const getHighlightTarget = (target: HTMLElement): HTMLElement =>
   target.closest<HTMLElement>('[data-sequence-card="true"]') ?? target.parentElement ?? target;
+const getFocusTarget = (focusId: string): HTMLElement | null =>
+  document.getElementById(focusId) ??
+  Array.from(document.querySelectorAll<HTMLElement>('[data-settings-focus]')).find(
+    (element) => element.getAttribute('data-settings-focus') === focusId
+  ) ??
+  null;
 const SETTINGS_FOCUS_HANDLED_STATE_KEY = 'settingsFocusHandledKey';
 
 type SettingsFocusRouteState = {
@@ -39,9 +45,7 @@ export function useSettingsFocus() {
       return;
     }
 
-    const target =
-      document.getElementById(focusId) ??
-      document.querySelector<HTMLElement>(`[data-settings-focus="${focusId}"]`);
+    const target = getFocusTarget(focusId);
 
     if (!target) return;
 

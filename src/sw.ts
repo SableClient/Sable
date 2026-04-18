@@ -392,37 +392,43 @@ async function requestDecryptionFromClient(
   rawEvent: Record<string, unknown>
 ): Promise<DecryptionResult | undefined> {
   const eventId = rawEvent.event_id as string;
+  if (windowClients.length === 0) return undefined;
 
-  // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
-    async (prevPromise, client) => {
-      const prev = await prevPromise;
-      if (prev?.success) return prev;
+  // Broadcast to all clients, but resolve once from the first successful reply.
+  // The prior Promise.any implementation accidentally overwrote the pending
+  // resolver on each iteration, leaving only the last client able to satisfy
+  // the request for a given eventId.
+  const resultPromise = new Promise<DecryptionResult | undefined>((resolve) => {
+    decryptionPendingMap.set(eventId, (result) => {
+      decryptionPendingMap.delete(eventId);
+      resolve(result);
+    });
+  });
 
-      const promise = new Promise<DecryptionResult>((resolve) => {
-        decryptionPendingMap.set(eventId, resolve);
-      });
+  let postedToClient = false;
+  Array.from(windowClients).forEach((client) => {
+    try {
+      (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+      postedToClient = true;
+    } catch (err) {
+      console.warn('[SW decryptRelay] postMessage error', err);
+    }
+  });
 
-      const timeout = new Promise<undefined>((resolve) => {
-        setTimeout(() => {
-          decryptionPendingMap.delete(eventId);
-          console.warn('[SW decryptRelay] timed out waiting for client', client.id);
-          resolve(undefined);
-        }, 5000);
-      });
+  if (!postedToClient) {
+    decryptionPendingMap.delete(eventId);
+    return undefined;
+  }
 
-      try {
-        (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
-      } catch (err) {
-        decryptionPendingMap.delete(eventId);
-        console.warn('[SW decryptRelay] postMessage error', err);
-        return undefined;
-      }
+  const timeout = new Promise<undefined>((resolve) => {
+    setTimeout(() => {
+      decryptionPendingMap.delete(eventId);
+      console.warn('[SW decryptRelay] timed out waiting for client response');
+      resolve(undefined);
+    }, 5000);
+  });
 
-      return Promise.race([promise, timeout]);
-    },
-    Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
-  );
+  return Promise.race([resultPromise, timeout]);
 }
 
 /**

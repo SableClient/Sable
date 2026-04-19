@@ -161,6 +161,7 @@ const getDayDividerText = (ts: number) => {
 };
 
 const SCROLL_SETTLE_MS = 250;
+const MIN_INITIAL_SCROLL_ROOM_PX = 300;
 
 const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
 const buildRoomScrollFingerprint = (
@@ -497,7 +498,7 @@ export function RoomTimeline({
           const needsFill =
             canPaginateBackRef.current &&
             v &&
-            v.scrollSize <= v.viewportSize + 300 &&
+            v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX &&
             backwardStatusRef.current !== 'error';
           if (needsFill) {
             readyBlockedByPaginationRef.current = true;
@@ -557,7 +558,11 @@ export function RoomTimeline({
     const v = vListRef.current;
     if (!v) return;
     // Still not filled and can paginate more — keep waiting.
-    if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + 100) return;
+    if (
+      canPaginateBackRef.current &&
+      v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX
+    )
+      return;
     readyBlockedByPaginationRef.current = false;
     v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
     saveRoomScrollStateRef.current?.(v.cache, true);
@@ -1257,7 +1262,7 @@ export function RoomTimeline({
 
       const atTop = v.scrollOffset < 500;
       const noVisibleGrowth = processedEvents.length === processedLengthAtEffectStart;
-      const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
+      const hasRealScrollRoom = v.scrollSize > v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
         timelineSyncRef.current.handleTimelinePagination(true);

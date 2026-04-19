@@ -393,12 +393,7 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [
-    timelineSync.eventsLength,
-    timelineSync.liveTimelineLinked,
-    eventId,
-    room.roomId,
-  ]);
+  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).

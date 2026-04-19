@@ -390,12 +390,12 @@ export function RoomTimeline({
     );
     if (!firstVisibleAnchor) return undefined;
 
-    const eventId = firstVisibleAnchor.dataset.timelineEventId;
-    if (!eventId) return undefined;
+    const anchorEventId = firstVisibleAnchor.dataset.timelineEventId;
+    if (!anchorEventId) return undefined;
 
     return {
       kind: 'anchor',
-      eventId,
+      eventId: anchorEventId,
       offset: firstVisibleAnchor.getBoundingClientRect().top - containerTop,
     };
   }, []);

@@ -395,9 +395,6 @@ export function useTimelineSync({
     | undefined
   >();
 
-  const timelineRef = useRef(timeline);
-  timelineRef.current = timeline;
-
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
@@ -541,48 +538,12 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
-      const newLinked = getInitialTimeline(room).linkedTimelines;
-      const prev = timelineRef.current.linkedTimelines;
-      if (prev.length === newLinked.length && prev.every((tl, i) => tl === newLinked[i])) {
-        return;
+      const wasAtBottom = isAtBottomRef.current;
+      resetAutoScrollPendingRef.current = wasAtBottom;
+      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+      if (wasAtBottom) {
+        scrollToBottom();
       }
-
-      // Only trigger the auto-scroll reset for destructive resets where the
-      // live-end event changed (e.g. reconnect). Sliding sync fires TimelineReset
-      // to replace the EventTimeline container while keeping the same live-end
-      // events — treating that as destructive would scroll the user unnecessarily.
-      const prevLastEventId = prev.at(-1)?.getEvents().at(-1)?.getId();
-
-      const applyUpdate = (linkedTimelines: EventTimeline[]) => {
-        const lastEventId = linkedTimelines.at(-1)?.getEvents().at(-1)?.getId();
-        const isDestructive = prevLastEventId !== lastEventId;
-        if (isDestructive) {
-          const wasAtBottom = isAtBottomRef.current;
-          resetAutoScrollPendingRef.current = wasAtBottom;
-          if (wasAtBottom) scrollToBottom();
-        }
-        setTimeline({ linkedTimelines });
-      };
-
-      // If the new timeline is transiently empty (the SDK fires TimelineReset
-      // *before* it finishes adding events to the new timeline), defer the state
-      // update via a microtask so the SDK can finish populating the timeline.
-      // This prevents the briefly-empty timeline from triggering the blanked
-      // effect, which would hide the content and cause a visible flash.
-      if (getTimelinesEventsCount(newLinked) === 0 && getTimelinesEventsCount(prev) > 0) {
-        Promise.resolve().then(() => {
-          const refreshed = getInitialTimeline(room).linkedTimelines;
-          // If still empty after the microtask, the SDK may need more time.
-          // Skip the update — the blanked effect checks the SDK's live timeline
-          // directly and won't blank while the room genuinely has events.
-          if (getTimelinesEventsCount(refreshed) > 0) {
-            applyUpdate(refreshed);
-          }
-        });
-        return;
-      }
-
-      applyUpdate(newLinked);
     }, [room, isAtBottomRef, scrollToBottom])
   );
 

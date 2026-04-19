@@ -81,7 +81,6 @@ import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
 import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
-import { useExperimentVariant } from '$hooks/useClientConfig';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
@@ -221,14 +220,13 @@ export const MessageBookmarkItem = as<
   }
 >(({ room, mEvent, onClose, ...props }, ref) => {
   const mx = useMatrixClient();
-  const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
   const eventId = mEvent.getId();
   const isBookmarked = useIsBookmarked(room.roomId, eventId ?? '');
   const { add, remove } = useBookmarkActions();
 
   if (!eventId) return null;
-  if (!bookmarksExperiment.inExperiment && !enableMessageBookmarks) return null;
+  if (!enableMessageBookmarks) return null;
 
   const handleClick = async () => {
     if (isBookmarked) {

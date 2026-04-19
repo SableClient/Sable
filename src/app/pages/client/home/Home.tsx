@@ -59,7 +59,6 @@ import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useExperimentVariant } from '$hooks/useClientConfig';
 import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
@@ -210,9 +209,8 @@ export function Home() {
   const createRoomSelected = useHomeCreateSelected();
   const searchSelected = useHomeSearchSelected();
   const bookmarksSelected = useHomeBookmarksSelected();
-  const bookmarksExperiment = useExperimentVariant('messageBookmarks', mx.getUserId() ?? undefined);
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
-  const showBookmarks = bookmarksExperiment.inExperiment || enableMessageBookmarks;
+  const showBookmarks = enableMessageBookmarks;
   const noRoomToDisplay = rooms.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 

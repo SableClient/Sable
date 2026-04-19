@@ -201,7 +201,7 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
-  const [atBottomState, setAtBottomState] = useState(!eventId);
+  const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
   const setAtBottom = useCallback((val: boolean) => {
     setAtBottomState(val);
@@ -408,9 +408,8 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    setAtBottom(false);
     timelineSyncRef.current.loadEventTimeline(eventId);
-  }, [eventId, room.roomId, setAtBottom]);
+  }, [eventId, room.roomId]);
 
   useEffect(() => {
     if (eventId) return;

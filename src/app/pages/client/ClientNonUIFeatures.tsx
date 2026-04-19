@@ -514,12 +514,8 @@ function MessageNotifications() {
         });
       }
 
-      // In-app audio: play when the app is in the foreground (has focus) and
-      // notification sounds are enabled for this notification type.
-      // Gating on hasFocus() rather than just visibilityState prevents a race
-      // where the page is still 'visible' for a brief window after the user
-      // backgrounds the app on mobile — hasFocus() flips false first.
-      if (notificationSound && isLoud && document.hasFocus()) {
+      // In-app audio: play when notification sounds are enabled AND this notification is loud.
+      if (notificationSound && isLoud) {
         playSound();
       }
     };

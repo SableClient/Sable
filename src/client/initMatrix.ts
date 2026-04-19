@@ -275,12 +275,12 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
 
   const indexedDBStore = new IndexedDBStore({
-    indexedDB: global.indexedDB,
-    localStorage: global.localStorage,
+    indexedDB: globalThis.indexedDB,
+    localStorage: globalThis.localStorage,
     dbName: storeName.sync,
   });
 
-  const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
+  const legacyCryptoStore = new IndexedDBCryptoStore(globalThis.indexedDB, storeName.crypto);
 
   const mx = createClient({
     baseUrl: session.baseUrl,

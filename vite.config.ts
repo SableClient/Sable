@@ -7,7 +7,6 @@ import svgr from 'vite-plugin-svgr';
 import { wasm } from '@rollup/plugin-wasm';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
 import * as injectModule from '@rollup/plugin-inject';
 import * as topLevelAwaitModule from 'vite-plugin-top-level-await';
 import type { Options as TopLevelAwaitOptions } from 'vite-plugin-top-level-await';
@@ -220,18 +219,6 @@ export default defineConfig(({ command }) => ({
       '@vanilla-extract/recipes/createRuntimeFn',
     ],
     needsInterop: ['matrix-widget-api'],
-    rolldownOptions: {
-      define: {
-        global: 'globalThis',
-      },
-      plugins: [
-        // Enable esbuild polyfill plugins
-        NodeGlobalsPolyfillPlugin({
-          process: false,
-          buffer: true,
-        }),
-      ],
-    },
   },
   build: {
     outDir: 'dist',

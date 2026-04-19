@@ -109,6 +109,8 @@ const getDayDividerText = (ts: number) => {
 };
 
 const SCROLL_SETTLE_MS = 250;
+const MIN_INITIAL_SCROLL_ROOM_PX = 300;
+const MIN_INITIAL_SCROLL_ROOM_PX = 300;
 
 const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
 const buildRoomScrollFingerprint = (
@@ -322,11 +324,22 @@ export function RoomTimeline({
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-          // Only mark ready once we've successfully scrolled.  If processedEvents
-          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
-          // timeline within the 80 ms window), defer setIsReady until the recovery
-          // effect below fires once events repopulate.
+          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
+            align: 'end',
+          });
+          const v = vListRef.current;
+          // If backward pagination can still fill the viewport, delay revealing
+          // until that pagination settles so the user never sees the 3→60 event jump.
+          const needsFill =
+            canPaginateBackRef.current &&
+            v &&
+            v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX &&
+            backwardStatusRef.current !== 'error';
+          if (needsFill) {
+            readyBlockedByPaginationRef.current = true;
+            return;
+          }
+          saveRoomScrollStateRef.current?.(v?.cache, true);
           setIsReady(true);
         } else {
           pendingReadyRef.current = true;
@@ -356,7 +369,27 @@ export function RoomTimeline({
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
     hasInitialScrolledRef.current = false;
-  }, [isReady, timelineSync.eventsLength]);
+  }, [isReady, timelineSync.eventsLength, room]);
+
+  // Reveal the timeline once backward pagination has settled and the viewport is
+  // filled. This handles the case where the 80 ms timer fired before sliding sync
+  // had delivered enough events to fill the screen.
+  useLayoutEffect(() => {
+    if (!readyBlockedByPaginationRef.current) return;
+    if (timelineSync.backwardStatus === 'loading') return;
+    const v = vListRef.current;
+    if (!v) return;
+    // Still not filled and can paginate more — keep waiting.
+    if (
+      canPaginateBackRef.current &&
+      v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX
+    )
+      return;
+    readyBlockedByPaginationRef.current = false;
+    v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+    saveRoomScrollStateRef.current?.(v.cache, true);
+    setIsReady(true);
+  }, [timelineSync.backwardStatus, timelineSync.eventsLength, timelineSync.canPaginateBack]);
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -861,7 +894,7 @@ export function RoomTimeline({
 
       const atTop = v.scrollOffset < 500;
       const noVisibleGrowth = processedEvents.length === processedLengthAtEffectStart;
-      const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
+      const hasRealScrollRoom = v.scrollSize > v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
         timelineSyncRef.current.handleTimelinePagination(true);

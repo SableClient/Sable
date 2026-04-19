@@ -219,7 +219,6 @@ export const MessageBookmarkItem = as<
     onClose?: () => void;
   }
 >(({ room, mEvent, onClose, ...props }, ref) => {
-  const mx = useMatrixClient();
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
   const eventId = mEvent.getId();
   const isBookmarked = useIsBookmarked(room.roomId, eventId ?? '');

@@ -44,9 +44,9 @@ const { accountDataCB, syncStateCB, mockMx } = vi.hoisted(() => {
   };
 
   const store: Record<string, unknown> = {
-    ['org.matrix.msc4438.bookmarks.index']: index,
-    ['org.matrix.msc4438.bookmark.bmk_aabb']: item,
-    ['org.matrix.msc4438.bookmark.bmk_ccdd']: deletedItem,
+    'org.matrix.msc4438.bookmarks.index': index,
+    'org.matrix.msc4438.bookmark.bmk_aabb': item,
+    'org.matrix.msc4438.bookmark.bmk_ccdd': deletedItem,
   };
 
   const mx = {
@@ -67,10 +67,7 @@ vi.mock('$hooks/useMatrixClient', () => ({
 }));
 
 vi.mock('$hooks/useAccountDataCallback', () => ({
-  useAccountDataCallback: (
-    _mx: unknown,
-    cb: (event: { getType: () => string }) => void
-  ) => {
+  useAccountDataCallback: (_mx: unknown, cb: (event: { getType: () => string }) => void) => {
     accountDataCB.current = cb;
   },
 }));

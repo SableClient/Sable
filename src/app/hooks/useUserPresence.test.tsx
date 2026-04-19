@@ -1,5 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
+import { Provider } from 'jotai';
+import { useHydrateAtoms } from 'jotai/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
+import { presenceAutoIdledAtom, settingsAtom } from '$state/settings';
 import { useUserPresence, Presence, clearPresenceCache } from './useUserPresence';
 
 // ------- mock setup -------
@@ -41,6 +45,7 @@ const makeMockUser = (
 const mockMx = {
   getUser: vi.fn((): ReturnType<typeof makeMockUser> | null => mockUser),
   getPresence: vi.fn((): Promise<PresenceResponse> => mockGetPresence()),
+  getUserId: vi.fn<() => string | undefined>(() => undefined),
   on: vi.fn(),
   removeListener: vi.fn(),
 };
@@ -51,14 +56,53 @@ vi.mock('./useMatrixClient', () => ({
 
 const USER_ID = '@alice:test';
 
+type HookWrapperProps = {
+  children: ReactNode;
+  sendPresence?: boolean;
+  presenceMode?: 'online' | 'unavailable' | 'dnd' | 'offline';
+  autoIdled?: boolean;
+};
+
+const localStorageSettings = () => {
+  const rawSettings = localStorage.getItem('settings');
+  return rawSettings ? JSON.parse(rawSettings) : {};
+};
+
+const HydratePresenceSettings = ({
+  children,
+  sendPresence = true,
+  presenceMode = 'online',
+  autoIdled = false,
+}: HookWrapperProps) => {
+  useHydrateAtoms([
+    [settingsAtom, { ...localStorageSettings(), sendPresence, presenceMode }],
+    [presenceAutoIdledAtom, autoIdled],
+  ]);
+  return children;
+};
+
+const createWrapper = (options?: Omit<HookWrapperProps, 'children'>) => {
+  function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <Provider>
+        <HydratePresenceSettings {...options}>{children}</HydratePresenceSettings>
+      </Provider>
+    );
+  }
+
+  return Wrapper;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   userListeners.clear();
   clearPresenceCache();
+  localStorage.clear();
   mockUser = null;
   mockGetPresence = () => new Promise(() => {}); // pending by default
   mockMx.getUser.mockImplementation(() => mockUser);
   mockMx.getPresence.mockImplementation(() => mockGetPresence());
+  mockMx.getUserId.mockReturnValue(undefined);
 });
 
 // ------- tests -------
@@ -206,5 +250,42 @@ describe('useUserPresence', () => {
 
     // Should still be undefined without throwing
     expect(result.current).toBeUndefined();
+  });
+
+  it('normalizes synthetic dnd presence from the SDK user object', () => {
+    mockUser = makeMockUser({ presence: 'online', presenceStatusMsg: 'dnd', lastActiveTs: 1000 });
+
+    const { result } = renderHook(() => useUserPresence('@bob:test'));
+
+    expect(result.current).toEqual({
+      presence: Presence.Dnd,
+      status: undefined,
+      active: true,
+      lastActiveTs: 1000,
+    });
+  });
+
+  it('overrides own presence from settings so member lists update immediately', () => {
+    mockUser = makeMockUser({ presence: 'online', lastActiveTs: 1000 });
+    mockMx.getUserId.mockReturnValue(USER_ID);
+
+    const { result } = renderHook(() => useUserPresence(USER_ID), {
+      wrapper: createWrapper({ presenceMode: 'dnd' }),
+    });
+
+    expect(result.current?.presence).toBe(Presence.Dnd);
+    expect(result.current?.status).toBeUndefined();
+  });
+
+  it('marks own presence idle when auto-idle is active', () => {
+    mockUser = makeMockUser({ presence: 'online', lastActiveTs: 1000 });
+    mockMx.getUserId.mockReturnValue(USER_ID);
+
+    const { result } = renderHook(() => useUserPresence(USER_ID), {
+      wrapper: createWrapper({ autoIdled: true }),
+    });
+
+    expect(result.current?.presence).toBe(Presence.Unavailable);
+    expect(result.current?.active).toBe(false);
   });
 });

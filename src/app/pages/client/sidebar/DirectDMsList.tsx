@@ -59,11 +59,17 @@ function DMItem({ room, selected }: DMItemProps) {
   const member1Presence = useUserPresence(isGroupDM ? (groupMembers[1]?.userId ?? '') : '');
   const member2Presence = useUserPresence(isGroupDM ? (groupMembers[2]?.userId ?? '') : '');
 
-  const groupDMOnline =
-    isGroupDM &&
-    [member0Presence, member1Presence, member2Presence].some(
-      (p) => p && p.lastActiveTs != null && p.lastActiveTs !== 0 && p.presence === Presence.Online
-    );
+  const groupDMPresence = isGroupDM
+    ? [member0Presence, member1Presence, member2Presence].reduce<Presence | undefined>(
+        (acc, current) => {
+          if (!current || current.lastActiveTs == null || current.lastActiveTs === 0) return acc;
+          if (current.presence === Presence.Dnd) return Presence.Dnd;
+          if (!acc && current.presence === Presence.Online) return Presence.Online;
+          return acc;
+        },
+        undefined
+      )
+    : undefined;
 
   let presenceBadge: ReactNode;
   if (
@@ -73,8 +79,8 @@ function DMItem({ room, selected }: DMItemProps) {
     singleDMPresence.lastActiveTs !== 0
   ) {
     presenceBadge = <PresenceBadge presence={singleDMPresence.presence} size="200" />;
-  } else if (isGroupDM && groupDMOnline) {
-    presenceBadge = <PresenceBadge presence={Presence.Online} size="200" />;
+  } else if (groupDMPresence) {
+    presenceBadge = <PresenceBadge presence={groupDMPresence} size="200" />;
   }
 
   // Get unread info for badge

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { type MatrixClient, UserEvent, type UserEventHandlerMap } from '$types/matrix-sdk';
 import { presenceAutoIdledAtom } from '$state/settings';
-import { appEvents } from '$utils/appEvents';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('PresenceAutoIdle');
@@ -65,22 +64,23 @@ export function usePresenceAutoIdle(
       timerRef.current = window.setTimeout(goIdle, timeoutMs);
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') handleActivity();
+    };
+
     // Start the initial timer.
     timerRef.current = window.setTimeout(goIdle, timeoutMs);
     ACTIVITY_EVENTS.forEach((ev) =>
       document.addEventListener(ev, handleActivity, { passive: true })
     );
-
-    // When the app returns to the foreground, treat it as activity so the user
-    // isn't shown as idle the moment they switch back to the tab/PWA.
-    const unsubVisibility = appEvents.onVisibilityChange((isVisible: boolean) => {
-      if (isVisible) handleActivity();
-    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleActivity);
 
     return () => {
       ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, handleActivity));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleActivity);
       clearTimer();
-      unsubVisibility();
     };
   }, [clearTimer, presenceMode, sendPresence, setAutoIdled, timeoutMs]);
 

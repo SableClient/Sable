@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { presenceAutoIdledAtom } from '$state/settings';
-import { appEvents } from '$utils/appEvents';
 import type { ReactNode } from 'react';
 import { usePresenceAutoIdle } from './usePresenceAutoIdle';
 
@@ -92,7 +91,7 @@ describe('usePresenceAutoIdle', () => {
     expect(result.current).toBe(false);
   });
 
-  it('resets auto-idle when app becomes visible via appEvents', () => {
+  it('resets auto-idle when the document becomes visible again', () => {
     const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
       wrapper,
     });
@@ -102,11 +101,16 @@ describe('usePresenceAutoIdle', () => {
     });
     expect(result.current).toBe(true);
 
-    // Simulate app returning to foreground.
+    const visibilityStateSpy = vi
+      .spyOn(document, 'visibilityState', 'get')
+      .mockReturnValue('visible');
+
     act(() => {
-      appEvents.emitVisibilityChange(true);
+      document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(result.current).toBe(false);
+
+    visibilityStateSpy.mockRestore();
   });
 
   it('does not go idle when presenceMode is not online', () => {
@@ -201,7 +205,7 @@ describe('usePresenceAutoIdle', () => {
     expect(result.current).toBe(false);
   });
 
-  it('unsubscribes from appEvents.onVisibilityChange on cleanup', () => {
+  it('stops responding to focus events after cleanup', () => {
     const { result, unmount } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
       wrapper,
     });
@@ -214,10 +218,10 @@ describe('usePresenceAutoIdle', () => {
 
     unmount();
 
-    // After unmount, emitting visibility change should have no effect.
-    // (No error thrown means the handler was properly unsubscribed.)
     act(() => {
-      appEvents.emitVisibilityChange(true);
+      window.dispatchEvent(new Event('focus'));
     });
+
+    expect(result.current).toBe(true);
   });
 });

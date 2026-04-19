@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import { ClientEvent, MatrixEvent, User, UserEvent, UserEventHandlerMap } from '$types/matrix-sdk';
+import { presenceAutoIdledAtom, settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 import { useMatrixClient } from './useMatrixClient';
 
 export enum Presence {
   Online = 'online',
   Unavailable = 'unavailable',
   Offline = 'offline',
+  Dnd = 'dnd',
 }
 
 export type UserPresence = {
@@ -15,12 +19,65 @@ export type UserPresence = {
   lastActiveTs?: number;
 };
 
+const isSyntheticDndStatus = (status?: string): boolean => status === 'dnd';
+
+const normalizePresence = (presence: string | undefined, status?: string): Presence => {
+  if (presence === Presence.Online && isSyntheticDndStatus(status)) return Presence.Dnd;
+  if (presence === Presence.Unavailable) return Presence.Unavailable;
+  if (presence === Presence.Offline) return Presence.Offline;
+  return Presence.Online;
+};
+
+const sanitizeStatus = (status?: string): string | undefined =>
+  isSyntheticDndStatus(status) ? undefined : status;
+
 const getUserPresence = (user: User): UserPresence => ({
-  presence: user.presence as Presence,
-  status: user.presenceStatusMsg,
+  presence: normalizePresence(user.presence, user.presenceStatusMsg),
+  status: sanitizeStatus(user.presenceStatusMsg),
   active: user.currentlyActive,
   lastActiveTs: user.getLastActiveTs(),
 });
+
+const getOwnEffectivePresence = (
+  sendPresence: boolean,
+  presenceMode: string | undefined,
+  autoIdled: boolean
+): Presence => {
+  if (!sendPresence) return Presence.Offline;
+  if (autoIdled) return Presence.Unavailable;
+  if (presenceMode === Presence.Unavailable) return Presence.Unavailable;
+  if (presenceMode === Presence.Offline) return Presence.Offline;
+  if (presenceMode === Presence.Dnd) return Presence.Dnd;
+  return Presence.Online;
+};
+
+const applyOwnPresenceOverride = (
+  rawPresence: UserPresence | undefined,
+  sendPresence: boolean,
+  presenceMode: string | undefined,
+  autoIdled: boolean
+): UserPresence | undefined => {
+  const effectivePresence = getOwnEffectivePresence(sendPresence, presenceMode, autoIdled);
+  const sanitizedStatus = sanitizeStatus(rawPresence?.status);
+
+  if (!rawPresence) {
+    return {
+      presence: effectivePresence,
+      status: effectivePresence === Presence.Dnd ? undefined : sanitizedStatus,
+      active: effectivePresence === Presence.Online || effectivePresence === Presence.Dnd,
+    };
+  }
+
+  return {
+    ...rawPresence,
+    presence: effectivePresence,
+    status: effectivePresence === Presence.Dnd ? undefined : sanitizedStatus,
+    active:
+      effectivePresence === Presence.Online || effectivePresence === Presence.Dnd
+        ? rawPresence.active
+        : false,
+  };
+};
 
 // In-memory presence REST cache to avoid N+1 /presence/{userId}/status floods.
 // Multiple hook instances for the same user share a single in-flight request.
@@ -57,8 +114,8 @@ function fetchPresenceOnce(
     .getPresence(userId)
     .then((resp) => {
       const data: UserPresence = {
-        presence: resp.presence as Presence,
-        status: resp.status_msg,
+        presence: normalizePresence(resp.presence, resp.status_msg),
+        status: sanitizeStatus(resp.status_msg),
         active: resp.currently_active ?? false,
         lastActiveTs: resp.last_active_ago != null ? Date.now() - resp.last_active_ago : undefined,
       };
@@ -84,6 +141,9 @@ function fetchPresenceOnce(
 
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
   const user = mx.getUser(userId);
   const [presence, setPresence] = useState(() => (user ? getUserPresence(user) : undefined));
 
@@ -137,7 +197,10 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     };
   }, [mx, userId, user]);
 
-  return presence;
+  return useMemo(() => {
+    if (userId !== mx.getUserId()) return presence;
+    return applyOwnPresenceOverride(presence, sendPresence, presenceMode, autoIdled);
+  }, [autoIdled, mx, presence, presenceMode, sendPresence, userId]);
 };
 
 export const usePresenceLabel = (): Record<Presence, string> =>
@@ -146,6 +209,7 @@ export const usePresenceLabel = (): Record<Presence, string> =>
       [Presence.Online]: 'Online',
       [Presence.Unavailable]: 'Idle',
       [Presence.Offline]: 'Offline',
+      [Presence.Dnd]: 'Do Not Disturb',
     }),
     []
   );

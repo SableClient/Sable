@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom, useAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -646,23 +646,10 @@ function SyncNotificationSettingsWithServiceWorker() {
       navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
     };
 
-    const postHidden = () => {
-      // pagehide fires more reliably than visibilitychange on iOS Safari PWA
-      // when the user locks the screen or backgrounds the app quickly, making
-      // it less likely that the SW is left with a stale appIsVisible=true.
-      const msg = { type: 'setAppVisible', visible: false };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
-    };
-
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    window.addEventListener('pagehide', postHidden);
-    return () => {
-      document.removeEventListener('visibilitychange', postVisibility);
-      window.removeEventListener('pagehide', postHidden);
-    };
+    return () => document.removeEventListener('visibilitychange', postVisibility);
   }, []);
 
   useEffect(() => {
@@ -844,40 +831,36 @@ function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
-  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
   const clientConfig = useClientConfig();
   const timeoutMs = clientConfig.presenceAutoIdleTimeoutMs ?? 0;
 
   usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
-    // When auto-idled, broadcast as unavailable regardless of the configured mode.
     const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
-    // Effective broadcast state: honour effectiveMode when presence is on, otherwise offline.
-    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
     const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
     const effectiveState = sendPresence ? activePresence : 'offline';
-    const broadcasting = effectiveState !== 'offline';
+    const ownUser = mx.getUser(mx.getUserId() ?? '');
+    const shouldClearSyntheticDndStatus =
+      ownUser?.presenceStatusMsg === 'dnd' && (!sendPresence || effectiveMode !== 'dnd');
+    let statusPayload: { status_msg: string } | undefined;
 
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
-    // Sliding sync: keep the extension enabled so we always receive others' presence.
-    // Only disable it when the master sendPresence toggle is off (full privacy mode).
+    if (sendPresence && effectiveMode === 'dnd') {
+      statusPayload = { status_msg: 'dnd' };
+    } else if (shouldClearSyntheticDndStatus) {
+      statusPayload = { status_msg: '' };
+    }
+
+    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
-    // - MSC4186 servers that have no presence extension see this immediately.
-    // - When 'offline' (Invisible mode), we appear offline to others but still receive
-    //   their presence events because the extension is still enabled above.
     const presencePayload = {
       presence: effectiveState,
-      ...(sendPresence && effectiveMode === 'dnd' ? { status_msg: 'dnd' } : {}),
+      ...statusPayload,
     };
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const trySetPresence = (attempt = 0) => {
       mx.setPresence(presencePayload).catch(() => {
-        // Retry up to 3 times with back-off: the HTTP client may not have
-        // reconnected yet after the app resumes from background.
         if (attempt < 3) {
           retryTimer = setTimeout(() => trySetPresence(attempt + 1), 2000 * (attempt + 1));
         }
@@ -887,7 +870,7 @@ function PresenceFeature() {
     return () => {
       if (retryTimer !== undefined) clearTimeout(retryTimer);
     };
-  }, [mx, sendPresence, presenceMode, autoIdled]);
+  }, [autoIdled, mx, presenceMode, sendPresence]);
 
   return null;
 }

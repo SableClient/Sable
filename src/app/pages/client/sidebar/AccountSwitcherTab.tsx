@@ -1,6 +1,5 @@
 import { MouseEvent, MouseEventHandler, ReactNode, useCallback, useState } from 'react';
 import {
-  Badge,
   Box,
   Button,
   Dialog,
@@ -189,13 +188,7 @@ export function AccountSwitcherTab() {
   const effectiveDisplayMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
   let myOwnPresenceBadge: ReactNode;
   if (sendPresence) {
-    myOwnPresenceBadge =
-      effectiveDisplayMode === 'dnd' ? (
-        // DND: solid red badge (broadcasts as online with status_msg 'dnd')
-        <Badge size="200" variant="Critical" fill="Solid" radii="Pill" />
-      ) : (
-        <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />
-      );
+    myOwnPresenceBadge = <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />;
   }
   const activeAvatarUrl = activeProfile.avatarUrl
     ? (mxcUrlToHttp(mx, activeProfile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
@@ -394,12 +387,7 @@ export function AccountSwitcherTab() {
                   ] as const
                 ).map(({ label: statusLabel, desc, mode }) => {
                   const isSelected = sendPresence && (presenceMode ?? 'online') === mode;
-                  const badge =
-                    mode === 'dnd' ? (
-                      <Badge size="300" variant="Critical" fill="Solid" radii="Pill" />
-                    ) : (
-                      <PresenceBadge presence={mode as Presence} size="300" />
-                    );
+                  const badge = <PresenceBadge presence={mode as Presence} size="300" />;
                   return (
                     <MenuItem
                       key={mode}

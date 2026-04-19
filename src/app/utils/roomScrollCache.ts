@@ -1,27 +1,47 @@
 import { CacheSnapshot } from 'virtua';
 
+export type RoomScrollFingerprint = {
+  eventCount: number;
+  headEventIds: string[];
+  tailEventIds: string[];
+  readUptoEventId?: string;
+  layoutKey: string;
+};
+
+export type RoomScrollPosition =
+  | {
+      kind: 'live';
+    }
+  | {
+      kind: 'anchor';
+      eventId: string;
+      offset: number;
+    };
+
 export type RoomScrollCache = {
   /** VList item-size snapshot — restored via VList `cache=` prop on remount. */
-  cache: CacheSnapshot;
-  /** Pixel scroll offset at the time the room was left. */
-  scrollOffset: number;
-  /** Whether the view was pinned to the bottom (live) when the room was left. */
-  atBottom: boolean;
-  /**
-   * Raw event IDs from the loaded head of the timeline when the snapshot was
-   * captured. Virtua's cache is index-based, so head changes invalidate it.
-   */
-  headEventIds: string[];
+  measurementCache?: CacheSnapshot;
+  /** Logical restore position captured from the rendered timeline. */
+  position: RoomScrollPosition;
+  /** Timeline/layout fingerprint used to validate index-based measurements. */
+  fingerprint: RoomScrollFingerprint;
 };
 
 /** Session-scoped, per-room scroll cache. Not persisted across page reloads. */
 const scrollCacheMap = new Map<string, RoomScrollCache>();
 
 const cacheKey = (userId: string, roomId: string): string => `${userId}:${roomId}`;
-const headMatches = (saved: string[], current: string[]): boolean =>
-  saved.length > 0 &&
-  current.length >= saved.length &&
-  saved.every((eventId, index) => current[index] === eventId);
+const fingerprintMatches = (
+  saved: RoomScrollFingerprint,
+  current: RoomScrollFingerprint
+): boolean =>
+  saved.layoutKey === current.layoutKey &&
+  saved.readUptoEventId === current.readUptoEventId &&
+  saved.eventCount === current.eventCount &&
+  saved.headEventIds.length > 0 &&
+  saved.tailEventIds.length > 0 &&
+  saved.headEventIds.every((eventId, index) => current.headEventIds[index] === eventId) &&
+  saved.tailEventIds.every((eventId, index) => current.tailEventIds[index] === eventId);
 
 export const roomScrollCache = {
   save(userId: string, roomId: string, data: RoomScrollCache): void {
@@ -30,12 +50,17 @@ export const roomScrollCache = {
   load(
     userId: string,
     roomId: string,
-    currentHeadEventIds?: string[]
+    currentFingerprint?: RoomScrollFingerprint
   ): RoomScrollCache | undefined {
     const cached = scrollCacheMap.get(cacheKey(userId, roomId));
     if (!cached) return undefined;
-    if (!currentHeadEventIds) return cached;
-    if (!headMatches(cached.headEventIds, currentHeadEventIds)) return undefined;
+    if (!currentFingerprint) return cached;
+    if (!fingerprintMatches(cached.fingerprint, currentFingerprint)) {
+      return {
+        ...cached,
+        measurementCache: undefined,
+      };
+    }
     return cached;
   },
 };

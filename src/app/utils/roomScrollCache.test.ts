@@ -1,9 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { roomScrollCache } from './roomScrollCache';
+import { roomScrollCache, RoomScrollFingerprint, RoomScrollPosition } from './roomScrollCache';
 
 // CacheSnapshot is opaque in tests — cast a plain object.
-const fakeCache = () => ({}) as import('./roomScrollCache').RoomScrollCache['cache'];
+const fakeCache = () => ({}) as import('./roomScrollCache').RoomScrollCache['measurementCache'];
 const userId = '@alice:test';
+
+const fingerprint = (overrides: Partial<RoomScrollFingerprint> = {}): RoomScrollFingerprint => ({
+  eventCount: 3,
+  headEventIds: ['$a', '$b'],
+  tailEventIds: ['$b', '$c'],
+  readUptoEventId: '$read',
+  layoutKey: 'compact:space',
+  ...overrides,
+});
+
+const position = (overrides: Partial<Extract<RoomScrollPosition, { kind: 'anchor' }>> = {}) =>
+  ({
+    kind: 'anchor',
+    eventId: '$b',
+    offset: -24,
+    ...overrides,
+  }) as RoomScrollPosition;
 
 describe('roomScrollCache', () => {
   it('load returns undefined for an unknown roomId', () => {
@@ -12,10 +29,9 @@ describe('roomScrollCache', () => {
 
   it('stores and retrieves data for a roomId', () => {
     const data = {
-      cache: fakeCache(),
-      scrollOffset: 120,
-      atBottom: false,
-      headEventIds: ['$a', '$b'],
+      measurementCache: fakeCache(),
+      position: position(),
+      fingerprint: fingerprint(),
     };
     roomScrollCache.save(userId, '!room1:test', data);
     expect(roomScrollCache.load(userId, '!room1:test')).toBe(data);
@@ -23,16 +39,17 @@ describe('roomScrollCache', () => {
 
   it('overwrites existing data when saved again for the same roomId', () => {
     const first = {
-      cache: fakeCache(),
-      scrollOffset: 50,
-      atBottom: true,
-      headEventIds: ['$a', '$b'],
+      measurementCache: fakeCache(),
+      position: { kind: 'live' } as RoomScrollPosition,
+      fingerprint: fingerprint({ headEventIds: ['$a', '$b'] }),
     };
     const second = {
-      cache: fakeCache(),
-      scrollOffset: 200,
-      atBottom: false,
-      headEventIds: ['$c', '$d'],
+      measurementCache: fakeCache(),
+      position: position({ eventId: '$d' }),
+      fingerprint: fingerprint({
+        headEventIds: ['$c', '$d'],
+        tailEventIds: ['$d', '$e'],
+      }),
     };
     roomScrollCache.save(userId, '!room2:test', first);
     roomScrollCache.save(userId, '!room2:test', second);
@@ -41,16 +58,14 @@ describe('roomScrollCache', () => {
 
   it('keeps data for separate rooms independent', () => {
     const a = {
-      cache: fakeCache(),
-      scrollOffset: 10,
-      atBottom: true,
-      headEventIds: ['$a'],
+      measurementCache: fakeCache(),
+      position: { kind: 'live' } as RoomScrollPosition,
+      fingerprint: fingerprint({ headEventIds: ['$a'], tailEventIds: ['$a'], eventCount: 1 }),
     };
     const b = {
-      cache: fakeCache(),
-      scrollOffset: 20,
-      atBottom: false,
-      headEventIds: ['$b'],
+      measurementCache: fakeCache(),
+      position: position({ eventId: '$b', offset: -12 }),
+      fingerprint: fingerprint({ headEventIds: ['$b'], tailEventIds: ['$b'], eventCount: 1 }),
     };
     roomScrollCache.save(userId, '!roomA:test', a);
     roomScrollCache.save(userId, '!roomB:test', b);
@@ -60,16 +75,14 @@ describe('roomScrollCache', () => {
 
   it('scopes data per userId', () => {
     const data1 = {
-      cache: fakeCache(),
-      scrollOffset: 100,
-      atBottom: true,
-      headEventIds: ['$a'],
+      measurementCache: fakeCache(),
+      position: { kind: 'live' } as RoomScrollPosition,
+      fingerprint: fingerprint({ headEventIds: ['$a'], tailEventIds: ['$a'], eventCount: 1 }),
     };
     const data2 = {
-      cache: fakeCache(),
-      scrollOffset: 200,
-      atBottom: false,
-      headEventIds: ['$b'],
+      measurementCache: fakeCache(),
+      position: position({ eventId: '$b' }),
+      fingerprint: fingerprint({ headEventIds: ['$b'], tailEventIds: ['$b'], eventCount: 1 }),
     };
     roomScrollCache.save('@alice:test', '!room:test', data1);
     roomScrollCache.save('@bob:test', '!room:test', data2);
@@ -77,18 +90,43 @@ describe('roomScrollCache', () => {
     expect(roomScrollCache.load('@bob:test', '!room:test')).toBe(data2);
   });
 
-  it('invalidates a cache when the current timeline head changes', () => {
+  it('drops only the measurement cache when the fingerprint changes', () => {
     const data = {
-      cache: fakeCache(),
-      scrollOffset: 120,
-      atBottom: false,
-      headEventIds: ['$a', '$b', '$c'],
+      measurementCache: fakeCache(),
+      position: position(),
+      fingerprint: fingerprint({
+        eventCount: 4,
+        headEventIds: ['$a', '$b', '$c'],
+        tailEventIds: ['$b', '$c', '$d'],
+      }),
     };
     roomScrollCache.save(userId, '!room3:test', data);
 
-    expect(roomScrollCache.load(userId, '!room3:test', ['$a', '$b', '$c', '$d'])).toBe(data);
-    expect(roomScrollCache.load(userId, '!room3:test', ['$x', '$a', '$b', '$c'])).toBeUndefined();
-    expect(roomScrollCache.load(userId, '!room3:test', ['$a', '$x', '$c', '$d'])).toBeUndefined();
-    expect(roomScrollCache.load(userId, '!room3:test', ['$a', '$b'])).toBeUndefined();
+    expect(roomScrollCache.load(userId, '!room3:test', data.fingerprint)).toBe(data);
+
+    const changedHead = roomScrollCache.load(
+      userId,
+      '!room3:test',
+      fingerprint({
+        eventCount: 4,
+        headEventIds: ['$x', '$a', '$b'],
+        tailEventIds: ['$b', '$c', '$d'],
+      })
+    );
+    expect(changedHead?.measurementCache).toBeUndefined();
+    expect(changedHead?.position).toEqual(data.position);
+
+    const changedLayout = roomScrollCache.load(
+      userId,
+      '!room3:test',
+      fingerprint({
+        eventCount: 4,
+        headEventIds: ['$a', '$b', '$c'],
+        tailEventIds: ['$b', '$c', '$d'],
+        layoutKey: 'modern:wide',
+      })
+    );
+    expect(changedLayout?.measurementCache).toBeUndefined();
+    expect(changedLayout?.position).toEqual(data.position);
   });
 });

@@ -15,6 +15,12 @@ import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
 import {
+  roomScrollCache,
+  RoomScrollCache,
+  RoomScrollFingerprint,
+  RoomScrollPosition,
+} from '$utils/roomScrollCache';
+import {
   as,
   Box,
   Chip,
@@ -154,6 +160,19 @@ const getDayDividerText = (ts: number) => {
   return timeDayMonthYear(ts);
 };
 
+const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
+const buildRoomScrollFingerprint = (
+  eventIds: string[],
+  readUptoEventId: string | undefined,
+  layoutKey: string
+): RoomScrollFingerprint => ({
+  eventCount: eventIds.length,
+  headEventIds: eventIds.slice(0, 5),
+  tailEventIds: eventIds.slice(-5),
+  readUptoEventId,
+  layoutKey,
+});
+
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -249,6 +268,7 @@ export function RoomTimeline({
   const setOpenThread = useSetAtom(openThreadAtom);
 
   const vListRef = useRef<VListHandle>(null);
+  const scrollCacheForRoomRef = useRef<RoomScrollCache | undefined>(undefined);
   const [atBottomState, setAtBottomState] = useState(
     eventId ? false : !initialUnreadInfo?.scrollTo
   );
@@ -276,6 +296,11 @@ export function RoomTimeline({
   // and reveals content once pagination is idle and the viewport is filled.
   const readyBlockedByPaginationRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
+  const restoreExactOffsetRef = useRef(false);
+  const currentScrollFingerprintRef = useRef<RoomScrollFingerprint | undefined>(undefined);
+  const saveRoomScrollStateRef = useRef<
+    ((measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => void) | undefined
+  >(undefined);
 
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(false);
@@ -283,10 +308,12 @@ export function RoomTimeline({
 
   if (currentRoomIdRef.current !== room.roomId) {
     const nextUnreadInfo = getRoomUnreadInfo(room, true);
+    scrollCacheForRoomRef.current = undefined;
     hasInitialScrolledRef.current = false;
     currentRoomIdRef.current = room.roomId;
     pendingReadyRef.current = false;
     readyBlockedByPaginationRef.current = false;
+    restoreExactOffsetRef.current = false;
     if (initialScrollTimerRef.current !== undefined) {
       clearTimeout(initialScrollTimerRef.current);
       initialScrollTimerRef.current = undefined;
@@ -347,6 +374,68 @@ export function RoomTimeline({
     return events.indexOf(match);
   }, []);
 
+  const getProcessedIndexByEventId = useCallback((targetEventId: string): number | undefined => {
+    const index = processedEventsRef.current.findIndex((event) => event.id === targetEventId);
+    return index >= 0 ? index : undefined;
+  }, []);
+
+  const getRenderedAnchorPosition = useCallback((): RoomScrollPosition | undefined => {
+    const container = messageListRef.current;
+    if (!container) return undefined;
+
+    const containerTop = container.getBoundingClientRect().top;
+    const anchors = Array.from(container.querySelectorAll<HTMLElement>(TIMELINE_ANCHOR_SELECTOR));
+    const firstVisibleAnchor = anchors.find((anchor) => anchor.getBoundingClientRect().bottom > containerTop);
+    if (!firstVisibleAnchor) return undefined;
+
+    const eventId = firstVisibleAnchor.dataset.timelineEventId;
+    if (!eventId) return undefined;
+
+    return {
+      kind: 'anchor',
+      eventId,
+      offset: firstVisibleAnchor.getBoundingClientRect().top - containerTop,
+    };
+  }, []);
+
+  const restoreRoomScrollPosition = useCallback(
+    (position: RoomScrollPosition, exactOffset: boolean) => {
+      const v = vListRef.current;
+      if (!v) return false;
+
+      if (position.kind === 'live') {
+        scrollToBottom();
+        return true;
+      }
+
+      const processedIndex = getProcessedIndexByEventId(position.eventId);
+      if (processedIndex === undefined) return false;
+
+      v.scrollToIndex(processedIndex, { align: 'start' });
+
+      if (!exactOffset) return true;
+
+      requestAnimationFrame(() => {
+        const container = messageListRef.current;
+        if (!container) return;
+
+        const anchor = Array.from(
+          container.querySelectorAll<HTMLElement>(TIMELINE_ANCHOR_SELECTOR)
+        ).find((element) => element.dataset.timelineEventId === position.eventId);
+        if (!anchor) return;
+
+        const currentOffset = anchor.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        const delta = currentOffset - position.offset;
+        if (Math.abs(delta) > 2) {
+          vListRef.current?.scrollTo(v.scrollOffset + delta);
+        }
+      });
+
+      return true;
+    },
+    [getProcessedIndexByEventId, scrollToBottom]
+  );
+
   useLayoutEffect(() => {
     if (
       !eventId &&
@@ -361,6 +450,27 @@ export function RoomTimeline({
       vListRef.current
     ) {
       hasInitialScrolledRef.current = true;
+      const savedCache = !unreadInfo?.scrollTo ? scrollCacheForRoomRef.current : undefined;
+      if (savedCache) {
+        if (processedEventsRef.current.length === 0) {
+          pendingReadyRef.current = true;
+          restoreExactOffsetRef.current =
+            savedCache.measurementCache !== undefined &&
+            savedCache.fingerprint.layoutKey === currentScrollFingerprintRef.current?.layoutKey;
+        } else {
+          const restored = restoreRoomScrollPosition(
+            savedCache.position,
+            savedCache.measurementCache !== undefined &&
+              savedCache.fingerprint.layoutKey === currentScrollFingerprintRef.current?.layoutKey
+          );
+          if (restored) {
+            setAtBottom(savedCache.position.kind === 'live');
+            setIsReady(true);
+            return;
+          }
+        }
+      }
+
       // Scroll to bottom, then wait 80 ms for VList to finish measuring item
       // heights before revealing the timeline.
       vListRef.current.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
@@ -385,6 +495,7 @@ export function RoomTimeline({
             readyBlockedByPaginationRef.current = true;
             return;
           }
+          saveRoomScrollStateRef.current?.(v?.cache, true);
           setIsReady(true);
         } else {
           pendingReadyRef.current = true;
@@ -393,7 +504,15 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+  }, [
+    eventId,
+    room.roomId,
+    restoreRoomScrollPosition,
+    setAtBottom,
+    timelineSync.eventsLength,
+    timelineSync.liveTimelineLinked,
+    unreadInfo?.scrollTo,
+  ]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -433,6 +552,7 @@ export function RoomTimeline({
     if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + 100) return;
     readyBlockedByPaginationRef.current = false;
     v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+    saveRoomScrollStateRef.current?.(v.cache, true);
     setIsReady(true);
   }, [timelineSync.backwardStatus, timelineSync.eventsLength, timelineSync.canPaginateBack]);
 
@@ -849,6 +969,10 @@ export function RoomTimeline({
         setAtBottom(isNowAtBottom);
       }
 
+      if (!eventId) {
+        saveRoomScrollState(v.cache, isNowAtBottom);
+      }
+
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
         timelineSyncRef.current.handleTimelinePagination(true);
       }
@@ -860,7 +984,7 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom]
+    [eventId, saveRoomScrollState, setAtBottom]
   );
 
   const showLoadingPlaceholders =
@@ -870,7 +994,8 @@ export function RoomTimeline({
   // Show a skeleton overlay while content is hidden for measurement.
   // The VList still renders underneath at opacity 0 so it can measure real
   // item heights — the overlay just gives the user something to look at.
-  const showSkeletonOverlay = !isReady && !showLoadingPlaceholders;
+  const showSkeletonOverlay =
+    !isReady && !scrollCacheForRoomRef.current?.measurementCache && !showLoadingPlaceholders;
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -953,6 +1078,44 @@ export function RoomTimeline({
     [vListItemCount, timelineSync.timeline.linkedTimelines, timelineSync.mutationVersion]
   );
 
+  const scrollLayoutKey = useMemo(
+    () =>
+      [
+        messageLayout,
+        messageSpacing,
+        hideReads,
+        hideMembershipEvents,
+        hideNickAvatarEvents,
+        showHiddenEvents,
+        showTombstoneEvents,
+        mediaAutoLoad,
+        showBundledPreview,
+        showUrlPreview,
+        showClientUrlPreview,
+        autoplayStickers,
+        autoplayEmojis,
+        hideMemberInReadOnly,
+        isReadOnly,
+      ].join(':'),
+    [
+      messageLayout,
+      messageSpacing,
+      hideReads,
+      hideMembershipEvents,
+      hideNickAvatarEvents,
+      showHiddenEvents,
+      showTombstoneEvents,
+      mediaAutoLoad,
+      showBundledPreview,
+      showUrlPreview,
+      showClientUrlPreview,
+      autoplayStickers,
+      autoplayEmojis,
+      hideMemberInReadOnly,
+      isReadOnly,
+    ]
+  );
+
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
@@ -970,6 +1133,41 @@ export function RoomTimeline({
 
   processedEventsRef.current = processedEvents;
 
+  const currentScrollFingerprint = useMemo(
+    () =>
+      buildRoomScrollFingerprint(
+        processedEvents.map((event) => event.id),
+        unreadInfo?.readUptoEventId,
+        scrollLayoutKey
+      ),
+    [processedEvents, scrollLayoutKey, unreadInfo?.readUptoEventId]
+  );
+  currentScrollFingerprintRef.current = currentScrollFingerprint;
+
+  if (!eventId) {
+    scrollCacheForRoomRef.current = roomScrollCache.load(mx.getUserId()!, room.roomId, currentScrollFingerprint);
+  } else {
+    scrollCacheForRoomRef.current = undefined;
+  }
+
+  const saveRoomScrollState = useCallback(
+    (measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => {
+      if (eventId) return;
+
+      const position =
+        atBottom ? ({ kind: 'live' } as RoomScrollPosition) : getRenderedAnchorPosition();
+      if (!position) return;
+
+      roomScrollCache.save(mx.getUserId()!, room.roomId, {
+        measurementCache,
+        position,
+        fingerprint: currentScrollFingerprint,
+      });
+    },
+    [currentScrollFingerprint, eventId, getRenderedAnchorPosition, mx, room.roomId]
+  );
+  saveRoomScrollStateRef.current = saveRoomScrollState;
+
   // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
   // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
   // events repopulate.  Fires on every processedEvents.length change but is
@@ -978,9 +1176,16 @@ export function RoomTimeline({
     if (!pendingReadyRef.current) return;
     if (processedEvents.length === 0) return;
     pendingReadyRef.current = false;
-    vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    const savedCache = !unreadInfo?.scrollTo ? scrollCacheForRoomRef.current : undefined;
+    const restored = savedCache
+      ? restoreRoomScrollPosition(savedCache.position, restoreExactOffsetRef.current)
+      : false;
+    restoreExactOffsetRef.current = false;
+    if (!restored) {
+      vListRef.current?.scrollToIndex(processedEvents.length - 1, { align: 'end' });
+    }
     setIsReady(true);
-  }, [processedEvents.length]);
+  }, [processedEvents.length, restoreRoomScrollPosition, unreadInfo?.scrollTo]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;
@@ -1107,6 +1312,7 @@ export function RoomTimeline({
           key={room.roomId}
           ref={vListRef}
           data={processedEvents}
+          cache={!eventId ? scrollCacheForRoomRef.current?.measurementCache : undefined}
           shift={shift}
           className={css.messageList}
           style={{
@@ -1203,17 +1409,26 @@ export function RoomTimeline({
                     </div>
                   )}
                   {backPaginationJSX}
-                  {dividers}
-                  {renderedEvent}
+                  <div
+                    data-timeline-event-id={eventData.id}
+                    data-timeline-item-index={eventData.itemIndex}
+                  >
+                    {dividers}
+                    {renderedEvent}
+                  </div>
                 </Fragment>
               );
             }
 
             return (
-              <Fragment key={`${eventData.id}:${eventData.itemIndex}`}>
+              <div
+                key={`${eventData.id}:${eventData.itemIndex}`}
+                data-timeline-event-id={eventData.id}
+                data-timeline-item-index={eventData.itemIndex}
+              >
                 {dividers}
                 {renderedEvent}
-              </Fragment>
+              </div>
             );
           }}
         </VList>

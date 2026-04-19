@@ -53,6 +53,7 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -88,6 +89,7 @@ export interface Settings {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -150,6 +152,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,
@@ -190,6 +193,7 @@ const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,

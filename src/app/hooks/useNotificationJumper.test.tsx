@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { act, render } from '@testing-library/react';
-import { Provider } from 'jotai';
-import { useHydrateAtoms } from 'jotai/utils';
+import { Provider, createStore } from 'jotai';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncState } from '$types/matrix-sdk';
@@ -65,25 +64,16 @@ type WrapperProps = {
   children: ReactNode;
 };
 
-function HydrateAtoms({ children }: WrapperProps) {
-  useHydrateAtoms(
-    new Map([
-      [activeSessionIdAtom, '@alice:test'],
-      [pendingNotificationAtom, { roomId: '!room:test', eventId: '$event:test' }],
-      [mDirectAtom, new Set<string>()],
-      [roomToParentsAtom, new Map()],
-    ])
-  );
-
-  return <>{children}</>;
-}
-
 function HydratedWrapper({ children }: WrapperProps) {
+  const store = createStore();
+  store.set(activeSessionIdAtom, '@alice:test');
+  store.set(pendingNotificationAtom, { roomId: '!room:test', eventId: '$event:test' });
+  store.set(mDirectAtom, { type: 'INITIALIZE', rooms: new Set<string>() });
+  store.set(roomToParentsAtom, { type: 'INITIALIZE', roomToParents: new Map() });
+
   return (
-    <Provider>
-      <HydrateAtoms>
-        <MemoryRouter>{children}</MemoryRouter>
-      </HydrateAtoms>
+    <Provider store={store}>
+      <MemoryRouter>{children}</MemoryRouter>
     </Provider>
   );
 }

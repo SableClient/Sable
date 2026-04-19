@@ -12,7 +12,6 @@ import {
   MatrixClient,
   MatrixEvent,
   NotificationCountType,
-  PushProcessor,
   RelationType,
   Room,
   RoomMember,
@@ -329,30 +328,6 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
         // Subtract only the stale main-timeline count; thread totals remain intact.
         total -= roomTotal;
       }
-    }
-  }
-
-  // Fallback: SDK counters are stale/zero but there are receipt-confirmed unread
-  // messages. Walk the live timeline to compute real counts so the badge number
-  // and highlight colour reflect actual state rather than a hard-coded stub.
-  if (total === 0 && highlight === 0 && userId && roomHaveUnread(room.client, room)) {
-    const readUpToId = room.getEventReadUpTo(userId);
-    const liveEvents = room.getLiveTimeline().getEvents();
-    let fallbackTotal = 0;
-    let fallbackHighlight = 0;
-    const pushProcessor = new PushProcessor(room.client);
-    for (let i = liveEvents.length - 1; i >= 0; i -= 1) {
-      const event = liveEvents[i];
-      if (!event) break;
-      if (event.getId() === readUpToId) break;
-      if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
-        fallbackTotal += 1;
-        const pushActions = pushProcessor.actionsForEvent(event);
-        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
-      }
-    }
-    if (fallbackTotal > 0) {
-      return { roomId: room.roomId, highlight: fallbackHighlight, total: fallbackTotal };
     }
   }
 

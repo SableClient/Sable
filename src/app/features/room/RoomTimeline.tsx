@@ -160,6 +160,8 @@ const getDayDividerText = (ts: number) => {
   return timeDayMonthYear(ts);
 };
 
+const SCROLL_SETTLE_MS = 250;
+
 const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
 const buildRoomScrollFingerprint = (
   eventIds: string[],
@@ -283,6 +285,7 @@ export function RoomTimeline({
 
   const topSpacerHeightRef = useRef(0);
   const hasInitialScrolledRef = useRef(false);
+  const lastProgrammaticBottomPinAtRef = useRef(0);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -334,8 +337,10 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
+    lastProgrammaticBottomPinAtRef.current = Date.now();
+    setAtBottom(true);
     vListRef.current.scrollTo(vListRef.current.scrollSize);
-  }, []);
+  }, [setAtBottom]);
 
   const timelineSync = useTimelineSync({
     room,
@@ -936,6 +941,8 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+      const withinSettleWindow =
+        Date.now() - lastProgrammaticBottomPinAtRef.current < SCROLL_SETTLE_MS;
 
       // When the user is pinned to the bottom and content grows (images, embeds,
       // video thumbnails loading), scrollSize increases while offset stays put,
@@ -957,13 +964,16 @@ export function RoomTimeline({
       // updates until the jump transition finishes and focusItem is cleared.
       if (timelineSyncRef.current.focusItem) return;
 
-      if (atBottomRef.current && !isNowAtBottom && contentGrew) {
+      if (atBottomRef.current && !isNowAtBottom && (contentGrew || withinSettleWindow)) {
         // Defer the chase to the next animation frame so VList finishes its
         // current layout pass. Synchronous scrollTo causes cascading scroll
         // events that produce visible jumps when images/embeds load.
         requestAnimationFrame(() => {
           const vl = vListRef.current;
-          if (vl && atBottomRef.current) vl.scrollTo(vl.scrollSize);
+          if (vl && atBottomRef.current) {
+            lastProgrammaticBottomPinAtRef.current = Date.now();
+            vl.scrollTo(vl.scrollSize);
+          }
         });
         return;
       }

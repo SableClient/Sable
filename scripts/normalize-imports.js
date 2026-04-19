@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* oxlint-disable no-console */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';

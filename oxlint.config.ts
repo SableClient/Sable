@@ -19,6 +19,7 @@ export default defineConfig({
     'import/no-unassigned-import': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',
+    'no-console': ['error', { allow: ['warn', 'error'] }],
     'react/react-in-jsx-scope': 'off',
     'react/jsx-filename-extension': ['error', { extensions: ['.tsx', '.jsx'] }],
     'react/rules-of-hooks': 'error',

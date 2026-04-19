@@ -1,3 +1,4 @@
+/* oxlint-disable no-console */
 import process from 'node:process';
 
 export const ANSI = {

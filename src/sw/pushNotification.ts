@@ -1,3 +1,4 @@
+/* oxlint-disable no-console */
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import {
   buildRoomMessageNotification,

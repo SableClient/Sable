@@ -6,6 +6,7 @@
  * - VITE_SENTRY_ENVIRONMENT: Environment name (defaults to MODE)
  * - VITE_APP_VERSION: Release version for tracking
  */
+/* oxlint-disable no-console */
 import * as Sentry from '@sentry/react';
 import React from 'react';
 import {

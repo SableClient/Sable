@@ -108,6 +108,20 @@ const getDayDividerText = (ts: number) => {
   return timeDayMonthYear(ts);
 };
 
+const SCROLL_SETTLE_MS = 250;
+
+const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
+const buildRoomScrollFingerprint = (
+  eventIds: string[],
+  readUptoEventId: string | undefined,
+  layoutKey: string
+): RoomScrollFingerprint => ({
+  eventCount: eventIds.length,
+  headEventIds: eventIds.slice(0, 5),
+  tailEventIds: eventIds.slice(-5),
+  readUptoEventId,
+  layoutKey,
+});
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -214,6 +228,7 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  const lastProgrammaticBottomPinAtRef = useRef(0);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -245,8 +260,10 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
+    lastProgrammaticBottomPinAtRef.current = Date.now();
+    setAtBottom(true);
     vListRef.current.scrollTo(vListRef.current.scrollSize);
-  }, []);
+  }, [setAtBottom]);
 
   const timelineSync = useTimelineSync({
     room,
@@ -631,6 +648,42 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+      const withinSettleWindow =
+        Date.now() - lastProgrammaticBottomPinAtRef.current < SCROLL_SETTLE_MS;
+
+      // When the user is pinned to the bottom and content grows (images, embeds,
+      // video thumbnails loading), scrollSize increases while offset stays put,
+      // pushing distanceFromBottom above the threshold. Instead of flipping
+      // atBottom to false (which shows the "Jump to Latest" button), chase the
+      // bottom so the user stays pinned.
+      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      prevScrollSizeRef.current = v.scrollSize;
+
+      // Skip content-chase and cache saves during init: the timeline is hidden
+      // (opacity 0) while VList measures items and fires intermediate scroll
+      // events.  Chasing the bottom here causes cascading scrollTo calls that
+      // upstream doesn't have, producing visible layout churn after isReady.
+      if (!isReadyRef.current) return;
+
+      // While a jump is in progress (focusItem set), VList fires scroll events
+      // from scrollToIndex that can incorrectly flip atBottom=true — especially
+      // if the target happens to be near the end.  Ignore scroll-position
+      // updates until the jump transition finishes and focusItem is cleared.
+      if (timelineSyncRef.current.focusItem) return;
+
+      if (atBottomRef.current && !isNowAtBottom && (contentGrew || withinSettleWindow)) {
+        // Defer the chase to the next animation frame so VList finishes its
+        // current layout pass. Synchronous scrollTo causes cascading scroll
+        // events that produce visible jumps when images/embeds load.
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (vl && atBottomRef.current) {
+            lastProgrammaticBottomPinAtRef.current = Date.now();
+            vl.scrollTo(vl.scrollSize);
+          }
+        });
+        return;
+      }
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }

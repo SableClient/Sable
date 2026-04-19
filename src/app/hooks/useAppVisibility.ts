@@ -76,8 +76,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
         typeof baseUrl === 'string' &&
         typeof accessToken === 'string' &&
         typeof userId === 'string' &&
-        'serviceWorker' in navigator &&
-        !!navigator.serviceWorker.controller;
+        'serviceWorker' in navigator;
 
       if (!canPush) {
         debugLog.warn('network', 'Skipped SW session sync', {
@@ -97,6 +96,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
         phase1ForegroundResync,
         phase2VisibleHeartbeat,
         phase3AdaptiveBackoffJitter,
+        hasSwController: !!navigator.serviceWorker?.controller,
       });
       return 'sent';
     },

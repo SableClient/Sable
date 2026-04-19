@@ -45,7 +45,17 @@ export const createPushNotifications = (
       silent,
       data,
     };
+    const existingNotifications = await self.registration.getNotifications();
+    const replacedCount = existingNotifications.filter(
+      (notification) => notification.tag === tag
+    ).length;
     console.debug('[SW showNotification] title:', title, '| data:', JSON.stringify(data, null, 2));
+    console.debug('[SW showNotification] tag diagnostics:', {
+      tag,
+      roomId,
+      renotify,
+      replacedCount,
+    });
     await self.registration.showNotification(title, notifOptions as NotificationOptions);
   };
 

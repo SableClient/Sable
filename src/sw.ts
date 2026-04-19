@@ -760,23 +760,41 @@ async function fetchMediaWithRetry(
   let response = await fetch(url, { ...fetchConfig(token), redirect });
   if (!isAuthFailureStatus(response.status)) return response;
 
+  console.warn('[SW media] Initial authenticated fetch failed', {
+    url,
+    status: response.status,
+    clientId,
+    hasClientBoundSession: !!(clientId && sessions.get(clientId)),
+    hasPreloadedSession: !!preloadedSession,
+  });
+
   const attemptedTokens = new Set<string>([token]);
-  const retrySessions: SessionInfo[] = [];
+  const retrySessions: Array<{ session: SessionInfo; source: string }> = [];
   const seenSessions = new Set<string>();
 
-  const addRetrySession = (session?: SessionInfo) => {
+  const addRetrySession = (session: SessionInfo | undefined, source: string) => {
     if (!session || !validMediaRequest(url, session.baseUrl)) return;
     const key = `${session.baseUrl}\x00${session.accessToken}`;
     if (seenSessions.has(key)) return;
     seenSessions.add(key);
-    retrySessions.push(session);
+    retrySessions.push({ session, source });
   };
 
-  if (clientId) addRetrySession(sessions.get(clientId));
-  getMatchingSessions(url).forEach((session) => addRetrySession(session));
-  addRetrySession(preloadedSession);
-  addRetrySession(await loadPersistedSession());
-  (await getLiveWindowSessions(url, clientId)).forEach((session) => addRetrySession(session));
+  if (clientId) addRetrySession(sessions.get(clientId), 'client_session');
+  getMatchingSessions(url).forEach((session, index) =>
+    addRetrySession(session, `matching_session_${index}`)
+  );
+  addRetrySession(preloadedSession, 'preloaded_session');
+  addRetrySession(await loadPersistedSession(), 'persisted_session');
+  (await getLiveWindowSessions(url, clientId)).forEach((session, index) =>
+    addRetrySession(session, `live_window_${index}`)
+  );
+
+  console.debug('[SW media] Retry candidates collected', {
+    url,
+    candidateSources: retrySessions.map(({ source }) => source),
+    candidateCount: retrySessions.length,
+  });
 
   // Try each plausible token once. This handles token-refresh races and ambiguous
   // multi-account sessions on the same homeserver, including no-clientId requests.
@@ -784,16 +802,31 @@ async function fetchMediaWithRetry(
   /* eslint-disable no-await-in-loop */
   for (let i = 0; i < retrySessions.length; i += 1) {
     const candidate = retrySessions[i];
-    if (!candidate || attemptedTokens.has(candidate.accessToken)) {
+    if (!candidate || attemptedTokens.has(candidate.session.accessToken)) {
       // skip this candidate
     } else {
-      attemptedTokens.add(candidate.accessToken);
-      response = await fetch(url, { ...fetchConfig(candidate.accessToken), redirect });
+      attemptedTokens.add(candidate.session.accessToken);
+      console.debug('[SW media] Retrying with alternate session', {
+        url,
+        source: candidate.source,
+        attempt: i + 1,
+      });
+      response = await fetch(url, { ...fetchConfig(candidate.session.accessToken), redirect });
       if (!isAuthFailureStatus(response.status)) return response;
+      console.warn('[SW media] Alternate session also failed auth', {
+        url,
+        source: candidate.source,
+        status: response.status,
+      });
     }
   }
   /* eslint-enable no-await-in-loop */
 
+  console.warn('[SW media] Exhausted authenticated retry candidates', {
+    url,
+    finalStatus: response.status,
+    attemptedTokenCount: attemptedTokens.size,
+  });
   return response;
 }
 

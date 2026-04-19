@@ -6,6 +6,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('PresenceAutoIdle');
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'] as const;
+const IDLE_CHECK_INTERVAL_MS = 30_000;
 
 /**
  * Automatically transitions presence to idle after a configurable inactivity
@@ -28,6 +29,8 @@ export function usePresenceAutoIdle(
   const setAutoIdled = useSetAtom(presenceAutoIdledAtom);
   const autoIdledRef = useRef(false);
   const timerRef = useRef<number | undefined>(undefined);
+  const intervalRef = useRef<number | undefined>(undefined);
+  const lastActivityAtRef = useRef(Date.now());
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== undefined) {
@@ -36,11 +39,19 @@ export function usePresenceAutoIdle(
     }
   }, []);
 
+  const clearIntervalTimer = useCallback(() => {
+    if (intervalRef.current !== undefined) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = undefined;
+    }
+  }, []);
+
   // Inactivity timer: go idle after timeoutMs without user input.
   useEffect(() => {
     const shouldAutoIdle = presenceMode === 'online' && sendPresence && timeoutMs > 0;
     if (!shouldAutoIdle) {
       clearTimer();
+      clearIntervalTimer();
       if (autoIdledRef.current) {
         autoIdledRef.current = false;
         setAutoIdled(false);
@@ -49,19 +60,36 @@ export function usePresenceAutoIdle(
     }
 
     const goIdle = () => {
+      if (autoIdledRef.current) return;
       debugLog.info('general', 'Inactivity timeout — auto-idling');
       autoIdledRef.current = true;
       setAutoIdled(true);
     };
 
+    const checkIdleDeadline = () => {
+      const elapsedMs = Date.now() - lastActivityAtRef.current;
+      if (elapsedMs >= timeoutMs) {
+        goIdle();
+        return;
+      }
+      clearTimer();
+      timerRef.current = window.setTimeout(checkIdleDeadline, timeoutMs - elapsedMs);
+    };
+
     const handleActivity = () => {
+      lastActivityAtRef.current = Date.now();
       clearTimer();
       if (autoIdledRef.current) {
         debugLog.info('general', 'Activity detected — clearing auto-idle');
         autoIdledRef.current = false;
         setAutoIdled(false);
       }
-      timerRef.current = window.setTimeout(goIdle, timeoutMs);
+      timerRef.current = window.setTimeout(checkIdleDeadline, timeoutMs);
+    };
+
+    const handleBlur = () => {
+      debugLog.info('general', 'Window blurred — keeping idle deadline active');
+      checkIdleDeadline();
     };
 
     const handleVisibilityChange = () => {
@@ -69,20 +97,28 @@ export function usePresenceAutoIdle(
     };
 
     // Start the initial timer.
-    timerRef.current = window.setTimeout(goIdle, timeoutMs);
+    lastActivityAtRef.current = Date.now();
+    timerRef.current = window.setTimeout(checkIdleDeadline, timeoutMs);
+    intervalRef.current = window.setInterval(
+      checkIdleDeadline,
+      Math.min(timeoutMs, IDLE_CHECK_INTERVAL_MS)
+    );
     ACTIVITY_EVENTS.forEach((ev) =>
       document.addEventListener(ev, handleActivity, { passive: true })
     );
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleActivity);
+    window.addEventListener('blur', handleBlur);
 
     return () => {
       ACTIVITY_EVENTS.forEach((ev) => document.removeEventListener(ev, handleActivity));
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleActivity);
+      window.removeEventListener('blur', handleBlur);
       clearTimer();
+      clearIntervalTimer();
     };
-  }, [clearTimer, presenceMode, sendPresence, setAutoIdled, timeoutMs]);
+  }, [clearIntervalTimer, clearTimer, presenceMode, sendPresence, setAutoIdled, timeoutMs]);
 
   // Multi-device sync: if another device sets us back to online, clear auto-idle.
   useEffect(() => {

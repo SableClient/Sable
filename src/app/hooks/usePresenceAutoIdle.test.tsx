@@ -170,6 +170,19 @@ describe('usePresenceAutoIdle', () => {
     expect(result.current).toBe(true);
   });
 
+  it('still goes idle after the window loses focus', () => {
+    const { result } = renderHook(() => useAutoIdledReader(mockMx, 'online', true, 5000), {
+      wrapper,
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(result.current).toBe(true);
+  });
+
   it('clears auto-idle when presenceMode changes away from online', () => {
     const { result, rerender } = renderHook(
       ({ mode }) => useAutoIdledReader(mockMx, mode, true, 5000),

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { toMatrixCustomHTML, toPlainText, trimCustomHtml } from '$components/editor/output';
 import { BlockType } from '$components/editor/types';
-import { rewriteSettingsLinksInDescendants } from './settingsLinkMessage';
+import {
+  hasSettingsLinksToRewriteInDescendants,
+  rewriteSettingsLinksInDescendants,
+} from './settingsLinkMessage';
 
 const settingsUrl =
   'https://app.example/settings/account?focus=display-name&moe.sable.client.action=settings';
@@ -11,6 +14,20 @@ const invalidSettingsUrl =
   'https://app.example/settings/account?focus=display-name2&moe.sable.client.action=settings';
 
 describe('settingsLinkMessage', () => {
+  it('detects bare settings links that need outgoing rewriting', () => {
+    expect(
+      hasSettingsLinksToRewriteInDescendants(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [{ text: settingsUrl }],
+          },
+        ],
+        'https://app.example'
+      )
+    ).toBe(true);
+  });
+
   it('rewrites bare settings links into message-friendly labels before serialization', () => {
     const rewritten = rewriteSettingsLinksInDescendants(
       [
@@ -95,6 +112,19 @@ describe('settingsLinkMessage', () => {
   });
 
   it('does not rewrite settings links inside markdown inline code spans', () => {
+    expect(
+      hasSettingsLinksToRewriteInDescendants(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [{ text: `\`${settingsUrl}\`` }],
+          },
+        ],
+        'https://app.example',
+        true
+      )
+    ).toBe(false);
+
     const rewritten = rewriteSettingsLinksInDescendants(
       [
         {
@@ -149,6 +179,18 @@ describe('settingsLinkMessage', () => {
   });
 
   it('does not rewrite settings links with unknown focus ids', () => {
+    expect(
+      hasSettingsLinksToRewriteInDescendants(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [{ text: invalidSettingsUrl }],
+          },
+        ],
+        'https://app.example'
+      )
+    ).toBe(false);
+
     const rewritten = rewriteSettingsLinksInDescendants(
       [
         {

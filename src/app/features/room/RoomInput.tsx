@@ -156,7 +156,7 @@ import {
   getImageMsgContent,
   getVideoMsgContent,
 } from './msgContent';
-import { rewriteSettingsLinksInDescendants } from './settingsLinkMessage';
+import { outgoingMessageTransforms } from './outgoingMessageTransforms';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import {
   AudioMessageRecorder,
@@ -724,11 +724,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       /**
        * the plain text we will send
        */
-      const serializedChildren = rewriteSettingsLinksInDescendants(
-        editor.children,
+      let serializedChildren = editor.children;
+      const outgoingTransformContext = {
+        isMarkdown,
         settingsLinkBaseUrl,
-        isMarkdown
-      );
+      };
+
+      outgoingMessageTransforms.forEach((transform) => {
+        if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
+        serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
+      });
+
       let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
       /**
        * the html we will send

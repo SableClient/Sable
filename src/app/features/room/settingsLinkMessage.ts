@@ -16,6 +16,13 @@ import { BlockType } from '$components/editor/types';
 import { createLinkElement } from '$components/editor/utils';
 import { getSettingsLinkLabel, parseSettingsLink } from '$features/settings/settingsLink';
 
+type RewritableSettingsLinkMatch = {
+  end: number;
+  href: string;
+  label: string;
+  start: number;
+};
+
 const isMarkdownSettingsLink = (text: string, start: number, end: number): boolean =>
   text.slice(0, start).endsWith('](') && text.slice(end).startsWith(')');
 
@@ -77,6 +84,49 @@ const isProtectedMarkdownContext = (
       isMarkdownAutolink(text, start, end) ||
       isInsideHtmlTag(text, start)));
 
+const getRewritableSettingsLinkMatches = (
+  text: string,
+  baseUrl: string,
+  isMarkdown: boolean
+): RewritableSettingsLinkMatch[] => {
+  const matches = findLinks(text, 'url');
+  if (matches.length === 0) return [];
+
+  const codeSpanRanges = isMarkdown ? getMarkdownCodeSpanRanges(text) : [];
+
+  return matches.flatMap((match) => {
+    const href = match.value;
+    const settingsLink = parseSettingsLink(baseUrl, href);
+
+    if (
+      !settingsLink ||
+      isProtectedMarkdownContext(text, match.start, match.end, isMarkdown, codeSpanRanges)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        end: match.end,
+        href,
+        label: getSettingsLinkLabel(settingsLink.section, settingsLink.focus),
+        start: match.start,
+      },
+    ];
+  });
+};
+
+const hasRewritableSettingsLinksInInlineChildren = (
+  children: InlineElement[],
+  baseUrl: string,
+  isMarkdown: boolean
+): boolean =>
+  children.some(
+    (child) =>
+      Text.isText(child) &&
+      getRewritableSettingsLinkMatches(child.text, baseUrl, isMarkdown).length > 0
+  );
+
 const createTextSegment = (node: FormattedText, text: string): FormattedText => ({
   ...node,
   text,
@@ -87,33 +137,18 @@ const rewriteInlineText = (
   baseUrl: string,
   isMarkdown: boolean
 ): InlineElement[] => {
-  const matches = findLinks(node.text, 'url');
+  const matches = getRewritableSettingsLinkMatches(node.text, baseUrl, isMarkdown);
   if (matches.length === 0) return [node];
 
-  const codeSpanRanges = isMarkdown ? getMarkdownCodeSpanRanges(node.text) : [];
   const rewritten: InlineElement[] = [];
   let cursor = 0;
 
   matches.forEach((match) => {
-    const href = match.value;
-    const settingsLink = parseSettingsLink(baseUrl, href);
-
-    if (
-      !settingsLink ||
-      isProtectedMarkdownContext(node.text, match.start, match.end, isMarkdown, codeSpanRanges)
-    ) {
-      return;
-    }
-
     if (cursor < match.start) {
       rewritten.push(createTextSegment(node, node.text.slice(cursor, match.start)));
     }
 
-    rewritten.push(
-      createLinkElement(href, [
-        createTextSegment(node, getSettingsLinkLabel(settingsLink.section, settingsLink.focus)),
-      ])
-    );
+    rewritten.push(createLinkElement(match.href, [createTextSegment(node, match.label)]));
     cursor = match.end;
   });
 
@@ -173,6 +208,41 @@ const rewriteUnorderedList = (
   children: node.children.map((child) => rewriteInlineContainer(child, baseUrl, isMarkdown)),
 });
 
+const hasSettingsLinksToRewriteInNode = (
+  node: Descendant,
+  baseUrl: string,
+  isMarkdown: boolean
+): boolean => {
+  if (Text.isText(node)) {
+    return getRewritableSettingsLinkMatches(node.text, baseUrl, isMarkdown).length > 0;
+  }
+
+  switch (node.type) {
+    case BlockType.Paragraph:
+    case BlockType.Heading:
+    case BlockType.QuoteLine:
+    case BlockType.ListItem:
+    case BlockType.Small:
+      return hasRewritableSettingsLinksInInlineChildren(node.children, baseUrl, isMarkdown);
+    case BlockType.BlockQuote:
+    case BlockType.OrderedList:
+    case BlockType.UnorderedList:
+      return node.children.some((child) =>
+        hasSettingsLinksToRewriteInNode(child, baseUrl, isMarkdown)
+      );
+    case BlockType.CodeBlock:
+    case BlockType.CodeLine:
+    case BlockType.HorizontalRule:
+    case BlockType.Link:
+    case BlockType.Mention:
+    case BlockType.Emoticon:
+    case BlockType.Command:
+      return false;
+    default:
+      return false;
+  }
+};
+
 const rewriteNode = (node: Descendant, baseUrl: string, isMarkdown: boolean): Descendant => {
   if (Text.isText(node)) return node;
 
@@ -207,3 +277,9 @@ export const rewriteSettingsLinksInDescendants = (
   baseUrl: string,
   isMarkdown = false
 ): Descendant[] => children.map((child) => rewriteNode(child, baseUrl, isMarkdown));
+
+export const hasSettingsLinksToRewriteInDescendants = (
+  children: Descendant[],
+  baseUrl: string,
+  isMarkdown = false
+): boolean => children.some((child) => hasSettingsLinksToRewriteInNode(child, baseUrl, isMarkdown));

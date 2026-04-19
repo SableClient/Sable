@@ -74,7 +74,6 @@ export function CodeHighlightRenderer({
   }
 
   return (
-    // oxlint-disable-next-line react/no-danger
     <code className={codeClassName} dangerouslySetInnerHTML={{ __html: currentResult.html }} />
   );
 }

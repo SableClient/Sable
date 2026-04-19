@@ -1,4 +1,3 @@
-/* oxlint-disable no-continue */
 import type { MatrixEvent, Room, RoomEventHandlerMap } from '$types/matrix-sdk';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';

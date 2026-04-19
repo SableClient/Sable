@@ -519,7 +519,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          // oxlint-disable-next-line no-param-reassign
           c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
             perMessageProfile,
             false
@@ -1399,7 +1398,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   setShowAudioRecorder(true);
 
                   function onUp() {
-                    // oxlint-disable-next-line eslint(no-use-before-define)
                     cleanup();
                     const held = Date.now() - micHoldStartRef.current;
                     if (held >= HOLD_THRESHOLD_MS) {

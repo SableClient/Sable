@@ -1,4 +1,3 @@
-/* oxlint-disable no-param-reassign */
 import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll, Text } from 'folds';

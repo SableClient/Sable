@@ -1,4 +1,3 @@
-/* oxlint-disable max-classes-per-file */
 import type {
   Extension,
   MatrixClient,
@@ -212,12 +211,10 @@ class ExtensionPresence implements Extension<{ enabled: boolean }, { events?: ob
     this.enabled = value;
   }
 
-  // oxlint-disable-next-line class-methods-use-this
   public name(): string {
     return 'presence';
   }
 
-  // oxlint-disable-next-line class-methods-use-this
   public when(): ExtensionState {
     // Run after the main response body has been processed so room/member state is ready.
     return ExtensionState.PostProcess;

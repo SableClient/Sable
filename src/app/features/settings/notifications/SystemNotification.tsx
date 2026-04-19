@@ -1,4 +1,3 @@
-/* oxlint-disable no-nested-ternary */
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Text, Switch, Button, color, Spinner, config } from 'folds';
 import type { IPusherRequest } from '$types/matrix-sdk';

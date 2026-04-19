@@ -406,7 +406,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         try {
           await mx.sendReadReceipt(lastEvent, ReceiptType.Read);
         } catch (err) {
-          // oxlint-disable-next-line no-console
           console.warn('Failed to send thread read receipt:', err);
         }
       }

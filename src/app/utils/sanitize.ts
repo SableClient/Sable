@@ -288,33 +288,27 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
 
     if (tagName === 'img' && attrName === INTERNAL_IMG_SRC_ATTR) {
       if (!protectedSources.has(hookEvent.attrValue)) {
-        // oxlint-disable-next-line no-param-reassign
         hookEvent.keepAttr = false;
         return;
       }
 
-      // oxlint-disable-next-line no-param-reassign
       hookEvent.forceKeepAttr = true;
       return;
     }
 
     if (!tagAllowsAttribute(tagName, attrName)) {
       // DOMPurify exposes attribute decisions by mutating the hook event.
-      // oxlint-disable-next-line no-param-reassign
       hookEvent.keepAttr = false;
       return;
     }
 
     const validatedAttrValue = getValidatedAttributeValue(tagName, attrName, hookEvent.attrValue);
     if (validatedAttrValue === undefined) {
-      // oxlint-disable-next-line no-param-reassign
       hookEvent.keepAttr = false;
       return;
     }
 
-    // oxlint-disable-next-line no-param-reassign
     hookEvent.attrValue = validatedAttrValue;
-    // oxlint-disable-next-line no-param-reassign
     hookEvent.forceKeepAttr = true;
   });
 

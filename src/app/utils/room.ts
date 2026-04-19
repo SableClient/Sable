@@ -180,7 +180,6 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 export const isMutedRule = (rule: IPushRule) =>
   // Check for empty actions (new spec) or dont_notify (deprecated)
   (rule.actions.length === 0 || (rule.actions[0] as unknown as string) === 'dont_notify') &&

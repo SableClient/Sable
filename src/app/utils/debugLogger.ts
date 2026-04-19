@@ -84,7 +84,6 @@ class DebugLoggerService {
         listener(entry);
       } catch (error) {
         // Silently catch listener errors to prevent debug logging from breaking the app
-        // eslint-disable-next-line no-console -- Error logging for debugging
         console.error('[DebugLogger] Listener error:', error);
       }
     });
@@ -123,7 +122,6 @@ class DebugLoggerService {
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
     const consoleLevel = level === 'debug' ? 'log' : level;
-    // oxlint-disable-next-line no-console
     console[consoleLevel](prefix, message, data !== undefined ? data : '');
   }
 

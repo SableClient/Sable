@@ -162,7 +162,6 @@ export const resetEditor = (editor: Editor) => {
 };
 
 export const resetEditorHistory = (editor: Editor) => {
-  // oxlint-disable-next-line no-param-reassign
   editor.history = {
     undos: [],
     redos: [],

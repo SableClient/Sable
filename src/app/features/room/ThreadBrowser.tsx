@@ -324,7 +324,6 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         // Now fetch page 1 from the /threads endpoint.  threadsTimelineSets is
         // populated so fetchRoomThreadList will not early-return.
         await room.fetchRoomThreads().catch((err: unknown) => {
-          // oxlint-disable-next-line no-console
           console.warn('ThreadBrowser: fetchRoomThreads failed', err);
         });
 

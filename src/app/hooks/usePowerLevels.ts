@@ -46,13 +46,11 @@ const fillMissingPowers = (powerLevels: IPowerLevels): IPowerLevels =>
     const keys = Object.keys(DEFAULT_POWER_LEVELS) as unknown as (keyof IPowerLevels)[];
     keys.forEach((key) => {
       if (draftPl[key] === undefined) {
-        // oxlint-disable-next-line no-param-reassign
         (draftPl as Record<string, unknown>)[key] =
           (DEFAULT_POWER_LEVELS as Record<string, unknown>)[key] ?? 0;
       }
     });
     if (draftPl.notifications && typeof draftPl.notifications.room !== 'number') {
-      // oxlint-disable-next-line no-param-reassign
       draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room as number;
     }
     return draftPl;
@@ -237,23 +235,19 @@ export const applyPermissionPower = (
     if (typeof location.key === 'string') {
       const users = powerLevels.users ?? {};
       users[location.key] = power;
-      // oxlint-disable-next-line no-param-reassign
       powerLevels.users = users;
       return powerLevels;
     }
-    // oxlint-disable-next-line no-param-reassign
     powerLevels.users_default = power;
     return powerLevels;
   }
   if ('action' in location) {
-    // oxlint-disable-next-line no-param-reassign
     powerLevels[location.key] = power;
     return powerLevels;
   }
   if ('notification' in location) {
     const notifications = powerLevels.notifications ?? {};
     notifications[location.key] = power;
-    // oxlint-disable-next-line no-param-reassign
     powerLevels.notifications = notifications;
     return powerLevels;
   }
@@ -261,11 +255,9 @@ export const applyPermissionPower = (
     if (typeof location.key === 'string') {
       const events = powerLevels.events ?? {};
       events[location.key] = power;
-      // oxlint-disable-next-line no-param-reassign
       powerLevels.events = events;
       return powerLevels;
     }
-    // oxlint-disable-next-line no-param-reassign
     powerLevels.state_default = power;
     return powerLevels;
   }
@@ -273,11 +265,9 @@ export const applyPermissionPower = (
   if (typeof location.key === 'string') {
     const events = powerLevels.events ?? {};
     events[location.key] = power;
-    // oxlint-disable-next-line no-param-reassign
     powerLevels.events = events;
     return powerLevels;
   }
-  // oxlint-disable-next-line no-param-reassign
   powerLevels.events_default = power;
   return powerLevels;
 };

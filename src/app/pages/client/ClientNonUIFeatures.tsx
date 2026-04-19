@@ -819,7 +819,6 @@ function HandleDecryptPushEvent() {
           visibilityState: document.visibilityState,
         });
       } catch (err) {
-        // eslint-disable-next-line no-console -- Warning logging for push decryption failure
         console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
           'notification',

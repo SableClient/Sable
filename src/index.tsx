@@ -36,7 +36,6 @@ const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
     return;
   }
 
-  // oxlint-disable-next-line eslint(no-alert) -- PWA update prompt requires browser confirm dialog
   if (window.confirm('A new version of the app is available. Refresh to update?')) {
     if (registration.waiting) {
       // oxlint-disable-next-line unicorn/require-post-message-target-origin
@@ -102,7 +101,6 @@ if ('serviceWorker' in navigator) {
 
     if (data.type === 'token' && data.id) {
       const token = localStorage.getItem('cinny_access_token') ?? undefined;
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
       ev.source?.postMessage({
         replyTo: data.id,
         payload: token,

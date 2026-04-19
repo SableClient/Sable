@@ -34,7 +34,6 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
 
 const openMediaInNewTab = async (url: string | undefined) => {
   if (!url) {
-    // eslint-disable-next-line no-console -- Warning for debugging
     console.warn('Attempted to open an empty url');
     return;
   }
@@ -96,7 +95,6 @@ export const UrlPreviewCard = as<
     );
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
-        // eslint-disable-next-line no-console -- Debug logging for missing image
         console.warn('No image');
         return;
       }
@@ -104,7 +102,6 @@ export const UrlPreviewCard = as<
         ev.preventDefault();
         const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
         if (!mxcUrl) {
-          // eslint-disable-next-line no-console -- Error logging for URL conversion failure
           console.error('Error converting mxc:// url.');
           return;
         }

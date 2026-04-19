@@ -340,7 +340,6 @@ export class GenericWidgetDriver extends WidgetDriver {
     return this.mxClient.getVisibleRooms().map((r: Room) => r.roomId);
   }
 
-  // oxlint-disable-next-line class-methods-use-this -- WidgetDriver requires an instance override
   public processError(error: unknown): IWidgetApiErrorResponseDataDetails | undefined {
     return error instanceof MatrixError
       ? { matrix_api_error: error.asWidgetApiErrorData() }

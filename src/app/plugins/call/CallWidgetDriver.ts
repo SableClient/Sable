@@ -365,7 +365,6 @@ export class CallWidgetDriver extends WidgetDriver {
     return this.mx.getVisibleRooms().map((r) => r.roomId);
   }
 
-  // oxlint-disable-next-line class-methods-use-this
   public processError(error: unknown): IWidgetApiErrorResponseDataDetails | undefined {
     return error instanceof MatrixError
       ? { matrix_api_error: error.asWidgetApiErrorData() }

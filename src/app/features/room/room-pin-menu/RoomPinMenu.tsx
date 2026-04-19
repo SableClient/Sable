@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unused-prop-types */
 import type { MouseEventHandler, ReactNode } from 'react';
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import type { MatrixEvent, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';

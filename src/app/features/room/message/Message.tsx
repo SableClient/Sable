@@ -1117,7 +1117,6 @@ function MessageInternal(
                             >
                               <Text size="L400">Nickname</Text>
                               <input
-                                // oxlint-disable-next-line jsx-a11y/no-autofocus
                                 autoFocus
                                 value={nickDraft}
                                 onChange={(e) => setNickDraft(e.target.value)}

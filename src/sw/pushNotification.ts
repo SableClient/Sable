@@ -55,7 +55,6 @@ export const createPushNotifications = (
       silent,
       data,
     };
-    // eslint-disable-next-line no-console -- Service worker debug logging for notifications
     console.debug('[SW showNotification] title:', title, '| data:', JSON.stringify(data, null, 2));
     await self.registration.showNotification(title, notifOptions as NotificationOptions);
   };
@@ -177,7 +176,6 @@ export const createPushNotifications = (
   const handlePushNotificationPushData = async (pushData: MatrixPushData) => {
     const eventType = pushData?.type as EventType | undefined;
     if (!eventType) {
-      // eslint-disable-next-line no-console -- Service worker debug logging
       console.warn('no event type');
     }
 

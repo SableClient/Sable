@@ -45,7 +45,6 @@ export function PerMessageProfileEditor({
   const [currentId, setCurrentId] = useState(profileId);
   const [newId, setNewId] = useState(profileId);
 
-  // eslint-disable-next-line no-console -- Debug logging for pronouns
   console.warn(pronouns);
 
   // Pronouns

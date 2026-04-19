@@ -1151,10 +1151,11 @@ export function useTimelineEventRenderer({
 
         const { pinned } = getContent.call(mEvent);
         const prevPinned = getPrevContent.call(mEvent).pinned;
-        const pinsAdded =
-          prevPinned && pinned && pinned.filter((x: string) => !prevPinned.includes(x));
+        const pinsAdded = prevPinned
+          ? pinned?.filter((x: string) => !prevPinned.includes(x))
+          : pinned?.filter((x: string) => x.length > 0);
         const pinsRemoved =
-          prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x));
+          (prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x))) || [];
 
         const timeJSX = (
           <Time
@@ -1202,13 +1203,13 @@ export function useTimelineEventRenderer({
                   </Text>
                   {(pinsAdded || pinsRemoved) &&
                     pinsAdded
-                      .concat(pinsRemoved)
+                      .concat(...pinsRemoved)
                       .slice(0, 4)
                       .map((x: string) => (
                         <Reply
                           style={{ opacity: '80%' }}
                           room={room}
-                          replyEventId={x ?? ''}
+                          replyEventId={x}
                           onClick={handleOpenReply}
                           replyIcon={
                             <>

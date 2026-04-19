@@ -66,12 +66,14 @@ type WrapperProps = {
 };
 
 function HydrateAtoms({ children }: WrapperProps) {
-  useHydrateAtoms([
-    [activeSessionIdAtom, '@alice:test'],
-    [pendingNotificationAtom, { roomId: '!room:test', eventId: '$event:test' }],
-    [mDirectAtom, new Set<string>()],
-    [roomToParentsAtom, new Map()],
-  ]);
+  useHydrateAtoms(
+    new Map([
+      [activeSessionIdAtom, '@alice:test'],
+      [pendingNotificationAtom, { roomId: '!room:test', eventId: '$event:test' }],
+      [mDirectAtom, new Set<string>()],
+      [roomToParentsAtom, new Map()],
+    ])
+  );
 
   return <>{children}</>;
 }

@@ -18,6 +18,11 @@ const roomMock = {
   roomId: '!room:test',
   getMyMembership: vi.fn(() => 'join'),
   getCanonicalAlias: vi.fn(() => undefined),
+  getLiveTimeline: vi.fn(() => ({
+    getState: vi.fn(() => ({
+      getStateEvents: vi.fn(() => undefined),
+    })),
+  })),
   getUnfilteredTimelineSet: vi.fn(() => ({
     getLiveTimeline: () => ({
       getEvents: () => roomTimelineEvents,

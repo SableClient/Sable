@@ -34,6 +34,14 @@ export function NotificationJumper() {
   // Tracks when we first started waiting for the target event to appear in the
   // live timeline. Reset whenever `pending` changes.
   const jumpStartTimeRef = useRef<number | null>(null);
+  const jumpTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearJumpTimeout = useCallback(() => {
+    if (jumpTimeoutRef.current !== undefined) {
+      clearTimeout(jumpTimeoutRef.current);
+      jumpTimeoutRef.current = undefined;
+    }
+  }, []);
 
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
@@ -75,7 +83,14 @@ export function NotificationJumper() {
         if (jumpStartTimeRef.current === null) {
           jumpStartTimeRef.current = Date.now();
         }
-        if (Date.now() - jumpStartTimeRef.current < JUMP_TIMEOUT_MS) {
+        const elapsedMs = Date.now() - jumpStartTimeRef.current;
+        if (elapsedMs < JUMP_TIMEOUT_MS) {
+          if (jumpTimeoutRef.current === undefined) {
+            jumpTimeoutRef.current = setTimeout(() => {
+              jumpTimeoutRef.current = undefined;
+              performJumpRef.current();
+            }, JUMP_TIMEOUT_MS - elapsedMs);
+          }
           log.log('event not yet in live timeline, deferring jump...', {
             roomId: pending.roomId,
             eventId: pending.eventId,
@@ -95,6 +110,7 @@ export function NotificationJumper() {
       const targetEventId = pending.eventId ?? undefined;
       log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
+      clearJumpTimeout();
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
@@ -131,13 +147,24 @@ export function NotificationJumper() {
         membership: room?.getMyMembership(),
       });
     }
-  }, [pending, activeSessionId, mx, mDirects, roomToParents, navigate, setPending, log]);
+  }, [
+    pending,
+    activeSessionId,
+    mx,
+    mDirects,
+    roomToParents,
+    navigate,
+    setPending,
+    log,
+    clearJumpTimeout,
+  ]);
 
   // Reset guards only when pending is replaced (new notification or cleared).
   useEffect(() => {
+    clearJumpTimeout();
     jumpingRef.current = false;
     jumpStartTimeRef.current = null;
-  }, [pending]);
+  }, [pending, clearJumpTimeout]);
 
   // Keep a stable ref to the latest performJump so that the listeners below
   // always invoke the current version without adding performJump to their dep
@@ -171,6 +198,13 @@ export function NotificationJumper() {
       mx.removeListener(RoomEvent.Timeline, onTimeline);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
+
+  useEffect(
+    () => () => {
+      clearJumpTimeout();
+    },
+    [clearJumpTimeout]
+  );
 
   return null;
 }

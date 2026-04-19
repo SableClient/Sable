@@ -46,6 +46,18 @@ export const getTimelinesEventsCount = (timelines: EventTimeline[]): number => {
     .reduce((accumulator, element) => timelineEventCountReducer(accumulator, element), 0);
 };
 
+export const getTimelineHeadEventIds = (timelines: EventTimeline[], limit = 5): string[] => {
+  if (limit <= 0) return [];
+
+  return timelines
+    .flatMap((timeline) => timeline.getEvents())
+    .flatMap((event) => {
+      const eventId = event.getId();
+      return eventId ? [eventId] : [];
+    })
+    .slice(0, limit);
+};
+
 export const getTimelineAndBaseIndex = (
   timelines: EventTimeline[],
   index: number

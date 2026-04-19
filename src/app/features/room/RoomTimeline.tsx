@@ -74,6 +74,7 @@ import {
   getFirstLinkedTimeline,
   getInitialTimeline,
   getEventIdAbsoluteIndex,
+  getTimelineHeadEventIds,
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
@@ -173,7 +174,12 @@ export function RoomTimeline({
   const mx = useMatrixClient();
   const mxUserId = mx.getUserId()!;
   const initialUnreadInfo = getRoomUnreadInfo(room, true);
-  const initialScrollCache = roomScrollCache.load(mxUserId, room.roomId);
+  const initialTimelineHeadEventIds = eventId
+    ? []
+    : getTimelineHeadEventIds(getInitialTimeline(room).linkedTimelines);
+  const initialScrollCache = eventId
+    ? undefined
+    : roomScrollCache.load(mxUserId, room.roomId, initialTimelineHeadEventIds);
   const alive = useAlive();
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
@@ -286,7 +292,13 @@ export function RoomTimeline({
   isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
-    const nextScrollCache = roomScrollCache.load(mxUserId, room.roomId);
+    const nextInitialTimeline = eventId ? undefined : getInitialTimeline(room);
+    const nextTimelineHeadEventIds = nextInitialTimeline
+      ? getTimelineHeadEventIds(nextInitialTimeline.linkedTimelines)
+      : [];
+    const nextScrollCache = eventId
+      ? undefined
+      : roomScrollCache.load(mxUserId, room.roomId, nextTimelineHeadEventIds);
     const nextUnreadInfo = getRoomUnreadInfo(room, true);
     // Load incoming room's scroll cache (undefined for first-visit rooms).
     // Covers the rare case where room prop changes without a remount.
@@ -311,6 +323,20 @@ export function RoomTimeline({
 
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
   const timelineSyncRef = useRef<typeof timelineSync>(null as unknown as typeof timelineSync);
+
+  const saveRoomScrollState = useCallback(
+    (cache: RoomScrollCache['cache'], scrollOffset: number, atBottom: boolean) => {
+      if (eventId) return;
+
+      roomScrollCache.save(mxUserId, room.roomId, {
+        cache,
+        scrollOffset,
+        atBottom,
+        headEventIds: getTimelineHeadEventIds(timelineSyncRef.current.timeline.linkedTimelines),
+      });
+    },
+    [eventId, mxUserId, room.roomId]
+  );
 
   const scrollToBottom = useCallback(() => {
     if (!vListRef.current) return;
@@ -416,11 +442,7 @@ export function RoomTimeline({
             // Persist the now-measured item heights so the next visit to this room
             // can provide them to VList upfront and skip this 80 ms wait entirely.
             if (v) {
-              roomScrollCache.save(mxUserId, room.roomId, {
-                cache: v.cache,
-                scrollOffset: v.scrollOffset,
-                atBottom: true,
-              });
+              saveRoomScrollState(v.cache, v.scrollOffset, true);
             }
             setIsReady(true);
           } else {
@@ -431,7 +453,13 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId, mxUserId]);
+  }, [
+    timelineSync.eventsLength,
+    timelineSync.liveTimelineLinked,
+    eventId,
+    room.roomId,
+    saveRoomScrollState,
+  ]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -471,18 +499,13 @@ export function RoomTimeline({
     if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + 100) return;
     readyBlockedByPaginationRef.current = false;
     v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-    roomScrollCache.save(mxUserId, room.roomId, {
-      cache: v.cache,
-      scrollOffset: v.scrollOffset,
-      atBottom: true,
-    });
+    saveRoomScrollState(v.cache, v.scrollOffset, true);
     setIsReady(true);
   }, [
     timelineSync.backwardStatus,
     timelineSync.eventsLength,
     timelineSync.canPaginateBack,
-    mxUserId,
-    room.roomId,
+    saveRoomScrollState,
   ]);
 
   const recalcTopSpacer = useCallback(() => {
@@ -905,11 +928,7 @@ export function RoomTimeline({
       // live-timeline visit, producing stale VList measurements and making the
       // room appear to be at the wrong position (or visually empty) on re-entry.
       if (!eventId) {
-        roomScrollCache.save(mxUserId, room.roomId, {
-          cache: v.cache,
-          scrollOffset: offset,
-          atBottom: isNowAtBottom,
-        });
+        saveRoomScrollState(v.cache, offset, isNowAtBottom);
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
@@ -923,7 +942,7 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [setAtBottom, room.roomId, eventId, mxUserId]
+    [eventId, saveRoomScrollState, setAtBottom]
   );
 
   const showLoadingPlaceholders =
@@ -1061,14 +1080,10 @@ export function RoomTimeline({
     // Save now so the next visit skips the timer.
     const v = vListRef.current;
     if (v) {
-      roomScrollCache.save(mxUserId, room.roomId, {
-        cache: v.cache,
-        scrollOffset: v.scrollOffset,
-        atBottom: savedCache?.atBottom ?? true,
-      });
+      saveRoomScrollState(v.cache, v.scrollOffset, savedCache?.atBottom ?? true);
     }
     setIsReady(true);
-  }, [processedEvents.length, room.roomId, mxUserId]);
+  }, [processedEvents.length, saveRoomScrollState]);
 
   useEffect(() => {
     if (!onEditLastMessageRef) return;

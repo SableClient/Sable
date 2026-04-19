@@ -637,6 +637,99 @@ function fetchConfig(token: string): RequestInit {
   };
 }
 
+/**
+ * Fetch a media URL, retrying once with the most-current in-memory session on 401.
+ *
+ * There is a timing window between when the SDK refreshes its access token
+ * (tokenRefreshFunction resolves) and when the resulting pushSessionToSW()
+ * postMessage is processed by the SW. Media requests that land in this window
+ * are sent with the stale token and receive 401. By the time the retry runs,
+ * the setSession message will normally have been processed and sessions will
+ * hold the new token.
+ *
+ * A second timing window exists at startup: preloadedSession may hold a stale
+ * token but the live setSession from the page hasn't arrived yet. In that case
+ * the in-memory check yields no fresher token, so we ask the live client tab
+ * directly (requestSessionWithTimeout) before giving up.
+ */
+async function fetchMediaWithRetry(
+  url: string,
+  token: string,
+  redirect: RequestRedirect,
+  clientId: string
+): Promise<Response> {
+  let response = await fetch(url, { ...fetchConfig(token), redirect });
+  if (!isAuthFailureStatus(response.status)) return response;
+
+  console.warn('[SW media] Initial authenticated fetch failed', {
+    url,
+    status: response.status,
+    clientId,
+    hasClientBoundSession: !!(clientId && sessions.get(clientId)),
+    hasPreloadedSession: !!preloadedSession,
+  });
+
+  const attemptedTokens = new Set<string>([token]);
+  const retrySessions: Array<{ session: SessionInfo; source: string }> = [];
+  const seenSessions = new Set<string>();
+
+  const addRetrySession = (session: SessionInfo | undefined, source: string) => {
+    if (!session || !validMediaRequest(url, session.baseUrl)) return;
+    const key = `${session.baseUrl}\x00${session.accessToken}`;
+    if (seenSessions.has(key)) return;
+    seenSessions.add(key);
+    retrySessions.push({ session, source });
+  };
+
+  if (clientId) addRetrySession(sessions.get(clientId), 'client_session');
+  getMatchingSessions(url).forEach((session, index) =>
+    addRetrySession(session, `matching_session_${index}`)
+  );
+  addRetrySession(preloadedSession, 'preloaded_session');
+  addRetrySession(await loadPersistedSession(), 'persisted_session');
+  (await getLiveWindowSessions(url, clientId)).forEach((session, index) =>
+    addRetrySession(session, `live_window_${index}`)
+  );
+
+  console.debug('[SW media] Retry candidates collected', {
+    url,
+    candidateSources: retrySessions.map(({ source }) => source),
+    candidateCount: retrySessions.length,
+  });
+
+  // Try each plausible token once. This handles token-refresh races and ambiguous
+  // multi-account sessions on the same homeserver, including no-clientId requests.
+  // Sequential await is intentional: we want to try one token at a time until one succeeds.
+  /* eslint-disable no-await-in-loop */
+  for (let i = 0; i < retrySessions.length; i += 1) {
+    const candidate = retrySessions[i];
+    if (!candidate || attemptedTokens.has(candidate.session.accessToken)) {
+      // skip this candidate
+    } else {
+      attemptedTokens.add(candidate.session.accessToken);
+      console.debug('[SW media] Retrying with alternate session', {
+        url,
+        source: candidate.source,
+        attempt: i + 1,
+      });
+      response = await fetch(url, { ...fetchConfig(candidate.session.accessToken), redirect });
+      if (!isAuthFailureStatus(response.status)) return response;
+      console.warn('[SW media] Alternate session also failed auth', {
+        url,
+        source: candidate.source,
+        status: response.status,
+      });
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+
+  console.warn('[SW media] Exhausted authenticated retry candidates', {
+    url,
+    finalStatus: response.status,
+    attemptedTokenCount: attemptedTokens.size,
+  });
+  return response;
+}
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data.type === 'togglePush') {
     const token = event.data?.token;

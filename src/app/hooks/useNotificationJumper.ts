@@ -35,6 +35,7 @@ export function NotificationJumper() {
   // live timeline. Reset whenever `pending` changes.
   const jumpStartTimeRef = useRef<number | null>(null);
   const jumpTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const performJumpRef = useRef<() => void>(() => undefined);
 
   const clearJumpTimeout = useCallback(() => {
     if (jumpTimeoutRef.current !== undefined) {
@@ -171,7 +172,6 @@ export function NotificationJumper() {
   // arrays. Adding performJump as a dep causes the effect to re-run (and call
   // performJump again) on every atom change during an account switch — that is
   // the second source of repeated navigation.
-  const performJumpRef = useRef(performJump);
   performJumpRef.current = performJump;
 
   useSyncState(

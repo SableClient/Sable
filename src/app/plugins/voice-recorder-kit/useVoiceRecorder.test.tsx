@@ -36,6 +36,7 @@ const nativeCancelAnimationFrame = globalThis.cancelAnimationFrame;
 const nativeMediaDevices = navigator.mediaDevices;
 
 let inputTrack: MockTrack;
+let inputStream: MockStream;
 let destinationTrack: MockTrack;
 let createdAudioContexts: MockAudioContextInstance[];
 
@@ -63,7 +64,7 @@ function createMockAnalyserNode(): MockAnalyserNode {
 }
 
 class MockMediaRecorder {
-  public static isTypeSupported = vi.fn<() => boolean>();
+  public static isTypeSupported = vi.fn<() => boolean>(() => true);
 
   public state: RecordingState = 'inactive';
 
@@ -123,13 +124,16 @@ function MockAudioContext(): MockAudioContextInstance {
 
 beforeEach(() => {
   inputTrack = createMockTrack();
+  inputStream = {
+    getTracks: () => [inputTrack],
+  } as unknown as MockStream;
   destinationTrack = createMockTrack();
   createdAudioContexts = [];
 
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: {
-      getUserMedia: vi.fn<() => Promise<MockStream>>(),
+      getUserMedia: vi.fn<() => Promise<MockStream>>(async () => inputStream),
     },
   });
 

@@ -201,7 +201,7 @@ describe('highlightCode', () => {
     const normalizeLanguage = vi.fn<(language: string) => string>((language: string) =>
       language === 'js' ? 'javascript' : language
     );
-    const detectLanguage = vi.fn<() => string>();
+    const detectLanguage = vi.fn<() => string>(() => 'js');
     const highlight = vi.fn<(language: string, code: string) => Promise<string>>(
       async (language: string, code: string) => `<pre data-language="${language}">${code}</pre>`
     );

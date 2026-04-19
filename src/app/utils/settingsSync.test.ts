@@ -241,20 +241,28 @@ describe('exportSettingsAsJson', () => {
 // importSettingsFromJson
 
 describe('importSettingsFromJson', () => {
+  let changeListener: ((ev: Event) => void) | null;
   let mockInput: {
     type: string;
     accept: string;
     files: FileList | null;
-    onchange: ((ev: Event) => void) | null;
+    addEventListener: (type: string, listener: (ev: Event) => void) => void;
     click: () => void;
   };
 
   beforeEach(() => {
+    changeListener = null;
     mockInput = {
       type: '',
       accept: '',
       files: null,
-      onchange: null,
+      addEventListener: vi.fn<(type: string, listener: (ev: Event) => void) => void>(
+        (type: string, listener: (ev: Event) => void) => {
+          if (type === 'change') {
+            changeListener = listener;
+          }
+        }
+      ),
       click: vi.fn<() => void>(),
     };
 
@@ -272,7 +280,7 @@ describe('importSettingsFromJson', () => {
   it('resolves null when no file is selected (empty files list)', async () => {
     // Start the promise, then immediately trigger onchange with no file.
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
     await expect(promise).resolves.toBeNull();
   });
 
@@ -288,7 +296,7 @@ describe('importSettingsFromJson', () => {
     const promise = importSettingsFromJson({ ...base, isMarkdown: true });
 
     // Trigger the change event; the file reader will asynchronously call onload.
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     const result = await promise;
     expect(result).not.toBeNull();
@@ -301,7 +309,7 @@ describe('importSettingsFromJson', () => {
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     await expect(promise).resolves.toBeNull();
   });
@@ -315,7 +323,7 @@ describe('importSettingsFromJson', () => {
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     await expect(promise).resolves.toBeNull();
   });

@@ -39,31 +39,34 @@ type RouterInitialEntry =
       key?: string;
     };
 
-const createMockSection = (title: string) =>
-  function MockSection({
-    requestBack,
-    requestClose,
-  }: {
-    requestBack?: () => void;
-    requestClose: () => void;
-  }) {
-    return (
-      <div>
-        <h1>{title}</h1>
-        {requestBack && (
-          <button type="button" onClick={requestBack}>
-            Back
-          </button>
-        )}
-        <button type="button" onClick={requestClose}>
-          Close
-        </button>
-      </div>
-    );
-  };
-
 const { mockMatrixClient, mockProfile, mockUseSetting, createSectionMock } = vi.hoisted(() => {
-  const mockSettingsHook = vi.fn<() => readonly [boolean, (value: boolean) => void]>();
+  const mockSettingsHook = vi.fn<() => readonly [boolean, (value: boolean) => void]>(
+    () => [true, vi.fn<(value: boolean) => void>()] as const
+  );
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- vi.hoisted helpers cannot reference outer-scope factories
+  const createMockSection = (title: string) =>
+    function MockSection({
+      requestBack,
+      requestClose,
+    }: {
+      requestBack?: () => void;
+      requestClose: () => void;
+    }) {
+      return (
+        <div>
+          <h1>{title}</h1>
+          {requestBack && (
+            <button type="button" onClick={requestBack}>
+              Back
+            </button>
+          )}
+          <button type="button" onClick={requestClose}>
+            Close
+          </button>
+        </div>
+      );
+    };
+
   return {
     mockMatrixClient: { getUserId: () => '@alice:server' },
     mockProfile: { displayName: 'Alice', avatarUrl: undefined },

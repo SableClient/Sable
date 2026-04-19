@@ -6,8 +6,17 @@ import * as css from './TextViewer.css';
 
 const { copyToClipboard, CodeHighlightRenderer } = vi.hoisted(() => ({
   copyToClipboard: vi.fn<() => Promise<void>>(),
-  CodeHighlightRenderer:
-    vi.fn<(props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element>(),
+  CodeHighlightRenderer: vi.fn<
+    (props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element
+  >(({ code, language, allowDetect }) => (
+    <code
+      data-testid="highlight"
+      data-language={language}
+      data-allow-detect={String(Boolean(allowDetect))}
+    >
+      {code}
+    </code>
+  )),
 }));
 
 vi.mock('$utils/dom', () => ({

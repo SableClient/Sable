@@ -14,7 +14,7 @@ import {
   as,
   config,
 } from 'folds';
-import type { MouseEventHandler, MouseEvent, PointerEvent, ReactNode } from 'react';
+import type { MouseEventHandler, MouseEvent, ReactNode } from 'react';
 import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
@@ -251,23 +251,19 @@ export type MessageProps = {
 function useMobileDoubleTap(callback: () => void, delay = 300) {
   const lastTapRef = useRef(0);
 
-  return useCallback(
-    // oxlint-disable-next-line @typescript-eslint/no-unused-vars
-    (e: PointerEvent<HTMLElement>) => {
-      if (!mobileOrTablet()) return;
+  return useCallback(() => {
+    if (!mobileOrTablet()) return;
 
-      const now = Date.now();
-      const timeSinceLastTap = now - lastTapRef.current;
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current;
 
-      if (timeSinceLastTap < delay && timeSinceLastTap > 0) {
-        callback();
-        lastTapRef.current = 0;
-      } else {
-        lastTapRef.current = now;
-      }
-    },
-    [callback, delay]
-  );
+    if (timeSinceLastTap < delay && timeSinceLastTap > 0) {
+      callback();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [callback, delay]);
 }
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -404,6 +400,8 @@ function MessageInternal(
    * We also want to avoid reading and parsing the per-message profile in a parent component like the timeline, because that would be inefficient and would cause unnecessary re-renders of the entire timeline whenever a per-message profile changes.
    */
   const pmp: PerMessageProfileBeeperFormat | undefined = useMemo(() => {
+    // `contentVersion` is a cache-busting key when the event updates in place.
+    void contentVersion;
     const evtId = mEvent.getId();
     const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
     const editedEvent =
@@ -418,7 +416,6 @@ function MessageInternal(
     return resolvedContent?.['com.beeper.per_message_profile'] as
       | PerMessageProfileBeeperFormat
       | undefined;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [mEvent, room, contentVersion]);
 
   /**

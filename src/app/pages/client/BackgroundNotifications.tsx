@@ -543,11 +543,10 @@ export function BackgroundNotifications() {
       if (!current.has(session.userId)) startSession(session);
     });
 
+    // Capture the cleanup map for this effect instance so teardown runs against
+    // the listeners registered while this effect was active.
+    const cleanupMap = clientCleanupRef.current;
     return () => {
-      // Reading ref.current in cleanup is intentional - we want cleanup functions
-      // that were registered during async startBackgroundClient operations
-      // oxlint-disable-next-line react-hooks/exhaustive-deps
-      const cleanupMap = clientCleanupRef.current;
       current.forEach((mx, userId) => {
         cleanupMap.get(userId)?.();
         cleanupMap.delete(userId);

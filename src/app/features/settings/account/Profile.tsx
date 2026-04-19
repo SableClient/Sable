@@ -214,8 +214,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   );
 }
 
-// oxlint-disable-next-line @typescript-eslint/no-unused-vars
-function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
+function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [alertRemove, setAlertRemove] = useState(false);
@@ -690,7 +689,7 @@ export function Profile() {
           direction="Column"
           gap="400"
         >
-          <ProfileBanner userId={userId} profile={profile} />
+          <ProfileBanner profile={profile} />
         </SequenceCard>
         <SequenceCard
           className={SequenceCardStyle}

@@ -24,9 +24,8 @@ export const useStateEvent = (room: Room, eventType: StateEvent, stateKey = '') 
     )
   );
 
-  return useMemo(
-    () => getStateEvent(room, eventType, stateKey),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [room, eventType, stateKey, updateCount]
-  );
+  return useMemo(() => {
+    void updateCount;
+    return getStateEvent(room, eventType, stateKey);
+  }, [room, eventType, stateKey, updateCount]);
 };

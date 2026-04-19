@@ -111,6 +111,8 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
   );
 
   return useMemo(() => {
+    // `updateCount` is a cache-busting key for state-event driven recomputation.
+    void updateCount;
     const events: MatrixEvent[] = getStateEvents(room, StateEvent.RoomWidget);
 
     return events.reduce<RoomWidget[]>((widgets, event) => {
@@ -134,6 +136,5 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
 
       return widgets;
     }, []);
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room, updateCount]);
 };

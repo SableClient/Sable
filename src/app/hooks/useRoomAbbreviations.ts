@@ -55,6 +55,8 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
   );
 
   return useMemo(() => {
+    // `updateCount` is a cache-busting key for state-event driven recomputation.
+    void updateCount;
     const allParentIds = Array.from(getAllParents(roomToParents, room.roomId));
     const ancestorEntries = allParentIds.flatMap((parentId) => {
       const parentRoom = mx.getRoom(parentId);
@@ -75,6 +77,5 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
     if (ancestorEntries.length === 0 && roomEntries.length === 0) return EMPTY_MAP;
     // Ancestor entries first; room entries appended so they override duplicates.
     return buildAbbreviationsMap([...ancestorEntries, ...roomEntries]);
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [mx, roomToParents, room, updateCount]);
 };

@@ -61,6 +61,8 @@ export const useRoomEvent = (
   const [tick, setTick] = useState(0);
 
   const event = useMemo(() => {
+    // `tick` intentionally forces re-evaluation when new timeline events arrive.
+    void tick;
     // `tick` is in the deps array below — useMemo reruns whenever a timeline
     // event for our eventId arrives (see RoomEvent.Timeline below).
     // Check the caller's local window first (e.g. the rendered timeline set),
@@ -69,7 +71,6 @@ export const useRoomEvent = (
     // without a network round-trip.
     const local = getLocally?.();
     return local ?? room.findEventById(eventId);
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- tick intentionally forces re-eval on new timeline events
   }, [room, eventId, getLocally, tick]);
 
   // Re-evaluate the local lookup the moment the target event arrives in the

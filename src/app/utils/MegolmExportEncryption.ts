@@ -86,8 +86,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
 
   // look for the start line
   let lineStart = 0;
-  // oxlint-disable-next-line no-constant-condition
-  while (1) {
+  for (;;) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     if (lineEnd < 0) {
       throw new Error('Header line not found');
@@ -105,8 +104,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
   const dataStart = lineStart;
 
   // look for the end line
-  // oxlint-disable-next-line no-constant-condition
-  while (1) {
+  for (;;) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     const line = fileStr.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).trim();
     if (line === TRAILER_LINE) {

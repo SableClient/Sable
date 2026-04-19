@@ -356,6 +356,10 @@ export function PublicRooms() {
     if (!limitParam) return FALLBACK_ROOMS_LIMIT;
     return Number.parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
   }, [serverSearchParams.limit]);
+  const placeholderRoomCardKeys = useMemo(
+    () => Array.from({ length: currentLimit }, (_, index) => `placeholder-${index}`),
+    [currentLimit]
+  );
 
   const resetScroll = useCallback(() => {
     const scroll = scrollRef.current;
@@ -568,12 +572,8 @@ export function PublicRooms() {
                   </Box>
                   {isLoading && (
                     <RoomCardGrid>
-                      {Array.from({ length: currentLimit }).map((_, item) => (
-                        <RoomCardBase
-                          // oxlint-disable-next-line react/no-array-index-key
-                          key={`placeholder-${item}`}
-                          style={{ minHeight: toRem(260) }}
-                        />
+                      {placeholderRoomCardKeys.map((key) => (
+                        <RoomCardBase key={key} style={{ minHeight: toRem(260) }} />
                       ))}
                     </RoomCardGrid>
                   )}

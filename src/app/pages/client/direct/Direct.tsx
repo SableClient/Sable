@@ -214,6 +214,7 @@ export function Direct() {
   }, [mx, directs]);
 
   const sortedDirects = useMemo(() => {
+    void activityCounter;
     const items = Array.from(directs).toSorted(factoryRoomIdByActivity(mx));
     const hasUnread = (roomId: string) => {
       const unread = roomToUnread.get(roomId);
@@ -223,7 +224,6 @@ export function Direct() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [mx, directs, closedCategories, roomToUnread, selectedRoomId, activityCounter]);
 
   const virtualizer = useVirtualizer({

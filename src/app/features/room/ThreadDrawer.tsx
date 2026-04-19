@@ -226,11 +226,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // the root is outside the currently-loaded timeline window.
   const rootEvent = room.findEventById(threadRootId) ?? thread?.rootEvent;
   const totalEvents = threadTimeline?.getEvents().length ?? 0;
-  const linkedTimelines = useMemo(
-    () => (threadTimeline ? [threadTimeline] : []),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [threadTimeline, totalEvents]
-  );
+  const linkedTimelines = useMemo(() => {
+    void totalEvents;
+    return threadTimeline ? [threadTimeline] : [];
+  }, [threadTimeline, totalEvents]);
   const items = useMemo(() => Array.from({ length: totalEvents }, (_, i) => i), [totalEvents]);
 
   const processedEvents = useProcessedTimeline({
@@ -252,6 +251,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   // or classic sync before backfill completes), fall back to scanning the main
   // room timeline directly so replies are shown immediately.
   const displayReplies = useMemo((): ProcessedEvent[] => {
+    // `forceUpdateCounter` is a cache-busting key for thread/timeline updates.
+    void forceUpdateCounter;
     const filtered = processedEvents.filter((e) => e.id !== threadRootId);
     if (filtered.length > 0) return filtered;
     const timelineSet = thread?.timelineSet ?? room.getUnfilteredTimelineSet();
@@ -266,7 +267,6 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       willRenderDayDivider: false,
     }));
     // forceUpdateCounter makes this recompute whenever events arrive
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room, threadRootId, thread, processedEvents, forceUpdateCounter]);
 
   processedEventsRef.current = displayReplies;

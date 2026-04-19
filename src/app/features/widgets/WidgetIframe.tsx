@@ -130,7 +130,7 @@ export function WidgetIframe({ widget, roomId, mx, onCapabilityRequest }: Widget
       messagingRef.current = null;
       setReady(false);
     };
-  }, [widget.id, roomId, mx]); // oxlint-disable-line react-hooks/exhaustive-deps
+  }, [widget, roomId, mx, onCapabilityRequest, resolvedUrl]);
 
   const iframeTitle = widget.name ?? 'Widget';
 

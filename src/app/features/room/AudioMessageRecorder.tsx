@@ -153,6 +153,14 @@ export const AudioMessageRecorder = forwardRef<
       return slice.length > 0 ? Math.max(...slice) : 0.15;
     });
   }, [barCount, levels]);
+  const waveformBars = useMemo(
+    () =>
+      bars.map((level, index) => ({
+        id: `recording-waveform-bar-${index}`,
+        level,
+      })),
+    [bars]
+  );
 
   const containerClassName = [css.Container, isCanceling ? css.ContainerCanceling : null]
     .filter(Boolean)
@@ -174,12 +182,11 @@ export const AudioMessageRecorder = forwardRef<
           justifyContent="SpaceBetween"
           className={css.WaveformContainer}
         >
-          {bars.map((level, i) => (
+          {waveformBars.map((bar) => (
             <div
-              // oxlint-disable-next-line react/no-array-index-key
-              key={i}
+              key={bar.id}
               className={css.WaveformBar}
-              style={{ height: Math.max(3, Math.round(level * 20)) }}
+              style={{ height: Math.max(3, Math.round(bar.level * 20)) }}
             />
           ))}
         </Box>

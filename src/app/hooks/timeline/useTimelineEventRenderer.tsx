@@ -124,6 +124,8 @@ function ThreadReplyChip({
   }, [room, thread]);
 
   const replyEvents = useMemo(() => {
+    // `counter` is a cache-busting key. Touch it so the dependency is explicit.
+    void counter;
     // With threadSupport:true, reply events live in thread.timelineSet not the main room timeline.
     // Prefer thread.events when available so avatars and preview text are populated.
     if (thread) {
@@ -138,7 +140,6 @@ function ThreadReplyChip({
       .filter(
         (ev) => ev.threadRootId === mEventId && ev.getId() !== mEventId && !reactionOrEditEvent(ev)
       );
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- counter is a cache-busting key, not used directly in body
   }, [room, mEventId, thread, counter]);
 
   if (!thread) return null;

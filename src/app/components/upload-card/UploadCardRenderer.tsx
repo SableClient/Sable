@@ -126,6 +126,15 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
   }, [waveform]);
 
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
+  const previewBars = useMemo(
+    () =>
+      bars.map((level, index) => ({
+        id: `upload-audio-bar-${index}`,
+        level,
+        ratio: index / BAR_COUNT,
+      })),
+    [bars]
+  );
 
   useEffect(() => {
     if (!audioUrl) {
@@ -272,15 +281,13 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         aria-valuenow={Math.floor(currentTime)}
         title="Seek"
       >
-        {bars.map((level, i) => {
-          const barRatio = i / BAR_COUNT;
-          const played = progress > 0 && barRatio <= progress;
+        {previewBars.map((bar) => {
+          const played = progress > 0 && bar.ratio <= progress;
           return (
             <div
-              // oxlint-disable-next-line react/no-array-index-key
-              key={i}
+              key={bar.id}
               className={`${css.AudioWaveformBar} ${played ? css.AudioWaveformBarPlayed : css.AudioWaveformBarUnplayed}`}
-              style={{ height: Math.max(3, Math.round(level * 24)) }}
+              style={{ height: Math.max(3, Math.round(bar.level * 24)) }}
             />
           );
         })}

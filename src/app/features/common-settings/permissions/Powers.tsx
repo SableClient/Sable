@@ -1,4 +1,3 @@
-/* oxlint-disable react/no-array-index-key */
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -58,17 +57,17 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
             <Box grow="Yes" tabIndex={0}>
               <Scroll size="0" hideTrack visibility="Hover">
                 <Box style={{ padding: config.space.S200 }} direction="Column" gap="400">
-                  {permissionGroups.map((group, groupIndex) => (
-                    <Box key={groupIndex} direction="Column" gap="100">
+                  {permissionGroups.map((group) => (
+                    <Box key={group.name} direction="Column" gap="100">
                       <Text size="L400">{group.name}</Text>
                       <div>
-                        {group.items.map((item, itemIndex) => {
+                        {group.items.map((item) => {
                           const requiredPower = getPermissionPower(powerLevels, item.location);
                           const hasPower = requiredPower <= power;
 
                           return (
                             <Text
-                              key={itemIndex}
+                              key={JSON.stringify(item.location)}
                               size="T200"
                               style={{
                                 color: hasPower ? undefined : color.Critical.Main,

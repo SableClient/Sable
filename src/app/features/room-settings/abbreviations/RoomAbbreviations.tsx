@@ -69,29 +69,27 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
   );
 
   type SpaceEntryGroup = { spaceId: string; spaceName: string; entries: AbbreviationEntry[] };
-  const ancestorGroups = useMemo(
-    (): SpaceEntryGroup[] =>
-      Array.from(getAllParents(roomToParents, room.roomId)).reduce<SpaceEntryGroup[]>(
-        (groups, parentId) => {
-          const parentRoom = mx.getRoom(parentId);
-          if (!parentRoom) return groups;
-          const ev = getStateEvent(parentRoom, StateEvent.RoomAbbreviations);
-          const c = ev?.getContent<RoomAbbreviationsContent>();
-          const parentEntries: AbbreviationEntry[] = Array.isArray(c?.entries) ? c.entries : [];
-          if (parentEntries.length > 0) {
-            groups.push({
-              spaceId: parentId,
-              spaceName: parentRoom.name,
-              entries: parentEntries,
-            });
-          }
-          return groups;
-        },
-        []
-      ),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [mx, roomToParents, room.roomId, ancestorUpdateCount]
-  );
+  const ancestorGroups = useMemo((): SpaceEntryGroup[] => {
+    void ancestorUpdateCount;
+    return Array.from(getAllParents(roomToParents, room.roomId)).reduce<SpaceEntryGroup[]>(
+      (groups, parentId) => {
+        const parentRoom = mx.getRoom(parentId);
+        if (!parentRoom) return groups;
+        const ev = getStateEvent(parentRoom, StateEvent.RoomAbbreviations);
+        const c = ev?.getContent<RoomAbbreviationsContent>();
+        const parentEntries: AbbreviationEntry[] = Array.isArray(c?.entries) ? c.entries : [];
+        if (parentEntries.length > 0) {
+          groups.push({
+            spaceId: parentId,
+            spaceName: parentRoom.name,
+            entries: parentEntries,
+          });
+        }
+        return groups;
+      },
+      []
+    );
+  }, [mx, roomToParents, room.roomId, ancestorUpdateCount]);
   const allAncestorEntries = useMemo(
     () => ancestorGroups.flatMap((g) => g.entries),
     [ancestorGroups]

@@ -582,14 +582,15 @@ export function useTimelineSync({
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
   const prevRoomIdRef = useRef(room.roomId);
+  const eventIdRef = useRef(eventId);
+  eventIdRef.current = eventId;
   useEffect(() => {
     if (prevRoomIdRef.current === room.roomId) return;
     prevRoomIdRef.current = room.roomId;
-    if (eventId) return;
+    if (eventIdRef.current) return;
     setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
     // Intentionally only depends on room: we want this to fire when the room
     // identity changes, not on every eventId change.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
 
   return {

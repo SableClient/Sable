@@ -211,6 +211,9 @@ interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
 
+const createUploadItemKey = () =>
+  globalThis.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
 interface RoomInputProps {
   editor: Editor;
   fileDropContainerRef: RefObject<HTMLElement>;
@@ -247,6 +250,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
+    // Preserve stable list keys across metadata/description replacements without
+    // storing UI-only IDs in the upload draft state.
+    const uploadItemKeysRef = useRef(new WeakMap<TUploadContent, string>());
     const roomToParents = useAtomValue(roomToParentsAtom);
     /**
      * Nickname someone set for another user
@@ -286,6 +292,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
 
     const [inputKey, setInputKey] = useState(0);
+    const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
+      const existingKey = uploadItemKeysRef.current.get(fileItem.originalFile);
+      if (existingKey) return existingKey;
+
+      const nextKey = createUploadItemKey();
+      uploadItemKeysRef.current.set(fileItem.originalFile, nextKey);
+      return nextKey;
+    }, []);
 
     const handleFiles = useCallback(
       async (files: File[], audioMeta?: { waveform: number[]; audioDuration: number }) => {
@@ -1148,10 +1162,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <UploadBoardContent>
                   {Array.from(selectedFiles)
                     .toReversed()
-                    .map((fileItem, index) => (
+                    .map((fileItem) => (
                       <UploadCardRenderer
-                        // oxlint-disable-next-line react/no-array-index-key
-                        key={index}
+                        key={getUploadItemKey(fileItem)}
                         isEncrypted={!!fileItem.encInfo}
                         fileItem={fileItem}
                         setMetadata={handleFileMetadata}

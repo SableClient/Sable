@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
+import type * as ThemeModule from '$hooks/useTheme';
 
 import { Appearance } from './Themes';
 
@@ -42,7 +41,7 @@ vi.mock('$state/hooks/settings', () => ({
 }));
 
 vi.mock('$hooks/useTheme', async () => {
-  const actual = await vi.importActual<typeof import('$hooks/useTheme')>('$hooks/useTheme');
+  const actual = await vi.importActual<typeof ThemeModule>('$hooks/useTheme');
 
   return {
     ...actual,

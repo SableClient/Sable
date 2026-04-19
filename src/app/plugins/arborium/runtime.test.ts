@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
+import type * as Arborium from '@arborium/arborium';
 
 import type { HighlightResult } from '.';
 
-type ArboriumModule = typeof import('@arborium/arborium');
+type ArboriumModule = typeof Arborium;
 
 afterEach(() => {
   vi.resetModules();

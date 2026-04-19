@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { MatrixClient } from '$types/matrix-sdk';
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
 import { SlidingSyncManager, type SlidingSyncConfig } from './slidingSync';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ function makeMockMx(overrides: Record<string, unknown> = {}) {
     off: vi.fn<() => void>(),
     removeListener: vi.fn<() => void>(),
     ...overrides,
-  } as unknown as import('$types/matrix-sdk').MatrixClient;
+  } as unknown as MatrixClient;
 }
 
 function makeManager(mx: ReturnType<typeof makeMockMx>): SlidingSyncManager {

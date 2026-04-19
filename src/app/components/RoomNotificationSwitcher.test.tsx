@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
+import type * as RoomsNotificationPreferencesModule from '$hooks/useRoomsNotificationPreferences';
 
 import { RoomNotificationMode } from '$hooks/useRoomsNotificationPreferences';
 
@@ -13,7 +12,7 @@ const { mockSetMode, modeStateStatus } = vi.hoisted(() => ({
 }));
 
 vi.mock('$hooks/useRoomsNotificationPreferences', async () => {
-  const actual = await vi.importActual<typeof import('$hooks/useRoomsNotificationPreferences')>(
+  const actual = await vi.importActual<typeof RoomsNotificationPreferencesModule>(
     '$hooks/useRoomsNotificationPreferences'
   );
 

@@ -385,7 +385,9 @@ export function RoomTimeline({
 
     const containerTop = container.getBoundingClientRect().top;
     const anchors = Array.from(container.querySelectorAll<HTMLElement>(TIMELINE_ANCHOR_SELECTOR));
-    const firstVisibleAnchor = anchors.find((anchor) => anchor.getBoundingClientRect().bottom > containerTop);
+    const firstVisibleAnchor = anchors.find(
+      (anchor) => anchor.getBoundingClientRect().bottom > containerTop
+    );
     if (!firstVisibleAnchor) return undefined;
 
     const eventId = firstVisibleAnchor.dataset.timelineEventId;
@@ -424,7 +426,8 @@ export function RoomTimeline({
         ).find((element) => element.dataset.timelineEventId === position.eventId);
         if (!anchor) return;
 
-        const currentOffset = anchor.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        const currentOffset =
+          anchor.getBoundingClientRect().top - container.getBoundingClientRect().top;
         const delta = currentOffset - position.offset;
         if (Math.abs(delta) > 2) {
           vListRef.current?.scrollTo(v.scrollOffset + delta);
@@ -970,7 +973,7 @@ export function RoomTimeline({
       }
 
       if (!eventId) {
-        saveRoomScrollState(v.cache, isNowAtBottom);
+        saveRoomScrollStateRef.current?.(v.cache, isNowAtBottom);
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
@@ -984,7 +987,7 @@ export function RoomTimeline({
         timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [eventId, saveRoomScrollState, setAtBottom]
+    [eventId, setAtBottom]
   );
 
   const showLoadingPlaceholders =
@@ -1145,7 +1148,11 @@ export function RoomTimeline({
   currentScrollFingerprintRef.current = currentScrollFingerprint;
 
   if (!eventId) {
-    scrollCacheForRoomRef.current = roomScrollCache.load(mx.getUserId()!, room.roomId, currentScrollFingerprint);
+    scrollCacheForRoomRef.current = roomScrollCache.load(
+      mx.getUserId()!,
+      room.roomId,
+      currentScrollFingerprint
+    );
   } else {
     scrollCacheForRoomRef.current = undefined;
   }
@@ -1154,8 +1161,9 @@ export function RoomTimeline({
     (measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => {
       if (eventId) return;
 
-      const position =
-        atBottom ? ({ kind: 'live' } as RoomScrollPosition) : getRenderedAnchorPosition();
+      const position = atBottom
+        ? ({ kind: 'live' } as RoomScrollPosition)
+        : getRenderedAnchorPosition();
       if (!position) return;
 
       roomScrollCache.save(mx.getUserId()!, room.roomId, {

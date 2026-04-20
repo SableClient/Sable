@@ -1,4 +1,4 @@
-import { atom } from 'jotai';
+import { atom, type WritableAtom } from 'jotai';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const STORAGE_KEY = 'settings';
@@ -291,12 +291,10 @@ export const setSettings = (settings: Settings) => {
 };
 
 const baseSettings = atom<Settings>(getSettings());
-export const settingsAtom = atom(
+export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
-  (_get, set, update: Settings) => {
-    (
-      set as (atom: import('jotai').WritableAtom<Settings, [Settings], void>, val: Settings) => void
-    )(baseSettings as import('jotai').WritableAtom<Settings, [Settings], void>, update);
+  (_get, set, update) => {
+    (set as (atom: WritableAtom<Settings, [Settings], void>, val: Settings) => void)(baseSettings as WritableAtom<Settings, [Settings], void>, update);
     setSettings(update);
   }
 );

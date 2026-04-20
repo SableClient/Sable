@@ -1,4 +1,4 @@
-import { Box, Button, config, Icon, Icons, Scroll, Text } from 'folds';
+import { Box, Button, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
 import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -35,6 +35,7 @@ import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { TextViewerContent } from '$components/text-viewer';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -67,11 +68,8 @@ function UserExtendedSection({
   htmlReactParserOptions,
   linkifyOpts,
 }: Readonly<UserExtendedSectionProps>) {
-  const clamp = (str: any, len: number) => {
-    const stringified = String(str ?? '');
-    return stringified.length > len ? `${stringified.slice(0, len)}...` : stringified;
-  };
-  const [showMore, setShowMore] = useState(false);
+  const [showMisc, setShowMisc] = useState(false);
+  const [miscDataIndex, setMiscDataIndex] = useState(-1);
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
   const isCat = profile.isCat === true;
@@ -148,6 +146,73 @@ function UserExtendedSection({
     ([key]) => !KNOWN_KEYS.includes(key)
   );
 
+  function handleMiscSelector(index: number) {
+    setMiscDataIndex(index);
+    setShowMisc(false);
+  }
+
+  const miscSelector = useMemo(() => {
+    if (unknownFields.length === 1 && showMisc) {
+      setShowMisc(false);
+      setMiscDataIndex(miscDataIndex === -1 ? 0 : -1);
+      return null;
+    }
+    return (
+      <Menu style={{ position: 'absolute', zIndex: '100', transform: `translateY(${toRem(32)})` }}>
+        <MenuItem
+          size="300"
+          radii="300"
+          fill="None"
+          variant="Primary"
+          style={{ justifyContent: 'Center', textAlign: 'center' }}
+          onClick={() => handleMiscSelector(-1)}
+        >
+          <Icon src={Icons.ChevronTop} size="50" />
+          <Text>Show less</Text>
+        </MenuItem>
+        {unknownFields.map(([key], index) => (
+          <MenuItem
+            size="300"
+            radii="300"
+            fill="None"
+            variant="Secondary"
+            style={{ justifyContent: 'Center' }}
+            onClick={() => handleMiscSelector(index)}
+          >
+            <Text>{key}</Text>
+          </MenuItem>
+        ))}
+      </Menu>
+    );
+  }, [miscDataIndex, showMisc, unknownFields]);
+  const miscHeader = useMemo(
+    () => (
+      <Box justifyContent="Center" grow="Yes">
+        <Button
+          variant="Secondary"
+          size="300"
+          fill="None"
+          onClick={() => setShowMisc(!showMisc)}
+          after={miscDataIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
+          style={{
+            padding: '1rem',
+            justifyContent: 'flex-start',
+            width: 'fit-content',
+            textAlign: 'center',
+          }}
+        >
+          <Text size="T200" priority="400">
+            {miscDataIndex === -1
+              ? `Show Misc. Data (${unknownFields.length} value${unknownFields.length > 1 ? 's' : ''})`
+              : `${unknownFields[miscDataIndex][0]} ${unknownFields.length > 1 ? `(${miscDataIndex + 1}/${unknownFields.length})` : ''}`}
+          </Text>
+        </Button>
+        {showMisc && miscSelector}
+      </Box>
+    ),
+    [miscSelector, miscDataIndex, showMisc, unknownFields]
+  );
+
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100 }}>
       {(pronouns || localTime) && (
@@ -209,39 +274,66 @@ function UserExtendedSection({
 
       {unknownFields.length > 0 && (
         <Box direction="Column" gap="100">
-          <Button
-            variant="Secondary"
-            size="300"
-            fill="None"
-            onClick={() => setShowMore(!showMore)}
-            after={<Icon size="50" src={showMore ? Icons.ChevronTop : Icons.ChevronBottom} />}
-            style={{ padding: '1rem', justifyContent: 'flex-start', width: 'fit-content' }}
-          >
-            <Text size="T200" priority="400">
-              {showMore ? 'Show less' : `+ ${unknownFields.length} more info`}
-            </Text>
-          </Button>
-
-          {showMore && (
-            <Box
-              direction="Column"
+          {miscDataIndex === -1 && miscHeader}
+          {miscDataIndex > -1 && (
+            <div
               style={{
-                padding: config.space.S200,
-                backgroundColor: 'var(--sable-surface-container)',
+                border: '2px solid',
+                backgroundColor: 'var(--sable-bg-container)',
+                borderColor: 'var(--sable-surface-container-line)',
                 borderRadius: config.radii.R400,
               }}
             >
-              {unknownFields.map(([key, value]) => (
-                <Box key={key} direction="Column" style={{ marginBottom: config.space.S100 }}>
-                  <Text size="T200" priority="400" style={{ letterSpacing: '0.05em' }}>
-                    {key}
-                  </Text>
-                  <Text size="T200" priority="300">
-                    {clamp(renderValue(value), 128)}
-                  </Text>
+              <Box
+                direction="Row"
+                justifyContent="Center"
+                alignContent="Center"
+                style={{
+                  borderRadius: config.radii.R400,
+                }}
+              >
+                {unknownFields.length > 1 && (
+                  <Button
+                    variant="Secondary"
+                    size="300"
+                    fill="None"
+                    onClick={() =>
+                      setMiscDataIndex(
+                        miscDataIndex === 0 ? unknownFields.length - 1 : miscDataIndex - 1
+                      )
+                    }
+                  >
+                    <Icon src={Icons.ArrowLeft} size="50" />
+                  </Button>
+                )}
+                {miscHeader}
+                {unknownFields.length > 1 && (
+                  <Button
+                    variant="Secondary"
+                    size="300"
+                    fill="None"
+                    onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
+                  >
+                    <Icon src={Icons.ArrowRight} size="50" />
+                  </Button>
+                )}
+              </Box>
+              <Scroll size="300" direction="Both">
+                <Box
+                  direction="Column"
+                  style={{
+                    padding: config.space.S200,
+                    borderRadius: config.radii.R400,
+                    maxHeight: toRem(100),
+                  }}
+                >
+                  <TextViewerContent
+                    text={renderValue(unknownFields[miscDataIndex][1])}
+                    langName="json"
+                  />
                 </Box>
-              ))}
-            </Box>
+              </Scroll>
+            </div>
           )}
         </Box>
       )}
@@ -382,7 +474,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
           />
-          <Box alignItems="Center" gap="100" wrap="Wrap">
+          <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
             {server && <ServerChip server={server} />}
             <ShareChip userId={userId} />
             {creator ? <CreatorChip /> : <PowerChip userId={userId} />}

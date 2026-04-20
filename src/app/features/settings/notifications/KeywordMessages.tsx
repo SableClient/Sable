@@ -214,6 +214,7 @@ export function KeywordMessagesNotifications() {
             focusId={`keyword-${toSettingsFocusIdPart(
               pushRule.pattern ?? pushRule.rule_id ?? 'custom-keyword'
             )}`}
+            showSettingLinkAction={false}
             before={<KeywordCross pushRule={pushRule} />}
             after={<KeywordModeSwitcher pushRule={pushRule} />}
           />

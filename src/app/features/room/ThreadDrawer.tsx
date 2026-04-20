@@ -494,6 +494,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
   const handleUserClick: MouseEventHandler<HTMLButtonElement> = useCallback(
     (evt) => {
+      if (!evt.currentTarget) return;
       evt.preventDefault();
       evt.stopPropagation();
       const userId = evt.currentTarget.getAttribute('data-user-id');

@@ -54,7 +54,6 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { SettingsLinkBaseUrlSetting } from './SettingsLinkBaseUrlSetting';
 
 type DateHintProps = {
   hasChanges: boolean;

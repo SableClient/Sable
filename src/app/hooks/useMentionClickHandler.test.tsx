@@ -60,4 +60,26 @@ describe('useMentionClickHandler', () => {
 
     expect(mockOpenSettings).toHaveBeenCalledWith('appearance', 'message-link-preview');
   });
+
+  it('drops malformed settings focus ids before calling openSettings', () => {
+    const { result } = renderHook(() => useMentionClickHandler('!room:example.org'), {
+      wrapper: Wrapper,
+    });
+    const malformedFocus = 'display-name">Settings';
+
+    const { getByRole } = render(
+      <button
+        type="button"
+        data-settings-link-section="account"
+        data-settings-link-focus={malformedFocus}
+        onClick={result.current}
+      >
+        Open malformed settings link
+      </button>
+    );
+
+    fireEvent.click(getByRole('button', { name: 'Open malformed settings link' }));
+
+    expect(mockOpenSettings).toHaveBeenCalledWith('account', undefined);
+  });
 });

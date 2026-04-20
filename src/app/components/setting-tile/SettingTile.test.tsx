@@ -49,7 +49,7 @@ describe('SettingTile', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://settings.example/settings/appearance?focus=message-link-preview'
+        'https://settings.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
       );
     });
     expect(screen.getByRole('button', { name: /copied settings link/i })).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('SettingTile', () => {
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        'https://settings.example/settings/appearance?focus=message-link-preview'
+        'https://settings.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
       );
     });
     expect(screen.getByRole('button', { name: /copy settings link/i })).toBeInTheDocument();

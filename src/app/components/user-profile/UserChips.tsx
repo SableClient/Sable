@@ -433,7 +433,7 @@ export function IgnoredUserAlert() {
     <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
       <SettingTile>
         <Box direction="Column" gap="200">
-          <Box gap="200" justifyContent="SpaceBetween">
+          <Box gap="200" justifyContent="Center">
             <Text size="L400">Blocked User</Text>
           </Box>
           <Box direction="Column">

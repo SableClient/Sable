@@ -291,10 +291,12 @@ export const setSettings = (settings: Settings) => {
 };
 
 const baseSettings = atom<Settings>(getSettings());
-export const settingsAtom = atom<Settings, [Settings], undefined>(
+export const settingsAtom = atom(
   (get) => get(baseSettings),
-  (get, set, update) => {
-    set(baseSettings, update);
+  (_get, set, update: Settings) => {
+    (
+      set as (atom: import('jotai').WritableAtom<Settings, [Settings], void>, val: Settings) => void
+    )(baseSettings as import('jotai').WritableAtom<Settings, [Settings], void>, update);
     setSettings(update);
   }
 );

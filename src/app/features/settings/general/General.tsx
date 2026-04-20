@@ -936,9 +936,6 @@ function Messages() {
         </SequenceCard>
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingsLinkBaseUrlSetting />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Disable Media Auto Load"
           focusId="disable-media-auto-load"

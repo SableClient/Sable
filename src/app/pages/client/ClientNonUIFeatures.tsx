@@ -33,6 +33,7 @@ import {
   getMemberDisplayName,
   getNotificationType,
   getStateEvent,
+  getRoomDisplayName,
   isDMRoom,
   isNotificationEvent,
 } from '$utils/room';
@@ -414,7 +415,7 @@ function MessageNotifications() {
           const avatarMxc =
             room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
           const osPayload = buildRoomMessageNotification({
-            roomName: room.name ?? 'Unknown',
+            roomName: getRoomDisplayName(room),
             roomAvatar: avatarMxc
               ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
               : undefined,
@@ -490,7 +491,7 @@ function MessageNotifications() {
         }
 
         const payload = buildRoomMessageNotification({
-          roomName: room.name ?? 'Unknown',
+          roomName: getRoomDisplayName(room),
           roomAvatar,
           username: resolvedSenderName,
           previewText,
@@ -505,7 +506,7 @@ function MessageNotifications() {
         setInAppBanner({
           id: eventId,
           title: payload.title,
-          roomName: room.name ?? undefined,
+          roomName: getRoomDisplayName(room),
           serverName,
           senderName: resolvedSenderName,
           body: previewText,

@@ -26,6 +26,7 @@ import {
   getMemberDisplayName,
   getNotificationType,
   getStateEvent,
+  getRoomDisplayName,
   isNotificationEvent,
   getMDirects,
   isDMRoom,
@@ -426,7 +427,7 @@ export function BackgroundNotifications() {
             }
 
             const notificationPayload = buildRoomMessageNotification({
-              roomName: room.name ?? room.getCanonicalAlias() ?? room.roomId,
+              roomName: getRoomDisplayName(room),
               roomAvatar,
               username: senderName,
               recipientId: session.userId,
@@ -482,7 +483,7 @@ export function BackgroundNotifications() {
               setInAppBannerRef.current({
                 id: dedupeId,
                 title: notificationPayload.title,
-                roomName: room.name ?? room.getCanonicalAlias() ?? undefined,
+                roomName: getRoomDisplayName(room),
                 senderName,
                 body: notificationPayload.options.body,
                 icon: notificationPayload.options.icon,

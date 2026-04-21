@@ -137,7 +137,9 @@ function FaviconUpdater() {
       // for an OS-level app badge.
       if (highlightTotal > 0) {
         navigator.setAppBadge(highlightTotal);
-      } else {
+      } else if (document.visibilityState === 'visible') {
+        // Only clear when foregrounded — the SW sets the badge from push
+        // payloads while backgrounded, and local state may be stale.
         navigator.clearAppBadge();
       }
       if (usePushNotifications) {
@@ -339,7 +341,7 @@ function MessageNotifications() {
         return;
       }
 
-      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent)) {
+      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)) {
         return;
       }
 

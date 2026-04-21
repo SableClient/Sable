@@ -5,11 +5,16 @@ export type HashRouterConfig = {
   basename?: string;
 };
 
+export type CallOptionsConfig = {
+  autoLeaveWhenOthersLeft?: boolean;
+};
+
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
   allowCustomHomeservers?: boolean;
   elementCallUrl?: string;
+  callOptions?: CallOptionsConfig;
 
   disableAccountSwitcher?: boolean;
   hideUsernamePasswordFields?: boolean;

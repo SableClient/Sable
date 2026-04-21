@@ -5,6 +5,7 @@ import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import {
   CallEmbed,
+  CallOptions,
   ElementCallThemeKind,
   ElementWidgetActions,
   useClientWidgetApiEvent,
@@ -17,6 +18,7 @@ import { CallControlState } from '../plugins/call/CallControlState';
 import { useCallMembersChange, useCallSession } from './useCall';
 import { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
+import { useClientConfig } from './useClientConfig';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -46,14 +48,15 @@ export const createCallEmbed = (
   dm: boolean,
   themeKind: ElementCallThemeKind,
   container: HTMLElement,
-  pref?: CallPreferences
+  pref?: CallPreferences,
+  callOptions?: CallOptions
 ): CallEmbed => {
   const rtcSession = mx.matrixRTC.getRoomSession(room);
   const ongoing =
     MatrixRTCSession.sessionMembershipsForRoom(room, rtcSession.sessionDescription).length > 0;
 
   const intent = CallEmbed.getIntent(dm, ongoing, pref?.video);
-  const widget = CallEmbed.getWidget(mx, room, intent, themeKind);
+  const widget = CallEmbed.getWidget(mx, room, intent, themeKind, callOptions);
   const controlState = pref && new CallControlState(pref.microphone, pref.video, pref.sound);
 
   const embed = new CallEmbed(mx, room, widget, container, controlState);
@@ -66,6 +69,7 @@ export const useCallStart = (dm = false) => {
   const theme = useTheme();
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const callEmbedRef = useCallEmbedRef();
+  const clientConfig = useClientConfig();
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
@@ -82,7 +86,15 @@ export const useCallStart = (dm = false) => {
       try {
         debugLog.info('call', 'Starting call', { roomId: room.roomId, dm });
         Sentry.metrics.count('sable.call.start.attempt', 1, { attributes: { dm: String(dm) } });
-        const callEmbed = createCallEmbed(mx, room, dm, theme.kind, container, pref);
+        const callEmbed = createCallEmbed(
+          mx,
+          room,
+          dm,
+          theme.kind,
+          container,
+          pref,
+          clientConfig.callOptions
+        );
         setCallEmbed(callEmbed);
       } catch (err) {
         debugLog.error('call', 'Call embed creation failed', {
@@ -95,7 +107,7 @@ export const useCallStart = (dm = false) => {
         throw err;
       }
     },
-    [mx, dm, theme, setCallEmbed, callEmbedRef]
+    [mx, dm, theme, setCallEmbed, callEmbedRef, clientConfig.callOptions]
   );
 
   return startCall;

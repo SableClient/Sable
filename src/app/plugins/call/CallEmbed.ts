@@ -31,6 +31,10 @@ import { createDebugLogger } from '../../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallEmbed');
 
+export type CallOptions = {
+  autoLeaveWhenOthersLeft?: boolean;
+};
+
 export class CallEmbed {
   private mx: MatrixClient;
 
@@ -68,7 +72,8 @@ export class CallEmbed {
     mx: MatrixClient,
     room: Room,
     intent: ElementCallIntent,
-    themeKind: ElementCallThemeKind
+    themeKind: ElementCallThemeKind,
+    callOptions?: CallOptions
   ): Widget {
     const userId = mx.getSafeUserId();
     const deviceId = mx.getDeviceId() ?? '';
@@ -91,6 +96,10 @@ export class CallEmbed {
       lang: 'en-EN',
       theme: themeKind,
     });
+
+    if (callOptions?.autoLeaveWhenOthersLeft !== undefined) {
+      params.set('autoLeave', callOptions.autoLeaveWhenOthersLeft.toString());
+    }
 
     const widgetUrl = new URL(
       `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,

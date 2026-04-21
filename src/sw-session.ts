@@ -31,7 +31,7 @@ export function pushSessionToSW(baseUrl?: string, accessToken?: string, userId?:
   // Backgrounded/mobile browsers can drop the current controller reference even
   // though the registration is still active. Post to any reachable worker from
   // navigator.serviceWorker.ready so the session is restored without a reload.
-  void navigator.serviceWorker.ready
+  navigator.serviceWorker.ready
     .then((registration) => {
       postSessionPayload(registration.active, payload, seenTargets);
       postSessionPayload(registration.waiting, payload, seenTargets);

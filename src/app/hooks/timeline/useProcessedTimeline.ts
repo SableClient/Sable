@@ -108,9 +108,7 @@ export function useProcessedTimeline({
       // via RoomEvent.Timeline listeners in PollEvent and must never render as timeline items.
       // Also check the effective (decrypted) type for encrypted events that have been decrypted.
       const effectiveType =
-        type === 'm.room.encrypted'
-          ? ((mEvent.getEffectiveEvent()?.type as string) ?? type)
-          : type;
+        type === 'm.room.encrypted' ? (mEvent.getEffectiveEvent()?.type ?? type) : type;
       if (
         effectiveType === 'org.matrix.msc3381.poll.response' ||
         effectiveType === 'org.matrix.msc3381.poll.end' ||

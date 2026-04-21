@@ -13,12 +13,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
-import {
-  roomScrollCache,
-  RoomScrollCache,
-  RoomScrollFingerprint,
-  RoomScrollPosition,
-} from '$utils/roomScrollCache';
+import { RoomScrollCache } from '$utils/roomScrollCache';
 import {
   as,
   Box,
@@ -117,18 +112,6 @@ const getDayDividerText = (ts: number) => {
 const SCROLL_SETTLE_MS = 250;
 const MIN_INITIAL_SCROLL_ROOM_PX = 300;
 
-const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
-const buildRoomScrollFingerprint = (
-  eventIds: string[],
-  readUptoEventId: string | undefined,
-  layoutKey: string
-): RoomScrollFingerprint => ({
-  eventCount: eventIds.length,
-  headEventIds: eventIds.slice(0, 5),
-  tailEventIds: eventIds.slice(-5),
-  readUptoEventId,
-  layoutKey,
-});
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -250,7 +233,6 @@ export function RoomTimeline({
   // flag and performs the final scroll + setIsReady when pagination settles.
   const readyBlockedByPaginationRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
-  const currentScrollFingerprintRef = useRef<RoomScrollFingerprint | undefined>(undefined);
   const saveRoomScrollStateRef = useRef<
     ((measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => void) | undefined
   >(undefined);
@@ -396,10 +378,7 @@ export function RoomTimeline({
     const v = vListRef.current;
     if (!v) return;
     // Still not filled and can paginate more — keep waiting.
-    if (
-      canPaginateBackRef.current &&
-      v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX
-    )
+    if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX)
       return;
     readyBlockedByPaginationRef.current = false;
     v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });

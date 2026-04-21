@@ -342,7 +342,12 @@ function MessageNotifications() {
         return;
       }
 
-      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)) {
+      if (
+        !room ||
+        isHistoricalEvent ||
+        room.isSpaceRoom() ||
+        !isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)
+      ) {
         return;
       }
 

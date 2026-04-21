@@ -110,7 +110,6 @@ const getDayDividerText = (ts: number) => {
 
 const SCROLL_SETTLE_MS = 250;
 const MIN_INITIAL_SCROLL_ROOM_PX = 300;
-const MIN_INITIAL_SCROLL_ROOM_PX = 300;
 
 const TIMELINE_ANCHOR_SELECTOR = '[data-timeline-event-id]';
 const buildRoomScrollFingerprint = (

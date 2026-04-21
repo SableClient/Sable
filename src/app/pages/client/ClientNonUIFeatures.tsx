@@ -11,6 +11,7 @@ import {
   RoomEvent,
   SetPresence,
   SyncState,
+  EventType,
 } from '$types/matrix-sdk';
 import parse from 'html-react-parser';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
@@ -36,7 +37,7 @@ import {
   isDMRoom,
   isNotificationEvent,
 } from '$utils/room';
-import { NotificationType, StateEvent } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
@@ -412,7 +413,7 @@ function MessageNotifications() {
       // is reached, causing in-app notifications to silently vanish too.
       if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
         try {
-          const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
+          const isEncryptedRoom = !!getStateEvent(room, EventType.RoomEncryption);
           const avatarMxc =
             room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
           const osPayload = buildRoomMessageNotification({
@@ -788,8 +789,7 @@ function HandleDecryptPushEvent() {
       const decryptStart = performance.now();
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mxEvent = new MatrixEvent(rawEvent as any);
+        const mxEvent = new MatrixEvent(rawEvent as ConstructorParameters<typeof MatrixEvent>[0]);
         await mx.decryptEventIfNeeded(mxEvent);
 
         const room = mx.getRoom(roomId);

@@ -1,4 +1,4 @@
-import type { MouseEventHandler } from 'react';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import parse from 'html-react-parser';
@@ -86,10 +86,20 @@ type AbbreviationTermProps = {
 function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
   const [anchor, setAnchor] = useState<RectCords | undefined>();
 
+  const toggleAnchor = (target: HTMLElement) => {
+    setAnchor((prev) => (prev ? undefined : target.getBoundingClientRect()));
+  };
+
   const handleClick: MouseEventHandler<HTMLElement> = (e) => {
-    if (e.currentTarget === null) return;
     e.stopPropagation();
-    setAnchor((prev) => (prev ? undefined : e.currentTarget?.getBoundingClientRect()));
+    toggleAnchor(e.currentTarget);
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLElement> = (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleAnchor(e.currentTarget);
   };
 
   // On mobile, tapping an abbreviation pins the tooltip open.
@@ -111,10 +121,12 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
     <>
       <TooltipProvider position="Top" tooltip={tooltipContent}>
         {(triggerRef) => (
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events
           <abbr
             ref={triggerRef as React.Ref<HTMLElement>}
             onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
             style={{ textDecoration: 'underline dotted', cursor: 'help' }}
           >
             {text}

@@ -52,7 +52,7 @@ import {
 } from '$utils/room';
 import type { GetContentCallback } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -89,11 +89,13 @@ import {
 } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { nicknamesAtom } from '$state/nicknames';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { EncryptedContent } from '$features/room/message';
 import type { PinReadMarker } from '$features/room/RoomViewHeader';
 import * as css from './RoomPinMenu.css';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { EventType } from '$types/matrix-sdk';
 
 const log = createLogger('RoomPinMenu');
 
@@ -205,7 +207,7 @@ function PinnedMessage(props: PinnedMessageProps) {
 
   const [unpinState, unpin] = useAsyncCallback(
     useCallback(() => {
-      const pinEvent = getStateEvent(room, StateEvent.RoomPinnedEvents);
+      const pinEvent = getStateEvent(room, EventType.RoomPinnedEvents);
       const content = pinEvent?.getContent<RoomPinnedEventsEventContent>() ?? { pinned: [] };
       const newContent: RoomPinnedEventsEventContent = {
         pinned: content.pinned.filter((id: string) => id !== eventId),
@@ -213,7 +215,7 @@ function PinnedMessage(props: PinnedMessageProps) {
 
       return mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomPinnedEvents as keyof StateEvents,
+        EventType.RoomPinnedEvents as keyof StateEvents,
         newContent
       );
     }, [room, eventId, mx])
@@ -298,7 +300,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
     const creators = useRoomCreators(room);
 
     const permissions = useRoomPermissions(creators, powerLevels);
-    const canPinEvent = permissions.stateEvent(StateEvent.RoomPinnedEvents, userId);
+    const canPinEvent = permissions.stateEvent(EventType.RoomPinnedEvents, userId);
 
     const creatorsTag = useRoomCreatorsTag();
     const powerLevelTags = usePowerLevelTags(room, powerLevels);
@@ -324,7 +326,8 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const pinMarker = useMemo(
-      () => room.getAccountData(AccountDataEvent.SablePinStatus)?.getContent() as PinReadMarker,
+      () =>
+        room.getAccountData(CustomAccountDataEvent.SablePinStatus)?.getContent() as PinReadMarker,
       [room]
     );
 
@@ -386,7 +389,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
 
     const renderMatrixEvent = useMatrixEventRenderer<[MatrixEvent, string, GetContentCallback]>(
       {
-        [MessageEvent.RoomMessage]: (event, displayName, getContent) => {
+        [EventType.RoomMessage]: (event, displayName, getContent) => {
           if (event.isRedacted()) {
             const unsigned = event.getUnsigned();
             const redactionContent = unsigned.redacted_because?.content as
@@ -410,7 +413,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             />
           );
         },
-        [MessageEvent.RoomMessageEncrypted]: (event, displayName) => {
+        [EventType.RoomMessageEncrypted]: (event, displayName) => {
           const eventId = event.getId()!;
           const evtTimeline = room.getTimelineForEvent(eventId);
 
@@ -430,8 +433,12 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
           return (
             <EncryptedContent mEvent={mEvent}>
               {() => {
+                const eventType = mEvent.getType();
+                const stickerEventType: string = EventType.Sticker;
+                const roomMessageEventType: string = EventType.RoomMessage;
+                const encryptedMessageEventType: string = EventType.RoomMessageEncrypted;
                 if (mEvent.isRedacted()) return <RedactedContent />;
-                if ((mEvent.getType() as MessageEvent) === MessageEvent.Sticker)
+                if (eventType === stickerEventType)
                   return (
                     <MSticker
                       content={mEvent.getContent()}
@@ -445,7 +452,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                       )}
                     />
                   );
-                if ((mEvent.getType() as MessageEvent) === MessageEvent.RoomMessage) {
+                if (eventType === roomMessageEventType) {
                   const editedEvent = getEditedEvent(eventId, mEvent, evtTimeline.getTimelineSet());
                   const getContent = (() => {
                     const eventContent = mEvent.getContent();
@@ -470,7 +477,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
                     />
                   );
                 }
-                if ((mEvent.getType() as MessageEvent) === MessageEvent.RoomMessageEncrypted)
+                if (eventType === encryptedMessageEventType)
                   return (
                     <Text>
                       <MessageNotDecryptedContent />
@@ -485,7 +492,7 @@ export const RoomPinMenu = forwardRef<HTMLDivElement, RoomPinMenuProps>(
             </EncryptedContent>
           );
         },
-        [MessageEvent.Sticker]: (event, _displayName, getContent) => {
+        [EventType.Sticker]: (event, _displayName, getContent) => {
           if (event.isRedacted()) {
             const unsigned = event.getUnsigned();
             const redactionContent = unsigned.redacted_because?.content as

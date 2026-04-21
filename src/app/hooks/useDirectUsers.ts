@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { useAccountData } from './useAccountData';
 import { useAllJoinedRoomsSet, useGetRoom } from './useGetRoom';
+import { EventType } from '$types/matrix-sdk';
 
 export const useDirectUsers = (): string[] => {
-  const directEvent = useAccountData(AccountDataEvent.Direct);
+  const directEvent = useAccountData(EventType.Direct);
   const content = directEvent?.getContent();
 
   const allJoinedRooms = useAllJoinedRoomsSet();

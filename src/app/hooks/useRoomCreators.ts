@@ -1,10 +1,11 @@
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 import type { IRoomCreateContent } from '$types/matrix/room';
-import { StateEvent } from '$types/matrix/room';
+
 import { creatorsSupported } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
 import { useStateEvent } from './useStateEvent';
+import { EventType } from '$types/matrix-sdk';
 
 export const getRoomCreators = (createEvent: MatrixEvent): Set<string> => {
   const createContent = createEvent.getContent<IRoomCreateContent>();
@@ -29,7 +30,7 @@ export const getRoomCreators = (createEvent: MatrixEvent): Set<string> => {
 };
 
 export const useRoomCreators = (room: Room): Set<string> => {
-  const createEvent = useStateEvent(room, StateEvent.RoomCreate);
+  const createEvent = useStateEvent(room, EventType.RoomCreate);
 
   const creators = useMemo(
     () => (createEvent ? getRoomCreators(createEvent) : new Set<string>()),
@@ -43,7 +44,7 @@ export const getRoomCreatorsForRoomId = (mx: MatrixClient, roomId: string): Set<
   const room = mx.getRoom(roomId);
   if (!room) return new Set();
 
-  const createEvent = getStateEvent(room, StateEvent.RoomCreate);
+  const createEvent = getStateEvent(room, EventType.RoomCreate);
   if (!createEvent) return new Set();
 
   return getRoomCreators(createEvent);

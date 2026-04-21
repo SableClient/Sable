@@ -21,14 +21,14 @@ import {
   PopOut,
 } from 'folds';
 import type { MatrixError } from '$types/matrix-sdk';
-import { Direction } from '$types/matrix-sdk';
+import { Direction, EventType } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { useAlive } from '$hooks/useAlive';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoom } from '$hooks/useRoom';
-import { StateEvent } from '$types/matrix/room';
+
 import { getToday, getYesterday, timeDayMonthYear, timeHourMinute } from '$utils/time';
 import { DatePicker, TimePicker } from '$components/time-date';
 import { useSetting } from '$state/hooks/settings';
@@ -42,7 +42,7 @@ export function JumpToTime({ onCancel, onSubmit }: JumpToTimeProps) {
   const mx = useMatrixClient();
   const room = useRoom();
   const alive = useAlive();
-  const createStateEvent = useStateEvent(room, StateEvent.RoomCreate);
+  const createStateEvent = useStateEvent(room, EventType.RoomCreate);
 
   const todayTs = getToday();
   const yesterdayTs = getYesterday();

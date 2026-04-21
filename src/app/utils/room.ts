@@ -12,8 +12,10 @@ import type {
   Room,
   RoomMember,
   CryptoBackend,
+  StateEvents,
 } from '$types/matrix-sdk';
 import {
+  ConditionKind,
   EventTimeline,
   EventType,
   JoinRule,
@@ -21,33 +23,29 @@ import {
   PushProcessor,
   RelationType,
   MsgType,
-} from '$types/matrix-sdk';
-import type { AccountDataEvent } from '$types/matrix/accountData';
-import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
-import {
-  Membership,
-  NotificationType,
+  KnownMembership,
   RoomType,
-  MessageEvent,
-  StateEvent,
-} from '$types/matrix/room';
+} from '$types/matrix-sdk';
+
+import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
 import * as Sentry from '@sentry/react';
 
 export const getStateEvent = (
   room: Room,
-  eventType: StateEvent,
+  eventType: keyof StateEvents,
   stateKey = ''
 ): MatrixEvent | undefined =>
   room.getLiveTimeline().getState(EventTimeline.FORWARDS)?.getStateEvents(eventType, stateKey) ??
   undefined;
 
-export const getStateEvents = (room: Room, eventType: StateEvent): MatrixEvent[] =>
+export const getStateEvents = (room: Room, eventType: keyof StateEvents): MatrixEvent[] =>
   room.getLiveTimeline().getState(EventTimeline.FORWARDS)?.getStateEvents(eventType) ?? [];
 
 export const getAccountData = (
   mx: MatrixClient,
-  eventType: AccountDataEvent
-): MatrixEvent | undefined => mx.getAccountData(eventType as keyof AccountDataEvents);
+  eventType: keyof AccountDataEvents
+): MatrixEvent | undefined => mx.getAccountData(eventType);
 
 export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
   const roomIds = new Set<string>();
@@ -77,21 +75,21 @@ export const isDirectInvite = (room: Room | null, myUserId: string | null): bool
 
 export const isSpace = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return false;
   return event.getContent().type === RoomType.Space;
 };
 
 export const isRoom = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return true;
   return event.getContent().type !== RoomType.Space;
 };
 
 export const isUnsupportedRoom = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return true; // Consider room unsupported if m.room.create event doesn't exist
   return event.getContent().type !== undefined && event.getContent().type !== RoomType.Space;
 };
@@ -120,7 +118,7 @@ export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
 
 export function isValidChild(mEvent: MatrixEvent): boolean {
   return (
-    mEvent.getType() === (StateEvent.SpaceChild as string) &&
+    mEvent.getType() === (EventType.SpaceChild as string) &&
     Array.isArray(mEvent.getContent<{ via: string[] }>().via)
   );
 }
@@ -141,7 +139,7 @@ export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set
 };
 
 export const getSpaceChildren = (room: Room) =>
-  getStateEvents(room, StateEvent.SpaceChild).reduce<string[]>((filtered, mEvent) => {
+  getStateEvents(room, EventType.SpaceChild).reduce<string[]>((filtered, mEvent) => {
     const stateKey = mEvent.getStateKey();
     if (isValidChild(mEvent) && stateKey) {
       filtered.push(stateKey);
@@ -169,7 +167,7 @@ export const mapParentWithChildren = (
 export const getRoomToParents = (mx: MatrixClient): RoomToParents => {
   const map: RoomToParents = new Map();
   mx.getRooms()
-    .filter((room) => isSpace(room) && room.getMyMembership() === (Membership.Join as string))
+    .filter((room) => isSpace(room) && room.getMyMembership() === (KnownMembership.Join as string))
     .forEach((room) => mapParentWithChildren(map, room.roomId, getSpaceChildren(room)));
 
   return map;
@@ -183,8 +181,7 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
 export const isMutedRule = (rule: IPushRule) =>
   // Check for empty actions (new spec) or dont_notify (deprecated)
   (rule.actions.length === 0 || (rule.actions[0] as unknown as string) === 'dont_notify') &&
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-  rule.conditions?.[0]?.kind === 'event_match';
+  rule.conditions?.[0]?.kind === ConditionKind.EventMatch;
 
 export const findMutedRule = (overrideRules: IPushRule[], roomId: string) =>
   overrideRules.find((rule) => rule.rule_id === roomId && isMutedRule(rule));
@@ -441,7 +438,7 @@ export const getRoomIconSrc = (
     return icons.Space;
   }
 
-  if (roomType === RoomType.Call) {
+  if (roomType === RoomType.UnstableCall) {
     if (joinRule === JoinRule.Public) return icons.VolumeHighGlobe;
     if (
       joinRule === JoinRule.Invite ||
@@ -537,7 +534,7 @@ export const getMemberDisplayName = (
   if (name === userId) return undefined;
   if (
     name?.replace(
-      // eslint-disable-next-line regexp/no-misleading-character-class -- Stripping invisible formatting characters from display names
+      // oxlint-disable-next-line no-misleading-character-class -- Stripping invisible formatting characters from display names
       /[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\u200B-\u200D\t\n ]/gu,
       ''
     ).length === 0
@@ -632,7 +629,7 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
   const relationType = content['m.relates_to']?.rel_type;
   return (
     mEvent.getSender() === mx.getUserId() &&
-    mEvent.getType() === (MessageEvent.RoomMessage as string) &&
+    mEvent.getType() === (EventType.RoomMessage as string) &&
     (!relationType || relationType === (RelationType.Thread as string)) &&
     (content.msgtype === MsgType.Text ||
       content.msgtype === MsgType.Emote ||
@@ -695,9 +692,9 @@ export const getCommonRooms = (
 
   rooms.forEach((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== (Membership.Join as string)) return;
+    if (!room || room.getMyMembership() !== (KnownMembership.Join as string)) return;
 
-    const common = room.hasMembershipState(otherUserId, Membership.Join);
+    const common = room.hasMembershipState(otherUserId, KnownMembership.Join);
     if (common) {
       commonRooms.push(roomId);
     }
@@ -709,15 +706,15 @@ export const getCommonRooms = (
 export const bannedInRooms = (mx: MatrixClient, rooms: string[], otherUserId: string): boolean =>
   rooms.some((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== (Membership.Join as string)) return false;
+    if (!room || room.getMyMembership() !== (KnownMembership.Join as string)) return false;
 
-    return room.hasMembershipState(otherUserId, Membership.Ban);
+    return room.hasMembershipState(otherUserId, KnownMembership.Ban);
   });
 
 export const getAllVersionsRoomCreator = (room: Room): Set<string> => {
   const creators = new Set<string>();
 
-  const createEvent = getStateEvent(room, StateEvent.RoomCreate);
+  const createEvent = getStateEvent(room, EventType.RoomCreate);
   const createContent = createEvent?.getContent<IRoomCreateContent>();
   const creator = createEvent?.getSender();
   if (typeof creator === 'string') creators.add(creator);
@@ -750,7 +747,7 @@ export const guessPerfectParent = (
 
     const powerLevels = getStateEvent(
       r,
-      StateEvent.RoomPowerLevels
+      EventType.RoomPowerLevels
     )?.getContent<IPowerLevelsContent>();
 
     const { users_default: usersDefault, users } = powerLevels ?? {};

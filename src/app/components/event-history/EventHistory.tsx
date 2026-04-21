@@ -38,9 +38,10 @@ import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { MessageEvent } from '$types/matrix/room';
+
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as css from './EventHistory.css';
+import { EventType } from '$types/matrix-sdk';
 
 export type EventHistoryProps = {
   room: Room;
@@ -85,7 +86,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const creators = useRoomCreators(room);
     const permissions = useRoomPermissions(creators, powerLevels);
     const canRedact = permissions.action('redact', mx.getSafeUserId());
-    const canDeleteOwn = permissions.event(MessageEvent.RoomRedaction, mx.getSafeUserId());
+    const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
     const canDelete = canRedact || (canDeleteOwn && mEvents[0]?.getSender() === mx.getUserId());
 
     const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(room.roomId));

@@ -1,7 +1,7 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
-import { MatrixError, JoinRule } from '$types/matrix-sdk';
+import { MatrixError, JoinRule, RoomType } from '$types/matrix-sdk';
 import {
   Box,
   Button,
@@ -40,7 +40,7 @@ import {
   useAdditionalCreators,
   CreateRoomType,
 } from '$components/create-room';
-import { RoomType } from '$types/matrix/room';
+
 import { CreateRoomTypeSelector } from '$components/create-room/CreateRoomTypeSelector';
 import { getRoomIconSrc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -55,7 +55,7 @@ const getCreateRoomAccessToIcon = (access: CreateRoomAccess, type?: CreateRoomTy
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return getRoomIconSrc(Icons, isVoiceRoom ? RoomType.Call : undefined, joinRule);
+  return getRoomIconSrc(Icons, isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule);
 };
 
 const getCreateRoomTypeToIcon = (type: CreateRoomType) => {
@@ -142,7 +142,7 @@ export function CreateRoomForm({
     }
 
     let roomType: RoomType | undefined;
-    if (type === CreateRoomType.VoiceRoom) roomType = RoomType.Call;
+    if (type === CreateRoomType.VoiceRoom) roomType = RoomType.UnstableCall;
 
     debugLog.info('ui', 'Create room button clicked', {
       roomName,

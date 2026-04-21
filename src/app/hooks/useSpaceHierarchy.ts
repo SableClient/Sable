@@ -1,11 +1,11 @@
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
+import { MatrixError, EventType } from '$types/matrix-sdk';
 import type { QueryFunction } from '@tanstack/react-query';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { MSpaceChildContent } from '$types/matrix/room';
-import { StateEvent } from '$types/matrix/room';
+
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { getAllParents, getStateEvents, isValidChild } from '$utils/room';
 import { isRoomId } from '$utils/matrix';
@@ -75,7 +75,7 @@ const getHierarchySpaces = (
     spaceItems.push(spaceItem);
 
     if (!space) return;
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild)
+    const childEvents = getStateEvents(space, EventType.SpaceChild)
       .filter((childEvent) => {
         if (!isValidChild(childEvent)) return false;
         const childId = childEvent.getStateKey();
@@ -135,7 +135,7 @@ const getSpaceHierarchy = (
         space: spaceItem,
       };
     }
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild);
+    const childEvents = getStateEvents(space, EventType.SpaceChild);
     const childItems: HierarchyItemRoom[] = [];
     childEvents.forEach((childEvent) => {
       if (!isValidChild(childEvent)) return;
@@ -185,7 +185,7 @@ export const useSpaceHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== (StateEvent.SpaceChild as string)) return;
+        if (mEvent.getType() !== (EventType.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
@@ -230,7 +230,7 @@ const getSpaceJoinedHierarchy = (
     const space = getRoom(spaceId);
     if (!space) return false;
 
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild);
+    const childEvents = getStateEvents(space, EventType.SpaceChild);
 
     return childEvents.some((childEvent): boolean => {
       if (!isValidChild(childEvent)) return false;
@@ -249,7 +249,7 @@ const getSpaceJoinedHierarchy = (
     if (!space) {
       return [];
     }
-    const joinedRoomEvents = getStateEvents(space, StateEvent.SpaceChild).filter((childEvent) => {
+    const joinedRoomEvents = getStateEvents(space, EventType.SpaceChild).filter((childEvent) => {
       if (!isValidChild(childEvent)) return false;
       const childId = childEvent.getStateKey();
       if (!childId || !isRoomId(childId)) return false;
@@ -317,7 +317,7 @@ export const useSpaceJoinedHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== (StateEvent.SpaceChild as string)) return;
+        if (mEvent.getType() !== (EventType.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 

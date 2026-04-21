@@ -161,7 +161,7 @@ const isMismatch = (err: unknown): boolean => {
 };
 
 const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
-  /* eslint-disable promise/no-multiple-resolved */
+  /* oxlint-disable promise/no-multiple-resolved */
   new Promise((resolve) => {
     const waitStart = performance.now();
     let settled = false;
@@ -184,7 +184,7 @@ const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> 
       }
       resolve();
     };
-    /* eslint-enable promise/no-multiple-resolved */
+    /* oxlint-enable promise/no-multiple-resolved */
 
     if (isClientReadyForUi(mx.getSyncState())) {
       Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {

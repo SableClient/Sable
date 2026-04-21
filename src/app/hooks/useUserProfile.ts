@@ -2,8 +2,8 @@ import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { Room } from '$types/matrix-sdk';
-import { EventTimeline } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+import { EventTimeline, EventType } from '$types/matrix-sdk';
+
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
@@ -12,6 +12,7 @@ import type { MSC1767Text } from '$types/matrix/common';
 import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
+import { CustomStateEvent } from '$types/matrix/room';
 
 const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 
@@ -173,46 +174,46 @@ export const useUserProfile = (
       const state = room.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
       if (renderRoomColors) {
-        const localEvent = state?.getStateEvents(StateEvent.RoomCosmeticsColor, userId);
+        const localEvent = state?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
         localColor = (Array.isArray(localEvent) ? localEvent[0] : localEvent)?.getContent()?.color;
       }
 
       if (renderRoomFonts) {
-        const localFontEvent = state?.getStateEvents(StateEvent.RoomCosmeticsFont, userId);
+        const localFontEvent = state?.getStateEvents(CustomStateEvent.RoomCosmeticsFont, userId);
         localFont = (
           Array.isArray(localFontEvent) ? localFontEvent[0] : localFontEvent
         )?.getContent()?.font;
       }
 
       const localPronounEvent = state?.getStateEvents(
-        StateEvent.RoomCosmeticsPronouns as string,
+        CustomStateEvent.RoomCosmeticsPronouns as string,
         userId
       );
       localPronouns = (
         Array.isArray(localPronounEvent) ? localPronounEvent[0] : localPronounEvent
       )?.getContent()?.pronouns;
 
-      const parents = state?.getStateEvents(StateEvent.SpaceParent);
+      const parents = state?.getStateEvents(EventType.SpaceParent);
       if (parents && parents.length > 0) {
         const parent = parents[0];
         const parentSpace = parent ? mx.getRoom(parent.getStateKey()) : undefined;
         const pState = parentSpace?.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
         if (renderRoomColors) {
-          const spaceEvent = pState?.getStateEvents(StateEvent.RoomCosmeticsColor, userId);
+          const spaceEvent = pState?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
           spaceColor = (Array.isArray(spaceEvent) ? spaceEvent[0] : spaceEvent)?.getContent()
             ?.color;
         }
 
         if (renderRoomFonts) {
-          const spaceFontEvent = pState?.getStateEvents(StateEvent.RoomCosmeticsFont, userId);
+          const spaceFontEvent = pState?.getStateEvents(CustomStateEvent.RoomCosmeticsFont, userId);
           spaceFont = (
             Array.isArray(spaceFontEvent) ? spaceFontEvent[0] : spaceFontEvent
           )?.getContent()?.font;
         }
 
         const spacePronounEvent = pState?.getStateEvents(
-          StateEvent.RoomCosmeticsPronouns as string,
+          CustomStateEvent.RoomCosmeticsPronouns as string,
           userId
         );
         spacePronouns = (

@@ -18,7 +18,7 @@ import {
 } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { JoinRule } from '$types/matrix-sdk';
+import { JoinRule, EventType } from '$types/matrix-sdk';
 import { useEffect, useMemo, useState } from 'react';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
@@ -26,7 +26,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import * as css from '$features/room/message/styles.css';
 import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { getStateEvents } from '$utils/room';
-import { StateEvent } from '$types/matrix/room';
+
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 
@@ -116,7 +116,7 @@ export function MessageForwardInternal({
   // detect if it's a public room or not
   const joinRule = room.getJoinRule() ?? JoinRule.Invite;
 
-  const parentSpaceIds = getStateEvents(room, StateEvent.SpaceParent)
+  const parentSpaceIds = getStateEvents(room, EventType.SpaceParent)
     .map((e) => e.getStateKey())
     .filter((id): id is string => Boolean(id));
 

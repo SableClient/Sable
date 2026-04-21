@@ -1,13 +1,14 @@
 import type { Room } from '$types/matrix-sdk';
 import type { IRoomCreateContent } from '$types/matrix/room';
-import { StateEvent } from '$types/matrix/room';
+
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { creatorsSupported, getMxIdServer } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
+import { EventType } from '$types/matrix-sdk';
 
 export const getViaServers = (room: Room): string[] => {
   const getHighestPowerUserId = (): string | undefined => {
-    const creatorEvent = getStateEvent(room, StateEvent.RoomCreate);
+    const creatorEvent = getStateEvent(room, EventType.RoomCreate);
     if (
       creatorEvent &&
       creatorsSupported(creatorEvent.getContent<IRoomCreateContent>().room_version)
@@ -15,7 +16,7 @@ export const getViaServers = (room: Room): string[] => {
       return creatorEvent.getSender();
     }
 
-    const powerLevels = getStateEvent(room, StateEvent.RoomPowerLevels)?.getContent<IPowerLevels>();
+    const powerLevels = getStateEvent(room, EventType.RoomPowerLevels)?.getContent<IPowerLevels>();
 
     if (!powerLevels) return undefined;
     const userIdToPower = powerLevels.users;

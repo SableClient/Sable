@@ -7,7 +7,7 @@ import {
   getPerMessageProfileById,
   parsePerMessageProfileProxyAssociation,
 } from '$hooks/usePerMessageProfile';
-import type { MatrixClient } from 'matrix-js-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 
 /**
  * proxy message handler

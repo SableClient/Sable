@@ -26,7 +26,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { StateEvent } from '$types/matrix/room';
+
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { createLogger } from '$utils/debug';
@@ -53,6 +53,8 @@ import { ModalWide } from '$styles/Modal.css';
 import { NameColorEditor } from '$features/settings/account/NameColorEditor';
 import { PronounEditor } from '$features/settings/account/PronounEditor';
 import type { PronounSet } from '$utils/pronouns';
+import { EventType } from '$types/matrix-sdk';
+import { CustomStateEvent } from '$types/matrix/room';
 
 const log = createLogger('Cosmetics');
 
@@ -370,15 +372,15 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
   const isSpace = room.isSpaceRoom();
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canEditPermissions = permissions.stateEvent(StateEvent.RoomPowerLevels, mx.getSafeUserId());
+  const canEditPermissions = permissions.stateEvent(EventType.RoomPowerLevels, mx.getSafeUserId());
 
   const commands = useCommands(mx, room);
 
   const getLevel = (eventType: string) => (powerLevels.events ?? {})?.[eventType] ?? 50;
 
-  const canHaveRoomColor = getLevel(StateEvent.RoomCosmeticsColor) === 0;
-  const canHaveRoomPronouns = getLevel(StateEvent.RoomCosmeticsPronouns) === 0;
-  const canHaveRoomFont = getLevel(StateEvent.RoomCosmeticsFont) === 0;
+  const canHaveRoomColor = getLevel(CustomStateEvent.RoomCosmeticsColor) === 0;
+  const canHaveRoomPronouns = getLevel(CustomStateEvent.RoomCosmeticsPronouns) === 0;
+  const canHaveRoomFont = getLevel(CustomStateEvent.RoomCosmeticsFont) === 0;
 
   const handleToggle = useCallback(
     async (eventType: string, enabled: boolean) => {
@@ -394,7 +396,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
       try {
         await mx.sendStateEvent(
           room.roomId,
-          StateEvent.RoomPowerLevels as keyof StateEvents,
+          EventType.RoomPowerLevels as keyof StateEvents,
           newContent,
           ''
         );
@@ -522,7 +524,9 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
                       <Switch
                         variant="Primary"
                         value={canHaveRoomColor}
-                        onChange={(enabled) => handleToggle(StateEvent.RoomCosmeticsColor, enabled)}
+                        onChange={(enabled) =>
+                          handleToggle(CustomStateEvent.RoomCosmeticsColor, enabled)
+                        }
                         disabled={!canEditPermissions}
                       />
                     }
@@ -542,7 +546,7 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
                         variant="Primary"
                         value={canHaveRoomPronouns}
                         onChange={(enabled) =>
-                          handleToggle(StateEvent.RoomCosmeticsPronouns, enabled)
+                          handleToggle(CustomStateEvent.RoomCosmeticsPronouns, enabled)
                         }
                         disabled={!canEditPermissions}
                       />
@@ -562,7 +566,9 @@ export function Cosmetics({ requestClose }: CosmeticsProps) {
                       <Switch
                         variant="Primary"
                         value={canHaveRoomFont}
-                        onChange={(enabled) => handleToggle(StateEvent.RoomCosmeticsFont, enabled)}
+                        onChange={(enabled) =>
+                          handleToggle(CustomStateEvent.RoomCosmeticsFont, enabled)
+                        }
                         disabled={!canEditPermissions}
                       />
                     }

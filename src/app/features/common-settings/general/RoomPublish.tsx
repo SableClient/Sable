@@ -1,13 +1,13 @@
 import { Box, color, Spinner, Switch, Text } from 'folds';
 import type { MatrixError, RoomJoinRulesEventContent } from '$types/matrix-sdk';
-import { JoinRule } from '$types/matrix-sdk';
+import { JoinRule, EventType } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomDirectoryVisibility } from '$hooks/useRoomDirectoryVisibility';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
 import type { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
@@ -20,11 +20,8 @@ export function RoomPublish({ permissions }: RoomPublishProps) {
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEditCanonical = permissions.stateEvent(
-    StateEvent.RoomCanonicalAlias,
-    mx.getSafeUserId()
-  );
-  const joinRuleEvent = useStateEvent(room, StateEvent.RoomJoinRules);
+  const canEditCanonical = permissions.stateEvent(EventType.RoomCanonicalAlias, mx.getSafeUserId());
+  const joinRuleEvent = useStateEvent(room, EventType.RoomJoinRules);
   const content = joinRuleEvent?.getContent<RoomJoinRulesEventContent>();
   const rule: ExtendedJoinRules = (content?.join_rule as ExtendedJoinRules) ?? JoinRule.Invite;
 

@@ -61,7 +61,7 @@ import {
   sidebarItemWithout,
   useSidebarItems,
 } from '$hooks/useSidebarItems';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useOpenedSidebarFolderAtom } from '$state/hooks/openedSidebarFolder';
@@ -81,6 +81,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 type SpaceMenuProps = {
   room: Room;
@@ -742,7 +743,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
         const newSpacesContent = makeCinnySpacesContent(mx, newItems);
         localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-        mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+        mx.setAccountData(CustomAccountDataEvent.CinnySpaces, newSpacesContent);
       },
       [mx, sidebarItems, setOpenedFolder, localEchoSidebarItem, orphanSpaces]
     )
@@ -788,7 +789,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
       localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-      mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+      mx.setAccountData(CustomAccountDataEvent.CinnySpaces, newSpacesContent);
     },
     [mx, sidebarItems, orphanSpaces, localEchoSidebarItem]
   );

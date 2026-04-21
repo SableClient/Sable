@@ -16,7 +16,7 @@ import {
   Button,
   Line,
 } from 'folds';
-import type { Room, StateEvents } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { RoomWidget } from '$hooks/useRoomWidgets';
@@ -26,11 +26,12 @@ import { settingsAtom } from '$state/settings';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { StateEvent } from '$types/matrix/room';
+
 import { createLogger } from '$utils/debug';
 import { WidgetIframe } from './WidgetIframe';
 import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
+import { CustomStateEvent } from '$types/matrix/room';
 
 type WidgetsDrawerHeaderProps = {
   activeWidget: RoomWidget | null;
@@ -104,14 +105,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
       const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomWidget as string as keyof StateEvents,
+        CustomStateEvent.RoomWidget,
         {
           type: 'm.custom',
           url: enrichWidgetUrl(url.trim()),
           name: name.trim(),
           id: widgetId,
           creatorUserId: mx.getUserId(),
-        } as StateEvents[keyof StateEvents],
+        },
         widgetId
       );
       setName('');
@@ -226,16 +227,11 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canManageWidgets = permissions.stateEvent(StateEvent.RoomWidget, mx.getSafeUserId());
+  const canManageWidgets = permissions.stateEvent(CustomStateEvent.RoomWidget, mx.getSafeUserId());
 
   const handleRemoveWidget = async (widget: RoomWidget) => {
     try {
-      await mx.sendStateEvent(
-        room.roomId,
-        StateEvent.RoomWidget as string as keyof StateEvents,
-        {} as StateEvents[keyof StateEvents],
-        widget.id
-      );
+      await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomWidget, {}, widget.id);
       if (activeWidget?.id === widget.id) {
         setActiveWidget(null);
       }

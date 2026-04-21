@@ -5,12 +5,13 @@ import type {
   MatrixClient,
   MatrixEvent,
   Room,
+  RoomEventHandlerMap,
   ReceiptType,
 } from '$types/matrix-sdk';
-import { RoomEvent, SyncState, EventType, ClientEvent } from '$types/matrix-sdk';
+import { RoomEvent, SyncState, EventType, ClientEvent, KnownMembership } from '$types/matrix-sdk';
 import { useCallback, useEffect, useRef } from 'react';
 import type { RoomToUnread, UnreadInfo, Unread } from '$types/matrix/room';
-import { Membership, NotificationType, StateEvent } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
 import {
   getAllParents,
   getNotificationType,
@@ -301,29 +302,38 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 
   useEffect(() => {
-    const handleUnreadNotifications = (
-      _notification: unknown,
-      _threadId: string | undefined,
-      room: Room
-    ) => {
-      if (!room || room.isSpaceRoom()) return;
-      if (room.getMyMembership() !== (Membership.Join as string)) return;
+    const roomListeners = new Map<Room, RoomEventHandlerMap[RoomEvent.UnreadNotifications]>();
 
-      const unreadInfo = getUnreadInfo(room, {
-        applyFixup: shouldApplyUnreadFixup(),
-        mDirects,
-      });
-      if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
-        setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
-        return;
-      }
-      setUnreadAtom({ type: 'PUT', unreadInfo });
+    const bindRoom = (room: Room) => {
+      if (roomListeners.has(room)) return;
+
+      const handleUnreadNotifications: RoomEventHandlerMap[RoomEvent.UnreadNotifications] = () => {
+        if (room.isSpaceRoom()) return;
+        if (room.getMyMembership() !== (KnownMembership.Join as string)) return;
+
+        const unreadInfo = getUnreadInfo(room, {
+          applyFixup: shouldApplyUnreadFixup(),
+          mDirects,
+        });
+        if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {
+          setUnreadAtom({ type: 'DELETE', roomId: room.roomId });
+          return;
+        }
+        setUnreadAtom({ type: 'PUT', unreadInfo });
+      };
+
+      room.on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
+      roomListeners.set(room, handleUnreadNotifications);
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mx as any).on(RoomEvent.UnreadNotifications, handleUnreadNotifications);
+
+    mx.getRooms().forEach(bindRoom);
+    mx.on(ClientEvent.Room, bindRoom);
+
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mx as any).removeListener(RoomEvent.UnreadNotifications, handleUnreadNotifications);
+      mx.removeListener(ClientEvent.Room, bindRoom);
+      roomListeners.forEach((listener, room) => {
+        room.removeListener(RoomEvent.UnreadNotifications, listener);
+      });
     };
   }, [mx, setUnreadAtom, shouldApplyUnreadFixup, mDirects]);
 
@@ -360,7 +370,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
 
   useEffect(() => {
     const handleMembershipChange = (room: Room, membership: string) => {
-      if (membership !== (Membership.Join as string)) {
+      if (membership !== (KnownMembership.Join as string)) {
         setUnreadAtom({
           type: 'DELETE',
           roomId: room.roomId,
@@ -380,7 +390,7 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
   // ClientNonUIFeatures handles live notification pop-ups via its own listener.
   useEffect(() => {
     const handleRoomAdded = (room: Room) => {
-      if (room.isSpaceRoom() || room.getMyMembership() !== (Membership.Join as string)) return;
+      if (room.isSpaceRoom() || room.getMyMembership() !== (KnownMembership.Join as string)) return;
       const unreadInfo = getUnreadInfo(room, {
         applyFixup: shouldApplyUnreadFixup(),
         mDirects,
@@ -409,11 +419,12 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === (StateEvent.SpaceChild as string)) {
+        if (mEvent.getType() === (EventType.SpaceChild as string)) {
           const roomId = mEvent.getRoomId();
           if (!roomId) return;
           const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== (Membership.Join as string)) return;
+          if (!parentRoom || parentRoom.getMyMembership() !== (KnownMembership.Join as string))
+            return;
 
           if (spaceChildResetTimerRef.current !== null) {
             window.clearTimeout(spaceChildResetTimerRef.current);

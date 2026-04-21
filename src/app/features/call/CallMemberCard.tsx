@@ -1,7 +1,4 @@
-import type {
-  CallMembership,
-  SessionMembershipData,
-} from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { CallMembership, SessionMembershipData } from '$types/matrix-sdk';
 import { useState } from 'react';
 import { Avatar, Box, Icon, Icons, Text } from 'folds';
 import { useMatrixClient } from '../../hooks/useMatrixClient';

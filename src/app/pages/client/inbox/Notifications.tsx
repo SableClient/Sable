@@ -16,7 +16,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
-import { JoinRule, Method, RelationType } from '$types/matrix-sdk';
+import { JoinRule, Method, RelationType, EventType } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
@@ -63,7 +63,7 @@ import { settingsAtom } from '$state/settings';
 import { Image } from '$components/media';
 import { ImageViewer } from '$components/image-viewer';
 import type { GetContentCallback } from '$types/matrix/room';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -112,7 +112,7 @@ const groupNotifications = (
 ): RoomNotificationsGroup[] => {
   const groups: RoomNotificationsGroup[] = [];
   notifications.forEach((notification) => {
-    if (notification.event.type === (StateEvent.RoomMember as string)) return;
+    if (notification.event.type === (EventType.RoomMember as string)) return;
     if (!allowRooms.has(notification.room_id)) return;
 
     const groupIndex = groups.length - 1;
@@ -282,7 +282,7 @@ function RoomNotificationsGroupComp({
 
   const renderMatrixEvent = useMatrixEventRenderer<[IRoomEvent, string, GetContentCallback]>(
     {
-      [MessageEvent.RoomMessage]: (event, displayName, getContent) => {
+      [EventType.RoomMessage]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -301,7 +301,7 @@ function RoomNotificationsGroupComp({
           />
         );
       },
-      [MessageEvent.RoomMessageEncrypted]: (evt, displayName) => {
+      [EventType.RoomMessageEncrypted]: (evt, displayName) => {
         const evtTimeline = room.getTimelineForEvent(evt.event_id);
 
         const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
@@ -321,7 +321,7 @@ function RoomNotificationsGroupComp({
           <EncryptedContent mEvent={mEvent}>
             {() => {
               if (mEvent.isRedacted()) return <RedactedContent />;
-              if (mEvent.getType() === (MessageEvent.Sticker as string))
+              if (mEvent.getType() === (EventType.Sticker as string))
                 return (
                   <MSticker
                     content={mEvent.getContent()}
@@ -335,7 +335,7 @@ function RoomNotificationsGroupComp({
                     )}
                   />
                 );
-              if (mEvent.getType() === (MessageEvent.RoomMessage as string)) {
+              if (mEvent.getType() === (EventType.RoomMessage as string)) {
                 const editedEvent = getEditedEvent(
                   evt.event_id,
                   mEvent,
@@ -359,7 +359,7 @@ function RoomNotificationsGroupComp({
                   />
                 );
               }
-              if (mEvent.getType() === (MessageEvent.RoomMessageEncrypted as string))
+              if (mEvent.getType() === (EventType.RoomMessageEncrypted as string))
                 return (
                   <Text>
                     <MessageNotDecryptedContent />
@@ -374,7 +374,7 @@ function RoomNotificationsGroupComp({
           </EncryptedContent>
         );
       },
-      [MessageEvent.Sticker]: (event, displayName, getContent) => {
+      [EventType.Sticker]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -392,7 +392,7 @@ function RoomNotificationsGroupComp({
           />
         );
       },
-      [StateEvent.RoomTombstone]: (event) => {
+      [EventType.RoomTombstone]: (event) => {
         const { content } = event;
         return (
           <Box grow="Yes" direction="Column">

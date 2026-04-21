@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { color, Text } from 'folds';
 import type { MatrixError, RoomJoinRulesEventContent, StateEvents } from '$types/matrix-sdk';
-import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
+import { JoinRule, RestrictedAllowType, EventType } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
 import {
@@ -14,7 +14,7 @@ import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
-import { StateEvent } from '$types/matrix/room';
+
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -45,9 +45,9 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
   const subspacesScope = useRecursiveChildSpaceScopeFactory(mx, roomIdToParents);
   const subspaces = useSpaceChildren(allRoomsAtom, space?.roomId ?? '', subspacesScope);
 
-  const canEdit = permissions.stateEvent(StateEvent.RoomHistoryVisibility, mx.getSafeUserId());
+  const canEdit = permissions.stateEvent(EventType.RoomHistoryVisibility, mx.getSafeUserId());
 
-  const joinRuleEvent = useStateEvent(room, StateEvent.RoomJoinRules);
+  const joinRuleEvent = useStateEvent(room, EventType.RoomJoinRules);
   const content = joinRuleEvent?.getContent<RoomJoinRulesEventContent>();
   const rule: JoinRule = content?.join_rule ?? JoinRule.Invite;
 
@@ -77,7 +77,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
         if (joinRule === JoinRule.Restricted || joinRule === 'knock_restricted') {
           const roomParents = roomIdToParents.get(room.roomId);
 
-          const parents = getStateEvents(room, StateEvent.SpaceParent)
+          const parents = getStateEvents(room, EventType.SpaceParent)
             .map((event) => event.getStateKey())
             .filter((parentId) => typeof parentId === 'string')
             .filter((parentId) => roomParents?.has(parentId));
@@ -104,7 +104,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
           join_rule: joinRule as JoinRule,
         };
         if (allow.length > 0) c.allow = allow;
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomJoinRules as keyof StateEvents, c);
+        await mx.sendStateEvent(room.roomId, EventType.RoomJoinRules as keyof StateEvents, c);
       },
       [mx, room, space, subspaces, roomIdToParents]
     )

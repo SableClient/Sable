@@ -1,6 +1,6 @@
 import { Box, config, Icon, Icons, Text } from 'folds';
-import type { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
-import type { Room } from 'matrix-js-sdk';
+import type { CallMembership } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { UserAvatar } from '../../components/user-avatar';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';

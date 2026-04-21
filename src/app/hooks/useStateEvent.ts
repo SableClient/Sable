@@ -1,11 +1,11 @@
-import type { Room } from '$types/matrix-sdk';
+import type { Room, StateEvents } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import type { StateEvent } from '$types/matrix/room';
+
 import { getStateEvent } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
 
-export const useStateEvent = (room: Room, eventType: StateEvent, stateKey = '') => {
+export const useStateEvent = (room: Room, eventType: keyof StateEvents, stateKey = '') => {
   const [updateCount, forceUpdate] = useForceUpdate();
 
   useStateEventCallback(

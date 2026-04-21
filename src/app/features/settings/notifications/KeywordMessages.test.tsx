@@ -23,9 +23,9 @@ vi.mock('$hooks/useAccountData', () => ({
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
-    addPushRule: vi.fn(),
-    deletePushRule: vi.fn(),
-    setPushRuleActions: vi.fn(),
+    addPushRule: vi.fn<() => Promise<void>>(),
+    deletePushRule: vi.fn<() => Promise<void>>(),
+    setPushRuleActions: vi.fn<() => Promise<void>>(),
   }),
 }));
 

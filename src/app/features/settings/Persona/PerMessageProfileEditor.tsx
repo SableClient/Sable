@@ -1,6 +1,6 @@
 import { SequenceCard } from '$components/sequence-card';
 import { Box, Button, Text, Avatar, config, Icon, IconButton, Icons, Input } from 'folds';
-import type { MatrixClient } from 'matrix-js-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo, useState } from 'react';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useFilePicker } from '$hooks/useFilePicker';

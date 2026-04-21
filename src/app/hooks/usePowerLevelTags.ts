@@ -1,9 +1,10 @@
 import type { Room } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 import type { MemberPowerTag } from '$types/matrix/room';
-import { StateEvent } from '$types/matrix/room';
+
 import type { IPowerLevels } from './usePowerLevels';
 import { useStateEvent } from './useStateEvent';
+import { CustomStateEvent } from '$types/matrix/room';
 
 export type PowerLevelTags = Record<number, MemberPowerTag>;
 
@@ -89,7 +90,7 @@ const generateFallbackTag = (powerLevelTags: PowerLevelTags, power: number): Mem
 };
 
 export const usePowerLevelTags = (room: Room, powerLevels: IPowerLevels): PowerLevelTags => {
-  const tagsEvent = useStateEvent(room, StateEvent.PowerLevelTags);
+  const tagsEvent = useStateEvent(room, CustomStateEvent.PowerLevelTags);
 
   const powerLevelTags: PowerLevelTags = useMemo(() => {
     const content = tagsEvent?.getContent();

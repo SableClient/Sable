@@ -7,7 +7,7 @@ import {
   getPerMessageProfileById,
 } from '$hooks/usePerMessageProfile';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
-import type { MatrixClient, Room } from 'matrix-js-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { generateShortId } from '$utils/shortIdGen';
 
 const pkMemberRenameRegex = /^(pk;member)\s+"?([\w\s]+)"?\s*rename\s+"?([\w\s]+)"?$/;

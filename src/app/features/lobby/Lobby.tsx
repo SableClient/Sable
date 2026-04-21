@@ -24,7 +24,7 @@ import type {
   StateEvents,
   AccountDataEvents,
 } from '$types/matrix-sdk';
-import { JoinRule, RestrictedAllowType } from '$types/matrix-sdk';
+import { JoinRule, RestrictedAllowType, EventType } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
@@ -50,7 +50,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getCanonicalAliasOrRoomId, rateLimitedActions } from '$utils/matrix';
 import { getSpaceRoomPath } from '$pages/pathUtils';
-import { StateEvent } from '$types/matrix/room';
+
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
 import { getStateEvent } from '$utils/room';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
@@ -61,7 +61,7 @@ import {
 } from '$hooks/useSidebarItems';
 import { useOrphanSpaces } from '$state/hooks/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useGetRoom } from '$hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -74,6 +74,7 @@ import { useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const useCanDropLobbyItem = (
   space: Room,
@@ -103,7 +104,7 @@ const useCanDropLobbyItem = (
 
       if (
         getRoom(containerSpaceId) === undefined ||
-        !permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+        !permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
       ) {
         return false;
       }
@@ -129,7 +130,7 @@ const useCanDropLobbyItem = (
         const itemPermissions = getRoomPermissionsAPI(itemCreators, itemPowerLevels);
 
         const canChangeJoinRuleAllow = itemPermissions.stateEvent(
-          StateEvent.RoomJoinRules,
+          EventType.RoomJoinRules,
           mx.getSafeUserId()
         );
         if (!canChangeJoinRuleAllow) {
@@ -142,7 +143,7 @@ const useCanDropLobbyItem = (
       const permissions = getRoomPermissionsAPI(creators, powerLevels);
       if (
         getRoom(containerSpaceId) === undefined ||
-        !permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+        !permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
       ) {
         return false;
       }
@@ -372,7 +373,7 @@ export function Lobby() {
 
             const creators = getRoomCreatorsForRoomId(mx, reorder.item.parentId);
             const permissions = getRoomPermissionsAPI(creators, parentPL);
-            const canEdit = permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId());
+            const canEdit = permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId());
             return canEdit && reorder.orderKey !== currentOrders[index];
           });
 
@@ -381,7 +382,7 @@ export function Lobby() {
             if (!reorder.item || !reorder.item.parentId) return;
             await mx.sendStateEvent(
               reorder.item.parentId,
-              StateEvent.SpaceChild as keyof StateEvents,
+              EventType.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -408,7 +409,7 @@ export function Lobby() {
         if (item.parentId !== containerParentId) {
           await mx.sendStateEvent(
             item.parentId,
-            StateEvent.SpaceChild as keyof StateEvents,
+            EventType.SpaceChild as keyof StateEvents,
             {},
             item.roomId
           );
@@ -422,7 +423,7 @@ export function Lobby() {
           // restricted room from one space to another
           const joinRuleContent = getStateEvent(
             itemRoom,
-            StateEvent.RoomJoinRules
+            EventType.RoomJoinRules
           )?.getContent<RoomJoinRulesEventContent>();
 
           if (joinRuleContent) {
@@ -433,14 +434,10 @@ export function Lobby() {
               type: RestrictedAllowType.RoomMembership,
               room_id: containerParentId,
             });
-            await mx.sendStateEvent(
-              itemRoom.roomId,
-              StateEvent.RoomJoinRules as keyof StateEvents,
-              {
-                ...joinRuleContent,
-                allow,
-              }
-            );
+            await mx.sendStateEvent(itemRoom.roomId, EventType.RoomJoinRules as keyof StateEvents, {
+              ...joinRuleContent,
+              allow,
+            });
           }
         }
 
@@ -480,7 +477,7 @@ export function Lobby() {
             if (!reorder.item) return;
             await mx.sendStateEvent(
               containerParentId,
-              StateEvent.SpaceChild as keyof StateEvents,
+              EventType.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -551,7 +548,10 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(AccountDataEvent.CinnySpaces as keyof AccountDataEvents, newSpacesContent);
+      mx.setAccountData(
+        CustomAccountDataEvent.CinnySpaces as keyof AccountDataEvents,
+        newSpacesContent
+      );
     },
     [mx, sidebarItems, sidebarSpaces]
   );

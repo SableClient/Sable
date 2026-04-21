@@ -26,7 +26,7 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
-import { StateEvent, MessageEvent } from '$types/matrix/room';
+
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useTranslation } from 'react-i18next';
 import * as customHtmlCss from '$styles/CustomHtml.css';
@@ -39,6 +39,7 @@ import {
 } from './content';
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
+import { EventType } from '$types/matrix-sdk';
 
 type ReplyLayoutProps = {
   userColor?: string;
@@ -194,7 +195,7 @@ export const Reply = as<'div', ReplyProps>(
     } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);
-    } else if (eventType === StateEvent.RoomMember && !!replyEvent) {
+    } else if (eventType === EventType.RoomMember && !!replyEvent) {
       const parsedMemberEvent = parseMemberEvent(replyEvent);
       image = parsedMemberEvent.icon;
       mentioned = false;
@@ -204,20 +205,20 @@ export const Reply = as<'div', ReplyProps>(
           {parsedMemberEvent.body}{' '}
         </Box>
       );
-    } else if (eventType === StateEvent.RoomName) {
+    } else if (eventType === EventType.RoomName) {
       image = Icons.Hash;
       bodyJSX = t('Organisms.RoomCommon.changed_room_name');
-    } else if (eventType === StateEvent.RoomTopic) {
+    } else if (eventType === EventType.RoomTopic) {
       image = Icons.Hash;
       bodyJSX = ' changed room topic';
-    } else if (eventType === StateEvent.RoomAvatar) {
+    } else if (eventType === EventType.RoomAvatar) {
       image = Icons.Hash;
       bodyJSX = ' changed room avatar';
-    } else if (eventType === StateEvent.GroupCallMemberPrefix && !!replyEvent) {
+    } else if (eventType === EventType.GroupCallMemberPrefix && !!replyEvent) {
       const callJoined = replyEvent.getContent<SessionMembershipData>().application;
       image = callJoined ? Icons.Phone : Icons.PhoneDown;
       bodyJSX = callJoined ? ' joined the call' : ' ended the call';
-    } else if (eventType === StateEvent.RoomPinnedEvents && replyEvent) {
+    } else if (eventType === EventType.RoomPinnedEvents && replyEvent) {
       const { pinned } = replyEvent.getContent();
       const prevPinned = replyEvent.getPrevContent().pinned;
       const pinsAdded =
@@ -269,7 +270,7 @@ export const Reply = as<'div', ReplyProps>(
           mentioned={mentioned}
           username={
             sender &&
-            eventType !== StateEvent.RoomMember && (
+            eventType !== EventType.RoomMember && (
               <Text size="T300" truncate style={{ fontFamily: usernameFont }}>
                 <b>{getMemberDisplayName(room, sender, nicknames) ?? getMxIdLocalPart(sender)}</b>
               </Text>

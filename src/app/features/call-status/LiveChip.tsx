@@ -16,9 +16,9 @@ import {
   Text,
   toRem,
 } from 'folds';
-import type { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { CallMembership } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import type { Room } from 'matrix-js-sdk';
+import type { Room } from '$types/matrix-sdk';
 import * as css from './styles.css';
 import { stopPropagation } from '../../utils/keyboard';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';

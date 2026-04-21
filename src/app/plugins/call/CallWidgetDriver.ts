@@ -12,7 +12,7 @@ import {
   UpdateDelayedEventAction,
   OpenIDRequestState,
 } from 'matrix-widget-api';
-import type { MatrixClient } from 'matrix-js-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import {
   EventType,
   type IContent,
@@ -22,7 +22,7 @@ import {
   type SendDelayedEventResponse,
   type StateEvents,
   type TimelineEvents,
-} from 'matrix-js-sdk';
+} from '$types/matrix-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
 import { createDebugLogger } from '../../utils/debugLogger';

@@ -11,8 +11,8 @@ import type {
   EventTimelineSet,
 } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
-import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
-import type { SessionMembershipData } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import { NotificationCountType, RoomEvent, ThreadEvent, EventType } from '$types/matrix-sdk';
+import type { SessionMembershipData } from '$types/matrix-sdk';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { Box, Chip, Avatar, Text, Icons, config, toRem, Icon } from 'folds';
@@ -40,7 +40,7 @@ import { RenderMessageContent } from '$components/RenderMessageContent';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { UserAvatar } from '$components/user-avatar';
 import type { GetContentCallback } from '$types/matrix/room';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import {
   getEditedEvent,
@@ -352,7 +352,7 @@ export function useTimelineEventRenderer({
 
   return useMatrixEventRenderer<[string, MatrixEvent, number, EventTimelineSet, boolean]>(
     {
-      [MessageEvent.RoomMessage]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomMessage]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         // In the thread drawer (hideThreadChip=true), suppress reply headers for events
         // that only have m.in_reply_to as a non-thread-client fallback (is_falling_back: true).
@@ -507,7 +507,7 @@ export function useTimelineEventRenderer({
           </Message>
         );
       },
-      [MessageEvent.RoomMessageEncrypted]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomMessageEncrypted]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const replyEventId =
           hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
@@ -606,7 +606,7 @@ export function useTimelineEventRenderer({
               {() => {
                 if (mEvent.isRedacted()) return <RedactedContent />;
                 const type = mEvent.getType();
-                if (type === (MessageEvent.Sticker as string))
+                if (type === (EventType.Sticker as string))
                   return (
                     <MSticker
                       content={mEvent.getContent() as unknown as IImageContent}
@@ -629,7 +629,7 @@ export function useTimelineEventRenderer({
                       )}
                     />
                   );
-                if (type === (MessageEvent.RoomMessage as string)) {
+                if (type === (EventType.RoomMessage as string)) {
                   const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
                   let editedNewContent: unknown;
                   if (editedEvent) {
@@ -671,7 +671,7 @@ export function useTimelineEventRenderer({
           </Message>
         );
       },
-      [MessageEvent.Sticker]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.Sticker]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const replyEventId =
           hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
@@ -786,7 +786,7 @@ export function useTimelineEventRenderer({
           </Message>
         );
       },
-      [StateEvent.RoomMember]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomMember]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const membershipChanged = isMembershipChanged(mEvent);
         if (hideMemberInReadOnly && isReadOnly) return null;
         if (membershipChanged && hideMembershipEvents) return null;
@@ -834,7 +834,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [StateEvent.RoomName]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomName]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
@@ -879,7 +879,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [StateEvent.RoomTopic]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomTopic]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
@@ -925,7 +925,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [StateEvent.RoomAvatar]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomAvatar]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
@@ -971,7 +971,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [StateEvent.GroupCallMemberPrefix]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.GroupCallMemberPrefix]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const senderId = mEvent.getSender() ?? '';
         const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
@@ -1024,7 +1024,7 @@ export function useTimelineEventRenderer({
           </Event>
         );
       },
-      [StateEvent.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
+      [EventType.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
         if (!showHiddenEvents) return null;
         const highlighted = focusItem?.index === item && focusItem.highlight;
         const senderId = mEvent.getSender() ?? '';

@@ -25,13 +25,14 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useForceUpdate } from '$hooks/useForceUpdate';
-import { StateEvent } from '$types/matrix/room';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { MatrixError, StateEvents } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import type { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { CustomStateEvent } from '$types/matrix/room';
 
 type AbbreviationsProps = {
   requestClose: () => void;
@@ -46,7 +47,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
   const permissions = useRoomPermissions(creators, powerLevels);
   const userId = mx.getUserId() ?? '';
 
-  const stateEvent = useStateEvent(room, StateEvent.RoomAbbreviations);
+  const stateEvent = useStateEvent(room, CustomStateEvent.RoomAbbreviations);
   const content = stateEvent?.getContent<RoomAbbreviationsContent>();
   const entries: AbbreviationEntry[] = Array.isArray(content?.entries) ? content.entries : [];
 
@@ -58,7 +59,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
     mx,
     useCallback(
       (event) => {
-        if (event.getType() !== (StateEvent.RoomAbbreviations as string)) return;
+        if (event.getType() !== (CustomStateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (eventRoomId && getAllParents(roomToParents, room.roomId).has(eventRoomId)) {
           forceAncestorUpdate();
@@ -75,7 +76,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
       (groups, parentId) => {
         const parentRoom = mx.getRoom(parentId);
         if (!parentRoom) return groups;
-        const ev = getStateEvent(parentRoom, StateEvent.RoomAbbreviations);
+        const ev = getStateEvent(parentRoom, CustomStateEvent.RoomAbbreviations);
         const c = ev?.getContent<RoomAbbreviationsContent>();
         const parentEntries: AbbreviationEntry[] = Array.isArray(c?.entries) ? c.entries : [];
         if (parentEntries.length > 0) {
@@ -95,18 +96,13 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
     [ancestorGroups]
   );
 
-  const canEdit = permissions.stateEvent(StateEvent.RoomAbbreviations, userId);
+  const canEdit = permissions.stateEvent(CustomStateEvent.RoomAbbreviations, userId);
 
   const [saveState, saveAbbreviations] = useAsyncCallback<void, MatrixError, [AbbreviationEntry[]]>(
     useCallback(
       async (newEntries) => {
         const newContent: RoomAbbreviationsContent = { entries: newEntries };
-        await mx.sendStateEvent(
-          room.roomId,
-          StateEvent.RoomAbbreviations as keyof StateEvents,
-          newContent,
-          ''
-        );
+        await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomAbbreviations, newContent, '');
       },
       [mx, room.roomId]
     )

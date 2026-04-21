@@ -4,13 +4,14 @@ import { Box } from 'folds';
 import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { StateEvent } from '$types/matrix/room';
+
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import type { CanDropCallback } from './DnD';
 import { AfterItemDropTarget } from './DnD';
 import { HierarchyItemMenu } from './HierarchyItemMenu';
 import { SpaceNavItemCard } from './SpaceNavItem';
+import { EventType } from '$types/matrix-sdk';
 
 type SpaceHierarchyNavItemProps = {
   summary: IHierarchyRoom | undefined;
@@ -70,7 +71,7 @@ export const SpaceHierarchyNavItem = forwardRef<HTMLDivElement, SpaceHierarchyNa
           categoryId={categoryId}
           canReorder={
             parentPowerLevels && !disabledReorder && parentPermissions
-              ? parentPermissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+              ? parentPermissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
               : false
           }
           options={
@@ -81,7 +82,7 @@ export const SpaceHierarchyNavItem = forwardRef<HTMLDivElement, SpaceHierarchyNa
                 powerLevels={spacePowerLevels}
                 joined={allJoinedRooms.has(spaceItem.roomId)}
                 canEditChild={
-                  !!parentPermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+                  !!parentPermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
                 }
                 pinned={pinned}
                 onTogglePin={togglePinToSidebar}

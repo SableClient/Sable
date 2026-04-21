@@ -7,14 +7,14 @@ import type {
   RoomHistoryVisibilityEventContent,
   StateEvents,
 } from '$types/matrix-sdk';
-import { HistoryVisibility } from '$types/matrix-sdk';
+import { HistoryVisibility, EventType } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
-import { StateEvent } from '$types/matrix/room';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
@@ -49,9 +49,9 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEdit = permissions.stateEvent(StateEvent.RoomHistoryVisibility, mx.getSafeUserId());
+  const canEdit = permissions.stateEvent(EventType.RoomHistoryVisibility, mx.getSafeUserId());
 
-  const visibilityEvent = useStateEvent(room, StateEvent.RoomHistoryVisibility);
+  const visibilityEvent = useStateEvent(room, EventType.RoomHistoryVisibility);
   const historyVisibility: HistoryVisibility =
     visibilityEvent?.getContent<RoomHistoryVisibilityEventContent>().history_visibility ??
     HistoryVisibility.Shared;
@@ -72,7 +72,7 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         };
         await mx.sendStateEvent(
           room.roomId,
-          StateEvent.RoomHistoryVisibility as keyof StateEvents,
+          EventType.RoomHistoryVisibility as keyof StateEvents,
           content
         );
       },

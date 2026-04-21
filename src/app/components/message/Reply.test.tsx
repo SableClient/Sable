@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Reply } from './Reply';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
   mockUseRoomEvent:

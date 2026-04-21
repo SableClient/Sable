@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import type { MatrixClient, Room } from 'matrix-js-sdk';
+import { MatrixRTCSession } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ElementCallThemeKind } from '../plugins/call';

@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useMemo } from 'react';
 import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
-import { JoinRule, RelationType } from '$types/matrix-sdk';
+import { JoinRule, RelationType, EventType } from '$types/matrix-sdk';
 import type { IImageContent } from '$types/matrix/common';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
@@ -18,7 +18,7 @@ import {
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import type { GetContentCallback } from '$types/matrix/room';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import {
   AvatarBase,
   ImageContent,
@@ -143,7 +143,7 @@ export function SearchResultGroup({
 
   const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
     {
-      [MessageEvent.RoomMessage]: (event, displayName, getContent) => {
+      [EventType.RoomMessage]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -163,7 +163,7 @@ export function SearchResultGroup({
           />
         );
       },
-      [MessageEvent.Reaction]: (event, displayName, getContent) => {
+      [EventType.Reaction]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -181,7 +181,7 @@ export function SearchResultGroup({
           />
         );
       },
-      [StateEvent.RoomTombstone]: (event) => {
+      [EventType.RoomTombstone]: (event) => {
         const { content } = event;
         return (
           <Box grow="Yes" direction="Column">

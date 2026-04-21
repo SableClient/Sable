@@ -1,5 +1,5 @@
-import type { MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk';
-import { ClientEvent, KnownMembership, MatrixEventEvent, RoomStateEvent } from 'matrix-js-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import { ClientEvent, KnownMembership, MatrixEventEvent, RoomStateEvent } from '$types/matrix-sdk';
 import type { IRoomEvent, IWidget, WidgetDriver } from 'matrix-widget-api';
 import {
   ClientWidgetApi,

@@ -5,6 +5,8 @@ import type {
   IContent,
   MatrixClient,
   Room,
+  RoomMessageEventContent,
+  TimelineEvents,
 } from '$types/matrix-sdk';
 
 // Grab types needed for encryption
@@ -32,8 +34,7 @@ export async function sendDelayedMessage(
     { delay: delayMs },
     threadId ?? null,
     EventType.RoomMessage as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    content as any
+    content as RoomMessageEventContent
   );
 }
 
@@ -82,8 +83,7 @@ export async function sendDelayedMessageE2EE(
     { delay: delayMs },
     threadId ?? null,
     event.getWireType() as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    event.getWireContent() as any
+    event.getWireContent() as TimelineEvents[keyof TimelineEvents]
   );
 }
 

@@ -3,8 +3,10 @@ import { renderHook, act } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { createElement, type ReactNode } from 'react';
 import { settingsAtom, getSettings } from '$state/settings';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { SETTINGS_SYNC_VERSION } from '$utils/settingsSync';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+
 import {
   settingsSyncLastSyncedAtom,
   settingsSyncStatusAtom,
@@ -60,7 +62,7 @@ function makeWrapper(store: ReturnType<typeof createStore>) {
 
 function makeSableSettingsEvent(content: unknown) {
   return {
-    getType: () => AccountDataEvent.SableSettings,
+    getType: () => CustomAccountDataEvent.SableSettings,
     getContent: () => content,
   };
 }
@@ -183,7 +185,7 @@ describe('useSettingsSyncEffect — debounced upload', () => {
       string,
       Record<string, unknown>,
     ];
-    expect(type).toBe(AccountDataEvent.SableSettings);
+    expect(type).toBe(CustomAccountDataEvent.SableSettings);
     expect(content.v).toBe(SETTINGS_SYNC_VERSION);
     expect(typeof content.synctoken).toBe('string');
   });

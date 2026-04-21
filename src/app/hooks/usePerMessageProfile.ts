@@ -1,9 +1,10 @@
 import type { AccountDataCompatVersion } from '$types/matrix/accountData';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import type { PronounSet } from '$utils/pronouns';
-import type { MatrixClient } from 'matrix-js-sdk';
 
-const ACCOUNT_DATA_PREFIX = AccountDataEvent.SablePerProfileMessageProfiles;
+import type { PronounSet } from '$utils/pronouns';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+
+const ACCOUNT_DATA_PREFIX = CustomAccountDataEvent.SablePerProfileMessageProfiles;
 
 /**
  * a per message profile

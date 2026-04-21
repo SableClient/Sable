@@ -7,8 +7,9 @@ import {
   RoomEvent,
   SyncState,
   PushProcessor,
+  EventType,
 } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { Session } from '$state/sessions';
 import {
@@ -30,7 +31,7 @@ import {
   getMDirects,
   isDMRoom,
 } from '$utils/room';
-import { NotificationType, StateEvent } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import LogoSVG from '$public/res/svg/cinny-logo.svg';
@@ -241,13 +242,13 @@ export function BackgroundNotifications() {
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
           let mDirectsSet: Set<string> | undefined;
-          const mDirectEvent = getAccountData(mx, AccountDataEvent.Direct);
+          const mDirectEvent = getAccountData(mx, EventType.Direct);
           if (mDirectEvent) {
             mDirectsSet = getMDirects(mDirectEvent);
           } else {
             await new Promise<void>((resolve) => {
               const handler = (event: MatrixEvent) => {
-                if (event.getType() === (AccountDataEvent.Direct as string)) {
+                if (event.getType() === (EventType.Direct as string)) {
                   mDirectsSet = getMDirects(event);
                   mx.off(ClientEvent.AccountData, handler);
                   resolve();
@@ -264,7 +265,7 @@ export function BackgroundNotifications() {
           const pushProcessor = new PushProcessor(mx);
 
           const handleAccountData = (event: MatrixEvent) => {
-            if (event.getType() === (AccountDataEvent.Direct as string)) {
+            if (event.getType() === (EventType.Direct as string)) {
               mDirectsSet = getMDirects(event);
             }
           };
@@ -411,7 +412,7 @@ export function BackgroundNotifications() {
               return;
             }
 
-            const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
+            const isEncryptedRoom = !!getStateEvent(room, EventType.RoomEncryption);
 
             notifiedEventsRef.current.add(dedupeId);
             // Cap the set so it doesn't grow unbounded

@@ -10,6 +10,7 @@ import {
   RelationType,
   RoomEvent,
   ThreadEvent,
+  EventType,
 } from '$types/matrix-sdk';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { ReactEditor } from 'slate-react';
@@ -35,7 +36,7 @@ import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { createMentionElement, moveCursor, useEditor } from '$components/editor';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -190,9 +191,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const creators = useRoomCreators(room);
   const permissions = useRoomPermissions(creators, powerLevels);
   const canRedact = permissions.action('redact', mx.getSafeUserId());
-  const canDeleteOwn = permissions.event(MessageEvent.RoomRedaction, mx.getSafeUserId());
-  const canSendReaction = permissions.event(MessageEvent.Reaction, mx.getSafeUserId());
-  const canPinEvent = permissions.stateEvent(StateEvent.RoomPinnedEvents, mx.getSafeUserId());
+  const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
+  const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
+  const canPinEvent = permissions.stateEvent(EventType.RoomPinnedEvents, mx.getSafeUserId());
   const isReadOnly = useMemo(() => {
     const myPowerLevel = powerLevels?.users?.[mx.getUserId()!] ?? powerLevels?.users_default ?? 0;
     const sendLevel = powerLevels?.events?.['m.room.message'] ?? powerLevels?.events_default ?? 0;

@@ -41,10 +41,11 @@ import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsync
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { StateEvent } from '$types/matrix/room';
+
 import { getViaServers } from '$plugins/via-servers';
 import { rateLimitedActions } from '$utils/matrix';
 import { useAlive } from '$hooks/useAlive';
+import { EventType } from '$types/matrix-sdk';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
   limit: 500,
@@ -153,12 +154,12 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
           await mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as keyof StateEvents,
+            EventType.SpaceChild,
             {
               auto_join: false,
               suggested: false,
               via,
-            },
+            } as StateEvents[typeof EventType.SpaceChild],
             room.roomId
           );
         });

@@ -7,6 +7,7 @@ import type {
   MatrixEvent,
   Room,
   IEventRelation,
+  RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
@@ -112,7 +113,7 @@ import {
 } from '$utils/delayedEvents';
 import { timeHourMinute, timeDayMonthYear } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
-import { MessageEvent } from '$types/matrix/room';
+
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -266,7 +267,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);
     const permissions = useRoomPermissions(creators, powerLevels);
-    const canSendReaction = permissions.event(MessageEvent.Reaction, mx.getSafeUserId());
+    const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
@@ -607,8 +608,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await Promise.all(
           contents.map((content) =>
             mx
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .sendMessage(roomId, threadRootId ?? null, content as any)
+              .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
                   roomId,
@@ -644,9 +644,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             .findLast((event) =>
               (
                 [
-                  MessageEvent.RoomMessage,
-                  MessageEvent.RoomMessageEncrypted,
-                  MessageEvent.Sticker,
+                  EventType.RoomMessage,
+                  EventType.RoomMessageEncrypted,
+                  EventType.Sticker,
                 ] as string[]
               ).includes(event.getType())
             );
@@ -791,7 +791,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const formattedBody = customHtml;
       const mentionData = getMentions(mx, roomId, editor);
 
-      const content: IContent = {
+      const content: IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'> = {
         msgtype: msgType,
         body,
       };
@@ -883,7 +883,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           if (isEncrypted) {
             await sendDelayedMessageE2EE(mx, roomId, room, content, delayMs);
           } else {
-            await sendDelayedMessage(mx, roomId, content, delayMs);
+            await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
           }
           invalidate();
           setEditingScheduledDelayId(null);
@@ -899,8 +899,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             roomId,
             scheduledDelayId: editingScheduledDelayId,
           });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const res = await mx.sendMessage(roomId, threadRootId ?? null, content as any);
+          const res = await mx.sendMessage(
+            roomId,
+            threadRootId ?? null,
+            content as RoomMessageEventContent
+          );
           debugLog.info('message', 'Message sent successfully', {
             roomId,
             eventId: res.event_id,
@@ -920,8 +923,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetInput();
         debugLog.info('message', 'Sending message', {
           roomId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          msgtype: (content as any).msgtype,
+          msgtype: content.msgtype,
         });
         Sentry.startSpan(
           {
@@ -929,8 +931,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             op: 'matrix.message',
             attributes: { encrypted: String(isEncrypted) },
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
+          () => mx.sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
         )
           .then((res: { event_id: string }) => {
             debugLog.info('message', 'Message sent successfully', {

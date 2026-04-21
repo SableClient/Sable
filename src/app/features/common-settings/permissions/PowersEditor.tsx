@@ -42,13 +42,13 @@ import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { MemberPowerTag, MemberPowerTagIcon } from '$types/matrix/room';
-import type { StateEvents } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { creatorsSupported } from '$utils/matrix';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { CustomStateEvent } from '$types/matrix/room';
 
 type EditPowerProps = {
   maxPower: number;
@@ -352,7 +352,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
       deleted.forEach((power) => {
         delete content[power];
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as keyof StateEvents, content);
+      await mx.sendStateEvent(room.roomId, CustomStateEvent.PowerLevelTags, content);
     }, [mx, room, powerLevelTags, editedPowerTags, deleted])
   );
 

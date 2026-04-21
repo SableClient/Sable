@@ -20,7 +20,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { TextViewerContent } from '$components/text-viewer';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoom } from '$hooks/useRoom';
-import type { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
 import { Cursor } from '$plugins/text-area';
@@ -244,7 +244,7 @@ export type StateEventEditorProps = StateEventInfo & {
 export function StateEventEditor({ type, stateKey, requestClose }: StateEventEditorProps) {
   const mx = useMatrixClient();
   const room = useRoom();
-  const stateEvent = useStateEvent(room, type as unknown as StateEvent, stateKey);
+  const stateEvent = useStateEvent(room, type as keyof StateEvents, stateKey);
   const [editContent, setEditContent] = useState<object>();
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);

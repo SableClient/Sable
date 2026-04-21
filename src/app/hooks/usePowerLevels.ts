@@ -1,11 +1,12 @@
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { produce } from 'immer';
-import { StateEvent } from '$types/matrix/room';
+
 import { getStateEvent } from '$utils/room';
 import { useStateEvent } from './useStateEvent';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useMatrixClient } from './useMatrixClient';
+import { EventType } from '$types/matrix-sdk';
 
 export type PowerLevelActions = 'invite' | 'redact' | 'kick' | 'ban' | 'historical';
 export type PowerLevelNotificationsAction = 'room';
@@ -65,7 +66,7 @@ const getPowersLevelFromMatrixEvent = (mEvent?: MatrixEvent): IPowerLevels => {
 };
 
 export function usePowerLevels(room: Room): IPowerLevels {
-  const powerLevelsEvent = useStateEvent(room, StateEvent.RoomPowerLevels);
+  const powerLevelsEvent = useStateEvent(room, EventType.RoomPowerLevels);
   const powerLevels: IPowerLevels = useMemo(
     () => getPowersLevelFromMatrixEvent(powerLevelsEvent),
     [powerLevelsEvent]
@@ -90,7 +91,7 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
     const rToPl = new Map<string, IPowerLevels>();
 
     rooms.forEach((room) => {
-      const mEvent = getStateEvent(room, StateEvent.RoomPowerLevels, '');
+      const mEvent = getStateEvent(room, EventType.RoomPowerLevels, '');
       rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
     });
 
@@ -106,7 +107,7 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
         const roomId = event.getRoomId();
         if (
           roomId &&
-          event.getType() === (StateEvent.RoomPowerLevels as string) &&
+          event.getType() === (EventType.RoomPowerLevels as string) &&
           event.getStateKey() === '' &&
           rooms.find((r) => r.roomId === roomId)
         ) {

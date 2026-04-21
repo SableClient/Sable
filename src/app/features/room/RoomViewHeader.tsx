@@ -32,6 +32,7 @@ import {
   NotificationCountType,
   ThreadEvent,
   RoomEvent,
+  EventType,
 } from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
@@ -39,7 +40,7 @@ import { PageHeader } from '$components/page';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
-import { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
 import { useSetting } from '$state/hooks/settings';
@@ -81,7 +82,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mDirectAtom } from '$state/mDirectList';
@@ -93,6 +94,7 @@ import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const log = createLogger('RoomViewHeader');
 
@@ -366,7 +368,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
   const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
-  const encryptionEvent = useStateEvent(room, StateEvent.RoomEncryption);
+  const encryptionEvent = useStateEvent(room, EventType.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
   const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
@@ -381,7 +383,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const pinnedIds = useRoomPinnedEvents(room);
   const pinMarker = room
-    .getAccountData(AccountDataEvent.SablePinStatus)
+    .getAccountData(CustomAccountDataEvent.SablePinStatus)
     ?.getContent() as PinReadMarker;
   const [unreadPinsCount, setUnreadPinsCount] = useState(0);
   const [unreadThreadsCount, setUnreadThreadsCount] = useState(0);
@@ -526,20 +528,14 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
     // Listen for thread updates
     const onThreadUpdate = () => checkThreadUnreads();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.New as any, onThreadUpdate);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.Update as any, onThreadUpdate);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
+    room.on(ThreadEvent.New, onThreadUpdate);
+    room.on(ThreadEvent.Update, onThreadUpdate);
+    room.on(ThreadEvent.NewReply, onThreadUpdate);
 
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.New as any, onThreadUpdate);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.Update as any, onThreadUpdate);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
+      room.off(ThreadEvent.New, onThreadUpdate);
+      room.off(ThreadEvent.Update, onThreadUpdate);
+      room.off(ThreadEvent.NewReply, onThreadUpdate);
     };
   }, [room, mx]);
 
@@ -564,7 +560,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
       if (pinnedIds.length === 0) return;
 
       const hash = await getPinsHash(pinnedIds);
-      await mx.setRoomAccountData(room.roomId, AccountDataEvent.SablePinStatus, {
+      await mx.setRoomAccountData(room.roomId, CustomAccountDataEvent.SablePinStatus, {
         hash,
         count: pinnedIds.length,
         last_seen_id: pinnedIds.at(-1),

@@ -25,7 +25,7 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: () => [true, vi.fn()] as const,
+  useSetting: () => [true, vi.fn<() => void>()] as const,
 }));
 
 vi.mock('$state/settings', () => ({

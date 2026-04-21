@@ -304,12 +304,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   // always be a no-op and left threadsReady=true prematurely.
   useEffect(() => {
     const onUpdate = () => forceUpdate((n) => n + 1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.New as any, onUpdate);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.Update as any, onUpdate);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    room.on(ThreadEvent.NewReply as any, onUpdate);
+    room.on(ThreadEvent.New, onUpdate);
+    room.on(ThreadEvent.Update, onUpdate);
+    room.on(ThreadEvent.NewReply, onUpdate);
 
     let cancelled = false;
     const loadThreads = async () => {
@@ -369,12 +366,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
 
     return () => {
       cancelled = true;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.New as any, onUpdate);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.Update as any, onUpdate);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      room.off(ThreadEvent.NewReply as any, onUpdate);
+      room.off(ThreadEvent.New, onUpdate);
+      room.off(ThreadEvent.Update, onUpdate);
+      room.off(ThreadEvent.NewReply, onUpdate);
     };
   }, [room, mx]);
 

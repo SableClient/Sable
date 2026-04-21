@@ -1,10 +1,17 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { ClientEvent, RoomEvent, RoomStateEvent, SyncState } from '$types/matrix-sdk';
+import {
+  ClientEvent,
+  RoomEvent,
+  RoomStateEvent,
+  SyncState,
+  EventType,
+  KnownMembership,
+} from '$types/matrix-sdk';
 import { useCallback, useEffect } from 'react';
 import type { RoomToParents } from '$types/matrix/room';
-import { Membership, StateEvent } from '$types/matrix/room';
+
 import {
   getRoomToParents,
   getSpaceChildren,
@@ -113,7 +120,7 @@ export const useBindRoomToParentsAtom = (
     resetRoomToParents();
 
     const handleAddRoom = (room: Room) => {
-      if (isSpace(room) && room.getMyMembership() === (Membership.Join as string)) {
+      if (isSpace(room) && room.getMyMembership() === (KnownMembership.Join as string)) {
         setRoomToParents({
           type: 'PUT',
           parent: room.roomId,
@@ -123,11 +130,11 @@ export const useBindRoomToParentsAtom = (
     };
 
     const handleMembershipChange = (room: Room, membership: string) => {
-      if (isSpace(room) && membership !== (Membership.Join as string)) {
+      if (isSpace(room) && membership !== (KnownMembership.Join as string)) {
         setRoomToParents({ type: 'DELETE', roomId: room.roomId });
         return;
       }
-      if (isSpace(room) && membership === (Membership.Join as string)) {
+      if (isSpace(room) && membership === (KnownMembership.Join as string)) {
         setRoomToParents({
           type: 'PUT',
           parent: room.roomId,
@@ -137,12 +144,13 @@ export const useBindRoomToParentsAtom = (
     };
 
     const handleStateChange = (mEvent: MatrixEvent) => {
-      if (mEvent.getType() === (StateEvent.SpaceChild as string)) {
+      if (mEvent.getType() === (EventType.SpaceChild as string)) {
         const childId = mEvent.getStateKey();
         const roomId = mEvent.getRoomId();
         if (childId && roomId) {
           const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== (Membership.Join as string)) return;
+          if (!parentRoom || parentRoom.getMyMembership() !== (KnownMembership.Join as string))
+            return;
           if (isValidChild(mEvent)) {
             setRoomToParents({ type: 'PUT', parent: roomId, children: [childId] });
           } else {

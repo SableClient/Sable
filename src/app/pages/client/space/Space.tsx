@@ -24,7 +24,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import type { Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
-import { JoinRule } from '$types/matrix-sdk';
+import { JoinRule, EventType, KnownMembership } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
@@ -57,7 +57,7 @@ import { LeaveSpacePrompt } from '$components/leave-space-prompt';
 import { copyToClipboard } from '$utils/dom';
 import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { Membership, StateEvent } from '$types/matrix/room';
+
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
@@ -250,7 +250,7 @@ function SpaceHeader() {
 
   const joinRules = useStateEvent(
     space,
-    StateEvent.RoomJoinRules
+    EventType.RoomJoinRules
   )?.getContent<RoomJoinRulesEventContent>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -347,7 +347,7 @@ export function SpaceTombstone({ roomId, replacementRoomId }: SpaceTombstoneProp
         )}
       </Box>
       <Box direction="Column" shrink="No">
-        {replacementRoom?.getMyMembership() === Membership.Join ||
+        {replacementRoom?.getMyMembership() === KnownMembership.Join ||
         joinState.status === AsyncStatus.Success ? (
           <Button onClick={handleOpen} size="300" variant="Success" fill="Solid" radii="300">
             <Text size="B300">Open New Space</Text>
@@ -389,7 +389,7 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
-  const tombstoneEvent = useStateEvent(space, StateEvent.RoomTombstone);
+  const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);
   const selectedRoomId = useSelectedRoom();
   const lobbySelected = useSpaceLobbySelected(spaceIdOrAlias);
   const searchSelected = useSpaceSearchSelected(spaceIdOrAlias);

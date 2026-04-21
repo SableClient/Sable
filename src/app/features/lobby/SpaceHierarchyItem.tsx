@@ -1,7 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { forwardRef, useEffect, useMemo } from 'react';
 import type { Room, IHierarchyRoom } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
 import { Box, config, Text } from 'folds';
 import type {
   HierarchyItem,
@@ -11,7 +10,7 @@ import type {
 import { useFetchSpaceHierarchyLevel } from '$hooks/useSpaceHierarchy';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { RoomType, StateEvent } from '$types/matrix/room';
+import { ErrorCode } from '../../cs-errorcode';
 import { SequenceCard } from '$components/sequence-card';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
@@ -20,6 +19,7 @@ import type { CanDropCallback } from './DnD';
 import { AfterItemDropTarget } from './DnD';
 import { HierarchyItemMenu } from './HierarchyItemMenu';
 import { RoomItemCard } from './RoomItem';
+import { EventType, MatrixError, RoomType } from '$types/matrix-sdk';
 
 type SpaceHierarchyItemProps = {
   summary: IHierarchyRoom | undefined;
@@ -104,10 +104,10 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
     let childItems: HierarchyItemRoom[] | undefined = roomItems?.filter(
       (i) => !subspaces.has(i.roomId)
     );
-    if (!spacePermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())) {
+    if (!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())) {
       // hide unknown rooms for normal user
       childItems = childItems?.filter((i) => {
-        const forbidden = error instanceof MatrixError ? error.errcode === 'M_FORBIDDEN' : false;
+        const forbidden = error instanceof MatrixError && error.errcode === ErrorCode.M_FORBIDDEN;
         const inaccessibleRoom = !rooms.get(i.roomId) && !fetching && (error ? forbidden : true);
         return !inaccessibleRoom;
       });
@@ -124,10 +124,10 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
           closed={closed}
           handleClose={handleClose}
           getRoom={getRoom}
-          canEditChild={!!spacePermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())}
+          canEditChild={!!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())}
           canReorder={
             parentPowerLevels && !disabledReorder && parentPermissions
-              ? parentPermissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+              ? parentPermissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
               : false
           }
           options={
@@ -138,7 +138,7 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
                 powerLevels={spacePowerLevels}
                 joined={allJoinedRooms.has(spaceItem.roomId)}
                 canEditChild={
-                  !!parentPermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+                  !!parentPermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
                 }
                 pinned={pinned}
                 onTogglePin={togglePinToSidebar}
@@ -181,7 +181,7 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
                   onOpen={onOpenRoom}
                   getRoom={getRoom}
                   canReorder={
-                    !!spacePermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId()) &&
+                    !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId()) &&
                     !disabledReorder
                   }
                   options={
@@ -190,7 +190,7 @@ export const SpaceHierarchyItem = forwardRef<HTMLDivElement, SpaceHierarchyItemP
                       powerLevels={roomPowerLevels}
                       joined={allJoinedRooms.has(roomItem.roomId)}
                       canEditChild={
-                        !!spacePermissions?.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+                        !!spacePermissions?.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
                       }
                     />
                   }

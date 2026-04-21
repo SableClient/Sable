@@ -13,7 +13,7 @@ import {
   OverlayCenter,
   OverlayBackdrop,
 } from 'folds';
-import type { Room } from 'matrix-js-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { getRoomAvatarUrl } from '$utils/room';

@@ -7,7 +7,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
 import { useLivekitSupport } from '$hooks/useLivekitSupport';
-import { StateEvent } from '$types/matrix/room';
+
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -15,6 +15,7 @@ import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { CallControls } from './CallControls';
+import { EventType } from '$types/matrix-sdk';
 
 function LivekitServerMissingMessage() {
   return (
@@ -69,7 +70,7 @@ function CallPrescreen() {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const hasPermission = permissions.event(StateEvent.GroupCallMemberPrefix, mx.getSafeUserId());
+  const hasPermission = permissions.event(EventType.GroupCallMemberPrefix, mx.getSafeUserId());
 
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);

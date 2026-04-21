@@ -732,11 +732,11 @@ export function RoomTimeline({
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
-  const vListIndices = useMemo(
-    () => Array.from({ length: vListItemCount }, (_, i) => i),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
-  );
+  const vListIndices = useMemo(() => {
+    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
+    void timelineSync.timeline;
+    return Array.from({ length: vListItemCount }, (_, i) => i);
+  }, [vListItemCount, timelineSync.timeline]);
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,

@@ -19,7 +19,7 @@ import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useHover, useFocusWithin } from 'react-aria';
 import type { MatrixEvent, Room, Relations, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
-import { EventStatus, MatrixEventEvent, RoomEvent } from '$types/matrix-sdk';
+import { EventStatus, MatrixEventEvent, RoomEvent, EventType } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
@@ -50,7 +50,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import type { MemberPowerTag } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+
 import { PowerIcon } from '$components/power';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
@@ -173,7 +173,7 @@ export const MessagePinItem = as<
     if (!isPinned && eventId) {
       pinContent.pinned.push(eventId);
     }
-    mx.sendStateEvent(room.roomId, StateEvent.RoomPinnedEvents as keyof StateEvents, pinContent);
+    mx.sendStateEvent(room.roomId, EventType.RoomPinnedEvents as keyof StateEvents, pinContent);
     onClose?.();
   };
 

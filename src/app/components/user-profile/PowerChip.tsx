@@ -29,7 +29,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useGetMemberPowerLevel, usePowerLevels } from '$hooks/usePowerLevels';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { stopPropagation } from '$utils/keyboard';
-import { StateEvent } from '$types/matrix/room';
+
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { useRoom } from '$hooks/useRoom';
@@ -44,6 +44,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { CutoutCard } from '$components/cutout-card';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import { EventType } from '$types/matrix-sdk';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -165,7 +166,7 @@ export function PowerChip({ userId }: { userId: string }) {
 
   const myUserId = mx.getSafeUserId();
   const canChangePowers =
-    permissions.stateEvent(StateEvent.RoomPowerLevels, myUserId) &&
+    permissions.stateEvent(EventType.RoomPowerLevels, myUserId) &&
     (myUserId === userId ? true : hasMorePower(myUserId, userId));
 
   const tag = getMemberPowerTag(userId);

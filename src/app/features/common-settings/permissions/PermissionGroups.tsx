@@ -1,4 +1,3 @@
-/* eslint-disable react/no-array-index-key */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Chip, config, Icon, Icons, Menu, Spinner, Text } from 'folds';
 import { produce } from 'immer';
@@ -10,12 +9,13 @@ import { getPowerLevelTag, getPowers, usePowerLevelTags } from '$hooks/usePowerL
 import { useRoom } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { StateEvents } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+
 import { PowerSwitcher } from '$components/power';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
+import { EventType } from '$types/matrix-sdk';
 
 const USER_DEFAULT_LOCATION: PermissionLocation = {
   user: true,
@@ -26,6 +26,9 @@ type PermissionGroupsProps = {
   powerLevels: IPowerLevels;
   permissionGroups: PermissionGroup[];
 };
+
+const getPermissionLocationKey = (location: PermissionLocation): string => JSON.stringify(location);
+
 export function PermissionGroups({
   powerLevels,
   permissionGroups,
@@ -84,7 +87,7 @@ export function PermissionGroups({
       });
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomPowerLevels as keyof StateEvents,
+        EventType.RoomPowerLevels as keyof StateEvents,
         editedPowerLevels
       );
     }, [mx, room, powerLevels, permissionUpdate, permissionGroups])
@@ -167,10 +170,10 @@ export function PermissionGroups({
   return (
     <>
       {renderUserGroup()}
-      {permissionGroups.map((group, groupIndex) => (
-        <Box key={groupIndex} direction="Column" gap="100">
+      {permissionGroups.map((group) => (
+        <Box key={group.name} direction="Column" gap="100">
           <Text size="L400">{group.name}</Text>
-          {group.items.map((item, itemIndex) => {
+          {group.items.map((item) => {
             const power = getPermissionPower(powerLevels, item.location);
             const powerUpdate = permissionUpdate.get(item.location);
             const value = powerUpdate ?? power;
@@ -180,7 +183,7 @@ export function PermissionGroups({
 
             return (
               <SequenceCard
-                key={itemIndex}
+                key={getPermissionLocationKey(item.location)}
                 variant="SurfaceVariant"
                 className={SequenceCardStyle}
                 direction="Column"

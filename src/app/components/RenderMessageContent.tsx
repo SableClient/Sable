@@ -121,7 +121,7 @@ function RenderMessageContentInternal({
       }));
       const mediaLinks = analyzed.filter((item) => item.type !== null);
       const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
-      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]];
+      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
         <UrlPreviewHolder>
           {toRender.map((item) => {

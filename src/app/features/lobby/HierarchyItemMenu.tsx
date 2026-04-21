@@ -20,7 +20,7 @@ import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { MSpaceChildContent } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
@@ -36,6 +36,7 @@ import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
+import { EventType } from '$types/matrix-sdk';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -56,7 +57,7 @@ function SuggestMenuItem({
       const newContent: MSpaceChildContent = { ...content, suggested: !content.suggested };
       return mx.sendStateEvent(
         parentId,
-        StateEvent.SpaceChild as keyof StateEvents,
+        EventType.SpaceChild as keyof StateEvents,
         newContent,
         roomId
       );
@@ -96,7 +97,7 @@ function RemoveMenuItem({
 
   const [removeState, handleRemove] = useAsyncCallback(
     useCallback(
-      () => mx.sendStateEvent(parentId, StateEvent.SpaceChild as keyof StateEvents, {}, roomId),
+      () => mx.sendStateEvent(parentId, EventType.SpaceChild as keyof StateEvents, {}, roomId),
       [mx, parentId, roomId]
     )
   );

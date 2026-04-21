@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import { RoomStateEvent } from 'matrix-js-sdk';
-import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
+import { RoomStateEvent } from '$types/matrix-sdk';
+import { MatrixRTCSession } from '$types/matrix-sdk';
+import { MatrixRTCSessionManagerEvents } from '$types/matrix-sdk';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';

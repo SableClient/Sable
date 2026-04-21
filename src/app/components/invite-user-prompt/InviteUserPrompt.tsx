@@ -28,7 +28,7 @@ import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
-import { Membership } from '$types/matrix/room';
+
 import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
@@ -36,6 +36,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
+import { KnownMembership } from '$types/matrix-sdk';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -61,7 +62,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
     () =>
       directUsers.filter((userId) => {
         const membership = room.getMember(userId)?.membership;
-        return membership !== Membership.Join;
+        return membership !== KnownMembership.Join;
       }),
     [directUsers, room]
   );

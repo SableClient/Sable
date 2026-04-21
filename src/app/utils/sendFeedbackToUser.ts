@@ -1,5 +1,5 @@
-import type { Room } from 'matrix-js-sdk';
-import { MatrixEvent } from 'matrix-js-sdk';
+import type { Room } from '$types/matrix-sdk';
+import { DuplicateStrategy, MatrixEvent } from '$types/matrix-sdk';
 
 export function sendFeedback(msg: string, room: Room, userId: string) {
   const localNotice = new MatrixEvent({
@@ -9,6 +9,8 @@ export function sendFeedback(msg: string, room: Room, userId: string) {
     room_id: room.roomId,
     sender: userId,
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  room.addLiveEvents([localNotice], { duplicateStrategy: 'ignore' } as any);
+  room.addLiveEvents([localNotice], {
+    duplicateStrategy: DuplicateStrategy.Ignore,
+    addToState: false,
+  });
 }

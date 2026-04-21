@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+
 import type { RoomAbbreviationsContent } from '$utils/abbreviations';
 import { buildAbbreviationsMap } from '$utils/abbreviations';
 import { getAllParents, getStateEvent } from '$utils/room';
@@ -10,6 +10,7 @@ import { useMatrixClient } from './useMatrixClient';
 import { useStateEvent } from './useStateEvent';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
+import { CustomStateEvent } from '$types/matrix/room';
 
 const EMPTY_MAP: Map<string, string> = new Map();
 
@@ -19,7 +20,7 @@ export const useRoomAbbreviationsContext = () => useContext(RoomAbbreviationsCon
 
 /** Read the room's abbreviations state event and return a term→definition map. */
 export const useRoomAbbreviations = (room: Room): Map<string, string> => {
-  const stateEvent = useStateEvent(room, StateEvent.RoomAbbreviations);
+  const stateEvent = useStateEvent(room, CustomStateEvent.RoomAbbreviations);
   if (!stateEvent) return EMPTY_MAP;
   const content = stateEvent.getContent<RoomAbbreviationsContent>();
   if (!Array.isArray(content?.entries) || content.entries.length === 0) return EMPTY_MAP;
@@ -40,7 +41,7 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
     mx,
     useCallback(
       (event) => {
-        if (event.getType() !== (StateEvent.RoomAbbreviations as string)) return;
+        if (event.getType() !== (CustomStateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (!eventRoomId) return;
         if (
@@ -63,14 +64,14 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
       if (!parentRoom) return [];
       const content = getStateEvent(
         parentRoom,
-        StateEvent.RoomAbbreviations
+        CustomStateEvent.RoomAbbreviations
       )?.getContent<RoomAbbreviationsContent>();
       return Array.isArray(content?.entries) ? content.entries : [];
     });
 
     const roomContent = getStateEvent(
       room,
-      StateEvent.RoomAbbreviations
+      CustomStateEvent.RoomAbbreviations
     )?.getContent<RoomAbbreviationsContent>();
     const roomEntries = Array.isArray(roomContent?.entries) ? roomContent.entries : [];
 

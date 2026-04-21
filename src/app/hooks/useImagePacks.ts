@@ -1,7 +1,6 @@
 import type { Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import { StateEvent } from '$types/matrix/room';
+
 import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
   getGlobalImagePacks,
@@ -19,6 +18,8 @@ import {
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { CustomStateEvent } from '$types/matrix/room';
 
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
@@ -74,7 +75,7 @@ export const useUserImagePack = (): ImagePack | undefined => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === (AccountDataEvent.PoniesUserEmotes as string)) {
+        if (mEvent.getType() === (CustomAccountDataEvent.PoniesUserEmotes as string)) {
           setUserPack((prev) => {
             const next = getUserImagePack(mx);
             return imagePackEqual(prev, next) ? prev : next;
@@ -109,7 +110,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === (AccountDataEvent.PoniesEmoteRooms as string)) {
+        if (mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)) {
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;
@@ -128,7 +129,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
         const roomId = mEvent.getRoomId();
         const stateKey = mEvent.getStateKey();
         if (
-          eventType === (StateEvent.PoniesRoomEmotes as string) &&
+          eventType === (CustomStateEvent.PoniesRoomEmotes as string) &&
           roomId &&
           typeof stateKey === 'string'
         ) {
@@ -177,7 +178,7 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string) &&
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string) &&
           mEvent.getStateKey() === stateKey
         ) {
           setRoomPack((prev) => {
@@ -216,7 +217,7 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string)
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = getRoomImagePacks(room);
@@ -269,7 +270,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
       (mEvent) => {
         if (
           rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
-          mEvent.getType() === (StateEvent.PoniesRoomEmotes as string)
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = rooms.flatMap(getRoomImagePacks);

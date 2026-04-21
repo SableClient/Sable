@@ -36,10 +36,11 @@ import type { EmoteRoomsContent, ImagePack, PackAddress } from '$plugins/custom-
 import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { LineClamp2 } from '$styles/Text.css';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 function GlobalPackSelector({
   packs,
@@ -307,7 +308,9 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
       const content =
-        mx.getAccountData(AccountDataEvent.PoniesEmoteRooms)?.getContent<EmoteRoomsContent>() ?? {};
+        mx
+          .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+          ?.getContent<EmoteRoomsContent>() ?? {};
       const updatedContent: EmoteRoomsContent = JSON.parse(JSON.stringify(content));
 
       selectedPacks.forEach((addr) => {
@@ -324,7 +327,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
         }
       });
 
-      await mx.setAccountData(AccountDataEvent.PoniesEmoteRooms, updatedContent);
+      await mx.setAccountData(CustomAccountDataEvent.PoniesEmoteRooms, updatedContent);
     }, [mx, selectedPacks, removedPacks])
   );
 

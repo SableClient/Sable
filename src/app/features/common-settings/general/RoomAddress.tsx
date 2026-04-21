@@ -31,9 +31,10 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { CutoutCard } from '$components/cutout-card';
 import { replaceSpaceWithDash } from '$utils/common';
 import { useAlive } from '$hooks/useAlive';
-import { StateEvent } from '$types/matrix/room';
+
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getMxIdServer } from '$utils/matrix';
+import { EventType } from '$types/matrix-sdk';
 
 type RoomPublishedAddressesProps = {
   permissions: RoomPermissionsAPI;
@@ -43,10 +44,7 @@ export function RoomPublishedAddresses({ permissions }: RoomPublishedAddressesPr
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEditCanonical = permissions.stateEvent(
-    StateEvent.RoomCanonicalAlias,
-    mx.getSafeUserId()
-  );
+  const canEditCanonical = permissions.stateEvent(EventType.RoomCanonicalAlias, mx.getSafeUserId());
 
   const [canonicalAlias, publishedAliases] = usePublishedAliases(room);
   const setMainAlias = useSetMainAlias(room);
@@ -365,10 +363,7 @@ export function RoomLocalAddresses({ permissions }: { permissions: RoomPermissio
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEditCanonical = permissions.stateEvent(
-    StateEvent.RoomCanonicalAlias,
-    mx.getSafeUserId()
-  );
+  const canEditCanonical = permissions.stateEvent(EventType.RoomCanonicalAlias, mx.getSafeUserId());
 
   const [expand, setExpand] = useState(false);
 

@@ -15,12 +15,13 @@ import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { Membership } from '$types/matrix/room';
+
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import type { AutocompleteQuery } from './autocompleteQuery';
+import { KnownMembership } from '$types/matrix-sdk';
 
 type MentionAutoCompleteHandler = (userId: string, name: string) => void;
 
@@ -70,9 +71,9 @@ type UserMentionAutocompleteProps = {
 };
 
 const withAllowedMembership = (member: RoomMember): boolean =>
-  member.membership === Membership.Join ||
-  member.membership === Membership.Invite ||
-  member.membership === Membership.Knock;
+  member.membership === KnownMembership.Join ||
+  member.membership === KnownMembership.Invite ||
+  member.membership === KnownMembership.Knock;
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,

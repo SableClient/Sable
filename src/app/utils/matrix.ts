@@ -11,11 +11,10 @@ import type {
   UploadProgress,
   UploadResponse,
 } from '$types/matrix-sdk';
-import { EventTimeline, MatrixError } from '$types/matrix-sdk';
+import { EventTimeline, MatrixError, EventType, KnownMembership } from '$types/matrix-sdk';
 import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
+
 import * as Sentry from '@sentry/react';
 import { getEventReactions, getReactionContent, getStateEvent } from './room';
 
@@ -43,13 +42,13 @@ export const getCanonicalAliasRoomId = (mx: MatrixClient, alias: string): string
     ?.find(
       (room) =>
         room.getCanonicalAlias() === alias &&
-        getStateEvent(room, StateEvent.RoomTombstone) === undefined
+        getStateEvent(room, EventType.RoomTombstone) === undefined
     )?.roomId;
 
 export const getCanonicalAliasOrRoomId = (mx: MatrixClient, roomId: string): string => {
   const room = mx.getRoom(roomId);
   if (!room) return roomId;
-  if (getStateEvent(room, StateEvent.RoomTombstone) !== undefined) return roomId;
+  if (getStateEvent(room, EventType.RoomTombstone) !== undefined) return roomId;
   const alias = room.getCanonicalAlias();
   if (alias && getCanonicalAliasRoomId(mx, alias) === roomId) {
     return alias;
@@ -216,7 +215,7 @@ export const getDMRoomFor = (mx: MatrixClient, userId: string): Room | undefined
     .getRooms()
     .filter(
       (room) =>
-        room.getMyMembership() === (Membership.Join as string) &&
+        room.getMyMembership() === (KnownMembership.Join as string) &&
         room.hasEncryptionStateEvent() &&
         room.getMembers().length <= 2
     );
@@ -263,7 +262,7 @@ export const addRoomIdToMDirect = async (
   userId: string
 ): Promise<void> => {
   const mDirectsEvent = mx.getAccountData(
-    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents
+    EventType.Direct as string as unknown as keyof AccountDataEvents
   );
   let userIdToRoomIds: Record<string, string[]> = {};
 
@@ -290,14 +289,14 @@ export const addRoomIdToMDirect = async (
   userIdToRoomIds[userId] = roomIds;
 
   await mx.setAccountData(
-    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents,
+    EventType.Direct as string as unknown as keyof AccountDataEvents,
     userIdToRoomIds
   );
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
   const mDirectsEvent = mx.getAccountData(
-    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents
+    EventType.Direct as string as unknown as keyof AccountDataEvents
   );
   let userIdToRoomIds: Record<string, string[]> = {};
 
@@ -313,7 +312,7 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
   });
 
   await mx.setAccountData(
-    AccountDataEvent.Direct as string as unknown as keyof AccountDataEvents,
+    EventType.Direct as string as unknown as keyof AccountDataEvents,
     userIdToRoomIds
   );
 };
@@ -440,8 +439,7 @@ export const toggleReaction = (
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
   mx.sendEvent(
     room.roomId,
-    MessageEvent.Reaction as string as unknown as keyof TimelineEvents,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getReactionContent(targetEventId, key, rShortcode) as any
+    EventType.Reaction as string as unknown as keyof TimelineEvents,
+    getReactionContent(targetEventId, key, rShortcode) as TimelineEvents[keyof TimelineEvents]
   );
 };

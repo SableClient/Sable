@@ -1,5 +1,5 @@
 /* oxlint-disable no-console */
-import { EventType } from 'matrix-js-sdk/lib/@types/event';
+import { EventType } from '$types/matrix-sdk';
 import {
   buildRoomMessageNotification,
   DEFAULT_NOTIFICATION_ICON,

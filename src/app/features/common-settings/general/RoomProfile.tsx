@@ -17,7 +17,7 @@ import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
-import { JoinRule } from '$types/matrix-sdk';
+import { JoinRule, EventType } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { useRoom } from '$hooks/useRoom';
@@ -29,7 +29,7 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { StateEvent } from '$types/matrix/room';
+
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useObjectURL } from '$hooks/useObjectURL';
 import type { UploadSuccess } from '$state/upload';
@@ -95,17 +95,19 @@ export function RoomProfileEdit({
     useCallback(
       async (roomAvatarMxc?: string | null, roomName?: string, roomTopic?: string) => {
         if (roomAvatarMxc !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomAvatar as keyof StateEvents, {
-            url: roomAvatarMxc,
-          });
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomAvatar as keyof StateEvents,
+            roomAvatarMxc ? { url: roomAvatarMxc } : {}
+          );
         }
         if (roomName !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomName as keyof StateEvents, {
+          await mx.sendStateEvent(room.roomId, EventType.RoomName as keyof StateEvents, {
             name: roomName,
           });
         }
         if (roomTopic !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomTopic as keyof StateEvents, {
+          await mx.sendStateEvent(room.roomId, EventType.RoomTopic as keyof StateEvents, {
             topic: roomTopic,
           });
         }
@@ -310,9 +312,9 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const topic = useRoomTopic(room);
   const joinRule = useRoomJoinRule(room);
 
-  const canEditAvatar = permissions.stateEvent(StateEvent.RoomAvatar, mx.getSafeUserId());
-  const canEditName = permissions.stateEvent(StateEvent.RoomName, mx.getSafeUserId());
-  const canEditTopic = permissions.stateEvent(StateEvent.RoomTopic, mx.getSafeUserId());
+  const canEditAvatar = permissions.stateEvent(EventType.RoomAvatar, mx.getSafeUserId());
+  const canEditName = permissions.stateEvent(EventType.RoomName, mx.getSafeUserId());
+  const canEditTopic = permissions.stateEvent(EventType.RoomTopic, mx.getSafeUserId());
   const canEdit = canEditAvatar || canEditName || canEditTopic;
 
   const avatarUrl = avatar

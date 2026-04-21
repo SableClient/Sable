@@ -1,7 +1,7 @@
 import type { FormEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
+import { MatrixError, RoomType } from '$types/matrix-sdk';
 import {
   Box,
   Button,
@@ -39,7 +39,7 @@ import {
   RoomVersionSelector,
   useAdditionalCreators,
 } from '$components/create-room';
-import { RoomType } from '$types/matrix/room';
+
 import { ErrorCode } from '../../cs-errorcode';
 
 const getCreateSpaceAccessToIcon = (access: CreateRoomAccess) => {

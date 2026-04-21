@@ -17,14 +17,14 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import type { MatrixError, RoomTombstoneEventContent } from '$types/matrix-sdk';
-import { Method } from '$types/matrix-sdk';
+import { Method, EventType } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { IRoomCreateContent } from '$types/matrix/room';
-import { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -167,20 +167,17 @@ export function RoomUpgrade({ permissions, requestClose }: RoomUpgradeProps) {
   const mx = useMatrixClient();
   const room = useRoom();
   const { navigateRoom, navigateSpace } = useRoomNavigate();
-  const createContent = useStateEvent(
-    room,
-    StateEvent.RoomCreate
-  )?.getContent<IRoomCreateContent>();
+  const createContent = useStateEvent(room, EventType.RoomCreate)?.getContent<IRoomCreateContent>();
   const roomVersion = createContent?.room_version ?? '1';
   const predecessorRoomId = createContent?.predecessor?.room_id;
 
   const tombstoneContent = useStateEvent(
     room,
-    StateEvent.RoomTombstone
+    EventType.RoomTombstone
   )?.getContent<RoomTombstoneEventContent>();
   const replacementRoom = tombstoneContent?.replacement_room;
 
-  const canUpgrade = permissions.stateEvent(StateEvent.RoomTombstone, mx.getSafeUserId());
+  const canUpgrade = permissions.stateEvent(EventType.RoomTombstone, mx.getSafeUserId());
 
   const handleOpenRoom = () => {
     if (replacementRoom) {

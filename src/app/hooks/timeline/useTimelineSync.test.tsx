@@ -123,13 +123,12 @@ describe('useTimelineSync', () => {
         readUptoEventIdRef: { current: undefined },
       })
     );
-
     await act(async () => {
       timelineSet.emit(RoomEvent.TimelineReset);
       await Promise.resolve();
     });
 
-    expect(scrollToBottom).toHaveBeenCalledWith('instant');
+    expect(scrollToBottom).toHaveBeenCalled();
   });
 
   it('resets timeline state when room.roomId changes and eventId is not set', async () => {

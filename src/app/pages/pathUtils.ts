@@ -13,7 +13,9 @@ import {
   HOME_PATH,
   HOME_ROOM_PATH,
   HOME_SEARCH_PATH,
+  HOME_BOOKMARKS_PATH,
   LOGIN_PATH,
+  INBOX_BOOKMARKS_PATH,
   INBOX_INVITES_PATH,
   INBOX_NOTIFICATIONS_PATH,
   INBOX_PATH,
@@ -93,6 +95,7 @@ export const getHomePath = (): string => HOME_PATH;
 export const getHomeCreatePath = (): string => HOME_CREATE_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;
+export const getHomeBookmarksPath = (): string => HOME_BOOKMARKS_PATH;
 export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
     roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
@@ -160,6 +163,7 @@ export const getCreatePath = (): string => CREATE_PATH;
 export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
+export const getInboxBookmarksPath = (): string => INBOX_BOOKMARKS_PATH;
 
 export const getSettingsPath = (section?: string, focus?: string): string => {
   const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));

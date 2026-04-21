@@ -48,6 +48,7 @@ import {
   NOTIFICATIONS_PATH_SEGMENT,
   ROOM_PATH_SEGMENT,
   SEARCH_PATH_SEGMENT,
+  BOOKMARKS_PATH_SEGMENT,
   SERVER_PATH_SEGMENT,
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
@@ -65,6 +66,7 @@ import {
 import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
+import { BookmarksList } from './client/bookmarks';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
 import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
@@ -242,6 +244,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
           <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
           <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
+          <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
           <Route
             path={ROOM_PATH_SEGMENT}
             element={
@@ -368,6 +371,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           )}
           <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
           <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          <Route path={BOOKMARKS_PATH_SEGMENT} element={<BookmarksList />} />
         </Route>
         <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
       </Route>

@@ -18,6 +18,11 @@ export enum AccountDataEvent {
   CrossSigningUser = 'm.cross_signing.user',
   MegolmBackupV1 = 'm.megolm_backup.v1',
 
+  // MSC4438 Message Bookmarks (unstable prefix)
+  BookmarksIndex = 'org.matrix.msc4438.bookmarks.index',
+  /** Prefix for per-bookmark item events; append the bookmark ID to get the full event type. */
+  BookmarkItemPrefix = 'org.matrix.msc4438.bookmark.',
+
   // Sable account data
   SableNicknames = 'moe.sable.app.nicknames',
   SablePinStatus = 'moe.sable.app.pins_read_marker',

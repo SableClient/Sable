@@ -104,6 +104,21 @@ export function useProcessedTimeline({
         if (!membershipChanged && hideNickAvatarEvents) return acc;
       }
 
+      // Poll response and end events are always filtered — they update the poll tally
+      // via RoomEvent.Timeline listeners in PollEvent and must never render as timeline items.
+      // Also check the effective (decrypted) type for encrypted events that have been decrypted.
+      const effectiveType =
+        type === 'm.room.encrypted'
+          ? ((mEvent.getEffectiveEvent()?.type as string) ?? type)
+          : type;
+      if (
+        effectiveType === 'org.matrix.msc3381.poll.response' ||
+        effectiveType === 'org.matrix.msc3381.poll.end' ||
+        effectiveType === 'm.poll.response' ||
+        effectiveType === 'm.poll.end'
+      )
+        return acc;
+
       if (!showHiddenEvents) {
         const isStandardRendered = [
           'm.room.message',
@@ -114,6 +129,8 @@ export function useProcessedTimeline({
           'm.room.topic',
           'm.room.avatar',
           'org.matrix.msc3401.call.member',
+          'org.matrix.msc3381.poll.start',
+          'm.poll.start',
         ].includes(type);
 
         if (!isStandardRendered) {

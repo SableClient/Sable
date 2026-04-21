@@ -3,10 +3,8 @@
   "homeserverList": ["matrix.org", "mozilla.org", "unredacted.org", "sable.moe", "kendama.moe"],
   "allowCustomHomeservers": true,
   "elementCallUrl": null,
-
   "disableAccountSwitcher": false,
   "hideUsernamePasswordFields": false,
-
   "pushNotificationDetails": {
     "pushNotifyUrl": "https://sygnal.sable.moe/_matrix/push/v1/notify",
     "vapidPublicKey": "BCnS4SbHjeOaqVFW4wjt5xDt_pYIL62qMzKePfYF9fl9PQU14RieIaObh7nLR_9dQf4sykZa-CTrcjkgMIE1mcg",
@@ -18,7 +16,6 @@
   "slidingSync": {
     "enabled": true
   },
-
   "featuredCommunities": {
     "openAsDefault": false,
     "spaces": [
@@ -39,9 +36,11 @@
     ],
     "servers": ["matrixrooms.info", "mozilla.org", "unredacted.org"]
   },
-
   "hashRouter": {
     "enabled": false,
     "basename": "/"
+  },
+  "features": {
+    "polls": false
   }
 }

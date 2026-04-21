@@ -14,6 +14,12 @@ import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
 import {
+  roomScrollCache,
+  RoomScrollCache,
+  RoomScrollFingerprint,
+  RoomScrollPosition,
+} from '$utils/roomScrollCache';
+import {
   as,
   Box,
   Chip,
@@ -193,6 +199,7 @@ export function RoomTimeline({
   hideReadsRef.current = hideReads;
 
   const prevViewportHeightRef = useRef(0);
+  const prevScrollSizeRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -238,9 +245,19 @@ export function RoomTimeline({
   // A recovery useLayoutEffect watches for processedEvents becoming non-empty
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
+  // Set to true when the 80 ms timer fires but backward pagination hasn't yet
+  // filled the viewport. The pagination-settle effect below watches for this
+  // flag and performs the final scroll + setIsReady when pagination settles.
+  const readyBlockedByPaginationRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
+  const currentScrollFingerprintRef = useRef<RoomScrollFingerprint | undefined>(undefined);
+  const saveRoomScrollStateRef = useRef<
+    ((measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => void) | undefined
+  >(undefined);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;

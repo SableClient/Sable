@@ -278,7 +278,12 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
     const btn = evt.currentTarget as HTMLButtonElement;
     const userId = btn.getAttribute('data-user-id');
     if (!userId) return;
-    openUserRoomProfile(room.roomId, space?.roomId, userId, btn.getBoundingClientRect(), 'Left');
+
+    const cords = btn.getBoundingClientRect();
+    // BODGE, dependent on menuItem height staying at toRem(40)
+    cords.y = Math.min(cords.y, window.innerHeight - 42);
+
+    openUserRoomProfile(room.roomId, space?.roomId, userId, cords, 'Left');
   };
 
   return (

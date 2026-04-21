@@ -183,6 +183,7 @@ function GlobalPackSelector({
                         <SettingTile
                           title={pack.meta.name ?? 'Unknown'}
                           focusId={`room-pack-${toSettingsFocusIdPart(pack.id)}`}
+                          showSettingLinkAction={false}
                           description={<span className={LineClamp2}>{pack.meta.attribution}</span>}
                           before={
                             <Box alignItems="Center" gap="300">
@@ -362,6 +363,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
       >
         <SettingTile
           focusId={`selected-pack-${toSettingsFocusIdPart(pack.id)}`}
+          showSettingLinkAction={false}
           title={
             <span style={{ textDecoration: removed ? 'line-through' : undefined }}>
               {pack.meta.name ?? 'Unknown'}

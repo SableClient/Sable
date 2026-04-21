@@ -85,6 +85,7 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -118,9 +119,9 @@ function RenderMessageContentInternal({
         url,
         type: getMediaType(url),
       }));
-
       const mediaLinks = analyzed.filter((item) => item.type !== null);
-      const toRender = mediaLinks.length > 0 ? mediaLinks : analyzed.slice(0, 1);
+      const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
+      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]];
       return (
         <UrlPreviewHolder>
           {toRender.map((item) => {
@@ -139,7 +140,7 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
+    [multiplePreviews, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
   );
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (

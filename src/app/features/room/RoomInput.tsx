@@ -126,6 +126,7 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -134,6 +135,7 @@ import {
   getImageMsgContent,
   getVideoMsgContent,
 } from './msgContent';
+import { outgoingMessageTransforms } from './outgoingMessageTransforms';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
@@ -233,6 +235,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const commands = useCommands(mx, room);
     /**
      * handle pluralkit-style messages
@@ -714,12 +717,23 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       /**
        * the plain text we will send
        */
-      let plainText = toPlainText(editor.children, isMarkdown, true, nicknameReplacement).trim();
+      let serializedChildren = editor.children;
+      const outgoingTransformContext = {
+        isMarkdown,
+        settingsLinkBaseUrl,
+      };
+
+      outgoingMessageTransforms.forEach((transform) => {
+        if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
+        serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
+      });
+
+      let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
       /**
        * the html we will send
        */
       let customHtml = trimCustomHtml(
-        toMatrixCustomHTML(editor.children, {
+        toMatrixCustomHTML(serializedChildren, {
           allowTextFormatting: true,
           allowBlockMarkdown: isMarkdown,
           allowInlineMarkdown: isMarkdown,
@@ -963,6 +977,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       queryClient,
       threadRootId,
       setReplyDraft,
+      settingsLinkBaseUrl,
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,

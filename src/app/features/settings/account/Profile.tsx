@@ -660,6 +660,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
               <SettingTile
                 key={key}
                 focusId={`profile-field-${toSettingsFocusIdPart(key)}`}
+                showSettingLinkAction={false}
                 title={key.split('.').pop() || key}
                 description={key}
                 after={

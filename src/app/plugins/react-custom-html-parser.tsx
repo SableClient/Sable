@@ -24,8 +24,7 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { parseSettingsLink } from '$features/settings/settingsLink';
-import { settingsSections } from '$features/settings/routes';
+import { getSettingsLinkChipLabel, parseSettingsLink } from '$features/settings/settingsLink';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
@@ -194,65 +193,20 @@ export const renderMatrixMention = (
   return undefined;
 };
 
-const settingsSectionLabel = Object.fromEntries(
-  settingsSections.map((section) => [section.id, section.label])
-) as Record<(typeof settingsSections)[number]['id'], string>;
-
-const humanizeSettingsLinkPart = (value: string): string =>
-  value
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const getSettingsLinkLabel = (
-  section: keyof typeof settingsSectionLabel,
-  focus?: string
-): string => {
-  const sectionLabel = settingsSectionLabel[section];
-  const focusLabel = focus ? humanizeSettingsLinkPart(focus) : undefined;
-
-  return focusLabel ? `${sectionLabel} / ${focusLabel}` : sectionLabel;
-};
-
-const getSettingsLinkChildren = ({
-  href,
-  section,
-  focus,
-  content,
-  fallbackChildren,
-}: {
-  href: string;
-  section: keyof typeof settingsSectionLabel;
-  focus?: string;
-  content?: string;
-  fallbackChildren?: ReactNode;
-}): ReactNode => {
-  if (!content || content === href || content === safeDecodeUrl(href)) {
-    return getSettingsLinkLabel(section, focus);
-  }
-
-  return fallbackChildren ?? content;
-};
-
 const renderSettingsLink = ({
   href,
   section,
   focus,
   handleMentionClick,
-  content,
-  fallbackChildren,
 }: {
   href: string;
-  section: keyof typeof settingsSectionLabel;
+  section: Parameters<typeof getSettingsLinkChipLabel>[0];
   focus?: string;
   handleMentionClick?: ReactEventHandler<HTMLElement>;
-  content?: string;
-  fallbackChildren?: ReactNode;
 }) => (
   <a
     href={href}
-    {...makeMentionCustomProps(handleMentionClick, content)}
+    {...makeMentionCustomProps(handleMentionClick)}
     className={classNames(css.Mention({}), css.MentionWithIcon)}
     data-settings-link-section={section}
     data-settings-link-focus={focus}
@@ -260,7 +214,7 @@ const renderSettingsLink = ({
     <span aria-hidden="true" className={css.MentionIcon}>
       <Icon size="50" src={Icons.Setting} />
     </span>
-    {getSettingsLinkChildren({ href, section, focus, content, fallbackChildren })}
+    {getSettingsLinkChipLabel(section, focus)}
   </a>
 );
 
@@ -291,8 +245,6 @@ export const factoryRenderLinkifyWithMention = (
           section,
           focus,
           handleMentionClick,
-          content,
-          fallbackChildren: content,
         });
       }
     }
@@ -704,8 +656,6 @@ export const getReactCustomHtmlParser = (
                 section,
                 focus,
                 handleMentionClick: params.handleMentionClick,
-                content,
-                fallbackChildren: renderedChildren,
               });
             }
           }

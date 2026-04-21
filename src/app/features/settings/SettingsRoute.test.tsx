@@ -873,4 +873,25 @@ describe('useSettingsFocus', () => {
       vi.useRealTimers();
     }
   });
+
+  it('ignores malformed focus ids without throwing', () => {
+    expect(() =>
+      render(
+        <MemoryRouter initialEntries={['/settings/appearance?focus=display-name%22%3ESettings']}>
+          <ScreenSizeProvider value={ScreenSize.Mobile}>
+            <LocationProbe />
+            <FocusFixture />
+          </ScreenSizeProvider>
+        </MemoryRouter>
+      )
+    ).not.toThrow();
+
+    const target = document.querySelector('[data-settings-focus="message-link-preview"]');
+    const highlightTarget = target?.parentElement;
+
+    expect(highlightTarget).not.toHaveClass(focusedSettingTile);
+    expect(screen.getByTestId('location-probe')).toHaveTextContent(
+      '/settings/appearance?focus=display-name%22%3ESettings'
+    );
+  });
 });

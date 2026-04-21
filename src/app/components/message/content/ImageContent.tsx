@@ -199,6 +199,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               hasDimensions ? css.AbsoluteContainer : undefined,
               blurred && css.Blur
             )}
+            style={{ width: '100%' }}
           >
             {renderImage({
               alt: body,

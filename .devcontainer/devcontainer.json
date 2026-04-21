@@ -1,0 +1,152 @@
+// Codespace configuration — lives on personal/config (not ephemeral dev/feat branches).
+// This file intentionally targets browser-based use on iPad.
+{
+  "name": "Sable",
+  // Using base + node feature instead of javascript-node:<tag> to avoid
+  // tag availability issues on newer Node versions.
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+    // Keep git up-to-date for SSH signing support (git ≥ 2.34).
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // ── Codespace user secrets ──────────────────────────────────────────────────
+  // Configure these at: github.com/settings/codespaces > Secrets
+  //
+  //   GIT_SIGNING_KEY  — passphrase-free SSH private key (ed25519 recommended).
+  //                      Add the matching public key to your GitHub account as a
+  //                      "signing key": github.com/settings/keys
+  //                      postCreate.sh will wire up git automatically if set.
+  //
+  //   SSH_AUTH_KEY     — passphrase-free SSH private key (ed25519 recommended).
+  //                      Add the matching public key to ~/.ssh/authorized_keys on
+  //                      any server you want to SSH into from the Codespace.
+  //
+  //   GIT_USER_NAME    — e.g. "Evie"
+  //   GIT_USER_EMAIL   — e.g. "evie@gauthier.id"
+  // ───────────────────────────────────────────────────────────────────────────
+
+  "remoteEnv": {
+    // Pin the pnpm store to a known path so the volume mount works across rebuilds.
+    "PNPM_STORE_DIR": "/home/vscode/.pnpm-store"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // ── Layout — tuned for iPad browser (vscode.dev / Codespaces web) ─────
+        // Move the activity bar to the top so it isn't hidden by the iOS Safari
+        // toolbar or the browser's combined title/status bar.
+        "workbench.activityBar.location": "top",
+        // Use a menu for the layout control — fewer tiny hit targets on touch.
+        "workbench.layoutControl.type": "menu",
+        // Place the panel (Terminal, Problems, Copilot Chat history) on the
+        // right so it doesn't fight with the keyboard on small screens.
+        "workbench.panel.defaultLocation": "right",
+        // Keep editor tabs visible and wrap them so none are hidden off-screen.
+        "workbench.editor.showTabs": "multiple",
+        "workbench.editor.wrapTabs": true,
+        // Disable minimap — saves horizontal space, improves touch accuracy.
+        "editor.minimap.enabled": false,
+        "editor.scrollBeyondLastLine": false,
+        // Larger default fonts for retina/HiDPI iPad displays.
+        // Fira Code is loaded as a web font by the tonsky.font-fira-code extension.
+        // This works for the Monaco *editor* (HTML/CSS rendered), but xterm.js uses
+        // canvas drawing — it does NOT reliably inherit CSS @font-face on iOS Safari.
+        // MesloLGS NF / Monaco / Meslo are not iOS system fonts either.
+        // → Editor: Fira Code via extension is fine.
+        // → Terminal: use Menlo only (ships with iOS since iOS 7, always available).
+        "editor.fontSize": 14,
+        "editor.fontFamily": "'MesloLGS NF', 'Fira Code', Menlo, 'Courier New', monospace",
+        "editor.fontLigatures": true,
+        "terminal.integrated.fontSize": 14,
+        "terminal.integrated.fontFamily": "Menlo, 'Courier New', monospace",
+        "terminal.integrated.fontLigatures.enabled": false,
+        "terminal.integrated.gpuAcceleration": "off",
+
+        // Use zsh (installed in onCreate) as the default terminal shell.
+        // Explicit profile with -l (login shell) ensures nvm / PATH additions
+        // from the devcontainer node feature are loaded inside the terminal.
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": { "path": "/bin/zsh", "args": ["-l"] }
+        },
+
+        // Shell integration MUST be enabled for Copilot Chat to run terminal
+        // commands.  We set it explicitly because Powerlevel10k instant prompt
+        // can fire before VS Code injects its integration script and suppress
+        // the markers — postCreate.sh patches .zshrc to guard against this.
+        "terminal.integrated.shellIntegration.enabled": true,
+
+        // ── Git signing ───────────────────────────────────────────────────────
+        // postCreate.sh configures gpg.format and user.signingkey if
+        // GIT_SIGNING_KEY secret is present.  This just keeps VS Code's git
+        // UI in sync.
+        "git.enableCommitSigning": true,
+        "git.confirmSync": false,
+
+        // ── Copilot Chat ──────────────────────────────────────────────────────
+        // Always show follow-ups and keep chat history accessible.
+        "github.copilot.chat.followUps": "always",
+        // Disable auto-discovery of extension-provided MCP servers (e.g. the
+        // io.github.github/github-mcp-server registered by vscode-pull-request-github).
+        // Our explicit HTTP server in .vscode/mcp.json is unaffected and handles all
+        // GitHub MCP calls without requiring a token prompt.
+        "chat.mcp.discovery.enabled": false
+      },
+      "extensions": [
+        // ── Copilot ───────────────────────────────────────────────────────────
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "GitHub.vscode-pull-request-github",
+        // ── Font (web font — required for terminal in browser/iPad) ───────────
+        "tonsky.font-fira-code",
+        // ── Theme ─────────────────────────────────────────────────────────────
+        "GitHub.github-vscode-theme",
+        // ── Formatting & linting ──────────────────────────────────────────────
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "streetsidesoftware.code-spell-checker",
+        "davidanson.vscode-markdownlint",
+        // ── Testing ───────────────────────────────────────────────────────────
+        "vitest.explorer",
+        // ── TypeScript / React ────────────────────────────────────────────────
+        "bradlc.vscode-tailwindcss",
+        "styled-components.vscode-styled-components",
+        "dsznajder.es7-react-js-snippets",
+        "formulahendry.auto-rename-tag",
+        "wix.vscode-import-cost",
+        // ── Utilities ─────────────────────────────────────────────────────────
+        "christian-kohler.path-intellisense",
+        "usernamehw.errorlens",
+        "gruntfuggly.todo-tree",
+        "wayou.vscode-todo-highlight",
+        "webpro.vscode-knip",
+        "lokalise.i18n-ally",
+        // ── Infrastructure ────────────────────────────────────────────────────
+        "hashicorp.terraform",
+        "zamerick.vscode-caddyfile-syntax"
+      ]
+    }
+  },
+
+  // ── Port forwarding ─────────────────────────────────────────────────────────
+  "forwardPorts": [5173, 4173],
+  "portsAttributes": {
+    "5173": { "label": "Vite dev", "onAutoForward": "notify" },
+    "4173": { "label": "Vite preview", "onAutoForward": "notify" }
+  },
+
+  // ── Persistence ─────────────────────────────────────────────────────────────
+  // Named volume keeps the pnpm content-addressable store across rebuilds.
+  // Combined with the PNPM_STORE_DIR env var above so postCreate can also
+  // point pnpm at the same path.
+  "mounts": ["source=sable-pnpm-store,target=/home/vscode/.pnpm-store,type=volume"],
+
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "onCreateCommand": "bash .devcontainer/onCreate.sh",
+  "remoteUser": "vscode"
+}

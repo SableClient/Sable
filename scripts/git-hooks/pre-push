@@ -1,0 +1,35 @@
+#!/bin/zsh
+# Pre-push hook: Run quality checks before allowing push
+# This prevents pushing code that will fail CI checks
+
+set -e
+
+echo "🔍 Running pre-push quality checks..."
+
+# Run typecheck
+echo "  → Running typecheck..."
+if ! npm run typecheck > /dev/null 2>&1; then
+  echo "❌ Typecheck failed. Fix errors before pushing."
+  npm run typecheck
+  exit 1
+fi
+echo "  ✓ Typecheck passed"
+
+# Run lint
+echo "  → Running lint..."
+if ! npm run lint > /dev/null 2>&1; then
+  echo "❌ Lint failed. Fix errors before pushing."
+  npm run lint
+  exit 1
+fi
+echo "  ✓ Lint passed"
+
+# Run format check
+echo "  → Running format check..."
+if ! npm run fmt:check > /dev/null 2>&1; then
+  echo "❌ Format check failed. Run 'npm run fmt' to fix."
+  exit 1
+fi
+echo "  ✓ Format check passed"
+
+echo "✅ All quality checks passed. Proceeding with push..."

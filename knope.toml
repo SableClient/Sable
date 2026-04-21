@@ -58,7 +58,7 @@ help_text = "Create a new change file to be included in the next release"
 type = "CreateChangeFile"
 
 [github]
-owner = "SableClient"
+owner = "Just-Insane"
 repo = "Sable"
 
 [release_notes]

@@ -20,6 +20,15 @@ export type ExperimentSelection = {
   inExperiment: boolean;
 };
 
+export type SessionSyncConfig = {
+  phase1ForegroundResync?: boolean;
+  phase2VisibleHeartbeat?: boolean;
+  phase3AdaptiveBackoffJitter?: boolean;
+  foregroundDebounceMs?: number;
+  heartbeatIntervalMs?: number;
+  resumeHeartbeatSuppressMs?: number;
+  heartbeatMaxBackoffMs?: number;
+};
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
@@ -31,6 +40,7 @@ export type ClientConfig = {
 
   experiments?: Record<string, ExperimentConfig>;
 
+  sessionSync?: SessionSyncConfig;
   pushNotificationDetails?: {
     pushNotifyUrl?: string;
     vapidPublicKey?: string;

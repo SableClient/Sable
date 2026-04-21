@@ -69,9 +69,12 @@ async function loadPersistedSettings() {
 async function persistSession(session: SessionInfo): Promise<void> {
   try {
     const cache = await self.caches.open(SW_SESSION_CACHE);
+    const sessionWithTimestamp = { ...session, persistedAt: Date.now() };
     await cache.put(
       SW_SESSION_URL,
-      new Response(JSON.stringify(session), { headers: { 'Content-Type': 'application/json' } })
+      new Response(JSON.stringify(sessionWithTimestamp), {
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
   } catch {
     // Ignore — caches may be unavailable in some environments.
@@ -91,13 +94,32 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   try {
     const cache = await self.caches.open(SW_SESSION_CACHE);
     const response = await cache.match(SW_SESSION_URL);
-    if (!response) return undefined;
-    const s = await response.json();
-    if (typeof s.accessToken === 'string' && typeof s.baseUrl === 'string') {
+    if (response) {
+      const s = await response.json();
+
+      // Reject persisted sessions older than 24 hours. Matrix access tokens are
+      // long-lived and are only invalidated on explicit logout or device revocation —
+      // not by the passage of time. A short TTL (e.g. 60 s) was too aggressive: it
+      // caused the SW to show generic "New Message" notifications whenever the app
+      // was backgrounded for more than a minute, because the cached session was
+      // rejected and requestSession had no live window client to reach.
+      // If the token truly is revoked the fetches in handleMinimalPushPayload will
+      // receive a 401 and gracefully fall back to a generic notification anyway.
+      const age = typeof s.persistedAt === 'number' ? Date.now() - s.persistedAt : Infinity;
+      const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+      if (age > MAX_SESSION_AGE_MS) {
+        console.debug('[SW] loadPersistedSession: session expired', {
+          age,
+          accessToken: s.accessToken.slice(0, 8),
+        });
+        return undefined;
+      }
+
       return {
         accessToken: s.accessToken,
         baseUrl: s.baseUrl,
         userId: typeof s.userId === 'string' ? s.userId : undefined,
+        persistedAt: s.persistedAt,
       };
     }
     return undefined;
@@ -111,6 +133,8 @@ type SessionInfo = {
   baseUrl: string;
   /** Matrix user ID of the account, used to identify which account a push belongs to. */
   userId?: string;
+  /** Timestamp when this session was persisted to cache, used to expire stale tokens. */
+  persistedAt?: number;
 };
 
 /**
@@ -368,41 +392,43 @@ async function requestDecryptionFromClient(
   rawEvent: Record<string, unknown>
 ): Promise<DecryptionResult | undefined> {
   const eventId = rawEvent.event_id as string;
+  if (windowClients.length === 0) return undefined;
 
-  // Try all window clients in parallel with a single shared timeout.
-  // This avoids the worst case of N × 5s sequential timeouts when multiple
-  // tabs are frozen (common on iOS).
-  const clientAttempts = Array.from(windowClients).map((client) => {
-    const promise = new Promise<DecryptionResult>((resolve) => {
-      decryptionPendingMap.set(eventId, resolve);
-    });
-
-    try {
-      (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
-    } catch (err) {
+  // Broadcast to all clients, but resolve once from the first successful reply.
+  // The prior Promise.any implementation accidentally overwrote the pending
+  // resolver on each iteration, leaving only the last client able to satisfy
+  // the request for a given eventId.
+  const resultPromise = new Promise<DecryptionResult | undefined>((resolve) => {
+    decryptionPendingMap.set(eventId, (result) => {
       decryptionPendingMap.delete(eventId);
-      console.warn('[SW decryptRelay] postMessage error', err);
-      return Promise.resolve(undefined as DecryptionResult | undefined);
-    }
-
-    return promise as Promise<DecryptionResult | undefined>;
+      resolve(result);
+    });
   });
 
-  if (clientAttempts.length === 0) return undefined;
+  let postedToClient = false;
+  Array.from(windowClients).forEach((client) => {
+    try {
+      (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+      postedToClient = true;
+    } catch (err) {
+      console.warn('[SW decryptRelay] postMessage error', err);
+    }
+  });
+
+  if (!postedToClient) {
+    decryptionPendingMap.delete(eventId);
+    return undefined;
+  }
 
   const timeout = new Promise<undefined>((resolve) => {
     setTimeout(() => {
       decryptionPendingMap.delete(eventId);
-      console.warn('[SW decryptRelay] timed out waiting for all clients');
+      console.warn('[SW decryptRelay] timed out waiting for client response');
       resolve(undefined);
     }, 5000);
   });
 
-  // Return as soon as any client succeeds or the shared timeout fires.
-  return Promise.race([
-    Promise.any(clientAttempts).catch(() => undefined),
-    timeout,
-  ]);
+  return Promise.race([resultPromise, timeout]);
 }
 
 /**
@@ -570,6 +596,14 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
+    // Keep the SW alive until the cache write completes.  persistSession is
+    // called fire-and-forget inside setSession; without waitUntil the browser
+    // can kill the SW before caches.put resolves, leaving the persisted session
+    // stale on the next restart and causing intermittent 401s on media fetches.
+    const persisted = sessions.get(client.id);
+    event.waitUntil(
+      (persisted ? persistSession(persisted) : clearPersistedSession()).catch(() => undefined)
+    );
     event.waitUntil(cleanupDeadClients());
   }
   if (type === 'pushDecryptResult') {
@@ -619,12 +653,24 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 const MEDIA_PATHS = [
   '/_matrix/client/v1/media/download',
   '/_matrix/client/v1/media/thumbnail',
+  '/_matrix/client/v1/media/preview_url',
+  '/_matrix/client/v3/media/download',
+  '/_matrix/client/v3/media/thumbnail',
+  '/_matrix/client/v3/media/preview_url',
+  '/_matrix/client/r0/media/download',
+  '/_matrix/client/r0/media/thumbnail',
+  '/_matrix/client/r0/media/preview_url',
+  '/_matrix/client/unstable/org.matrix.msc3916/media/download',
+  '/_matrix/client/unstable/org.matrix.msc3916/media/thumbnail',
+  '/_matrix/client/unstable/org.matrix.msc3916/media/preview_url',
   // Legacy unauthenticated endpoints — servers that require auth return 404/403
   // for these when no token is present, so intercept and add auth here too.
   '/_matrix/media/v3/download',
   '/_matrix/media/v3/thumbnail',
+  '/_matrix/media/v3/preview_url',
   '/_matrix/media/r0/download',
   '/_matrix/media/r0/thumbnail',
+  '/_matrix/media/r0/preview_url',
 ];
 
 function mediaPath(url: string): boolean {
@@ -641,6 +687,39 @@ function validMediaRequest(url: string, baseUrl: string): boolean {
     const validUrl = new URL(p, baseUrl);
     return url.startsWith(validUrl.href);
   });
+}
+
+function getMatchingSessions(url: string): SessionInfo[] {
+  return [...sessions.values()].filter((s) => validMediaRequest(url, s.baseUrl));
+}
+
+function isAuthFailureStatus(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
+async function getLiveWindowSessions(url: string, clientId: string): Promise<SessionInfo[]> {
+  const collected: SessionInfo[] = [];
+  const seen = new Set<string>();
+  const add = (session?: SessionInfo) => {
+    if (!session || !validMediaRequest(url, session.baseUrl)) return;
+    const key = `${session.baseUrl}\x00${session.accessToken}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    collected.push(session);
+  };
+
+  if (clientId) {
+    add(await requestSessionWithTimeout(clientId, 1500));
+    return collected;
+  }
+
+  const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const liveSessions = await Promise.all(
+    windowClients.map((client) => requestSessionWithTimeout(client.id, 750))
+  );
+  liveSessions.forEach((session) => add(session));
+
+  return collected;
 }
 
 function fetchConfig(token: string): RequestInit {
@@ -775,37 +854,24 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
-    return;
-  }
-
-  // Since widgets like element call have their own client ids,
-  // we need this logic. We just go through the sessions list and get a session
-  // with the right base url. Media requests to a homeserver simply are fine with any account
-  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
-  // If you have two tabs for different users on the same homeserver, it might authenticate
-  // as the wrong one.
-  // Thus any logic in the future which cares about which user is authenticating the request
-  // might break this. Also, again, it is technically wrong.
-  // Also checks preloadedSession — populated from cache at SW activate — for the window
-  // between SW restart and the first live setSession arriving from the page.
-  const byBaseUrl =
-    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
-    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
-      ? preloadedSession
-      : undefined);
-  if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(fetchMediaWithRetry(url, session.accessToken, redirect, clientId));
     return;
   }
 
   // No clientId: the fetch came from a context not associated with a specific
-  // window (e.g. a prerender). Fall back to the persisted session directly.
+  // window (e.g. a prerender). Fall back to persisted/unique-by-baseUrl sessions.
   if (!clientId) {
     event.respondWith(
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+          return fetchMediaWithRetry(url, persisted.accessToken, redirect, '');
+        }
+        const matching = getMatchingSessions(url);
+        if (matching.length === 1) {
+          return fetchMediaWithRetry(url, matching[0].accessToken, redirect, '');
+        }
+        if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
+          return fetchMediaWithRetry(url, preloadedSession.accessToken, redirect, '');
         }
         return fetch(event.request);
       })
@@ -813,17 +879,30 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return;
   }
 
+  // Synchronous fast-path: check in-memory sessions by baseUrl and the
+  // preloaded session before paying the 3-second requestSessionWithTimeout
+  // cost. This restores the old byBaseUrl behaviour while keeping retry logic.
+  const syncByBaseUrl = getMatchingSessions(url);
+  if (syncByBaseUrl.length === 1) {
+    event.respondWith(fetchMediaWithRetry(url, syncByBaseUrl[0].accessToken, redirect, clientId));
+    return;
+  }
+  if (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)) {
+    event.respondWith(fetchMediaWithRetry(url, preloadedSession.accessToken, redirect, clientId));
+    return;
+  }
+
   event.respondWith(
     requestSessionWithTimeout(clientId).then(async (s) => {
       // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+        return fetchMediaWithRetry(url, s.accessToken, redirect, clientId);
       }
       // Fallback: try the persisted session (helps when SW restarts on iOS and
       // the client window hasn't responded to requestSession yet).
       const persisted = await loadPersistedSession();
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+        return fetchMediaWithRetry(url, persisted.accessToken, redirect, clientId);
       }
       console.warn(
         '[SW fetch] No valid session for media request',
@@ -849,18 +928,33 @@ const onPushNotification = async (event: PushEvent) => {
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
-  const [, , clients] = await Promise.all([
+  // Capture the persisted session result into preloadedSession so that
+  // getAnyStoredSession() returns it in handleMinimalPushPayload without a
+  // second cache read.
+  const [, persistedSession, clients] = await Promise.all([
     loadPersistedSettings(),
     loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
+  if (persistedSession && !preloadedSession) {
+    preloadedSession = persistedSession;
+  }
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // When clients.matchAll() returns ≥1 client, trust its visibilityState
+  // directly.  iOS can suspend the JS thread before postMessage({ visible:
+  // false }) is processed, leaving appIsVisible stuck at true.  matchAll()
+  // still reports the backgrounded client as 'hidden', so it is the
+  // authoritative and most reliable signal.
+  //
+  // When matchAll() returns zero clients (a separate iOS Safari PWA quirk),
+  // visibility is unknowable — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

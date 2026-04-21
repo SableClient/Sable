@@ -18,6 +18,7 @@ const PresenceToColor: Record<Presence, MainColor> = {
   [Presence.Online]: 'Success',
   [Presence.Unavailable]: 'Warning',
   [Presence.Offline]: 'Secondary',
+  [Presence.Dnd]: 'Critical',
 };
 
 type PresenceBadgeProps = {

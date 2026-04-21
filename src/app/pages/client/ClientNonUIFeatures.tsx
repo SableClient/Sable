@@ -21,7 +21,9 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -829,14 +831,47 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+  const clientConfig = useClientConfig();
+  const timeoutMs = clientConfig.presenceAutoIdleTimeoutMs ?? 0;
+
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const ownUser = mx.getUser(mx.getUserId() ?? '');
+    const shouldClearSyntheticDndStatus =
+      ownUser?.presenceStatusMsg === 'dnd' && (!sendPresence || effectiveMode !== 'dnd');
+    let statusPayload: { status_msg: string } | undefined;
+
+    if (sendPresence && effectiveMode === 'dnd') {
+      statusPayload = { status_msg: 'dnd' };
+    } else if (shouldClearSyntheticDndStatus) {
+      statusPayload = { status_msg: '' };
+    }
+
     mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    const presencePayload = {
+      presence: effectiveState,
+      ...statusPayload,
+    };
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const trySetPresence = (attempt = 0) => {
+      mx.setPresence(presencePayload).catch(() => {
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => trySetPresence(attempt + 1), 2000 * (attempt + 1));
+        }
+      });
+    };
+    trySetPresence();
+    return () => {
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
+    };
+  }, [autoIdled, mx, presenceMode, sendPresence]);
 
   return null;
 }

@@ -64,6 +64,9 @@ export type ClientConfig = {
   features?: {
     polls?: boolean;
   };
+
+  /** How long (ms) without input before auto-idling presence. 0 = disabled. */
+  presenceAutoIdleTimeoutMs?: number;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

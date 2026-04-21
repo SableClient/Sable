@@ -37,7 +37,20 @@ export const useRoomNavigate = () => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
-      const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
+      // Developer-mode: view the space's own timeline (must be checked first).
+      if (openSpaceTimeline) {
+        navigate(getSpaceRoomPath(roomIdOrAlias, roomId, eventId), opts);
+        return;
+      }
+
+      // DMs take priority over space membership so direct chats always open
+      // via the direct route, even when the room also belongs to a space.
+      if (mDirects.has(roomId)) {
+        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        return;
+      }
+
+      const orphanParents = getOrphanParents(roomToParents, roomId);
       if (orphanParents.length > 0) {
         let parentSpace: string;
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
@@ -48,15 +61,7 @@ export const useRoomNavigate = () => {
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
 
-        navigate(
-          getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
-          opts
-        );
-        return;
-      }
-
-      if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        navigate(getSpaceRoomPath(pSpaceIdOrAlias, roomIdOrAlias, eventId), opts);
         return;
       }
 

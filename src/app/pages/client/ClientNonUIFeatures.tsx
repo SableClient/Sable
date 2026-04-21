@@ -798,7 +798,7 @@ function HandleDecryptPushEvent() {
           appVisible: visible,
         });
 
-        navigator.serviceWorker.controller?.postMessage({
+        const successReply = {
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -807,7 +807,14 @@ function HandleDecryptPushEvent() {
           sender_display_name: senderName,
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
-        });
+        };
+        navigator.serviceWorker.controller?.postMessage(successReply);
+        // Belt-and-suspenders: also post via registration.active so the reply
+        // reaches the SW even when controller is transiently null (e.g., the
+        // window was opened by a notification tap before the SW claimed it, or
+        // during a SW update cycle). The SW deduplicates via decryptionPendingMap
+        // — the second message is a no-op once the entry is already resolved.
+        navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(successReply));
       } catch (err) {
         console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
         pushRelayLog.error(
@@ -815,12 +822,14 @@ function HandleDecryptPushEvent() {
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
-        navigator.serviceWorker.controller?.postMessage({
+        const errorReply = {
           type: 'pushDecryptResult',
           eventId,
           success: false,
           visibilityState: document.visibilityState,
-        });
+        };
+        navigator.serviceWorker.controller?.postMessage(errorReply);
+        navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(errorReply));
       }
     };
 

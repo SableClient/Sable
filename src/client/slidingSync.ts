@@ -34,9 +34,11 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// One event of timeline per list room is enough to compute unread counts;
-// the full history is loaded when the user opens the room.
-const LIST_TIMELINE_LIMIT = 1;
+// A small number of timeline events per list room. Unread counts come from
+// the server-side notification_count field, so a full history isn't needed.
+// Higher limit avoids empty previews when the most-recent events are
+// reactions/edits/state that useRoomLatestRenderedEvent skips over.
+const DEFAULT_LIST_TIMELINE_LIMIT = 3;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -50,7 +52,7 @@ const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
 // Timeline limit for the active-room subscription (full history load).
-// List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
+// List entries use a configurable timeline limit (default 1; raised to 5 when message previews are enabled).
 const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
 
 export type PartialSlidingSyncRequest = {
@@ -64,6 +66,7 @@ export type SlidingSyncConfig = {
   proxyBaseUrl?: string;
   bootstrapClassicOnColdCache?: boolean;
   listPageSize?: number;
+  listTimelineLimit?: number;
   timelineLimit?: number;
   pollTimeoutMs?: number;
   maxRooms?: number;
@@ -94,8 +97,11 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 // Notes:
 //   - RoomName/RoomCanonicalAlias are omitted: sliding sync returns the room name as a
 //     top-level field in every list response, so fetching them as state events is redundant.
-//   - MSC3575_STATE_KEY_LAZY is omitted: lazy-loading members is only needed when the
-//     user is actively viewing a room; loading them for every list entry wastes bandwidth.
+//   - MSC3575_STATE_KEY_LAZY is included only when `includeMembers=true` (i.e. when
+//     message previews are enabled and listTimelineLimit > 0). Lazy loading brings in
+//     m.room.member state events for senders of the preview timeline events so that
+//     display names resolve correctly. When previews are disabled, lazy loading is
+//     omitted to avoid wasteful member fetches for every list entry.
 //   - SpaceChild with wildcard is required: the roomToParents atom reads m.space.child
 //     state events (one per child, keyed by child room ID) to build the space hierarchy.
 //     Without these events the SDK has no parent→child mapping, so all rooms appear as
@@ -113,7 +119,9 @@ const clampPositive = (value: number | undefined, fallback: number): number => {
 //     for non-active rooms — notification serverName extraction, mention autocomplete
 //     alias display, and getCanonicalAliasOrRoomId for navigation. Without it, aliases
 //     fall back silently to room IDs.
-const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
+const buildListRequiredState = (
+  includeMembers: boolean
+): MSC3575RoomSubscription['required_state'] => [
   [EventType.RoomJoinRules, ''],
   [EventType.RoomAvatar, ''],
   [EventType.RoomTombstone, ''],
@@ -122,6 +130,7 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomTopic, ''],
   [EventType.RoomCanonicalAlias, ''],
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
+  ...(includeMembers ? [[EventType.RoomMember, MSC3575_STATE_KEY_LAZY] as [string, string]] : []),
   ['m.space.child', MSC3575_WILDCARD],
   ['im.ponies.room_emotes', MSC3575_WILDCARD],
   ['moe.sable.room.abbreviations', ''],
@@ -144,9 +153,13 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
   ],
 });
 
-const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, MSC3575List> => {
+const buildLists = (
+  pageSize: number,
+  includeInviteList: boolean,
+  listTimelineLimit: number
+): Map<string, MSC3575List> => {
   const lists = new Map<string, MSC3575List>();
-  const listRequiredState = buildListRequiredState();
+  const listRequiredState = buildListRequiredState(listTimelineLimit > 0);
 
   // Start with a reasonable initial range that will quickly expand to full list
   // Since timeline_limit=1, loading many rooms is very cheap
@@ -156,7 +169,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
     sort: LIST_SORT_ORDER,
-    timeline_limit: LIST_TIMELINE_LIMIT,
+    timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
     slow_get_all_rooms: true,
     filters: { is_invite: false },
@@ -166,7 +179,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
     lists.set(LIST_INVITES, {
       ranges: [[0, Math.max(0, initialRange - 1)]],
       sort: LIST_SORT_ORDER,
-      timeline_limit: LIST_TIMELINE_LIMIT,
+      timeline_limit: listTimelineLimit,
       required_state: listRequiredState,
       slow_get_all_rooms: true,
       filters: { is_invite: true },
@@ -176,7 +189,7 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   lists.set(LIST_DMS, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
     sort: LIST_SORT_ORDER,
-    timeline_limit: LIST_TIMELINE_LIMIT,
+    timeline_limit: listTimelineLimit,
     required_state: listRequiredState,
     slow_get_all_rooms: true,
     filters: { is_dm: true },
@@ -248,6 +261,8 @@ export class SlidingSyncManager {
 
   private readonly listPageSize: number;
 
+  private readonly listTimelineLimit: number;
+
   private readonly roomTimelineLimit: number;
 
   private readonly onConnectionChange: () => void;
@@ -300,12 +315,13 @@ export class SlidingSyncManager {
     this.maxRooms = clampPositive(config.maxRooms, DEFAULT_MAX_ROOMS);
     this.listPageSize = listPageSize;
     const includeInviteList = config.includeInviteList !== false;
+    this.listTimelineLimit = clampPositive(config.listTimelineLimit, DEFAULT_LIST_TIMELINE_LIMIT);
 
     const roomTimelineLimit = clampPositive(config.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
 
     const defaultSubscription = buildEncryptedSubscription(roomTimelineLimit);
-    const lists = buildLists(listPageSize, includeInviteList);
+    const lists = buildLists(listPageSize, includeInviteList, this.listTimelineLimit);
     this.listKeys = Array.from(lists.keys());
     this.slidingSync = new SlidingSync(proxyBaseUrl, lists, defaultSubscription, mx, pollTimeoutMs);
 
@@ -717,8 +733,8 @@ export class SlidingSyncManager {
       list = {
         ranges: [[0, 20]],
         sort: LIST_SORT_ORDER,
-        timeline_limit: LIST_TIMELINE_LIMIT,
-        required_state: buildListRequiredState(),
+        timeline_limit: this.listTimelineLimit,
+        required_state: buildListRequiredState(this.listTimelineLimit > 0),
         ...updateArgs,
       };
     } else {

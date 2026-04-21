@@ -178,6 +178,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -186,16 +187,18 @@ export function Direct() {
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   // Track timeline activity to trigger re-sorting when messages arrive.
-  // Without this, DMs only re-sort when you switch rooms because getLastActiveTimestamp()
-  // is internal SDK state not tracked by React dependencies.
+  // Debounced to prevent excessive re-renders on rapid events (reactions, edits, etc.).
   const [activityCounter, setActivityCounter] = useState(0);
   const directsSetRef = useRef(directs);
+  const activityTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   directsSetRef.current = directs;
 
   useEffect(() => {
     const handleTimeline = () => {
-      // Increment counter to trigger re-sort when any timeline event happens
-      setActivityCounter((prev) => prev + 1);
+      clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = setTimeout(() => {
+        setActivityCounter((prev) => prev + 1);
+      }, 500);
     };
 
     // Listen to timeline events only for direct message rooms
@@ -205,6 +208,7 @@ export function Direct() {
     });
 
     return () => {
+      clearTimeout(activityTimerRef.current);
       directsSetRef.current.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
@@ -296,6 +300,7 @@ export function Direct() {
                         showAvatar
                         direct
                         customDMCards={customDMCards}
+                        dmMessagePreview={dmMessagePreview}
                         linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                         notificationMode={getRoomNotificationMode(
                           notificationPreferences,

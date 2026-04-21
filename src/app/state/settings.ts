@@ -124,6 +124,9 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  roomTopicPreview: boolean;
+  roomMessagePreview: boolean;
+  dmMessagePreview: boolean;
 
   // experimental
   enableMessageBookmarks: boolean;
@@ -229,6 +232,9 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+  roomTopicPreview: false,
+  roomMessagePreview: false,
+  dmMessagePreview: true,
 
   // experimental
   enableMessageBookmarks: false,

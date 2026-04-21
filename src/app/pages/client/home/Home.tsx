@@ -204,6 +204,8 @@ export function Home() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
 
   const selectedRoomId = useSelectedRoom();
   const createRoomSelected = useHomeCreateSelected();
@@ -370,6 +372,8 @@ export function Home() {
                       <RoomNavItem
                         room={room}
                         selected={selected}
+                        roomTopicPreview={roomTopicPreview}
+                        roomMessagePreview={roomMessagePreview}
                         linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                         notificationMode={getRoomNotificationMode(
                           notificationPreferences,

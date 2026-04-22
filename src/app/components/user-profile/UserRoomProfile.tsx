@@ -1,4 +1,16 @@
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  color,
+  config,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  Scroll,
+  Text,
+  toRem,
+} from 'folds';
 import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -381,7 +393,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const presence = useUserPresence(userId);
 
-  const fetchedProfile = useUserProfile(userId, room);
+  const fetchedProfile = useUserProfile(userId, room, undefined, true);
   const extendedProfile =
     fetchedProfile && Object.keys(fetchedProfile).length > 0
       ? fetchedProfile
@@ -451,8 +463,24 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         presence={presence && presence.lastActiveTs !== 0 ? presence : undefined}
         autoplayGifs={autoplayGifs}
       />
-      <Box direction="Column" gap="300" style={{ padding: config.space.S400 }}>
-        <Box direction="Column" gap="200">
+      <Box
+        direction="Column"
+        gap="300"
+        style={{
+          padding: config.space.S400,
+          backgroundColor: fetchedProfile?.heroColorScheme?.color,
+        }}
+      >
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            backgroundColor: color.Surface.Container,
+            borderRadius: toRem(5),
+            borderWidth: toRem(15),
+            borderColor: color.Surface.Container,
+          }}
+        >
           <Box gap="200" alignItems="Center" wrap="Wrap">
             <UserHeroName displayName={displayName} userId={userId} />
             {userId !== myUserId && (

@@ -28,6 +28,7 @@ import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { useUserProfile } from '$hooks/useUserProfile';
 import * as css from './styles.css';
 
 type UserHeroProps = {
@@ -69,8 +70,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const status = presence?.status;
   const isExpandable = (status?.length ?? 0) > 70;
 
+  const fetchedProfile = useUserProfile(userId, undefined, undefined, true);
+
   return (
-    <Box direction="Column" className={css.UserHero}>
+    <Box
+      direction="Column"
+      className={css.UserHero}
+      style={{ backgroundColor: fetchedProfile?.heroColorScheme?.color }}
+    >
       <div
         className={css.UserHeroCoverContainer}
         style={{
@@ -196,8 +203,7 @@ export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
   const nick = useNickname(userId);
 
   // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom());
-
+  const { color, font } = useSableCosmetics(userId, useRoom(), true);
   const shownName = nick ?? displayName ?? username ?? userId;
 
   return (

@@ -28,6 +28,7 @@ export type UserProfile = {
   nameColor?: string;
   nameColorDark?: string;
   nameColorLight?: string;
+  heroColorScheme?: Record<string, string>;
   isCat?: boolean;
   hasCats?: boolean;
   extended?: Record<string, any>;
@@ -50,6 +51,7 @@ const normalizeInfo = (info: any): UserProfile => {
     'moe.sable.app.name_color',
     'moe.sable.app.name_color_dark_theme',
     'moe.sable.app.name_color_light_theme',
+    'chat.commet.profile_color_scheme',
     'kitty.meow.has_cats',
     'kitty.meow.is_cat',
   ]);
@@ -75,6 +77,7 @@ const normalizeInfo = (info: any): UserProfile => {
     nameColor: info['moe.sable.app.name_color'],
     nameColorDark: info['moe.sable.app.name_color_dark_theme'],
     nameColorLight: info['moe.sable.app.name_color_light_theme'],
+    heroColorScheme: info['chat.commet.profile_color_scheme'],
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
     extended,
@@ -94,7 +97,8 @@ const sanitizeFont = (f: string) => f.replaceAll(/[;{}<>]/g, '').slice(0, 32);
 export const useUserProfile = (
   userId: string,
   room?: Room,
-  initialProfile?: Partial<UserProfile>
+  initialProfile?: Partial<UserProfile>,
+  isInUserHero?: boolean
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
@@ -181,7 +185,6 @@ export const useUserProfile = (
           Array.isArray(localFontEvent) ? localFontEvent[0] : localFontEvent
         )?.getContent()?.font;
       }
-
       const localPronounEvent = state?.getStateEvents(
         StateEvent.RoomCosmeticsPronouns as string,
         userId
@@ -212,6 +215,12 @@ export const useUserProfile = (
     const validGlobalVal = isValidHex(data?.nameColor);
     const validGlobalValDark = isValidHex(data?.nameColorDark);
     const validGlobalValLight = isValidHex(data?.nameColorLight);
+    console.log(
+      'Hero Color Scheme: ',
+      data?.heroColorScheme?.color,
+      'Is User Hero: ',
+      isInUserHero === true
+    );
 
     const validGlobalGeneral =
       (renderGlobalColors || userId === mx.getUserId()) && !!validGlobalVal
@@ -265,6 +274,7 @@ export const useUserProfile = (
     room,
     renderRoomColors,
     renderRoomFonts,
+    isInUserHero,
     renderGlobalColors,
     themeKind,
     legacyUsernameColor,

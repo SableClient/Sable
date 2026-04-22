@@ -561,8 +561,12 @@ async function handleMinimalPushPayload(
   }
 }
 
-self.addEventListener('install', (event: ExtendableEvent) => {
-  event.waitUntil(self.skipWaiting());
+self.addEventListener('install', () => {
+  // Do NOT call skipWaiting() here. Activating immediately would discard the
+  // old SW mid-session; any lazy-loaded JS chunk that only existed in the old
+  // precache becomes a 404, causing the chunk-error handler to silently reload
+  // the page. Instead, the new SW waits until the update prompt is confirmed
+  // (SKIP_WAITING_AND_CLAIM message) or the user manually refreshes.
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
@@ -594,6 +598,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (!data || typeof data !== 'object') return;
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
+  if (type === 'SKIP_WAITING_AND_CLAIM') {
+    // Sent by the update prompt when the user confirms they want to update.
+    // skipWaiting() activates this SW immediately; the page then reloads.
+    event.waitUntil(self.skipWaiting());
+  }
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
     // Keep the SW alive until the cache write completes.  persistSession is

@@ -536,9 +536,10 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 onClick={handleMessage}
                 style={{
                   marginLeft: 'auto',
-                  backgroundColor: cardColor,
+                  backgroundColor:
+                    backgroundColor !== color.Surface.Container ? cardColor : undefined,
                   borderColor: backgroundColor,
-                  color: textColor,
+                  color: backgroundColor !== color.Surface.Container ? textColor : undefined,
                   borderStyle: 'solid',
                   borderWidth: '1px',
                 }}

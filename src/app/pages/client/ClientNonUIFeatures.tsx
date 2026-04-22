@@ -107,6 +107,9 @@ function FaviconUpdater() {
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [faviconForMentionsOnly] = useSetting(settingsAtom, 'faviconForMentionsOnly');
   const registration = useAtomValue(registrationAtom);
+  // Track the latest highlight total so the visibilitychange handler can check
+  // it without needing to be inside the roomToUnread effect.
+  const highlightTotalRef = useRef(0);
 
   useEffect(() => {
     let notification = false;
@@ -125,6 +128,8 @@ function FaviconUpdater() {
         highlight = true;
       }
     });
+
+    highlightTotalRef.current = highlightTotal;
 
     if (highlight) {
       setFavicon(LogoHighlightSVG);
@@ -165,6 +170,25 @@ function FaviconUpdater() {
       // Likely Firefox/Gecko-based and doesn't support badging API
     }
   }, [roomToUnread, usePushNotifications, registration, faviconForMentionsOnly]);
+
+  // Clear the badge whenever the app comes to the foreground with no active
+  // highlights.  The main effect above only runs when roomToUnread changes, so
+  // if highlights reached 0 while the app was backgrounded (e.g. read on
+  // another device during a background sync), the badge would stay set until
+  // the next roomToUnread change.  This listener closes that gap.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (highlightTotalRef.current > 0) return;
+      try {
+        navigator.clearAppBadge();
+      } catch {
+        // Badging API not supported — ignore
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   return null;
 }
@@ -821,7 +845,7 @@ function HandleDecryptPushEvent() {
         // — the second message is a no-op once the entry is already resolved.
         navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(successReply));
       } catch (err) {
-        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
+        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err); // eslint-disable-line no-console
         pushRelayLog.error(
           'notification',
           'Push relay decryption failed',

@@ -26,6 +26,12 @@ export interface UseProcessedTimelineOptions {
    * where every reply legitimately has `threadRootId` set to the root.
    */
   skipThreadFilter?: boolean;
+  /**
+   * Minutes of inactivity before a new message from the same sender gets a
+   * full user header. Defaults to 2 (the original behaviour). Set higher
+   * (e.g. 15) for Discord-style compact grouping.
+   */
+  messageGroupingThreshold?: number;
 }
 
 export interface ProcessedEvent {
@@ -62,6 +68,7 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
+  messageGroupingThreshold = 2,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   return useMemo(() => {
     let prevEvent: MatrixEvent | undefined;
@@ -160,7 +167,8 @@ export function useProcessedTimeline({
 
         if (isMessageEvent) {
           const withinTimeThreshold =
-            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) < 2;
+            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) <
+            messageGroupingThreshold;
           const senderMatch = getPrevSender.call(prevEvent) === eventSender;
           const typeMatch =
             normalizeMessageType(getPrevType.call(prevEvent)) === normalizeMessageType(type);
@@ -216,5 +224,6 @@ export function useProcessedTimeline({
     isReadOnly,
     hideMemberInReadOnly,
     skipThreadFilter,
+    messageGroupingThreshold,
   ]);
 }

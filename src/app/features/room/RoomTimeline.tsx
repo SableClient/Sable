@@ -153,6 +153,7 @@ export function RoomTimeline({
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -821,6 +822,7 @@ export function RoomTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   processedEventsRef.current = processedEvents;

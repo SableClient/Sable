@@ -131,6 +131,9 @@ export interface Settings {
   // experimental
   enableMessageBookmarks: boolean;
 
+  // experimental
+  messageGroupingThreshold: number;
+
   // furry stuff
   renderAnimals: boolean;
 }
@@ -238,6 +241,9 @@ const defaultSettings: Settings = {
 
   // experimental
   enableMessageBookmarks: false,
+
+  // experimental
+  messageGroupingThreshold: 2,
 
   // furry stuff
   renderAnimals: true,

@@ -8,6 +8,7 @@ engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@sableclient/sable-call-embedded'
+  - '@sableclient/twemoji-font'
 
 overrides:
   serialize-javascript: '>=7.0.5'

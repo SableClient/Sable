@@ -35,6 +35,9 @@ importers:
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@sableclient/twemoji-font':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@sentry/react':
         specifier: ^10.46.0
         version: 10.46.0(react@18.3.1)
@@ -90,8 +93,8 @@ importers:
         specifier: ^15.3.1
         version: 15.3.1
       emojibase-data:
-        specifier: ^15.3.2
-        version: 15.3.2(emojibase@15.3.1)
+        specifier: ^17.0.0
+        version: 17.0.0(emojibase@15.3.1)
       eslint-plugin-react:
         specifier: 7.37.5
         version: 7.37.5(eslint@9.39.3(jiti@2.6.1))
@@ -204,9 +207,6 @@ importers:
       '@e18e/eslint-plugin':
         specifier: ^0.3.0
         version: 0.3.0(eslint@9.39.3(jiti@2.6.1))
-      '@esbuild-plugins/node-globals-polyfill':
-        specifier: ^0.2.3
-        version: 0.2.3(esbuild@0.27.4)
       '@eslint/compat':
         specifier: 2.0.2
         version: 2.0.2(eslint@9.39.3(jiti@2.6.1))
@@ -932,11 +932,6 @@ packages:
 
   '@emotion/hash@0.9.2':
     resolution: {integrity: sha512-MyqliTZGuOm3+5ZRSaaBGP3USLw6+EGykkwZns2EPC5g8jJ4z9OrdZY9apkl3+UP9+sdz76YYkwCKP5gh8iY3g==}
-
-  '@esbuild-plugins/node-globals-polyfill@0.2.3':
-    resolution: {integrity: sha512-r3MIryXDeXDOZh7ih1l/yE9ZLORCd5e8vWg02azWRGj5SPTuoh69A2AIyn0Z31V/kHBfZ4HgWJ+OK3GTTwLmnw==}
-    peerDependencies:
-      esbuild: '*'
 
   '@esbuild/aix-ppc64@0.27.4':
     resolution: {integrity: sha512-cQPwL2mp2nSmHHJlCyoXgHGhbEPMrEEU5xhkcy3Hs/O7nGZqEpZ2sUtLaL9MORLtDfRvVl2/3PAuEkYZH0Ty8Q==}
@@ -2315,6 +2310,9 @@ packages:
   '@sableclient/sable-call-embedded@1.1.4':
     resolution: {integrity: sha512-XLRcbUPcn7i3QKZAPjIfUkUEXP0E4DOr0dyRoVCWMjHWj28kq+T7jeB2fRr5lB77olBwNHMjIuoTwrv02xiepQ==}
 
+  '@sableclient/twemoji-font@1.0.2':
+    resolution: {integrity: sha512-9IaGNpTrj6d0q7m+Lq6U+iYKwoHQSxyUQB1kox5OzTi9T1eU4eFJLGCqtq5Sst0SbCnNsfBqTiC4s0x85+Q2oQ==}
+
   '@sentry-internal/browser-utils@10.46.0':
     resolution: {integrity: sha512-WB1gBT9G13V02ekZ6NpUhoI1aGHV2eNfjEPthkU2bGBvFpQKnstwzjg7waIRGR7cu+YSW2Q6UI6aQLgBeOPD1g==}
     engines: {node: '>=18'}
@@ -3409,8 +3407,8 @@ packages:
   emoji-regex@9.2.2:
     resolution: {integrity: sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==}
 
-  emojibase-data@15.3.2:
-    resolution: {integrity: sha512-TpDyTDDTdqWIJixV5sTA6OQ0P0JfIIeK2tFRR3q56G9LK65ylAZ7z3KyBXokpvTTJ+mLUXQXbLNyVkjvnTLE+A==}
+  emojibase-data@17.0.0:
+    resolution: {integrity: sha512-Yvgb5AWoHViHV/gq1qr5ZAarcBip+B27/ZLRsUJkbgAEaLlZ/fof9g882LTpmEpyhBNEC0m2SEmItljHsTygjA==}
     peerDependencies:
       emojibase: '*'
 
@@ -6391,10 +6389,6 @@ snapshots:
 
   '@emotion/hash@0.9.2': {}
 
-  '@esbuild-plugins/node-globals-polyfill@0.2.3(esbuild@0.27.4)':
-    dependencies:
-      esbuild: 0.27.4
-
   '@esbuild/aix-ppc64@0.27.4':
     optional: true
 
@@ -7939,6 +7933,8 @@ snapshots:
 
   '@sableclient/sable-call-embedded@1.1.4': {}
 
+  '@sableclient/twemoji-font@1.0.2': {}
+
   '@sentry-internal/browser-utils@10.46.0':
     dependencies:
       '@sentry/core': 10.46.0
@@ -9106,7 +9102,7 @@ snapshots:
 
   emoji-regex@9.2.2: {}
 
-  emojibase-data@15.3.2(emojibase@15.3.1):
+  emojibase-data@17.0.0(emojibase@15.3.1):
     dependencies:
       emojibase: 15.3.1
 

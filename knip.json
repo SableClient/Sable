@@ -9,7 +9,8 @@
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm"
+    "@matrix-org/matrix-sdk-crypto-wasm",
+    "@sableclient/twemoji-font"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

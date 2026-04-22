@@ -192,11 +192,24 @@ export function useAppVisibility(mx: MatrixClient | undefined, activeSession?: S
   useEffect(() => {
     if (!mx) return;
 
-    const handleVisibilityForNotifications = (isVisible: boolean) => {
-      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
+    const runTogglePusher = (isVisible: boolean) => {
+      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile).catch(
+        (err) =>
+          debugLog.warn(
+            'notification',
+            'togglePusher failed',
+            err instanceof Error ? err : new Error(String(err))
+          )
+      );
     };
 
-    appEvents.onVisibilityChange = handleVisibilityForNotifications;
+    // Re-register the pusher on mount so the endpoint is always current after
+    // an app restart, SW update, or browser push-subscription rotation.
+    // togglePusher/enablePushNotifications is idempotent — it reuses the existing
+    // subscription when the endpoint hasn't changed, so this is cheap.
+    runTogglePusher(document.visibilityState === 'visible');
+
+    appEvents.onVisibilityChange = runTogglePusher;
     // eslint-disable-next-line consistent-return
     return () => {
       appEvents.onVisibilityChange = null;

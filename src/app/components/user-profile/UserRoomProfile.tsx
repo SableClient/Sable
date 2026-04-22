@@ -74,6 +74,8 @@ type UserExtendedSectionProps = {
   profile: UserProfile;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
+  backgroundColor?: string;
+  innerColor?: string;
   cardColor?: string;
   textColor?: string;
 };
@@ -82,6 +84,8 @@ function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
+  backgroundColor,
+  innerColor,
   cardColor,
   textColor,
 }: Readonly<UserExtendedSectionProps>) {
@@ -175,13 +179,24 @@ function UserExtendedSection({
       return null;
     }
     return (
-      <Menu style={{ position: 'absolute', zIndex: '100', transform: `translateY(${toRem(32)})` }}>
+      <Menu
+        style={{
+          position: 'absolute',
+          zIndex: '100',
+          transform: `translateY(${toRem(32)})`,
+          backgroundColor: innerColor,
+        }}
+      >
         <MenuItem
           size="300"
           radii="300"
           fill="None"
-          variant="Primary"
-          style={{ justifyContent: 'Center', textAlign: 'center' }}
+          style={{
+            justifyContent: 'Center',
+            textAlign: 'center',
+            backgroundColor: cardColor,
+            color: textColor,
+          }}
           onClick={() => handleMiscSelector(-1)}
         >
           <Icon src={Icons.ChevronTop} size="50" />
@@ -192,8 +207,7 @@ function UserExtendedSection({
             size="300"
             radii="300"
             fill="None"
-            variant="Secondary"
-            style={{ justifyContent: 'Center' }}
+            style={{ justifyContent: 'Center', backgroundColor: cardColor, color: textColor }}
             onClick={() => handleMiscSelector(index)}
           >
             <Text>{key}</Text>
@@ -201,7 +215,7 @@ function UserExtendedSection({
         ))}
       </Menu>
     );
-  }, [miscDataIndex, showMisc, unknownFields]);
+  }, [cardColor, innerColor, miscDataIndex, showMisc, textColor, unknownFields]);
   const miscHeader = useMemo(
     () => (
       <Box justifyContent="Center" grow="Yes">
@@ -271,6 +285,9 @@ function UserExtendedSection({
           style={{
             backgroundColor: cardColor,
             borderRadius: config.radii.R400,
+            borderColor: backgroundColor,
+            borderStyle: 'solid',
+            borderWidth: '1px',
             maxHeight: '200px',
             marginTop: config.space.S0,
             overflowY: 'auto',
@@ -299,6 +316,7 @@ function UserExtendedSection({
                 backgroundColor: cardColor,
                 borderColor: 'var(--sable-surface-container-line)',
                 borderRadius: config.radii.R400,
+                borderWidth: '1px',
               }}
             >
               <Box
@@ -311,7 +329,6 @@ function UserExtendedSection({
               >
                 {unknownFields.length > 1 && (
                   <Button
-                    variant="Secondary"
                     size="300"
                     fill="None"
                     onClick={() =>
@@ -319,6 +336,7 @@ function UserExtendedSection({
                         miscDataIndex === 0 ? unknownFields.length - 1 : miscDataIndex - 1
                       )
                     }
+                    style={{ color: textColor }}
                   >
                     <Icon src={Icons.ArrowLeft} size="50" />
                   </Button>
@@ -326,16 +344,23 @@ function UserExtendedSection({
                 {miscHeader}
                 {unknownFields.length > 1 && (
                   <Button
-                    variant="Secondary"
                     size="300"
                     fill="None"
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
+                    style={{ color: textColor }}
                   >
                     <Icon src={Icons.ArrowRight} size="50" />
                   </Button>
                 )}
               </Box>
-              <Scroll size="300" direction="Both">
+              <Scroll
+                size="300"
+                direction="Both"
+                style={{
+                  backgroundColor: color.Background.Container,
+                  color: color.Background.OnContainer,
+                }}
+              >
                 <Box
                   direction="Column"
                   style={{
@@ -509,7 +534,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 radii="300"
                 before={<Icon size="50" src={Icons.Message} filled />}
                 onClick={handleMessage}
-                style={{ marginLeft: 'auto' }}
+                style={{
+                  marginLeft: 'auto',
+                  backgroundColor: cardColor,
+                  borderColor: backgroundColor,
+                  color: textColor,
+                  borderStyle: 'solid',
+                  borderWidth: '1px',
+                }}
               >
                 <Text size="B300">Message</Text>
               </Button>
@@ -519,15 +551,57 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             profile={extendedProfile}
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
+            backgroundColor={backgroundColor}
+            innerColor={innerColor}
             cardColor={cardColor}
             textColor={textColor}
           />
           <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
-            {server && <ServerChip server={server} />}
-            <ShareChip userId={userId} />
-            {creator ? <CreatorChip /> : <PowerChip userId={userId} />}
-            {userId !== myUserId && <MutualRoomsChip userId={userId} />}
-            {userId !== myUserId && <OptionsChip userId={userId} />}
+            {server && (
+              <ServerChip
+                server={server}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            <ShareChip
+              userId={userId}
+              backgroundColor={backgroundColor}
+              innerColor={innerColor}
+              cardColor={cardColor}
+              textColor={textColor}
+            />
+            {creator ? (
+              <CreatorChip />
+            ) : (
+              <PowerChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            {userId !== myUserId && (
+              <MutualRoomsChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            {userId !== myUserId && (
+              <OptionsChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
           </Box>
         </Box>
         {ignored && <IgnoredUserAlert />}

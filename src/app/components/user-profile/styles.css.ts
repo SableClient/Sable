@@ -78,3 +78,7 @@ export const UserHeroAvatarImg = style({
     },
   },
 });
+export const UserHeroChip = style({
+  borderStyle: 'solid',
+  borderWidth: '1px',
+});

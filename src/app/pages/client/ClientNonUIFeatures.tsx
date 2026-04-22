@@ -845,6 +845,12 @@ function HandleDecryptPushEvent() {
   return null;
 }
 
+// How often an active device re-asserts its online state to the server.
+// Matrix presence is per-user (not per-device): if another device sets you to
+// idle/unavailable, this heartbeat wins the server state back within one interval.
+// Must be shorter than the shortest expected idle timeout (default 5 min).
+const PRESENCE_HEARTBEAT_INTERVAL_MS = 2 * 60_000; // 2 minutes
+
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
@@ -887,6 +893,24 @@ function PresenceFeature() {
     trySetPresence();
     return () => {
       if (retryTimer !== undefined) clearTimeout(retryTimer);
+    };
+  }, [autoIdled, mx, presenceMode, sendPresence]);
+
+  // Presence heartbeat: periodically re-assert online state while this device
+  // is active. Fixes a multi-device race where a different idle device sets the
+  // shared server presence to unavailable while the user is active here.
+  useEffect(() => {
+    const isActiveOnline = sendPresence && !autoIdled && presenceMode === 'online';
+    if (!isActiveOnline) return undefined;
+
+    const heartbeatId = window.setInterval(() => {
+      mx.setPresence({ presence: 'online' }).catch(() => {
+        // Silently ignore — the main effect will retry on next state change.
+      });
+    }, PRESENCE_HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(heartbeatId);
     };
   }, [autoIdled, mx, presenceMode, sendPresence]);
 

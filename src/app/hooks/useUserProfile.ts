@@ -97,12 +97,13 @@ const sanitizeFont = (f: string) => f.replaceAll(/[;{}<>]/g, '').slice(0, 32);
 export const useUserProfile = (
   userId: string,
   room?: Room,
-  initialProfile?: Partial<UserProfile>,
-  isInUserHero?: boolean
+  initialProfile?: Partial<UserProfile>
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
   resolvedPronouns?: any[];
+  heroColor?: string;
+  heroBrightness?: string;
 } => {
   const mx = useMatrixClient();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -212,15 +213,12 @@ export const useUserProfile = (
         }
       }
     }
+    const validHeroColor = isValidHex(data?.heroColorScheme?.color);
+    const heroBrightness = data?.heroColorScheme?.brightness;
+
     const validGlobalVal = isValidHex(data?.nameColor);
     const validGlobalValDark = isValidHex(data?.nameColorDark);
     const validGlobalValLight = isValidHex(data?.nameColorLight);
-    console.log(
-      'Hero Color Scheme: ',
-      data?.heroColorScheme?.color,
-      'Is User Hero: ',
-      isInUserHero === true
-    );
 
     const validGlobalGeneral =
       (renderGlobalColors || userId === mx.getUserId()) && !!validGlobalVal
@@ -265,6 +263,8 @@ export const useUserProfile = (
       resolvedFont,
       resolvedPronouns,
       pronouns: resolvedPronouns,
+      heroColor: validHeroColor,
+      heroBrightness,
     };
   }, [
     cached,
@@ -274,7 +274,6 @@ export const useUserProfile = (
     room,
     renderRoomColors,
     renderRoomFonts,
-    isInUserHero,
     renderGlobalColors,
     themeKind,
     legacyUsernameColor,

@@ -53,7 +53,6 @@ import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './
 import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
-import { text } from 'stream/consumers';
 
 const KNOWN_KEYS = [
   'moe.sable.app.bio',
@@ -399,7 +398,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const presence = useUserPresence(userId);
 
-  const fetchedProfile = useUserProfile(userId, room, undefined, true);
+  const fetchedProfile = useUserProfile(userId, room);
   const extendedProfile =
     fetchedProfile && Object.keys(fetchedProfile).length > 0
       ? fetchedProfile
@@ -459,6 +458,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       }),
     [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
   );
+
   function shadeColor(initialColor: string, percent: number) {
     if (!initialColor || initialColor[0] !== '#' || initialColor.length !== 7) return undefined;
     const ratio = 1 + percent / 100;
@@ -477,8 +477,8 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     return `#${RR}${GG}${BB}`;
   }
 
-  const backgroundColor = fetchedProfile?.heroColorScheme?.color ?? color.Surface.Container;
-  const fetchedBrightness = fetchedProfile?.heroColorScheme?.brightness;
+  const backgroundColor = fetchedProfile.heroColor ?? color.Surface.Container;
+  const fetchedBrightness = fetchedProfile?.heroBrightness;
   const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
   const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -70 : 70);
   const cardColor =

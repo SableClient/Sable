@@ -70,7 +70,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const status = presence?.status;
   const isExpandable = (status?.length ?? 0) > 70;
 
-  const fetchedProfile = useUserProfile(userId, undefined, undefined, true);
+  const fetchedProfile = useUserProfile(userId);
 
   return (
     <Box
@@ -203,7 +203,7 @@ export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
   const nick = useNickname(userId);
 
   // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom(), true);
+  const { color, font } = useSableCosmetics(userId, useRoom());
   const shownName = nick ?? displayName ?? username ?? userId;
 
   return (

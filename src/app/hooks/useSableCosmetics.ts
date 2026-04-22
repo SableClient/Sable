@@ -8,9 +8,9 @@ import { usePowerLevelTags } from './usePowerLevelTags';
 import { useTheme } from './useTheme';
 import { useUserProfile } from './useUserProfile';
 
-export function useSableCosmetics(userId: string, room: Room, isInHero?: boolean) {
+export function useSableCosmetics(userId: string, room: Room) {
   const theme = useTheme();
-  const profile = useUserProfile(userId, room, undefined, isInHero);
+  const profile = useUserProfile(userId, room);
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -34,19 +34,7 @@ export function useSableCosmetics(userId: string, room: Room, isInHero?: boolean
       color: finalColor,
       font: profile.resolvedFont,
     };
-    if (isInHero && profile.heroColorScheme) {
-      resolvedCosmetics.heroColorScheme = profile.heroColorScheme;
-    }
 
     return resolvedCosmetics;
-  }, [
-    room,
-    userId,
-    profile.resolvedColor,
-    profile.resolvedFont,
-    profile.heroColorScheme,
-    isInHero,
-    getPowerTag,
-    accessibleTagColors,
-  ]);
+  }, [room, userId, profile.resolvedColor, profile.resolvedFont, getPowerTag, accessibleTagColors]);
 }

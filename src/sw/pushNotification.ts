@@ -1,5 +1,6 @@
 /* oxlint-disable no-console */
-import { EventType } from '$types/matrix-sdk';
+// Keep the service worker import graph narrow, the app barrel pulls in runtime Matrix SDK modules that break SW script evaluation
+import { EventType } from 'matrix-js-sdk/lib/@types/event';
 import {
   buildRoomMessageNotification,
   DEFAULT_NOTIFICATION_ICON,

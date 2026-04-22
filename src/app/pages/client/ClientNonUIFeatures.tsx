@@ -140,7 +140,7 @@ function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications) {
+      if (usePushNotifications && registration) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));

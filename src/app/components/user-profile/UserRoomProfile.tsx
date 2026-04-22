@@ -48,6 +48,7 @@ import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { TextViewerContent } from '$components/text-viewer';
+import { shadeColor } from '$utils/shadeColor';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -229,7 +230,6 @@ function UserExtendedSection({
     ),
     [miscDataIndex, textColor, unknownFields, showMisc, miscSelector]
   );
-  console.log('text', textColor);
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
       {(pronouns || localTime) && (
@@ -459,35 +459,16 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
   );
 
-  function shadeColor(initialColor: string, percent: number) {
-    if (!initialColor || initialColor[0] !== '#' || initialColor.length !== 7) return undefined;
-    const ratio = 1 + percent / 100;
-
-    // Get hex value, convert it to number, multiply it by the desired amount, then clamp it
-    const R = Math.floor(Math.min(parseInt(initialColor.substring(1, 3), 16) * ratio, 255));
-    const G = Math.floor(Math.min(parseInt(initialColor.substring(3, 5), 16) * ratio, 255));
-    const B = Math.floor(
-      Math.max(Math.min(parseInt(initialColor.substring(5, 7), 16) * ratio, 255), 0)
-    );
-
-    const RR = `${R < 16 ? '0' : ''}${R.toString(16)}`;
-    const GG = `${G < 16 ? '0' : ''}${G.toString(16)}`;
-    const BB = `${B < 16 ? '0' : ''}${B.toString(16)}`;
-
-    return `#${RR}${GG}${BB}`;
-  }
-
   const backgroundColor = fetchedProfile.heroColor ?? color.Surface.Container;
   const fetchedBrightness = fetchedProfile?.heroBrightness;
   const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
-  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -70 : 70);
+  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -50 : 50);
   const cardColor =
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? color.Background.Container;
   const textColor =
     (fetchedBrightness === 'dark' && '#FFFFFF') ||
     (fetchedBrightness === 'light' && '#000000') ||
     undefined;
-  console.log('textC', textColor);
 
   return (
     <Box direction="Column" style={{ color: textColor }}>

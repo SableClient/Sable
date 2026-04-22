@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   Avatar,
   Box,
+  color as standardColors,
   Icon,
   Icons,
   Modal,
@@ -29,6 +30,7 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
+import { shadeColor } from '$utils/shadeColor';
 import * as css from './styles.css';
 
 type UserHeroProps = {
@@ -71,6 +73,15 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const isExpandable = (status?.length ?? 0) > 70;
 
   const fetchedProfile = useUserProfile(userId);
+  const backgroundColor = fetchedProfile.heroColor ?? standardColors.Surface.Container;
+  const fetchedBrightness = fetchedProfile?.heroBrightness;
+  const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
+  const cardColor =
+    shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? standardColors.Background.Container;
+  const textColor =
+    (fetchedBrightness === 'dark' && '#FFFFFF') ||
+    (fetchedBrightness === 'light' && '#000000') ||
+    undefined;
 
   return (
     <Box
@@ -151,6 +162,8 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                 transform: 'none',
                 transition: 'none',
                 display: 'flex',
+                backgroundColor: cardColor,
+                color: textColor,
               }}
             >
               <Box direction="Row" gap="100" style={{ height: '100%', width: '100%' }}>
@@ -203,7 +216,7 @@ export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
   const nick = useNickname(userId);
 
   // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom());
+  const { color, font } = useSableCosmetics(userId, useRoom(), true);
   const shownName = nick ?? displayName ?? username ?? userId;
 
   return (

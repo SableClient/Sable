@@ -103,6 +103,7 @@ export const useUserProfile = (
   resolvedFont?: string;
   resolvedPronouns?: any[];
   heroColor?: string;
+  heroNameColor?: string;
   heroBrightness?: string;
 } => {
   const mx = useMatrixClient();
@@ -213,8 +214,6 @@ export const useUserProfile = (
         }
       }
     }
-    const validHeroColor = isValidHex(data?.heroColorScheme?.color);
-    const heroBrightness = data?.heroColorScheme?.brightness;
 
     const validGlobalVal = isValidHex(data?.nameColor);
     const validGlobalValDark = isValidHex(data?.nameColorDark);
@@ -257,6 +256,14 @@ export const useUserProfile = (
 
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
+    const validHeroColor = isValidHex(data?.heroColorScheme?.color);
+    const heroBrightness = data?.heroColorScheme?.brightness;
+    const heroNameColor =
+      ((renderGlobalColors || userId === mx.getUserId()) &&
+        heroBrightness === 'light' &&
+        validGlobalValLight) ||
+      (heroBrightness === 'dark' && validGlobalValDark) ||
+      resolvedColor;
     return {
       ...data,
       resolvedColor,
@@ -265,6 +272,7 @@ export const useUserProfile = (
       pronouns: resolvedPronouns,
       heroColor: validHeroColor,
       heroBrightness,
+      heroNameColor,
     };
   }, [
     cached,

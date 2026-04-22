@@ -627,6 +627,44 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           }}
         />
       </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <NameColorEditor
+          title="Background Color"
+          description="The background color that will be used when making your profile card"
+          focusId="user-hero-color"
+          current={profile?.heroColorScheme?.color}
+          onSave={(color) =>
+            handleSaveField('chat.commet.profile_color_scheme', {
+              color,
+              brightness: profile?.heroColorScheme?.brightness,
+            })
+          }
+        />
+        <IconButton
+          variant={profile?.heroColorScheme?.brightness === 'dark' ? 'Primary' : 'Warning'}
+          onClick={() =>
+            handleSaveField('chat.commet.profile_color_scheme', {
+              color: profile?.heroColorScheme?.color,
+              brightness: profile?.heroColorScheme?.brightness === 'dark' ? 'light' : 'dark',
+            })
+          }
+        >
+          <Box gap="200" direction="Row">
+            <Text truncate>
+              {profile?.heroColorScheme?.brightness === 'dark' ? 'Dark Mode' : 'Light Mode'}
+            </Text>
+            <Icon
+              src={profile?.heroColorScheme?.brightness === 'dark' ? Icons.Star : Icons.Sun}
+              size="200"
+            />
+          </Box>
+        </IconButton>
+      </SequenceCard>
 
       {extendedFields.length > 0 &&
         extendedFields.map(([key, value]) => {

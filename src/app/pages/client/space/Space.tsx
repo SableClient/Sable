@@ -678,6 +678,7 @@ export function Space() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 32,
     overscan: 10,
+    getItemKey: (index) => hierarchy[index]?.roomId ?? index,
   });
 
   const virtualizedItems = virtualizer.getVirtualItems();
@@ -775,7 +776,7 @@ export function Space() {
                   return (
                     <VirtualTile
                       virtualItem={vItem}
-                      key={vItem.index}
+                      key={vItem.key}
                       ref={virtualizer.measureElement}
                     >
                       <div style={{ paddingLeft: `calc(${renderDepth} * ${config.space.S400})` }}>
@@ -799,7 +800,7 @@ export function Space() {
                   return (
                     <VirtualTile
                       virtualItem={vItem}
-                      key={vItem.index}
+                      key={vItem.key}
                       ref={virtualizer.measureElement}
                     >
                       <div style={{ paddingTop, paddingLeft }}>
@@ -818,11 +819,7 @@ export function Space() {
                 }
 
                 return (
-                  <VirtualTile
-                    virtualItem={vItem}
-                    key={vItem.index}
-                    ref={virtualizer.measureElement}
-                  >
+                  <VirtualTile virtualItem={vItem} key={vItem.key} ref={virtualizer.measureElement}>
                     <div style={{ paddingLeft }}>
                       <RoomNavItem
                         room={room}

@@ -2,4 +2,4 @@
 default: minor
 ---
 
-Add styling background styling to user profile cards
+Add background styling to user profile cards

@@ -293,7 +293,13 @@ function UserExtendedSection({
             overflowY: 'auto',
           }}
         >
-          <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
+          <Box
+            style={{
+              padding: config.space.S200,
+              wordBreak: 'break-word',
+              backgroundColor: cardColor,
+            }}
+          >
             <Text size="T200" priority="400" as="div">
               <RenderBody
                 body={bioContent}

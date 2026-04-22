@@ -119,6 +119,9 @@ export interface Settings {
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
 
+  // experimental
+  messageGroupingThreshold: number;
+
   // furry stuff
   renderAnimals: boolean;
 }
@@ -219,6 +222,9 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+
+  // experimental
+  messageGroupingThreshold: 2,
 
   // furry stuff
   renderAnimals: true,

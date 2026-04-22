@@ -53,6 +53,7 @@ import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './
 import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
+import { text } from 'stream/consumers';
 
 const KNOWN_KEYS = [
   'moe.sable.app.bio',
@@ -73,12 +74,16 @@ type UserExtendedSectionProps = {
   profile: UserProfile;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
+  cardColor?: string;
+  textColor?: string;
 };
 
 function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
+  cardColor,
+  textColor,
 }: Readonly<UserExtendedSectionProps>) {
   const [showMisc, setShowMisc] = useState(false);
   const [miscDataIndex, setMiscDataIndex] = useState(-1);
@@ -211,6 +216,7 @@ function UserExtendedSection({
             justifyContent: 'flex-start',
             width: 'fit-content',
             textAlign: 'center',
+            color: textColor,
           }}
         >
           <Text size="T200" priority="400">
@@ -222,11 +228,11 @@ function UserExtendedSection({
         {showMisc && miscSelector}
       </Box>
     ),
-    [miscSelector, miscDataIndex, showMisc, unknownFields]
+    [miscDataIndex, textColor, unknownFields, showMisc, miscSelector]
   );
-
+  console.log('text', textColor);
   return (
-    <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100 }}>
+    <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
       {(pronouns || localTime) && (
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
@@ -264,7 +270,7 @@ function UserExtendedSection({
           visibility="Always"
           size="300"
           style={{
-            backgroundColor: 'var(--sable-bg-container)',
+            backgroundColor: cardColor,
             borderRadius: config.radii.R400,
             maxHeight: '200px',
             marginTop: config.space.S0,
@@ -291,7 +297,7 @@ function UserExtendedSection({
             <div
               style={{
                 border: '2px solid',
-                backgroundColor: 'var(--sable-bg-container)',
+                backgroundColor: cardColor,
                 borderColor: 'var(--sable-surface-container-line)',
                 borderRadius: config.radii.R400,
               }}
@@ -453,9 +459,38 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       }),
     [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
   );
+  function shadeColor(initialColor: string, percent: number) {
+    if (!initialColor || initialColor[0] !== '#' || initialColor.length !== 7) return undefined;
+    const ratio = 1 + percent / 100;
+
+    // Get hex value, convert it to number, multiply it by the desired amount, then clamp it
+    const R = Math.floor(Math.min(parseInt(initialColor.substring(1, 3), 16) * ratio, 255));
+    const G = Math.floor(Math.min(parseInt(initialColor.substring(3, 5), 16) * ratio, 255));
+    const B = Math.floor(
+      Math.max(Math.min(parseInt(initialColor.substring(5, 7), 16) * ratio, 255), 0)
+    );
+
+    const RR = `${R < 16 ? '0' : ''}${R.toString(16)}`;
+    const GG = `${G < 16 ? '0' : ''}${G.toString(16)}`;
+    const BB = `${B < 16 ? '0' : ''}${B.toString(16)}`;
+
+    return `#${RR}${GG}${BB}`;
+  }
+
+  const backgroundColor = fetchedProfile?.heroColorScheme?.color ?? color.Surface.Container;
+  const fetchedBrightness = fetchedProfile?.heroColorScheme?.brightness;
+  const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
+  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -70 : 70);
+  const cardColor =
+    shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? color.Background.Container;
+  const textColor =
+    (fetchedBrightness === 'dark' && '#FFFFFF') ||
+    (fetchedBrightness === 'light' && '#000000') ||
+    undefined;
+  console.log('textC', textColor);
 
   return (
-    <Box direction="Column">
+    <Box direction="Column" style={{ color: textColor }}>
       <UserHero
         userId={userId}
         avatarUrl={avatarUrl}
@@ -467,18 +502,20 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         direction="Column"
         gap="300"
         style={{
-          padding: config.space.S400,
-          backgroundColor: fetchedProfile?.heroColorScheme?.color,
+          padding: config.space.S200,
+          backgroundColor,
         }}
       >
         <Box
           direction="Column"
           gap="200"
           style={{
-            backgroundColor: color.Surface.Container,
+            backgroundColor: innerColor,
             borderRadius: toRem(5),
-            borderWidth: toRem(15),
-            borderColor: color.Surface.Container,
+            borderWidth: toRem(5),
+            borderColor: '#00000000',
+            borderStyle: 'solid',
+            padding: config.space.S200,
           }}
         >
           <Box gap="200" alignItems="Center" wrap="Wrap">
@@ -501,6 +538,8 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             profile={extendedProfile}
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
+            cardColor={cardColor}
+            textColor={textColor}
           />
           <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
             {server && <ServerChip server={server} />}

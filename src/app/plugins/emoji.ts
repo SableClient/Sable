@@ -1,4 +1,5 @@
-import { CompactEmoji, fromUnicodeToHexcode } from 'emojibase';
+import type { CompactEmoji } from 'emojibase';
+import { fromUnicodeToHexcode } from 'emojibase';
 import emojisData from 'emojibase-data/en/compact.json';
 import joypixels from 'emojibase-data/en/shortcodes/joypixels.json';
 import emojibase from 'emojibase-data/en/shortcodes/emojibase.json';
@@ -80,7 +81,9 @@ export const emojiGroups: IEmojiGroup[] = [
 export const emojis: IEmoji[] = [];
 
 function addEmojiToGroup(groupIndex: number, emoji: IEmoji) {
-  emojiGroups[groupIndex].emojis.push(emoji);
+  const group = emojiGroups[groupIndex];
+  if (!group) return;
+  group.emojis.push(emoji);
 }
 
 function getGroupIndex(emoji: IEmoji): number | undefined {
@@ -102,7 +105,7 @@ emojisData.forEach((emoji) => {
 
   const em: IEmoji = {
     ...emoji,
-    shortcode: Array.isArray(myShortCodes) ? myShortCodes[0] : myShortCodes,
+    shortcode: Array.isArray(myShortCodes) ? (myShortCodes[0] ?? '') : (myShortCodes ?? ''),
     shortcodes: Array.isArray(myShortCodes) ? myShortCodes : emoji.shortcodes,
   };
 

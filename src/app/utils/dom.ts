@@ -102,8 +102,8 @@ export const getVideoFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(
 export const loadImageElement = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = document.createElement('img');
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', (err) => reject(err));
     img.src = url;
   });
 
@@ -114,13 +114,13 @@ export const loadVideoElement = (url: string): Promise<HTMLVideoElement> =>
     video.playsInline = true;
     video.muted = true;
 
-    video.onloadeddata = () => {
+    video.addEventListener('loadeddata', () => {
       resolve(video);
       video.pause();
-    };
-    video.onerror = (e) => {
+    });
+    video.addEventListener('error', (e) => {
       reject(e);
-    };
+    });
 
     video.src = url;
     video.load();
@@ -228,7 +228,7 @@ export const syntaxErrorPosition = (error: SyntaxError): number | undefined => {
   const match = error.message.match(/position\s(\d+)\s/);
   if (!match) return undefined;
 
-  const posStr = match[1];
+  const posStr = match[1]!;
   const position = parseInt(posStr, 10);
   if (Number.isNaN(position)) return undefined;
   return position;

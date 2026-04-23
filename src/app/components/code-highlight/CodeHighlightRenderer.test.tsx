@@ -6,8 +6,9 @@ import { CodeHighlightRenderer } from '.';
 import * as css from './CodeHighlightRenderer.css';
 
 const { highlightCode, useArboriumThemeStatus } = vi.hoisted(() => ({
-  highlightCode: vi.fn(),
-  useArboriumThemeStatus: vi.fn(),
+  highlightCode:
+    vi.fn<() => Promise<{ mode: 'highlighted' | 'plain'; html: string; language: string }>>(),
+  useArboriumThemeStatus: vi.fn<() => { ready: boolean }>(),
 }));
 
 vi.mock('$plugins/arborium', () => ({

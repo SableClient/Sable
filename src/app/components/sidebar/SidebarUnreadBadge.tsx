@@ -1,4 +1,5 @@
-import { UnreadBadge, UnreadBadgeMode, resolveUnreadBadgeMode } from '$components/unread-badge';
+import type { UnreadBadgeMode } from '$components/unread-badge';
+import { UnreadBadge, resolveUnreadBadgeMode } from '$components/unread-badge';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SidebarItemBadge } from './SidebarItem';

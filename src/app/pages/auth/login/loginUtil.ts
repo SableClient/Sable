@@ -1,10 +1,12 @@
 import to from 'await-to-js';
-import { createClient, LoginRequest, LoginResponse, MatrixError } from '$types/matrix-sdk';
+import type { LoginRequest, LoginResponse } from '$types/matrix-sdk';
+import { createClient, MatrixError } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { clientAllowedServer, ClientConfig } from '$hooks/useClientConfig';
+import type { ClientConfig } from '$hooks/useClientConfig';
+import { clientAllowedServer } from '$hooks/useClientConfig';
 import {
   deleteAfterLoginRedirectPath,
   getAfterLoginRedirectPath,
@@ -71,7 +73,7 @@ export const login = async (
   if (urlError) {
     throw new MatrixError({
       errcode:
-        urlError.message === GetBaseUrlError.NotAllow
+        urlError.message === (GetBaseUrlError.NotAllow as string)
           ? LoginError.ServerNotAllowed
           : LoginError.InvalidServer,
     });
@@ -91,7 +93,9 @@ export const login = async (
           attributes: { errcode: err.errcode ?? 'unknown' },
         });
         if (err.httpStatus === 400) {
-          debugLog.error('general', 'Login failed - invalid request', { httpStatus: 400 });
+          debugLog.error('general', 'Login failed - invalid request', {
+            httpStatus: 400,
+          });
           throw new MatrixError({
             errcode: LoginError.InvalidRequest,
           });
@@ -102,8 +106,10 @@ export const login = async (
             errcode: LoginError.RateLimited,
           });
         }
-        if (err.errcode === ErrorCode.M_USER_DEACTIVATED) {
-          debugLog.error('general', 'Login failed - user deactivated', { errcode: err.errcode });
+        if (err.errcode === (ErrorCode.M_USER_DEACTIVATED as string)) {
+          debugLog.error('general', 'Login failed - user deactivated', {
+            errcode: err.errcode,
+          });
           throw new MatrixError({
             errcode: LoginError.UserDeactivated,
           });

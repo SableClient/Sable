@@ -29,11 +29,13 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { isNotificationEvent } from '$utils/room';
 import { CutoutCard } from '$components/cutout-card';
-import { AccountDataEditor, AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import { AccountDataEditor } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
-import { StateEventEditor, StateEventInfo } from './StateEventEditor';
+import type { StateEventInfo } from './StateEventEditor';
+import { StateEventEditor } from './StateEventEditor';
 
 const formatSyncReason = (reason: string): string => {
   if (reason === 'sliding_active') return 'Sliding Sync active';
@@ -80,13 +82,13 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
     const liveEvents = room.getLiveTimeline().getEvents();
     const latestTimelineEvent = liveEvents[liveEvents.length - 1];
     const latestTimelineEventId = latestTimelineEvent?.getId() ?? null;
-    const latestMessageEvent = [...liveEvents].reverse().find((event) => {
+    const latestMessageEvent = [...liveEvents].toReversed().find((event) => {
       const type = event.getType();
       return type === 'm.room.message' || type === 'm.room.encrypted' || type === 'm.sticker';
     });
     const latestMessageEventId = latestMessageEvent?.getId() ?? null;
     const latestNotificationEvent = [...liveEvents]
-      .reverse()
+      .toReversed()
       .find((event) => isNotificationEvent(event));
     const latestNotificationEventId = latestNotificationEvent?.getId() ?? null;
     const fullyReadEventId =
@@ -476,7 +478,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             </Box>
                           </MenuItem>
                           {Array.from(roomState.keys())
-                            .sort()
+                            .toSorted()
                             .map((eventType) => {
                               const expanded = eventType === expandStateType;
                               const stateKeyToEvents = roomState.get(eventType);
@@ -515,7 +517,10 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                     >
                                       <MenuItem
                                         onClick={() =>
-                                          setComposeEvent({ type: eventType, stateKey: '' })
+                                          setComposeEvent({
+                                            type: eventType,
+                                            stateKey: '',
+                                          })
                                         }
                                         variant="Surface"
                                         fill="None"
@@ -530,7 +535,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                         </Box>
                                       </MenuItem>
                                       {Array.from(stateKeyToEvents.keys())
-                                        .sort()
+                                        .toSorted()
                                         .map((stateKey) => (
                                           <MenuItem
                                             onClick={() => {
@@ -613,7 +618,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             </Box>
                           </MenuItem>
                           {Array.from(accountData.keys())
-                            .sort()
+                            .toSorted()
                             .map((type) => (
                               <MenuItem
                                 key={type}

@@ -1,12 +1,13 @@
-import {
-  EventType,
+import { EventType, MatrixEvent, UpdateDelayedEventAction } from '$types/matrix-sdk';
+import type {
+  DelayedEventInfo,
+  SendDelayedEventResponse,
   IContent,
   MatrixClient,
-  MatrixEvent,
   Room,
-  UpdateDelayedEventAction,
+  RoomMessageEventContent,
+  TimelineEvents,
 } from '$types/matrix-sdk';
-import type { DelayedEventInfo, SendDelayedEventResponse } from '$types/matrix-sdk';
 
 // Grab types needed for encryption
 interface EncryptableBackend {
@@ -32,8 +33,8 @@ export async function sendDelayedMessage(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    EventType.RoomMessage,
-    content as any
+    EventType.RoomMessage as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    content as RoomMessageEventContent
   );
 }
 
@@ -75,12 +76,14 @@ export async function sendDelayedMessageE2EE(
   //   event.getWireContent() === the Megolm ciphertext object
   // Pass the pre-encrypted payload directly to the delayed-events API.
 
-  return (mx as any)._unstable_sendDelayedEvent(
+  return (
+    mx as unknown as { _unstable_sendDelayedEvent: typeof mx._unstable_sendDelayedEvent }
+  )._unstable_sendDelayedEvent(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    event.getWireType(),
-    event.getWireContent()
+    event.getWireType() as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    event.getWireContent() as TimelineEvents[keyof TimelineEvents]
   );
 }
 

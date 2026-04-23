@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MessageSpacing } from '$state/settings';
+import type { MessageSpacing } from '$state/settings';
 
 export type MessageSpacingItem = {
   name: string;

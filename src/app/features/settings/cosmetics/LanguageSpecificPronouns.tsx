@@ -15,7 +15,7 @@ export const resolveLanguageSpecificPronounsEnabled = (
 ): boolean => {
   if (enabled === undefined) return false;
   if (typeof enabled === 'boolean') return enabled;
-  const normalized = String(enabled).trim().toLowerCase();
+  const normalized = enabled.trim().toLowerCase();
   if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no')
     return false;
   if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes')

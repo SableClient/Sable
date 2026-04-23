@@ -1,17 +1,20 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import { EventTimeline, Room } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+import type { Room } from '$types/matrix-sdk';
+import { EventTimeline, EventType } from '$types/matrix-sdk';
+
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { MSC1767Text } from '$types/matrix/common';
+import type { MSC1767Text } from '$types/matrix/common';
+import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
+import { CustomStateEvent } from '$types/matrix/room';
 
-const inFlightProfiles = new Map<string, Promise<any>>();
+const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
@@ -20,7 +23,7 @@ export type MSC4440Bio = {
 export type UserProfile = {
   avatarUrl?: string;
   displayName?: string;
-  pronouns?: any[];
+  pronouns?: PronounSet[];
   timezone?: string;
   bio?: string;
   status?: string;
@@ -30,11 +33,11 @@ export type UserProfile = {
   nameColorLight?: string;
   isCat?: boolean;
   hasCats?: boolean;
-  extended?: Record<string, any>;
+  extended?: Record<string, unknown>;
   _fetched?: boolean;
 };
 
-const normalizeInfo = (info: any): UserProfile => {
+const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
   const msc4440Bio = info['gay.fomx.biography'] as MSC4440Bio | undefined;
   const knownKeys = new Set([
     'avatar_url',
@@ -54,7 +57,7 @@ const normalizeInfo = (info: any): UserProfile => {
     'kitty.meow.is_cat',
   ]);
 
-  const extended: Record<string, any> = {};
+  const extended: Record<string, unknown> = {};
   Object.entries(info).forEach(([key, value]) => {
     if (!knownKeys.has(key)) {
       extended[key] = value;
@@ -62,19 +65,19 @@ const normalizeInfo = (info: any): UserProfile => {
   });
 
   return {
-    avatarUrl: info.avatar_url,
-    displayName: info.displayname,
-    pronouns: info['io.fsky.nyx.pronouns'],
-    timezone: info['us.cloke.msc4175.tz'] || info['m.tz'],
+    avatarUrl: info.avatar_url as string | undefined,
+    displayName: info.displayname as string | undefined,
+    pronouns: info['io.fsky.nyx.pronouns'] as PronounSet[] | undefined,
+    timezone: (info['us.cloke.msc4175.tz'] || info['m.tz']) as string | undefined,
     bio:
       msc4440Bio?.['m.text']?.[0]?.body ||
-      info['moe.sable.app.bio'] ||
-      info['chat.commet.profile_bio'],
-    status: info['chat.commet.profile_status'],
-    bannerUrl: info['chat.commet.profile_banner'],
-    nameColor: info['moe.sable.app.name_color'],
-    nameColorDark: info['moe.sable.app.name_color_dark_theme'],
-    nameColorLight: info['moe.sable.app.name_color_light_theme'],
+      (info['moe.sable.app.bio'] as string | undefined) ||
+      (info['chat.commet.profile_bio'] as string | undefined),
+    status: info['chat.commet.profile_status'] as string | undefined,
+    bannerUrl: info['chat.commet.profile_banner'] as string | undefined,
+    nameColor: info['moe.sable.app.name_color'] as string | undefined,
+    nameColorDark: info['moe.sable.app.name_color_dark_theme'] as string | undefined,
+    nameColorLight: info['moe.sable.app.name_color_light_theme'] as string | undefined,
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
     extended,
@@ -82,7 +85,7 @@ const normalizeInfo = (info: any): UserProfile => {
   };
 };
 
-const isValidHex = (c: any): string | undefined => {
+const isValidHex = (c: unknown): string | undefined => {
   if (typeof c !== 'string') return undefined;
   // silly tuwunel smh
   const cleaned = c.replaceAll(/["']/g, '').trim();
@@ -98,7 +101,7 @@ export const useUserProfile = (
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
-  resolvedPronouns?: any[];
+  resolvedPronouns?: PronounSet[];
 } => {
   const mx = useMatrixClient();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -132,7 +135,7 @@ export const useUserProfile = (
     let isMounted = true;
 
     fetchPromise
-      .then((info: any) => {
+      .then((info: Record<string, unknown>) => {
         if (!isMounted) return;
         const normalized = normalizeInfo(info);
         setGlobalProfiles((prev) => ({
@@ -171,42 +174,51 @@ export const useUserProfile = (
       const state = room.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
       if (renderRoomColors) {
-        const localEvent = state?.getStateEvents(StateEvent.RoomCosmeticsColor, userId);
+        const localEvent = state?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
         localColor = (Array.isArray(localEvent) ? localEvent[0] : localEvent)?.getContent()?.color;
       }
 
       if (renderRoomFonts) {
-        const localFontEvent = state?.getStateEvents(StateEvent.RoomCosmeticsFont, userId);
+        const localFontEvent = state?.getStateEvents(CustomStateEvent.RoomCosmeticsFont, userId);
         localFont = (
           Array.isArray(localFontEvent) ? localFontEvent[0] : localFontEvent
         )?.getContent()?.font;
       }
 
       const localPronounEvent = state?.getStateEvents(
-        StateEvent.RoomCosmeticsPronouns as string,
+        CustomStateEvent.RoomCosmeticsPronouns as string,
         userId
       );
       localPronouns = (
         Array.isArray(localPronounEvent) ? localPronounEvent[0] : localPronounEvent
       )?.getContent()?.pronouns;
 
-      const parents = state?.getStateEvents(StateEvent.SpaceParent);
+      const parents = state?.getStateEvents(EventType.SpaceParent);
       if (parents && parents.length > 0) {
-        const parentSpace = mx.getRoom(parents[0].getStateKey());
+        const parent = parents[0];
+        const parentSpace = parent ? mx.getRoom(parent.getStateKey()) : undefined;
         const pState = parentSpace?.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
         if (renderRoomColors) {
-          const spaceEvent = pState?.getStateEvents(StateEvent.RoomCosmeticsColor, userId);
+          const spaceEvent = pState?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
           spaceColor = (Array.isArray(spaceEvent) ? spaceEvent[0] : spaceEvent)?.getContent()
             ?.color;
         }
 
         if (renderRoomFonts) {
-          const spaceFontEvent = pState?.getStateEvents(StateEvent.RoomCosmeticsFont, userId);
+          const spaceFontEvent = pState?.getStateEvents(CustomStateEvent.RoomCosmeticsFont, userId);
           spaceFont = (
             Array.isArray(spaceFontEvent) ? spaceFontEvent[0] : spaceFontEvent
           )?.getContent()?.font;
         }
+
+        const spacePronounEvent = pState?.getStateEvents(
+          CustomStateEvent.RoomCosmeticsPronouns as string,
+          userId
+        );
+        spacePronouns = (
+          Array.isArray(spacePronounEvent) ? spacePronounEvent[0] : spacePronounEvent
+        )?.getContent()?.pronouns;
       }
     }
     const validGlobalVal = isValidHex(data?.nameColor);

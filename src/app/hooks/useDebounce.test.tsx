@@ -12,7 +12,7 @@ afterEach(() => {
 
 describe('useDebounce', () => {
   it('does not call callback before wait time elapses', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useDebounce(fn, { wait: 200 }));
 
     act(() => {
@@ -27,7 +27,7 @@ describe('useDebounce', () => {
   });
 
   it('calls callback after wait time elapses', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useDebounce(fn, { wait: 200 }));
 
     act(() => {
@@ -43,7 +43,7 @@ describe('useDebounce', () => {
   });
 
   it('resets the timer on each successive call', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useDebounce(fn, { wait: 200 }));
 
     act(() => {
@@ -72,7 +72,7 @@ describe('useDebounce', () => {
   });
 
   it('only fires once after rapid successive calls', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: number) => void>();
     const { result } = renderHook(() => useDebounce(fn, { wait: 100 }));
 
     act(() => {
@@ -87,7 +87,7 @@ describe('useDebounce', () => {
   });
 
   it('fires immediately on first call when immediate option is set', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useDebounce(fn, { wait: 200, immediate: true }));
 
     act(() => {

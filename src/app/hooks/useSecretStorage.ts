@@ -1,14 +1,14 @@
-import {
-  AccountDataEvent,
+import type {
   SecretStorageDefaultKeyContent,
   SecretStorageKeyContent,
 } from '$types/matrix/accountData';
+
 import { useAccountData } from './useAccountData';
 
 export const getSecretStorageKeyEventType = (key: string): string => `m.secret_storage.key.${key}`;
 
 export const useSecretStorageDefaultKeyId = (): string | undefined => {
-  const defaultKeyEvent = useAccountData(AccountDataEvent.SecretStorageDefaultKey);
+  const defaultKeyEvent = useAccountData('m.secret_storage.default_key');
   const defaultKeyId = defaultKeyEvent?.getContent<SecretStorageDefaultKeyContent>().key;
 
   return defaultKeyId;

@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useMemo } from 'react';
-import { ConditionKind, IPushRules, MatrixClient, PushRuleKind } from '$types/matrix-sdk';
-import { Icons, IconSrc } from 'folds';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import type { IPushRules, MatrixClient } from '$types/matrix-sdk';
+import { ConditionKind, PushRuleKind, EventType } from '$types/matrix-sdk';
+import type { IconSrc } from 'folds';
+import { Icons } from 'folds';
+
 import { isRoomId } from '$utils/matrix';
 import { useAccountData } from './useAccountData';
 import {
@@ -34,7 +36,7 @@ export const useRoomsNotificationPreferencesContext = (): RoomsNotificationPrefe
 };
 
 export const useRoomsNotificationPreferences = (): RoomsNotificationPreferences => {
-  const pushRules = useAccountData(AccountDataEvent.PushRules)?.getContent<IPushRules>();
+  const pushRules = useAccountData(EventType.PushRules)?.getContent<IPushRules>();
 
   const preferences: RoomsNotificationPreferences = useMemo(() => {
     const global = pushRules?.global;

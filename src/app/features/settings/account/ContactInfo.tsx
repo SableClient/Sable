@@ -14,7 +14,7 @@ export function ContactInformation() {
   const threePIds =
     threePIdsState.status === AsyncStatus.Success ? threePIdsState.data.threepids : undefined;
 
-  const emailIds = threePIds?.filter((id) => id.medium === 'email');
+  const emailIds = threePIds?.filter((id) => (id.medium as string) === 'email');
 
   useEffect(() => {
     loadThreePIds();

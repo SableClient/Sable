@@ -1,4 +1,5 @@
-import { RefObject, useCallback, useState } from 'react';
+import type { RefObject } from 'react';
+import { useCallback, useState } from 'react';
 import { Box, as } from 'folds';
 import classNames from 'classnames';
 import {

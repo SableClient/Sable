@@ -1,6 +1,8 @@
-import { Descendant, Text } from 'slate';
+import type { Descendant } from 'slate';
+import { Text } from 'slate';
 import parse from 'html-dom-parser';
-import { ChildNode, Element, isText, isTag } from 'domhandler';
+import type { ChildNode, Element } from 'domhandler';
+import { isText, isTag } from 'domhandler';
 
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import {
@@ -11,7 +13,7 @@ import {
 } from '$plugins/matrix-to';
 import { escapeMarkdownInlineSequences, escapeMarkdownBlockSequences } from '$plugins/markdown';
 import { BlockType, MarkType } from './types';
-import {
+import type {
   BlockQuoteElement,
   CodeBlockElement,
   CodeLineElement,
@@ -83,7 +85,12 @@ const getInlineMarkElement = (
     children.push({ text: mdSequence });
     return children;
   }
-  return children.map((child) => (Text.isText(child) ? { ...child, [markType]: true } : child));
+  return children.map((child) => {
+    if (Text.isText(child)) {
+      return { ...child, [markType]: true };
+    }
+    return child;
+  });
 };
 
 const getInlineNonMarkElement = (node: Element): MentionElement | EmoticonElement | undefined => {
@@ -220,7 +227,7 @@ const parseCodeBlockNode = (node: Element): CodeBlockElement[] | ParagraphElemen
       type: BlockType.Paragraph,
       children: [{ text }],
     }));
-    const childCode = node.children[0];
+    const childCode = node.children[0]!;
     const className =
       isTag(childCode) && childCode.tagName === 'code' ? (childCode.attribs.class ?? '') : '';
     const prefix = { text: `${mdSequence}${className.replace('language-', '')}` };
@@ -322,7 +329,7 @@ const parseHeadingNode = (
 
   const headingMatch = node.name.match(/^h([123456])$/);
   const [, g1AsLevel] = headingMatch ?? ['h3', '3'];
-  const level = Number.parseInt(g1AsLevel, 10);
+  const level = Number.parseInt(g1AsLevel!, 10);
 
   const mdSequence = node.attribs['data-md'];
   if (mdSequence !== undefined) {

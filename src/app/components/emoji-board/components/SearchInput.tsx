@@ -1,4 +1,5 @@
-import { ChangeEventHandler, useRef } from 'react';
+import type { ChangeEventHandler } from 'react';
+import { useRef } from 'react';
 import { Input, Chip, Icon, Icons, Text } from 'folds';
 import { mobileOrTablet } from '$utils/user-agent';
 

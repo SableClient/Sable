@@ -35,6 +35,11 @@ export function parsePronounsStringToPronounsSetArray(pronouns?: string | null):
   return parsePronounsInput(pronouns) as PronounSet[];
 }
 
+const sanitize = (p: { summary: string; language?: string }) => ({
+  ...p,
+  summary: (p?.summary ?? '').slice(0, 16),
+});
+
 export function filterPronounsByLanguage(
   pronouns?: { summary: string; language?: string }[] | null,
   enabled?: boolean,
@@ -42,23 +47,20 @@ export function filterPronounsByLanguage(
 ): { summary: string; language?: string }[] {
   if (!Array.isArray(pronouns)) return [];
 
-  const sanitize = (p: { summary: string; language?: string }) => ({
-    ...p,
-    summary: (p?.summary ?? '').slice(0, 16),
-  });
-
   if (!enabled) {
     return pronouns.map(sanitize);
   }
 
-  const normalizedLanguages = (languages ?? [])
-    .filter((lang): lang is string => typeof lang === 'string')
-    .map((lang) => lang.trim().toLowerCase());
+  const normalizedLanguages = new Set(
+    (languages ?? [])
+      .filter((lang): lang is string => typeof lang === 'string')
+      .map((lang) => lang.trim().toLowerCase())
+  );
 
   const filteredPronouns = pronouns
     .filter((p) => {
       const lang = (p?.language ?? 'en').trim().toLowerCase();
-      return normalizedLanguages.includes(lang);
+      return normalizedLanguages.has(lang);
     })
     .map(sanitize);
 

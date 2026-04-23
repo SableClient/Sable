@@ -1,9 +1,10 @@
 import { Box, Button, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
-import { SyntheticEvent, useCallback, useMemo, useState } from 'react';
+import type { SyntheticEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { getMxIdServer, mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -14,14 +15,15 @@ import { useUserPresence } from '$hooks/useUserPresence';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useMembership } from '$hooks/useMembership';
-import { Membership } from '$types/matrix/room';
+
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { getDirectCreatePath, withSearchParam } from '$pages/pathUtils';
-import { DirectCreateSearchParams } from '$pages/paths';
+import type { DirectCreateSearchParams } from '$pages/paths';
 import { nicknamesAtom } from '$state/nicknames';
-import { UserProfile, useUserProfile } from '$hooks/useUserProfile';
+import type { UserProfile } from '$hooks/useUserProfile';
+import { useUserProfile } from '$hooks/useUserProfile';
 import {
   factoryRenderLinkifyWithMention,
   getReactCustomHtmlParser,
@@ -41,8 +43,9 @@ import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './
 import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
+import { KnownMembership } from '$types/matrix-sdk';
 
-const KNOWN_KEYS = [
+const KNOWN_KEYS = new Set([
   'moe.sable.app.bio',
   'chat.commet.profile_bio',
   'chat.commet.profile_banner',
@@ -55,12 +58,19 @@ const KNOWN_KEYS = [
   'displayname',
   'kitty.meow.has_cats',
   'kitty.meow.is_cat',
-];
+]);
 
 type UserExtendedSectionProps = {
   profile: UserProfile;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
+};
+
+const renderValue = (val: unknown) => {
+  if (val === null || val === undefined) return 'n/a';
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val as string | number | boolean);
 };
 
 function UserExtendedSection({
@@ -82,13 +92,6 @@ function UserExtendedSection({
     if (hasCats) return 'Has cats—send love!';
     return null;
   }, [renderAnimals, isCat, hasCats]);
-
-  const renderValue = (val: any) => {
-    if (val === null || val === undefined) return 'n/a';
-    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-    if (typeof val === 'object') return JSON.stringify(val);
-    return String(val);
-  };
 
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];
@@ -123,7 +126,7 @@ function UserExtendedSection({
     if (!rawBio) return null;
 
     if (typeof rawBio === 'object' && rawBio !== null && 'formatted_body' in rawBio) {
-      rawBio = rawBio.formatted_body;
+      rawBio = (rawBio as { formatted_body: string }).formatted_body;
     }
 
     if (typeof rawBio !== 'string') {
@@ -143,8 +146,9 @@ function UserExtendedSection({
   }, [profile]);
 
   const unknownFields = Object.entries(profile.extended || {}).filter(
-    ([key]) => !KNOWN_KEYS.includes(key)
+    ([key]) => !KNOWN_KEYS.has(key)
   );
+  const selectedUnknownField = miscDataIndex > -1 ? unknownFields[miscDataIndex] : undefined;
 
   function handleMiscSelector(index: number) {
     setMiscDataIndex(index);
@@ -172,6 +176,7 @@ function UserExtendedSection({
         </MenuItem>
         {unknownFields.map(([key], index) => (
           <MenuItem
+            key={key}
             size="300"
             radii="300"
             fill="None"
@@ -204,13 +209,13 @@ function UserExtendedSection({
           <Text size="T200" priority="400">
             {miscDataIndex === -1
               ? `Show Misc. Data (${unknownFields.length} value${unknownFields.length > 1 ? 's' : ''})`
-              : `${unknownFields[miscDataIndex][0]} ${unknownFields.length > 1 ? `(${miscDataIndex + 1}/${unknownFields.length})` : ''}`}
+              : `${selectedUnknownField?.[0] ?? 'Unknown'} ${unknownFields.length > 1 ? `(${miscDataIndex + 1}/${unknownFields.length})` : ''}`}
           </Text>
         </Button>
         {showMisc && miscSelector}
       </Box>
     ),
-    [miscSelector, miscDataIndex, showMisc, unknownFields]
+    [miscSelector, miscDataIndex, selectedUnknownField, showMisc, unknownFields]
   );
 
   return (
@@ -328,7 +333,7 @@ function UserExtendedSection({
                   }}
                 >
                   <TextViewerContent
-                    text={renderValue(unknownFields[miscDataIndex][1])}
+                    text={renderValue(selectedUnknownField?.[1])}
                     langName="json"
                   />
                 </Box>
@@ -372,6 +377,10 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const member = room.getMember(userId);
   const membership = useMembership(room, userId);
+  const bannedMembership: string = KnownMembership.Ban;
+  const invitedMembership: string = KnownMembership.Invite;
+  const joinedMembership: string = KnownMembership.Join;
+  const leftMembership: string = KnownMembership.Leave;
 
   const server = getMxIdServer(userId);
   const nicknames = useAtomValue(nicknamesAtom);
@@ -483,7 +492,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           </Box>
         </Box>
         {ignored && <IgnoredUserAlert />}
-        {member && membership === Membership.Ban && (
+        {member && membership === bannedMembership && (
           <UserBanAlert
             userId={userId}
             reason={member.events.member?.getContent().reason}
@@ -493,7 +502,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           />
         )}
         {member &&
-          membership === Membership.Leave &&
+          membership === leftMembership &&
           member.events.member &&
           member.events.member.getSender() !== userId && (
             <UserKickAlert
@@ -502,7 +511,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
               ts={member.events.member?.getTs()}
             />
           )}
-        {member && membership === Membership.Invite && (
+        {member && membership === invitedMembership && (
           <UserInviteAlert
             userId={userId}
             reason={member.events.member?.getContent().reason}
@@ -513,9 +522,9 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         )}
         <UserModeration
           userId={userId}
-          canInvite={canInvite && membership === Membership.Leave}
-          canKick={canKickUser && membership === Membership.Join}
-          canBan={canBanUser && membership !== Membership.Ban}
+          canInvite={canInvite && membership === leftMembership}
+          canKick={canKickUser && membership === joinedMembership}
+          canBan={canBanUser && membership !== bannedMembership}
         />
       </Box>
     </Box>

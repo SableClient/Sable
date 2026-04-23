@@ -11,7 +11,7 @@ import {
   as,
   config,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';

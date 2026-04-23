@@ -1,4 +1,4 @@
-import { ValidatedAuthMetadata } from '$types/matrix-sdk';
+import type { ValidatedAuthMetadata } from '$types/matrix-sdk';
 import { createContext, useContext } from 'react';
 
 const AuthMetadataContext = createContext<ValidatedAuthMetadata | undefined>(undefined);

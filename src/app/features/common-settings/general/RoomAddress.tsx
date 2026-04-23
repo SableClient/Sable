@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useState } from 'react';
+import type { FormEventHandler } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Badge,
   Box,
@@ -14,7 +15,7 @@ import {
   Text,
   toRem,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
@@ -30,9 +31,10 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { CutoutCard } from '$components/cutout-card';
 import { replaceSpaceWithDash } from '$utils/common';
 import { useAlive } from '$hooks/useAlive';
-import { StateEvent } from '$types/matrix/room';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+
+import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getMxIdServer } from '$utils/matrix';
+import { EventType } from '$types/matrix-sdk';
 
 type RoomPublishedAddressesProps = {
   permissions: RoomPermissionsAPI;
@@ -42,10 +44,7 @@ export function RoomPublishedAddresses({ permissions }: RoomPublishedAddressesPr
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEditCanonical = permissions.stateEvent(
-    StateEvent.RoomCanonicalAlias,
-    mx.getSafeUserId()
-  );
+  const canEditCanonical = permissions.stateEvent(EventType.RoomCanonicalAlias, mx.getSafeUserId());
 
   const [canonicalAlias, publishedAliases] = usePublishedAliases(room);
   const setMainAlias = useSetMainAlias(room);
@@ -237,7 +236,8 @@ function LocalAddressesList({
       async (aliases: string[]) => {
         for (let i = 0; i < aliases.length; i += 1) {
           const alias = aliases[i];
-          // eslint-disable-next-line no-await-in-loop
+          if (!alias) continue;
+          // oxlint-disable-next-line no-await-in-loop
           await removeLocalAlias(alias);
         }
       },
@@ -363,10 +363,7 @@ export function RoomLocalAddresses({ permissions }: { permissions: RoomPermissio
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEditCanonical = permissions.stateEvent(
-    StateEvent.RoomCanonicalAlias,
-    mx.getSafeUserId()
-  );
+  const canEditCanonical = permissions.stateEvent(EventType.RoomCanonicalAlias, mx.getSafeUserId());
 
   const [expand, setExpand] = useState(false);
 

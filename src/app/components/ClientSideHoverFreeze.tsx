@@ -18,7 +18,7 @@ export function ClientSideHoverFreeze({
     img.crossOrigin = 'anonymous';
     img.src = src;
 
-    img.onload = () => {
+    const handleLoad = () => {
       if (isMounted && canvasRef.current) {
         canvasRef.current.width = img.naturalWidth || img.width;
         canvasRef.current.height = img.naturalHeight || img.height;
@@ -27,8 +27,10 @@ export function ClientSideHoverFreeze({
         setIsCanvasReady(true);
       }
     };
+    img.addEventListener('load', handleLoad);
     return () => {
       isMounted = false;
+      img.removeEventListener('load', handleLoad);
     };
   }, [src]);
 

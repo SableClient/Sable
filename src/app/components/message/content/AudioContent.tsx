@@ -1,13 +1,14 @@
-/* eslint-disable jsx-a11y/media-has-caption */
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+/* oxlint-disable jsx-a11y/media-has-caption */
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Chip, Icon, IconButton, Icons, ProgressBar, Spinner, Text, toRem } from 'folds';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { Range } from 'react-range';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { IAudioInfo } from '$types/matrix/common';
+import type { IAudioInfo } from '$types/matrix/common';
+import type { PlayTimeCallback } from '$hooks/media';
 import {
-  PlayTimeCallback,
   useMediaLoading,
   useMediaPlay,
   useMediaPlayTimeCallback,
@@ -103,9 +104,12 @@ export function AudioContent({
         min={0}
         max={duration || 1}
         values={[currentTime]}
-        onChange={(values) => seek(values[0])}
+        onChange={(values) => seek(values[0] ?? 0)}
         renderTrack={(params) => {
-          const { key, ...restProps } = params.props as any;
+          const { key, ...restProps } = params.props as unknown as {
+            key?: string;
+            [key: string]: unknown;
+          };
           return (
             <div key={key} {...restProps}>
               {params.children}
@@ -122,18 +126,22 @@ export function AudioContent({
           );
         }}
         renderThumb={(params) => {
-          const { key, style, ...restProps } = params.props as any;
+          const { key, style, ...restProps } = params.props as unknown as {
+            key?: unknown;
+            style?: Record<string, unknown>;
+            [key: string]: unknown;
+          };
           return (
             <Badge
-              key={key}
+              key={String(key)}
               size="300"
               variant="Secondary"
               fill="Solid"
               radii="Pill"
               outlined
-              {...restProps}
+              {...(restProps as Record<string, unknown>)}
               style={{
-                ...style,
+                ...(style as Record<string, unknown>),
                 zIndex: 0,
               }}
             />
@@ -180,9 +188,12 @@ export function AudioContent({
           min={0}
           max={1}
           values={[volume]}
-          onChange={(values) => setVolume(values[0])}
+          onChange={(values) => setVolume(values[0] ?? 1)}
           renderTrack={(params) => {
-            const { key, ...restProps } = params.props as any;
+            const { key, ...restProps } = params.props as unknown as {
+              key?: string;
+              [key: string]: unknown;
+            };
             return (
               <div key={key} {...restProps}>
                 {params.children}
@@ -199,18 +210,22 @@ export function AudioContent({
             );
           }}
           renderThumb={(params) => {
-            const { key, style, ...restProps } = params.props as any;
+            const { key, style, ...restProps } = params.props as unknown as {
+              key?: unknown;
+              style?: Record<string, unknown>;
+              [key: string]: unknown;
+            };
             return (
               <Badge
-                key={key}
+                key={String(key)}
                 size="300"
                 variant="Secondary"
                 fill="Solid"
                 radii="Pill"
                 outlined
-                {...restProps}
+                {...(restProps as Record<string, unknown>)}
                 style={{
-                  ...style,
+                  ...(style as Record<string, unknown>),
                   zIndex: 0,
                 }}
               />

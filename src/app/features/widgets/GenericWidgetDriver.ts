@@ -1,3 +1,4 @@
+import type { WidgetKind, SimpleObservable, IOpenIDUpdate } from 'matrix-widget-api';
 import {
   type Capability,
   type ISendDelayedEventDetails,
@@ -6,15 +7,13 @@ import {
   type IRoomEvent,
   type Widget,
   WidgetDriver,
-  WidgetKind,
   type IWidgetApiErrorResponseDataDetails,
   type ISearchUserDirectoryResult,
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
   OpenIDRequestState,
-  SimpleObservable,
-  IOpenIDUpdate,
 } from 'matrix-widget-api';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import {
   EventType,
   type IContent,
@@ -24,8 +23,6 @@ import {
   type SendDelayedEventResponse,
   type StateEvents,
   type TimelineEvents,
-  MatrixClient,
-  Room,
 } from '$types/matrix-sdk';
 
 export type CapabilityApprovalCallback = (requested: Set<Capability>) => Promise<Set<Capability>>;
@@ -85,7 +82,7 @@ export class GenericWidgetDriver extends WidgetDriver {
         content as StateEvents[keyof StateEvents],
         stateKey
       );
-    } else if (eventType === EventType.RoomRedaction) {
+    } else if (eventType === (EventType.RoomRedaction as string)) {
       r = await client.redactEvent(roomId, content.redacts);
     } else {
       r = await client.sendEvent(
@@ -129,7 +126,10 @@ export class GenericWidgetDriver extends WidgetDriver {
 
     let delayOpts;
     if (delay !== null) {
-      delayOpts = { delay, ...(parentDelayId !== null && { parent_delay_id: parentDelayId }) };
+      delayOpts = {
+        delay,
+        ...(parentDelayId !== null && { parent_delay_id: parentDelayId }),
+      };
     } else if (parentDelayId !== null) {
       delayOpts = { parent_delay_id: parentDelayId };
     } else {
@@ -235,13 +235,16 @@ export class GenericWidgetDriver extends WidgetDriver {
 
     for (let i = events.length - 1; i >= 0; i -= 1) {
       const ev = events[i];
+      if (!ev) break;
       const reachedLimit = results.length >= eventLimit;
       const reachedSince = since !== undefined && ev.getId() === since;
       if (reachedLimit || reachedSince) break;
 
       const matchesEventType = ev.getType() === eventType && !ev.isState();
       const matchesMsgType =
-        eventType !== EventType.RoomMessage || !msgtype || msgtype === ev.getContent().msgtype;
+        eventType !== (EventType.RoomMessage as string) ||
+        !msgtype ||
+        msgtype === ev.getContent().msgtype;
       const eventStateKey = ev.getStateKey();
       const matchesStateKey =
         eventStateKey === undefined || stateKey === undefined || eventStateKey === stateKey;
@@ -314,11 +317,13 @@ export class GenericWidgetDriver extends WidgetDriver {
     });
     return {
       limited,
-      results: results.map((r: any) => ({
-        userId: r.user_id,
-        displayName: r.display_name,
-        avatarUrl: r.avatar_url,
-      })),
+      results: results.map(
+        (r: { user_id: string; display_name?: string; avatar_url?: string }) => ({
+          userId: r.user_id,
+          displayName: r.display_name,
+          avatarUrl: r.avatar_url,
+        })
+      ),
     };
   }
 
@@ -335,7 +340,6 @@ export class GenericWidgetDriver extends WidgetDriver {
     return this.mxClient.getVisibleRooms().map((r: Room) => r.roomId);
   }
 
-  // eslint-disable-next-line class-methods-use-this -- WidgetDriver requires an instance override
   public processError(error: unknown): IWidgetApiErrorResponseDataDetails | undefined {
     return error instanceof MatrixError
       ? { matrix_api_error: error.asWidgetApiErrorData() }

@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { MatrixError, Room, RoomCanonicalAliasEventContent } from '$types/matrix-sdk';
-import { StateEvent } from '$types/matrix/room';
+import type {
+  MatrixError,
+  Room,
+  RoomCanonicalAliasEventContent,
+  StateEvents,
+} from '$types/matrix-sdk';
+
 import { getStateEvent } from '$utils/room';
-import { AsyncState, useAsyncCallback } from './useAsyncCallback';
+import type { AsyncState } from './useAsyncCallback';
+import { useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';
 import { useAlive } from './useAlive';
 import { useStateEvent } from './useStateEvent';
+import { EventType } from '$types/matrix-sdk';
 
 export const usePublishedAliases = (room: Room): [string | undefined, string[]] => {
   const aliasContent = useStateEvent(
     room,
-    StateEvent.RoomCanonicalAlias
+    EventType.RoomCanonicalAlias
   )?.getContent<RoomCanonicalAliasEventContent>();
 
   const canonicalAlias = aliasContent?.alias;
@@ -37,7 +44,7 @@ export const useSetMainAlias = (room: Room): ((alias: string | undefined) => Pro
     async (alias: string | undefined) => {
       const content = getStateEvent(
         room,
-        StateEvent.RoomCanonicalAlias
+        EventType.RoomCanonicalAlias
       )?.getContent<RoomCanonicalAliasEventContent>();
 
       const altAliases: string[] = [];
@@ -55,7 +62,11 @@ export const useSetMainAlias = (room: Room): ((alias: string | undefined) => Pro
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(
+        room.roomId,
+        EventType.RoomCanonicalAlias as keyof StateEvents,
+        newContent
+      );
     },
     [mx, room]
   );
@@ -74,7 +85,7 @@ export const usePublishUnpublishAliases = (
     async (aliases: string[]) => {
       const content = getStateEvent(
         room,
-        StateEvent.RoomCanonicalAlias
+        EventType.RoomCanonicalAlias
       )?.getContent<RoomCanonicalAliasEventContent>();
       const altAliases = content?.alt_aliases ?? [];
 
@@ -89,7 +100,11 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(
+        room.roomId,
+        EventType.RoomCanonicalAlias as keyof StateEvents,
+        newContent
+      );
     },
     [mx, room]
   );
@@ -98,7 +113,7 @@ export const usePublishUnpublishAliases = (
     async (aliases: string[]) => {
       const content = getStateEvent(
         room,
-        StateEvent.RoomCanonicalAlias
+        EventType.RoomCanonicalAlias
       )?.getContent<RoomCanonicalAliasEventContent>();
       const altAliases: string[] = [];
 
@@ -113,7 +128,11 @@ export const usePublishUnpublishAliases = (
         alt_aliases: altAliases,
       };
 
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomCanonicalAlias as any, newContent);
+      await mx.sendStateEvent(
+        room.roomId,
+        EventType.RoomCanonicalAlias as keyof StateEvents,
+        newContent
+      );
     },
     [mx, room]
   );

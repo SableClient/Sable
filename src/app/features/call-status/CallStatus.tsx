@@ -9,7 +9,7 @@ import { useCallMembers, useCallSession } from '../../hooks/useCall';
 import { ScreenSize, useScreenSize } from '../../hooks/useScreenSize';
 import { MemberGlance } from './MemberGlance';
 import { StatusDivider } from './components';
-import { CallEmbed } from '../../plugins/call/CallEmbed';
+import type { CallEmbed } from '../../plugins/call/CallEmbed';
 import { useCallJoined } from '../../hooks/useCallEmbed';
 import { useCallSpeakers } from '../../hooks/useCallSpeakers';
 import { MemberSpeaking } from './MemberSpeaking';

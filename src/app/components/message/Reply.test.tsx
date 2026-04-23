@@ -2,9 +2,12 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Reply } from './Reply';
 
+/* oxlint-disable typescript/no-explicit-any */
+
 const { mockUseRoomEvent, mockInvalidateQueries } = vi.hoisted(() => ({
-  mockUseRoomEvent: vi.fn(),
-  mockInvalidateQueries: vi.fn(),
+  mockUseRoomEvent:
+    vi.fn<(_room: unknown, _replyEventId: unknown, _getFromLocalTimeline: unknown) => unknown>(),
+  mockInvalidateQueries: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -14,7 +17,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('jotai', async (importActual) => {
-  const actual = await importActual<typeof import('jotai')>();
+  const actual = (await importActual()) as object;
   return {
     ...actual,
     useAtomValue: () => ({}),
@@ -28,7 +31,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('$hooks/useRoomEvent', () => ({
-  useRoomEvent: (...args: unknown[]) => mockUseRoomEvent(...args),
+  useRoomEvent: (...args: unknown[]) => mockUseRoomEvent(args[0], args[1], args[2]),
 }));
 
 vi.mock('$hooks/useSableCosmetics', () => ({
@@ -53,7 +56,7 @@ vi.mock('$hooks/useMatrixClient', () => ({
 }));
 
 vi.mock('$hooks/useMemberEventParser', () => ({
-  useMemberEventParser: () => vi.fn(),
+  useMemberEventParser: () => vi.fn<() => unknown>(),
 }));
 
 vi.mock('$hooks/useMentionClickHandler', () => ({
@@ -65,7 +68,7 @@ vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
 }));
 
 vi.mock('$utils/room', async (importActual) => {
-  const actual = await importActual<typeof import('$utils/room')>();
+  const actual = (await importActual()) as object;
   return {
     ...actual,
     getMemberDisplayName: () => 'Alice',
@@ -112,7 +115,7 @@ describe('Reply', () => {
   });
 
   it('does not render unresolved mxc images as raw browser img tags in reply previews', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn<() => void>());
 
     mockUseRoomEvent.mockReturnValue(
       createReplyEvent(

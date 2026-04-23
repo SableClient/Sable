@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as ThemeModule from '$hooks/useTheme';
 
 import { Appearance } from './Themes';
 
@@ -25,11 +26,11 @@ type SettingsShape = {
 };
 
 let currentSettings: SettingsShape;
-const setters = new Map<string, ReturnType<typeof vi.fn>>();
+const setters = new Map<string, () => void>();
 
 const getSetter = (key: string) => {
   if (!setters.has(key)) {
-    setters.set(key, vi.fn());
+    setters.set(key, vi.fn<() => void>());
   }
 
   return setters.get(key)!;
@@ -40,7 +41,7 @@ vi.mock('$state/hooks/settings', () => ({
 }));
 
 vi.mock('$hooks/useTheme', async () => {
-  const actual = await vi.importActual<typeof import('$hooks/useTheme')>('$hooks/useTheme');
+  const actual = await vi.importActual<typeof ThemeModule>('$hooks/useTheme');
 
   return {
     ...actual,
@@ -52,11 +53,15 @@ beforeEach(() => {
   setters.clear();
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
+    value: vi
+      .fn<
+        () => { matches: boolean; addEventListener: () => void; removeEventListener: () => void }
+      >()
+      .mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn<() => void>(),
+        removeEventListener: vi.fn<() => void>(),
+      })),
   });
   currentSettings = {
     themeId: 'silver-theme',

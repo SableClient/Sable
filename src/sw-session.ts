@@ -7,5 +7,6 @@ export function pushSessionToSW(baseUrl?: string, accessToken?: string, userId?:
     accessToken,
     baseUrl,
     userId,
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
   });
 }

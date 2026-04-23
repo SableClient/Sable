@@ -1,10 +1,11 @@
-import { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
+import type { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { IWidget } from 'matrix-widget-api';
-import { StateEvent } from '$types/matrix/room';
+import type { IWidget } from 'matrix-widget-api';
+
 import { getStateEvents } from '$utils/room';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
+import { CustomStateEvent } from '$types/matrix/room';
 
 export interface RoomWidget extends IWidget {
   eventId?: string;
@@ -99,7 +100,10 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
     room.client,
     useCallback(
       (event) => {
-        if (event.getRoomId() === room.roomId && event.getType() === StateEvent.RoomWidget) {
+        if (
+          event.getRoomId() === room.roomId &&
+          event.getType() === (CustomStateEvent.RoomWidget as string)
+        ) {
           forceUpdate();
         }
       },
@@ -108,7 +112,9 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
   );
 
   return useMemo(() => {
-    const events: MatrixEvent[] = getStateEvents(room, StateEvent.RoomWidget);
+    // `updateCount` is a cache-busting key for state-event driven recomputation.
+    void updateCount;
+    const events: MatrixEvent[] = getStateEvents(room, CustomStateEvent.RoomWidget);
 
     return events.reduce<RoomWidget[]>((widgets, event) => {
       const content = event.getContent();
@@ -131,6 +137,5 @@ export const useRoomWidgets = (room: Room): RoomWidget[] => {
 
       return widgets;
     }, []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, updateCount]);
 };

@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 
-export const delayedEventsSupportedAtom = atom<boolean>(false);
+export const delayedEventsSupportedAtom = atom(false);
 
 export const roomIdToScheduledTimeAtomFamily = atomFamily<
   string,

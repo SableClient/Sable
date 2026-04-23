@@ -18,12 +18,8 @@ import './app/styles/themes.css';
 import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
 import { pushSessionToSW } from './sw-session';
-import {
-  getFallbackSession,
-  MATRIX_SESSIONS_KEY,
-  Sessions,
-  ACTIVE_SESSION_KEY,
-} from './app/state/sessions';
+import type { Sessions } from './app/state/sessions';
+import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
 
@@ -31,6 +27,23 @@ enableMapSet();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
+
+const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
+  const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
+  const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
+
+  if (userPreference === 'true') {
+    return;
+  }
+
+  if (window.confirm('A new version of the app is available. Refresh to update?')) {
+    if (registration.waiting) {
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin
+      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+    }
+    window.location.reload();
+  }
+};
 
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
@@ -43,33 +56,17 @@ if ('serviceWorker' in navigator) {
     swRegisterOptions.type = 'module';
   }
 
-  const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-    const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-    const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-    if (userPreference === 'true') {
-      return;
-    }
-
-    if (window.confirm('A new version of the app is available. Refresh to update?')) {
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-      }
-      window.location.reload();
-    }
-  };
-
   navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
     registration.addEventListener('updatefound', () => {
       const installingWorker = registration.installing;
       if (installingWorker) {
-        installingWorker.onstatechange = () => {
+        installingWorker.addEventListener('statechange', () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               showUpdateAvailablePrompt(registration);
             }
           }
-        };
+        });
       }
     });
   });
@@ -123,7 +120,10 @@ const injectIOSMetaTags = () => {
   const metaTags = [
     { name: 'theme-color', content: '#0C0B0F' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
-    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    {
+      name: 'apple-mobile-web-app-status-bar-style',
+      content: 'black-translucent',
+    },
   ];
 
   metaTags.forEach((tag) => {

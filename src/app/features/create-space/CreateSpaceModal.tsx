@@ -16,7 +16,7 @@ import FocusTrap from 'focus-trap-react';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { SpaceProvider } from '$hooks/useSpace';
 import { useCloseCreateSpaceModal, useCreateSpaceModalState } from '$state/hooks/createSpaceModal';
-import { CreateSpaceModalState } from '$state/createSpaceModal';
+import type { CreateSpaceModalState } from '$state/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
 import { CreateSpaceForm } from './CreateSpace';
 

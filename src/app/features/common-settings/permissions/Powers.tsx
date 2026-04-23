@@ -1,23 +1,13 @@
-/* eslint-disable react/no-array-index-key */
-import { useState, MouseEventHandler, ReactNode } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
-import {
-  Box,
-  Button,
-  Chip,
-  Text,
-  RectCords,
-  PopOut,
-  Menu,
-  Scroll,
-  toRem,
-  config,
-  color,
-} from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Button, Chip, Text, PopOut, Menu, Scroll, toRem, config, color } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { SettingTile } from '$components/setting-tile';
-import { getPermissionPower, IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
+import { getPermissionPower } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -27,7 +17,7 @@ import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { PermissionGroup } from './types';
+import type { PermissionGroup } from './types';
 
 type PeekPermissionsProps = {
   powerLevels: IPowerLevels;
@@ -67,17 +57,17 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
             <Box grow="Yes" tabIndex={0}>
               <Scroll size="0" hideTrack visibility="Hover">
                 <Box style={{ padding: config.space.S200 }} direction="Column" gap="400">
-                  {permissionGroups.map((group, groupIndex) => (
-                    <Box key={groupIndex} direction="Column" gap="100">
+                  {permissionGroups.map((group) => (
+                    <Box key={group.name} direction="Column" gap="100">
                       <Text size="L400">{group.name}</Text>
                       <div>
-                        {group.items.map((item, itemIndex) => {
+                        {group.items.map((item) => {
                           const requiredPower = getPermissionPower(powerLevels, item.location);
                           const hasPower = requiredPower <= power;
 
                           return (
                             <Text
-                              key={itemIndex}
+                              key={JSON.stringify(item.location)}
                               size="T200"
                               style={{
                                 color: hasPower ? undefined : color.Critical.Main,
@@ -177,7 +167,7 @@ export function Powers({ powerLevels, permissionGroups, onEdit }: PowersProps) {
         <SettingTile>
           <Box gap="200" wrap="Wrap">
             {getPowers(powerLevelTags).map((power) => {
-              const tag = powerLevelTags[power];
+              const tag = powerLevelTags[power]!;
               const tagIconSrc = tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 
               return (

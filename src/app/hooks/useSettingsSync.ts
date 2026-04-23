@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { atom, useAtom, useSetAtom } from 'jotai';
-import { MatrixEvent } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import type { MatrixEvent } from '$types/matrix-sdk';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom } from '$state/settings';
 import { deserializeFromSync, serializeForSync } from '$utils/settingsSync';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
 
@@ -42,7 +43,7 @@ export function useSettingsSyncEffect(): void {
   // On mount / when sync is first enabled: load from account data
   useEffect(() => {
     if (!syncEnabled) return;
-    const event = mx.getAccountData(AccountDataEvent.SableSettings);
+    const event = mx.getAccountData(CustomAccountDataEvent.SableSettings);
     if (!event) return;
     // Strip synctoken so a stored sync token from a previous session doesn't get treated
     // as an incoming change from another device.
@@ -64,7 +65,7 @@ export function useSettingsSyncEffect(): void {
   // Live updates from other devices
   const onAccountData = useCallback(
     (event: MatrixEvent) => {
-      if (event.getType() !== AccountDataEvent.SableSettings) return;
+      if (event.getType() !== (CustomAccountDataEvent.SableSettings as string)) return;
       if (!settingsRef.current.settingsSyncEnabled) return;
 
       const rawContent = event.getContent();
@@ -112,12 +113,13 @@ export function useSettingsSyncEffect(): void {
       const token = Math.random().toString(36).slice(2, 10);
       pendingEchoTokenRef.current = token;
       const content = { ...serializeForSync(settingsRef.current), synctoken: token };
-      mx.setAccountData(AccountDataEvent.SableSettings, content as Record<string, unknown>).catch(
-        () => {
-          pendingEchoTokenRef.current = null;
-          setSyncStatus('error');
-        }
-      );
+      mx.setAccountData(
+        CustomAccountDataEvent.SableSettings,
+        content as Record<string, unknown>
+      ).catch(() => {
+        pendingEchoTokenRef.current = null;
+        setSyncStatus('error');
+      });
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timerRef.current);

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ClientEvent, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import { ClientEvent } from '$types/matrix-sdk';
+
 import { getRecentEmojis } from '$plugins/recent-emoji';
-import { IEmoji } from '$plugins/emoji';
+import type { IEmoji } from '$plugins/emoji';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 export const useRecentEmoji = (mx: MatrixClient, limit?: number): IEmoji[] => {
   const [recentEmoji, setRecentEmoji] = useState(() => getRecentEmojis(mx, limit));
 
   useEffect(() => {
     const handleAccountData = (event: MatrixEvent) => {
-      if (event.getType() !== AccountDataEvent.ElementRecentEmoji) return;
+      if (event.getType() !== (CustomAccountDataEvent.ElementRecentEmoji as string)) return;
       setRecentEmoji(getRecentEmojis(mx, limit));
     };
 

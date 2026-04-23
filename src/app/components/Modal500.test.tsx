@@ -6,7 +6,7 @@ describe('Modal500', () => {
   it('does not throw when rendered without tabbable children', () => {
     expect(() =>
       render(
-        <Modal500 requestClose={vi.fn()}>
+        <Modal500 requestClose={vi.fn<() => void>()}>
           <div>Empty modal content</div>
         </Modal500>
       )

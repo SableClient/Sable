@@ -1,24 +1,27 @@
-import { useEffect, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Editor } from 'slate';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect } from 'react';
+import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
-import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
+import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { SearchItemStrGetter, UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { Membership } from '$types/matrix/room';
+
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import { AutocompleteQuery } from './autocompleteQuery';
+import type { AutocompleteQuery } from './autocompleteQuery';
+import { KnownMembership } from '$types/matrix-sdk';
 
 type MentionAutoCompleteHandler = (userId: string, name: string) => void;
 
@@ -68,9 +71,9 @@ type UserMentionAutocompleteProps = {
 };
 
 const withAllowedMembership = (member: RoomMember): boolean =>
-  member.membership === Membership.Join ||
-  member.membership === Membership.Invite ||
-  member.membership === Membership.Knock;
+  member.membership === KnownMembership.Join ||
+  member.membership === KnownMembership.Invite ||
+  member.membership === KnownMembership.Knock;
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -137,7 +140,7 @@ export function UserMentionAutocomplete({
         handleAutocomplete(userId, userId);
         return;
       }
-      const roomMember = autoCompleteMembers[0];
+      const roomMember = autoCompleteMembers[0]!;
       handleAutocomplete(roomMember.userId, getName(roomMember));
     });
   });

@@ -5,7 +5,7 @@ import { SettingMenuSelector, type SettingMenuOption } from './SettingMenuSelect
 
 describe('SettingMenuSelector', () => {
   it('renders the selected label, opens the menu, and selects an option', () => {
-    const onSelect = vi.fn();
+    const onSelect = vi.fn<(value: 'light' | 'dark') => void>();
     const options: SettingMenuOption<'light' | 'dark'>[] = [
       { value: 'light', label: 'Light', description: 'Plain theme' },
       { value: 'dark', label: 'Dark', description: 'High contrast' },
@@ -28,7 +28,7 @@ describe('SettingMenuSelector', () => {
   });
 
   it('disables the trigger while loading', () => {
-    const onSelect = vi.fn();
+    const onSelect = vi.fn<() => void>();
 
     render(
       <SettingMenuSelector
@@ -43,7 +43,7 @@ describe('SettingMenuSelector', () => {
   });
 
   it('supports custom trigger and option rendering', () => {
-    const onSelect = vi.fn();
+    const onSelect = vi.fn<(value: 'one' | 'two') => void>();
     const options: SettingMenuOption<'one' | 'two'>[] = [
       { value: 'one', label: 'One' },
       { value: 'two', label: 'Two' },

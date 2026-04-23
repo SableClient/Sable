@@ -1,10 +1,10 @@
-import {
+import type {
   BackupTrustInfo,
   CryptoApi,
-  CryptoEvent,
   CryptoEventHandlerMap,
   KeyBackupInfo,
 } from '$types/matrix-sdk';
+import { CryptoEvent } from '$types/matrix-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { useMatrixClient } from './useMatrixClient';

@@ -1,5 +1,7 @@
-import { FormEventHandler, useCallback, useEffect, useState } from 'react';
-import { MatrixError, Room, JoinRule } from '$types/matrix-sdk';
+import type { FormEventHandler } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import { MatrixError, JoinRule, RoomType } from '$types/matrix-sdk';
 import {
   Box,
   Button,
@@ -27,18 +29,18 @@ import { millisecondsToMinutes, replaceSpaceWithDash } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { useAlive } from '$hooks/useAlive';
+import type { CreateRoomData } from '$components/create-room';
 import {
   AdditionalCreatorInput,
   createRoom,
   CreateRoomAliasInput,
-  CreateRoomData,
   CreateRoomAccess,
   CreateRoomAccessSelector,
   RoomVersionSelector,
   useAdditionalCreators,
   CreateRoomType,
 } from '$components/create-room';
-import { RoomType } from '$types/matrix/room';
+
 import { CreateRoomTypeSelector } from '$components/create-room/CreateRoomTypeSelector';
 import { getRoomIconSrc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -53,7 +55,7 @@ const getCreateRoomAccessToIcon = (access: CreateRoomAccess, type?: CreateRoomTy
   if (access === CreateRoomAccess.Restricted) joinRule = JoinRule.Restricted;
   if (access === CreateRoomAccess.Private) joinRule = JoinRule.Knock;
 
-  return getRoomIconSrc(Icons, isVoiceRoom ? RoomType.Call : undefined, joinRule);
+  return getRoomIconSrc(Icons, isVoiceRoom ? RoomType.UnstableCall : undefined, joinRule);
 };
 
 const getCreateRoomTypeToIcon = (type: CreateRoomType) => {
@@ -140,7 +142,7 @@ export function CreateRoomForm({
     }
 
     let roomType: RoomType | undefined;
-    if (type === CreateRoomType.VoiceRoom) roomType = RoomType.Call;
+    if (type === CreateRoomType.VoiceRoom) roomType = RoomType.UnstableCall;
 
     debugLog.info('ui', 'Create room button clicked', {
       roomName,
@@ -334,7 +336,7 @@ export function CreateRoomForm({
           <Icon src={Icons.Warning} filled size="100" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
-              {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED
+              {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)
                 ? `Server rate-limited your request for ${millisecondsToMinutes(
                     (error.data.retry_after_ms as number | undefined) ?? 0
                   )} minutes!`

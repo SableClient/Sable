@@ -198,7 +198,9 @@ export default defineConfig(({ command }) => ({
     compression({
       algorithms: [
         defineAlgorithm('brotliCompress', {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
+          params: {
+            [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY,
+          },
         }),
       ],
       include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,

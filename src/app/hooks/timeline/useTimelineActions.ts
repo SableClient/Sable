@@ -1,6 +1,9 @@
-import { useCallback, MouseEventHandler } from 'react';
-import { MatrixClient, Room, MatrixEvent, EventStatus, IContent } from '$types/matrix-sdk';
-import { Editor } from 'slate';
+import type { MouseEventHandler } from 'react';
+import { useCallback } from 'react';
+import type { MatrixClient, Room, MatrixEvent, IContent } from '$types/matrix-sdk';
+import type { UserProfile } from '$hooks/useUserProfile';
+import { EventStatus } from '$types/matrix-sdk';
+import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
@@ -12,7 +15,7 @@ export interface UseTimelineActionsOptions {
   mx: MatrixClient;
   editor: Editor;
   nicknames: Record<string, string>;
-  globalProfiles: Record<string, any>;
+  globalProfiles: Record<string, UserProfile>;
   spaceId?: string;
   openUserRoomProfile: (
     roomId: string,
@@ -20,10 +23,10 @@ export interface UseTimelineActionsOptions {
     userId: string,
     rect: DOMRect,
     undefinedArg?: undefined,
-    options?: any
+    options?: unknown
   ) => void;
   activeReplyId?: string;
-  setReplyDraft: (draft: any) => void;
+  setReplyDraft: (draft: unknown) => void;
   openThreadId?: string;
   setOpenThread: (threadId: string | undefined) => void;
   handleEdit: (editId?: string) => void;
@@ -130,22 +133,20 @@ export function useTimelineActions({
 
       const editedReply = getEditedEvent(replyId, replyEvt, room.getUnfilteredTimelineSet());
 
-      const { getContent, getWireContent, getSender } = replyEvt;
-      let editedNewContent: any;
+      let editedNewContent: unknown;
 
       if (editedReply) {
-        const { getContent: getEditedContent } = editedReply;
-        editedNewContent = getEditedContent.call(editedReply)['m.new_content'];
+        editedNewContent = editedReply.getContent()['m.new_content'];
       }
 
-      const content: IContent = editedNewContent ?? getContent.call(replyEvt);
+      const content: IContent = (editedNewContent ?? replyEvt.getContent()) as IContent;
       const { body, formatted_body: formattedBody } = content;
 
       const { 'm.relates_to': relation } = startThread
         ? { 'm.relates_to': { rel_type: 'm.thread', event_id: replyId } }
-        : getWireContent.call(replyEvt);
+        : replyEvt.getWireContent();
 
-      const senderId = getSender.call(replyEvt);
+      const senderId = replyEvt.getSender();
 
       if (senderId) {
         setReplyDraft({
@@ -189,8 +190,7 @@ export function useTimelineActions({
 
   const handleResend = useCallback(
     (mEvent: MatrixEvent) => {
-      const { getAssociatedStatus } = mEvent;
-      if (getAssociatedStatus.call(mEvent) !== EventStatus.NOT_SENT) return;
+      if (mEvent.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
       mx.resendEvent(mEvent, room).catch(() => undefined);
     },
     [mx, room]
@@ -198,8 +198,7 @@ export function useTimelineActions({
 
   const handleDeleteFailedSend = useCallback(
     (mEvent: MatrixEvent) => {
-      const { getAssociatedStatus } = mEvent;
-      if (getAssociatedStatus.call(mEvent) !== EventStatus.NOT_SENT) return;
+      if (mEvent.getAssociatedStatus() !== EventStatus.NOT_SENT) return;
       mx.cancelPendingEvent(mEvent);
     },
     [mx]

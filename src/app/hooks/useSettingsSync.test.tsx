@@ -3,8 +3,10 @@ import { renderHook, act } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { createElement, type ReactNode } from 'react';
 import { settingsAtom, getSettings } from '$state/settings';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { SETTINGS_SYNC_VERSION } from '$utils/settingsSync';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+
 import {
   settingsSyncLastSyncedAtom,
   settingsSyncStatusAtom,
@@ -20,8 +22,10 @@ const { callbackHolder, mockMx } = vi.hoisted(() => {
     current: ((event: { getType: () => string; getContent: () => unknown }) => void) | null;
   } = { current: null };
   const mx = {
-    getAccountData: vi.fn().mockReturnValue(null),
-    setAccountData: vi.fn().mockResolvedValue(undefined),
+    getAccountData: vi.fn<() => unknown>().mockReturnValue(null),
+    setAccountData: vi
+      .fn<(type: string, content: Record<string, unknown>) => Promise<void>>()
+      .mockResolvedValue(undefined),
   };
   return { callbackHolder: holder, mockMx: mx };
 });
@@ -58,7 +62,7 @@ function makeWrapper(store: ReturnType<typeof createStore>) {
 
 function makeSableSettingsEvent(content: unknown) {
   return {
-    getType: () => AccountDataEvent.SableSettings,
+    getType: () => CustomAccountDataEvent.SableSettings,
     getContent: () => content,
   };
 }
@@ -181,7 +185,7 @@ describe('useSettingsSyncEffect — debounced upload', () => {
       string,
       Record<string, unknown>,
     ];
-    expect(type).toBe(AccountDataEvent.SableSettings);
+    expect(type).toBe(CustomAccountDataEvent.SableSettings);
     expect(content.v).toBe(SETTINGS_SYNC_VERSION);
     expect(typeof content.synctoken).toBe('string');
   });
@@ -235,8 +239,9 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     });
 
     // Capture the echo token that was uploaded.
-    const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent.synctoken as string;
+    const uploadedContent: Record<string, unknown> | undefined =
+      mockMx.setAccountData.mock.calls[0]?.[1];
+    const echoToken = uploadedContent?.synctoken as string;
 
     // Simulate the homeserver echoing our own event back.
     const echoEvent = makeSableSettingsEvent({
@@ -261,13 +266,18 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    const uploadedContent = mockMx.setAccountData.mock.calls[0][1] as Record<string, unknown>;
-    const echoToken = uploadedContent.synctoken as string;
+    const uploadedContent: Record<string, unknown> | undefined =
+      mockMx.setAccountData.mock.calls[0]?.[1];
+    const echoToken = uploadedContent?.synctoken as string;
 
     const before = Date.now();
     act(() => {
       callbackHolder.current?.(
-        makeSableSettingsEvent({ v: SETTINGS_SYNC_VERSION, synctoken: echoToken, settings: {} })
+        makeSableSettingsEvent({
+          v: SETTINGS_SYNC_VERSION,
+          synctoken: echoToken,
+          settings: {},
+        })
       );
     });
     const after = Date.now();

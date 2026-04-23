@@ -4,7 +4,7 @@ import {
   MatrixCapabilities,
   WidgetEventCapability,
 } from 'matrix-widget-api';
-import { EventType } from 'matrix-js-sdk';
+import { EventType } from '$types/matrix-sdk';
 
 export function getCallCapabilities(
   roomId: string,

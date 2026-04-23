@@ -1,4 +1,5 @@
-import { ReactNode, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback } from 'react';
 import { useSetAtom } from 'jotai';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import {

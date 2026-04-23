@@ -1,6 +1,7 @@
-import { WritableAtom, atom } from 'jotai';
+import type { WritableAtom } from 'jotai';
+import { atom } from 'jotai';
 import { produce } from 'immer';
-import { Path } from 'react-router-dom';
+import type { Path } from 'react-router-dom';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,

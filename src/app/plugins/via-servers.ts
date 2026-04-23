@@ -1,12 +1,14 @@
-import { Room } from '$types/matrix-sdk';
-import { IRoomCreateContent, StateEvent } from '$types/matrix/room';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import type { Room } from '$types/matrix-sdk';
+import type { IRoomCreateContent } from '$types/matrix/room';
+
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { creatorsSupported, getMxIdServer } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
+import { EventType } from '$types/matrix-sdk';
 
 export const getViaServers = (room: Room): string[] => {
   const getHighestPowerUserId = (): string | undefined => {
-    const creatorEvent = getStateEvent(room, StateEvent.RoomCreate);
+    const creatorEvent = getStateEvent(room, EventType.RoomCreate);
     if (
       creatorEvent &&
       creatorsSupported(creatorEvent.getContent<IRoomCreateContent>().room_version)
@@ -14,7 +16,7 @@ export const getViaServers = (room: Room): string[] => {
       return creatorEvent.getSender();
     }
 
-    const powerLevels = getStateEvent(room, StateEvent.RoomPowerLevels)?.getContent<IPowerLevels>();
+    const powerLevels = getStateEvent(room, EventType.RoomPowerLevels)?.getContent<IPowerLevels>();
 
     if (!powerLevels) return undefined;
     const userIdToPower = powerLevels.users;
@@ -22,13 +24,15 @@ export const getViaServers = (room: Room): string[] => {
     let powerUserId: string | undefined;
 
     Object.keys(userIdToPower).forEach((userId) => {
-      if (userIdToPower[userId] <= (powerLevels.users_default ?? 0)) return;
+      const userPower = userIdToPower[userId];
+      if (userPower === undefined || userPower <= (powerLevels.users_default ?? 0)) return;
 
       if (!powerUserId) {
         powerUserId = userId;
         return;
       }
-      if (userIdToPower[userId] > userIdToPower[powerUserId]) {
+      const currentPower = userIdToPower[powerUserId];
+      if (currentPower !== undefined && userPower > currentPower) {
         powerUserId = userId;
       }
     });
@@ -61,13 +65,14 @@ export const getViaServers = (room: Room): string[] => {
     if (server) via.push(server);
   }
   const serverToPop = getServerToPopulation();
-  const sortedServers = Object.keys(serverToPop).sort(
-    (svrA, svrB) => serverToPop[svrB] - serverToPop[svrA]
+  const sortedServers = Object.keys(serverToPop).toSorted(
+    (svrA, svrB) => (serverToPop[svrB] ?? 0) - (serverToPop[svrA] ?? 0)
   );
   const mostPop3 = sortedServers.slice(0, 3);
   if (via.length === 0) return mostPop3;
-  if (mostPop3.includes(via[0])) {
-    mostPop3.splice(mostPop3.indexOf(via[0]), 1);
+  const firstVia = via[0];
+  if (firstVia && mostPop3.includes(firstVia)) {
+    mostPop3.splice(mostPop3.indexOf(firstVia), 1);
   }
   return via.concat(mostPop3.slice(0, 2));
 };

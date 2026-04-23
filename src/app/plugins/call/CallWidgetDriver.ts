@@ -1,3 +1,4 @@
+import type { SimpleObservable, IOpenIDUpdate } from 'matrix-widget-api';
 import {
   type Capability,
   type ISendDelayedEventDetails,
@@ -10,9 +11,8 @@ import {
   type IGetMediaConfigResult,
   UpdateDelayedEventAction,
   OpenIDRequestState,
-  SimpleObservable,
-  IOpenIDUpdate,
 } from 'matrix-widget-api';
+import type { MatrixClient } from '$types/matrix-sdk';
 import {
   EventType,
   type IContent,
@@ -22,8 +22,7 @@ import {
   type SendDelayedEventResponse,
   type StateEvents,
   type TimelineEvents,
-  MatrixClient,
-} from 'matrix-js-sdk';
+} from '$types/matrix-sdk';
 import { getCallCapabilities } from './utils';
 import { downloadMedia, mxcUrlToHttp } from '../../utils/matrix';
 import { createDebugLogger } from '../../utils/debugLogger';
@@ -85,7 +84,7 @@ export class CallWidgetDriver extends WidgetDriver {
         content as StateEvents[keyof StateEvents],
         stateKey
       );
-    } else if (eventType === EventType.RoomRedaction) {
+    } else if (eventType === (EventType.RoomRedaction as string)) {
       // special case: extract the `redacts` property and call redact
       r = await client.redactEvent(roomId, content.redacts);
     } else {
@@ -191,10 +190,10 @@ export class CallWidgetDriver extends WidgetDriver {
       // attempt to re-batch these up into a single request
       const invertedContentMap: Record<string, { userId: string; deviceId: string }[]> = {};
 
-      // eslint-disable-next-line no-restricted-syntax
       for (const userId of Object.keys(contentMap)) {
         const userContentMap = contentMap[userId];
-        // eslint-disable-next-line no-restricted-syntax
+        if (!userContentMap) continue;
+
         for (const deviceId of Object.keys(userContentMap)) {
           const content = userContentMap[deviceId];
           const stringifiedContent = JSON.stringify(content);
@@ -246,13 +245,16 @@ export class CallWidgetDriver extends WidgetDriver {
 
     for (let i = events.length - 1; i >= 0; i -= 1) {
       const ev = events[i];
+      if (!ev) continue;
       if (results.length >= safeLimit) break;
       if (since !== undefined && ev.getId() === since) break;
 
       if (
         ev.getType() === eventType &&
         !ev.isState() &&
-        (eventType !== EventType.RoomMessage || !msgtype || msgtype === ev.getContent().msgtype) &&
+        (eventType !== (EventType.RoomMessage as string) ||
+          !msgtype ||
+          msgtype === ev.getContent().msgtype) &&
         (ev.getStateKey() === undefined || stateKey === undefined || ev.getStateKey() === stateKey)
       ) {
         results.push(ev);
@@ -363,7 +365,6 @@ export class CallWidgetDriver extends WidgetDriver {
     return this.mx.getVisibleRooms().map((r) => r.roomId);
   }
 
-  // eslint-disable-next-line class-methods-use-this
   public processError(error: unknown): IWidgetApiErrorResponseDataDetails | undefined {
     return error instanceof MatrixError
       ? { matrix_api_error: error.asWidgetApiErrorData() }

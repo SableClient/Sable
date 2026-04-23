@@ -1,13 +1,6 @@
-import {
-  FormEventHandler,
-  MouseEventHandler,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { FormEventHandler, MouseEventHandler, RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -20,7 +13,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Spinner,
   Text,
@@ -31,12 +23,13 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
-import { MatrixClient, Method, RoomType } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { Method, RoomType } from '$types/matrix-sdk';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { RoomCard, RoomCardBase, RoomCardGrid } from '$components/room-card';
-import { ExploreServerPathSearchParams } from '$pages/paths';
+import type { ExploreServerPathSearchParams } from '$pages/paths';
 import { getExploreServerPath, withSearchParam } from '$pages/pathUtils';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -171,7 +164,8 @@ function ThirdPartyProtocolsSelector({
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
 
-  const instances = data && Object.keys(data).flatMap((protocol) => data[protocol].instances);
+  const instances =
+    data && Object.keys(data).flatMap((protocol) => data[protocol]?.instances ?? []);
   if (!instances || instances.length === 0) return null;
   const selectedInstance = instances.find((instance) => instanceId === instance.instance_id);
 
@@ -362,6 +356,10 @@ export function PublicRooms() {
     if (!limitParam) return FALLBACK_ROOMS_LIMIT;
     return Number.parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
   }, [serverSearchParams.limit]);
+  const placeholderRoomCardKeys = useMemo(
+    () => Array.from({ length: currentLimit }, (_, index) => `placeholder-${index}`),
+    [currentLimit]
+  );
 
   const resetScroll = useCallback(() => {
     const scroll = scrollRef.current;
@@ -574,8 +572,8 @@ export function PublicRooms() {
                   </Box>
                   {isLoading && (
                     <RoomCardGrid>
-                      {[...new Array(currentLimit).keys()].map((item) => (
-                        <RoomCardBase key={item} style={{ minHeight: toRem(260) }} />
+                      {placeholderRoomCardKeys.map((key) => (
+                        <RoomCardBase key={key} style={{ minHeight: toRem(260) }} />
                       ))}
                     </RoomCardGrid>
                   )}

@@ -74,7 +74,6 @@ export function CodeHighlightRenderer({
   }
 
   return (
-    // eslint-disable-next-line react/no-danger
     <code className={codeClassName} dangerouslySetInnerHTML={{ __html: currentResult.html }} />
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useMatrixClient } from './useMatrixClient';
-import { AsyncState, useAsyncCallbackValue } from './useAsyncCallback';
+import type { AsyncState } from './useAsyncCallback';
+import { useAsyncCallbackValue } from './useAsyncCallback';
 import { useSpecVersions } from './useSpecVersions';
 
 export const useMutualRoomsSupport = (): boolean => {

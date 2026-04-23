@@ -1,4 +1,4 @@
-import { IconName, IconSrc } from 'folds';
+import type { IconName, IconSrc } from 'folds';
 
 export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -57,7 +57,7 @@ export const promiseFulfilledResult = <T>(
   if (settledResult.status === 'fulfilled') return settledResult.value;
   return undefined;
 };
-export const promiseRejectedResult = <T>(settledResult: PromiseSettledResult<T>): any => {
+export const promiseRejectedResult = <T>(settledResult: PromiseSettledResult<T>): unknown => {
   if (settledResult.status === 'rejected') return settledResult.reason;
   return undefined;
 };
@@ -68,7 +68,7 @@ export const binarySearch = <T>(items: T[], match: (item: T) => -1 | 0 | 1): T |
 
     const mid = Math.floor((start + end) / 2);
 
-    const result = match(items[mid]);
+    const result = match(items[mid]!);
     if (result === 0) return items[mid];
 
     if (result === 1) return search(start, mid - 1);
@@ -113,7 +113,7 @@ export const trimSlash = (str: string): string => trimLeadingSlash(trimTrailingS
 
 export const nameInitials = (str: string | undefined | null, len = 1): string => {
   if (!str) return '';
-  return [...str].slice(0, len).join('') || '';
+  return Array.from(str).slice(0, len).join('') || '';
 };
 
 export const randomStr = (len = 12): string => {

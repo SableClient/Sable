@@ -1,5 +1,3 @@
-/* eslint-disable no-bitwise */
-/* eslint-disable no-plusplus */
 // https://github.com/element-hq/element-web/blob/a5b63d582fde59ea4dd3c7fdcad7266ab70dd695/apps/web/src/utils/MegolmExportEncryption.ts
 
 import { createLogger } from './debug';
@@ -7,10 +5,15 @@ import { createLogger } from './debug';
 const logger = createLogger('MegolmExportEncryption');
 const subtleCrypto = globalThis.crypto.subtle;
 
-export type FriendlyError = {
-  message: string;
-  friendlyText: string;
-};
+export class FriendlyError extends Error {
+  public friendlyText: string;
+
+  constructor(message: string, friendlyText: string) {
+    super(message);
+    this.friendlyText = friendlyText;
+    this.name = 'FriendlyError';
+  }
+}
 
 /**
  * Make an Error object which has a friendlyText property which is already
@@ -18,10 +21,10 @@ export type FriendlyError = {
  *
  * @param {string} message message for the exception
  * @param {string} friendlyText
- * @returns {{message: string, friendlyText: string}}
+ * @returns {FriendlyError}
  */
 function friendlyError(message: string, friendlyText: string): FriendlyError {
-  return { message, friendlyText };
+  return new FriendlyError(message, friendlyText);
 }
 
 function cryptoFailMsg(): string {
@@ -83,8 +86,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
 
   // look for the start line
   let lineStart = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (1) {
+  for (;;) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     if (lineEnd < 0) {
       throw new Error('Header line not found');
@@ -102,8 +104,7 @@ function unpackMegolmKeyFile(data: ArrayBuffer): Uint8Array<ArrayBuffer> {
   const dataStart = lineStart;
 
   // look for the end line
-  // eslint-disable-next-line no-constant-condition
-  while (1) {
+  for (;;) {
     const lineEnd = fileStr.indexOf('\n', lineStart);
     const line = fileStr.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).trim();
     if (line === TRAILER_LINE) {
@@ -135,7 +136,7 @@ function packMegolmKeyFile(data: Uint8Array): ArrayBuffer {
   // terribly well with large arrays.
   const LINE_LENGTH = (72 * 4) / 3;
   const nLines = Math.ceil(data.length / LINE_LENGTH);
-  const lines = new Array<string>(nLines + 3);
+  const lines = Array.from<string>({ length: nLines + 3 });
   lines[0] = HEADER_LINE;
   let o = 0;
   let i;
@@ -173,7 +174,7 @@ async function deriveKeys(
       ['deriveBits']
     );
   } catch (error) {
-    throw friendlyError(`subtleCrypto.importKey failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.importKey failed: ${String(error)}`, cryptoFailMsg());
   }
 
   let keyBits;
@@ -189,7 +190,7 @@ async function deriveKeys(
       512
     );
   } catch (error) {
-    throw friendlyError(`subtleCrypto.deriveBits failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.deriveBits failed: ${String(error)}`, cryptoFailMsg());
   }
 
   const now = new Date();
@@ -201,7 +202,10 @@ async function deriveKeys(
   const aesProm = subtleCrypto
     .importKey('raw', aesKey, { name: 'AES-CTR' }, false, ['encrypt', 'decrypt'])
     .catch((error) => {
-      throw friendlyError(`subtleCrypto.importKey failed for AES key: ${error}`, cryptoFailMsg());
+      throw friendlyError(
+        `subtleCrypto.importKey failed for AES key: ${String(error)}`,
+        cryptoFailMsg()
+      );
     });
 
   const hmacProm = subtleCrypto
@@ -216,7 +220,10 @@ async function deriveKeys(
       ['sign', 'verify']
     )
     .catch((error) => {
-      throw friendlyError(`subtleCrypto.importKey failed for HMAC key: ${error}`, cryptoFailMsg());
+      throw friendlyError(
+        `subtleCrypto.importKey failed for HMAC key: ${String(error)}`,
+        cryptoFailMsg()
+      );
     });
 
   return Promise.all([aesProm, hmacProm]);
@@ -260,7 +267,7 @@ export async function decryptMegolmKeyFile(data: ArrayBuffer, password: string):
   try {
     isValid = await subtleCrypto.verify({ name: 'HMAC' }, hmacKey, hmac, toVerify);
   } catch (error) {
-    throw friendlyError(`subtleCrypto.verify failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.verify failed: ${String(error)}`, cryptoFailMsg());
   }
   if (!isValid) {
     throw friendlyError('hmac mismatch', 'Authentication check failed: Incorrect password?');
@@ -278,7 +285,7 @@ export async function decryptMegolmKeyFile(data: ArrayBuffer, password: string):
       ciphertext
     );
   } catch (error) {
-    throw friendlyError(`subtleCrypto.decrypt failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.decrypt failed: ${String(error)}`, cryptoFailMsg());
   }
 
   return new TextDecoder().decode(new Uint8Array(plaintext));
@@ -311,7 +318,7 @@ export async function encryptMegolmKeyFile(
   // clear bit 63 of the IV to stop us hitting the 64-bit counter boundary
   // (which would mean we wouldn't be able to decrypt on Android). The loss
   // of a single bit of iv is a price we have to pay.
-  iv[8] &= 0x7f;
+  iv[8]! &= 0x7f;
 
   const [aesKey, hmacKey] = await deriveKeys(salt, kdfRounds, password);
   const encodedData = toArrayBufferView(new TextEncoder().encode(data));
@@ -328,7 +335,7 @@ export async function encryptMegolmKeyFile(
       encodedData
     );
   } catch (error) {
-    throw friendlyError(`subtleCrypto.encrypt failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.encrypt failed: ${String(error)}`, cryptoFailMsg());
   }
 
   const cipherArray = new Uint8Array(ciphertext);
@@ -353,7 +360,7 @@ export async function encryptMegolmKeyFile(
   try {
     hmac = await subtleCrypto.sign({ name: 'HMAC' }, hmacKey, toSign);
   } catch (error) {
-    throw friendlyError(`subtleCrypto.sign failed: ${error}`, cryptoFailMsg());
+    throw friendlyError(`subtleCrypto.sign failed: ${String(error)}`, cryptoFailMsg());
   }
 
   const hmacArray = new Uint8Array(hmac);

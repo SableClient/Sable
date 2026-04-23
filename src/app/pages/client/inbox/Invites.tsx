@@ -19,7 +19,7 @@ import {
 } from 'folds';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
+import type { RoomTopicEventContent, MatrixClient, MatrixError, Room } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import {
   Page,
@@ -60,13 +60,14 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { StateEvent } from '$types/matrix/room';
+
 import { testBadWords } from '$plugins/bad-words';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useReportRoomSupported } from '$hooks/useReportRoomSupported';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { EventType } from '$types/matrix-sdk';
 
 const COMPACT_CARD_WIDTH = 548;
 
@@ -102,7 +103,7 @@ const makeInviteData = (
     : getRoomAvatarUrl(mx, room, 96, useAuthentication);
   const roomName = room.name || room.getCanonicalAlias() || room.roomId;
   const roomTopic =
-    getStateEvent(room, StateEvent.RoomTopic)?.getContent<RoomTopicEventContent>()?.topic ??
+    getStateEvent(room, EventType.RoomTopic)?.getContent<RoomTopicEventContent>()?.topic ??
     undefined;
 
   const member = room.getMember(userId);
@@ -135,7 +136,7 @@ const makeInviteData = (
 
     isSpace: isSpace(room),
     isDirect: direct,
-    isEncrypted: !!getStateEvent(room, StateEvent.RoomEncryption),
+    isEncrypted: !!getStateEvent(room, EventType.RoomEncryption),
   };
 };
 

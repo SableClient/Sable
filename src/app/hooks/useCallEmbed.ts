@@ -1,21 +1,18 @@
-import { createContext, RefObject, useCallback, useContext, useEffect, useState } from 'react';
-import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { MatrixClient, Room } from 'matrix-js-sdk';
+import type { RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { MatrixRTCSession } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import {
-  CallEmbed,
-  ElementCallThemeKind,
-  ElementWidgetActions,
-  useClientWidgetApiEvent,
-} from '../plugins/call';
+import type { ElementCallThemeKind } from '../plugins/call';
+import { CallEmbed, ElementWidgetActions, useClientWidgetApiEvent } from '../plugins/call';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useTheme } from './useTheme';
 import { callEmbedAtom } from '../state/callEmbed';
 import { useResizeObserver } from './useResizeObserver';
 import { CallControlState } from '../plugins/call/CallControlState';
 import { useCallMembersChange, useCallSession } from './useCall';
-import { CallPreferences } from '../state/callPreferences';
+import type { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('useCallEmbed');
@@ -81,7 +78,9 @@ export const useCallStart = (dm = false) => {
       }
       try {
         debugLog.info('call', 'Starting call', { roomId: room.roomId, dm });
-        Sentry.metrics.count('sable.call.start.attempt', 1, { attributes: { dm: String(dm) } });
+        Sentry.metrics.count('sable.call.start.attempt', 1, {
+          attributes: { dm: String(dm) },
+        });
         const callEmbed = createCallEmbed(mx, room, dm, theme.kind, container, pref);
         setCallEmbed(callEmbed);
       } catch (err) {

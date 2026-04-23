@@ -1,10 +1,10 @@
 /// <reference lib="WebWorker" />
 
+/* oxlint-disable no-console, unicorn/require-post-message-target-origin */
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 
 import { createPushNotifications } from './sw/pushNotification';
 
-export type {};
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
@@ -71,7 +71,9 @@ async function persistSession(session: SessionInfo): Promise<void> {
     const cache = await self.caches.open(SW_SESSION_CACHE);
     await cache.put(
       SW_SESSION_URL,
-      new Response(JSON.stringify(session), { headers: { 'Content-Type': 'application/json' } })
+      new Response(JSON.stringify(session), {
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
   } catch {
     // Ignore — caches may be unavailable in some environments.
@@ -267,7 +269,9 @@ async function fetchRoomName(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.name`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const { name } = data;
@@ -294,7 +298,9 @@ async function fetchMemberInfo(
 ): Promise<MemberInfo> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(userId)}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return { displayname: undefined, avatarUrl: undefined };
     const data = (await res.json()) as Record<string, unknown>;
     const displayname =
@@ -322,7 +328,9 @@ async function fetchRoomAvatar(
 ): Promise<string | undefined> {
   try {
     const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.avatar`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Record<string, unknown>;
     const avatarUrl = data.url;
@@ -339,7 +347,7 @@ async function fetchRoomAvatar(
  */
 function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefined {
   const match = mxcUrl.match(/^mxc:\/\/([^/]+)\/([^?#]+)/);
-  if (!match) return undefined;
+  if (!match || !match[1] || !match[2]) return undefined;
   const [, server, mediaId] = match;
   return `${baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(server)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`;
 }
@@ -388,7 +396,10 @@ async function requestDecryptionFromClient(
       });
 
       try {
-        (client as WindowClient).postMessage({ type: 'decryptPushEvent', rawEvent });
+        (client as WindowClient).postMessage({
+          type: 'decryptPushEvent',
+          rawEvent,
+        });
       } catch (err) {
         decryptionPendingMap.delete(eventId);
         console.warn('[SW decryptRelay] postMessage error', err);
@@ -490,7 +501,7 @@ async function handleMinimalPushPayload(
       await handlePushNotificationPushData({
         ...baseData,
         type: result.eventType,
-        content: result.content,
+        content: result.content as { notification_type?: string; membership?: string } | undefined,
         sender_display_name: senderDisplay,
         // Prefer relay's room name (has m.direct / computed SDK name); fall back to state fetch.
         room_name: result.room_name || resolvedRoomName,
@@ -512,7 +523,7 @@ async function handleMinimalPushPayload(
     await handlePushNotificationPushData({
       ...baseData,
       type: eventType,
-      content: rawEvent.content,
+      content: rawEvent.content as { notification_type?: string; membership?: string } | undefined,
       sender_display_name: senderDisplay,
       room_name: resolvedRoomName,
       room_avatar_url: notificationAvatarUrl,
@@ -697,7 +708,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+          return fetch(url, {
+            ...fetchConfig(persisted.accessToken),
+            redirect,
+          });
         }
         return fetch(event.request);
       })
@@ -773,7 +787,9 @@ const onPushNotification = async (event: PushEvent) => {
       if (pushData.unread === 0) {
         // All messages read elsewhere — clear the home-screen badge and,
         // if the user opted in, dismiss outstanding lock-screen notifications.
-        await (self.navigator as any).clearAppBadge();
+        await (
+          self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+        ).clearAppBadge?.();
         if (clearNotificationsOnRead) {
           const notifs = await self.registration.getNotifications();
           notifs.forEach((n) => n.close());
@@ -781,10 +797,14 @@ const onPushNotification = async (event: PushEvent) => {
         return;
       }
       // unread > 0: update the PWA badge with the current count.
-      await (self.navigator as any).setAppBadge(pushData.unread);
+      await (
+        self.navigator as unknown as { setAppBadge?: (count: number) => Promise<void> }
+      ).setAppBadge?.(pushData.unread);
     } else {
       // No unread field in payload — clear badge to avoid a stale count.
-      await (self.navigator as any).clearAppBadge();
+      await (
+        self.navigator as unknown as { clearAppBadge?: () => Promise<void> }
+      ).clearAppBadge?.();
     }
   } catch {
     // Badging API absent (Firefox/Gecko) — continue to show the notification.
@@ -865,10 +885,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
       console.debug(
         '[SW notificationclick] window clients:',
-        clientList.map((c) => ({ url: c.url, visibility: c.visibilityState, focused: c.focused }))
+        clientList.map((c) => ({
+          url: c.url,
+          visibility: c.visibilityState,
+          focused: c.focused,
+        }))
       );
 
-      // eslint-disable-next-line no-restricted-syntax
       for (const wc of clientList) {
         console.debug('[SW notificationclick] postMessage to existing client:', wc.url);
         try {
@@ -884,7 +907,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             isInvite,
             isCall,
           });
-          // eslint-disable-next-line no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await wc.focus();
           return;
         } catch (err) {

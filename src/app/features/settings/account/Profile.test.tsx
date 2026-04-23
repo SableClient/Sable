@@ -6,10 +6,10 @@ import { Profile } from './Profile';
 
 const mockMatrixClient = {
   getUserId: () => '@alice:example.org',
-  setAvatarUrl: vi.fn(),
-  setDisplayName: vi.fn(),
-  setExtendedProfileProperty: vi.fn(),
-  setPresence: vi.fn(),
+  setAvatarUrl: vi.fn<() => Promise<void>>(),
+  setDisplayName: vi.fn<() => Promise<void>>(),
+  setExtendedProfileProperty: vi.fn<() => Promise<void>>(),
+  setPresence: vi.fn<() => Promise<void>>(),
 };
 
 vi.mock('$hooks/useMatrixClient', () => ({
@@ -38,7 +38,7 @@ vi.mock('$hooks/useUserPresence', () => ({
 }));
 
 vi.mock('$hooks/useFilePicker', () => ({
-  useFilePicker: () => vi.fn(),
+  useFilePicker: () => vi.fn<() => void>(),
 }));
 
 vi.mock('$hooks/useObjectURL', () => ({
@@ -55,7 +55,7 @@ vi.mock('$hooks/useAsyncCallback', () => ({
   useAsyncCallback: (callback: (...args: unknown[]) => unknown) => [
     { status: 'idle' },
     callback,
-    vi.fn(),
+    vi.fn<() => void>(),
   ],
 }));
 
@@ -64,10 +64,10 @@ vi.mock('$components/user-avatar', () => ({
 }));
 
 vi.mock('jotai', async () => {
-  const actual = await vi.importActual<typeof import('jotai')>('jotai');
+  const actual = (await vi.importActual('jotai')) as object;
   return {
     ...actual,
-    useSetAtom: () => vi.fn(),
+    useSetAtom: () => vi.fn<() => void>(),
   };
 });
 

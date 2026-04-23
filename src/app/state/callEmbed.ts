@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { CallEmbed } from '../plugins/call';
+import type { CallEmbed } from '../plugins/call';
 
 const baseCallEmbedAtom = atom<CallEmbed | undefined>(undefined);
 
@@ -33,7 +33,7 @@ export const callEmbedAtom = atom<CallEmbed | undefined, [CallEmbed | undefined]
   }
 );
 
-export const callChatAtom = atom<boolean>(false);
+export const callChatAtom = atom(false);
 
 export const incomingCallRoomIdAtom = atom<string | null>(null);
 export const autoJoinCallIntentAtom = atom<string | null>(null);

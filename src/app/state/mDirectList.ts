@@ -1,7 +1,8 @@
 import { atom, useSetAtom } from 'jotai';
-import { ClientEvent, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import { ClientEvent, EventType } from '$types/matrix-sdk';
 import { useEffect } from 'react';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { getAccountData, getMDirects } from '$utils/room';
 
 export type MDirectAction = {
@@ -21,7 +22,7 @@ export const useBindMDirectAtom = (mx: MatrixClient, mDirect: typeof mDirectAtom
   const setMDirect = useSetAtom(mDirect);
 
   useEffect(() => {
-    const mDirectEvent = getAccountData(mx, AccountDataEvent.Direct);
+    const mDirectEvent = getAccountData(mx, EventType.Direct);
     if (mDirectEvent) {
       setMDirect({
         type: 'INITIALIZE',
@@ -30,7 +31,7 @@ export const useBindMDirectAtom = (mx: MatrixClient, mDirect: typeof mDirectAtom
     }
 
     const handleAccountData = (event: MatrixEvent) => {
-      if (event.getType() === AccountDataEvent.Direct) {
+      if (event.getType() === (EventType.Direct as string)) {
         setMDirect({
           type: 'UPDATE',
           rooms: getMDirects(event),

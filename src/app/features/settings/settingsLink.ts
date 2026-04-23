@@ -243,7 +243,7 @@ const withSettingsLinkAction = (path: string): string => {
 const parseSettingsAppPath = (appPath: string): SettingsLink | undefined => {
   if (!appPath.startsWith('/settings/')) return undefined;
 
-  const [pathname, search = ''] = appPath.split('?');
+  const [pathname = '', search = ''] = appPath.split('?');
   const sectionMatch = pathname.match(/^\/settings\/([^/]+)\/?$/);
   if (!sectionMatch) return undefined;
 
@@ -306,7 +306,7 @@ const getCrossBaseSettingsAppPathFromHref = (href: string): string | undefined =
   const hashPath = target.hash.startsWith('#') ? target.hash.slice(1) : target.hash;
   if (!hashPath) return undefined;
 
-  const [hashPathname, hashSearch = ''] = hashPath.split('?');
+  const [hashPathname = '', hashSearch = ''] = hashPath.split('?');
   return getCrossBaseSettingsAppPath(hashPathname, hashSearch);
 };
 
@@ -348,7 +348,6 @@ export const parseSettingsLink = (baseUrl: string, href: string): SettingsLink |
     if (crossBaseAppPath) {
       return parseSettingsAppPath(crossBaseAppPath);
     }
-
     return undefined;
   } catch {
     return undefined;

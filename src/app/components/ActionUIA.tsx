@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
-import { AuthDict, AuthType, IAuthData, UIAFlow } from '$types/matrix-sdk';
+import type { ReactNode } from 'react';
+import type { AuthDict, IAuthData, UIAFlow } from '$types/matrix-sdk';
+import { AuthType } from '$types/matrix-sdk';
 import { getUIAFlowForStages } from '$utils/matrix-uia';
 import { useSupportedUIAFlows, useUIACompleted, useUIAFlow } from '$hooks/useUIAFlows';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -34,7 +35,7 @@ export function ActionUIA({ authData, ongoingFlow, action, onCancel }: ActionUIA
       stepCount={ongoingFlow.stages.length}
       onCancel={onCancel}
     >
-      {stageToComplete.type === AuthType.Password && (
+      {stageToComplete.type === (AuthType.Password as string) && (
         <PasswordStage
           userId={mx.getUserId()!}
           stageData={stageToComplete}
@@ -42,7 +43,7 @@ export function ActionUIA({ authData, ongoingFlow, action, onCancel }: ActionUIA
           submitAuthDict={action}
         />
       )}
-      {stageToComplete.type === AuthType.Sso && stageToComplete.session && (
+      {stageToComplete.type === (AuthType.Sso as string) && stageToComplete.session && (
         <SSOStage
           ssoRedirectURL={mx.getFallbackAuthUrl(AuthType.Sso, stageToComplete.session)}
           stageData={stageToComplete}

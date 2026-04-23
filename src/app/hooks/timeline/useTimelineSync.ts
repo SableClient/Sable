@@ -1,19 +1,17 @@
-import { useState, useMemo, useCallback, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import to from 'await-to-js';
 import * as Sentry from '@sentry/react';
-import {
+import type {
   MatrixClient,
   Room,
   MatrixEvent,
-  Direction,
   EventTimeline,
   EventTimelineSetHandlerMap,
-  RoomEvent,
   IRoomTimelineData,
   RoomEventHandlerMap,
-  RelationType,
-  ThreadEvent,
 } from '$types/matrix-sdk';
+import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
 
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
@@ -37,6 +35,23 @@ export type TimelineState = {
   linkedTimelines: EventTimeline[];
 };
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => {
+      reject(new Error('Timed out loading event timeline'));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        globalThis.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        globalThis.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
 const useEventTimelineLoader = (
   mx: MatrixClient,
   room: Room,
@@ -47,22 +62,6 @@ const useEventTimelineLoader = (
     async (eventId: string) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
-        const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
-          new Promise<T>((resolve, reject) => {
-            const timeoutId = globalThis.setTimeout(() => {
-              reject(new Error('Timed out loading event timeline'));
-            }, timeoutMs);
-
-            promise
-              .then((value) => {
-                globalThis.clearTimeout(timeoutId);
-                resolve(value);
-              })
-              .catch((error) => {
-                globalThis.clearTimeout(timeoutId);
-                reject(error);
-              });
-          });
 
         if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
           await withTimeout(
@@ -117,6 +116,7 @@ const useTimelinePagination = (
   const paginate = useMemo(() => {
     const recalibratePagination = (linkedTimelines: EventTimeline[]) => {
       const topTimeline = linkedTimelines[0];
+      if (!topTimeline) return;
       const newLTimelines = getLinkedTimelines(topTimeline);
       setTimeline(() => ({ linkedTimelines: newLTimelines }));
     };
@@ -185,16 +185,19 @@ const useTimelinePagination = (
           // ensures recalibratePagination rebuilds from the current live chain and
           // that countAfter/stillHasToken comparisons are meaningful.
           const freshLTimelines = timelineRef.current.linkedTimelines;
+          const firstTimeline = freshLTimelines[0];
+          if (!firstTimeline) return;
           recalibratePagination(freshLTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
-          const countAfter = getTimelinesEventsCount(getLinkedTimelines(freshLTimelines[0]));
+          const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
             const checkTimeline = backwards
               ? freshLTimelines[0]
               : freshLTimelines[freshLTimelines.length - 1];
+            if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
               typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
@@ -253,13 +256,12 @@ const useLiveEventArrive = (room: Room, onArrive: (mEvent: MatrixEvent) => void)
         registeredAt = Date.now();
       }
 
-      const { getTs } = mEvent;
       const isLive =
         data.liveEvent ||
         (!toStartOfTimeline &&
           !removed &&
           data.timeline === liveTimeline &&
-          getTs.call(mEvent) >= registeredAt - 60_000);
+          mEvent.getTs() >= registeredAt - 60_000);
       if (!isLive) return;
       onArriveRef.current(mEvent);
     };
@@ -293,8 +295,7 @@ const useRelationUpdate = (room: Room, onRelation: () => void) => {
       data: IRoomTimelineData
     ) => {
       if (eventRoom?.roomId !== room.roomId || data.liveEvent) return;
-      const { getRelation } = mEvent;
-      if (getRelation.call(mEvent)?.rel_type === RelationType.Replace) {
+      if (mEvent.getRelation()?.rel_type === RelationType.Replace) {
         onRelationRef.current();
       }
     };
@@ -473,24 +474,22 @@ export function useTimelineSync({
     room,
     useCallback(
       (mEvt: MatrixEvent) => {
-        const { threadRootId, getSender, getRoomId } = mEvt;
+        const { threadRootId } = mEvt;
         if (threadRootId !== undefined) return;
 
         if (isAtBottomRef.current && atLiveEndRef.current) {
           if (
             document.hasFocus() &&
-            (!unreadInfo?.readUptoEventId || getSender.call(mEvt) === mx.getUserId())
+            (!unreadInfo?.readUptoEventId || mEvt.getSender() === mx.getUserId())
           ) {
-            requestAnimationFrame(() =>
-              markAsRead(mx, getRoomId.call(mEvt)!, hideReadsRef.current)
-            );
+            requestAnimationFrame(() => markAsRead(mx, mEvt.getRoomId()!, hideReadsRef.current));
           }
 
           if (!document.hasFocus() && !unreadInfo) {
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom(getSender.call(mEvt) === mx.getUserId() ? 'instant' : 'smooth');
+          scrollToBottom(mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth');
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));
@@ -583,14 +582,15 @@ export function useTimelineSync({
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
   const prevRoomIdRef = useRef(room.roomId);
+  const eventIdRef = useRef(eventId);
+  eventIdRef.current = eventId;
   useEffect(() => {
     if (prevRoomIdRef.current === room.roomId) return;
     prevRoomIdRef.current = room.roomId;
-    if (eventId) return;
+    if (eventIdRef.current) return;
     setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
     // Intentionally only depends on room: we want this to fire when the room
     // identity changes, not on every eventId change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
 
   return {

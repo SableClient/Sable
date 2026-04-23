@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
+  "ignore": ["oxlint.config.ts", "oxfmt.config.ts"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
@@ -8,8 +9,7 @@
   "ignoreDependencies": [
     "buffer",
     "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm",
-    "@testing-library/user-event"
+    "@matrix-org/matrix-sdk-crypto-wasm"
   ],
   "ignoreBinaries": ["knope"],
   "rules": {

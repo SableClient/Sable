@@ -1,11 +1,12 @@
-import {
+import type {
   ClientWidgetApi,
   IWidgetApiAcknowledgeResponseData,
   IWidgetApiRequestData,
 } from 'matrix-widget-api';
 import { useCallback, useEffect, useState } from 'react';
-import { CallControl, CallControlEvent } from './CallControl';
-import { CallControlState } from './CallControlState';
+import type { CallControl } from './CallControl';
+import { CallControlEvent } from './CallControl';
+import type { CallControlState } from './CallControlState';
 
 export const useClientWidgetApiEvent = <T>(
   api: ClientWidgetApi | undefined,
@@ -22,9 +23,9 @@ export const useClientWidgetApiEvent = <T>(
 
 export const useSendClientWidgetApiAction = (api: ClientWidgetApi) => {
   const sendWidgetAction = useCallback(
-    async <T extends IWidgetApiRequestData = IWidgetApiRequestData>(
+    async (
       action: string,
-      data: T
+      data: IWidgetApiRequestData
     ): Promise<IWidgetApiAcknowledgeResponseData> => api.transport.send(action, data),
     [api]
   );

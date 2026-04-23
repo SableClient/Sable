@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Room, RoomMemberEvent, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
-import { Membership } from '$types/matrix/room';
+import type { Membership, Room, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
+import { RoomMemberEvent, KnownMembership } from '$types/matrix-sdk';
 
 export const useMembership = (room: Room, userId: string): Membership => {
   const member = room.getMember(userId);
 
   const [membership, setMembership] = useState<Membership>(
-    () => (member?.membership as Membership | undefined) ?? Membership.Leave
+    () => member?.membership ?? KnownMembership.Leave
   );
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export const useMembership = (room: Room, userId: string): Membership => {
       m
     ) => {
       if (event.getRoomId() === room.roomId && m.userId === userId) {
-        setMembership((m.membership as Membership | undefined) ?? Membership.Leave);
+        setMembership(m.membership ?? KnownMembership.Leave);
       }
     };
     member?.on(RoomMemberEvent.Membership, handleMembershipChange);

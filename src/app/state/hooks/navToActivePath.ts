@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { NavToActivePathAtom } from '$state/navToActivePath';
+import type { NavToActivePathAtom } from '$state/navToActivePath';
 
 const NavToActivePathAtomContext = createContext<NavToActivePathAtom | null>(null);
 export const NavToActivePathProvider = NavToActivePathAtomContext.Provider;

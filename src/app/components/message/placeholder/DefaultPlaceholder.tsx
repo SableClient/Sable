@@ -1,12 +1,18 @@
-import { CSSProperties, useMemo } from 'react';
-import { Avatar, Box, ContainerColor, as, color, toRem } from 'folds';
+import type { CSSProperties } from 'react';
+import { useMemo } from 'react';
+import type { ContainerColor } from 'folds';
+import { Avatar, Box, as, color, toRem } from 'folds';
 import { randomNumberBetween } from '$utils/common';
 import { ModernLayout } from '$components/message/layout';
 import { LinePlaceholder } from './LinePlaceholder';
 
 const contentMargin: CSSProperties = { marginTop: toRem(3) };
 
-export const DefaultPlaceholder = as<'div', { variant?: ContainerColor }>(
+type DefaultPlaceholderProps = {
+  variant?: ContainerColor;
+};
+
+export const DefaultPlaceholder = as<'div', DefaultPlaceholderProps>(
   ({ variant, ...props }, ref) => {
     const nameSize = useMemo(() => randomNumberBetween(40, 100), []);
     const msgSize = useMemo(() => randomNumberBetween(80, 200), []);
@@ -18,7 +24,9 @@ export const DefaultPlaceholder = as<'div', { variant?: ContainerColor }>(
         ref={ref}
         before={
           <Avatar
-            style={{ backgroundColor: color[variant ?? 'SurfaceVariant'].Container }}
+            style={{
+              backgroundColor: color[variant ?? 'SurfaceVariant'].Container,
+            }}
             size="300"
           />
         }

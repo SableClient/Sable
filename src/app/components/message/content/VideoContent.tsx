@@ -1,4 +1,5 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -17,12 +18,9 @@ import {
 } from 'folds';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import {
-  IThumbnailContent,
-  IVideoInfo,
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
+import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';

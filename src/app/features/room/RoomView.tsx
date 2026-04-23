@@ -6,7 +6,7 @@ import { EventType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { StateEvent } from '$types/matrix/room';
+
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useEditor, resetEditor } from '$components/editor';
@@ -84,7 +84,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
 
   const mx = useMatrixClient();
 
-  const tombstoneEvent = useStateEvent(room, StateEvent.RoomTombstone);
+  const tombstoneEvent = useStateEvent(room, EventType.RoomTombstone);
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
 

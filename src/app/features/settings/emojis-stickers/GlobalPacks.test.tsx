@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { SettingsLinkProvider } from '$features/settings/SettingsLinkContext';
+import type { ImagePack } from '$plugins/custom-emoji';
 import { GlobalPacks } from './GlobalPacks';
 
 const globalPack = {
@@ -31,12 +32,12 @@ vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
     getRoom: () => undefined,
     getAccountData: () => undefined,
-    setAccountData: vi.fn(),
+    setAccountData: vi.fn<() => Promise<void>>(),
   }),
 }));
 
 vi.mock('jotai', async () => {
-  const actual = await vi.importActual<typeof import('jotai')>('jotai');
+  const actual = (await vi.importActual('jotai')) as object;
   return {
     ...actual,
     useAtomValue: () => [],
@@ -48,7 +49,7 @@ describe('GlobalPacks', () => {
     const { container } = render(
       <ScreenSizeProvider value={ScreenSize.Desktop}>
         <SettingsLinkProvider value={{ section: 'emojis', baseUrl: 'https://app.example' }}>
-          <GlobalPacks onViewPack={vi.fn()} />
+          <GlobalPacks onViewPack={vi.fn<(imagePack: ImagePack) => void>()} />
         </SettingsLinkProvider>
       </ScreenSizeProvider>
     );

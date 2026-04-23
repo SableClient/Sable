@@ -12,7 +12,7 @@ afterEach(() => {
 
 describe('useThrottle', () => {
   it('fires once after the wait period even when called multiple times', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useThrottle(fn, { wait: 200 }));
 
     act(() => {
@@ -31,7 +31,7 @@ describe('useThrottle', () => {
   });
 
   it('fires with the latest args when called multiple times within the wait', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useThrottle(fn, { wait: 200 }));
 
     act(() => {
@@ -48,7 +48,7 @@ describe('useThrottle', () => {
   });
 
   it('does not fire before the wait period ends', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useThrottle(fn, { wait: 300 }));
 
     act(() => {
@@ -60,7 +60,7 @@ describe('useThrottle', () => {
   });
 
   it('allows a new invocation after the wait period resets', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useThrottle(fn, { wait: 100 }));
 
     act(() => {
@@ -79,7 +79,7 @@ describe('useThrottle', () => {
   });
 
   it('fires immediately on first call when immediate option is set', () => {
-    const fn = vi.fn();
+    const fn = vi.fn<(arg: string) => void>();
     const { result } = renderHook(() => useThrottle(fn, { wait: 200, immediate: true }));
 
     act(() => {

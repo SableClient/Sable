@@ -1,11 +1,6 @@
-import {
-  ChangeEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Badge,
@@ -18,7 +13,6 @@ import {
   Input,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Spinner,
   Text,
@@ -27,7 +21,7 @@ import {
   config,
   toRem,
 } from 'folds';
-import { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
+import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
 
@@ -35,7 +29,8 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { SearchItemStrGetter, UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
@@ -245,7 +240,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   const typingMembers = useRoomTypingMember(room.roomId);
 
   const filteredMembers = useMemo(
-    () => members.filter(membershipFilter.filterFn).sort(memberSort.sortFn).sort(memberPowerSort),
+    () =>
+      members.filter(membershipFilter.filterFn).toSorted(memberSort.sortFn).sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
   );
 
@@ -431,6 +427,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
                   const tagOrMember = PLTagOrRoomMember[vItem.index];
+                  if (!tagOrMember) return null;
                   if (!('userId' in tagOrMember)) {
                     return (
                       <Text

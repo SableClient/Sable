@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { CreateRoomType } from '$components/create-room/types';
-import { createRoomModalAtom, CreateRoomModalState } from '$state/createRoomModal';
+import type { CreateRoomType } from '$components/create-room/types';
+import type { CreateRoomModalState } from '$state/createRoomModal';
+import { createRoomModalAtom } from '$state/createRoomModal';
 
 export const useCreateRoomModalState = (): CreateRoomModalState | undefined => {
   const data = useAtomValue(createRoomModalAtom);

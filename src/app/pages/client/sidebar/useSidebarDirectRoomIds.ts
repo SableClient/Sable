@@ -48,7 +48,7 @@ export const useSidebarDirectRoomIds = (): string[] => {
       return unread && (unread.total > 0 || unread.highlight > 0);
     });
 
-    const sorted = withUnread.sort(factoryRoomIdByActivity(mx));
+    const sorted = withUnread.toSorted(factoryRoomIdByActivity(mx));
     return sorted.slice(0, MAX_SIDEBAR_DMS);
   }, [directs, mx, roomToUnread, syncReady]);
 };

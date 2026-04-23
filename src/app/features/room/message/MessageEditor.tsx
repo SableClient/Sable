@@ -1,41 +1,23 @@
-import {
-  KeyboardEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  as,
-  config,
-} from 'folds';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, Line, PopOut, Spinner, Text, as, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
-import {
+import type {
   IContent,
   IMentions,
   MatrixEvent,
   ReplacementEvent,
-  RelationType,
   Room,
+  RoomMessageEventContent,
   RoomMessageTextEventContent,
-  MsgType,
 } from '$types/matrix-sdk';
+import { RelationType, MsgType } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   RoomMentionAutocomplete,
@@ -69,10 +51,10 @@ import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { GetContentCallback } from '$types/matrix/room';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { GetContentCallback } from '$types/matrix/room';
 import { sanitizeText } from '$utils/sanitize';
 
 type MessageEditorProps = {
@@ -265,7 +247,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           }
         }
 
-        return mx.sendMessage(roomId, content as any);
+        return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])
     );
 

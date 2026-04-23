@@ -1,4 +1,5 @@
-import { RefObject, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   dropTargetForElements,
   draggable,
@@ -8,7 +9,7 @@ import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-sc
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import classNames from 'classnames';
 import { Box, Icon, Icons, as } from 'folds';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import * as css from './DnD.css';
 
 export type DropContainerData = {
@@ -135,7 +136,7 @@ export const useDnDMonitor = (
           onDragging(undefined);
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) return;
-          onReorder(source.data as HierarchyItem, dropTargets[0].data as DropContainerData);
+          onReorder(source.data as HierarchyItem, dropTargets[0]!.data as DropContainerData);
         },
       }),
       autoScrollForElements({

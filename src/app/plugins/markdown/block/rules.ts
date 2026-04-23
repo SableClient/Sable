@@ -1,10 +1,11 @@
-import { BlockMDRule } from './type';
+import type { BlockMDRule } from './type';
 
 const HEADING_REG_1 = /^(#{1,6}) +(.+)\n?/m;
 export const HeadingRule: BlockMDRule = {
   match: (text) => text.match(HEADING_REG_1),
   html: (match, parseInline) => {
     const [, g1, g2] = match;
+    if (!g1 || !g2) return '';
     const level = g1.length;
     return `<h${level} data-md="${g1}">${parseInline ? parseInline(g2) : g2}</h${level}>`;
   },
@@ -109,6 +110,7 @@ export const SmallRule: BlockMDRule = {
   match: (text) => text.match(SMALL_REG),
   html: (match, parseInline) => {
     const [, g1] = match;
+    if (!g1) return '';
     const content = parseInline ? parseInline(g1) : g1;
     return `<sub data-md="${SMALL_MD}">${content}</sub>`;
   },

@@ -1,6 +1,6 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
-import { ClientConfig } from '../../../hooks/useClientConfig';
+import type { ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 
@@ -158,12 +158,12 @@ export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {
   if (pushers.length === 0) return;
 
   const deletionPromises = pushers.map((pusher) => {
-    const pusherToDelete = {
+    const pusherToDelete: { kind: null; app_id: string; pushkey: string } = {
       kind: null,
       app_id: pusher.app_id,
       pushkey: pusher.pushkey,
     };
-    return mx.setPusher(pusherToDelete as any);
+    return mx.setPusher(pusherToDelete as unknown as Parameters<typeof mx.setPusher>[0]);
   });
 
   await Promise.allSettled(deletionPromises);

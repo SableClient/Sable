@@ -1,7 +1,8 @@
-import { MatrixClient, MatrixError } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixError } from '$types/matrix-sdk';
 import { useCallback, useRef } from 'react';
-import { AsyncState, useAsyncCallback } from './useAsyncCallback';
-import { RequestEmailTokenCallback, RequestEmailTokenResponse } from './types';
+import type { AsyncState } from './useAsyncCallback';
+import { useAsyncCallback } from './useAsyncCallback';
+import type { RequestEmailTokenCallback, RequestEmailTokenResponse } from './types';
 
 export const useRegisterEmail = (
   mx: MatrixClient

@@ -30,7 +30,7 @@ import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { useUserProfile } from '$hooks/useUserProfile';
-import { shadeColor } from '$utils/shadeColor';
+import { isTooBright, isTooDark, shadeColor } from '$utils/shadeColor';
 import * as css from './styles.css';
 
 type UserHeroProps = {
@@ -79,8 +79,8 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const cardColor =
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? standardColors.Background.Container;
   const textColor =
-    (fetchedBrightness === 'dark' && '#FFFFFF') ||
-    (fetchedBrightness === 'light' && '#000000') ||
+    ((fetchedBrightness === 'dark' || isTooDark(cardColor)) && '#FFFFFF') ||
+    ((fetchedBrightness === 'light' || isTooBright(cardColor)) && '#000000') ||
     undefined;
 
   return (

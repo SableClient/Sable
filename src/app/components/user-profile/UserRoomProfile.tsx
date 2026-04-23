@@ -48,7 +48,7 @@ import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { TextViewerContent } from '$components/text-viewer';
-import { isTooBright, isTooDark, isTooExtreme, shadeColor } from '$utils/shadeColor';
+import { isTooBright, isTooDark, shadeColor } from '$utils/shadeColor';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';

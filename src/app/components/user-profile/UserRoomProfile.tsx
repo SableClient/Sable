@@ -1,6 +1,16 @@
-
-
-import { Box, Button, color, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  color,
+  config,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  Scroll,
+  Text,
+  toRem,
+} from 'folds';
 import type { SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -239,7 +249,6 @@ function UserExtendedSection({
       </Box>
     ),
     [miscSelector, miscDataIndex, selectedUnknownField, showMisc, unknownFields, textColor]
-
   );
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>

@@ -21,22 +21,6 @@ export function shadeColor(initialColor?: string, percent?: number) {
   return `#${RR}${GG}${BB}`;
 }
 
-export function isTooDark(color?: string) {
-  if (!color) return false;
-  const R = parseInt(color.substring(1, 3), 16);
-  const G = parseInt(color.substring(3, 5), 16);
-  const B = parseInt(color.substring(5, 7), 16);
-  return (R + G + B) / 3 < 64;
-}
-
-export function isTooBright(color?: string) {
-  if (!color) return false;
-  const R = parseInt(color.substring(1, 3), 16);
-  const G = parseInt(color.substring(3, 5), 16);
-  const B = parseInt(color.substring(5, 7), 16);
-  return (R + G + B) / 3 > 192;
-}
-
 export function areColorsTooSimilar(colorA?: string, colorB?: string) {
   if (!colorA || !colorB) return false;
 
@@ -47,5 +31,5 @@ export function areColorsTooSimilar(colorA?: string, colorB?: string) {
   const bG = parseInt(colorB.substring(3, 5), 16);
   const bB = parseInt(colorB.substring(5, 7), 16);
 
-  return Math.abs(aR - bR) < 200 && Math.abs(aG - bG) < 200 && Math.abs(aB - bB) < 200;
+  return Math.abs(aR - bR) < 32 && Math.abs(aG - bG) < 32 && Math.abs(aB - bB) < 32;
 }

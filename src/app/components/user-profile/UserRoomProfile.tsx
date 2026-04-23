@@ -50,7 +50,7 @@ import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { TextViewerContent } from '$components/text-viewer';
-import { isTooBright, isTooDark, shadeColor } from '$utils/shadeColor';
+import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -507,8 +507,8 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const cardColor =
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? color.Background.Container;
   const textColor =
-    ((fetchedBrightness === 'dark' || isTooDark(innerColor)) && '#FFFFFF') ||
-    ((fetchedBrightness === 'light' || isTooBright(innerColor)) && '#000000') ||
+    ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', innerColor)) && '#FFFFFF') ||
+    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF',innerColor)) && '#000000') ||
     undefined;
 
   return (

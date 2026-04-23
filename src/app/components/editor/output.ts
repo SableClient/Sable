@@ -228,7 +228,7 @@ export const toPlainText = (
     }
     return isMarkdown
       ? unescapeMarkdownBlockSequences(text, unescapeMarkdownInlineSequences)
-      : node.text;
+      : text;
   }
 
   const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');

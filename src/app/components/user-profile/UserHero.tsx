@@ -80,7 +80,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? standardColors.Background.Container;
   const textColor =
     ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', cardColor)) && '#FFFFFF') ||
-    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF',cardColor)) && '#000000') ||
+    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', cardColor)) && '#000000') ||
     undefined;
 
   return (

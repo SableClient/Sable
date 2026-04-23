@@ -508,7 +508,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? color.Background.Container;
   const textColor =
     ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', innerColor)) && '#FFFFFF') ||
-    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF',innerColor)) && '#000000') ||
+    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', innerColor)) && '#000000') ||
     undefined;
 
   return (

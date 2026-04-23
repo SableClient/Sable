@@ -196,6 +196,8 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
   }
 };
 
+const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
+
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
  * @param node the slate node
@@ -213,8 +215,9 @@ export const toPlainText = (
   if (Array.isArray(node))
     return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
+    let { text } = node;
+    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
     if (stripNickname && nickNameReplacement) {
-      let { text } = node;
       nickNameReplacement?.keys().forEach((key) => {
         const replacement = nickNameReplacement.get(key) ?? '';
         text = text.replaceAll(key, replacement);
@@ -224,7 +227,7 @@ export const toPlainText = (
         : text;
     }
     return isMarkdown
-      ? unescapeMarkdownBlockSequences(node.text, unescapeMarkdownInlineSequences)
+      ? unescapeMarkdownBlockSequences(text, unescapeMarkdownInlineSequences)
       : node.text;
   }
 

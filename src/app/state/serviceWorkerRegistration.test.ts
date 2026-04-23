@@ -6,7 +6,9 @@ describe('getServiceWorkerRegistration', () => {
   it('returns the current registration when one exists', async () => {
     const registration = { scope: 'https://example.com/' } as ServiceWorkerRegistration;
     const serviceWorker = {
-      getRegistration: vi.fn().mockResolvedValue(registration),
+      getRegistration: vi
+        .fn<ServiceWorkerContainer['getRegistration']>()
+        .mockResolvedValue(registration),
       ready: new Promise<ServiceWorkerRegistration>(() => undefined),
     } as Pick<ServiceWorkerContainer, 'getRegistration' | 'ready'>;
 
@@ -16,7 +18,9 @@ describe('getServiceWorkerRegistration', () => {
 
   it('does not block on serviceWorker.ready when no registration exists', async () => {
     const serviceWorker = {
-      getRegistration: vi.fn().mockResolvedValue(undefined),
+      getRegistration: vi
+        .fn<ServiceWorkerContainer['getRegistration']>()
+        .mockResolvedValue(undefined),
       ready: new Promise<ServiceWorkerRegistration>(() => undefined),
     } as Pick<ServiceWorkerContainer, 'getRegistration' | 'ready'>;
 
@@ -26,7 +30,9 @@ describe('getServiceWorkerRegistration', () => {
 
   it('returns undefined when registration lookup fails', async () => {
     const serviceWorker = {
-      getRegistration: vi.fn().mockRejectedValue(new Error('boom')),
+      getRegistration: vi
+        .fn<ServiceWorkerContainer['getRegistration']>()
+        .mockRejectedValue(new Error('boom')),
       ready: new Promise<ServiceWorkerRegistration>(() => undefined),
     } as Pick<ServiceWorkerContainer, 'getRegistration' | 'ready'>;
 

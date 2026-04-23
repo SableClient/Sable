@@ -298,8 +298,7 @@ export const useSpaceJoinedHierarchy = (
         items.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
         return items;
       }
-      items.toSorted(hierarchyItemTs).sort(hierarchyItemByOrder);
-      return items;
+      return items.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder);
     },
     [mx, sortByActivity]
   );

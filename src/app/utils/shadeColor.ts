@@ -1,5 +1,6 @@
-export function shadeColor(initialColor: string, percent: number) {
-  if (!initialColor || initialColor[0] !== '#' || initialColor.length !== 7) return undefined;
+export function shadeColor(initialColor?: string, percent?: number) {
+  if (!initialColor || initialColor[0] !== '#' || initialColor.length !== 7 || !percent)
+    return undefined;
   const ratio = 1 + percent / 100;
 
   // Get hex value, convert it to number, multiply it by the desired amount, then clamp it
@@ -34,4 +35,17 @@ export function isTooBright(color?: string) {
   const G = parseInt(color.substring(3, 5), 16);
   const B = parseInt(color.substring(5, 7), 16);
   return (R + G + B) / 3 > 192;
+}
+
+export function areColorsTooSimilar(colorA?: string, colorB?: string) {
+  if (!colorA || !colorB) return false;
+
+  const aR = parseInt(colorA.substring(1, 3), 16);
+  const aG = parseInt(colorA.substring(3, 5), 16);
+  const aB = parseInt(colorA.substring(5, 7), 16);
+  const bR = parseInt(colorB.substring(1, 3), 16);
+  const bG = parseInt(colorB.substring(3, 5), 16);
+  const bB = parseInt(colorB.substring(5, 7), 16);
+
+  return Math.abs(aR - bR) < 200 && Math.abs(aG - bG) < 200 && Math.abs(aB - bB) < 200;
 }

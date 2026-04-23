@@ -110,7 +110,11 @@ export function ServerChip({
                   setCopied();
                   close();
                 }}
-                style={{ backgroundColor: cardColor, color: textColor }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
               >
                 <Text size="B300">Copy Server</Text>
               </MenuItem>
@@ -122,7 +126,11 @@ export function ServerChip({
                   navigate(getExploreServerPath(server));
                   closeProfile();
                 }}
-                style={{ backgroundColor: cardColor, color: textColor }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
               >
                 <Text size="B300">Explore Community</Text>
               </MenuItem>
@@ -139,7 +147,11 @@ export function ServerChip({
                   window.open(`https://${server}`, '_blank');
                   close();
                 }}
-                style={{ backgroundColor: cardColor, color: textColor }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
               >
                 <Text size="B300">Open in Browser</Text>
               </MenuItem>
@@ -220,7 +232,11 @@ export function ShareChip({
                 fill="None"
                 size="300"
                 radii="300"
-                style={{ backgroundColor: cardColor, color: textColor }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
                 onClick={() => {
                   copyToClipboard(userId);
                   setCopied();
@@ -233,7 +249,11 @@ export function ShareChip({
                 fill="None"
                 size="300"
                 radii="300"
-                style={{ backgroundColor: cardColor, color: textColor }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
                 onClick={() => {
                   copyToClipboard(getMatrixToUser(userId));
                   setCopied();
@@ -358,7 +378,12 @@ export function MutualRoomsChip({
         fill="None"
         size="300"
         radii="300"
-        style={{ paddingLeft: config.space.S100, backgroundColor: cardColor, color: textColor }}
+        className={css.UserHeroMenuItem}
+        style={{
+          paddingLeft: config.space.S100,
+          backgroundColor: cardColor,
+          color: textColor,
+        }}
         onClick={() => {
           if (room.isSpaceRoom()) {
             navigateSpace(roomId);
@@ -591,7 +616,7 @@ export function OptionsChip({
                 <Box
                   direction="Column"
                   gap="100"
-                  style={{ padding: `${config.space.S100} ${config.space.S200}` }}
+                  style={{ padding: `${config.space.S100} ${config.space.S200}`, color: textColor }}
                 >
                   <Text size="L400">Nickname</Text>
                   <input
@@ -617,7 +642,11 @@ export function OptionsChip({
                       variant="Success"
                       fill="None"
                       onClick={handleSaveNick}
-                      style={{ backgroundColor: cardColor, color: textColor }}
+                      className={css.UserHeroMenuItem}
+                      style={{
+                        backgroundColor: cardColor,
+                        color: textColor,
+                      }}
                     >
                       <Text size="B300">Save</Text>
                     </MenuItem>
@@ -627,11 +656,15 @@ export function OptionsChip({
                         radii="300"
                         variant="Critical"
                         fill="None"
+                        className={css.UserHeroMenuItem}
                         onClick={() => {
                           setNickname(userId, undefined);
                           close();
                         }}
-                        style={{ backgroundColor: cardColor, color: textColor }}
+                        style={{
+                          backgroundColor: cardColor,
+                          color: textColor,
+                        }}
                       >
                         <Text size="B300">Clear</Text>
                       </MenuItem>
@@ -646,7 +679,11 @@ export function OptionsChip({
                   radii="300"
                   before={<Icon size="50" src={Icons.Pencil} />}
                   onClick={() => setEditingNick(true)}
-                  style={{ backgroundColor: cardColor, color: textColor }}
+                  className={css.UserHeroMenuItem}
+                  style={{
+                    backgroundColor: cardColor,
+                    color: textColor,
+                  }}
                 >
                   <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
                 </MenuItem>
@@ -660,6 +697,7 @@ export function OptionsChip({
                   toggleIgnore();
                   close();
                 }}
+                className={css.UserHeroMenuItem}
                 style={{ backgroundColor: cardColor }}
                 before={
                   ignoring ? (

@@ -8,6 +8,7 @@ import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { MSC1767Text } from '$types/matrix/common';
+import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
 
@@ -258,11 +259,16 @@ export const useUserProfile = (
 
     const validHeroColor = isValidHex(data?.heroColorScheme?.color);
     const heroBrightness = data?.heroColorScheme?.brightness;
+    const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
+
     const heroNameColor =
       ((renderGlobalColors || userId === mx.getUserId()) &&
         heroBrightness === 'light' &&
+        !areColorsTooSimilar(testUserHeroColor, validGlobalValLight) &&
         validGlobalValLight) ||
-      (heroBrightness === 'dark' && validGlobalValDark) ||
+      (heroBrightness === 'dark' &&
+        !areColorsTooSimilar(testUserHeroColor, validGlobalValDark) &&
+        validGlobalValDark) ||
       resolvedColor;
     return {
       ...data,

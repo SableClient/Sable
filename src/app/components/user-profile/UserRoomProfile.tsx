@@ -54,6 +54,7 @@ import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './
 import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
+import * as css from './styles.css';
 
 const KNOWN_KEYS = [
   'moe.sable.app.bio',
@@ -540,14 +541,13 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 radii="300"
                 before={<Icon size="50" src={Icons.Message} filled />}
                 onClick={handleMessage}
+                className={css.UserHeroChip}
                 style={{
                   marginLeft: 'auto',
                   backgroundColor:
                     backgroundColor !== color.Surface.Container ? cardColor : undefined,
                   borderColor: backgroundColor,
                   color: backgroundColor !== color.Surface.Container ? textColor : undefined,
-                  borderStyle: 'solid',
-                  borderWidth: '1px',
                 }}
               >
                 <Text size="B300">Message</Text>
@@ -581,7 +581,12 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
               textColor={textColor}
             />
             {creator ? (
-              <CreatorChip />
+              <CreatorChip
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
             ) : (
               <PowerChip
                 userId={userId}

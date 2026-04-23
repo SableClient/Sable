@@ -285,6 +285,7 @@ export function PowerChip({
                       radii="300"
                       aria-disabled={changing || !canChangePowers || !canAssignPower}
                       aria-pressed={selected}
+                      className={css.UserHeroMenuItem}
                       style={{ backgroundColor: cardColor, color: textColor }}
                       before={<PowerColorBadge color={powerTag.color} />}
                       after={
@@ -310,6 +311,7 @@ export function PowerChip({
                   fill="None"
                   size="300"
                   radii="300"
+                  className={css.UserHeroMenuItem}
                   style={{ backgroundColor: cardColor, color: textColor }}
                   onClick={() => {
                     if (room.isSpaceRoom()) {

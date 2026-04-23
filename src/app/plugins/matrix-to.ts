@@ -93,7 +93,8 @@ export const parseMatrixToRoom = (href: string): MatrixToRoom | undefined => {
 
   const roomIdOrAlias = match[1];
   const viaSearchStr = match[2];
-  const viaServers = new URLSearchParams(viaSearchStr).getAll('via');
+  if (!roomIdOrAlias) return undefined;
+  const viaServers = viaSearchStr ? new URLSearchParams(viaSearchStr).getAll('via') : [];
 
   return {
     roomIdOrAlias,
@@ -108,7 +109,8 @@ export const parseMatrixToRoomEvent = (href: string): MatrixToRoomEvent | undefi
   const roomIdOrAlias = match[1];
   const eventId = match[2];
   const viaSearchStr = match[3];
-  const viaServers = new URLSearchParams(viaSearchStr).getAll('via');
+  if (!roomIdOrAlias || !eventId) return undefined;
+  const viaServers = viaSearchStr ? new URLSearchParams(viaSearchStr).getAll('via') : [];
 
   return {
     roomIdOrAlias,

@@ -1,12 +1,16 @@
-import { MouseEventHandler, useCallback, ReactNode } from 'react';
-import { IconSrc, Icons, Text } from 'folds';
-import { MatrixEvent, Room } from '$types/matrix-sdk';
-import { IMemberContent, Membership } from '$types/matrix/room';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useCallback } from 'react';
+import type { IconSrc } from 'folds';
+import { Icons, Text } from 'folds';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import type { IMemberContent } from '$types/matrix/room';
+
 import { getMxIdLocalPart } from '$utils/matrix';
 import { isMembershipChanged } from '$utils/room';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSableCosmetics } from './useSableCosmetics';
 import { useMatrixClient } from './useMatrixClient';
+import { KnownMembership } from '$types/matrix-sdk';
 
 type DecoratedUserProps = {
   roomId: string;
@@ -65,8 +69,8 @@ export const useMemberEventParser = (): MemberEventParser => {
         : getMxIdLocalPart(userId);
 
     if (isMembershipChanged(mEvent)) {
-      if (content.membership === Membership.Invite) {
-        if (prevContent.membership === Membership.Knock) {
+      if (content.membership === KnownMembership.Invite) {
+        if (prevContent.membership === KnownMembership.Knock) {
           return {
             icon: Icons.ArrowGoRightPlus,
             body: (
@@ -96,7 +100,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         };
       }
 
-      if (content.membership === Membership.Knock) {
+      if (content.membership === KnownMembership.Knock) {
         return {
           icon: Icons.Mail,
           body: (
@@ -111,7 +115,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         };
       }
 
-      if (content.membership === Membership.Join) {
+      if (content.membership === KnownMembership.Join) {
         return {
           icon: Icons.ArrowGoRight,
           body: (
@@ -123,8 +127,8 @@ export const useMemberEventParser = (): MemberEventParser => {
         };
       }
 
-      if (content.membership === Membership.Leave) {
-        if (prevContent.membership === Membership.Invite) {
+      if (content.membership === KnownMembership.Leave) {
+        if (prevContent.membership === KnownMembership.Invite) {
           return {
             icon: Icons.ArrowGoRightCross,
             body:
@@ -150,7 +154,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           };
         }
 
-        if (prevContent.membership === Membership.Knock) {
+        if (prevContent.membership === KnownMembership.Knock) {
           return {
             icon: Icons.ArrowGoRightCross,
             body:
@@ -176,7 +180,7 @@ export const useMemberEventParser = (): MemberEventParser => {
           };
         }
 
-        if (prevContent.membership === Membership.Ban) {
+        if (prevContent.membership === KnownMembership.Ban) {
           return {
             icon: Icons.ArrowGoLeft,
             body: (
@@ -212,7 +216,7 @@ export const useMemberEventParser = (): MemberEventParser => {
         };
       }
 
-      if (content.membership === Membership.Ban) {
+      if (content.membership === KnownMembership.Ban) {
         return {
           icon: Icons.ArrowGoLeft,
           body: (

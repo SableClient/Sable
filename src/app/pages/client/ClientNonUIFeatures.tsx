@@ -1,14 +1,17 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import {
   MatrixEvent,
   MatrixEventEvent,
   PushProcessor,
   RoomEvent,
-  RoomEventHandlerMap,
   SetPresence,
+  SyncState,
+  EventType,
 } from '$types/matrix-sdk';
 import parse from 'html-react-parser';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
@@ -34,7 +37,7 @@ import {
   isDMRoom,
   isNotificationEvent,
 } from '$utils/room';
-import { NotificationType, StateEvent } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '$hooks/router/useInbox';
@@ -137,7 +140,7 @@ function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications) {
+      if (usePushNotifications && registration) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));
@@ -183,10 +186,10 @@ function InviteNotifications() {
         silent: true,
       });
 
-      noti.onclick = () => {
+      noti.addEventListener('click', () => {
         if (!window.closed) navigate(getInboxInvitesPath());
         noti.close();
-      };
+      });
     },
     [navigate]
   );
@@ -198,7 +201,7 @@ function InviteNotifications() {
   }, []);
 
   useEffect(() => {
-    if (invites.length <= perviousInviteLen || mx.getSyncState() !== 'SYNCING') return;
+    if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
     // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
     if (document.visibilityState !== 'visible' && usePushNotifications) return;
@@ -227,7 +230,7 @@ function InviteNotifications() {
   ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={InviteSound} type="audio/ogg" />
     </audio>
@@ -236,7 +239,7 @@ function InviteNotifications() {
 
 function MessageNotifications() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const notifiedEventsRef = useRef<Set<string>>(new Set());
+  const notifiedEventsRef = useRef(new Set());
   // Record mount time so we can distinguish live events from historical backfill
   // on sliding sync proxies that don't set num_live (which causes liveEvent=false
   // for all events, including actually-new messages).
@@ -283,11 +286,11 @@ function MessageNotifications() {
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = (
       mEvent,
       room,
-      toStartOfTimeline,
-      removed,
+      _toStartOfTimeline,
+      _removed,
       data
     ) => {
-      if (mx.getSyncState() !== 'SYNCING') return;
+      if (mx.getSyncState() !== SyncState.Syncing) return;
 
       const eventId = mEvent.getId();
       // Record event arrival time once per eventId (re-entry via handleDecrypted must not reset it)
@@ -326,7 +329,7 @@ function MessageNotifications() {
 
         const handleDecrypted = () => {
           // After decryption, run the notification logic with the decrypted event
-          handleTimelineEvent(mEvent, room, undefined, removed, data);
+          handleTimelineEvent(mEvent, room, undefined, true, data);
           // Clean up the skip-focus marker
           if (eventId) {
             skipFocusCheckEvents.delete(eventId);
@@ -361,7 +364,12 @@ function MessageNotifications() {
         Sentry.metrics.distribution(
           'sable.notification.delivery_ms',
           performance.now() - arrivalMs,
-          { attributes: { encrypted: String(mEvent.isEncrypted()), dm: String(isDM) } }
+          {
+            attributes: {
+              encrypted: String(mEvent.isEncrypted()),
+              dm: String(isDM),
+            },
+          }
         );
         notifyTimerMap.delete(eventId);
       }
@@ -405,7 +413,7 @@ function MessageNotifications() {
       // is reached, causing in-app notifications to silently vanish too.
       if (!mobileOrTablet() && showSystemNotifications && notificationPermission('granted')) {
         try {
-          const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
+          const isEncryptedRoom = !!getStateEvent(room, EventType.RoomEncryption);
           const avatarMxc =
             room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
           const osPayload = buildRoomMessageNotification({
@@ -429,11 +437,15 @@ function MessageNotifications() {
           });
           const noti = new window.Notification(osPayload.title, osPayload.options);
           const { roomId } = room;
-          noti.onclick = () => {
+          noti.addEventListener('click', () => {
             window.focus();
-            setPending({ roomId, eventId, targetSessionId: mx.getUserId() ?? undefined });
+            setPending({
+              roomId,
+              eventId,
+              targetSessionId: mx.getUserId() ?? undefined,
+            });
             noti.close();
-          };
+          });
         } catch {
           // window.Notification unavailable or blocked (sandboxed context, DnD, etc.)
         }
@@ -508,7 +520,11 @@ function MessageNotifications() {
           icon: roomAvatar,
           onClick: () => {
             window.focus();
-            setPending({ roomId, eventId: capturedEventId, targetSessionId: capturedUserId });
+            setPending({
+              roomId,
+              eventId: capturedEventId,
+              targetSessionId: capturedUserId,
+            });
           },
         });
       }
@@ -540,7 +556,7 @@ function MessageNotifications() {
   ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption
+    // oxlint-disable-next-line jsx-a11y/media-has-caption
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={NotificationSound} type="audio/ogg" />
     </audio>
@@ -727,7 +743,7 @@ function SentryTagsFeature() {
   useEffect(() => {
     // Core rendering tags — indexed in Sentry for filtering/search
     Sentry.setTag('message_layout', String(settings.messageLayout));
-    Sentry.setTag('message_spacing', String(settings.messageSpacing));
+    Sentry.setTag('message_spacing', settings.messageSpacing);
     Sentry.setTag('twitter_emoji', String(settings.twitterEmoji));
     Sentry.setTag('is_markdown', String(settings.isMarkdown));
     Sentry.setTag('page_zoom', String(settings.pageZoom));
@@ -741,9 +757,9 @@ function SentryTagsFeature() {
     Sentry.setTag('url_preview', String(settings.urlPreview));
     Sentry.setTag('use_system_theme', String(settings.useSystemTheme));
     Sentry.setTag('uniform_icons', String(settings.uniformIcons));
-    Sentry.setTag('jumbo_emoji_size', String(settings.jumboEmojiSize));
-    Sentry.setTag('caption_position', String(settings.captionPosition));
-    Sentry.setTag('right_swipe_action', String(settings.rightSwipeAction));
+    Sentry.setTag('jumbo_emoji_size', settings.jumboEmojiSize);
+    Sentry.setTag('caption_position', settings.captionPosition);
+    Sentry.setTag('right_swipe_action', settings.rightSwipeAction);
     // Full settings snapshot as structured Additional Data on every event
     Sentry.setContext('settings', { ...settings });
   }, [settings]);
@@ -773,7 +789,7 @@ function HandleDecryptPushEvent() {
       const decryptStart = performance.now();
 
       try {
-        const mxEvent = new MatrixEvent(rawEvent as any);
+        const mxEvent = new MatrixEvent(rawEvent as ConstructorParameters<typeof MatrixEvent>[0]);
         await mx.decryptEventIfNeeded(mxEvent);
 
         const room = mx.getRoom(roomId);

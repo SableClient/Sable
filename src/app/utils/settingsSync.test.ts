@@ -124,7 +124,10 @@ describe('deserializeFromSync', () => {
   });
 
   it('merges remote settings over local', () => {
-    const remote = { v: SETTINGS_SYNC_VERSION, settings: { isMarkdown: false, urlPreview: false } };
+    const remote = {
+      v: SETTINGS_SYNC_VERSION,
+      settings: { isMarkdown: false, urlPreview: false },
+    };
     const result = deserializeFromSync(remote, { ...base, isMarkdown: true, urlPreview: true });
     expect(result).not.toBeNull();
     expect(result!.isMarkdown).toBe(false);
@@ -180,10 +183,10 @@ describe('exportSettingsAsJson', () => {
 
   beforeEach(() => {
     fakeUrl = 'blob:fake-url';
-    anchorClick = vi.fn();
+    anchorClick = vi.fn<() => void>();
     vi.stubGlobal('URL', {
-      createObjectURL: vi.fn().mockReturnValue(fakeUrl),
-      revokeObjectURL: vi.fn(),
+      createObjectURL: vi.fn<() => string>().mockReturnValue(fakeUrl),
+      revokeObjectURL: vi.fn<() => void>(),
     });
 
     // Intercept anchor element creation to capture click calls.
@@ -205,15 +208,17 @@ describe('exportSettingsAsJson', () => {
   it('calls URL.createObjectURL with a JSON Blob', () => {
     exportSettingsAsJson(base);
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
-    const blob: Blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
     expect(blob).toBeInstanceOf(Blob);
-    expect(blob.type).toBe('application/json');
+    expect(blob!.type).toBe('application/json');
   });
 
   it('Blob content is valid JSON with the correct schema version and all settings', async () => {
     exportSettingsAsJson(base);
-    const blob: Blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    const text = await blob.text();
+    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0];
+    const text = await blob!.text();
     const parsed = JSON.parse(text);
     expect(parsed.v).toBe(SETTINGS_SYNC_VERSION);
     expect(typeof parsed.settings).toBe('object');
@@ -235,21 +240,29 @@ describe('exportSettingsAsJson', () => {
 // importSettingsFromJson
 
 describe('importSettingsFromJson', () => {
+  let changeListener: ((ev: Event) => void) | null;
   let mockInput: {
     type: string;
     accept: string;
     files: FileList | null;
-    onchange: ((ev: Event) => void) | null;
-    click: ReturnType<typeof vi.fn>;
+    addEventListener: (type: string, listener: (ev: Event) => void) => void;
+    click: () => void;
   };
 
   beforeEach(() => {
+    changeListener = null;
     mockInput = {
       type: '',
       accept: '',
       files: null,
-      onchange: null,
-      click: vi.fn(),
+      addEventListener: vi.fn<(type: string, listener: (ev: Event) => void) => void>(
+        (type: string, listener: (ev: Event) => void) => {
+          if (type === 'change') {
+            changeListener = listener;
+          }
+        }
+      ),
+      click: vi.fn<() => void>(),
     };
 
     const realCreate = document.createElement.bind(document);
@@ -266,7 +279,7 @@ describe('importSettingsFromJson', () => {
   it('resolves null when no file is selected (empty files list)', async () => {
     // Start the promise, then immediately trigger onchange with no file.
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
     await expect(promise).resolves.toBeNull();
   });
 
@@ -282,7 +295,7 @@ describe('importSettingsFromJson', () => {
     const promise = importSettingsFromJson({ ...base, isMarkdown: true });
 
     // Trigger the change event; the file reader will asynchronously call onload.
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     const result = await promise;
     expect(result).not.toBeNull();
@@ -295,7 +308,7 @@ describe('importSettingsFromJson', () => {
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     await expect(promise).resolves.toBeNull();
   });
@@ -309,7 +322,7 @@ describe('importSettingsFromJson', () => {
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);
-    mockInput.onchange?.(new Event('change'));
+    changeListener?.(new Event('change'));
 
     await expect(promise).resolves.toBeNull();
   });

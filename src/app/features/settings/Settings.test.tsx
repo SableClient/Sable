@@ -5,7 +5,7 @@ import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { SettingTile } from '$components/setting-tile';
 import { Settings } from './Settings';
 
-const writeText = vi.fn();
+const writeText = vi.fn<() => Promise<void>>();
 
 const { mockMatrixClient, mockProfile } = vi.hoisted(() => ({
   mockMatrixClient: { getUserId: () => '@alice:server' },
@@ -25,7 +25,7 @@ vi.mock('$hooks/useMediaAuthentication', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: () => [true, vi.fn()] as const,
+  useSetting: () => [true, vi.fn<() => void>()] as const,
 }));
 
 vi.mock('$state/settings', () => ({
@@ -144,7 +144,7 @@ describe('Settings', () => {
     render(
       <ClientConfigProvider value={{}}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
-          <Settings activeSection="appearance" requestClose={vi.fn()} />
+          <Settings activeSection="appearance" requestClose={vi.fn<() => void>()} />
         </ScreenSizeProvider>
       </ClientConfigProvider>
     );
@@ -164,7 +164,7 @@ describe('Settings', () => {
     render(
       <ClientConfigProvider value={{ hashRouter: { enabled: true, basename: '/app' } }}>
         <ScreenSizeProvider value={ScreenSize.Desktop}>
-          <Settings activeSection="appearance" requestClose={vi.fn()} />
+          <Settings activeSection="appearance" requestClose={vi.fn<() => void>()} />
         </ScreenSizeProvider>
       </ClientConfigProvider>
     );

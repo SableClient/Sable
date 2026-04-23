@@ -1,28 +1,19 @@
-import {
-  forwardRef,
-  KeyboardEventHandler,
-  MouseEvent,
-  RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
+import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import {
-  EventType,
+import type {
   IContent,
   MatrixEvent,
-  MsgType,
-  RelationType,
   Room,
   IEventRelation,
+  RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
+import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
+import type { RectCords } from 'folds';
 import {
   Box,
   color,
@@ -38,16 +29,15 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
   Scroll,
   Text,
   toRem,
 } from 'folds';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
@@ -72,34 +62,24 @@ import {
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
-import {
-  TUploadContent,
-  encryptFile,
-  getImageInfo,
-  mxcUrlToHttp,
-  toggleReaction,
-} from '$utils/matrix';
+import type { TUploadContent } from '$utils/matrix';
+import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
+import type { TUploadItem, TUploadMetadata, IReplyDraft } from '$state/room/roomInputDrafts';
 import {
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
-  TUploadItem,
-  TUploadMetadata,
-  IReplyDraft,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
-import {
-  UploadBoard,
-  UploadBoardContent,
-  UploadBoardHeader,
-  UploadBoardImperativeHandlers,
-} from '$components/upload-board';
-import { Upload, UploadStatus, UploadSuccess, createUploadFamilyObserverAtom } from '$state/upload';
+import type { UploadBoardImperativeHandlers } from '$components/upload-board';
+import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
+import type { Upload, UploadSuccess } from '$state/upload';
+import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
 import { getImageUrlBlob, loadImageElement } from '$utils/dom';
 import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
@@ -133,7 +113,7 @@ import {
 } from '$utils/delayedEvents';
 import { timeHourMinute, timeDayMonthYear } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
-import { MessageEvent } from '$types/matrix/room';
+
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -158,11 +138,11 @@ import {
 } from './msgContent';
 import { outgoingMessageTransforms } from './outgoingMessageTransforms';
 import { CommandAutocomplete } from './CommandAutocomplete';
-import {
-  AudioMessageRecorder,
+import type {
   AudioMessageRecorderHandle,
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
+import { AudioMessageRecorder } from './AudioMessageRecorder';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -173,7 +153,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
   );
   if (filtered.length > 0) {
-    return filtered[filtered.length - 1].getId() ?? threadRootId;
+    return filtered[filtered.length - 1]!.getId() ?? threadRootId;
   }
   // Fall back to the live timeline if the Thread object hasn't been registered yet
   const liveEvents = room
@@ -185,7 +165,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1].getId() ?? threadRootId;
+    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -234,6 +214,9 @@ interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
 
+const createUploadItemKey = () =>
+  globalThis.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
 interface RoomInputProps {
   editor: Editor;
   fileDropContainerRef: RefObject<HTMLElement>;
@@ -271,6 +254,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
     const micBtnRef = useRef<HTMLButtonElement>(null);
+    // Preserve stable list keys across metadata/description replacements without
+    // storing UI-only IDs in the upload draft state.
+    const uploadItemKeysRef = useRef(new WeakMap<TUploadContent, string>());
     const roomToParents = useAtomValue(roomToParentsAtom);
     /**
      * Nickname someone set for another user
@@ -281,7 +267,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);
     const permissions = useRoomPermissions(creators, powerLevels);
-    const canSendReaction = permissions.event(MessageEvent.Reaction, mx.getSafeUserId());
+    const canSendReaction = permissions.event(EventType.Reaction, mx.getSafeUserId());
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
@@ -301,7 +287,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
-    const micHoldStartRef = useRef<number>(0);
+    const micHoldStartRef = useRef(0);
     const HOLD_THRESHOLD_MS = 400;
     const [autocompleteQuery, setAutocompleteQuery] =
       useState<AutocompleteQuery<AutocompletePrefix>>();
@@ -310,6 +296,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
 
     const [inputKey, setInputKey] = useState(0);
+    const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
+      const existingKey = uploadItemKeysRef.current.get(fileItem.originalFile);
+      if (existingKey) return existingKey;
+
+      const nextKey = createUploadItemKey();
+      uploadItemKeysRef.current.set(fileItem.originalFile, nextKey);
+      return nextKey;
+    }, []);
 
     const handleFiles = useCallback(
       async (files: File[], audioMeta?: { waveform: number[]; audioDuration: number }) => {
@@ -543,7 +537,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          // eslint-disable-next-line no-param-reassign
           c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
             perMessageProfile,
             false
@@ -554,7 +547,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
-        if (replyContent) contents[0]['m.relates_to'] = replyContent;
+        if (replyContent) contents[0]!['m.relates_to'] = replyContent;
         if (threadRootId) {
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -615,7 +608,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await Promise.all(
           contents.map((content) =>
             mx
-              .sendMessage(roomId, threadRootId ?? null, content as any)
+              .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
                 debugLog.info('message', 'Uploaded file message sent', {
                   roomId,
@@ -651,9 +644,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             .findLast((event) =>
               (
                 [
-                  MessageEvent.RoomMessage,
-                  MessageEvent.RoomMessageEncrypted,
-                  MessageEvent.Sticker,
+                  EventType.RoomMessage,
+                  EventType.RoomMessageEncrypted,
+                  EventType.Sticker,
                 ] as string[]
               ).includes(event.getType())
             );
@@ -798,7 +791,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const formattedBody = customHtml;
       const mentionData = getMentions(mx, roomId, editor);
 
-      const content: IContent = {
+      const content: IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'> = {
         msgtype: msgType,
         body,
       };
@@ -890,7 +883,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           if (isEncrypted) {
             await sendDelayedMessageE2EE(mx, roomId, room, content, delayMs);
           } else {
-            await sendDelayedMessage(mx, roomId, content, delayMs);
+            await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
           }
           invalidate();
           setEditingScheduledDelayId(null);
@@ -906,8 +899,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             roomId,
             scheduledDelayId: editingScheduledDelayId,
           });
-          const res = await mx.sendMessage(roomId, threadRootId ?? null, content as any);
-          debugLog.info('message', 'Message sent successfully', { roomId, eventId: res.event_id });
+          const res = await mx.sendMessage(
+            roomId,
+            threadRootId ?? null,
+            content as RoomMessageEventContent
+          );
+          debugLog.info('message', 'Message sent successfully', {
+            roomId,
+            eventId: res.event_id,
+          });
           invalidate();
           setEditingScheduledDelayId(null);
           resetInput();
@@ -921,14 +921,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else {
         const msgSendStart = performance.now();
         resetInput();
-        debugLog.info('message', 'Sending message', { roomId, msgtype: (content as any).msgtype });
+        debugLog.info('message', 'Sending message', {
+          roomId,
+          msgtype: content.msgtype,
+        });
         Sentry.startSpan(
           {
             name: 'message.send',
             op: 'matrix.message',
             attributes: { encrypted: String(isEncrypted) },
           },
-          () => mx.sendMessage(roomId, threadRootId ?? null, content as any)
+          () => mx.sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
         )
           .then((res: { event_id: string }) => {
             debugLog.info('message', 'Message sent successfully', {
@@ -1114,7 +1117,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const stickerUrl = mxcUrlToHttp(mx, mxc, useAuthentication);
       if (!stickerUrl) return;
 
-      const info = await getImageInfo(
+      const info = getImageInfo(
         await loadImageElement(stickerUrl),
         await getImageUrlBlob(stickerUrl)
       );
@@ -1174,11 +1177,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               <Scroll size="300" hideTrack visibility="Hover">
                 <UploadBoardContent>
                   {Array.from(selectedFiles)
-                    .reverse()
-                    .map((fileItem, index) => (
+                    .toReversed()
+                    .map((fileItem) => (
                       <UploadCardRenderer
-                        // eslint-disable-next-line react/no-array-index-key
-                        key={index}
+                        key={getUploadItemKey(fileItem)}
                         isEncrypted={!!fileItem.encInfo}
                         fileItem={fileItem}
                         setMetadata={handleFileMetadata}
@@ -1287,7 +1289,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <Box
                     alignItems="Center"
                     gap="300"
-                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
                   >
                     <IconButton
                       onClick={() => {
@@ -1316,7 +1320,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   <Box
                     alignItems="Center"
                     gap="300"
-                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
                   >
                     <IconButton
                       onClick={() => {
@@ -1325,7 +1331,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             userId: mx.getUserId() ?? '',
                             eventId: threadRootId,
                             body: '',
-                            relation: { rel_type: RelationType.Thread, event_id: threadRootId },
+                            relation: {
+                              rel_type: RelationType.Thread,
+                              event_id: threadRootId,
+                            },
                           });
                         } else {
                           setReplyDraft(undefined);
@@ -1417,8 +1426,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   micHoldStartRef.current = Date.now();
                   setShowAudioRecorder(true);
 
-                  let cleanup: () => void;
-                  const onUp = () => {
+                  function onUp() {
                     cleanup();
                     const held = Date.now() - micHoldStartRef.current;
                     if (held >= HOLD_THRESHOLD_MS) {
@@ -1430,11 +1438,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         audioRecorderRef.current?.cancel();
                       }, 50);
                     }
-                  };
-                  cleanup = () => {
+                  }
+                  function cleanup() {
                     window.removeEventListener('pointerup', onUp);
                     window.removeEventListener('pointercancel', cleanup);
-                  };
+                  }
                   window.addEventListener('pointerup', onUp);
                   window.addEventListener('pointercancel', cleanup);
                 }}

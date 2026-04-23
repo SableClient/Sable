@@ -1,5 +1,6 @@
 import { find as findLinks } from 'linkifyjs';
-import { Descendant, Text } from 'slate';
+import type { Descendant } from 'slate';
+import { Text } from 'slate';
 import type {
   BlockQuoteElement,
   FormattedText,

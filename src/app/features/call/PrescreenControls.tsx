@@ -74,7 +74,10 @@ export function PrescreenControls({ canJoin }: PrescreenControlsProps) {
 
         <Box shrink="No" alignItems="Center" justifyContent="Center" direction="Row">
           <Button
-            style={{ minWidth: compact ? toRem(48) : toRem(88), padding: compact ? 0 : undefined }}
+            style={{
+              minWidth: compact ? toRem(48) : toRem(88),
+              padding: compact ? 0 : undefined,
+            }}
             variant={disabled ? 'Secondary' : 'Success'}
             fill={disabled ? 'Soft' : 'Solid'}
             onClick={() => startCall(room, { microphone, video, sound })}

@@ -1,5 +1,6 @@
-import { Descendant, Editor, Text } from 'slate';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { Descendant, Editor } from 'slate';
+import { Text } from 'slate';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';
 import {
   parseBlockMD,
@@ -10,7 +11,7 @@ import {
 import { findAndReplace } from '$utils/findAndReplace';
 import { sanitizeForRegex } from '$utils/regex';
 import { isUserId } from '$utils/matrix';
-import { CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import { BlockType } from './types';
 
 export type OutputOptions = {

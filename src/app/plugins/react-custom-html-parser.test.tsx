@@ -15,25 +15,17 @@ import {
 const settingsLinkBaseUrl = 'https://app.example';
 
 const { CodeHighlightRenderer } = vi.hoisted(() => ({
-  CodeHighlightRenderer: vi.fn(
-    ({
-      code,
-      language,
-      allowDetect,
-    }: {
-      code: string;
-      language?: string;
-      allowDetect?: boolean;
-    }) => (
-      <code
-        data-testid="arborium-code"
-        data-language={language}
-        data-allow-detect={String(Boolean(allowDetect))}
-      >
-        {code}
-      </code>
-    )
-  ),
+  CodeHighlightRenderer: vi.fn<
+    (props: { code: string; language?: string; allowDetect?: boolean }) => JSX.Element
+  >(({ code, language, allowDetect }) => (
+    <code
+      data-testid="arborium-code"
+      data-language={language}
+      data-allow-detect={String(Boolean(allowDetect))}
+    >
+      {code}
+    </code>
+  )),
 }));
 
 vi.mock('$components/code-highlight', () => ({
@@ -309,7 +301,7 @@ describe('react custom html parser', () => {
   });
 
   it('renders unresolved MXC fallbacks without emitting debug logs', () => {
-    const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const logSpy = vi.spyOn(console, 'warn').mockImplementation(vi.fn<() => void>());
 
     renderParsedHtml('<img src="mxc://example.org/image" alt="media" title="media" />', {
       sanitize: false,

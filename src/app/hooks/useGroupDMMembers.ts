@@ -1,10 +1,22 @@
 import { useEffect, useState } from 'react';
-import { MatrixClient, Room } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 
 export type GroupMemberInfo = {
   userId: string;
   displayName?: string;
   avatarUrl?: string;
+};
+
+// Filter out bridge bots (not bridged users)
+const isBridgeBot = (userId: string): boolean => {
+  const localpart = userId.split(':')[0]?.substring(1) ?? '';
+  const lowerLocalpart = localpart.toLowerCase();
+
+  // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
+  // Don't filter bridge users with IDs like discord_378405164077547520
+  if (lowerLocalpart.endsWith('bot')) return true;
+
+  return false;
 };
 
 /**
@@ -30,18 +42,6 @@ export const useGroupDMMembers = (
         // Now get all members
         const allMembers = room.getMembers();
 
-        // Filter out bridge bots (not bridged users)
-        const isBridgeBot = (userId: string): boolean => {
-          const localpart = userId.split(':')[0].substring(1); // Remove @ prefix
-          const lowerLocalpart = localpart.toLowerCase();
-
-          // Only filter out users ending with 'bot' (e.g., discordbot, blueskybot)
-          // Don't filter bridge users with IDs like discord_378405164077547520
-          if (lowerLocalpart.endsWith('bot')) return true;
-
-          return false;
-        };
-
         const allUserIds = allMembers
           .filter(
             (m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId)
@@ -55,7 +55,9 @@ export const useGroupDMMembers = (
         // Extract senders in reverse chronological order (most recent first)
         const recentSenders: string[] = [];
         for (let i = events.length - 1; i >= 0; i -= 1) {
-          const sender = events[i].getSender();
+          const evt = events[i];
+          if (!evt) continue;
+          const sender = evt.getSender();
           if (
             sender &&
             sender !== currentUserId &&
@@ -67,7 +69,7 @@ export const useGroupDMMembers = (
         }
 
         // Sort allUserIds by who appears first in recentSenders
-        const sortedUserIds = allUserIds.sort((a, b) => {
+        const sortedUserIds = allUserIds.toSorted((a, b) => {
           const aIndex = recentSenders.indexOf(a);
           const bIndex = recentSenders.indexOf(b);
 

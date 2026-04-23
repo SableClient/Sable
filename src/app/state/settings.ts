@@ -248,7 +248,7 @@ export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
 
-const baseSettings = atom<Settings>(getSettings());
+const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (get, set, update) => {

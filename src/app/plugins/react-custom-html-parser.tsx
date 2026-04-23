@@ -1,26 +1,14 @@
-/* eslint-disable jsx-a11y/alt-text */
-import {
-  CSSProperties,
-  ComponentPropsWithoutRef,
-  Fragment,
-  ReactEventHandler,
-  ReactNode,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  attributesToProps,
-  domToReact,
-  Element,
-  HTMLReactParserOptions,
-  Text as DOMText,
-} from 'html-react-parser';
-import { MatrixClient } from '$types/matrix-sdk';
+/* oxlint-disable jsx-a11y/alt-text */
+import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
+import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
-import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
+import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
-import { ChildNode } from 'domhandler';
+import type { ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -29,7 +17,7 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import { Nicknames } from '$state/nicknames';
+import type { Nicknames } from '$state/nicknames';
 import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
@@ -48,6 +36,10 @@ import {
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
+
+const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
 
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
@@ -230,8 +222,8 @@ export const factoryRenderLinkifyWithMention = (
   settingsLinkBaseUrl: string,
   mentionRender: (href: string) => JSX.Element | undefined,
   handleMentionClick?: ReactEventHandler<HTMLElement>
-): OptFn<(ir: IntermediateRepresentation) => any> => {
-  const renderLink: OptFn<(ir: IntermediateRepresentation) => any> = ({
+): OptFn<(ir: IntermediateRepresentation) => unknown> => {
+  const renderLink: OptFn<(ir: IntermediateRepresentation) => unknown> = ({
     tagName,
     attributes,
     content,
@@ -312,8 +304,8 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
   let text = '';
 
   nodes.forEach((node) => {
-    if (node.type === 'text') {
-      text += node.data;
+    if ((node.type as unknown as string) === 'text') {
+      text += (node as unknown as Text).data;
     } else if (node instanceof Element && node.children) {
       text += extractTextFromChildren(node.children);
     }
@@ -419,7 +411,7 @@ export function CodeBlock({
         hideTrack
       >
         <div id="code-block-content" className={css.CodeBlockInternal}>
-          {domToReact(children as any, opts)}
+          {domToReact(children as unknown as Parameters<typeof domToReact>[0], opts)}
         </div>
       </Scroll>
       {largeCodeBlock && !expanded && <Box className={css.CodeBlockBottomShadow} />}
@@ -461,10 +453,6 @@ export const getReactCustomHtmlParser = (
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
 
-  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
   const decorateText = (text: string) => {
     let jsx = scaleSystemEmoji(text);
 
@@ -502,7 +490,8 @@ export const getReactCustomHtmlParser = (
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
-        const renderChildren = () => domToReact(children as any, opts);
+        const renderChildren = () =>
+          domToReact(children as unknown as Parameters<typeof domToReact>[0], opts);
         const props = stripIncomingStyle(attribs);
         const matrixColorStyle = getMatrixColorStyle(attribs);
 

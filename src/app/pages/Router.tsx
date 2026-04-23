@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 
-import { ClientConfig } from '$hooks/useClientConfig';
+import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
 import { SettingsRoute } from '$features/settings';
 import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
@@ -24,7 +24,8 @@ import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
 import { BugReportModalRenderer } from '$features/bug-report';
-import { getFallbackSession, MATRIX_SESSIONS_KEY, Sessions } from '$state/sessions';
+import type { Sessions } from '$state/sessions';
+import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/search';

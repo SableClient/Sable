@@ -4,15 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useMentionClickHandler } from './useMentionClickHandler';
 
 const { mockOpenSettings } = vi.hoisted(() => ({
-  mockOpenSettings: vi.fn(),
+  mockOpenSettings: vi.fn<(section: string, focus?: string) => void>(),
 }));
 
 vi.mock('$hooks/useMatrixClient', () => ({
-  useMatrixClient: () => ({ getRoom: vi.fn() }),
+  useMatrixClient: () => ({ getRoom: vi.fn<() => undefined>() }),
 }));
 
 vi.mock('$hooks/useRoomNavigate', () => ({
-  useRoomNavigate: () => ({ navigateRoom: vi.fn(), navigateSpace: vi.fn() }),
+  useRoomNavigate: () => ({
+    navigateRoom: vi.fn<() => void>(),
+    navigateSpace: vi.fn<() => void>(),
+  }),
 }));
 
 vi.mock('$hooks/useSpace', () => ({
@@ -20,7 +23,7 @@ vi.mock('$hooks/useSpace', () => ({
 }));
 
 vi.mock('$state/hooks/userRoomProfile', () => ({
-  useOpenUserRoomProfile: () => vi.fn(),
+  useOpenUserRoomProfile: () => vi.fn<() => void>(),
 }));
 
 vi.mock('$features/settings/useOpenSettings', () => ({
@@ -28,7 +31,7 @@ vi.mock('$features/settings/useOpenSettings', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => vi.fn<() => void>(),
 }));
 
 function Wrapper({ children }: { children: ReactNode }) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -17,12 +18,12 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) — the same URL shows the same preview
+// Inner cache keyed by URL only (not ts) â€” the same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
-const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse>>>();
+const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
 
-const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
+const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlResponse>> => {
   let clientCache = previewRequestCache.get(mx);
   if (!clientCache) {
     clientCache = new Map();

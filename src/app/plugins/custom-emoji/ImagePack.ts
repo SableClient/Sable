@@ -1,9 +1,10 @@
-import { MatrixEvent } from '$types/matrix-sdk';
+import type { MatrixEvent } from '$types/matrix-sdk';
 import { PackAddress } from './PackAddress';
-import { PackImageReader } from './PackImageReader';
+import type { PackImageReader } from './PackImageReader';
 import { PackImagesReader } from './PackImagesReader';
 import { PackMetaReader } from './PackMetaReader';
-import { ImageUsage, PackContent } from './types';
+import type { PackContent } from './types';
+import { ImageUsage } from './types';
 
 export class ImagePack {
   public readonly id: string;

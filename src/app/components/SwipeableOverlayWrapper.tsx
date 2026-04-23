@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import { useAtomValue } from 'jotai';

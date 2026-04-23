@@ -1,7 +1,7 @@
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile } from '$hooks/useUserProfile';
+import type { UserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { profilesCacheAtom } from '$state/userRoomProfile';

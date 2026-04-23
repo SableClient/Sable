@@ -1,4 +1,5 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -22,8 +23,9 @@ import {
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import { IImageInfo, MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { IImageInfo } from '$types/matrix/common';
+import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { bytesToSize } from '$utils/common';
@@ -151,7 +153,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                 <Modal
                   className={ModalWide}
                   size="500"
-                  onContextMenu={(evt: any) => evt.stopPropagation()}
+                  onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
                 >
                   {renderViewer({
                     src: srcState.data,

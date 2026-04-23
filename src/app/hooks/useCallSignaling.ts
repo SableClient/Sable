@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import { RoomStateEvent } from 'matrix-js-sdk';
-import { MatrixRTCSession } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
-import { MatrixRTCSessionManagerEvents } from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
+import { RoomStateEvent } from '$types/matrix-sdk';
+import { MatrixRTCSession } from '$types/matrix-sdk';
+import { MatrixRTCSessionManagerEvents } from '$types/matrix-sdk';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
 import { incomingCallRoomIdAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
@@ -113,8 +113,12 @@ export function useCallSignaling() {
             session.sessionDescription
           );
 
-          const remoteMembers = memberships.filter((m: any) => (m.userId || m.sender) !== myUserId);
-          const isSelfInCall = memberships.some((m: any) => (m.userId || m.sender) === myUserId);
+          const remoteMembers = memberships.filter(
+            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== myUserId
+          );
+          const isSelfInCall = memberships.some(
+            (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === myUserId
+          );
           const currentPhase = callPhaseRef.current[roomId] || 'IDLE';
 
           // no one here
@@ -137,7 +141,8 @@ export function useCallSignaling() {
               });
             }
             callPhaseRef.current[roomId] = 'RINGING_IN';
-            return { ...acc, incoming: roomId };
+            acc.incoming = roomId;
+            return acc;
           }
 
           // multiple people no ringtone
@@ -186,10 +191,13 @@ export function useCallSignaling() {
                   });
                 }
                 callPhaseRef.current[roomId] = 'RINGING_OUT';
-                return { ...acc, outgoing: roomId };
+                acc.outgoing = roomId;
+                return acc;
               }
 
-              debugLog.info('call', 'Outgoing call timed out (unanswered)', { roomId });
+              debugLog.info('call', 'Outgoing call timed out (unanswered)', {
+                roomId,
+              });
               Sentry.metrics.count('sable.call.timeout', 1);
               callPhaseRef.current[roomId] = 'ENDED';
             }

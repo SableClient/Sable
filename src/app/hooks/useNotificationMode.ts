@@ -1,4 +1,5 @@
-import { PushRuleAction, PushRuleActionName, TweakName } from '$types/matrix-sdk';
+import type { PushRuleAction } from '$types/matrix-sdk';
+import { PushRuleActionName, TweakName } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
 
 export enum NotificationMode {

@@ -1,4 +1,6 @@
-import { MouseEvent, MouseEventHandler, useCallback, useState } from 'react';
+import type { MouseEvent, MouseEventHandler } from 'react';
+import { useCallback, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -9,7 +11,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   config,
   toRem,
@@ -20,12 +21,8 @@ import {
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import {
-  sessionsAtom,
-  activeSessionIdAtom,
-  Session,
-  backgroundUnreadCountsAtom,
-} from '$state/sessions';
+import type { Session } from '$state/sessions';
+import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
   SidebarItem,
   SidebarItemTooltip,
@@ -164,7 +161,7 @@ export function AccountSwitcherTab() {
   const anyBackgroundHighlight = totalBackgroundHighlight > 0;
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [busyUserIds, setBusyUserIds] = useState<Set<string>>(new Set());
+  const [busyUserIds, setBusyUserIds] = useState(new Set());
   const [confirmSignOutSession, setConfirmSignOutSession] = useState<Session | undefined>(
     undefined
   );
@@ -216,8 +213,9 @@ export function AccountSwitcherTab() {
         if (session.userId === mx.getUserId()) {
           await logoutClient(mx, session);
           setSessions({ type: 'DELETE', session });
-          const remaining = sessions.filter((s) => s.userId !== session.userId);
-          setActiveSessionId(remaining[0]?.userId ?? undefined);
+          setActiveSessionId(
+            sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined
+          );
           window.location.reload();
         } else {
           try {
@@ -228,8 +226,9 @@ export function AccountSwitcherTab() {
           }
           setSessions({ type: 'DELETE', session });
           if (activeSessionId === session.userId) {
-            const remaining = sessions.filter((s) => s.userId !== session.userId);
-            setActiveSessionId(remaining[0]?.userId ?? undefined);
+            setActiveSessionId(
+              sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined
+            );
           }
         }
       } catch (err) {

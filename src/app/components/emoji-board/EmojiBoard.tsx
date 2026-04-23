@@ -1,39 +1,41 @@
-import {
+import type {
   ChangeEventHandler,
   FocusEventHandler,
   MouseEventHandler,
   ReactNode,
   RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
 } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, config, Icons, Scroll } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { Room } from '$types/matrix-sdk';
-import { atom, PrimitiveAtom, useAtom, useSetAtom } from 'jotai';
+import type { Room } from '$types/matrix-sdk';
+import type { PrimitiveAtom } from 'jotai';
+import { atom, useAtom, useSetAtom } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { IEmoji, emojiGroups, emojis } from '$plugins/emoji';
+import type { IEmoji } from '$plugins/emoji';
+import { emojiGroups, emojis } from '$plugins/emoji';
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { isUserId, mxcUrlToHttp } from '$utils/matrix';
 import { editableActiveElement, targetFromEvent } from '$utils/dom';
-import { useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { useThrottle } from '$hooks/useThrottle';
 import { addRecentEmoji } from '$plugins/recent-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { ImagePack, ImageUsage, PackImageReader } from '$plugins/custom-emoji';
+import type { ImagePack, PackImageReader } from '$plugins/custom-emoji';
+import { ImageUsage } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
 import { VirtualTile } from '$components/virtualizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEmojiGroupIcons } from './useEmojiGroupIcons';
 import { useEmojiGroupLabels } from './useEmojiGroupLabels';
+import type { PreviewData } from './components';
 import {
   SearchInput,
   EmojiBoardTabs,
@@ -43,7 +45,6 @@ import {
   NoStickerPacks,
   createPreviewDataAtom,
   Preview,
-  PreviewData,
   EmojiItem,
   StickerItem,
   CustomEmojiItem,
@@ -97,7 +98,7 @@ const useGroups = (
         name: label ?? 'Unknown',
         items: pack
           .getImages(ImageUsage.Emoticon)
-          .sort((a, b) => a.shortcode.localeCompare(b.shortcode)),
+          .toSorted((a, b) => a.shortcode.localeCompare(b.shortcode)),
       });
     });
 
@@ -125,7 +126,7 @@ const useGroups = (
         name: label ?? 'Unknown',
         items: pack
           .getImages(ImageUsage.Sticker)
-          .sort((a, b) => a.shortcode.localeCompare(b.shortcode)),
+          .toSorted((a, b) => a.shortcode.localeCompare(b.shortcode)),
       });
     });
 
@@ -600,7 +601,7 @@ export function EmojiBoard({
               }}
             >
               {vItems.map((vItem) => {
-                const group = groups[vItem.index];
+                const group = groups[vItem.index]!;
 
                 return (
                   <VirtualTile

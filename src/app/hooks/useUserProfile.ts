@@ -8,7 +8,7 @@ import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { MSC1767Text } from '$types/matrix/common';
+import type { MSC1767Text } from '$types/matrix/common';
 import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';

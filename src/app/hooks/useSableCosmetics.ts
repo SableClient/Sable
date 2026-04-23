@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { IContent, Room } from '$types/matrix-sdk';
+import type { IContent } from '$types/matrix-sdk';
+import { Room } from '$types/matrix-sdk';
 import { usePowerLevels } from './usePowerLevels';
 import { useRoomCreators } from './useRoomCreators';
 import { useAccessiblePowerTagColors, useGetMemberPowerTag } from './useMemberPowerTag';

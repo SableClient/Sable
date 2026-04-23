@@ -1,26 +1,14 @@
-/* eslint-disable jsx-a11y/alt-text */
-import {
-  type CSSProperties,
-  type ComponentPropsWithoutRef,
-  Fragment,
-  type ReactEventHandler,
-  type ReactNode,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  attributesToProps,
-  domToReact,
-  Element,
-  type HTMLReactParserOptions,
-  Text as DOMText,
-} from 'html-react-parser';
-import { type MatrixClient } from '$types/matrix-sdk';
+/* oxlint-disable jsx-a11y/alt-text */
+import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
+import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
-import { type IntermediateRepresentation, type OptFn, type Opts as LinkifyOpts } from 'linkifyjs';
+import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
-import { type ChildNode } from 'domhandler';
+import type { ChildNode } from 'domhandler';
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -29,7 +17,7 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import { type Nicknames } from '$state/nicknames';
+import type { Nicknames } from '$state/nicknames';
 import { sanitizeForRegex, URL_REG } from '$utils/regex';
 import { splitEmojiText } from '$utils/emojiDetection';
 import { findAndReplace } from '$utils/findAndReplace';
@@ -37,8 +25,7 @@ import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { parseSettingsLink } from '$features/settings/settingsLink';
-import { settingsSections } from '$features/settings/routes';
+import { getSettingsLinkChipLabel, parseSettingsLink } from '$features/settings/settingsLink';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
@@ -48,6 +35,10 @@ import {
   testMatrixTo,
 } from './matrix-to';
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
+
+const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
 
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
@@ -201,65 +192,20 @@ export const renderMatrixMention = (
   return undefined;
 };
 
-const settingsSectionLabel = Object.fromEntries(
-  settingsSections.map((section) => [section.id, section.label])
-) as Record<(typeof settingsSections)[number]['id'], string>;
-
-const humanizeSettingsLinkPart = (value: string): string =>
-  value
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const getSettingsLinkLabel = (
-  section: keyof typeof settingsSectionLabel,
-  focus?: string
-): string => {
-  const sectionLabel = settingsSectionLabel[section];
-  const focusLabel = focus ? humanizeSettingsLinkPart(focus) : undefined;
-
-  return focusLabel ? `${sectionLabel} / ${focusLabel}` : sectionLabel;
-};
-
-const getSettingsLinkChildren = ({
-  href,
-  section,
-  focus,
-  content,
-  fallbackChildren,
-}: {
-  href: string;
-  section: keyof typeof settingsSectionLabel;
-  focus?: string;
-  content?: string;
-  fallbackChildren?: ReactNode;
-}): ReactNode => {
-  if (!content || content === href || content === safeDecodeUrl(href)) {
-    return getSettingsLinkLabel(section, focus);
-  }
-
-  return fallbackChildren ?? content;
-};
-
 const renderSettingsLink = ({
   href,
   section,
   focus,
   handleMentionClick,
-  content,
-  fallbackChildren,
 }: {
   href: string;
-  section: keyof typeof settingsSectionLabel;
+  section: Parameters<typeof getSettingsLinkChipLabel>[0];
   focus?: string;
   handleMentionClick?: ReactEventHandler<HTMLElement>;
-  content?: string;
-  fallbackChildren?: ReactNode;
 }) => (
   <a
     href={href}
-    {...makeMentionCustomProps(handleMentionClick, content)}
+    {...makeMentionCustomProps(handleMentionClick)}
     className={classNames(css.Mention({}), css.MentionWithIcon)}
     data-settings-link-section={section}
     data-settings-link-focus={focus}
@@ -267,7 +213,7 @@ const renderSettingsLink = ({
     <span aria-hidden="true" className={css.MentionIcon}>
       <Icon size="50" src={Icons.Setting} />
     </span>
-    {getSettingsLinkChildren({ href, section, focus, content, fallbackChildren })}
+    {getSettingsLinkChipLabel(section, focus)}
   </a>
 );
 
@@ -275,8 +221,8 @@ export const factoryRenderLinkifyWithMention = (
   settingsLinkBaseUrl: string,
   mentionRender: (href: string) => JSX.Element | undefined,
   handleMentionClick?: ReactEventHandler<HTMLElement>
-): OptFn<(ir: IntermediateRepresentation) => any> => {
-  const renderLink: OptFn<(ir: IntermediateRepresentation) => any> = ({
+): OptFn<(ir: IntermediateRepresentation) => unknown> => {
+  const renderLink: OptFn<(ir: IntermediateRepresentation) => unknown> = ({
     tagName,
     attributes,
     content,
@@ -298,8 +244,6 @@ export const factoryRenderLinkifyWithMention = (
           section,
           focus,
           handleMentionClick,
-          content,
-          fallbackChildren: content,
         });
       }
     }
@@ -396,8 +340,8 @@ const extractTextFromChildren = (nodes: ChildNode[]): string => {
   let text = '';
 
   nodes.forEach((node) => {
-    if (node.type === 'text') {
-      text += node.data;
+    if ((node.type as unknown as string) === 'text') {
+      text += (node as unknown as Text).data;
     } else if (node instanceof Element && node.children) {
       text += extractTextFromChildren(node.children);
     }
@@ -503,7 +447,7 @@ export function CodeBlock({
         hideTrack
       >
         <div id="code-block-content" className={css.CodeBlockInternal}>
-          {domToReact(children as any, opts)}
+          {domToReact(children as unknown as Parameters<typeof domToReact>[0], opts)}
         </div>
       </Scroll>
       {largeCodeBlock && !expanded && <Box className={css.CodeBlockBottomShadow} />}
@@ -545,10 +489,6 @@ export const getReactCustomHtmlParser = (
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
 
-  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
-
   const decorateText = (text: string) => {
     let jsx = scaleSystemEmoji(text);
 
@@ -586,7 +526,8 @@ export const getReactCustomHtmlParser = (
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
-        const renderChildren = () => domToReact(children as any, opts);
+        const renderChildren = () =>
+          domToReact(children as unknown as Parameters<typeof domToReact>[0], opts);
         const props = stripIncomingStyle(attribs);
         const matrixColorStyle = getMatrixColorStyle(attribs);
 
@@ -751,8 +692,6 @@ export const getReactCustomHtmlParser = (
                 section,
                 focus,
                 handleMentionClick: params.handleMentionClick,
-                content,
-                fallbackChildren: renderedChildren,
               });
             }
           }

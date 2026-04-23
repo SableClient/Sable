@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import classNames from 'classnames';
-import { Box, type ContainerColor, as, color } from 'folds';
+import type { ContainerColor } from 'folds';
+import { Box, as, color } from 'folds';
 import * as css from './layout.css';
 
 type BubbleArrowProps = {

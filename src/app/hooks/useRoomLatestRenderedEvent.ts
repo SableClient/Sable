@@ -1,12 +1,7 @@
-/* eslint-disable no-continue */
-import {
-  type MatrixEvent,
-  type Room,
-  RoomEvent,
-  type RoomEventHandlerMap,
-} from '$types/matrix-sdk';
+import type { MatrixEvent, Room, RoomEventHandlerMap } from '$types/matrix-sdk';
+import { RoomEvent, EventType } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';
-import { MessageEvent, StateEvent } from '$types/matrix/room';
+
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { isMembershipChanged, reactionOrEditEvent } from '$utils/room';
@@ -25,7 +20,7 @@ export const useRoomLatestRenderedEvent = (room: Room) => {
 
         if (!evt) continue;
         if (reactionOrEditEvent(evt)) continue;
-        if (evt.getType() === StateEvent.RoomMember) {
+        if (evt.getType() === (EventType.RoomMember as string)) {
           const membershipChanged = isMembershipChanged(evt);
           if (membershipChanged && hideMembershipEvents) continue;
           if (!membershipChanged && hideNickAvatarEvents) continue;
@@ -33,12 +28,12 @@ export const useRoomLatestRenderedEvent = (room: Room) => {
         }
 
         if (
-          evt.getType() === MessageEvent.RoomMessage ||
-          evt.getType() === MessageEvent.RoomMessageEncrypted ||
-          evt.getType() === MessageEvent.Sticker ||
-          evt.getType() === StateEvent.RoomName ||
-          evt.getType() === StateEvent.RoomTopic ||
-          evt.getType() === StateEvent.RoomAvatar
+          evt.getType() === (EventType.RoomMessage as string) ||
+          evt.getType() === (EventType.RoomMessageEncrypted as string) ||
+          evt.getType() === (EventType.Sticker as string) ||
+          evt.getType() === (EventType.RoomName as string) ||
+          evt.getType() === (EventType.RoomTopic as string) ||
+          evt.getType() === (EventType.RoomAvatar as string)
         ) {
           return evt;
         }

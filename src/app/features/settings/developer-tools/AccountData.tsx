@@ -14,9 +14,10 @@ type AccountDataProps = {
 };
 export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataProps) {
   const mx = useMatrixClient();
-  const [accountDataTypes, setAccountDataKeys] = useState<string[]>(() =>
-    // TODO: tighten this once account data event typing is standardized.
-    [...mx.store.accountData.keys()]
+  const [accountDataTypes, setAccountDataKeys] = useState<string[]>(
+    () =>
+      // TODO: tighten this once account data event typing is standardized.
+      [...mx.store.accountData.keys()]
   );
 
   useAccountDataCallback(
@@ -77,7 +78,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
                   </Text>
                 </Box>
               </MenuItem>
-              {accountDataTypes.sort().map((type) => (
+              {accountDataTypes.toSorted().map((type) => (
                 <MenuItem
                   key={type}
                   variant="Surface"

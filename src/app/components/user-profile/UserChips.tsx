@@ -1,16 +1,10 @@
-import {
-  type KeyboardEventHandler,
-  type MouseEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { type Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
 import {
   PopOut,
   Menu,
@@ -21,7 +15,6 @@ import {
   Chip,
   Icon,
   Icons,
-  type RectCords,
   Spinner,
   toRem,
   Box,
@@ -268,7 +261,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
 
     if (mutualRoomsState.status === AsyncStatus.Success) {
       const mutualRooms = mutualRoomsState.data
-        .sort(factoryRoomIdByAtoZ(mx))
+        .toSorted(factoryRoomIdByAtoZ(mx))
         .map(getRoom)
         .filter((room) => !!room);
       mutualRooms.forEach((room) => {
@@ -433,7 +426,7 @@ export function IgnoredUserAlert() {
     <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
       <SettingTile>
         <Box direction="Column" gap="200">
-          <Box gap="200" justifyContent="SpaceBetween">
+          <Box gap="200" justifyContent="Center">
             <Text size="L400">Blocked User</Text>
           </Box>
           <Box direction="Column">

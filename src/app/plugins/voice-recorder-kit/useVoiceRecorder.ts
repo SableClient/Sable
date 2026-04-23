@@ -82,7 +82,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   const frameCountRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const pausedTimeRef = useRef<number>(0);
+  const pausedTimeRef = useRef(0);
   const secondsRef = useRef(0);
   const lastUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -227,7 +227,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const bufferLength = dataArray.length;
       let sum = 0;
       for (let i = 0; i < bufferLength; i += 1) {
-        sum += dataArray[i];
+        sum += dataArray[i] ?? 0;
       }
       const avg = sum / bufferLength;
       let normalized = (avg / 255) * 3.5;
@@ -610,24 +610,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(urlToPlay);
       audioRef.current = audio;
 
-      audio.onended = () => {
+      const onEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(pausedTimeRef.current); // Reset to total recorded time
       };
-      audio.onpause = () => {
+      const onPause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      audio.onplay = () => {
+      const onPlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('play', onPlay);
     }
 
     const audio = audioRef.current;
@@ -660,24 +663,27 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      audio.onended = () => {
+      const onEnded = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
         audio.currentTime = 0;
         setSeconds(0);
       };
-      audio.onpause = () => {
+      const onPause = () => {
         setIsPlaying(false);
         stopTimer();
         cleanupAudioContext();
       };
-      audio.onplay = () => {
+      const onPlay = () => {
         setIsPlaying(true);
         cleanupAudioContext();
         setupPlaybackGraph(audio);
         startPlaybackTimer(audio);
       };
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('play', onPlay);
     }
 
     const audio = audioRef.current;

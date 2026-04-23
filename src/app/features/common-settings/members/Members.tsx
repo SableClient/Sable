@@ -1,11 +1,6 @@
-import {
-  type ChangeEventHandler,
-  type MouseEventHandler,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Chip,
@@ -15,14 +10,13 @@ import {
   Icons,
   Input,
   PopOut,
-  type RectCords,
   Scroll,
   Spinner,
   Text,
   toRem,
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { type RoomMember } from '$types/matrix-sdk';
+import type { RoomMember } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -34,11 +28,8 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { getMxIdLocalPart, getMxIdServer } from '$utils/matrix';
 import { ServerBadge } from '$components/server-badge';
 import { useDebounce } from '$hooks/useDebounce';
-import {
-  type SearchItemStrGetter,
-  useAsyncSearch,
-  type UseAsyncSearchOptions,
-} from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { getMemberSearchStr } from '$utils/room';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
@@ -98,7 +89,10 @@ export function Members({ requestClose }: MembersProps) {
 
   const sortedMembers = useMemo(
     () =>
-      [...members].filter(membershipFilter.filterFn).sort(memberSort.sortFn).sort(memberPowerSort),
+      Array.from(members)
+        .filter(membershipFilter.filterFn)
+        .toSorted(memberSort.sortFn)
+        .sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
   );
 
@@ -302,7 +296,7 @@ export function Members({ requestClose }: MembersProps) {
                 gap="100"
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
-                  const tagOrMember = flattenTagMembers[vItem.index];
+                  const tagOrMember = flattenTagMembers[vItem.index]!;
 
                   if ('userId' in tagOrMember) {
                     const server = getMxIdServer(tagOrMember.userId);

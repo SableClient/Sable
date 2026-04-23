@@ -29,11 +29,13 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { isNotificationEvent } from '$utils/room';
 import { CutoutCard } from '$components/cutout-card';
-import { AccountDataEditor, type AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import { AccountDataEditor } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
-import { StateEventEditor, type StateEventInfo } from './StateEventEditor';
+import type { StateEventInfo } from './StateEventEditor';
+import { StateEventEditor } from './StateEventEditor';
 
 const formatSyncReason = (reason: string): string => {
   if (reason === 'sliding_active') return 'Sliding Sync active';
@@ -80,12 +82,12 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
     const liveEvents = room.getLiveTimeline().getEvents();
     const latestTimelineEvent = liveEvents.at(-1);
     const latestTimelineEventId = latestTimelineEvent?.getId() ?? null;
-    const latestMessageEvent = liveEvents.toReversed().find((event) => {
+    const latestMessageEvent = [...liveEvents].toReversed().find((event) => {
       const type = event.getType();
       return type === 'm.room.message' || type === 'm.room.encrypted' || type === 'm.sticker';
     });
     const latestMessageEventId = latestMessageEvent?.getId() ?? null;
-    const latestNotificationEvent = liveEvents
+    const latestNotificationEvent = [...liveEvents]
       .toReversed()
       .find((event) => isNotificationEvent(event));
     const latestNotificationEventId = latestNotificationEvent?.getId() ?? null;
@@ -475,85 +477,87 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                               </Text>
                             </Box>
                           </MenuItem>
-                          {[...roomState.keys()].sort().map((eventType) => {
-                            const expanded = eventType === expandStateType;
-                            const stateKeyToEvents = roomState.get(eventType);
-                            if (!stateKeyToEvents) return null;
+                          {Array.from(roomState.keys())
+                            .toSorted()
+                            .map((eventType) => {
+                              const expanded = eventType === expandStateType;
+                              const stateKeyToEvents = roomState.get(eventType);
+                              if (!stateKeyToEvents) return null;
 
-                            return (
-                              <Box id={eventType} key={eventType} direction="Column" gap="100">
-                                <MenuItem
-                                  onClick={() =>
-                                    setExpandStateType(expanded ? undefined : eventType)
-                                  }
-                                  variant="Surface"
-                                  fill="None"
-                                  size="300"
-                                  radii="0"
-                                  before={
-                                    <Icon
-                                      size="50"
-                                      src={expanded ? Icons.ChevronBottom : Icons.ChevronRight}
-                                    />
-                                  }
-                                  after={<Text size="L400">{stateKeyToEvents.size}</Text>}
-                                >
-                                  <Box grow="Yes">
-                                    <Text size="T200" truncate>
-                                      {eventType}
-                                    </Text>
-                                  </Box>
-                                </MenuItem>
-                                {expanded && (
-                                  <div
-                                    style={{
-                                      marginLeft: config.space.S400,
-                                      borderLeft: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
-                                    }}
+                              return (
+                                <Box id={eventType} key={eventType} direction="Column" gap="100">
+                                  <MenuItem
+                                    onClick={() =>
+                                      setExpandStateType(expanded ? undefined : eventType)
+                                    }
+                                    variant="Surface"
+                                    fill="None"
+                                    size="300"
+                                    radii="0"
+                                    before={
+                                      <Icon
+                                        size="50"
+                                        src={expanded ? Icons.ChevronBottom : Icons.ChevronRight}
+                                      />
+                                    }
+                                    after={<Text size="L400">{stateKeyToEvents.size}</Text>}
                                   >
-                                    <MenuItem
-                                      onClick={() =>
-                                        setComposeEvent({ type: eventType, stateKey: '' })
-                                      }
-                                      variant="Surface"
-                                      fill="None"
-                                      size="300"
-                                      radii="0"
-                                      before={<Icon size="50" src={Icons.Plus} />}
+                                    <Box grow="Yes">
+                                      <Text size="T200" truncate>
+                                        {eventType}
+                                      </Text>
+                                    </Box>
+                                  </MenuItem>
+                                  {expanded && (
+                                    <div
+                                      style={{
+                                        marginLeft: config.space.S400,
+                                        borderLeft: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
+                                      }}
                                     >
-                                      <Box grow="Yes">
-                                        <Text size="T200" truncate>
-                                          Add New
-                                        </Text>
-                                      </Box>
-                                    </MenuItem>
-                                    {[...stateKeyToEvents.keys()].sort().map((stateKey) => (
                                       <MenuItem
-                                        onClick={() => {
-                                          setOpenStateEvent({
-                                            type: eventType,
-                                            stateKey,
-                                          });
-                                        }}
-                                        key={stateKey}
+                                        onClick={() =>
+                                          setComposeEvent({ type: eventType, stateKey: '' })
+                                        }
                                         variant="Surface"
                                         fill="None"
                                         size="300"
                                         radii="0"
-                                        after={<Icon size="50" src={Icons.ChevronRight} />}
+                                        before={<Icon size="50" src={Icons.Plus} />}
                                       >
                                         <Box grow="Yes">
                                           <Text size="T200" truncate>
-                                            {stateKey ? `"${stateKey}"` : 'Default'}
+                                            Add New
                                           </Text>
                                         </Box>
                                       </MenuItem>
-                                    ))}
-                                  </div>
-                                )}
-                              </Box>
-                            );
-                          })}
+                                      {[...stateKeyToEvents.keys()].sort().map((stateKey) => (
+                                        <MenuItem
+                                          onClick={() => {
+                                            setOpenStateEvent({
+                                              type: eventType,
+                                              stateKey,
+                                            });
+                                          }}
+                                          key={stateKey}
+                                          variant="Surface"
+                                          fill="None"
+                                          size="300"
+                                          radii="0"
+                                          after={<Icon size="50" src={Icons.ChevronRight} />}
+                                        >
+                                          <Box grow="Yes">
+                                            <Text size="T200" truncate>
+                                              {stateKey ? `"${stateKey}"` : 'Default'}
+                                            </Text>
+                                          </Box>
+                                        </MenuItem>
+                                      ))}
+                                    </div>
+                                  )}
+                                </Box>
+                              );
+                            })}
                         </CutoutCard>
                       </Box>
                     )}
@@ -608,23 +612,25 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                               </Text>
                             </Box>
                           </MenuItem>
-                          {[...accountData.keys()].sort().map((type) => (
-                            <MenuItem
-                              key={type}
-                              variant="Surface"
-                              fill="None"
-                              size="300"
-                              radii="0"
-                              after={<Icon size="50" src={Icons.ChevronRight} />}
-                              onClick={() => setAccountDataType(type)}
-                            >
-                              <Box grow="Yes">
-                                <Text size="T200" truncate>
-                                  {type}
-                                </Text>
-                              </Box>
-                            </MenuItem>
-                          ))}
+                          {Array.from(accountData.keys())
+                            .toSorted()
+                            .map((type) => (
+                              <MenuItem
+                                key={type}
+                                variant="Surface"
+                                fill="None"
+                                size="300"
+                                radii="0"
+                                after={<Icon size="50" src={Icons.ChevronRight} />}
+                                onClick={() => setAccountDataType(type)}
+                              >
+                                <Box grow="Yes">
+                                  <Text size="T200" truncate>
+                                    {type}
+                                  </Text>
+                                </Box>
+                              </MenuItem>
+                            ))}
                         </CutoutCard>
                       </Box>
                     )}

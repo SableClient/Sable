@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  CryptoEvent,
-  type CryptoEventHandlerMap,
-  type VerificationPhase,
-  type VerificationRequest,
-  VerificationRequestEvent,
-  type VerificationRequestEventHandlerMap,
-  type Verifier,
-  VerifierEvent,
-  type VerifierEventHandlerMap,
+import type {
+  CryptoEventHandlerMap,
+  VerificationPhase,
+  VerificationRequest,
+  VerificationRequestEventHandlerMap,
+  Verifier,
+  VerifierEventHandlerMap,
 } from '$types/matrix-sdk';
+import { CryptoEvent, VerificationRequestEvent, VerifierEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export const useVerificationRequestReceived = (

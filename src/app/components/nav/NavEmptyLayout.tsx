@@ -1,5 +1,5 @@
 import { Box, config } from 'folds';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 export function NavEmptyCenter({ children }: { children: ReactNode }) {
   return (

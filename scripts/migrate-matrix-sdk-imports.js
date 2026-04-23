@@ -95,7 +95,7 @@ function parseArgs(argv) {
  */
 function loadProgram(projectRoot) {
   const tsconfigPath = path.join(projectRoot, 'tsconfig.web.json');
-  const configResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+  const configResult = ts.readConfigFile(tsconfigPath, (filePath) => ts.sys.readFile(filePath));
 
   if (configResult.error) {
     const message = ts.flattenDiagnosticMessageText(configResult.error.messageText, '\n');

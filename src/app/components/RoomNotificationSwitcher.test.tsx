@@ -1,18 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type * as RoomNotificationPreferencesModule from '$hooks/useRoomsNotificationPreferences';
+import type * as RoomsNotificationPreferencesModule from '$hooks/useRoomsNotificationPreferences';
 
 import { RoomNotificationMode } from '$hooks/useRoomsNotificationPreferences';
 
 import { RoomNotificationModeSwitcher } from './RoomNotificationSwitcher';
 
 const { mockSetMode, modeStateStatus } = vi.hoisted(() => ({
-  mockSetMode: vi.fn(),
+  mockSetMode: vi.fn<(mode: RoomNotificationMode, current: RoomNotificationMode) => void>(),
   modeStateStatus: { current: 'idle' as 'idle' | 'loading' },
 }));
 
 vi.mock('$hooks/useRoomsNotificationPreferences', async () => {
-  const actual = await vi.importActual<typeof RoomNotificationPreferencesModule>(
+  const actual = await vi.importActual<typeof RoomsNotificationPreferencesModule>(
     '$hooks/useRoomsNotificationPreferences'
   );
 

@@ -1,4 +1,4 @@
-import { type Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 import { getAllParents } from '$utils/room';
 import { useMatrixClient } from './useMatrixClient';
@@ -10,7 +10,7 @@ export const useImagePackRooms = (
   const mx = useMatrixClient();
 
   const imagePackRooms: Room[] = useMemo(() => {
-    const allParentSpaces = [...[roomId], ...[...getAllParents(roomToParents, roomId)]];
+    const allParentSpaces = [roomId, ...getAllParents(roomToParents, roomId)];
     return allParentSpaces.reduce<Room[]>((list, rId) => {
       const r = mx.getRoom(rId);
       if (r) list.push(r);

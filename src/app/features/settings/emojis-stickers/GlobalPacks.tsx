@@ -1,4 +1,6 @@
-import { type MouseEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Text,
@@ -12,7 +14,6 @@ import {
   config,
   Spinner,
   Menu,
-  type RectCords,
   PopOut,
   Checkbox,
   toRem,
@@ -23,7 +24,7 @@ import {
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
-import { type Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useGlobalImagePacks, useRoomsImagePacks } from '$hooks/useImagePacks';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
@@ -31,19 +32,15 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
-import {
-  type EmoteRoomsContent,
-  type ImagePack,
-  ImageUsage,
-  type PackAddress,
-  packAddressEqual,
-} from '$plugins/custom-emoji';
+import type { EmoteRoomsContent, ImagePack, PackAddress } from '$plugins/custom-emoji';
+import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { LineClamp2 } from '$styles/Text.css';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 function GlobalPackSelector({
   packs,
@@ -187,12 +184,18 @@ function GlobalPackSelector({
                         <SettingTile
                           title={pack.meta.name ?? 'Unknown'}
                           focusId={`room-pack-${toSettingsFocusIdPart(pack.id)}`}
+                          showSettingLinkAction={false}
                           description={<span className={LineClamp2}>{pack.meta.attribution}</span>}
                           before={
                             <Box alignItems="Center" gap="300">
                               <Avatar size="300" radii="300">
                                 {avatarUrl ? (
-                                  <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                                  <AvatarImage
+                                    style={{
+                                      objectFit: 'contain',
+                                    }}
+                                    src={avatarUrl}
+                                  />
                                 ) : (
                                   <AvatarFallback>
                                     <Icon size="400" src={Icons.Sticker} filled />
@@ -305,7 +308,9 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
       const content =
-        mx.getAccountData(AccountDataEvent.PoniesEmoteRooms)?.getContent<EmoteRoomsContent>() ?? {};
+        mx
+          .getAccountData(CustomAccountDataEvent.PoniesEmoteRooms)
+          ?.getContent<EmoteRoomsContent>() ?? {};
       const updatedContent: EmoteRoomsContent = JSON.parse(JSON.stringify(content));
 
       selectedPacks.forEach((addr) => {
@@ -318,11 +323,11 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
 
       removedPacks.forEach((addr) => {
         if (updatedContent.rooms?.[addr.roomId]?.[addr.stateKey]) {
-          delete updatedContent.rooms?.[addr.roomId][addr.stateKey];
+          delete updatedContent.rooms[addr.roomId]![addr.stateKey];
         }
       });
 
-      await mx.setAccountData(AccountDataEvent.PoniesEmoteRooms, updatedContent);
+      await mx.setAccountData(CustomAccountDataEvent.PoniesEmoteRooms, updatedContent);
     }, [mx, selectedPacks, removedPacks])
   );
 
@@ -361,6 +366,7 @@ export function GlobalPacks({ onViewPack }: GlobalPacksProps) {
       >
         <SettingTile
           focusId={`selected-pack-${toSettingsFocusIdPart(pack.id)}`}
+          showSettingLinkAction={false}
           title={
             <span style={{ textDecoration: removed ? 'line-through' : undefined }}>
               {pack.meta.name ?? 'Unknown'}

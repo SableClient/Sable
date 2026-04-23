@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import {
-  type IPowerLevels,
-  type PowerLevelActions,
-  type PowerLevelNotificationsAction,
-  readPowerLevel,
+import type {
+  IPowerLevels,
+  PowerLevelActions,
+  PowerLevelNotificationsAction,
 } from './usePowerLevels';
+import { readPowerLevel } from './usePowerLevels';
 
 export type RoomPermissionsAPI = {
   event: (type: string, userId: string) => boolean;

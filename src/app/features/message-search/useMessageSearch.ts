@@ -1,10 +1,10 @@
-import {
-  type IEventWithRoomId,
-  type IResultContext,
-  type ISearchRequestBody,
-  type ISearchResponse,
-  type ISearchResult,
-  type SearchOrderBy,
+import type {
+  IEventWithRoomId,
+  IResultContext,
+  ISearchRequestBody,
+  ISearchResponse,
+  ISearchResult,
+  SearchOrderBy,
 } from '$types/matrix-sdk';
 import { useCallback } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';

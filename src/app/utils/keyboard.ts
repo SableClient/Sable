@@ -1,5 +1,5 @@
 import { isKeyHotkey } from 'is-hotkey';
-import { type KeyboardEventHandler } from 'react';
+import type { KeyboardEventHandler } from 'react';
 
 export type KeyboardEventLike = {
   key: string;

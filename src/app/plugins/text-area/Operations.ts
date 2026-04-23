@@ -1,4 +1,4 @@
-import { type Cursor } from './Cursor';
+import type { Cursor } from './Cursor';
 
 export type Operations = {
   select(cursor: Cursor): void;

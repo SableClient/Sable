@@ -80,7 +80,7 @@ function getConfigErrorMessage(error) {
  * @returns {Promise<AliasEntry[]>}
  */
 export async function loadAliasMapFromTsconfig(tsconfigPath, projectRoot) {
-  const configResult = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+  const configResult = ts.readConfigFile(tsconfigPath, (filePath) => ts.sys.readFile(filePath));
   if (configResult.error) {
     throw new Error(
       `Failed to read ${path.basename(tsconfigPath)}: ${getConfigErrorMessage(configResult.error)}`

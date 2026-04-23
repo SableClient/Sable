@@ -1,5 +1,5 @@
 import { PackImageReader } from './PackImageReader';
-import { type PackImages } from './types';
+import type { PackImages } from './types';
 
 export class PackImagesReader {
   private readonly rawImages: PackImages;

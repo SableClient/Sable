@@ -275,10 +275,10 @@ const enforceNestingLimit = (fragment: DocumentFragment): void => {
   collect(fragment, 0);
 
   overlyNestedElements
-    .sort((a, b) => b.depth - a.depth)
+    .toSorted((a, b) => b.depth - a.depth)
     .forEach(({ element }) => {
       if (!element.parentNode) return;
-      element.replaceWith(...[...element.childNodes]);
+      element.replaceWith(...element.childNodes);
     });
 };
 
@@ -315,33 +315,26 @@ export function sanitizeCustomHtml(customHtml: string): string {
 
       if (tagName === 'img' && attrName === INTERNAL_IMG_SRC_ATTR) {
         if (!protectedSources.has(hookEvent.attrValue)) {
-          // eslint-disable-next-line no-param-reassign
           hookEvent.keepAttr = false;
           return;
         }
 
-        // eslint-disable-next-line no-param-reassign
         hookEvent.forceKeepAttr = true;
-        return;
       }
 
       if (!tagAllowsAttribute(tagName, attrName)) {
         // DOMPurify exposes attribute decisions by mutating the hook event.
-        // eslint-disable-next-line no-param-reassign
         hookEvent.keepAttr = false;
         return;
       }
 
       const validatedAttrValue = getValidatedAttributeValue(tagName, attrName, hookEvent.attrValue);
       if (validatedAttrValue === undefined) {
-        // eslint-disable-next-line no-param-reassign
         hookEvent.keepAttr = false;
         return;
       }
 
-      // eslint-disable-next-line no-param-reassign
       hookEvent.attrValue = validatedAttrValue;
-      // eslint-disable-next-line no-param-reassign
       hookEvent.forceKeepAttr = true;
     }
   );

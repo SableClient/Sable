@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import * as css from './AutocompleteMenu.css';
 
 type BaseAutocompleteMenuProps = {

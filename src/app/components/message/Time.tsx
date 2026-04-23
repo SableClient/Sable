@@ -1,4 +1,4 @@
-import { type ComponentProps } from 'react';
+import type { ComponentProps } from 'react';
 import { Text, as, Tooltip, TooltipProvider } from 'folds';
 import {
   timeDayMonYear,

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { type IconSrc, Icons } from 'folds';
+import type { IconSrc } from 'folds';
+import { Icons } from 'folds';
 
 import { EmojiGroupId } from '$plugins/emoji';
 

@@ -62,7 +62,7 @@ export function getSupportedAudioCodec(): string | null {
  * This is used to ensure that the recorded audio file has the correct extension based on the codec used for recording.
  */
 export function getSupportedAudioExtension(codec: string): string {
-  const baseType = codec.split(';')[0].trim();
+  const baseType = codec.split(';')[0]?.trim() ?? codec;
   switch (baseType) {
     case 'audio/ogg':
       return 'ogg';

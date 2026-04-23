@@ -1,7 +1,7 @@
-import type * as Arborium from '@arborium/arborium';
+import type * as ArboriumModule from '@arborium/arborium';
 
-type ArboriumModule = typeof Arborium;
-type ArboriumModuleWithAvailability = ArboriumModule & {
+type ArboriumModuleType = typeof ArboriumModule;
+type ArboriumModuleWithAvailability = ArboriumModuleType & {
   availableLanguages?: string[];
   isLanguageAvailable?: (language: string) => boolean | Promise<boolean>;
 };
@@ -21,11 +21,11 @@ export type HighlightResult =
   | { mode: 'plain'; html: string; language?: string }
   | { mode: 'highlighted'; html: string; language: string };
 
-export type HighlightCodeDeps = {
-  loadModule?: () => Promise<ArboriumModule>;
-};
+export interface HighlightCodeDeps {
+  loadModule?: () => Promise<ArboriumModuleType>;
+}
 
-let arboriumModulePromise: Promise<ArboriumModule | null> | null = null;
+let arboriumModulePromise: Promise<ArboriumModuleType | null> | null = null;
 
 function escapeHtml(text: string): string {
   return text
@@ -72,8 +72,8 @@ async function isLanguageAvailable(
 }
 
 async function loadArborium(
-  loadModule?: () => Promise<ArboriumModule>
-): Promise<ArboriumModule | null> {
+  loadModule?: () => Promise<ArboriumModuleType>
+): Promise<ArboriumModuleType | null> {
   if (loadModule) {
     try {
       return await loadModule();
@@ -83,7 +83,7 @@ async function loadArborium(
   }
 
   if (!arboriumModulePromise) {
-    arboriumModulePromise = import('@arborium/arborium').catch(() => null);
+    arboriumModulePromise = import('@arborium/arborium').then((m) => m).catch(() => null);
   }
 
   return arboriumModulePromise;

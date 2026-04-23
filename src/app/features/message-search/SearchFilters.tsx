@@ -1,11 +1,6 @@
-import {
-  type ChangeEventHandler,
-  type MouseEventHandler,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Chip,
@@ -23,7 +18,6 @@ import {
   Button,
   Input,
   Badge,
-  type RectCords,
 } from 'folds';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
@@ -31,12 +25,10 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import {
-  type SearchItemStrGetter,
-  type UseAsyncSearchOptions,
-  useAsyncSearch,
-} from '$hooks/useAsyncSearch';
-import { type DebounceOptions, useDebounce } from '$hooks/useDebounce';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
+import type { DebounceOptions } from '$hooks/useDebounce';
+import { useDebounce } from '$hooks/useDebounce';
 import { VirtualTile } from '$components/virtualizer';
 import { stopPropagation } from '$utils/keyboard';
 
@@ -142,7 +134,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
     getRoomNameStr,
     SEARCH_OPTS
   );
-  const rooms = (searchResult?.items ?? roomList).toSorted(factoryRoomIdByAtoZ(mx));
+  const rooms = Array.from(searchResult?.items ?? roomList).toSorted(factoryRoomIdByAtoZ(mx));
 
   const virtualizer = useVirtualizer({
     count: rooms.length,
@@ -252,7 +244,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                     }}
                   >
                     {vItems.map((vItem) => {
-                      const roomId = rooms[vItem.index];
+                      const roomId = rooms[vItem.index]!;
                       const room = mx.getRoom(roomId);
                       if (!room) return null;
                       const selected = localSelected?.includes(roomId);

@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import { atomFamily } from 'jotai-family';
 
-const createThreadBrowserAtom = () => atom<boolean>(false);
+const createThreadBrowserAtom = () => atom(false);
 export type TThreadBrowserAtom = ReturnType<typeof createThreadBrowserAtom>;
 
 /**

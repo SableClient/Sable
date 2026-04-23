@@ -1,6 +1,6 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { as, Avatar, Box, Icon, Icons, Text } from 'folds';
-import { type MatrixClient, type Room, type RoomMember } from '$types/matrix-sdk';
+import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';

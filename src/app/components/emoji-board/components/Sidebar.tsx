@@ -1,4 +1,5 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import type { IconSrc } from 'folds';
 import {
   Box,
   Scroll,
@@ -9,7 +10,6 @@ import {
   Text,
   IconButton,
   Icon,
-  type IconSrc,
   Icons,
 } from 'folds';
 import classNames from 'classnames';

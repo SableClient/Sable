@@ -1,20 +1,23 @@
-import { type CSSProperties, type ReactNode, useMemo } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useMemo } from 'react';
 import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import { type IContent, type IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
 import { URL_REG } from '$utils/regex';
 import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room';
+import type {
+  IAudioContent,
+  IAudioInfo,
+  IEncryptedFile,
+  IFileContent,
+  IFileInfo,
+  IImageContent,
+  IImageInfo,
+  IThumbnailContent,
+  IVideoContent,
+  IVideoInfo,
+} from '$types/matrix/common';
 import {
-  type IAudioContent,
-  type IAudioInfo,
-  type IEncryptedFile,
-  type IFileContent,
-  type IFileInfo,
-  type IImageContent,
-  type IImageInfo,
-  type IThumbnailContent,
-  type IVideoContent,
-  type IVideoInfo,
   MATRIX_SPOILER_PROPERTY_NAME,
   MATRIX_SPOILER_REASON_PROPERTY_NAME,
 } from '$types/matrix/common';
@@ -22,7 +25,7 @@ import { FALLBACK_MIMETYPE, getBlobSafeMimeType } from '$utils/mimeTypes';
 import { parseGeoUri, scaleYDimension } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { type PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
+import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
@@ -34,6 +37,10 @@ import {
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
+
+interface BundleContent extends IPreviewUrlResponse {
+  matched_url: string;
+}
 
 export function MBadEncrypted() {
   return (
@@ -139,13 +146,12 @@ export function MText({
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
-  let bundleContent: object[] | undefined;
+  let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(URL_REG);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  bundleContent = content['com.beeper.linkpreviews'] as object[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
-  if (renderUrlsPreview && bundleContent)
-    urls = bundleContent.map((bundle) => (bundle as any).matched_url);
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+  if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
@@ -228,11 +234,11 @@ export function MEmote({
   const trimmedBody = trimReplyFromBody(body);
   const isJumbo = isJumboEmojiText(trimmedBody);
 
-  let bundleContent: object[] | undefined;
+  let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  bundleContent = content['com.beeper.linkpreviews'] as object[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
 
   return (
     <>
@@ -280,11 +286,11 @@ export function MNotice({
   const trimmedBody = trimReplyFromBody(body);
   const isJumbo = isJumboEmojiText(trimmedBody);
 
-  let bundleContent: object[] | undefined;
+  let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(URL_REG);
   const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  bundleContent = content['com.beeper.linkpreviews'] as object[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes((bundle as any).matched_url));
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
 
   return (
     <>

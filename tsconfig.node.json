@@ -22,7 +22,8 @@
   },
   "include": [
     "build.config.ts",
-    "eslint.config.js",
+    "oxfmt.config.ts",
+    "oxlint.config.ts",
     "vite.config.ts",
     "vitest.config.ts",
     "scripts/**/*.js"

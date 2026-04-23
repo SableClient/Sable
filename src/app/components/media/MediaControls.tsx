@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Box, as } from 'folds';
 
 export type MediaControlProps = {

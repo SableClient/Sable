@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import {
   Fragment,
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,11 +8,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import { type Editor } from 'slate';
+import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { PushProcessor, type Room, Direction } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { VList, type VListHandle } from 'virtua';
+import type { VListHandle } from 'virtua';
+import { VList } from 'virtua';
+import type { ContainerColor } from 'folds';
 import {
   as,
   Box,
@@ -25,7 +28,6 @@ import {
   color,
   config,
   toRem,
-  type ContainerColor,
   Spinner,
 } from 'folds';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
@@ -75,7 +77,8 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { type ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
+import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
@@ -455,7 +458,7 @@ export function RoomTimeline({
     if (!el) return () => {};
 
     const observer = new ResizeObserver((entries) => {
-      const newHeight = entries[0].contentRect.height;
+      const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;
@@ -477,11 +480,18 @@ export function RoomTimeline({
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
-    openUserRoomProfile,
+    openUserRoomProfile: openUserRoomProfile as unknown as (
+      roomId: string,
+      spaceId: string | undefined,
+      userId: string,
+      rect: DOMRect,
+      undefinedArg?: undefined,
+      options?: unknown
+    ) => void,
     activeReplyId,
-    setReplyDraft,
+    setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
-    setOpenThread,
+    setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
     handleEdit,
     handleOpenEvent: (id) => {
       const evtTimeline = getEventTimeline(room, id);
@@ -722,11 +732,11 @@ export function RoomTimeline({
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
-  const vListIndices = useMemo(
-    () => Array.from({ length: vListItemCount }, (_, i) => i),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
-  );
+  const vListIndices = useMemo(() => {
+    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
+    void timelineSync.timeline;
+    return Array.from({ length: vListItemCount }, (_, i) => i);
+  }, [vListItemCount, timelineSync.timeline]);
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
@@ -761,7 +771,7 @@ export function RoomTimeline({
     const ref = onEditLastMessageRef;
     ref.current = () => {
       const myUserId = mx.getUserId();
-      const found = processedEventsRef.current
+      const found = [...processedEventsRef.current]
         .toReversed()
         .find(
           (e) =>

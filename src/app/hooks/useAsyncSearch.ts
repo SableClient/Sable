@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  type MatchHandler,
-  AsyncSearch,
-  type AsyncSearchHandler,
-  type AsyncSearchOption,
-  type MatchQueryOption,
-  type NormalizeOption,
-  normalize,
-  matchQuery,
-  type ResultHandler,
+import type {
+  MatchHandler,
+  AsyncSearchHandler,
+  AsyncSearchOption,
+  MatchQueryOption,
+  NormalizeOption,
+  ResultHandler,
 } from '$utils/AsyncSearch';
+import { AsyncSearch, normalize, matchQuery } from '$utils/AsyncSearch';
 import { sanitizeForRegex } from '$utils/regex';
 
 export type UseAsyncSearchOptions = AsyncSearchOption & {

@@ -1,7 +1,7 @@
-/* eslint-disable no-param-reassign */
-
-import { type FormEventHandler, type MouseEventHandler, useEffect, useRef, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -13,7 +13,6 @@ import {
   Input,
   Menu,
   PopOut,
-  type RectCords,
   Scroll,
   Spinner,
   Text,

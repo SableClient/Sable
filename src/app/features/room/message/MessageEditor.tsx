@@ -212,7 +212,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
         newContent['m.mentions'] = mMentions;
         contentBody['m.mentions'] = mMentions;
-        
+
         const links = getLinks(editor);
 
         if (!customHtmlEqualsPlainText(customHtml, plainText)) {
@@ -249,8 +249,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
               oldContent['page.codeberg.everypizza.msc4193.spoiler'];
           }
         }
-      content['com.beeper.linkpreviews'] = [];
-      links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+        content['com.beeper.linkpreviews'] = [];
+        links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

@@ -198,8 +198,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
-const HTTP_URL_PATTERN = `<?https?:\\/\\/(?:www\\.)?(?:[^\\s)]*)(?<![.,:;!/?()[\\]\\s]+)>?`;
-const URL_REG = new RegExp(HTTP_URL_PATTERN, 'g');
+const LINKINPUTREGEX = /<?(https?:\/\/.+?)>?( |$)/g;
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -220,6 +219,9 @@ export const toPlainText = (
   if (Text.isText(node)) {
     let { text } = node;
     text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
+    text = text.replace(LINKINPUTREGEX, '$1$2');
+    // oxlint-disable-next-line no-console
+    console.log(text.match(LINKINPUTREGEX), text);
 
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
@@ -320,7 +322,7 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
  * @returns the mentions in a message {@link MentionsData}
  */
 export const getLinks = (plaintext: string): string[] | undefined => {
-  const urlsMatch = plaintext.match(URL_REG);
+  const urlsMatch = plaintext.match(LINKINPUTREGEX);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
 

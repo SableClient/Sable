@@ -266,6 +266,8 @@ export function RoomTimeline({
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, [setAtBottom]);
 
+  const handleJumpError = useCallback(() => setIsReady(true), []);
+
   const timelineSync = useTimelineSync({
     room,
     mx,
@@ -273,6 +275,7 @@ export function RoomTimeline({
     isAtBottom: atBottomState,
     isAtBottomRef: atBottomRef,
     scrollToBottom,
+    onJumpError: handleJumpError,
     unreadInfo,
     setUnreadInfo,
     hideReadsRef,

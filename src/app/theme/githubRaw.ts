@@ -14,8 +14,11 @@ const RAW_RE = /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+
 export function parseGithubRawBaseUrl(baseUrl: string): GithubRawParts | null {
   const trimmed = baseUrl.trim().replace(/\/+$/, '');
   const m = trimmed.match(RAW_RE);
-  if (!m) return null;
-  const [, owner, repo, ref, rest] = m;
+  if (!m || !m[1] || !m[2] || !m[3]) return null;
+  const owner = m[1];
+  const repo = m[2];
+  const ref = m[3];
+  const rest = m[4];
   const directoryPath = (rest ?? '').replace(/^\/+|\/+$/g, '');
   return { owner, repo, ref, directoryPath };
 }

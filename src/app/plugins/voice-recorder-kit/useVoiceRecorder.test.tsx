@@ -14,19 +14,19 @@ type MockAnalyserNode = MockNode & {
   fftSize: number;
   smoothingTimeConstant: number;
   frequencyBinCount: number;
-  getByteFrequencyData: ReturnType<typeof vi.fn>;
+  getByteFrequencyData: (data: Uint8Array) => void;
 };
 
 type MockAudioContextInstance = {
   state: AudioContextState;
   destination: MockNode;
-  close: ReturnType<typeof vi.fn>;
-  resume: ReturnType<typeof vi.fn>;
-  suspend: ReturnType<typeof vi.fn>;
-  createMediaStreamSource: ReturnType<typeof vi.fn>;
-  createAnalyser: ReturnType<typeof vi.fn>;
-  createMediaStreamDestination: ReturnType<typeof vi.fn>;
-  createMediaElementSource: ReturnType<typeof vi.fn>;
+  close: () => Promise<void>;
+  resume: () => Promise<void>;
+  suspend: () => Promise<void>;
+  createMediaStreamSource: () => MockNode;
+  createAnalyser: () => MockAnalyserNode;
+  createMediaStreamDestination: () => { stream: { getTracks: () => MockTrack[] } };
+  createMediaElementSource: () => MockNode;
 };
 
 const nativeAudioContext = globalThis.AudioContext;
@@ -42,14 +42,14 @@ let createdAudioContexts: MockAudioContextInstance[];
 
 function createMockTrack(): MockTrack {
   return {
-    stop: vi.fn(),
+    stop: vi.fn<() => void>(),
   } as unknown as MockTrack;
 }
 
 function createMockNode(): MockNode {
   return {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
+    connect: vi.fn<() => void>(),
+    disconnect: vi.fn<() => void>(),
   };
 }
 
@@ -59,12 +59,12 @@ function createMockAnalyserNode(): MockAnalyserNode {
     fftSize: 0,
     smoothingTimeConstant: 0,
     frequencyBinCount: 16,
-    getByteFrequencyData: vi.fn((data: Uint8Array) => data.fill(0)),
+    getByteFrequencyData: vi.fn<(data: Uint8Array) => void>((data: Uint8Array) => data.fill(0)),
   };
 }
 
 class MockMediaRecorder {
-  public static isTypeSupported = vi.fn(() => true);
+  public static isTypeSupported = vi.fn<() => boolean>(() => true);
 
   public state: RecordingState = 'inactive';
 
@@ -84,7 +84,7 @@ class MockMediaRecorder {
     this.onstop?.();
   }
 
-  public requestData = vi.fn();
+  public requestData = vi.fn<() => void>();
 
   pause() {
     this.state = 'paused';
@@ -95,24 +95,24 @@ function createMockAudioContext(): MockAudioContextInstance {
   const context: MockAudioContextInstance = {
     state: 'running',
     destination: createMockNode(),
-    close: vi.fn(async () => {
+    close: vi.fn<() => Promise<void>>(async () => {
       context.state = 'closed';
     }),
-    resume: vi.fn(async () => {
+    resume: vi.fn<() => Promise<void>>(async () => {
       context.state = 'running';
     }),
-    suspend: vi.fn(async () => {
+    suspend: vi.fn<() => Promise<void>>(async () => {
       context.state = 'suspended';
     }),
-    createMediaStreamSource: vi.fn(() => createMockNode()),
-    createAnalyser: vi.fn(() => createMockAnalyserNode()),
-    createMediaStreamDestination: vi.fn(() => ({
+    createMediaStreamSource: vi.fn<() => MockNode>(() => createMockNode()),
+    createAnalyser: vi.fn<() => MockAnalyserNode>(() => createMockAnalyserNode()),
+    createMediaStreamDestination: vi.fn<() => { stream: { getTracks: () => MockTrack[] } }>(() => ({
       ...createMockNode(),
       stream: {
         getTracks: () => [destinationTrack],
       },
     })),
-    createMediaElementSource: vi.fn(() => createMockNode()),
+    createMediaElementSource: vi.fn<() => MockNode>(() => createMockNode()),
   };
   createdAudioContexts.push(context);
   return context;
@@ -124,21 +124,21 @@ function MockAudioContext(): MockAudioContextInstance {
 
 beforeEach(() => {
   inputTrack = createMockTrack();
-  destinationTrack = createMockTrack();
   inputStream = {
     getTracks: () => [inputTrack],
   } as unknown as MockStream;
+  destinationTrack = createMockTrack();
   createdAudioContexts = [];
 
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: {
-      getUserMedia: vi.fn(async () => inputStream),
+      getUserMedia: vi.fn<() => Promise<MockStream>>(async () => inputStream),
     },
   });
 
-  globalThis.requestAnimationFrame = vi.fn(() => 1);
-  globalThis.cancelAnimationFrame = vi.fn();
+  globalThis.requestAnimationFrame = vi.fn<() => number>(() => 1);
+  globalThis.cancelAnimationFrame = vi.fn<() => void>();
 
   globalThis.AudioContext = MockAudioContext as unknown as typeof AudioContext;
 

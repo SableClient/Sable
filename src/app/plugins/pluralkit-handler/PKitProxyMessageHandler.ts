@@ -1,11 +1,13 @@
+import type {
+  InternalPerMessageProfileProxyAssociation,
+  PerMessageProfile,
+} from '$hooks/usePerMessageProfile';
 import {
   getAllPerMessageProfileProxies,
   getPerMessageProfileById,
-  InternalPerMessageProfileProxyAssociation,
   parsePerMessageProfileProxyAssociation,
-  PerMessageProfile,
 } from '$hooks/usePerMessageProfile';
-import { MatrixClient } from 'matrix-js-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 
 /**
  * proxy message handler
@@ -52,7 +54,7 @@ export class PKitProxyMessageHandler {
       this.succInit = true;
     } catch (err) {
       this.succInit = false;
-      throw new Error(`failed to init pmp proxy handler: ${String(err)}`);
+      throw new Error(`failed to init pmp proxy handler: ${String(err)}`, { cause: err });
     }
   }
 

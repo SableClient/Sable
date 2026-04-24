@@ -107,7 +107,7 @@ export async function runLegacyThemeMigration(
 
   uniqueUrls.forEach((url, i) => {
     const r = fetchResults[i];
-    if (r.ok) urlToFetched.set(url, r.data);
+    if (r && r.ok) urlToFetched.set(url, r.data);
   });
 
   tasks.forEach((task) => {

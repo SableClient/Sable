@@ -11,7 +11,7 @@ export const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
   }
 };
 
-export const setLocalStorageItem = <T>(key: string, value: T) => {
+export const setLocalStorageItem = (key: string, value: unknown) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
@@ -25,7 +25,7 @@ export const atomWithLocalStorage = <T>(
 ) => {
   const value = getItem(key);
 
-  const baseAtom = atom<T>(value);
+  const baseAtom = atom(value);
 
   baseAtom.onMount = (setAtom) => {
     const handleChange = (evt: StorageEvent) => {

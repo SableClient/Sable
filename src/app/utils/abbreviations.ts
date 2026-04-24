@@ -37,7 +37,7 @@ export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>)
 
   // Build a regex that matches any of the terms at word boundaries.
   // Sort longest first so "HTTP/2" matches before "HTTP".
-  const terms = [...abbrMap.keys()].sort((a, b) => b.length - a.length);
+  const terms = [...abbrMap.keys()].toSorted((a, b) => b.length - a.length);
   const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const pattern = new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi');
 
@@ -47,7 +47,10 @@ export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>)
   Array.from(text.matchAll(pattern)).forEach((match) => {
     const matchIndex = match.index;
     if (matchIndex > lastIndex) {
-      segments.push({ id: `txt-${segments.length}`, text: text.slice(lastIndex, matchIndex) });
+      segments.push({
+        id: `txt-${segments.length}`,
+        text: text.slice(lastIndex, matchIndex),
+      });
     }
     segments.push({
       id: `txt-${segments.length}`,

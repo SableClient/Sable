@@ -33,7 +33,7 @@ describe('listThemePairsFromCatalog', () => {
 
   it('loads pairs from catalog.json manifest when present', async () => {
     const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
       json: async () => ({
         version: 1,
@@ -47,12 +47,12 @@ describe('listThemePairsFromCatalog', () => {
           },
         ],
       }),
-    });
+    } as unknown as Response);
 
     const pairs = await listThemePairsFromCatalog(base);
 
     expect(pairs).toHaveLength(1);
-    expect(pairs[0].basename).toBe('rose-pine');
+    expect(pairs[0]?.basename).toBe('rose-pine');
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://raw.githubusercontent.com/SableClient/themes/main/catalog.json',
@@ -61,7 +61,7 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('uses custom manifest URL when provided', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
       json: async () => ({
         themes: [
@@ -72,7 +72,7 @@ describe('listThemePairsFromCatalog', () => {
           },
         ],
       }),
-    });
+    } as unknown as Response);
 
     const pairs = await listThemePairsFromCatalog(
       'https://raw.githubusercontent.com/SableClient/themes/main/',
@@ -81,7 +81,7 @@ describe('listThemePairsFromCatalog', () => {
       }
     );
 
-    expect(pairs[0].basename).toBe('x');
+    expect(pairs[0]?.basename).toBe('x');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://pages.example.com/catalog.json',
       expect.anything()
@@ -89,10 +89,10 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('returns empty array when manifest is valid but themes is empty', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
       json: async () => ({ version: 1, themes: [] }),
-    });
+    } as unknown as Response);
 
     const pairs = await listThemePairsFromCatalog(
       'https://raw.githubusercontent.com/SableClient/themes/main/'
@@ -102,9 +102,10 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('falls back to GitHub contents API when manifest fetch fails', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, status: 404 })
+    const mock = vi.fn<typeof fetch>();
+    globalThis.fetch = mock;
+    mock
+      .mockResolvedValueOnce({ ok: false, status: 404 } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [
@@ -123,13 +124,13 @@ describe('listThemePairsFromCatalog', () => {
               'https://raw.githubusercontent.com/SableClient/themes/main/themes/rose-pine.sable.css',
           },
         ],
-      });
+      } as unknown as Response);
 
     const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
     const pairs = await listThemePairsFromCatalog(base);
 
     expect(pairs).toHaveLength(1);
-    expect(pairs[0].basename).toBe('rose-pine');
+    expect(pairs[0]?.basename).toBe('rose-pine');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://raw.githubusercontent.com/SableClient/themes/main/catalog.json',
       expect.objectContaining({ mode: 'cors' })
@@ -141,17 +142,18 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('requests nested directory when catalog URL includes a path and manifest is missing', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, status: 404 })
+    const mock = vi.fn<typeof fetch>();
+    globalThis.fetch = mock;
+    mock
+      .mockResolvedValueOnce({ ok: false, status: 404 } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
-      })
+      } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
-      });
+      } as unknown as Response);
 
     await listThemePairsFromCatalog(
       'https://raw.githubusercontent.com/SableClient/themes/main/dist/themes/'
@@ -172,7 +174,9 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('returns empty array when base URL is not a raw GitHub URL and manifest fails', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    globalThis.fetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue({ ok: false, status: 404 } as unknown as Response);
     const pairs = await listThemePairsFromCatalog('https://example.com/');
     expect(pairs).toEqual([]);
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -182,7 +186,7 @@ describe('listThemePairsFromCatalog', () => {
   });
 
   it('loads tweaks from manifest when themes array is empty', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
       json: async () => ({
         version: 1,
@@ -195,23 +199,24 @@ describe('listThemePairsFromCatalog', () => {
           },
         ],
       }),
-    });
+    } as unknown as Response);
     const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
     const bundle = await fetchThemeCatalogBundle(base);
     expect(bundle.themes).toEqual([]);
     expect(bundle.tweaks).toHaveLength(1);
-    expect(bundle.tweaks[0].basename).toBe('rounded');
+    expect(bundle.tweaks[0]?.basename).toBe('rounded');
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('loads tweaks from GitHub tweaks/ when manifest is missing', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, status: 404 })
+    const mock = vi.fn<typeof fetch>();
+    globalThis.fetch = mock;
+    mock
+      .mockResolvedValueOnce({ ok: false, status: 404 } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
-      })
+      } as unknown as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [
@@ -223,11 +228,11 @@ describe('listThemePairsFromCatalog', () => {
               'https://raw.githubusercontent.com/SableClient/themes/main/tweaks/rounded.sable.css',
           },
         ],
-      });
+      } as unknown as Response);
     const base = 'https://raw.githubusercontent.com/SableClient/themes/main/';
     const bundle = await fetchThemeCatalogBundle(base);
     expect(bundle.themes).toEqual([]);
     expect(bundle.tweaks).toHaveLength(1);
-    expect(bundle.tweaks[0].basename).toBe('rounded');
+    expect(bundle.tweaks[0]?.basename).toBe('rounded');
   });
 });

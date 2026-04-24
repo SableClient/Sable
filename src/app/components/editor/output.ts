@@ -1,5 +1,6 @@
-import { Descendant, Editor, Text } from 'slate';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { Descendant, Editor } from 'slate';
+import { Text } from 'slate';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';
 import {
   parseBlockMD,
@@ -10,7 +11,7 @@ import {
 import { findAndReplace } from '$utils/findAndReplace';
 import { sanitizeForRegex } from '$utils/regex';
 import { isUserId } from '$utils/matrix';
-import { CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import { BlockType } from './types';
 
 export type OutputOptions = {
@@ -90,7 +91,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}">${node.children}</a>`;
+      return `<a href="${encodeURI(node.href)}">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:
@@ -184,7 +185,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
-      return `[${node.children}](${node.href})`;
+      return `[${children}](${node.href})`;
     case BlockType.Command:
       return `/${node.command}`;
     case BlockType.Small:
@@ -195,6 +196,8 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
       return children;
   }
 };
+
+const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -213,8 +216,9 @@ export const toPlainText = (
   if (Array.isArray(node))
     return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
+    let { text } = node;
+    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
     if (stripNickname && nickNameReplacement) {
-      let { text } = node;
       nickNameReplacement?.keys().forEach((key) => {
         const replacement = nickNameReplacement.get(key) ?? '';
         text = text.replaceAll(key, replacement);
@@ -224,8 +228,8 @@ export const toPlainText = (
         : text;
     }
     return isMarkdown
-      ? unescapeMarkdownBlockSequences(node.text, unescapeMarkdownInlineSequences)
-      : node.text;
+      ? unescapeMarkdownBlockSequences(text, unescapeMarkdownInlineSequences)
+      : text;
   }
 
   const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');

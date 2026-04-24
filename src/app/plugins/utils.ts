@@ -1,6 +1,6 @@
-import { SearchItemStrGetter } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter } from '$hooks/useAsyncSearch';
 import { PackImageReader } from './custom-emoji';
-import { IEmoji } from './emoji';
+import type { IEmoji } from './emoji';
 
 export const getEmoticonSearchStr: SearchItemStrGetter<PackImageReader | IEmoji> = (item) => {
   const shortcode = `:${item.shortcode}:`;

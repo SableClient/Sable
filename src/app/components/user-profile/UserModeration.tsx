@@ -256,7 +256,9 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
     <Box direction="Column" gap="400">
       <Box direction="Column" gap="200">
         <Box grow="Yes" direction="Column" gap="100">
-          <Text size="L400">Moderation</Text>
+          <Text size="L400" align="Center">
+            Moderation
+          </Text>
           <Input
             ref={reasonInputRef}
             placeholder="Reason"

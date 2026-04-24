@@ -19,7 +19,7 @@ export function extractSafePreviewCustomProperties(cssText: string): Record<stri
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('@')) {
       const m = trimmed.match(PROP_RE);
-      if (m) {
+      if (m && m[1] && m[2]) {
         const name = m[1];
         if (!PREVIEW_CARD_SAFE_CUSTOM_PROPERTIES.has(name)) return;
         const val = m[2].trim();

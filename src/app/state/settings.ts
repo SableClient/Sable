@@ -70,6 +70,8 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  multiplePreviews: boolean;
+  bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
@@ -90,7 +92,6 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
-  settingsLinkBaseUrlOverride?: string;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -105,6 +106,7 @@ export interface Settings {
   renderRoomColors: boolean;
   renderRoomFonts: boolean;
   captionPosition: CaptionPosition;
+  customDMCards: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -180,6 +182,8 @@ export const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  multiplePreviews: true,
+  bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
   clientUrlPreview: false,
@@ -207,7 +211,6 @@ export const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
-  settingsLinkBaseUrlOverride: undefined,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -220,6 +223,7 @@ export const defaultSettings: Settings = {
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
+  customDMCards: true,
 
   // Sable features!
   sendPresence: true,
@@ -290,11 +294,14 @@ export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
 
-const baseSettings = atom<Settings>(getSettings());
+const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (_get, set, update) => {
-    (set as (atom: WritableAtom<Settings, [Settings], void>, val: Settings) => void)(baseSettings as WritableAtom<Settings, [Settings], void>, update);
+    (set as (atom: WritableAtom<Settings, [Settings], void>, val: Settings) => void)(
+      baseSettings as WritableAtom<Settings, [Settings], void>,
+      update
+    );
     setSettings(update);
   }
 );

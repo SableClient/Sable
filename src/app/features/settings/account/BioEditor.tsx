@@ -1,23 +1,14 @@
-import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import type { KeyboardEventHandler } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, Line, PopOut, Spinner, Text, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   Toolbar,
@@ -41,9 +32,9 @@ import { SettingTile } from '$components/setting-tile';
 import * as css from './BioEditor.css';
 
 type BioEditorProps = {
-  value?: string | any;
+  value?: string;
   isSaving?: boolean;
-  imagePackRooms?: any[];
+  imagePackRooms?: Room[];
   onSave: (htmlContent: string, plainText: string) => void;
 };
 
@@ -92,13 +83,13 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
     if (valueChanged || isFirstValidLoad) {
       prevValue.current = value;
 
-      let normalizedValue = value;
+      let normalizedValue: string | undefined = value;
       if (
         typeof normalizedValue === 'object' &&
         normalizedValue !== null &&
         'formatted_body' in normalizedValue
       ) {
-        normalizedValue = normalizedValue.formatted_body;
+        normalizedValue = (normalizedValue as { formatted_body?: string }).formatted_body;
       }
 
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';

@@ -4,7 +4,8 @@ import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
-import { getDebugLogger, LogCategory } from '$utils/debugLogger';
+import type { LogCategory } from '$utils/debugLogger';
+import { getDebugLogger } from '$utils/debugLogger';
 
 const ALL_CATEGORIES: LogCategory[] = [
   'sync',

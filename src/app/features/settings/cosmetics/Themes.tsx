@@ -1,4 +1,5 @@
-import { ChangeEventHandler, KeyboardEventHandler, type MouseEventHandler, useState } from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
+import { type MouseEventHandler, useState } from 'react';
 import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
@@ -365,6 +366,7 @@ export function Appearance({
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
+  const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
@@ -408,6 +410,17 @@ export function Appearance({
                     value={closeFoldersByDefault}
                     onChange={setCloseFoldersByDefault}
                   />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Customize DM cards"
+                focusId="customize-dm-cards"
+                description="Show a custom DM card instead of the DM-ed's details"
+                after={
+                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
                 }
               />
             </SequenceCard>

@@ -77,7 +77,7 @@ export function AccountData({ expand, onExpandToggle, onSelect }: AccountDataPro
                   </Text>
                 </Box>
               </MenuItem>
-              {accountDataTypes.sort().map((type) => (
+              {accountDataTypes.toSorted().map((type) => (
                 <MenuItem
                   key={type}
                   variant="Surface"

@@ -1,10 +1,8 @@
-import { IContent, MatrixClient, MsgType } from '$types/matrix-sdk';
+import type { IContent, MatrixClient } from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import {
-  IThumbnailContent,
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-  MATRIX_SPOILER_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { IThumbnailContent } from '$types/matrix/common';
+import { MATRIX_BLUR_HASH_PROPERTY_NAME, MATRIX_SPOILER_PROPERTY_NAME } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,
@@ -14,7 +12,7 @@ import {
   loadVideoElement,
 } from '$utils/dom';
 import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '$utils/matrix';
-import { TUploadItem } from '$state/room/roomInputDrafts';
+import type { TUploadItem } from '$state/room/roomInputDrafts';
 import { encodeBlurHash } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
@@ -147,10 +145,12 @@ export type AudioMsgContent = IContent & {
 export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgContent => {
   const { file, encInfo, metadata } = item;
   const { waveform, audioDuration, markedAsSpoiler } = metadata;
+  const isVoice = waveform !== undefined && waveform.length > 0;
+  const fallbackBody = isVoice ? 'a voice message' : file.name;
   let content: IContent = {
     msgtype: MsgType.Audio,
     filename: file.name,
-    body: item.body && item.body.length > 0 ? item.body : 'a voice message',
+    body: item.body && item.body.length > 0 ? item.body : fallbackBody,
     info: {
       mimetype: file.type,
       size: file.size,
@@ -162,7 +162,7 @@ export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgCont
       waveform: waveform?.map((v) => Math.round(v * 1024)),
       duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
     },
-    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : 'a voice message',
+    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : fallbackBody,
     'org.matrix.msc3245.voice.v2': {
       duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration,
       waveform: waveform?.map((v) => Math.round(v * 1024)),

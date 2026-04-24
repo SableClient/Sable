@@ -12,7 +12,6 @@
     "vapidPublicKey": "BCnS4SbHjeOaqVFW4wjt5xDt_pYIL62qMzKePfYF9fl9PQU14RieIaObh7nLR_9dQf4sykZa-CTrcjkgMIE1mcg",
     "webPushAppID": "moe.sable.app.sygnal"
   },
-
   "settingsLinkBaseUrl": "https://app.sable.moe",
 
   "themeCatalogBaseUrl": "https://raw.githubusercontent.com/SableClient/themes/main/",

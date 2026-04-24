@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Icon, Icons, Text } from 'folds';
+import { isSentryDecided, setSentryEnabled } from '$state/sentryStorage';
 import * as css from './TelemetryConsentBanner.css';
-
-const SENTRY_KEY = 'sable_sentry_enabled';
 
 export function TelemetryConsentBanner() {
   const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
-  const [visible, setVisible] = useState(
-    isSentryConfigured && localStorage.getItem(SENTRY_KEY) === null
-  );
+  const [visible, setVisible] = useState(isSentryConfigured && !isSentryDecided());
   const [dismissing, setDismissing] = useState(false);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -22,14 +19,14 @@ export function TelemetryConsentBanner() {
   if (!visible) return null;
 
   const handleEnable = () => {
-    localStorage.setItem(SENTRY_KEY, 'true');
+    setSentryEnabled(true);
     window.location.reload();
   };
 
   const handleDecline = () => {
-    localStorage.setItem(SENTRY_KEY, 'false');
+    setSentryEnabled(false);
     setDismissing(true);
-    dismissTimerRef.current = setTimeout(() => setVisible(false), 220);
+    dismissTimerRef.current = setTimeout(setVisible, 220, false);
   };
 
   return (

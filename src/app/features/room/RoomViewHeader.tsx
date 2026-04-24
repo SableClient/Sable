@@ -103,16 +103,16 @@ async function getPinsHash(pinnedIds: string[]): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(sorted);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashArray = [...new Uint8Array(hashBuffer)];
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   return hashHex.slice(0, 10);
 }
 
-export interface PinReadMarker {
+export type PinReadMarker = {
   hash: string;
   count: number;
   last_seen_id: string;
-}
+};
 
 type RoomMenuProps = {
   room: Room;

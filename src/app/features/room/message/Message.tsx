@@ -168,7 +168,7 @@ export const MessagePinItem = as<
   const handlePin = () => {
     const eventId = mEvent.getId();
     const pinContent: RoomPinnedEventsEventContent = {
-      pinned: Array.from(pinnedEvents).filter((id) => id !== eventId),
+      pinned: [...pinnedEvents].filter((id) => id !== eventId),
     };
     if (!isPinned && eventId) {
       pinContent.pinned.push(eventId);

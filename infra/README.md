@@ -87,12 +87,12 @@ Preview builds:
 - `infra/web/main.tf` enables preview URL capability with `subdomain.previews_enabled = true`.
 - Previews are handled by Cloudflare Workers Builds, not GitHub Actions.
 - Connect the repo once in Cloudflare Workers Builds.
-- Set the Cloudflare Builds deploy command to `npx wrangler versions upload`.
+- Set the Cloudflare Builds deploy command to `pnpm run wrangler versions upload`.
 - This disables automatic deployments while still allowing Cloudflare to build PRs/branches and save them as preview versions.
 - That keeps Cloudflare from promoting `dev` commits to production. Production stays on the OpenTofu/GitHub Actions path in this repo.
 
 ```bash
-npx wrangler versions upload
+pnpm run wrangler versions upload
 ```
 
 Production deploys:

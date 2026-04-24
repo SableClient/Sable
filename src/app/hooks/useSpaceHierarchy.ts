@@ -277,7 +277,7 @@ const getSpaceJoinedHierarchy = (
       };
       childItems.push(childItem);
     });
-    return ([spaceItem] as HierarchyItem[]).concat(sortRoomItems(spaceItem.roomId, childItems));
+    return [spaceItem, ...sortRoomItems(spaceItem.roomId, childItems)];
   });
 
   return hierarchy;

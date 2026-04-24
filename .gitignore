@@ -3,6 +3,8 @@ dist
 coverage
 node_modules
 devAssets
+.tsbuildinfo
+*.tsbuildinfo
 
 .DS_Store
 .idea

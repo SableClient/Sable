@@ -2,7 +2,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
 import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
-import { JUMBO_EMOJI_REG, URL_REG } from '$utils/regex';
+import { URL_REG } from '$utils/regex';
+import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room';
 import type {
   IAudioContent,
@@ -133,7 +134,7 @@ export function MText({
       )
     )
       return true;
-    if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
+    if (!isJumboEmojiText(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
       const hasImage = customBody && /<img[^>]*>/i.test(customBody);
@@ -231,7 +232,7 @@ export function MEmote({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
 
   let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(URL_REG);
@@ -283,7 +284,7 @@ export function MNotice({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+  const isJumbo = isJumboEmojiText(trimmedBody);
 
   let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(URL_REG);

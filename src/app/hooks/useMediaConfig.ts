@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
 
-export interface MediaConfig {
+export type MediaConfig = {
   [key: string]: unknown;
   'm.upload.size'?: number;
-}
+};
 
 const MediaConfigContext = createContext<MediaConfig | null>(null);
 

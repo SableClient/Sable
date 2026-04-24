@@ -57,7 +57,7 @@ function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
 
   const allowAdditionalCreators = creatorsSupported(selectedRoomVersion);
   const { additionalCreators, addAdditionalCreator, removeAdditionalCreator } =
-    useAdditionalCreators(Array.from(creators));
+    useAdditionalCreators([...creators]);
 
   const [upgradeState, upgrade] = useAsyncCallback(
     useCallback(

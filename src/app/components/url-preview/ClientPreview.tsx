@@ -11,7 +11,7 @@ import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 
-interface OEmbed {
+type OEmbed = {
   type: 'photo' | 'video' | 'link' | 'rich';
   version: '1.0';
   title?: string;
@@ -27,7 +27,7 @@ interface OEmbed {
   html?: string;
   width?: number;
   height?: number;
-}
+};
 
 async function oEmbedData(url: string): Promise<OEmbed> {
   const data = await fetch(url).then((resp) => resp.json());
@@ -168,7 +168,7 @@ function parseYoutubeLink(url: Readonly<string>): YoutubeLink | null {
     // new URL can throw
     return null;
   }
-  const urlHost = parsedURL.host;
+  const urlHost = parsedURL.hostname.toLowerCase();
   const urlSearchParams = parsedURL.searchParams;
 
   /**
@@ -204,7 +204,7 @@ function parseYoutubeLink(url: Readonly<string>): YoutubeLink | null {
     videoId,
     timestamp,
     playlist,
-    isMusic: url.includes('music.youtube.com'),
+    isMusic: urlHost === 'music.youtube.com' || urlHost.endsWith('.music.youtube.com'),
   };
 }
 

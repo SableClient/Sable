@@ -1,23 +1,28 @@
 import { defineConfig } from 'vite';
 import type { ViteDevServer, PluginOption } from 'vite';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
+import type { RollupInjectOptions } from '@rollup/plugin-inject';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import { wasm } from '@rollup/plugin-wasm';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
-import inject from '@rollup/plugin-inject';
-import topLevelAwait from 'vite-plugin-top-level-await';
+import * as injectModule from '@rollup/plugin-inject';
+import * as topLevelAwaitModule from 'vite-plugin-top-level-await';
+import type { Options as TopLevelAwaitOptions } from 'vite-plugin-top-level-await';
 import { VitePWA } from 'vite-plugin-pwa';
 import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import { constants as zlibConstants } from 'zlib';
 import fs from 'fs';
 import path from 'path';
-import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
-import buildConfig from './build.config';
+import buildConfig from './build.config.ts';
+
+const inject = injectModule.default as unknown as (options?: RollupInjectOptions) => PluginOption;
+const topLevelAwait = topLevelAwaitModule.default as unknown as (
+  options?: TopLevelAwaitOptions
+) => PluginOption;
 
 const packageJson = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')
@@ -54,7 +59,10 @@ const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
   try {
-    const tag = execSync('git describe --exact-match --tags HEAD 2>/dev/null').toString().trim();
+    const tag = execFileSync('git', ['describe', '--exact-match', '--tags', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
     return tag.startsWith('v');
   } catch {
     return false;
@@ -133,19 +141,7 @@ export default defineConfig(({ command }) => ({
     IS_RELEASE_TAG: JSON.stringify(isReleaseTag),
   },
   resolve: {
-    alias: {
-      $hooks: path.resolve(__dirname, 'src/app/hooks'),
-      $plugins: path.resolve(__dirname, 'src/app/plugins'),
-      $components: path.resolve(__dirname, 'src/app/components'),
-      $features: path.resolve(__dirname, 'src/app/features'),
-      $state: path.resolve(__dirname, 'src/app/state'),
-      $styles: path.resolve(__dirname, 'src/app/styles'),
-      $utils: path.resolve(__dirname, 'src/app/utils'),
-      $pages: path.resolve(__dirname, 'src/app/pages'),
-      $types: path.resolve(__dirname, 'src/types'),
-      $public: path.resolve(__dirname, 'public'),
-      $client: path.resolve(__dirname, 'src/client'),
-    },
+    tsconfigPaths: true,
   },
   server: {
     port: 8080,
@@ -162,7 +158,7 @@ export default defineConfig(({ command }) => ({
       // The export name of top-level await promise for each chunk module
       promiseExportName: '__tla',
       // The function to generate import names of top-level await promise in each chunk module
-      promiseImportName: (i) => `__tla_${i}`,
+      promiseImportName: (i: number) => `__tla_${i}`,
     }),
     viteStaticCopy(copyFiles),
     vanillaExtractPlugin({ identifiers: 'debug' }),
@@ -185,14 +181,6 @@ export default defineConfig(({ command }) => ({
       devOptions: {
         enabled: true,
         type: 'module',
-      },
-    }),
-    cloudflare({
-      config: {
-        compatibility_date: '2026-03-03',
-        assets: {
-          not_found_handling: 'single-page-application',
-        },
       },
     }),
     compression({
@@ -237,25 +225,13 @@ export default defineConfig(({ command }) => ({
       '@vanilla-extract/recipes/createRuntimeFn',
     ],
     needsInterop: ['matrix-widget-api'],
-    esbuildOptions: {
-      define: {
-        global: 'globalThis',
-      },
-      plugins: [
-        // Enable esbuild polyfill plugins
-        NodeGlobalsPolyfillPlugin({
-          process: false,
-          buffer: true,
-        }),
-      ],
-    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
     copyPublicDir: false,
     rollupOptions: {
-      plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
+      plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
     },
   },
 }));

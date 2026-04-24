@@ -11,11 +11,11 @@ const LANGUAGE_COMPATIBILITY: Record<string, string> = {
   markup: 'html',
 };
 
-export interface HighlightCodeInput {
+export type HighlightCodeInput = {
   code: string;
   language?: string | null;
   allowDetect?: boolean;
-}
+};
 
 export type HighlightResult =
   | { mode: 'plain'; html: string; language?: string }

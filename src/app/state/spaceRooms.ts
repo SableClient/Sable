@@ -15,7 +15,7 @@ const baseSpaceRoomsAtom = atomWithLocalStorage<Set<string>>(
     return new Set(arrayValue);
   },
   (key, value) => {
-    const arrayValue = Array.from(value);
+    const arrayValue = [...value];
     setLocalStorageItem(key, arrayValue);
   }
 );
@@ -36,7 +36,7 @@ export const spaceRoomsAtom = atom<Set<string>, [SpaceRoomsAction], undefined>(
     const current = get(baseSpaceRoomsAtom);
     const { type, roomIds } = action;
 
-    if (type === 'DELETE' && roomIds.find((roomId) => current.has(roomId))) {
+    if (type === 'DELETE' && roomIds.some((roomId) => current.has(roomId))) {
       set(
         baseSpaceRoomsAtom,
         produce(current, (draft) => {

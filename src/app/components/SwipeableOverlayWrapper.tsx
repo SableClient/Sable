@@ -5,11 +5,11 @@ import { useAtomValue } from 'jotai';
 import { settingsAtom } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 
-interface SwipeableOverlayWrapperProps {
+type SwipeableOverlayWrapperProps = {
   children: ReactNode;
   onClose: () => void;
   direction: 'left' | 'right';
-}
+};
 
 export function SwipeableOverlayWrapper({
   children,

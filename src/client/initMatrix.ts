@@ -238,7 +238,7 @@ export const clearMismatchedStores = async (): Promise<void> => {
     allDbs.map(async ({ name }) => {
       if (!name) return;
 
-      const containsKnownUser = Array.from(knownUserIds).some((uid) => name.includes(uid));
+      const containsKnownUser = [...knownUserIds].some((uid) => name.includes(uid));
       const looksLikeUserDb = name.includes('@');
       if (looksLikeUserDb && !containsKnownUser && !knownStoreNames.has(name)) {
         log.warn(`clearMismatchedStores: "${name}" has unknown user — deleting`);
@@ -283,12 +283,12 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
   const storeName = getSessionStoreName(session);
 
   const indexedDBStore = new IndexedDBStore({
-    indexedDB: global.indexedDB,
-    localStorage: global.localStorage,
+    indexedDB: globalThis.indexedDB,
+    localStorage: globalThis.localStorage,
     dbName: storeName.sync,
   });
 
-  const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
+  const legacyCryptoStore = new IndexedDBCryptoStore(globalThis.indexedDB, storeName.crypto);
 
   const mx = createClient({
     baseUrl: session.baseUrl,

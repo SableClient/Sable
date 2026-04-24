@@ -24,8 +24,8 @@ import { CustomStateEvent } from '$types/matrix/room';
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
   if (!a || !b) return false;
-  const aImages = Array.from(a.images.collection.entries());
-  const bImages = Array.from(b.images.collection.entries());
+  const aImages = [...a.images.collection.entries()];
+  const bImages = [...b.images.collection.entries()];
   if (aImages.length !== bImages.length) return false;
   const sameImages = aImages.every(([shortcode, image], index) => {
     const other = bImages[index];
@@ -134,7 +134,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
           typeof stateKey === 'string'
         ) {
           setGlobalPacks((prev) => {
-            const global = !!prev.find(
+            const global = prev.some(
               (pack) =>
                 pack.address && pack.address.roomId === roomId && pack.address.stateKey === stateKey
             );
@@ -269,7 +269,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
     useCallback(
       (mEvent) => {
         if (
-          rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
+          rooms.some((room) => room.roomId === mEvent.getRoomId()) &&
           mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
@@ -294,10 +294,11 @@ export const useRelevantImagePacks = (usage: ImageUsage, rooms: Room[]): ImagePa
     const packs = userPack ? [userPack] : [];
     const globalPackIds = new Set(globalPacks.map((pack) => pack.id));
 
-    const relPacks = packs.concat(
-      globalPacks,
-      roomsPacks.filter((pack) => !globalPackIds.has(pack.id))
-    );
+    const relPacks = [
+      ...packs,
+      ...globalPacks,
+      ...roomsPacks.filter((pack) => !globalPackIds.has(pack.id)),
+    ];
 
     return relPacks.filter((pack) => pack.getImages(usage).length > 0);
   }, [userPack, globalPacks, roomsPacks, usage]);

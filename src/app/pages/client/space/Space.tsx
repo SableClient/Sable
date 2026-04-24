@@ -461,7 +461,7 @@ export function Space() {
 
       // As a subspace can be in multiple spaces,
       // only return true if all parent spaces are closed.
-      const allClosed = !Array.from(parentParentIds).some(
+      const allClosed = ![...parentParentIds].some(
         (id) => !getInClosedCategories(spaceId, id, parentId, visited)
       );
       visited.delete(categoryId);
@@ -493,7 +493,7 @@ export function Space() {
         return false;
       }
 
-      return Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+      return [...childIds].some((id) => getContainsShowRoom(id, visited));
     },
     [roomToUnread, selectedRoomId, roomToChildren]
   );
@@ -517,9 +517,7 @@ export function Space() {
       return false;
     }
 
-    const allCollapsed = !Array.from(parentIds).some(
-      (id) => !getInClosedCategories(spaceId, id, roomId)
-    );
+    const allCollapsed = ![...parentIds].some((id) => !getInClosedCategories(spaceId, id, roomId));
     ancestorsCollapsedCache.current.set(categoryId, allCollapsed);
     return allCollapsed;
   };
@@ -583,7 +581,7 @@ export function Space() {
         connectorStack = [{ aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET), aY: 0 }];
       }
 
-      const lastConnector = connectorStack[connectorStack.length - 1];
+      const lastConnector = connectorStack.at(-1);
       if (!lastConnector) return;
 
       // aX: numeric x where the vertical connector starts

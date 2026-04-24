@@ -169,7 +169,7 @@ const useNotificationTimeline = (
         if (currentTimeline.nextToken === from) {
           return {
             nextToken: data.next_token,
-            groups: from ? currentTimeline.groups.concat(groups) : groups,
+            groups: from ? [...currentTimeline.groups, ...groups] : groups,
           };
         }
         return currentTimeline;

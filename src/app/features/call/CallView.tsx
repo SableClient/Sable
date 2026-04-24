@@ -148,9 +148,9 @@ function CallJoined({ joined, containerRef }: CallJoinedProps) {
   );
 }
 
-interface CallViewProps {
+type CallViewProps = {
   resizable?: boolean;
-}
+};
 
 export function CallView({ resizable }: CallViewProps) {
   const room = useRoom();

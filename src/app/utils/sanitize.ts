@@ -1,4 +1,4 @@
-import DOMPurify from 'dompurify';
+import DOMPurify, { type UponSanitizeAttributeHookEvent } from 'dompurify';
 import { isMatrixHexColor } from './matrixHtml';
 
 const MAX_TAG_NESTING = 100;
@@ -70,7 +70,7 @@ const permittedTagToAttributes = {
   hr: ['data-md'],
 } as const satisfies Record<string, readonly string[]>;
 
-const permittedHtmlAttributes = Array.from(new Set(Object.values(permittedTagToAttributes).flat()));
+const permittedHtmlAttributes = [...new Set(Object.values(permittedTagToAttributes).flat())];
 
 const allowedLinkSchemes = new Set(['https', 'http', 'ftp', 'mailto', 'magnet']);
 const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option', 'noscript'];
@@ -78,6 +78,31 @@ const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option
 const codeLanguageClassRegex = /^language-[A-Za-z0-9_-]+$/;
 const orderedListStartRegex = /^-?\d+$/;
 const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc):/i;
+const textBlockTags = new Set([
+  'blockquote',
+  'caption',
+  'details',
+  'div',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'ol',
+  'p',
+  'pre',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'tr',
+  'ul',
+]);
 
 export function sanitizeText(body: string): string {
   const tagsToReplace: Record<string, string> = {
@@ -235,7 +260,7 @@ const enforceNestingLimit = (fragment: DocumentFragment): void => {
   const overlyNestedElements: Array<{ depth: number; element: Element }> = [];
 
   const collect = (node: ParentNode, depth: number) => {
-    Array.from(node.childNodes).forEach((child) => {
+    [...node.childNodes].forEach((child) => {
       if (!(child instanceof Element)) return;
 
       const childDepth = depth + 1;
@@ -253,7 +278,7 @@ const enforceNestingLimit = (fragment: DocumentFragment): void => {
     .toSorted((a, b) => b.depth - a.depth)
     .forEach(({ element }) => {
       if (!element.parentNode) return;
-      element.replaceWith(...Array.from(element.childNodes));
+      element.replaceWith(...element.childNodes);
     });
 };
 
@@ -273,7 +298,7 @@ const pruneInvalidEmptyElements = (
   });
 };
 
-export const sanitizeCustomHtml = (customHtml: string): string => {
+export function sanitizeCustomHtml(customHtml: string): string {
   if (typeof window === 'undefined') {
     return sanitizeText(customHtml);
   }
@@ -282,35 +307,37 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
   const purify = DOMPurify(window);
   const allowedHtmlAttributes = [...permittedHtmlAttributes, INTERNAL_IMG_SRC_ATTR];
 
-  purify.addHook('uponSanitizeAttribute', (currentNode, hookEvent) => {
-    const tagName = currentNode.tagName.toLowerCase();
-    const attrName = hookEvent.attrName.toLowerCase();
+  purify.addHook(
+    'uponSanitizeAttribute',
+    (currentNode: Element, hookEvent: UponSanitizeAttributeHookEvent) => {
+      const tagName = currentNode.tagName.toLowerCase();
+      const attrName = hookEvent.attrName.toLowerCase();
 
-    if (tagName === 'img' && attrName === INTERNAL_IMG_SRC_ATTR) {
-      if (!protectedSources.has(hookEvent.attrValue)) {
+      if (tagName === 'img' && attrName === INTERNAL_IMG_SRC_ATTR) {
+        if (!protectedSources.has(hookEvent.attrValue)) {
+          hookEvent.keepAttr = false;
+          return;
+        }
+
+        hookEvent.forceKeepAttr = true;
+      }
+
+      if (!tagAllowsAttribute(tagName, attrName)) {
+        // DOMPurify exposes attribute decisions by mutating the hook event.
         hookEvent.keepAttr = false;
         return;
       }
 
+      const validatedAttrValue = getValidatedAttributeValue(tagName, attrName, hookEvent.attrValue);
+      if (validatedAttrValue === undefined) {
+        hookEvent.keepAttr = false;
+        return;
+      }
+
+      hookEvent.attrValue = validatedAttrValue;
       hookEvent.forceKeepAttr = true;
-      return;
     }
-
-    if (!tagAllowsAttribute(tagName, attrName)) {
-      // DOMPurify exposes attribute decisions by mutating the hook event.
-      hookEvent.keepAttr = false;
-      return;
-    }
-
-    const validatedAttrValue = getValidatedAttributeValue(tagName, attrName, hookEvent.attrValue);
-    if (validatedAttrValue === undefined) {
-      hookEvent.keepAttr = false;
-      return;
-    }
-
-    hookEvent.attrValue = validatedAttrValue;
-    hookEvent.forceKeepAttr = true;
-  });
+  );
 
   const sanitizedNode = purify.sanitize(protectedHtml, {
     ALLOWED_TAGS: [...permittedHtmlTags],
@@ -336,4 +363,57 @@ export const sanitizeCustomHtml = (customHtml: string): string => {
   const container = document.createElement('div');
   container.append(fragment);
   return restoreProtectedImageSources(container.innerHTML, protectedSources);
-};
+}
+
+function appendPlainTextLineBreak(parts: string[]) {
+  const previous = parts.at(-1);
+  if (previous?.endsWith('\n')) return;
+  parts.push('\n');
+}
+
+function collectPlainTextFromNode(node: Node, parts: string[]): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent;
+    if (text) parts.push(text);
+    return;
+  }
+
+  if (!(node instanceof Element)) return;
+
+  const tagName = node.tagName.toLowerCase();
+
+  if (tagName === 'br') {
+    appendPlainTextLineBreak(parts);
+    return;
+  }
+
+  if (tagName === 'li') {
+    parts.push('- ');
+  }
+
+  [...node.childNodes].forEach((child) => collectPlainTextFromNode(child, parts));
+
+  if (textBlockTags.has(tagName)) {
+    appendPlainTextLineBreak(parts);
+  }
+}
+
+export function extractPlainTextFromCustomHtml(customHtml: string): string {
+  if (typeof DOMParser === 'undefined') {
+    return customHtml;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(sanitizeCustomHtml(customHtml), 'text/html');
+  const parts: string[] = [];
+
+  [...doc.body.childNodes].forEach((child) => collectPlainTextFromNode(child, parts));
+
+  return parts
+    .join('')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

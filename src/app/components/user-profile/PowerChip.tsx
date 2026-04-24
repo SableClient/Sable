@@ -252,7 +252,7 @@ export function PowerChip({ userId }: { userId: string }) {
                   </CutoutCard>
                 )}
                 {getPowers(powerLevelTags).map((power) => {
-                  const powerTag = powerLevelTags[power]!;
+                  const powerTag = powerLevelTags[power];
                   const powerTagIconSrc =
                     powerTag.icon && getPowerTagIconSrc(mx, useAuthentication, powerTag.icon);
 

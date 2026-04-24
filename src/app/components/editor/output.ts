@@ -131,8 +131,9 @@ export const toMatrixCustomHTML = (
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
-        opts.nickNameReplacement?.keys().forEach((key) => {
-          const replacement = opts.nickNameReplacement!.get(key) ?? '';
+        const { nickNameReplacement } = opts;
+        [...nickNameReplacement.keys()].forEach((key) => {
+          const replacement = nickNameReplacement.get(key) ?? '';
           line = line.replaceAll(key, replacement);
         });
       }

@@ -3,10 +3,10 @@ import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isEmptyEditor, moveCursor } from '$components/editor';
 
-export interface UseMessageEditOptions {
+export type UseMessageEditOptions = {
   onReset?: () => void;
   alive?: () => boolean;
-}
+};
 
 /**
  * Manages the "edit mode" state for a message composer.

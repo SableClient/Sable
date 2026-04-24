@@ -10,7 +10,7 @@ import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
 import { createMentionElement, moveCursor } from '$components/editor';
 
-export interface UseTimelineActionsOptions {
+export type UseTimelineActionsOptions = {
   room: Room;
   mx: MatrixClient;
   editor: Editor;
@@ -31,7 +31,7 @@ export interface UseTimelineActionsOptions {
   setOpenThread: (threadId: string | undefined) => void;
   handleEdit: (editId?: string) => void;
   handleOpenEvent: (eventId: string) => void;
-}
+};
 
 export function useTimelineActions({
   room,

@@ -393,7 +393,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const events = currentThread.events || [];
       if (events.length === 0) return;
 
-      const lastEvent = events[events.length - 1];
+      const lastEvent = events.at(-1);
       if (!lastEvent || lastEvent.isSending()) return;
 
       const userId = mx.getUserId();
@@ -631,7 +631,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       const isInReplies = processedEventsRef.current.some((e) => e.id === targetId);
       if (!isRoot && !isInReplies) return;
       setJumpToEventId(targetId);
-      setTimeout(() => setJumpToEventId(undefined), 2500);
+      setTimeout(setJumpToEventId, 2500, undefined);
       const el = drawerRef.current;
       if (el) {
         const target = el.querySelector(`[data-message-id="${targetId}"]`);

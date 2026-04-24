@@ -1,5 +1,5 @@
 export const checkIndexedDBSupport = async (): Promise<boolean> => {
-  const ts = new Date().getTime();
+  const ts = Date.now();
   const dbName = `checkIndexedDBSupport-${ts}`;
   return new Promise((resolve) => {
     let db;

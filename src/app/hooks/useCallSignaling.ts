@@ -14,10 +14,10 @@ const debugLog = createDebugLogger('CallSignaling');
 
 type CallPhase = 'IDLE' | 'RINGING_OUT' | 'RINGING_IN' | 'ACTIVE' | 'ENDED';
 
-interface SignalState {
+type SignalState = {
   incoming: string | null;
   outgoing: string | null;
-}
+};
 
 export function useCallSignaling() {
   const mx = useMatrixClient();
@@ -100,7 +100,7 @@ export function useCallSignaling() {
       const myUserId = mx.getUserId();
       const now = Date.now();
 
-      const signal = Array.from(mDirects).reduce<SignalState>(
+      const signal = [...mDirects].reduce<SignalState>(
         (acc, roomId) => {
           if (acc.incoming || mutedRoomIdRef.current === roomId) return acc;
 

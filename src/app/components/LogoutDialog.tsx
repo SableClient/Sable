@@ -16,7 +16,7 @@ type LogoutDialogProps = {
 export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
   ({ handleClose }, ref) => {
     const mx = useMatrixClient();
-    const hasEncryptedRoom = !!mx.getRooms().find((room) => room.hasEncryptionStateEvent());
+    const hasEncryptedRoom = mx.getRooms().some((room) => room.hasEncryptionStateEvent());
     const crossSigningActive = useCrossSigningActive();
     const verificationStatus = useDeviceVerificationStatus(
       mx.getCrypto(),

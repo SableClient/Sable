@@ -79,9 +79,7 @@ describe('useAsyncCallback', () => {
 
     const successStates = result.current[0];
     expect(successStates.status).toBe(AsyncStatus.Success);
-    if (successStates.status === AsyncStatus.Success) {
-      expect(successStates.data).toBe('fresh');
-    }
+    expect(successStates).toMatchObject({ data: 'fresh' });
   });
 
   it('does not call setState after the component unmounts', async () => {

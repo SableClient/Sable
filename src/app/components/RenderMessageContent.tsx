@@ -57,8 +57,8 @@ type RenderMessageContentProps = {
 
 const getMediaType = (url: string) => {
   const cleanUrl = url.toLowerCase();
-  if (cleanUrl.match(/\.(mp4|webm|ogg)$/i)) return 'video';
-  if (cleanUrl.match(/\.(png|jpg|jpeg|gif|webp)$/i) || cleanUrl.match(/@(jpeg|webp|png|jpg)$/i))
+  if (/\.(mp4|webm|ogg)$/i.test(cleanUrl)) return 'video';
+  if (/\.(png|jpg|jpeg|gif|webp)$/i.test(cleanUrl) || /@(jpeg|webp|png|jpg)$/i.test(cleanUrl))
     return 'image';
   return null;
 };
@@ -121,7 +121,7 @@ function RenderMessageContentInternal({
       }));
       const mediaLinks = analyzed.filter((item) => item.type !== null);
       const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
-      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
+      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]];
       return (
         <UrlPreviewHolder>
           {toRender.map((item) => {

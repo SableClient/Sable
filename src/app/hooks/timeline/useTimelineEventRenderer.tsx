@@ -252,7 +252,7 @@ function ThreadReplyChip({
     </Chip>
   );
 }
-export interface TimelineEventRendererOptions {
+export type TimelineEventRendererOptions = {
   room: Room;
   mx: MatrixClient;
   pushProcessor: PushProcessor;
@@ -306,7 +306,7 @@ export interface TimelineEventRendererOptions {
     getMemberPowerTag: ReturnType<typeof useGetMemberPowerTag>;
     parseMemberEvent: ReturnType<typeof useMemberEventParser>;
   };
-}
+};
 
 export function useTimelineEventRenderer({
   room,
@@ -1084,27 +1084,21 @@ export function useTimelineEventRenderer({
                       `:`}
                   </Text>
                   {(pinsAdded || pinsRemoved) &&
-                    pinsAdded
-                      .concat(...pinsRemoved)
-                      .slice(0, 4)
-                      .map((x: string) => (
-                        <Reply
-                          key={x}
-                          style={{ opacity: '80%' }}
-                          room={room}
-                          replyEventId={x}
-                          onClick={handleOpenReply}
-                          replyIcon={
-                            <>
-                              <Icon size="100" src={Icons.Pin} />
-                              <Icon
-                                size="100"
-                                src={pinned.includes(x) ? Icons.Plus : Icons.Minus}
-                              />
-                            </>
-                          }
-                        />
-                      ))}
+                    [...pinsAdded, ...pinsRemoved].slice(0, 4).map((x: string) => (
+                      <Reply
+                        key={x}
+                        style={{ opacity: '80%' }}
+                        room={room}
+                        replyEventId={x}
+                        onClick={handleOpenReply}
+                        replyIcon={
+                          <>
+                            <Icon size="100" src={Icons.Pin} />
+                            <Icon size="100" src={pinned.includes(x) ? Icons.Plus : Icons.Minus} />
+                          </>
+                        }
+                      />
+                    ))}
                 </Box>
               }
             />

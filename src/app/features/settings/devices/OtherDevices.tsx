@@ -28,7 +28,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const authMetadata = useAuthMetadata();
   const accountManagementActions = useAccountManagementActions();
 
-  const [deleted, setDeleted] = useState(new Set());
+  const [deleted, setDeleted] = useState<Set<string>>(new Set());
 
   const handleDashboardOIDC = useCallback(() => {
     const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
@@ -77,7 +77,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const deleteDevices = useAsync(
     useCallback(
       async (authDict?: AuthDict) => {
-        await mx.deleteMultipleDevices(Array.from(deleted) as string[], authDict);
+        await mx.deleteMultipleDevices([...deleted], authDict);
       },
       [mx, deleted]
     ),

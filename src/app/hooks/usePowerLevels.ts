@@ -52,7 +52,7 @@ const fillMissingPowers = (powerLevels: IPowerLevels): IPowerLevels =>
       }
     });
     if (draftPl.notifications && typeof draftPl.notifications.room !== 'number') {
-      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room as number;
+      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room;
     }
     return draftPl;
   });
@@ -109,7 +109,7 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
           roomId &&
           event.getType() === (EventType.RoomPowerLevels as string) &&
           event.getStateKey() === '' &&
-          rooms.find((r) => r.roomId === roomId)
+          rooms.some((r) => r.roomId === roomId)
         ) {
           setRoomToPowerLevels(getRoomsPowerLevels());
         }

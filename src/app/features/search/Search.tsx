@@ -322,7 +322,7 @@ export function Search({ requestClose }: SearchProps) {
 
                       const exactParents = roomToParents.get(roomId);
                       const perfectParent =
-                        exactParents && guessPerfectParent(mx, roomId, Array.from(exactParents));
+                        exactParents && guessPerfectParent(mx, roomId, [...exactParents]);
 
                       const unread = roomToUnread.get(roomId);
 

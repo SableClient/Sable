@@ -35,7 +35,7 @@ export const makeClosedNavCategoriesAtom = (userId: string): ClosedNavCategories
       return new Set(arrayValue);
     },
     (key, value) => {
-      const arrayValue = Array.from(value);
+      const arrayValue = [...value];
       setLocalStorageItem(key, arrayValue);
     }
   );

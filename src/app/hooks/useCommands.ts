@@ -38,6 +38,7 @@ import { settingsAtom } from '$state/settings';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { createRoomEncryptionState } from '$components/create-room';
 import { parsePronounsInput } from '$utils/pronouns';
+import { extractPlainTextFromCustomHtml } from '$utils/sanitize';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { ErrorCode } from '../cs-errorcode';
@@ -139,7 +140,7 @@ export const parseTimestampFlag = (input: string): number | undefined => {
     return undefined;
   }
 
-  const value = Number.parseFloat(match[1]!); // supports decimal values
+  const value = Number.parseFloat(match[1]); // supports decimal values
   const unit = match[2];
 
   const now = Date.now(); // in milliseconds
@@ -178,13 +179,18 @@ const hslToHex = (h: number, s: number, l: number): string => {
   return `#${f(0)}${f(8)}${f(4)}`;
 };
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+const segmentText = (text: string): string[] =>
+  Array.from(graphemeSegmenter.segment(text), ({ segment }) => segment);
+
 const getAllTextNodes = (root: Node): Node[] =>
   root.nodeType === Node.TEXT_NODE
     ? [root]
-    : Array.from(root.childNodes).reduce<Node[]>(
-        (acc, child) => acc.concat(getAllTextNodes(child)),
-        []
-      );
+    : [...root.childNodes].reduce<Node[]>((acc, child) => {
+        acc.push(...getAllTextNodes(child));
+        return acc;
+      }, []);
 
 export const rainbowify = (htmlInput: string): string => {
   const div = document.createElement('div');
@@ -192,7 +198,7 @@ export const rainbowify = (htmlInput: string): string => {
   const textNodes = getAllTextNodes(div);
   const totalTextLen = textNodes.reduce((acc, node) => {
     const text = node.textContent || '';
-    const cleanLen = Array.from(text).filter((c) => c.trim().length > 0).length;
+    const cleanLen = segmentText(text).filter((c) => c.trim().length > 0).length;
     return acc + cleanLen;
   }, 0);
 
@@ -200,7 +206,7 @@ export const rainbowify = (htmlInput: string): string => {
     const text = node.textContent || '';
     if (!text.trim()) return currentGlobalIdx;
 
-    const chars = Array.from(text);
+    const chars = segmentText(text);
 
     const { html: newHtml, count: charsProcessed } = chars.reduce(
       (acc, char) => {
@@ -340,7 +346,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const userIds = rawIds.filter((id) => isUserId(id) && id !== mx.getSafeUserId());
           if (userIds.length === 0) return;
           if (userIds.length === 1) {
-            const dmRoomId = getDMRoomFor(mx, userIds[0]!)?.roomId;
+            const dmRoomId = getDMRoomFor(mx, userIds[0])?.roomId;
             if (dmRoomId) {
               navigateRoom(dmRoomId);
               return;
@@ -353,7 +359,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             preset: Preset.TrustedPrivateChat,
             initial_state: [createRoomEncryptionState()],
           });
-          addRoomIdToMDirect(mx, result.room_id, userIds[0]!);
+          addRoomIdToMDirect(mx, result.room_id, userIds[0]);
           navigateRoom(result.room_id);
         },
       },
@@ -467,7 +473,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const rawIds = splitWithSpace(payload);
           const userIds = rawIds.filter((id) => isUserId(id));
           if (userIds.length > 0) {
-            let ignoredUsers = mx.getIgnoredUsers().concat(userIds);
+            let ignoredUsers = [...mx.getIgnoredUsers(), ...userIds];
             ignoredUsers = [...new Set(ignoredUsers)];
             await mx.setIgnoredUsers(ignoredUsers);
           }
@@ -643,7 +649,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           if (newAvatar.length === 0) {
             // no avatar, reset to global
             newAvatar = profile.avatarUrl;
-          } else if (!newAvatar.match(/^mxc:\/\/\S+$/)) {
+          } else if (!/^mxc:\/\/\S+$/.test(newAvatar)) {
             // bad mxc
             return;
           }
@@ -853,7 +859,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (input === 'reset' || input === 'clear') {
@@ -940,7 +946,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (input.toLowerCase() === 'reset' || input === '') {
@@ -1084,7 +1090,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {
@@ -1371,14 +1377,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           await mx.sendMessage(room.roomId, {
             msgtype: MsgType.Text,
-            body: payload
-              .replaceAll('<br>', '\n')
-              .replaceAll('<li>', '\n- ')
-              .replaceAll(
-                /<a(.*?)href="(?<link>(.*?))"(.*?)>(?<text>(.*?))<\/a>/g,
-                '[$<text>]($<link>)'
-              )
-              .replaceAll(/<[^>]*>/g, ''),
+            body: extractPlainTextFromCustomHtml(payload),
             format: 'org.matrix.custom.html',
             formatted_body: payload,
           });

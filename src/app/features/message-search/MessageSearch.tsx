@@ -115,7 +115,7 @@ export function MessageSearch({
   const groups = useMemo(() => data?.pages.flatMap((result) => result.groups) ?? [], [data]);
   const highlights = useMemo(() => {
     const mixed = data?.pages.flatMap((result) => result.highlights);
-    return Array.from(new Set(mixed));
+    return [...new Set(mixed)];
   }, [data]);
 
   const virtualizer = useVirtualizer({

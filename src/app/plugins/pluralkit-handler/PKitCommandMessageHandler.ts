@@ -84,7 +84,7 @@ export class PKitCommandMessageHandler {
    * @async
    */
   private async memberHandler() {
-    if (this.message.match(pkMemberNewRegex)) {
+    if (pkMemberNewRegex.test(this.message)) {
       // adding a new member
       const cmdParts = pkMemberNewRegex.exec(this.message);
       if (!cmdParts) {
@@ -108,7 +108,7 @@ export class PKitCommandMessageHandler {
         this.room,
         this.mx.getSafeUserId()
       );
-    } else if (this.message.match(pkMemberRenameRegex)) {
+    } else if (pkMemberRenameRegex.test(this.message)) {
       // renaming a profile based on the name
       const cmdParts = pkMemberRenameRegex.exec(this.message);
       if (!cmdParts) {

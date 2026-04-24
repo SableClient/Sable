@@ -1,12 +1,17 @@
 // Getting a dominant color from an IMG source,
 // and darkening it a bit afterwards for contrast
-export default function bgColorImg(img) {
+export default function bgColorImg(img: HTMLImageElement): string {
   const size = 32;
   const darken = 0.8;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (!ctx) {
+    return 'rgb(0, 0, 0)';
+  }
+
   ctx.drawImage(img, 0, 0, size, size);
   const px = ctx.getImageData(0, 0, size, size).data;
 

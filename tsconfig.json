@@ -1,38 +1,13 @@
 {
-  "compilerOptions": {
-    "sourceMap": true,
-    "jsx": "react-jsx",
-    "target": "ES2022",
-    "module": "ES2022",
-    "allowJs": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitReturns": true,
-    "strictNullChecks": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "paths": {
-      "$hooks/*": ["./src/app/hooks/*"],
-      "$plugins/*": ["./src/app/plugins/*"],
-      "$components/*": ["./src/app/components/*"],
-      "$features/*": ["./src/app/features/*"],
-      "$state/*": ["./src/app/state/*"],
-      "$styles/*": ["./src/app/styles/*"],
-      "$utils/*": ["./src/app/utils/*"],
-      "$pages/*": ["./src/app/pages/*"],
-      "$types/*": ["./src/types/*"],
-      "$public/*": ["./public/*"],
-      "$client/*": ["./src/client/*"]
+  "extends": "./tsconfig.web.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.web.json"
     },
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "outDir": "dist",
-    "skipLibCheck": true,
-    "lib": ["ES2022", "DOM"]
-  },
-  "exclude": ["node_modules", "dist"],
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

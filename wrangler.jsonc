@@ -1,0 +1,9 @@
+{
+  "$schema": "https://www.unpkg.com/wrangler/config-schema.json",
+  "name": "sable",
+  "compatibility_date": "2026-03-03",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+}

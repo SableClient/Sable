@@ -135,7 +135,7 @@ async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
   const activeIds = new Set(activeClients.map((c) => c.id));
 
-  Array.from(sessions.keys()).forEach((id) => {
+  [...sessions.keys()].forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
       clientToResolve.delete(id);
@@ -166,7 +166,7 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
   }
 
   const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
+  if (typeof resolveSession === 'function') {
     resolveSession(sessions.get(clientId));
     clientToResolve.delete(clientId);
     clientToSessionPromise.delete(clientId);
@@ -378,7 +378,7 @@ async function requestDecryptionFromClient(
   const eventId = rawEvent.event_id as string;
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
+  return [...windowClients].reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;
@@ -573,7 +573,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     const { eventId } = data as { eventId?: string };
     if (typeof eventId === 'string') {
       const resolve = decryptionPendingMap.get(eventId);
-      if (resolve) {
+      if (typeof resolve === 'function') {
         decryptionPendingMap.delete(eventId);
         resolve(data as DecryptionResult);
       }

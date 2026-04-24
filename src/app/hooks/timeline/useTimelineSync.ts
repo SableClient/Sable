@@ -194,9 +194,7 @@ const useTimelinePagination = (
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
-            const checkTimeline = backwards
-              ? freshLTimelines[0]
-              : freshLTimelines[freshLTimelines.length - 1];
+            const checkTimeline = backwards ? freshLTimelines[0] : freshLTimelines.at(-1);
             if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
@@ -346,7 +344,7 @@ const useThreadUpdate = (room: Room, onUpdate: () => void) => {
   }, [room]);
 };
 
-export interface UseTimelineSyncOptions {
+export type UseTimelineSyncOptions = {
   room: Room;
   mx: MatrixClient;
   eventId?: string;
@@ -357,7 +355,7 @@ export interface UseTimelineSyncOptions {
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
   readUptoEventIdRef: React.MutableRefObject<string | undefined>;
-}
+};
 
 export function useTimelineSync({
   room,

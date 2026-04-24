@@ -4,13 +4,15 @@
   },
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "oxc.oxc-vscode",
-  "oxc.fmt.configPath": "oxfmt.config.ts",
   "oxc.typeAware": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
   "[jsonc]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[json]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }

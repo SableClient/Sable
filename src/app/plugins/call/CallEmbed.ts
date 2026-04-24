@@ -223,7 +223,7 @@ export class CallEmbed {
     this.mx.getRooms().forEach((room) => {
       // Timelines are most recent last
       const events = room.getLiveTimeline()?.getEvents() || [];
-      const roomEvent = events[events.length - 1];
+      const roomEvent = events.at(-1);
       if (!roomEvent) return; // force later code to think the room is fresh
       this.readUpToMap[room.roomId] = roomEvent.getId()!;
     });

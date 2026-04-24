@@ -40,7 +40,7 @@ export const useAdditionalCreators = (defaultCreators?: string[]) => {
     setAdditionalCreators((creators) => {
       const creatorsSet = new Set(creators);
       creatorsSet.add(userId);
-      return Array.from(creatorsSet);
+      return [...creatorsSet];
     });
   };
 
@@ -48,7 +48,7 @@ export const useAdditionalCreators = (defaultCreators?: string[]) => {
     setAdditionalCreators((creators) => {
       const creatorsSet = new Set(creators);
       creatorsSet.delete(userId);
-      return Array.from(creatorsSet);
+      return [...creatorsSet];
     });
   };
 

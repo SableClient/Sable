@@ -153,7 +153,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
   );
   if (filtered.length > 0) {
-    return filtered[filtered.length - 1]!.getId() ?? threadRootId;
+    return filtered.at(-1)?.getId() ?? threadRootId;
   }
   // Fall back to the live timeline if the Thread object hasn't been registered yet
   const liveEvents = room
@@ -165,7 +165,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
+    return liveEvents.at(-1)?.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -210,9 +210,9 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEve
 
 const log = createLogger('RoomInput');
 const debugLog = createDebugLogger('RoomInput');
-interface ReplyEventContent {
+type ReplyEventContent = {
   'm.relates_to'?: IEventRelation;
-}
+};
 
 const createUploadItemKey = () =>
   globalThis.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -547,7 +547,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (contents.length > 0) {
         const replyContent =
           plainText?.length === 0 ? getReplyContent(replyDraft, room) : undefined;
-        if (replyContent) contents[0]!['m.relates_to'] = replyContent;
+        if (replyContent) contents[0]['m.relates_to'] = replyContent;
         if (threadRootId) {
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -800,7 +800,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         mentionData.users.add(replyDraft.userId);
       }
 
-      content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      content['m.mentions'] = getMentionContent([...mentionData.users], mentionData.room);
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -1176,19 +1176,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             {uploadBoard && (
               <Scroll size="300" hideTrack visibility="Hover">
                 <UploadBoardContent>
-                  {Array.from(selectedFiles)
-                    .toReversed()
-                    .map((fileItem) => (
-                      <UploadCardRenderer
-                        key={getUploadItemKey(fileItem)}
-                        isEncrypted={!!fileItem.encInfo}
-                        fileItem={fileItem}
-                        setMetadata={handleFileMetadata}
-                        onRemove={handleRemoveUpload}
-                        setDesc={setDesc}
-                        roomId={roomId}
-                      />
-                    ))}
+                  {[...selectedFiles].toReversed().map((fileItem) => (
+                    <UploadCardRenderer
+                      key={getUploadItemKey(fileItem)}
+                      isEncrypted={!!fileItem.encInfo}
+                      fileItem={fileItem}
+                      setMetadata={handleFileMetadata}
+                      onRemove={handleRemoveUpload}
+                      setDesc={setDesc}
+                      roomId={roomId}
+                    />
+                  ))}
                 </UploadBoardContent>
               </Scroll>
             )}

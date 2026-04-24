@@ -58,7 +58,7 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
   return useMemo(() => {
     // `updateCount` is a cache-busting key for state-event driven recomputation.
     void updateCount;
-    const allParentIds = Array.from(getAllParents(roomToParents, room.roomId));
+    const allParentIds = [...getAllParents(roomToParents, room.roomId)];
     const ancestorEntries = allParentIds.flatMap((parentId) => {
       const parentRoom = mx.getRoom(parentId);
       if (!parentRoom) return [];

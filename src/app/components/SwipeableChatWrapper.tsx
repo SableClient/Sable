@@ -5,12 +5,12 @@ import { useAtomValue } from 'jotai';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 
-interface SwipeableChatWrapperProps {
+type SwipeableChatWrapperProps = {
   children: ReactNode;
   onOpenSidebar?: () => void;
   onOpenMembers?: () => void;
   onReply?: () => void;
-}
+};
 
 export function SwipeableChatWrapper({
   children,

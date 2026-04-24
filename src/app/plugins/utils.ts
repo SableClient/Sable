@@ -13,7 +13,7 @@ export const getEmoticonSearchStr: SearchItemStrGetter<PackImageReader | IEmoji>
 
   const names = [shortcode, item.label];
   if (Array.isArray(item.shortcodes)) {
-    return names.concat(item.shortcodes);
+    return [...names, ...item.shortcodes];
   }
   return names;
 };

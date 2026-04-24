@@ -198,6 +198,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
+//very loose link check with the empty text at the end to make sure it doesnt overextend
 const LINKINPUTREGEX = /<?(https?:\/\/.+?)>?( |$|\))/g;
 
 /**
@@ -319,7 +320,9 @@ export const getLinks = (editor: Editor): string[] | undefined => {
       let { text } = node;
       const urlsMatch = text.match(LINKINPUTREGEX);
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+      // clear the extra deadspace
       urls = urls?.map((url) => (url = url.replace(/(.+?)[ |)]/g, '$1')));
+      // remove previews when so wanted
       urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
       finalList = finalList.concat(urls ?? []);
       return;

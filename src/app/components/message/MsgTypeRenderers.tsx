@@ -150,10 +150,13 @@ export function MText({
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
   //small "fix" for if someone sends malformed objects (ie not arrays of objects)
-  try{
+  try {
     bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
-  }catch{ urls = [];};
+    if (renderUrlsPreview && bundleContent)
+      urls = bundleContent.map((bundle) => bundle.matched_url);
+  } catch {
+    urls = [];
+  }
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present

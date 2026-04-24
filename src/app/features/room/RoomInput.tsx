@@ -805,8 +805,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
 
-      content["com.beeper.linkpreviews"] = [];
-      links?.forEach(link => content["com.beeper.linkpreviews"].push({'matched_url': link}));
+      content['com.beeper.linkpreviews'] = [];
+      links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';

@@ -47,7 +47,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     (stateData.current === SyncState.Prepared ||
       stateData.current === SyncState.Syncing ||
       stateData.current === SyncState.Catchup) &&
-    stateData.previous !== SyncState.Syncing
+    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
   ) {
     return (
       <Box direction="Column" shrink="No">

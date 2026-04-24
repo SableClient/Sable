@@ -73,7 +73,7 @@ describe('serializeForSync', () => {
 
   it('strips all non-syncable keys from the payload', () => {
     const { settings: s } = serializeForSync(base);
-    Array.from(NON_SYNCABLE_KEYS).forEach((key) => {
+    [...NON_SYNCABLE_KEYS].forEach((key) => {
       expect(Object.hasOwn(s, key)).toBe(false);
     });
   });

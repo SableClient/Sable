@@ -233,7 +233,7 @@ function collectReplacements(sourceFile, checker) {
   }
 
   visit(sourceFile);
-  return replacements.sort((left, right) => right.start - left.start);
+  return replacements.toSorted((left, right) => right.start - left.start);
 }
 
 async function main() {
@@ -260,6 +260,7 @@ async function main() {
   const { dim, green } = createTextHelpers();
 
   const changes = [];
+  const writePromises = [];
 
   for (const sourceFile of program.getSourceFiles()) {
     const filePath = path.normalize(sourceFile.fileName);
@@ -272,7 +273,7 @@ async function main() {
     const updatedCode = applyTextReplacements(originalCode, replacements);
 
     if (write) {
-      await fs.writeFile(filePath, updatedCode, 'utf8');
+      writePromises.push(fs.writeFile(filePath, updatedCode, 'utf8'));
     }
 
     changes.push({
@@ -281,8 +282,10 @@ async function main() {
     });
   }
 
+  await Promise.all(writePromises);
+
   changes
-    .sort((left, right) => left.file.localeCompare(right.file))
+    .toSorted((left, right) => left.file.localeCompare(right.file))
     .forEach((change) => {
       console.log(
         `${dim(change.file)}: ${green(`${change.replacements} matrix import rewrite(s)`)}`

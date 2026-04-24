@@ -140,7 +140,7 @@ export const parseTimestampFlag = (input: string): number | undefined => {
     return undefined;
   }
 
-  const value = Number.parseFloat(match[1]!); // supports decimal values
+  const value = Number.parseFloat(match[1]); // supports decimal values
   const unit = match[2];
 
   const now = Date.now(); // in milliseconds
@@ -346,7 +346,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const userIds = rawIds.filter((id) => isUserId(id) && id !== mx.getSafeUserId());
           if (userIds.length === 0) return;
           if (userIds.length === 1) {
-            const dmRoomId = getDMRoomFor(mx, userIds[0]!)?.roomId;
+            const dmRoomId = getDMRoomFor(mx, userIds[0])?.roomId;
             if (dmRoomId) {
               navigateRoom(dmRoomId);
               return;
@@ -359,7 +359,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             preset: Preset.TrustedPrivateChat,
             initial_state: [createRoomEncryptionState()],
           });
-          addRoomIdToMDirect(mx, result.room_id, userIds[0]!);
+          addRoomIdToMDirect(mx, result.room_id, userIds[0]);
           navigateRoom(result.room_id);
         },
       },
@@ -859,7 +859,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (input === 'reset' || input === 'clear') {
@@ -946,7 +946,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (input.toLowerCase() === 'reset' || input === '') {
@@ -1090,7 +1090,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.SpaceParent);
 
           const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
+            parents && parents.length > 0 ? parents[0].getStateKey() : room.roomId;
 
           try {
             if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {

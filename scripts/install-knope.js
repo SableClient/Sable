@@ -182,7 +182,7 @@ const logger = new PrefixedLogger('[postinstall:knope]');
 const { dim, red, green } = createTextHelpers({ useColor: logger.useColor });
 
 if (process.env.GITHUB_ACTIONS && process.env.CI) {
-  logger.info(`${dim('Running in CI environment, skipping knope installation')}`);
+  logger.info(dim('Running in CI environment, skipping knope installation'));
   process.exit(0);
 }
 

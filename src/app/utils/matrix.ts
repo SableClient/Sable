@@ -272,7 +272,7 @@ export const addRoomIdToMDirect = async (
   // remove it from the lists of any others users
   // (it can only be a DM room for one person)
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId]!;
+    const roomIds = userIdToRoomIds[targetUserId];
 
     if (targetUserId !== userId) {
       const indexOfRoomId = roomIds.indexOf(roomId);
@@ -304,7 +304,7 @@ export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string):
     userIdToRoomIds = structuredClone(mDirectsEvent.getContent());
 
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId]!;
+    const roomIds = userIdToRoomIds[targetUserId];
     const indexOfRoomId = roomIds.indexOf(roomId);
     if (indexOfRoomId > -1) {
       roomIds.splice(indexOfRoomId, 1);
@@ -385,7 +385,7 @@ export const rateLimitedActions = async <T, R = void>(
   };
 
   for (let i = 0; i < data.length; i += 1) {
-    const dataItem = data[i]!;
+    const dataItem = data[i];
     retryCount = 0;
     // oxlint-disable-next-line no-await-in-loop
     await performAction(dataItem, i);
@@ -427,7 +427,7 @@ export const toggleReaction = (
   );
   const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
   const [, reactionsSet] = allReactions.find(([k]) => k === key) ?? [];
-  const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
+  const reactions: MatrixEvent[] = reactionsSet ? [...reactionsSet] : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
   if (myReaction && myReaction.isRelation?.()) {

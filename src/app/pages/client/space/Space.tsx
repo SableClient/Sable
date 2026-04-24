@@ -581,7 +581,7 @@ export function Space() {
         connectorStack = [{ aX: Math.round(renderDepth * PADDING_LEFT_DEPTH_OFFSET), aY: 0 }];
       }
 
-      const lastConnector = connectorStack[connectorStack.length - 1];
+      const lastConnector = connectorStack.at(-1);
       if (!lastConnector) return;
 
       // aX: numeric x where the vertical connector starts

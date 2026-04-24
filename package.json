@@ -97,6 +97,7 @@
     "workbox-precaching": "^7.4.0"
   },
   "devDependencies": {
+    "@e18e/eslint-plugin": "^0.3.0",
     "@rollup/plugin-inject": "^5.0.5",
     "@rollup/plugin-wasm": "^6.2.2",
     "@sableclient/sable-call-embedded": "v1.1.4",
@@ -118,9 +119,9 @@
     "buffer": "^6.0.3",
     "jsdom": "^29.0.0",
     "knip": "5.85.0",
-    "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0",
-    "oxlint-tsgolint": "^0.21.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "oxlint-tsgolint": "^0.21.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.3",
     "vite-plugin-compression2": "2.5.3",

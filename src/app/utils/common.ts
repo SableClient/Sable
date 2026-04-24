@@ -68,7 +68,7 @@ export const binarySearch = <T>(items: T[], match: (item: T) => -1 | 0 | 1): T |
 
     const mid = Math.floor((start + end) / 2);
 
-    const result = match(items[mid]!);
+    const result = match(items[mid]);
     if (result === 0) return items[mid];
 
     if (result === 1) return search(start, mid - 1);
@@ -106,6 +106,7 @@ export const parseGeoUri = (location: string) => {
 
 const START_SLASHES_REG = /^\/+/g;
 const END_SLASHES_REG = /\/+$/g;
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 export const trimLeadingSlash = (str: string): string => str.replace(START_SLASHES_REG, '');
 export const trimTrailingSlash = (str: string): string => str.replace(END_SLASHES_REG, '');
 
@@ -113,7 +114,9 @@ export const trimSlash = (str: string): string => trimLeadingSlash(trimTrailingS
 
 export const nameInitials = (str: string | undefined | null, len = 1): string => {
   if (!str) return '';
-  return Array.from(str).slice(0, len).join('') || '';
+  return Array.from(graphemeSegmenter.segment(str), ({ segment }) => segment)
+    .slice(0, len)
+    .join('');
 };
 
 export const randomStr = (len = 12): string => {

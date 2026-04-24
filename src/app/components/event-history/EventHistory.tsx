@@ -74,7 +74,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const spoilerClickHandler = useSpoilerClickHandler();
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
-        getReactCustomHtmlParser(mx, mEvents[0]!.getRoomId(), {
+        getReactCustomHtmlParser(mx, mEvents[0].getRoomId(), {
           settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,

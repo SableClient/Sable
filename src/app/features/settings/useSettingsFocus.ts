@@ -7,7 +7,7 @@ const getHighlightTarget = (target: HTMLElement): HTMLElement =>
   target.closest<HTMLElement>('[data-sequence-card="true"]') ?? target.parentElement ?? target;
 const getFocusTarget = (focusId: string): HTMLElement | null =>
   document.getElementById(focusId) ??
-  Array.from(document.querySelectorAll<HTMLElement>('[data-settings-focus]')).find(
+  [...document.querySelectorAll<HTMLElement>('[data-settings-focus]')].find(
     (element) => element.getAttribute('data-settings-focus') === focusId
   ) ??
   null;

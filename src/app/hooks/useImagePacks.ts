@@ -269,7 +269,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
     useCallback(
       (mEvent) => {
         if (
-          rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
+          rooms.some((room) => room.roomId === mEvent.getRoomId()) &&
           mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {

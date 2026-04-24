@@ -62,7 +62,7 @@ export function GlobalKeyboardShortcuts() {
       } else {
         const parents = roomToParents.get(roomId);
         if (parents && parents.size > 0) {
-          const spaceId = Array.from(parents)[0];
+          const spaceId = [...parents].at(0);
           if (!spaceId) {
             navigate(getHomeRoomPath(roomIdOrAliasToNav));
             return;
@@ -90,7 +90,7 @@ export function GlobalKeyboardShortcuts() {
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       unreadIndexRef.current = 0;
-      const [roomId] = unreadEntries[0]!;
+      const [roomId] = unreadEntries[0];
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
     [roomToUnread, currentRoom?.roomId, navigateToRoom]

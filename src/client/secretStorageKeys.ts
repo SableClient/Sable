@@ -3,7 +3,7 @@ import type { CryptoCallbacks } from '$types/matrix-sdk';
 const secretStorageKeys = new Map<string, Uint8Array>();
 
 export function storePrivateKey(keyId: string, privateKey: Uint8Array): void {
-  if (privateKey instanceof Uint8Array === false) {
+  if (!(privateKey instanceof Uint8Array)) {
     throw new Error('Unable to store, privateKey is invalid.');
   }
   secretStorageKeys.set(keyId, privateKey);

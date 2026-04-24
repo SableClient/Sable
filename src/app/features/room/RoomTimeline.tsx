@@ -458,7 +458,7 @@ export function RoomTimeline({
     if (!el) return () => {};
 
     const observer = new ResizeObserver((entries) => {
-      const newHeight = entries[0]!.contentRect.height;
+      const newHeight = entries[0].contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;

@@ -52,7 +52,7 @@ const fillMissingPowers = (powerLevels: IPowerLevels): IPowerLevels =>
       }
     });
     if (draftPl.notifications && typeof draftPl.notifications.room !== 'number') {
-      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room as number;
+      draftPl.notifications.room = DEFAULT_POWER_LEVELS.notifications.room;
     }
     return draftPl;
   });

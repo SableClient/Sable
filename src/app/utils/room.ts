@@ -755,7 +755,7 @@ export const guessPerfectParent = (
 
     if (typeof users === 'object')
       Object.keys(users).forEach((userId) => {
-        if (users[userId]! > defaultPower) {
+        if (users[userId] > defaultPower) {
           specialUsers.add(userId);
         }
       });

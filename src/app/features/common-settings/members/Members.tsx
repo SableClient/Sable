@@ -89,7 +89,7 @@ export function Members({ requestClose }: MembersProps) {
 
   const sortedMembers = useMemo(
     () =>
-      Array.from(members)
+      [...members]
         .filter(membershipFilter.filterFn)
         .toSorted(memberSort.sortFn)
         .sort(memberPowerSort),
@@ -296,7 +296,7 @@ export function Members({ requestClose }: MembersProps) {
                 gap="100"
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
-                  const tagOrMember = flattenTagMembers[vItem.index]!;
+                  const tagOrMember = flattenTagMembers[vItem.index];
 
                   if ('userId' in tagOrMember) {
                     const server = getMxIdServer(tagOrMember.userId);

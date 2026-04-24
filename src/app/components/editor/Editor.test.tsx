@@ -380,7 +380,7 @@ describe('CustomEditor', () => {
     let resizeObserverCallback: ResizeObserverCallback | undefined;
     const observedElements = new Set<Element>();
     const flushQueuedFrames = () => {
-      const pendingFrames = Array.from(queuedFrames.entries());
+      const pendingFrames = [...queuedFrames.entries()];
       queuedFrames.clear();
       pendingFrames.forEach(([, callback]) => {
         callback(performance.now());
@@ -421,7 +421,7 @@ describe('CustomEditor', () => {
 
     act(() => {
       resizeObserverCallback?.(
-        Array.from(observedElements).map((target) => ({ target }) as ResizeObserverEntry),
+        Array.from(observedElements, (target) => ({ target }) as ResizeObserverEntry),
         {} as ResizeObserver
       );
     });
@@ -489,7 +489,7 @@ describe('CustomEditor', () => {
     const flushQueuedFrames = () => {
       let safetyCounter = 0;
       while (queuedFrames.size > 0 && safetyCounter < 10) {
-        const pendingFrames = Array.from(queuedFrames.entries());
+        const pendingFrames = [...queuedFrames.entries()];
         queuedFrames.clear();
         pendingFrames.forEach(([, callback]) => {
           callback(performance.now());
@@ -529,7 +529,7 @@ describe('CustomEditor', () => {
 
     act(() => {
       resizeObserverCallback?.(
-        Array.from(observedElements).map((target) => ({ target }) as ResizeObserverEntry),
+        Array.from(observedElements, (target) => ({ target }) as ResizeObserverEntry),
         {} as ResizeObserver
       );
     });

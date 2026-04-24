@@ -197,7 +197,7 @@ const parseSettingsLinkQuery = (
   const params = new URLSearchParams(search);
 
   if (
-    Array.from(params.entries()).some(
+    [...params.entries()].some(
       ([key, value]) =>
         SETTINGS_LINK_FORBIDDEN_QUERY_VALUE_PATTERN.test(key) ||
         SETTINGS_LINK_FORBIDDEN_QUERY_VALUE_PATTERN.test(value)

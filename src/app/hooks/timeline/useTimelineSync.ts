@@ -194,9 +194,7 @@ const useTimelinePagination = (
           const fetched = countAfter - countBefore;
 
           if (fetched > 0 && fetched < 5) {
-            const checkTimeline = backwards
-              ? freshLTimelines[0]
-              : freshLTimelines[freshLTimelines.length - 1];
+            const checkTimeline = backwards ? freshLTimelines[0] : freshLTimelines.at(-1);
             if (!checkTimeline) return;
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =

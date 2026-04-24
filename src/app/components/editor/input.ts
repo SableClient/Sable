@@ -227,7 +227,7 @@ const parseCodeBlockNode = (node: Element): CodeBlockElement[] | ParagraphElemen
       type: BlockType.Paragraph,
       children: [{ text }],
     }));
-    const childCode = node.children[0]!;
+    const childCode = node.children[0];
     const className =
       isTag(childCode) && childCode.tagName === 'code' ? (childCode.attribs.class ?? '') : '';
     const prefix = { text: `${mdSequence}${className.replace('language-', '')}` };
@@ -329,7 +329,7 @@ const parseHeadingNode = (
 
   const headingMatch = node.name.match(/^h([123456])$/);
   const [, g1AsLevel] = headingMatch ?? ['h3', '3'];
-  const level = Number.parseInt(g1AsLevel!, 10);
+  const level = Number.parseInt(g1AsLevel, 10);
 
   const mdSequence = node.attribs['data-md'];
   if (mdSequence !== undefined) {

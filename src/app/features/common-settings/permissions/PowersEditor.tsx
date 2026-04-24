@@ -437,7 +437,7 @@ export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEdito
                   )}
                 </SequenceCard>
                 {getPowers(powerTags).map((power) => {
-                  const tag = powerTags[power]!;
+                  const tag = powerTags[power];
                   const tagIconSrc =
                     tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 

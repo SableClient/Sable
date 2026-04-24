@@ -219,9 +219,7 @@ export const toPlainText = (
   if (Text.isText(node)) {
     let { text } = node;
     text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
-    text = text.replace(LINKINPUTREGEX, '$1$2');
-    // oxlint-disable-next-line no-console
-    console.log(text.match(LINKINPUTREGEX), text);
+    text = text.replaceAll(LINKINPUTREGEX, '$1$2');
 
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
@@ -314,17 +312,21 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
   return mentionData;
 };
 
-/**
- * get the mentions in a message
- * @param mx the matrix client
- * @param roomId the room id we will send the message in
- * @param editor the slate editor
- * @returns the mentions in a message {@link MentionsData}
- */
-export const getLinks = (plaintext: string): string[] | undefined => {
-  const urlsMatch = plaintext.match(LINKINPUTREGEX);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
-
-  return urls;
+export const getLinks = (editor: Editor): string[] | undefined => {
+  let finalList: string[] = [];
+  const parseLinks = (node: Descendant): void => {
+    if (Text.isText(node)) {
+      let { text } = node;
+      const urlsMatch = text.match(LINKINPUTREGEX);
+      let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+      urls = urls?.map((url) => (url = url.replace(/(.+?) /g, '$1')));
+      urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
+      finalList = finalList.concat(urls ?? []);
+      return;
+    }
+    if (node.type === BlockType.CodeBlock) return;
+    node?.children?.forEach(parseLinks);
+  };
+  editor.children.forEach(parseLinks);
+  return finalList;
 };

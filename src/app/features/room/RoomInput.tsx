@@ -59,6 +59,7 @@ import {
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
+  getLinks,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -729,6 +730,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
 
       let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
+      const links = getLinks(plainText);
+
       /**
        * the html we will send
        */
@@ -801,6 +804,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      
+      content["com.beeper.linkpreviews"] = [];
+      links?.forEach(link => content["com.beeper.linkpreviews"].push({'matched_url': link}));
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';

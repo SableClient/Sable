@@ -149,8 +149,10 @@ export function MText({
   const urlsMatch = trimmedBody.match(URL_REG);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-  if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
+  if(bundleContent?.length > 0){
+    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+    if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
+  }
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present

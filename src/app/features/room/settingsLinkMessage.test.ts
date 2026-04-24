@@ -160,7 +160,7 @@ describe('settingsLinkMessage', () => {
       true
     );
 
-    expect(toPlainText(rewritten, true).trim()).toBe(`<${settingsUrl}>`);
+    expect(toPlainText(rewritten, true).trim()).toBe(settingsUrl);
   });
 
   it('does not rewrite settings links inside literal html text', () => {

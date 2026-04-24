@@ -715,6 +715,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         });
       }
+      const links = getLinks(editor);
       /**
        * the plain text we will send
        */
@@ -730,7 +731,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
 
       let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
-      const links = getLinks(editor);
 
       /**
        * the html we will send

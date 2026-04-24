@@ -97,24 +97,14 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
     if (response) {
       const s = await response.json();
 
-      // Reject persisted sessions older than 24 hours. Matrix access tokens are
-      // long-lived and are only invalidated on explicit logout or device revocation —
-      // not by the passage of time. A short TTL (e.g. 60 s) was too aggressive: it
-      // caused the SW to show generic "New Message" notifications whenever the app
-      // was backgrounded for more than a minute, because the cached session was
-      // rejected and requestSession had no live window client to reach.
-      // If the token truly is revoked the fetches in handleMinimalPushPayload will
-      // receive a 401 and gracefully fall back to a generic notification anyway.
-      const age = typeof s.persistedAt === 'number' ? Date.now() - s.persistedAt : Infinity;
-      const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-      if (age > MAX_SESSION_AGE_MS) {
-        console.debug('[SW] loadPersistedSession: session expired', {
-          age,
-          accessToken: s.accessToken.slice(0, 8),
-        });
-        return undefined;
-      }
-
+      // Matrix access tokens are long-lived and are only invalidated on explicit
+      // logout or device revocation — not by the passage of time. If the token truly
+      // is revoked the fetches in handleMinimalPushPayload will receive a 401 and
+      // gracefully fall back to a generic notification anyway. We intentionally do
+      // NOT apply a TTL here: sessions without a persistedAt field (stored before
+      // that field was added) would get age=Infinity and be incorrectly rejected,
+      // showing "New Message" for users who hadn't opened the app since the SW
+      // was last updated.
       return {
         accessToken: s.accessToken,
         baseUrl: s.baseUrl,
@@ -976,7 +966,17 @@ const onPushNotification = async (event: PushEvent) => {
     return;
   }
 
-  const pushData = event.data.json();
+  let pushData: any;
+  try {
+    pushData = event.data.json();
+  } catch (err) {
+    console.error('[SW push] failed to parse push payload:', err);
+    await self.registration.showNotification('New Message', {
+      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+    } as NotificationOptions);
+    return;
+  }
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   try {

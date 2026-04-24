@@ -313,7 +313,7 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
   return mentionData;
 };
 
-export const getLinks = (editor: Editor): string[] | undefined => {
+export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
   let finalList: string[] = [];
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
@@ -330,6 +330,7 @@ export const getLinks = (editor: Editor): string[] | undefined => {
     if (node.type === BlockType.CodeBlock) return;
     node?.children?.forEach(parseLinks);
   };
-  editor.children.forEach(parseLinks);
+  if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));
+  else parseLinks(serialized);
   return finalList;
 };

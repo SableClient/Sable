@@ -715,7 +715,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
         });
       }
-      const links = getLinks(editor);
       /**
        * the plain text we will send
        */
@@ -805,6 +804,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
 
+      const links = getLinks(serializedChildren);
       content['com.beeper.linkpreviews'] = [];
       links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 

@@ -36,7 +36,6 @@ import {
   useEditor,
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  getLinks,
 } from '$components/editor';
 import { useSetting } from '$state/hooks/settings';
 import { CaptionPosition, settingsAtom } from '$state/settings';
@@ -213,7 +212,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         newContent['m.mentions'] = mMentions;
         contentBody['m.mentions'] = mMentions;
 
-        const links = getLinks(editor);
+        // const links = getLinks(serialized);
 
         if (!customHtmlEqualsPlainText(customHtml, plainText)) {
           newContent.format = 'org.matrix.custom.html';
@@ -250,7 +249,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           }
         }
         content['com.beeper.linkpreviews'] = [];
-        links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+        // links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

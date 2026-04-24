@@ -33,8 +33,6 @@ const LeveledRules = [
  */
 export const parseInlineMD: InlineMDParser = (text) => {
   if (text === '') return text;
-  // oxlint-disable-next-line no-console
-  console.log(text);
   let result: string | undefined;
   if (!result) result = runInlineRule(text, CodeRule, parseInlineMD);
 

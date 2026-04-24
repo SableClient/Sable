@@ -314,8 +314,7 @@ export const buildSettingsLink = (
   baseUrl: string,
   section: SettingsSectionId,
   focus?: string
-): string =>
-  `<${withOriginBaseUrl(baseUrl, withSettingsLinkAction(getSettingsPath(section, focus)))}>`;
+): string => withOriginBaseUrl(baseUrl, withSettingsLinkAction(getSettingsPath(section, focus)));
 
 const humanizeSettingsLinkPart = (value: string): string =>
   value

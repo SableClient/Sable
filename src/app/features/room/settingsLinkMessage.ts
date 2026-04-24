@@ -94,7 +94,6 @@ const getRewritableSettingsLinkMatches = (
   if (matches.length === 0) return [];
 
   const codeSpanRanges = isMarkdown ? getMarkdownCodeSpanRanges(text) : [];
-
   return matches.flatMap((match) => {
     const href = match.value;
     const settingsLink = parseSettingsLink(baseUrl, href);

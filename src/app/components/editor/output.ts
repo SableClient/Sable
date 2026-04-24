@@ -198,7 +198,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
-const LINKINPUTREGEX = /<?(https?:\/\/.+?)>?( |$)/g;
+const LINKINPUTREGEX = /<?(https?:\/\/.+?)>?( |$|\))/g;
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -319,7 +319,7 @@ export const getLinks = (editor: Editor): string[] | undefined => {
       let { text } = node;
       const urlsMatch = text.match(LINKINPUTREGEX);
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-      urls = urls?.map((url) => (url = url.replace(/(.+?) /g, '$1')));
+      urls = urls?.map((url) => (url = url.replace(/(.+?)[ |)]/g, '$1')));
       urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
       finalList = finalList.concat(urls ?? []);
       return;

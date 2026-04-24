@@ -108,13 +108,17 @@ export const SpoilerRule: InlineMDRule = {
 };
 
 const LINK_ALT = `\\[${MIN_ANY}\\]`;
-const LINK_URL = `\\((&lt;)?(https?:\\/\\/.+?)(&gt;)?\\)`;
+const LINK_URL = `\\(((&lt;)?https?:\\/\\/.+?(&gt;)?)\\)`;
 const LINK_REG_1 = new RegExp(`${LINK_ALT}${LINK_URL}`);
 export const LinkRule: InlineMDRule = {
   match: (text) => text.match(LINK_REG_1),
   html: (parse, match) => {
-    const [, g1, g2] = match;
+    let [, g1, g2] = match;
     if (!g1 || !g2) return '';
+
+    if (g2.startsWith('&lt;')) g2 = g2.substring(4);
+    if (g2.endsWith('&gt;')) g2 = g2.substring(0, g2.length - 4);
+
     return `<a data-md href="${g2}">${parse(g1)}</a>`;
   },
 };

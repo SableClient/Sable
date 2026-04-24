@@ -942,23 +942,27 @@ const onPushNotification = async (event: PushEvent) => {
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
   //
-  // When clients.matchAll() returns ≥1 client, trust its visibilityState
-  // directly.  iOS can suspend the JS thread before postMessage({ visible:
-  // false }) is processed, leaving appIsVisible stuck at true.  matchAll()
-  // still reports the backgrounded client as 'hidden', so it is the
-  // authoritative and most reliable signal.
+  // Require BOTH visibilityState === 'visible' AND focused === true.
+  // On iOS PWA, visibilityState can get stuck at 'visible' after the user opens
+  // the app via a notification tap and then backgrounds it again — the
+  // visibilitychange event doesn't always fire reliably on iOS.  The focused
+  // property updates immediately when the user presses the home button (the
+  // window loses OS focus before visibilitychange fires), so it is the
+  // authoritative signal for "user is actually looking at the app right now".
   //
-  // When matchAll() returns zero clients (a separate iOS Safari PWA quirk),
-  // visibility is unknowable — do NOT suppress.  Better to show a duplicate
-  // (handled gracefully by the in-app banner) than to silently drop a
-  // notification while the app is backgrounded.
+  // When matchAll() returns zero clients (iOS Safari PWA quirk where the app
+  // is fully suspended), visibility is unknowable — do NOT suppress.  Better
+  // to show a duplicate (handled gracefully by the in-app banner) than to
+  // silently drop a notification while the app is backgrounded.
   const hasVisibleClient =
-    clients.length > 0 ? clients.some((client) => client.visibilityState === 'visible') : false;
+    clients.length > 0
+      ? clients.some((client) => client.visibilityState === 'visible' && client.focused)
+      : false;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
     '| clients:',
-    clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
+    clients.map((c) => ({ url: c.url, visibility: c.visibilityState, focused: c.focused }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {

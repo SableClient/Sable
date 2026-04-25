@@ -199,7 +199,8 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
 //very loose link check with the empty text at the end to make sure it doesnt overextend
-const LINKINPUTREGEX = /<?(https?:\/\/.+?)>?( |$|\))/g;
+const LINKINPUTREGEX = /(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)/g;
+const SPOILEREDLINKINPUTREGEX = /<(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)>/g;
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -219,8 +220,10 @@ export const toPlainText = (
     return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
     let { text } = node;
+    // oxlint-disable-next-line no-console
+    console.log('text: ', text);
     text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
-    text = text.replaceAll(LINKINPUTREGEX, '$1$2');
+    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
 
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
@@ -320,10 +323,11 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
       let { text } = node;
       const urlsMatch = text.match(LINKINPUTREGEX);
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-      // clear the extra deadspace
-      urls = urls?.map((url) => (url = url.replace(/(.+?)[ |)]/g, '$1')));
+      const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
+      let spoileredUrls = spoileredUrlsMatch ? [...new Set(spoileredUrlsMatch)] : undefined;
+
       // remove previews when so wanted
-      urls = urls?.filter((url) => !(url.startsWith('<') && url.endsWith('>')));
+      urls = urls?.filter((url) => !spoileredUrls?.includes(url));
       finalList = finalList.concat(urls ?? []);
       return;
     }

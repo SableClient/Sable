@@ -59,6 +59,7 @@ import {
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
+  getLinks,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -803,27 +804,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
 
-      /*const links = getLinks(serializedChildren);
+      const links = getLinks(serializedChildren);
       content['com.beeper.linkpreviews'] = [];
       links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
-*/
-      /* const settingsUrl = "https://aa.png";
-const rewritten = rewriteSettingsLinksInDescendants(
-      [
-        {
-          type: BlockType.Paragraph,
-          children: [{ text: `<a href="${settingsUrl}">Settings</a>` }],
-        },
-      ],
-      settingsUrl,
-      true
-    ); 
-
-    // oxlint-disable-next-line no-console
-    console.log((`<a href="${settingsUrl}">Settings</a>`), '→' ,(toPlainText(rewritten, true).trim()), '=',
-     `<a href="${settingsUrl}">Settings</a>` === (toPlainText(rewritten, true).trim()) );
-
-     */
+     
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';

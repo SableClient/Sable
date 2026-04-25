@@ -220,8 +220,7 @@ export const toPlainText = (
     return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
     let { text } = node;
-    // oxlint-disable-next-line no-console
-    console.log('text: ', text);
+
     text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
     text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
 
@@ -321,12 +320,15 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
       let { text } = node;
+      // get a list of all the urls and of the ones that are spoilered,
+      // truncate the spoilered ones of their <> and then remove the items that are present in both lists
       const urlsMatch = text.match(LINKINPUTREGEX);
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+
       const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
       let spoileredUrls = spoileredUrlsMatch ? [...new Set(spoileredUrlsMatch)] : undefined;
+      spoileredUrls = spoileredUrls?.map((spoileredUrl) => spoileredUrl.slice(1, -1));
 
-      // remove previews when so wanted
       urls = urls?.filter((url) => !spoileredUrls?.includes(url));
       finalList = finalList.concat(urls ?? []);
       return;

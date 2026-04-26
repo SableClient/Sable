@@ -1,4 +1,5 @@
-import { MatrixClient, SyncState } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { SyncState } from '$types/matrix-sdk';
 import { useCallback, useState } from 'react';
 import { Box, config, Line, Text } from 'folds';
 import * as Sentry from '@sentry/react';
@@ -47,7 +48,7 @@ export function SyncStatus({ mx }: SyncStatusProps) {
     (stateData.current === SyncState.Prepared ||
       stateData.current === SyncState.Syncing ||
       stateData.current === SyncState.Catchup) &&
-    (stateData.previous === SyncState.Reconnecting || stateData.previous === SyncState.Error)
+    stateData.previous !== SyncState.Syncing
   ) {
     return (
       <Box direction="Column" shrink="No">

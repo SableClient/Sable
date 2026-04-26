@@ -122,7 +122,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
       const markHiddenLinks = (original: string, isHTML?: boolean) => {
         if (!bundleContent) return original;
-        const splitBody = original.split(isHTML ? /(?=^.+<)|(?=<a.+a>)|^<.+$/g : /(?=[ |\n|(|)])/g);
+        const splitBody = original.split(isHTML ? /(?=^.+<)|(?=<a.+)|(?<=\/a>)/g : /(?=[ \n()])/g);
         let newBody = '';
         splitBody.map((s) => {
           if (s.length < 5) {

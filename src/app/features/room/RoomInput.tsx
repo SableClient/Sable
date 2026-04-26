@@ -807,7 +807,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const links = getLinks(serializedChildren);
       content['com.beeper.linkpreviews'] = [];
       links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
-     
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';

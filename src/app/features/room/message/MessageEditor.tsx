@@ -36,6 +36,8 @@ import {
   useEditor,
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
+  getLinks,
+  LINKINPUTREGEX,
 } from '$components/editor';
 import { useSetting } from '$state/hooks/settings';
 import { CaptionPosition, settingsAtom } from '$state/settings';
@@ -56,6 +58,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { GetContentCallback } from '$types/matrix/room';
 import { sanitizeText } from '$utils/sanitize';
+import type { BundleContent } from '$components/message';
 
 type MessageEditorProps = {
   roomId: string;
@@ -116,9 +119,31 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         );
       }
 
+      const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+      const markHiddenLinks = (original: string, isHTML?: boolean) => {
+        if (!bundleContent) return original;
+        const splitBody = original.split(isHTML ? /(?=^.+<)|(?=<a.+a>)|^<.+$/g : /(?=[ |\n|(|)])/g);
+        let newBody = '';
+        splitBody.map((s) => {
+          if (s.length < 5) {
+            newBody += s;
+            return;
+          }
+          const strippedS = s.substring(1);
+          const isHidden =
+            (bundleContent?.length === 0 ||
+              bundleContent.filter((b) => b.matched_url !== strippedS).length > 0) &&
+            strippedS.match(LINKINPUTREGEX) !== null;
+          newBody += `${isHidden ? (isHTML && `&lt;${s[0]}`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+        });
+        // oxlint-disable-next-line no-console
+        console.log(bundleContent, original, newBody, splitBody);
+        return newBody;
+      };
+
       return [
-        typeof body === 'string' ? body : undefined,
-        typeof customHtml === 'string' ? customHtml : undefined,
+        typeof body === 'string' ? markHiddenLinks(body) : undefined,
+        typeof customHtml === 'string' ? markHiddenLinks(customHtml, true) : undefined,
         mMentions,
       ];
     }, [room, mEvent]);
@@ -212,7 +237,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         newContent['m.mentions'] = mMentions;
         contentBody['m.mentions'] = mMentions;
 
-        // const links = getLinks(serialized);
+        const links = getLinks(editor.children);
 
         if (!customHtmlEqualsPlainText(customHtml, plainText)) {
           newContent.format = 'org.matrix.custom.html';
@@ -249,7 +274,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           }
         }
         content['com.beeper.linkpreviews'] = [];
-        // links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+        links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

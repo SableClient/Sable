@@ -132,12 +132,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           const strippedS = s.substring(1);
           const isHidden =
             (bundleContent?.length === 0 ||
-              bundleContent.filter((b) => b.matched_url !== strippedS).length > 0) &&
+              bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
             strippedS.match(LINKINPUTREGEX) !== null;
-          newBody += `${isHidden ? (isHTML && `&lt;${s[0]}`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+            newBody += `${isHidden ? (isHTML && `&lt;${s[0]}`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
         });
-        // oxlint-disable-next-line no-console
-        console.log(bundleContent, original, newBody, splitBody);
         return newBody;
       };
 
@@ -275,6 +273,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         }
         content['com.beeper.linkpreviews'] = [];
         links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+        content['m.new_content']['com.beeper.linkpreviews'] = content['com.beeper.linkpreviews'];
+        // oxlint-disable-next-line no-console
+        console.log(content, links);
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

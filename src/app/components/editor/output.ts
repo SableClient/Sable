@@ -201,6 +201,8 @@ const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
 //very loose link check with the empty text at the end to make sure it doesnt overextend
 export const LINKINPUTREGEX = /\(?(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)\)?/g;
 const SPOILEREDLINKINPUTREGEX = /<(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)>/g;
+const MASKEDSPOILEREDLINKINPUTREGEX =
+  /<\[.+\]\((https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)\)>/g;
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -324,13 +326,37 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
       // truncate the spoilered ones of their <> and then remove the items that are present in both lists
       const urlsMatch = text.match(LINKINPUTREGEX);
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-      urls = urls?.map((url) =>
-        url.startsWith('(') && url.endsWith(')') ? url.substring(1, url.length - 1) : url
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
       );
       const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
       let spoileredUrls = spoileredUrlsMatch ? [...new Set(spoileredUrlsMatch)] : undefined;
       spoileredUrls = spoileredUrls?.map((spoileredUrl) => spoileredUrl.slice(1, -1));
 
+      const maskedSpoileredUrlsMatch = text.match(MASKEDSPOILEREDLINKINPUTREGEX);
+      let maskedSpoileredUrls = maskedSpoileredUrlsMatch
+        ? [...new Set(maskedSpoileredUrlsMatch)]
+        : undefined;
+      maskedSpoileredUrls = maskedSpoileredUrls?.map((maskedSpoileredUrl) =>
+        maskedSpoileredUrl?.substring(
+          maskedSpoileredUrl.indexOf('](') + 2,
+          maskedSpoileredUrl.lastIndexOf(')')
+        )
+      );
+      if (maskedSpoileredUrls)
+        spoileredUrls = spoileredUrls
+          ? [...spoileredUrls, ...maskedSpoileredUrls]
+          : maskedSpoileredUrls;
+
+      spoileredUrls = spoileredUrls?.filter(
+        (item, index) => spoileredUrls?.indexOf(item) === index
+      );
+      // oxlint-disable-next-line no-console
+      console.log(maskedSpoileredUrlsMatch, maskedSpoileredUrls, spoileredUrls);
       urls = urls?.filter((url) => !spoileredUrls?.includes(url));
       finalList = finalList.concat(urls ?? []);
       return;
@@ -340,5 +366,5 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
   };
   if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));
   else parseLinks(serialized);
-  return finalList;
+  return finalList.filter((item, index) => finalList.indexOf(item) === index);
 };

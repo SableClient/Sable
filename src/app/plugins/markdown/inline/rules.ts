@@ -109,11 +109,11 @@ export const SpoilerRule: InlineMDRule = {
 
 const LINK_ALT = `\\[${MIN_ANY}\\]`;
 const LINK_URL = `\\(((&lt;)?https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)(&gt;)?\\)`;
-const LINK_REG_1 = new RegExp(`${LINK_ALT}${LINK_URL}`);
+const LINK_REG_1 = new RegExp(`(&lt;)?${LINK_ALT}${LINK_URL}(&gt;)?`);
 export const LinkRule: InlineMDRule = {
   match: (text) => text.match(LINK_REG_1),
   html: (parse, match) => {
-    let [, g1, g2] = match;
+    let [, , g1, g2] = match;
     if (!g1 || !g2) return '';
     if (g2.startsWith('&lt;') && g2.endsWith('&gt;'))
       return `<a data-md href="${g2.substring(4, g2.lastIndexOf('&gt;'))}">${parse(g1)}</a>`;

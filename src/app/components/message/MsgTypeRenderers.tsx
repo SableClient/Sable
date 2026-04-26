@@ -149,9 +149,13 @@ export function MText({
   let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map((url) =>
-    url.startsWith('(') && url.endsWith(')') ? url.substring(1, url.length - 1) : url
-  );
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
+      );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
   //small "fix" for if someone sends malformed objects (ie not arrays of objects)
   try {
@@ -246,9 +250,13 @@ export function MEmote({
   let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map((url) =>
-    url.startsWith('(') && url.endsWith(')') ? url.substring(1, url.length - 1) : url
-  );
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
+      );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
   //small "fix" for if someone sends malformed objects (ie not arrays of objects)
   try {
@@ -308,9 +316,13 @@ export function MNotice({
   let bundleContent: BundleContent[] | undefined;
   const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map((url) =>
-    url.startsWith('(') && url.endsWith(')') ? url.substring(1, url.length - 1) : url
-  );
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
+      );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
   //small "fix" for if someone sends malformed objects (ie not arrays of objects)
   try {

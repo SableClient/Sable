@@ -26,6 +26,7 @@ import {
   getMemberDisplayName,
   getNotificationType,
   getStateEvent,
+  getRoomDisplayName,
   isNotificationEvent,
   getMDirects,
   isDMRoom,
@@ -35,6 +36,7 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import LogoSVG from '$public/res/svg/cinny-logo.svg';
 import { nicknamesAtom } from '$state/nicknames';
+import { activeRoomIdAtom } from '$state/room/activeRoomId';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -110,8 +112,11 @@ export function BackgroundNotifications() {
   );
   const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
   const nicknames = useAtomValue(nicknamesAtom);
+  const activeRoomId = useAtomValue(activeRoomIdAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
+  const activeRoomIdRef = useRef(activeRoomId);
+  activeRoomIdRef.current = activeRoomId;
   // Refs so handleTimeline callbacks always read current settings without stale closures
   const showNotificationsRef = useRef(showNotifications);
   showNotificationsRef.current = showNotifications;
@@ -323,7 +328,7 @@ export function BackgroundNotifications() {
               return;
             }
 
-            if (!isNotificationEvent(mEvent)) {
+            if (!isNotificationEvent(mEvent, room, mx.getUserId() ?? undefined)) {
               return;
             }
 
@@ -414,6 +419,10 @@ export function BackgroundNotifications() {
 
             const isEncryptedRoom = !!getStateEvent(room, StateEvent.RoomEncryption);
 
+            // After decryption, getType() still returns the wire type (m.room.encrypted).
+            // Use the effective event type to get the decrypted type when available.
+            const effectiveEventType = mEvent.getEffectiveEvent()?.type ?? mEvent.getType();
+
             notifiedEventsRef.current.add(dedupeId);
             // Cap the set so it doesn't grow unbounded
             if (notifiedEventsRef.current.size > 200) {
@@ -422,13 +431,13 @@ export function BackgroundNotifications() {
             }
 
             const notificationPayload = buildRoomMessageNotification({
-              roomName: room.name ?? room.getCanonicalAlias() ?? room.roomId,
+              roomName: getRoomDisplayName(room),
               roomAvatar,
               username: senderName,
               recipientId: session.userId,
               previewText: resolveNotificationPreviewText({
                 content: mEvent.getContent(),
-                eventType: mEvent.getType(),
+                eventType: effectiveEventType,
                 isEncryptedRoom,
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,
@@ -451,6 +460,17 @@ export function BackgroundNotifications() {
               setPending({ roomId: room.roomId, eventId, targetSessionId: session.userId });
             };
 
+            // Skip notifications entirely when the active session is viewing
+            // this exact room and the window has focus — the user is already
+            // looking at the messages.
+            if (room.roomId === activeRoomIdRef.current && document.hasFocus()) {
+              debugLog.debug('notification', 'Skipping notification — room is active', {
+                roomId: room.roomId,
+                eventId,
+              });
+              return;
+            }
+
             // Show in-app banner when app is visible, mobile, and in-app notifications enabled
             const canShowInAppBanner =
               document.visibilityState === 'visible' &&
@@ -467,7 +487,7 @@ export function BackgroundNotifications() {
               setInAppBannerRef.current({
                 id: dedupeId,
                 title: notificationPayload.title,
-                roomName: room.name ?? room.getCanonicalAlias() ?? undefined,
+                roomName: getRoomDisplayName(room),
                 senderName,
                 body: notificationPayload.options.body,
                 icon: notificationPayload.options.icon,

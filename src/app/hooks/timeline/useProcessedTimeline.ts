@@ -21,7 +21,6 @@ export interface UseProcessedTimelineOptions {
   isReadOnly: boolean;
   hideMemberInReadOnly: boolean;
   /**
-  /**
    * When true, skip the filter that removes events whose `threadRootId` points
    * to a different event.  Required when processing a thread's own timeline
    * where every reply legitimately has `threadRootId` set to the root.
@@ -34,13 +33,14 @@ export interface UseProcessedTimelineOptions {
    * components re-render to reflect updated content.  When unchanged (e.g. a
    * new event was appended), existing objects are reused by identity, letting
    * memo bail out for unchanged items.
-   *
-   * Optional — defaults to 0 (stable refs always applied after first render).
-   * Call sites that do NOT use `React.memo` item components (e.g. `ThreadDrawer`)
-   * can omit this; the SDK mutates `mEvent` in place so rendered content stays
-   * correct regardless of object identity.
    */
-  mutationVersion?: number;
+  mutationVersion: number;
+  /**
+   * Minutes of inactivity before a new message from the same sender gets a
+   * full user header. Defaults to 2 (the original behaviour). Set higher
+   * (e.g. 15) for Discord-style compact grouping.
+   */
+  messageGroupingThreshold?: number;
 }
 
 export interface ProcessedEvent {
@@ -77,7 +77,8 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
-  mutationVersion = 0,
+  mutationVersion,
+  messageGroupingThreshold = 2,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   // Stable-ref cache: reuse the same ProcessedEvent object for an event when
   // nothing structural changed. This lets React.memo on item components bail
@@ -93,7 +94,6 @@ export function useProcessedTimeline({
     const isMutation = mutationVersion !== prevMutationVersionRef.current;
     prevMutationVersionRef.current = mutationVersion;
     const prevCache = isMutation ? null : stableRefsCache.current;
-    const seenRenderedEventIds = new Set<string>();
 
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
@@ -135,6 +135,19 @@ export function useProcessedTimeline({
         if (!membershipChanged && hideNickAvatarEvents) return acc;
       }
 
+      // Poll response and end events are always filtered — they update the poll tally
+      // via RoomEvent.Timeline listeners in PollEvent and must never render as timeline items.
+      // Also check the effective (decrypted) type for encrypted events that have been decrypted.
+      const effectiveType =
+        type === 'm.room.encrypted' ? (mEvent.getEffectiveEvent()?.type ?? type) : type;
+      if (
+        effectiveType === 'org.matrix.msc3381.poll.response' ||
+        effectiveType === 'org.matrix.msc3381.poll.end' ||
+        effectiveType === 'm.poll.response' ||
+        effectiveType === 'm.poll.end'
+      )
+        return acc;
+
       if (!showHiddenEvents) {
         const isStandardRendered = [
           'm.room.message',
@@ -145,6 +158,8 @@ export function useProcessedTimeline({
           'm.room.topic',
           'm.room.avatar',
           'org.matrix.msc3401.call.member',
+          'org.matrix.msc3381.poll.start',
+          'm.poll.start',
         ].includes(type);
 
         if (!isStandardRendered) {
@@ -158,13 +173,6 @@ export function useProcessedTimeline({
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;
-
-      // Sliding-sync timeline resets and overlapping linked timelines can
-      // transiently surface the same event twice. Rendering duplicate event IDs
-      // causes unstable React keys and visible timeline artifacts, so keep the
-      // first visible occurrence only.
-      if (seenRenderedEventIds.has(mEventId)) return acc;
-      seenRenderedEventIds.add(mEventId);
 
       if (!newDivider && readUptoEventId) {
         const prevId = prevEvent ? prevEvent.getId() : undefined;
@@ -183,7 +191,8 @@ export function useProcessedTimeline({
 
         if (isMessageEvent) {
           const withinTimeThreshold =
-            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) < 2;
+            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) <
+            messageGroupingThreshold;
           const senderMatch = getPrevSender.call(prevEvent) === eventSender;
           const typeMatch =
             normalizeMessageType(getPrevType.call(prevEvent)) === normalizeMessageType(type);
@@ -219,15 +228,9 @@ export function useProcessedTimeline({
 
       // Reuse the previous ProcessedEvent object if all structural fields match,
       // so that React.memo on timeline item components can bail out cheaply.
-      // itemIndex must also be equal: after back-pagination the same eventId
-      // shifts to a higher VList index, so a stale itemIndex would break
-      // getRawIndexToProcessedIndex and focus-highlight comparisons.
       const prev = prevCache?.get(mEventId);
       const stable =
         prev &&
-        prev.mEvent === mEvent &&
-        prev.timelineSet === timelineSet &&
-        prev.itemIndex === processed.itemIndex &&
         prev.collapsed === collapsed &&
         prev.willRenderNewDivider === willRenderNewDivider &&
         prev.willRenderDayDivider === willRenderDayDivider &&
@@ -250,6 +253,7 @@ export function useProcessedTimeline({
     items,
     linkedTimelines,
     mutationVersion,
+    messageGroupingThreshold,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,

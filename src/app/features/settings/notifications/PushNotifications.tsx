@@ -69,12 +69,14 @@ export async function enablePushNotifications(
       },
       append: false,
     };
-    navigator.serviceWorker.controller?.postMessage({
+    const toggleMsg = {
       url: mx.baseUrl,
       type: 'togglePush',
       pusherData,
       token: mx.getAccessToken(),
-    });
+    };
+    navigator.serviceWorker.controller?.postMessage(toggleMsg);
+    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(toggleMsg));
     return;
   }
 
@@ -118,12 +120,9 @@ export async function enablePushNotifications(
     append: false,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
-    url: mx.baseUrl,
-    type: 'togglePush',
-    pusherData,
-    token: mx.getAccessToken(),
-  });
+  const enableMsg = { url: mx.baseUrl, type: 'togglePush', pusherData, token: mx.getAccessToken() };
+  navigator.serviceWorker.controller?.postMessage(enableMsg);
+  navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(enableMsg));
 }
 
 /**
@@ -144,12 +143,14 @@ export async function disablePushNotifications(
     pushkey: pushSubAtom?.keys?.p256dh,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
+  const disableMsg = {
     url: mx.baseUrl,
     type: 'togglePush',
     pusherData,
     token: mx.getAccessToken(),
-  });
+  };
+  navigator.serviceWorker.controller?.postMessage(disableMsg);
+  navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(disableMsg));
 }
 
 export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {

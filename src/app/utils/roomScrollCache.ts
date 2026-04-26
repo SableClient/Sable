@@ -31,6 +31,7 @@ export type RoomScrollCache = {
 const scrollCacheMap = new Map<string, RoomScrollCache>();
 
 const cacheKey = (userId: string, roomId: string): string => `${userId}:${roomId}`;
+
 const fingerprintMatches = (
   saved: RoomScrollFingerprint,
   current: RoomScrollFingerprint

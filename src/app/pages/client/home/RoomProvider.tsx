@@ -5,6 +5,7 @@ import { IsDirectRoomProvider, RoomProvider } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { JoinBeforeNavigate } from '$features/join-before-navigate';
 import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServers';
+import { useActiveRoomIdSync } from '$state/room/activeRoomId';
 import { useHomeRooms } from './useHomeRooms';
 
 export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
@@ -17,6 +18,8 @@ export function HomeRouteRoomProvider({ children }: { children: ReactNode }) {
   const viaServers = useSearchParamsViaServers();
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
+
+  useActiveRoomIdSync(roomId);
 
   if (!room || !rooms.includes(room.roomId)) {
     return (

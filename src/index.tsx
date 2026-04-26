@@ -59,7 +59,20 @@ if ('serviceWorker' in navigator) {
     }
   };
 
+  const sendSessionToSW = () => {
+    // Use the active session from the new multi-session store, fall back to legacy
+    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+    const active =
+      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
+    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
+  };
+
   navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
+    // Send session immediately so the SW can serve authenticated media fetches
+    // as soon as it is active, without waiting for the page to mount.
+    sendSessionToSW();
+
     registration.addEventListener('updatefound', () => {
       const installingWorker = registration.installing;
       if (installingWorker) {
@@ -74,21 +87,6 @@ if ('serviceWorker' in navigator) {
     });
   });
 
-  const sendSessionToSW = () => {
-    // Use the active session from the new multi-session store, fall back to legacy
-    const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-    const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
-    const active =
-      sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
-    pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
-  };
-
-  navigator.serviceWorker
-    .register(swUrl)
-    .then(sendSessionToSW)
-    .catch((err) => {
-      log.warn('SW registration failed:', err);
-    });
   navigator.serviceWorker.ready.then(sendSessionToSW).catch((err) => {
     log.warn('SW ready failed:', err);
   });

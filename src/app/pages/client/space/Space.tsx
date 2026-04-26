@@ -533,6 +533,9 @@ export function Space() {
    * Determines the depth limit for the joined space hierarchy and the SpaceNavItems to start appearing
    */
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   /**
    * Creates an SVG used for connecting spaces to their subrooms.
    * @param virtualizedItems - The virtualized item list that will be used to render elements in the nav
@@ -675,6 +678,7 @@ export function Space() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 32,
     overscan: 10,
+    getItemKey: (index) => hierarchy[index]?.roomId ?? index,
   });
 
   const virtualizedItems = virtualizer.getVirtualItems();
@@ -772,7 +776,7 @@ export function Space() {
                   return (
                     <VirtualTile
                       virtualItem={vItem}
-                      key={vItem.index}
+                      key={vItem.key}
                       ref={virtualizer.measureElement}
                     >
                       <div style={{ paddingLeft: `calc(${renderDepth} * ${config.space.S400})` }}>
@@ -796,7 +800,7 @@ export function Space() {
                   return (
                     <VirtualTile
                       virtualItem={vItem}
-                      key={vItem.index}
+                      key={vItem.key}
                       ref={virtualizer.measureElement}
                     >
                       <div style={{ paddingTop, paddingLeft }}>
@@ -815,17 +819,16 @@ export function Space() {
                 }
 
                 return (
-                  <VirtualTile
-                    virtualItem={vItem}
-                    key={vItem.index}
-                    ref={virtualizer.measureElement}
-                  >
+                  <VirtualTile virtualItem={vItem} key={vItem.key} ref={virtualizer.measureElement}>
                     <div style={{ paddingLeft }}>
                       <RoomNavItem
                         room={room}
                         selected={selectedRoomId === roomId}
                         showAvatar={mDirects.has(roomId)}
                         direct={mDirects.has(roomId)}
+                        roomTopicPreview={roomTopicPreview}
+                        roomMessagePreview={roomMessagePreview}
+                        dmMessagePreview={dmMessagePreview}
                         linkPath={getToLink(roomId)}
                         notificationMode={getRoomNotificationMode(
                           notificationPreferences,

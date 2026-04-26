@@ -614,6 +614,14 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
   stopClient(mx);
   clearNavToActivePathStore(mx.getSafeUserId());
   await mx.store.deleteAllData();
+
+  // Unregister all service workers so the next load starts fresh.
+  // Especially important on iOS/mobile where stale SWs can persist.
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((r) => r.unregister()));
+  }
+
   window.location.reload();
 };
 

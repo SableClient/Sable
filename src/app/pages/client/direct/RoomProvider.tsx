@@ -4,6 +4,7 @@ import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { IsDirectRoomProvider, RoomProvider } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { JoinBeforeNavigate } from '$features/join-before-navigate';
+import { useActiveRoomIdSync } from '$state/room/activeRoomId';
 import { useDirectRooms } from './useDirectRooms';
 
 export function DirectRouteRoomProvider({ children }: { children: ReactNode }) {
@@ -15,6 +16,8 @@ export function DirectRouteRoomProvider({ children }: { children: ReactNode }) {
   const eventId = encodedEventId && decodeURIComponent(encodedEventId);
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
+
+  useActiveRoomIdSync(roomId);
 
   if (!room || !rooms.includes(room.roomId)) {
     return <JoinBeforeNavigate roomIdOrAlias={roomIdOrAlias!} eventId={eventId} />;

@@ -14,6 +14,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { VList, VListHandle } from 'virtua';
+import { RoomScrollCache } from '$utils/roomScrollCache';
 import {
   roomScrollCache,
   RoomScrollCache,
@@ -176,6 +177,7 @@ const buildRoomScrollFingerprint = (
   layoutKey,
 });
 
+
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -218,6 +220,7 @@ export function RoomTimeline({
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -343,6 +346,8 @@ export function RoomTimeline({
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, [setAtBottom]);
 
+  const handleJumpError = useCallback(() => setIsReady(true), []);
+
   const timelineSync = useTimelineSync({
     room,
     mx,
@@ -350,6 +355,7 @@ export function RoomTimeline({
     isAtBottom: atBottomState,
     isAtBottomRef: atBottomRef,
     scrollToBottom,
+    onJumpError: handleJumpError,
     unreadInfo,
     setUnreadInfo,
     hideReadsRef,
@@ -1147,6 +1153,7 @@ export function RoomTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   processedEventsRef.current = processedEvents;

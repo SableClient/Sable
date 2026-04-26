@@ -54,3 +54,18 @@ export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 
 export { ThreadEvent } from 'matrix-js-sdk/lib/models/thread';
 export type { Thread } from 'matrix-js-sdk/lib/models/thread';
+
+export {
+  M_POLL_START,
+  M_POLL_RESPONSE,
+  M_POLL_END,
+  M_POLL_KIND_DISCLOSED,
+  M_POLL_KIND_UNDISCLOSED,
+} from 'matrix-js-sdk/lib/@types/polls';
+export type {
+  PollStartEventContent,
+  PollResponseEventContent,
+  PollEndEventContent,
+  PollAnswer,
+  PollKind,
+} from 'matrix-js-sdk/lib/@types/polls';

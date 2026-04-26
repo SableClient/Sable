@@ -13,6 +13,7 @@ import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServe
 import { mDirectAtom } from '$state/mDirectList';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { useActiveRoomIdSync } from '$state/room/activeRoomId';
 
 export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   const mx = useMatrixClient();
@@ -28,6 +29,8 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
   const viaServers = useSearchParamsViaServers();
   const roomId = useSelectedRoom();
   const room = mx.getRoom(roomId);
+
+  useActiveRoomIdSync(roomId);
 
   if (!room || !allRooms.includes(room.roomId)) {
     // room is not joined

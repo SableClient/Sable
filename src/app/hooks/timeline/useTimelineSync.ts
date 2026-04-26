@@ -352,6 +352,8 @@ export interface UseTimelineSyncOptions {
   isAtBottom: boolean;
   isAtBottomRef: React.MutableRefObject<boolean>;
   scrollToBottom: () => void;
+  /** Called when a loadEventTimeline jump fails so the caller can reveal the live timeline. */
+  onJumpError?: () => void;
   unreadInfo: ReturnType<typeof getRoomUnreadInfo>;
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
@@ -365,6 +367,7 @@ export function useTimelineSync({
   isAtBottom,
   isAtBottomRef,
   scrollToBottom,
+  onJumpError,
   unreadInfo,
   setUnreadInfo,
   hideReadsRef,
@@ -480,7 +483,8 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom();
-    }, [alive, room, scrollToBottom])
+      onJumpError?.();
+    }, [alive, room, scrollToBottom, onJumpError])
   );
 
   useLiveEventArrive(

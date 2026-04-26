@@ -12,6 +12,10 @@ import { getOrphanParents, guessPerfectParent } from '../utils/room';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
 
+// How long to wait for the notification event to appear in the live timeline
+// before navigating with the eventId anyway (triggers historical context load).
+const JUMP_TIMEOUT_MS = 30_000;
+
 export function NotificationJumper() {
   const [pending, setPending] = useAtom(pendingNotificationAtom);
   const activeSessionId = useAtomValue(activeSessionIdAtom);
@@ -27,6 +31,18 @@ export function NotificationJumper() {
   // churn re-calls performJump (from the ClientEvent.Room listener or effect
   // re-runs) before React has committed the null, causing repeated navigation.
   const jumpingRef = useRef(false);
+  // Tracks when we first started waiting for the target event to appear in the
+  // live timeline. Reset whenever `pending` changes.
+  const jumpStartTimeRef = useRef<number | null>(null);
+  const jumpTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const performJumpRef = useRef<() => void>(() => undefined);
+
+  const clearJumpTimeout = useCallback(() => {
+    if (jumpTimeoutRef.current !== undefined) {
+      clearTimeout(jumpTimeoutRef.current);
+      jumpTimeoutRef.current = undefined;
+    }
+  }, []);
 
   const performJump = useCallback(() => {
     if (!pending || jumpingRef.current) return;
@@ -52,38 +68,55 @@ export function NotificationJumper() {
     const isJoined = room?.getMyMembership() === 'join';
 
     if (isSyncing && isJoined) {
-      // If the notification event is already in the room's live timeline (i.e.
-      // sliding sync has already delivered it), open the room at the live bottom
-      // rather than using the eventId URL path.  The eventId path triggers
-      // loadEventTimeline → roomInitialSync which loads a historical slice that
-      // (a) may look like a brand-new chat if the event is the only one in the
-      // slice, and (b) makes the room appear empty when the user navigates away
-      // and returns without the eventId, because the sliding-sync live timeline
-      // hasn't been populated yet.  Omitting the eventId for events already in
-      // the live timeline lets the room open normally at the bottom where the
-      // new message is visible.  Historical events (not in live timeline) still
-      // use the eventId so loadEventTimeline can jump to the right context.
       const liveEvents =
         room?.getUnfilteredTimelineSet?.()?.getLiveTimeline?.()?.getEvents?.() ?? [];
       const eventInLive = pending.eventId
-        ? liveEvents.some((e) => e.getId() === pending.eventId)
+        ? liveEvents.some((event) => event.getId() === pending.eventId)
         : false;
-      // If the live timeline is empty the room hasn't been populated by sliding
-      // sync yet.  Defer navigation and let the RoomEvent.Timeline listener below
-      // retry once events arrive — by then the notification event will almost
-      // certainly be in the live timeline and we can skip loadEventTimeline.
-      if (!eventInLive && liveEvents.length === 0) {
-        log.log('live timeline empty, deferring jump...', { roomId: pending.roomId });
-        return;
+
+      // Defer while the target event hasn't arrived in the live timeline yet.
+      // Navigating with an eventId not in the live timeline triggers a sparse
+      // historical context load — the room appears empty or shows only one message.
+      // Retry on each RoomEvent.Timeline until the event appears, then navigate
+      // with the eventId so the room scrolls to and highlights it in full context.
+      // After JUMP_TIMEOUT_MS fall back to opening the room at the live bottom.
+      if (pending.eventId && !eventInLive) {
+        if (jumpStartTimeRef.current === null) {
+          jumpStartTimeRef.current = Date.now();
+        }
+        const elapsedMs = Date.now() - jumpStartTimeRef.current;
+        if (elapsedMs < JUMP_TIMEOUT_MS) {
+          if (jumpTimeoutRef.current === undefined) {
+            jumpTimeoutRef.current = setTimeout(() => {
+              jumpTimeoutRef.current = undefined;
+              performJumpRef.current();
+            }, JUMP_TIMEOUT_MS - elapsedMs);
+          }
+          log.log('event not yet in live timeline, deferring jump...', {
+            roomId: pending.roomId,
+            eventId: pending.eventId,
+          });
+          return;
+        }
+        log.log('timed out waiting for event in live; falling back to live bottom', {
+          roomId: pending.roomId,
+          eventId: pending.eventId,
+        });
       }
-      const resolvedEventId = eventInLive ? undefined : pending.eventId;
-      log.log('jumping to:', pending.roomId, resolvedEventId, { eventInLive });
+
+      // Pass eventId when confirmed in the live timeline (best case — scrolls to
+      // and highlights the event in full room context), OR when the timeout fires
+      // (triggers a historical context load so the user at least sees the message
+      // they tapped). Only omit eventId when we never had one in the first place.
+      const targetEventId = pending.eventId ?? undefined;
+      log.log('jumping to:', pending.roomId, targetEventId);
       jumpingRef.current = true;
+      clearJumpTimeout();
       // Navigate directly to home or direct path — bypasses space routing which
       // on mobile shows the space-nav panel first instead of the room timeline.
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, resolvedEventId));
+        navigate(getDirectRoomPath(roomIdOrAlias, targetEventId));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -99,11 +132,11 @@ export function NotificationJumper() {
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace),
               roomIdOrAlias,
-              resolvedEventId
+              targetEventId
             )
           );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAlias, resolvedEventId));
+          navigate(getHomeRoomPath(roomIdOrAlias, targetEventId));
         }
       }
       setPending(null);
@@ -115,19 +148,30 @@ export function NotificationJumper() {
         membership: room?.getMyMembership(),
       });
     }
-  }, [pending, activeSessionId, mx, mDirects, roomToParents, navigate, setPending, log]);
+  }, [
+    pending,
+    activeSessionId,
+    mx,
+    mDirects,
+    roomToParents,
+    navigate,
+    setPending,
+    log,
+    clearJumpTimeout,
+  ]);
 
-  // Reset the guard only when pending is replaced (new notification or cleared).
+  // Reset guards only when pending is replaced (new notification or cleared).
   useEffect(() => {
+    clearJumpTimeout();
     jumpingRef.current = false;
-  }, [pending]);
+    jumpStartTimeRef.current = null;
+  }, [pending, clearJumpTimeout]);
 
   // Keep a stable ref to the latest performJump so that the listeners below
   // always invoke the current version without adding performJump to their dep
   // arrays. Adding performJump as a dep causes the effect to re-run (and call
   // performJump again) on every atom change during an account switch — that is
   // the second source of repeated navigation.
-  const performJumpRef = useRef(performJump);
   performJumpRef.current = performJump;
 
   useSyncState(
@@ -159,6 +203,13 @@ export function NotificationJumper() {
       mx.removeListener(RoomEvent.Timeline, onTimeline as RoomEventHandlerMap[RoomEvent.Timeline]);
     };
   }, [pending, mx]); // performJump intentionally omitted — use ref above
+
+  useEffect(
+    () => () => {
+      clearJumpTimeout();
+    },
+    [clearJumpTimeout]
+  );
 
   return null;
 }

@@ -921,7 +921,13 @@ export function RoomTimeline({
               eventData.collapsed
             );
 
-            const dividers = (
+            // Suppress dividers when the underlying event will not render.
+            // Otherwise rooms whose only events on a given day are hidden
+            // (e.g. announcement channels full of profile changes / joins)
+            // show a bare day divider with no message under it (#701).
+            const showDividers = renderedEvent !== null;
+
+            const dividers = showDividers ? (
               <>
                 {eventData.willRenderDayDivider && (
                   <MessageBase space={messageSpacing}>
@@ -942,7 +948,7 @@ export function RoomTimeline({
                   </MessageBase>
                 )}
               </>
-            );
+            ) : null;
 
             if (index === 0) {
               return (

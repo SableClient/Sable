@@ -836,6 +836,7 @@ function HandleDecryptPushEvent() {
           sender_display_name: senderName,
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
+          appFocused: document.hasFocus(),
         };
         navigator.serviceWorker.controller?.postMessage(successReply);
         // Belt-and-suspenders: also post via registration.active so the reply
@@ -856,6 +857,7 @@ function HandleDecryptPushEvent() {
           eventId,
           success: false,
           visibilityState: document.visibilityState,
+          appFocused: document.hasFocus(),
         };
         navigator.serviceWorker.controller?.postMessage(errorReply);
         navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(errorReply));

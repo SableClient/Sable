@@ -239,6 +239,14 @@ type DecryptionResult = {
   room_name?: string;
   /** document.visibilityState reported by the responding app tab. */
   visibilityState?: string;
+  /**
+   * document.hasFocus() reported by the responding app tab.
+   * Unlike visibilityState, this is updated by the browser process immediately
+   * when the OS removes focus (e.g. home button on iOS) and does not get stuck
+   * at true after backgrounding.  Used alongside visibilityState so that both
+   * must be true before suppressing the OS notification.
+   */
+  appFocused?: boolean;
 };
 
 /** Pending decryption requests keyed by event_id. */
@@ -509,9 +517,13 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
-    // If the relay responded and the app is currently visible, the in-app UI is already
-    // displaying the message — skip the OS notification entirely.
-    if (result?.visibilityState === 'visible') return;
+    // If the relay responded and the app is currently visible AND focused, the
+    // in-app UI is already displaying the message — skip the OS notification.
+    // Require BOTH visibilityState === 'visible' AND appFocused === true here,
+    // mirroring the hasVisibleClient check above.  document.visibilityState can
+    // get stuck at 'visible' on iOS PWA after backgrounding; document.hasFocus()
+    // (reported as appFocused) updates reliably when the OS removes focus.
+    if (result?.visibilityState === 'visible' && result?.appFocused === true) return;
 
     if (result?.success) {
       // App was backgrounded but not frozen — decryption succeeded.

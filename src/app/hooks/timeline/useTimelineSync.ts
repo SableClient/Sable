@@ -352,6 +352,8 @@ export interface UseTimelineSyncOptions {
   isAtBottom: boolean;
   isAtBottomRef: React.MutableRefObject<boolean>;
   scrollToBottom: (behavior?: 'instant' | 'smooth') => void;
+  /** Called when a loadEventTimeline jump fails so the caller can reveal the live timeline. */
+  onJumpError?: () => void;
   unreadInfo: ReturnType<typeof getRoomUnreadInfo>;
   setUnreadInfo: Dispatch<SetStateAction<ReturnType<typeof getRoomUnreadInfo>>>;
   hideReadsRef: React.MutableRefObject<boolean>;
@@ -365,6 +367,7 @@ export function useTimelineSync({
   isAtBottom,
   isAtBottomRef,
   scrollToBottom,
+  onJumpError,
   unreadInfo,
   setUnreadInfo,
   hideReadsRef,
@@ -461,7 +464,8 @@ export function useTimelineSync({
       if (!alive()) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       scrollToBottom('instant');
-    }, [alive, room, scrollToBottom])
+      onJumpError?.();
+    }, [alive, room, scrollToBottom, onJumpError])
   );
 
   const lastScrolledAtEventsLengthRef = useRef(eventsLength);
@@ -528,7 +532,7 @@ export function useTimelineSync({
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
-        scrollToBottom('instant');
+        scrollToBottom();
       }
     }, [room, isAtBottomRef, scrollToBottom])
   );
@@ -565,7 +569,7 @@ export function useTimelineSync({
     if (eventsLength <= lastScrolledAtEventsLengthRef.current && !resetAutoScrollPending) return;
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
-    scrollToBottom('instant');
+    scrollToBottom();
   }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
 
   useEffect(() => {

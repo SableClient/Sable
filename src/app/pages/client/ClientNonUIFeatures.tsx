@@ -21,7 +21,9 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -57,6 +59,7 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -104,6 +107,9 @@ function FaviconUpdater() {
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const [faviconForMentionsOnly] = useSetting(settingsAtom, 'faviconForMentionsOnly');
   const registration = useAtomValue(registrationAtom);
+  // Track the latest highlight total so the visibilitychange handler can check
+  // it without needing to be inside the roomToUnread effect.
+  const highlightTotalRef = useRef(0);
 
   useEffect(() => {
     let notification = false;
@@ -122,6 +128,8 @@ function FaviconUpdater() {
         highlight = true;
       }
     });
+
+    highlightTotalRef.current = highlightTotal;
 
     if (highlight) {
       setFavicon(LogoHighlightSVG);
@@ -162,6 +170,25 @@ function FaviconUpdater() {
       // Likely Firefox/Gecko-based and doesn't support badging API
     }
   }, [roomToUnread, usePushNotifications, registration, faviconForMentionsOnly]);
+
+  // Clear the badge whenever the app comes to the foreground with no active
+  // highlights.  The main effect above only runs when roomToUnread changes, so
+  // if highlights reached 0 while the app was backgrounded (e.g. read on
+  // another device during a background sync), the badge would stay set until
+  // the next roomToUnread change.  This listener closes that gap.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (highlightTotalRef.current > 0) return;
+      try {
+        navigator.clearAppBadge();
+      } catch {
+        // Badging API not supported — ignore
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   return null;
 }
@@ -806,7 +833,7 @@ function HandleDecryptPushEvent() {
           appVisible: visible,
         });
 
-        navigator.serviceWorker.controller?.postMessage({
+        const successReply = {
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -815,20 +842,31 @@ function HandleDecryptPushEvent() {
           sender_display_name: senderName,
           room_name: room?.name ?? '',
           visibilityState: document.visibilityState,
-        });
+          appFocused: document.hasFocus(),
+        };
+        navigator.serviceWorker.controller?.postMessage(successReply);
+        // Belt-and-suspenders: also post via registration.active so the reply
+        // reaches the SW even when controller is transiently null (e.g., the
+        // window was opened by a notification tap before the SW claimed it, or
+        // during a SW update cycle). The SW deduplicates via decryptionPendingMap
+        // — the second message is a no-op once the entry is already resolved.
+        navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(successReply));
       } catch (err) {
-        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err);
+        console.warn('[app] HandleDecryptPushEvent: failed to decrypt push event', err); // eslint-disable-line no-console
         pushRelayLog.error(
           'notification',
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
-        navigator.serviceWorker.controller?.postMessage({
+        const errorReply = {
           type: 'pushDecryptResult',
           eventId,
           success: false,
           visibilityState: document.visibilityState,
-        });
+          appFocused: document.hasFocus(),
+        };
+        navigator.serviceWorker.controller?.postMessage(errorReply);
+        navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(errorReply));
       }
     };
 
@@ -839,17 +877,74 @@ function HandleDecryptPushEvent() {
   return null;
 }
 
+// How often an active device re-asserts its online state to the server.
+// Matrix presence is per-user (not per-device): if another device sets you to
+// idle/unavailable, this heartbeat wins the server state back within one interval.
+// Must be shorter than the shortest expected idle timeout (default 5 min).
+const PRESENCE_HEARTBEAT_INTERVAL_MS = 2 * 60_000; // 2 minutes
+
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+  const clientConfig = useClientConfig();
+  const timeoutMs = clientConfig.presenceAutoIdleTimeoutMs ?? 0;
+
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
-    // Classic sync: set_presence query param on every /sync poll.
-    // Passing undefined restores the default (online); Offline suppresses broadcasting.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const ownUser = mx.getUser(mx.getUserId() ?? '');
+    const shouldClearSyntheticDndStatus =
+      ownUser?.presenceStatusMsg === 'dnd' && (!sendPresence || effectiveMode !== 'dnd');
+    let statusPayload: { status_msg: string } | undefined;
+
+    if (sendPresence && effectiveMode === 'dnd') {
+      statusPayload = { status_msg: 'dnd' };
+    } else if (shouldClearSyntheticDndStatus) {
+      statusPayload = { status_msg: '' };
+    }
+
     mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+    const presencePayload = {
+      presence: effectiveState,
+      ...statusPayload,
+    };
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const trySetPresence = (attempt = 0) => {
+      mx.setPresence(presencePayload).catch(() => {
+        if (attempt < 3) {
+          retryTimer = setTimeout(() => trySetPresence(attempt + 1), 2000 * (attempt + 1));
+        }
+      });
+    };
+    trySetPresence();
+    return () => {
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
+    };
+  }, [autoIdled, mx, presenceMode, sendPresence]);
+
+  // Presence heartbeat: periodically re-assert online state while this device
+  // is active. Fixes a multi-device race where a different idle device sets the
+  // shared server presence to unavailable while the user is active here.
+  useEffect(() => {
+    const isActiveOnline = sendPresence && !autoIdled && presenceMode === 'online';
+    if (!isActiveOnline) return undefined;
+
+    const heartbeatId = window.setInterval(() => {
+      mx.setPresence({ presence: 'online' }).catch(() => {
+        // Silently ignore — the main effect will retry on next state change.
+      });
+    }, PRESENCE_HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(heartbeatId);
+    };
+  }, [autoIdled, mx, presenceMode, sendPresence]);
 
   return null;
 }
@@ -859,11 +954,17 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
+      <BookmarksFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

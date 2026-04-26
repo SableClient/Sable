@@ -8,14 +8,13 @@ export type {};
 declare const self: ServiceWorkerGlobalScope;
 
 let notificationSoundEnabled = true;
+// Tracks whether a page client has reported itself as visible.
+// The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
+// so we use this explicit flag as a fallback.
+let appIsVisible = false;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
-
-// Tracks whether a page client has reported itself as visible.
-// Combines with clients.matchAll() in the push handler because iOS Safari PWA
-// often returns empty or stale results from matchAll().
-let appIsVisible = false;
 const { handlePushNotificationPushData } = createPushNotifications(self, () => ({
   showMessageContent,
   showEncryptedMessageContent,
@@ -98,26 +97,14 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
     if (response) {
       const s = await response.json();
 
-      // Reject persisted sessions older than 24 hours. Matrix access tokens are
-      // long-lived and are only invalidated on explicit logout or device revocation —
-      // not by the passage of time. A short TTL (e.g. 60 s) was too aggressive: it
-      // caused the SW to show generic "New Message" notifications whenever the app
-      // was backgrounded for more than a minute, because the cached session was
-      // rejected and requestSession had no live window client to reach.
-      // If the token truly is revoked the fetches in handleMinimalPushPayload will
-      // receive a 401 and gracefully fall back to a generic notification anyway.
-      if (typeof s.accessToken !== 'string' || typeof s.baseUrl !== 'string') {
-        console.debug('[SW] loadPersistedSession: invalid cached session (missing fields)');
-        return undefined;
-      }
-
-      const age = typeof s.persistedAt === 'number' ? Date.now() - s.persistedAt : Infinity;
-      const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
-      if (age > MAX_SESSION_AGE_MS) {
-        console.debug('[SW] loadPersistedSession: session expired', { age });
-        return undefined;
-      }
-
+      // Matrix access tokens are long-lived and are only invalidated on explicit
+      // logout or device revocation — not by the passage of time. If the token truly
+      // is revoked the fetches in handleMinimalPushPayload will receive a 401 and
+      // gracefully fall back to a generic notification anyway. We intentionally do
+      // NOT apply a TTL here: sessions without a persistedAt field (stored before
+      // that field was added) would get age=Infinity and be incorrectly rejected,
+      // showing "New Message" for users who hadn't opened the app since the SW
+      // was last updated.
       return {
         accessToken: s.accessToken,
         baseUrl: s.baseUrl,
@@ -252,6 +239,14 @@ type DecryptionResult = {
   room_name?: string;
   /** document.visibilityState reported by the responding app tab. */
   visibilityState?: string;
+  /**
+   * document.hasFocus() reported by the responding app tab.
+   * Unlike visibilityState, this is updated by the browser process immediately
+   * when the OS removes focus (e.g. home button on iOS) and does not get stuck
+   * at true after backgrounding.  Used alongside visibilityState so that both
+   * must be true before suppressing the OS notification.
+   */
+  appFocused?: boolean;
 };
 
 /** Pending decryption requests keyed by event_id. */
@@ -445,8 +440,8 @@ async function handleMinimalPushPayload(
   windowClients: readonly Client[]
 ): Promise<void> {
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
-  // Map.  Fall back to the Cache Storage copy that was written when the user last opened
-  // the app (same pattern as settings persistence).  If onPushNotification already loaded
+  // Map. Fall back to the Cache Storage copy that was written when the user last opened
+  // the app (same pattern as settings persistence). If onPushNotification already loaded
   // the persisted session into preloadedSession, reuse it to avoid a second cache read.
   // Last resort: if neither the in-memory map nor the cache has a session, ask any live
   // window client for a fresh token (the app may be backgrounded but still alive in memory).
@@ -522,11 +517,13 @@ async function handleMinimalPushPayload(
         ? await requestDecryptionFromClient(windowClients, rawEvent)
         : undefined;
 
-    // If the relay responded and indicates the app is currently visible, the
+    // If the relay responded and the app is currently visible AND focused, the
     // in-app UI is already displaying the message — skip the OS notification.
-    // result.visibilityState comes from a live postMessage round-trip, so it
-    // reflects the page's actual current state (not stale in-memory flags).
-    if (result?.visibilityState === 'visible') return;
+    // Require BOTH visibilityState === 'visible' AND appFocused === true here,
+    // mirroring the hasVisibleClient check above.  document.visibilityState can
+    // get stuck at 'visible' on iOS PWA after backgrounding; document.hasFocus()
+    // (reported as appFocused) updates reliably when the OS removes focus.
+    if (result?.visibilityState === 'visible' && result?.appFocused === true) return;
 
     if (result?.success) {
       // App was backgrounded but not frozen — decryption succeeded.
@@ -566,8 +563,12 @@ async function handleMinimalPushPayload(
   }
 }
 
-self.addEventListener('install', (event: ExtendableEvent) => {
-  event.waitUntil(self.skipWaiting());
+self.addEventListener('install', () => {
+  // Do NOT call skipWaiting() here. Activating immediately would discard the
+  // old SW mid-session; any lazy-loaded JS chunk that only existed in the old
+  // precache becomes a 404, causing the chunk-error handler to silently reload
+  // the page. Instead, the new SW waits until the update prompt is confirmed
+  // (SKIP_WAITING_AND_CLAIM message) or the user manually refreshes.
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
@@ -599,6 +600,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (!data || typeof data !== 'object') return;
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
+  if (type === 'SKIP_WAITING_AND_CLAIM') {
+    // Sent by the update prompt when the user confirms they want to update.
+    // skipWaiting() activates this SW immediately; the page then reloads.
+    event.waitUntil(self.skipWaiting());
+  }
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
     // Keep the SW alive until the cache write completes.  persistSession is
@@ -829,7 +835,6 @@ async function fetchMediaWithRetry(
   });
   return response;
 }
-
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data.type === 'togglePush') {
     const token = event.data?.token;
@@ -935,7 +940,8 @@ const onPushNotification = async (event: PushEvent) => {
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
   // Capture the persisted session result into preloadedSession so that
-  // media fetch handlers can use it as a fallback without a second cache read.
+  // getAnyStoredSession() returns it in handleMinimalPushPayload without a
+  // second cache read.
   const [, persistedSession, clients] = await Promise.all([
     loadPersistedSettings(),
     loadPersistedSession(),
@@ -946,16 +952,29 @@ const onPushNotification = async (event: PushEvent) => {
   }
 
   // If the app is open and visible, skip the OS push notification — the in-app
-  // notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  // pill notification handles the alert instead.
+  //
+  // Require BOTH visibilityState === 'visible' AND focused === true.
+  // On iOS PWA, visibilityState can get stuck at 'visible' after the user opens
+  // the app via a notification tap and then backgrounds it again — the
+  // visibilitychange event doesn't always fire reliably on iOS.  The focused
+  // property updates immediately when the user presses the home button (the
+  // window loses OS focus before visibilitychange fires), so it is the
+  // authoritative signal for "user is actually looking at the app right now".
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA quirk where the app
+  // is fully suspended), visibility is unknowable — do NOT suppress.  Better
+  // to show a duplicate (handled gracefully by the in-app banner) than to
+  // silently drop a notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    clients.length > 0
+      ? clients.some((client) => client.visibilityState === 'visible' && client.focused)
+      : false;
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
     '| clients:',
-    clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
+    clients.map((c) => ({ url: c.url, visibility: c.visibilityState, focused: c.focused }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
@@ -963,7 +982,17 @@ const onPushNotification = async (event: PushEvent) => {
     return;
   }
 
-  const pushData = event.data.json();
+  let pushData: any;
+  try {
+    pushData = event.data.json();
+  } catch (err) {
+    console.error('[SW push] failed to parse push payload:', err);
+    await self.registration.showNotification('New Message', {
+      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+    } as NotificationOptions);
+    return;
+  }
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   try {
@@ -1129,5 +1158,5 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   );
 });
 
-precacheAndRoute(self.__WB_MANIFEST ?? []);
+precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();

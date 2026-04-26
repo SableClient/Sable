@@ -29,7 +29,6 @@ export type SessionSyncConfig = {
   resumeHeartbeatSuppressMs?: number;
   heartbeatMaxBackoffMs?: number;
 };
-
 export type ClientConfig = {
   defaultHomeserver?: number;
   homeserverList?: string[];
@@ -42,7 +41,6 @@ export type ClientConfig = {
   experiments?: Record<string, ExperimentConfig>;
 
   sessionSync?: SessionSyncConfig;
-
   pushNotificationDetails?: {
     pushNotifyUrl?: string;
     vapidPublicKey?: string;
@@ -72,6 +70,13 @@ export type ClientConfig = {
 
   matrixToBaseUrl?: string;
   settingsLinkBaseUrl?: string;
+
+  features?: {
+    polls?: boolean;
+  };
+
+  /** How long (ms) without input before auto-idling presence. 0 = disabled. */
+  presenceAutoIdleTimeoutMs?: number;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);
@@ -110,7 +115,8 @@ export const selectExperimentVariant = (
   const variants = (experiment?.variants?.filter((variant) => variant.length > 0) ?? []).filter(
     (variant) => variant !== controlVariant
   );
-  const enabled = experiment?.enabled === true;
+
+  const enabled = Boolean(experiment?.enabled);
   const rolloutPercentage = normalizeRolloutPercentage(experiment?.rolloutPercentage);
 
   if (!enabled || !subjectId || variants.length === 0 || rolloutPercentage === 0) {
@@ -123,6 +129,7 @@ export const selectExperimentVariant = (
     };
   }
 
+  // Two independent hashes keep rollout and variant assignment stable but decorrelated.
   const rolloutBucket = hashToUInt32(`${key}:rollout:${subjectId}`) % 10000;
   const rolloutCutoff = Math.floor(rolloutPercentage * 100);
   if (rolloutBucket >= rolloutCutoff) {

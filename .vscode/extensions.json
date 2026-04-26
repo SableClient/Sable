@@ -1,3 +1,29 @@
 {
-  "recommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "webpro.vscode-knip"]
+  "recommendations": [
+    // JS/TS toolchain
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "webpro.vscode-knip",
+    "usernamehw.errorlens",
+    "christian-kohler.path-intellisense",
+    "styled-components.vscode-styled-components",
+    "bradlc.vscode-tailwindcss",
+    // React/TypeScript
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "wix.vscode-import-cost",
+    // i18n
+    "lokalise.i18n-ally",
+    // Testing
+    "vitest.explorer",
+    // Infrastructure
+    "hashicorp.terraform",
+    "zamerick.vscode-caddyfile-syntax",
+    // Documentation
+    "streetsidesoftware.code-spell-checker",
+    "davidanson.vscode-markdownlint",
+    // Quality of Life
+    "gruntfuggly.todo-tree",
+    "wayou.vscode-todo-highlight"
+  ]
 }

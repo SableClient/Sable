@@ -46,7 +46,7 @@ import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { useUserPresence } from '$hooks/useUserPresence';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
@@ -511,7 +511,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const handleSaveStatus = useCallback(
     async (newStatus: string) => {
-      const currentState = presence?.presence || 'online';
+      const currentState =
+        presence?.presence === Presence.Dnd
+          ? Presence.Online
+          : (presence?.presence ?? Presence.Online);
 
       await mx.setPresence({
         presence: currentState,

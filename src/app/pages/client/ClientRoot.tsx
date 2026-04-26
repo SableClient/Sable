@@ -48,6 +48,7 @@ import { useSyncNicknames } from '$hooks/useNickname';
 import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
+import { getSettings } from '$state/settings';
 import { pushSessionToSW } from '../../../sw-session';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
@@ -212,12 +213,18 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
-      (m) =>
-        startClient(m, {
+      (m) => {
+        const s = getSettings();
+        const needsPreviewTimeline = s.dmMessagePreview || s.roomMessagePreview;
+        return startClient(m, {
           baseUrl: activeSession?.baseUrl,
-          slidingSync: clientConfig.slidingSync,
+          slidingSync: {
+            ...clientConfig.slidingSync,
+            listTimelineLimit: needsPreviewTimeline ? 5 : undefined,
+          },
           sessionSlidingSyncOptIn: activeSession?.slidingSyncOptIn,
-        }),
+        });
+      },
       [activeSession?.baseUrl, activeSession?.slidingSyncOptIn, clientConfig.slidingSync]
     )
   );

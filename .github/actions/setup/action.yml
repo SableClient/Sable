@@ -34,6 +34,36 @@ runs:
       env:
         INPUTS_INSTALL_COMMAND: ${{ inputs.install-command }}
 
+    - name: Inject runtime config overrides
+      if: ${{ env.CLIENT_CONFIG_OVERRIDES_JSON != '' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: node scripts/inject-client-config.js
+      env:
+        CLIENT_CONFIG_OVERRIDES_JSON: ${{ env.CLIENT_CONFIG_OVERRIDES_JSON }}
+        CLIENT_CONFIG_OVERRIDES_STRICT: ${{ env.CLIENT_CONFIG_OVERRIDES_STRICT }}
+
+    - name: Display injected config
+      if: ${{ env.CLIENT_CONFIG_OVERRIDES_JSON != '' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        summary_file="${GITHUB_STEP_SUMMARY:-}"
+        echo "::group::Injected Client Config"
+        experiments_json="$(jq -c '.experiments // "No experiments configured"' config.json 2>/dev/null || echo 'config.json not readable')"
+        echo "$experiments_json"
+        echo "::endgroup::"
+
+        if [[ -n "$summary_file" ]]; then
+          {
+            echo "### Injected client config"
+            echo
+            echo "\`\`\`json"
+            echo "$experiments_json"
+            echo "\`\`\`"
+          } >> "$summary_file"
+        fi
+
     - name: Build app
       if: ${{ inputs.build == 'true' }}
       shell: bash

@@ -198,11 +198,10 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
-//very loose link check with the empty text at the end to make sure it doesnt overextend
-export const LINKINPUTREGEX = /\(?(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)\)?/g;
-const SPOILEREDLINKINPUTREGEX = /<(https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)>/g;
-const MASKEDSPOILEREDLINKINPUTREGEX =
-  /<\[.+\]\((https?:\/\/[A-Za-z0-9-._~:/?#[\]()@!$&'*+,;%=]+)\)>/g;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
+const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
+const MASKEDSPOILEREDLINKINPUTREGEX = new RegExp(`\\[.+\\]\\(${LINK_URL}\\)`, 'g');
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -319,9 +318,15 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
 
 export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
   let finalList: string[] = [];
+  let isInsideCodeBlock = false;
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
       let { text } = node;
+      if (text.startsWith('```')) {
+        isInsideCodeBlock = !isInsideCodeBlock;
+        return;
+      }
+      if (isInsideCodeBlock) return;
       // get a list of all the urls and of the ones that are spoilered,
       // truncate the spoilered ones of their <> and then remove the items that are present in both lists
       const urlsMatch = text.match(LINKINPUTREGEX);
@@ -359,7 +364,6 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
       finalList = finalList.concat(urls ?? []);
       return;
     }
-    if (node.type === BlockType.CodeBlock || node.type === BlockType.CodeLine) return;
     node?.children?.forEach(parseLinks);
   };
   if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));

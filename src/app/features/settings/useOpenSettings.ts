@@ -3,6 +3,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { getSettingsPath } from '$pages/pathUtils';
 import { SETTINGS_PATH } from '$pages/paths';
 import type { SettingsSectionId } from './routes';
+import { normalizeSettingsFocusId } from './settingsLink';
 
 export function useOpenSettings() {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ export function useOpenSettings() {
         ? undefined
         : { backgroundLocation: location };
 
-      navigate(getSettingsPath(section, focus), {
+      navigate(getSettingsPath(section, normalizeSettingsFocusId(focus)), {
         state: settingsState,
       });
     },

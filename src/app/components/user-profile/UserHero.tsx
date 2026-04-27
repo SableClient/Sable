@@ -18,7 +18,7 @@ import FocusTrap from 'focus-trap-react';
 import colorMXID from '$utils/colorMXID';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { BreakWord, LineClamp3 } from '$styles/Text.css';
-import { UserPresence } from '$hooks/useUserPresence';
+import type { UserPresence } from '$hooks/useUserPresence';
 import { stopPropagation } from '$utils/keyboard';
 import { useRoom } from '$hooks/useRoom';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
@@ -121,7 +121,10 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                     escapeDeactivates: stopPropagation,
                   }}
                 >
-                  <Modal size="500" onContextMenu={(evt: any) => evt.stopPropagation()}>
+                  <Modal
+                    size="500"
+                    onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+                  >
                     <ImageViewer
                       src={viewAvatar}
                       alt={userId}
@@ -173,7 +176,9 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                     shrink="No"
                     alignItems="Center"
                     justifyContent="Center"
-                    style={{ alignSelf: isFullStatus ? 'flex-start' : 'center' }}
+                    style={{
+                      alignSelf: isFullStatus ? 'flex-start' : 'center',
+                    }}
                   >
                     <Icon size="50" src={isFullStatus ? Icons.ChevronTop : Icons.ChevronBottom} />
                   </Box>

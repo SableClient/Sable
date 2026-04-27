@@ -1,6 +1,8 @@
-import { MouseEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
+import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -19,18 +21,18 @@ import {
   config,
   Line,
   PopOut,
-  RectCords,
   Badge,
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import {
+  Direction,
   EventTimeline,
-  Room,
+  NotificationCountType,
   ThreadEvent,
   RoomEvent,
-  MatrixEvent,
-  NotificationCountType,
+  EventType,
 } from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
@@ -38,7 +40,7 @@ import { PageHeader } from '$components/page';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
-import { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
 import { useSetting } from '$state/hooks/settings';
@@ -80,7 +82,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mDirectAtom } from '$state/mDirectList';
@@ -92,11 +94,12 @@ import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const log = createLogger('RoomViewHeader');
 
 async function getPinsHash(pinnedIds: string[]): Promise<string> {
-  const sorted = [...pinnedIds].sort().join(',');
+  const sorted = [...pinnedIds].toSorted().join(',');
   const encoder = new TextEncoder();
   const data = encoder.encode(sorted);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -365,7 +368,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
   const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
-  const encryptionEvent = useStateEvent(room, StateEvent.RoomEncryption);
+  const encryptionEvent = useStateEvent(room, EventType.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
   const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
@@ -380,13 +383,13 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const pinnedIds = useRoomPinnedEvents(room);
   const pinMarker = room
-    .getAccountData(AccountDataEvent.SablePinStatus)
+    .getAccountData(CustomAccountDataEvent.SablePinStatus)
     ?.getContent() as PinReadMarker;
   const [unreadPinsCount, setUnreadPinsCount] = useState(0);
   const [unreadThreadsCount, setUnreadThreadsCount] = useState(0);
   const [hasThreadHighlights, setHasThreadHighlights] = useState(false);
 
-  const [currentHash, setCurrentHash] = useState<string>('');
+  const [currentHash, setCurrentHash] = useState('');
 
   useEffect(() => {
     getPinsHash(pinnedIds)
@@ -428,7 +431,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   // Initialize Thread objects from room history on mount and create them for new timeline events
   useEffect(() => {
-    const scanTimelineForThreads = (timeline: any) => {
+    const scanTimelineForThreads = (timeline: EventTimeline) => {
       const events = timeline.getEvents();
       const threadRoots = new Set<string>();
 
@@ -465,10 +468,10 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     scanTimelineForThreads(liveTimeline);
 
     // Also scan backward timelines (historical messages already loaded)
-    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as any);
+    let backwardTimeline = liveTimeline.getNeighbouringTimeline(Direction.Backward);
     while (backwardTimeline) {
       scanTimelineForThreads(backwardTimeline);
-      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as any);
+      backwardTimeline = backwardTimeline.getNeighbouringTimeline(Direction.Backward);
     }
 
     // Listen for new timeline events (including pagination)
@@ -494,9 +497,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
       }
     };
 
-    mx.on(RoomEvent.Timeline as any, handleTimelineEvent);
+    mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
-      mx.off(RoomEvent.Timeline as any, handleTimelineEvent);
+      mx.off(RoomEvent.Timeline, handleTimelineEvent);
     };
   }, [room, mx]);
 
@@ -525,14 +528,14 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
     // Listen for thread updates
     const onThreadUpdate = () => checkThreadUnreads();
-    room.on(ThreadEvent.New as any, onThreadUpdate);
-    room.on(ThreadEvent.Update as any, onThreadUpdate);
-    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
+    room.on(ThreadEvent.New, onThreadUpdate);
+    room.on(ThreadEvent.Update, onThreadUpdate);
+    room.on(ThreadEvent.NewReply, onThreadUpdate);
 
     return () => {
-      room.off(ThreadEvent.New as any, onThreadUpdate);
-      room.off(ThreadEvent.Update as any, onThreadUpdate);
-      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
+      room.off(ThreadEvent.New, onThreadUpdate);
+      room.off(ThreadEvent.Update, onThreadUpdate);
+      room.off(ThreadEvent.NewReply, onThreadUpdate);
     };
   }, [room, mx]);
 
@@ -557,7 +560,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
       if (pinnedIds.length === 0) return;
 
       const hash = await getPinsHash(pinnedIds);
-      await mx.setRoomAccountData(room.roomId, AccountDataEvent.SablePinStatus, {
+      await mx.setRoomAccountData(room.roomId, CustomAccountDataEvent.SablePinStatus, {
         hash,
         count: pinnedIds.length,
         last_seen_id: pinnedIds.at(-1),

@@ -1,7 +1,7 @@
 import { Box } from 'folds';
-import { MatrixClient } from '$types/matrix-sdk';
-import { PackImageReader } from '$plugins/custom-emoji';
-import { IEmoji } from '$plugins/emoji';
+import type { MatrixClient } from '$types/matrix-sdk';
+import type { PackImageReader } from '$plugins/custom-emoji';
+import type { IEmoji } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { EmojiItemInfo, EmojiType, GifData } from '$components/emoji-board/types';
 import { CSSProperties, ReactNode } from 'react';

@@ -1,11 +1,11 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useMemo, useRef } from 'react';
 import { TYPING_TIMEOUT_MS } from '$state/typingMembers';
 
 type TypingStatusUpdater = (typing: boolean) => void;
 
 export const useTypingStatusUpdater = (mx: MatrixClient, roomId: string): TypingStatusUpdater => {
-  const statusSentTsRef = useRef<number>(0);
+  const statusSentTsRef = useRef(0);
 
   const sendTypingStatus: TypingStatusUpdater = useMemo(() => {
     statusSentTsRef.current = 0;

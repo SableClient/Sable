@@ -1,4 +1,4 @@
-import { IImageInfo } from '$types/matrix/common';
+import type { IImageInfo } from '$types/matrix/common';
 
 // https://github.com/Sorunome/matrix-doc/blob/soru/emotes/proposals/2545-emotes.md
 

@@ -13,6 +13,7 @@ import {
   OverlayCenter,
   OverlayBackdrop,
 } from 'folds';
+import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { getRoomAvatarUrl } from '$utils/room';
@@ -32,7 +33,7 @@ import { RoomAvatar } from './room-avatar';
 const debugLog = createDebugLogger('IncomingCall');
 
 type IncomingCallInternalProps = {
-  room: any;
+  room: Room;
   onClose: () => void;
 };
 

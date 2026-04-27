@@ -12,7 +12,7 @@ import {
   Text,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 
 import { useIntegrationManager, buildIntegrationManagerUrl } from '$hooks/useIntegrationManager';
 import * as css from './IntegrationManager.css';

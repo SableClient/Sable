@@ -1,14 +1,15 @@
-/* eslint-disable max-classes-per-file */
-import {
-  ClientEvent,
+import type {
   Extension,
-  ExtensionState,
-  KnownMembership,
   MatrixClient,
   MSC3575List,
   MSC3575RoomData,
   MSC3575RoomSubscription,
   MSC3575SlidingSyncResponse,
+} from '$types/matrix-sdk';
+import {
+  ClientEvent,
+  ExtensionState,
+  KnownMembership,
   MSC3575_WILDCARD,
   RoomMemberEvent,
   SlidingSync,
@@ -25,6 +26,14 @@ import * as Sentry from '@sentry/react';
 
 const log = createLogger('slidingSync');
 const debugLog = createDebugLogger('slidingSync');
+
+interface NetworkInformation {
+  effectiveType?: string;
+  downlink?: number;
+  addEventListener?: (event: string, callback: () => void) => void;
+  removeEventListener?: (event: string, callback: () => void) => void;
+  onchange?: (() => void) | null;
+}
 
 export const LIST_JOINED = 'joined';
 export const LIST_INVITES = 'invites';
@@ -202,12 +211,10 @@ class ExtensionPresence implements Extension<{ enabled: boolean }, { events?: ob
     this.enabled = value;
   }
 
-  // eslint-disable-next-line class-methods-use-this
   public name(): string {
     return 'presence';
   }
 
-  // eslint-disable-next-line class-methods-use-this
   public when(): ExtensionState {
     // Run after the main response body has been processed so room/member state is ready.
     return ExtensionState.PostProcess;
@@ -376,7 +383,7 @@ export class SlidingSyncManager {
       if (err || !resp || state !== SlidingSyncState.Complete) return;
 
       // Track what changed in this sync cycle
-      const changes: Record<string, any> = {};
+      const changes: Record<string, { previous: number; current: number; delta: number }> = {};
       let totalRoomCount = 0;
       let hasChanges = false;
 
@@ -459,7 +466,9 @@ export class SlidingSyncManager {
     this.onConnectionChange = () => {
       const isOnline = navigator.onLine;
       const connectionInfo =
-        typeof navigator !== 'undefined' ? (navigator as any).connection : undefined;
+        typeof navigator !== 'undefined'
+          ? (navigator as unknown as { connection?: NetworkInformation }).connection
+          : undefined;
       const effectiveType = connectionInfo?.effectiveType;
       const downlink = connectionInfo?.downlink;
 
@@ -500,7 +509,9 @@ export class SlidingSyncManager {
     this.slidingSync.on(SlidingSyncEvent.Lifecycle, this.onLifecycle);
     this.mx.on(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
-      typeof navigator !== 'undefined' ? (navigator as any).connection : undefined
+      typeof navigator !== 'undefined'
+        ? (navigator as unknown as { connection?: NetworkInformation }).connection
+        : undefined
     ) as
       | {
           addEventListener?: (e: string, cb: () => void) => void;
@@ -509,6 +520,7 @@ export class SlidingSyncManager {
         }
       | undefined;
     connection?.addEventListener?.('change', this.onConnectionChange);
+    // oxlint-disable-next-line unicorn/prefer-add-event-listener
     if (connection && connection.onchange === null) connection.onchange = this.onConnectionChange;
     if (typeof window !== 'undefined') {
       window.addEventListener('online', this.onConnectionChange);
@@ -539,7 +551,9 @@ export class SlidingSyncManager {
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
     this.mx.removeListener(RoomMemberEvent.Membership, this.onMembershipLeave);
     const connection = (
-      typeof navigator !== 'undefined' ? (navigator as any).connection : undefined
+      typeof navigator !== 'undefined'
+        ? (navigator as unknown as { connection?: NetworkInformation }).connection
+        : undefined
     ) as
       | {
           addEventListener?: (e: string, cb: () => void) => void;
@@ -548,6 +562,7 @@ export class SlidingSyncManager {
         }
       | undefined;
     connection?.removeEventListener?.('change', this.onConnectionChange);
+    // oxlint-disable-next-line unicorn/prefer-add-event-listener
     if (connection?.onchange === this.onConnectionChange) connection.onchange = null;
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', this.onConnectionChange);
@@ -588,7 +603,18 @@ export class SlidingSyncManager {
     let expandedAny = false;
 
     const expansionStartTime = performance.now();
-    const expansionDetails: Record<string, any> = {};
+    const expansionDetails: Record<
+      string,
+      {
+        status: string;
+        knownCount: number;
+        currentEnd?: number;
+        desiredEnd?: number;
+        previousEnd?: number;
+        newEnd?: number;
+        roomsToLoad?: number;
+      }
+    > = {};
 
     this.listKeys.forEach((key) => {
       const listData = this.slidingSync.getListData(key);
@@ -696,7 +722,7 @@ export class SlidingSyncManager {
       debugLog.warn('sync', 'Slow list expansion detected', {
         duration: `${expansionDuration.toFixed(2)}ms`,
         expandedLists: Object.keys(expansionDetails).filter(
-          (key) => expansionDetails[key].status === 'expanding'
+          (key) => expansionDetails[key]?.status === 'expanding'
         ),
       });
     }
@@ -772,7 +798,11 @@ export class SlidingSyncManager {
     let batchCount = 0;
 
     await Sentry.startSpan(
-      { name: 'sync.spidering', op: 'matrix.sync', attributes: { 'sync.transport': 'sliding' } },
+      {
+        name: 'sync.spidering',
+        op: 'matrix.sync',
+        attributes: { 'sync.transport': 'sliding' },
+      },
       async (span) => {
         const spideringRequiredState: MSC3575List['required_state'] = [
           [EventType.RoomJoinRules, ''],
@@ -807,7 +837,7 @@ export class SlidingSyncManager {
           } catch {
             // Swallow errors — the next iteration will retry with updated ranges.
           } finally {
-            // eslint-disable-next-line no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             await new Promise<void>((res) => {
               setTimeout(res, gapBetweenRequestsMs);
             });
@@ -906,7 +936,10 @@ export class SlidingSyncManager {
       category: 'sync.sliding',
       message: 'Subscribed to room (active)',
       level: 'info',
-      data: { encrypted: isEncrypted, activeSubscriptions: this.activeRoomSubscriptions.size },
+      data: {
+        encrypted: isEncrypted,
+        activeSubscriptions: this.activeRoomSubscriptions.size,
+      },
     });
     // One-shot listener: measure latency from subscription request to first room data.
     // Clean up any stale listener for the same roomId first.

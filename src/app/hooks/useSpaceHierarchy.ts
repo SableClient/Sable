@@ -1,12 +1,16 @@
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MatrixError, MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
-import { QueryFunction, useInfiniteQuery } from '@tanstack/react-query';
-import { MSpaceChildContent, StateEvent } from '$types/matrix/room';
+import type { MatrixEvent, Room, IHierarchyRoom } from '$types/matrix-sdk';
+import { MatrixError, EventType } from '$types/matrix-sdk';
+import type { QueryFunction } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import type { MSpaceChildContent } from '$types/matrix/room';
+
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { getAllParents, getStateEvents, isValidChild } from '$utils/room';
 import { isRoomId } from '$utils/matrix';
-import { SortFunc, byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
+import type { SortFunc } from '$utils/sort';
+import { byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
 import { useMatrixClient } from './useMatrixClient';
 import { makeLobbyCategoryId } from '../state/closedLobbyCategories';
 import { useStateEventCallback } from './useStateEventCallback';
@@ -71,7 +75,7 @@ const getHierarchySpaces = (
     spaceItems.push(spaceItem);
 
     if (!space) return;
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild)
+    const childEvents = getStateEvents(space, EventType.SpaceChild)
       .filter((childEvent) => {
         if (!isValidChild(childEvent)) return false;
         const childId = childEvent.getStateKey();
@@ -83,8 +87,8 @@ const getHierarchySpaces = (
         // cache which we maintain as we load summary in UI.
         return getRoom(childId)?.isSpaceRoom() || spaceRooms.has(childId);
       })
-      .sort(childEventTs)
-      .sort(childEventByOrder);
+      .toSorted(childEventTs)
+      .toSorted(childEventByOrder);
 
     childEvents.forEach((childEvent) => {
       const childId = childEvent.getStateKey();
@@ -131,7 +135,7 @@ const getSpaceHierarchy = (
         space: spaceItem,
       };
     }
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild);
+    const childEvents = getStateEvents(space, EventType.SpaceChild);
     const childItems: HierarchyItemRoom[] = [];
     childEvents.forEach((childEvent) => {
       if (!isValidChild(childEvent)) return;
@@ -151,7 +155,7 @@ const getSpaceHierarchy = (
 
     return {
       space: spaceItem,
-      rooms: childItems.sort(hierarchyItemTs).sort(hierarchyItemByOrder),
+      rooms: childItems.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder),
     };
   });
 
@@ -181,7 +185,7 @@ export const useSpaceHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== StateEvent.SpaceChild) return;
+        if (mEvent.getType() !== (EventType.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
@@ -226,7 +230,7 @@ const getSpaceJoinedHierarchy = (
     const space = getRoom(spaceId);
     if (!space) return false;
 
-    const childEvents = getStateEvents(space, StateEvent.SpaceChild);
+    const childEvents = getStateEvents(space, EventType.SpaceChild);
 
     return childEvents.some((childEvent): boolean => {
       if (!isValidChild(childEvent)) return false;
@@ -245,7 +249,7 @@ const getSpaceJoinedHierarchy = (
     if (!space) {
       return [];
     }
-    const joinedRoomEvents = getStateEvents(space, StateEvent.SpaceChild).filter((childEvent) => {
+    const joinedRoomEvents = getStateEvents(space, EventType.SpaceChild).filter((childEvent) => {
       if (!isValidChild(childEvent)) return false;
       const childId = childEvent.getStateKey();
       if (!childId || !isRoomId(childId)) return false;
@@ -273,7 +277,7 @@ const getSpaceJoinedHierarchy = (
       };
       childItems.push(childItem);
     });
-    return [spaceItem, ...sortRoomItems(spaceItem.roomId, childItems)];
+    return ([spaceItem] as HierarchyItem[]).concat(sortRoomItems(spaceItem.roomId, childItems));
   });
 
   return hierarchy;
@@ -294,8 +298,7 @@ export const useSpaceJoinedHierarchy = (
         items.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
         return items;
       }
-      items.sort(hierarchyItemTs).sort(hierarchyItemByOrder);
-      return items;
+      return items.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder);
     },
     [mx, sortByActivity]
   );
@@ -313,7 +316,7 @@ export const useSpaceJoinedHierarchy = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() !== StateEvent.SpaceChild) return;
+        if (mEvent.getType() !== (EventType.SpaceChild as string)) return;
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
@@ -363,7 +366,10 @@ export const useFetchSpaceHierarchyLevel = (
     },
     retry: 5,
     retryDelay: (failureCount, error) => {
-      if (error instanceof MatrixError && error.errcode === ErrorCode.M_LIMIT_EXCEEDED) {
+      if (
+        error instanceof MatrixError &&
+        error.errcode === (ErrorCode.M_LIMIT_EXCEEDED as string)
+      ) {
         const { retry_after_ms: delay } = error.data;
         if (typeof delay === 'number') {
           return delay;

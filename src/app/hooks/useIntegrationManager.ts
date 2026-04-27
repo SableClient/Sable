@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export interface IntegrationManager {
@@ -42,17 +42,19 @@ async function discoverManagers(mx: MatrixClient): Promise<IntegrationManager[]>
     const widgetsEvent = mx.getAccountData('m.widgets' as never);
     if (widgetsEvent) {
       const content = widgetsEvent.getContent();
-      Object.values(content).forEach((widget: any) => {
-        if (widget?.type === 'm.integration_manager' && widget?.url) {
-          const existing = managers.some((m) => m.uiUrl === widget.url);
-          if (!existing) {
-            managers.push({
-              apiUrl: widget.data?.api_url || widget.url,
-              uiUrl: widget.url,
-            });
+      Object.values(content).forEach(
+        (widget: { type?: string; url?: string; data?: { api_url?: string } }) => {
+          if (widget?.type === 'm.integration_manager' && widget?.url) {
+            const existing = managers.some((m) => m.uiUrl === widget.url);
+            if (!existing) {
+              managers.push({
+                apiUrl: widget.data?.api_url || widget.url,
+                uiUrl: widget.url,
+              });
+            }
           }
         }
-      });
+      );
     }
   } catch {
     // ignore malformed widget account data
@@ -124,7 +126,7 @@ export function useIntegrationManager(): IntegrationManagerState & {
       const managers = await discoverManagers(mx);
       let scalarToken: string | null = null;
 
-      if (managers.length > 0) {
+      if (managers.length > 0 && managers[0]) {
         scalarToken = await getScalarToken(mx, managers[0].apiUrl);
       }
 

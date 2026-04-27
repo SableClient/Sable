@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Editor } from 'slate';
+import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isEmptyEditor, moveCursor } from '$components/editor';
 

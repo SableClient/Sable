@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { AutoDiscoveryInfo } from '../cs-api';
+import type { AutoDiscoveryInfo } from '../cs-api';
 
 const AutoDiscoverInfoContext = createContext<AutoDiscoveryInfo | null>(null);
 

@@ -1,7 +1,7 @@
 import { Avatar, Box, Icon, Icons, Text } from 'folds';
-import { MouseEventHandler } from 'react';
+import type { MouseEventHandler } from 'react';
 import { useAtomValue } from 'jotai';
-import { Room, CallMembership } from '$types/matrix-sdk';
+import type { Room, CallMembership } from '$types/matrix-sdk';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { UserAvatar } from '$components/user-avatar';
 import { useMatrixClient } from '$hooks/useMatrixClient';

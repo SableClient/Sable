@@ -17,7 +17,7 @@ export const getScreenSize = (width: number): ScreenSize => {
 };
 
 export const useScreenSize = (): ScreenSize => {
-  const [size, setSize] = useState<ScreenSize>(getScreenSize(document.body.clientWidth));
+  const [size, setSize] = useState(getScreenSize(document.body.clientWidth));
 
   useElementSizeObserver(
     useCallback(() => document.body, []),

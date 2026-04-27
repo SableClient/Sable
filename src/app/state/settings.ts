@@ -53,6 +53,7 @@ export interface Settings {
   legacyUsernameColor: boolean;
 
   mediaAutoLoad: boolean;
+  multiplePreviews: boolean;
   bundledPreview: boolean;
   urlPreview: boolean;
   encUrlPreview: boolean;
@@ -74,7 +75,6 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
-  settingsLinkBaseUrlOverride?: string;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -149,6 +149,7 @@ const defaultSettings: Settings = {
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
+  multiplePreviews: true,
   bundledPreview: true,
   urlPreview: true,
   encUrlPreview: false,
@@ -177,7 +178,6 @@ const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
-  settingsLinkBaseUrlOverride: undefined,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -248,7 +248,7 @@ export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
 
-const baseSettings = atom<Settings>(getSettings());
+const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (get, set, update) => {

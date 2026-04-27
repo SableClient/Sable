@@ -322,7 +322,7 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
       let { text } = node;
-      if (text.startsWith('```')) {
+      if (text.startsWith('```') && !text.includes(' ')) {
         isInsideCodeBlock = !isInsideCodeBlock;
         return;
       }

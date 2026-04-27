@@ -39,7 +39,7 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
     if (node.spoiler) string = `<span data-mx-spoiler>${string}</span>`;
   }
 
-  if (opts.allowInlineMarkdown && string === sanitizeText(node.text)) {
+  if (opts.allowInlineMarkdown && string === sanitizeText(node.text) && !node.code) {
     string = parseInlineMD(string);
   }
 
@@ -355,13 +355,11 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
       spoileredUrls = spoileredUrls?.filter(
         (item, index) => spoileredUrls?.indexOf(item) === index
       );
-      // oxlint-disable-next-line no-console
-      console.log(maskedSpoileredUrlsMatch, maskedSpoileredUrls, spoileredUrls);
       urls = urls?.filter((url) => !spoileredUrls?.includes(url));
       finalList = finalList.concat(urls ?? []);
       return;
     }
-    if (node.type === BlockType.CodeBlock) return;
+    if (node.type === BlockType.CodeBlock || node.type === BlockType.CodeLine) return;
     node?.children?.forEach(parseLinks);
   };
   if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));

@@ -122,19 +122,38 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
       const markHiddenLinks = (original: string, isHTML?: boolean) => {
         if (!bundleContent) return original;
-        const splitBody = original.split(isHTML ? /(?=^.+<)|(?=<a.+)|(?<=\/a>)/g : /(?=[ \n()])/g);
+        /* Split according to the following fule:
+              - if its not HTML just break it by spaces, newLines, and parans
+              - if it is HTML 
+                - break it before before any potential opening tag
+                - break it whenever a <a> tag starts
+                - break it after a closing </a> tag
+                - then for every non <a> portion find regular links as though it is plaintext
+                  * this is not recursive but needs flattening              
+         */
+        let splitBody = original.split(
+          isHTML ? /(?=^.+<)|(?=<a.+)|(?<=\/a>)|(?=<code.+)|(?<=\/code>)/gi : /(?=[ \n()])/gi
+        );
+        if (isHTML)
+          splitBody = splitBody
+            .map((item) => (item.startsWith('<a') ? [item] : item.split(/(?=[ \n()])/g)))
+            .reduce((acc, current) => acc.concat(current), []);
         let newBody = '';
         splitBody.map((s) => {
-          if (s.length < 5) {
+          // the length is from the fact that a link is necessarily longer than 6
+          if (s.length < 6 || s.startsWith('<code') || s.endsWith('code>')) {
             newBody += s;
             return;
           }
+          // since the way that the match works the key is at the start of the string,
+          // it needs to be separated such that it can be reintroduced before the < in case of regular text
+          // or after it in case that it is matching a <a> tag
           const strippedS = s.substring(1);
           const isHidden =
             (bundleContent?.length === 0 ||
               bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
             strippedS.match(LINKINPUTREGEX) !== null;
-            newBody += `${isHidden ? (isHTML && `&lt;${s[0]}`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+          newBody += `${isHidden ? (isHTML && ((s.startsWith('<a') && `&lt;${s[0]}`) || `${s[0]}&lt;`)) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
         });
         return newBody;
       };
@@ -274,8 +293,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         content['com.beeper.linkpreviews'] = [];
         links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
         content['m.new_content']['com.beeper.linkpreviews'] = content['com.beeper.linkpreviews'];
-        // oxlint-disable-next-line no-console
-        console.log(content, links);
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

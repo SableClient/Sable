@@ -75,6 +75,8 @@
   --font-monospace: 'Space Mono', monospace;
 }
 
+.catppuccin-frappe-theme,
+.catppuccin-macchiato-theme,
 .catppuccin-mocha-theme {
   --tc-link: #76aff6;
 

@@ -14,6 +14,9 @@ import {
   gruvdarkTheme,
   accordTheme,
   blackTheme,
+  catppuccinLatteTheme,
+  catppuccinFrappeTheme,
+  catppuccinMacchiatoTheme,
   catppuccinMochaTheme,
 } from '../../colors.css';
 
@@ -89,6 +92,24 @@ export const BlackTheme: Theme = {
   classNames: ['black-theme', blackTheme, onDarkFontWeight],
 };
 
+export const CatppuccinLatteTheme: Theme = {
+  id: 'catppuccin-latte-theme',
+  kind: ThemeKind.Light,
+  classNames: ['catppuccin-latte-theme', catppuccinLatteTheme, onLightFontWeight],
+};
+
+export const CatppuccinFrappeTheme: Theme = {
+  id: 'catppuccin-frappe-theme',
+  kind: ThemeKind.Dark,
+  classNames: ['catppuccin-frappe-theme', catppuccinFrappeTheme, onDarkFontWeight],
+};
+
+export const CatppuccinMacchiatoTheme: Theme = {
+  id: 'catppuccin-macchiato-theme',
+  kind: ThemeKind.Dark,
+  classNames: ['catppuccin-macchiato-theme', catppuccinMacchiatoTheme, onDarkFontWeight],
+};
+
 export const CatppuccinMochaTheme: Theme = {
   id: 'catppuccin-mocha-theme',
   kind: ThemeKind.Dark,
@@ -109,6 +130,9 @@ export const useThemes = (): Theme[] => {
       GruvdarkTheme,
       AccordTheme,
       BlackTheme,
+      CatppuccinLatteTheme,
+      CatppuccinFrappeTheme,
+      CatppuccinMacchiatoTheme,
       CatppuccinMochaTheme,
     ],
     []
@@ -131,6 +155,9 @@ export const useThemeNames = (): Record<string, string> =>
       [GruvdarkTheme.id]: 'GruvDark',
       [AccordTheme.id]: 'Accord',
       [BlackTheme.id]: 'Black',
+      [CatppuccinLatteTheme.id]: 'Catppuccin Latte',
+      [CatppuccinFrappeTheme.id]: 'Catppuccin Frappe',
+      [CatppuccinMacchiatoTheme.id]: 'Catppuccin Macchiato',
       [CatppuccinMochaTheme.id]: 'Catppuccin Mocha',
     }),
     []

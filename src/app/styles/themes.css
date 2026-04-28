@@ -977,7 +977,274 @@
   --sable-overlay: rgba(15, 14, 18, 0.85);
 }
 
-/* --- Catppuccin Theme --- */
+/* --- Catppuccin Theme - Latte --- */
+.catppuccin-latte-theme {
+  /* Background */
+  --sable-bg-container: #e6e9ef;
+  --sable-bg-container-hover: #eff1f5;
+  --sable-bg-container-active: #ccd0da;
+  --sable-bg-container-line: #bcc0cc;
+  --sable-bg-on-container: #4c4f69;
+
+  /* Surface */
+  --sable-surface-container: #eff1f5;
+  --sable-surface-container-hover: #ccd0da;
+  --sable-surface-container-active: #bcc0cc;
+  --sable-surface-container-line: #acb0be;
+  --sable-surface-on-container: #4c4f69;
+
+  /* Surface Variant */
+  --sable-surface-var-container: #e6e9ef;
+  --sable-surface-var-container-hover: #e6e9ef80;
+  --sable-surface-var-container-active: #ccd0da;
+  --sable-surface-var-container-line: #bcc0cc;
+  --sable-surface-var-on-container: #4c4f69;
+
+  /* Primary */
+  --sable-primary-main: #8839ef;
+  --sable-primary-main-hover: #8839efd8;
+  --sable-primary-main-active: #8839efb4;
+  --sable-primary-main-line: #00000000;
+  --sable-primary-on-main: #eff1f5;
+  --sable-primary-container: #cba6f712;
+  --sable-primary-container-hover: #cba6f71a;
+  --sable-primary-container-active: #cba6f712;
+  --sable-primary-container-line: #00000000;
+  --sable-primary-on-container: #8839ef;
+
+  /* Secondary */
+  --sable-sec-main: #b5bfe2;
+  --sable-sec-main-hover: #6c6f85;
+  --sable-sec-main-active: #7c7f93;
+  --sable-sec-main-line: #00000000;
+  --sable-sec-on-main: #eff1f5;
+  --sable-sec-container: #ccd0da;
+  --sable-sec-container-hover: #bcc0cc;
+  --sable-sec-container-active: #acb0be;
+  --sable-sec-container-line: #9ca0b0;
+  --sable-sec-on-container: #4c4f69;
+
+  /* Success */
+  --sable-success-main: #40a02b;
+  --sable-success-main-hover: #40a02bd8;
+  --sable-success-main-active: #40a02bb4;
+  --sable-success-main-line: #00000000;
+  --sable-success-on-main: #e6e9ef;
+  --sable-success-container: #ccd0da;
+  --sable-success-container-hover: #40a02b1a;
+  --sable-success-container-active: #a6d189b12;
+  --sable-success-container-line: #ccd0da;
+  --sable-success-on-container: #40a02b;
+
+  /* Warning */
+  --sable-warn-main: #fe640b;
+  --sable-warn-main-hover: #fe640bd8;
+  --sable-warn-main-active: #fe640bb4;
+  --sable-warn-main-line: #00000000;
+  --sable-warn-on-main: #e6e9ef;
+  --sable-warn-container: #ccd0da;
+  --sable-warn-container-hover: #fe640b1a;
+  --sable-warn-container-active: #fe640b12;
+  --sable-warn-container-line: #ccd0da;
+  --sable-warn-on-container: #fe640b;
+
+  /* Crtical */
+  --sable-crit-main: #d20f39;
+  --sable-crit-main-hover: #d20f39d8;
+  --sable-crit-main-active: #d20f39b4;
+  --sable-crit-main-line: #00000000;
+  --sable-crit-on-main: #e6e9ef;
+  --sable-crit-container: #ccd0da;
+  --sable-crit-container-hover: #d20f391a;
+  --sable-crit-container-active: #d20f3912;
+  --sable-crit-container-line: #ccd0da;
+  --sable-crit-on-container: #d20f39;
+
+  /* Other */
+  --sable-focus-ring: rgba(110, 86, 207, 0.4);
+  --sable-shadow: rgba(45, 35, 92, 0.1);
+  --sable-overlay: rgba(45, 35, 92, 0.4);
+}
+
+/* --- Catppuccin Theme - Frappe --- */
+.catppuccin-frappe-theme {
+  /* Background */
+  --sable-bg-container: #292c3c;
+  --sable-bg-container-hover: #303446;
+  --sable-bg-container-active: #414559;
+  --sable-bg-container-line: #51576d;
+  --sable-bg-on-container: #c6d0f5;
+
+  /* Surface */
+  --sable-surface-container: #303446;
+  --sable-surface-container-hover: #414559;
+  --sable-surface-container-active: #51576d;
+  --sable-surface-container-line: #626880;
+  --sable-surface-on-container: #c6d0f5;
+
+  /* Surface Variant */
+  --sable-surface-var-container: #292c3c;
+  --sable-surface-var-container-hover: #292c3c80;
+  --sable-surface-var-container-active: #414559;
+  --sable-surface-var-container-line: #51576d;
+  --sable-surface-var-on-container: #c6d0f5;
+
+  /* Primary */
+  --sable-primary-main: #ca9ee6;
+  --sable-primary-main-hover: #ca9ee6d8;
+  --sable-primary-main-active: #ca9ee6b4;
+  --sable-primary-main-line: #00000000;
+  --sable-primary-on-main: #303446;
+  --sable-primary-container: #cba6f712;
+  --sable-primary-container-hover: #cba6f71a;
+  --sable-primary-container-active: #cba6f712;
+  --sable-primary-container-line: #00000000;
+  --sable-primary-on-container: #ca9ee6;
+
+  /* Secondary */
+  --sable-sec-main: #5c5f77;
+  --sable-sec-main-hover: #a5adce;
+  --sable-sec-main-active: #949cbb;
+  --sable-sec-main-line: #00000000;
+  --sable-sec-on-main: #303446;
+  --sable-sec-container: #414559;
+  --sable-sec-container-hover: #51576d;
+  --sable-sec-container-active: #626880;
+  --sable-sec-container-line: #737994;
+  --sable-sec-on-container: #c6d0f5;
+
+  /* Success */
+  --sable-success-main: #a6d189;
+  --sable-success-main-hover: #a6d189d8;
+  --sable-success-main-active: #a6d189b4;
+  --sable-success-main-line: #00000000;
+  --sable-success-on-main: #292c3c;
+  --sable-success-container: #414559;
+  --sable-success-container-hover: #a6d1891a;
+  --sable-success-container-active: #a6d189b12;
+  --sable-success-container-line: #414559;
+  --sable-success-on-container: #a6d189;
+
+  /* Warning */
+  --sable-warn-main: #ef9f76;
+  --sable-warn-main-hover: #ef9f76d8;
+  --sable-warn-main-active: #ef9f76b4;
+  --sable-warn-main-line: #00000000;
+  --sable-warn-on-main: #292c3c;
+  --sable-warn-container: #414559;
+  --sable-warn-container-hover: #ef9f761a;
+  --sable-warn-container-active: #ef9f7612;
+  --sable-warn-container-line: #414559;
+  --sable-warn-on-container: #ef9f76;
+
+  /* Crtical */
+  --sable-crit-main: #e78284;
+  --sable-crit-main-hover: #e78284d8;
+  --sable-crit-main-active: #e78284b4;
+  --sable-crit-main-line: #00000000;
+  --sable-crit-on-main: #292c3c;
+  --sable-crit-container: #414559;
+  --sable-crit-container-hover: #e782841a;
+  --sable-crit-container-active: #e7828412;
+  --sable-crit-container-line: #414559;
+  --sable-crit-on-container: #e78284;
+
+  /* Other */
+  --sable-focus-ring: rgb(203, 166, 247, 0.5);
+  --sable-shadow: rgba(0, 0, 0, 0.4);
+  --sable-overlay: rgb(24, 24, 37, 0.8);
+}
+
+/* --- Catppuccin Theme - Macchiato --- */
+.catppuccin-macchiato-theme {
+  /* Background */
+  --sable-bg-container: #1e2030;
+  --sable-bg-container-hover: #24273a;
+  --sable-bg-container-active: #363a4f;
+  --sable-bg-container-line: #494d64;
+  --sable-bg-on-container: #cad3f5;
+
+  /* Surface */
+  --sable-surface-container: #24273a;
+  --sable-surface-container-hover: #363a4f;
+  --sable-surface-container-active: #494d64;
+  --sable-surface-container-line: #5b6078;
+  --sable-surface-on-container: #cad3f5;
+
+  /* Surface Variant */
+  --sable-surface-var-container: #1e2030;
+  --sable-surface-var-container-hover: #1e203080;
+  --sable-surface-var-container-active: #363a4f;
+  --sable-surface-var-container-line: #494d64;
+  --sable-surface-var-on-container: #cad3f5;
+
+  /* Primary */
+  --sable-primary-main: #c6a0f6;
+  --sable-primary-main-hover: #c6a0f6d8;
+  --sable-primary-main-active: #c6a0f6b4;
+  --sable-primary-main-line: #00000000;
+  --sable-primary-on-main: #24273a;
+  --sable-primary-container: #cba6f712;
+  --sable-primary-container-hover: #cba6f71a;
+  --sable-primary-container-active: #cba6f712;
+  --sable-primary-container-line: #00000000;
+  --sable-primary-on-container: #c6a0f6;
+
+  /* Secondary */
+  --sable-sec-main: #b8c0e0;
+  --sable-sec-main-hover: #a5adcb;
+  --sable-sec-main-active: #939ab7;
+  --sable-sec-main-line: #00000000;
+  --sable-sec-on-main: #24273a;
+  --sable-sec-container: #363a4f;
+  --sable-sec-container-hover: #494d64;
+  --sable-sec-container-active: #5b6078;
+  --sable-sec-container-line: #6e738d;
+  --sable-sec-on-container: #cad3f5;
+
+  /* Success */
+  --sable-success-main: #a6da95;
+  --sable-success-main-hover: #a6da95d8;
+  --sable-success-main-active: #a6da95b4;
+  --sable-success-main-line: #00000000;
+  --sable-success-on-main: #24273a;
+  --sable-success-container: #313244;
+  --sable-success-container-hover: #a6da951a;
+  --sable-success-container-active: #a6da95b412;
+  --sable-success-container-line: #313244;
+  --sable-success-on-container: #a6da95;
+
+  /* Warning */
+  --sable-warn-main: #f5a97f;
+  --sable-warn-main-hover: #f5a97fd8;
+  --sable-warn-main-active: #f5a97fb4;
+  --sable-warn-main-line: #00000000;
+  --sable-warn-on-main: #24273a;
+  --sable-warn-container: #313244;
+  --sable-warn-container-hover: #f5a97f1a;
+  --sable-warn-container-active: #f5a97f12;
+  --sable-warn-container-line: #313244;
+  --sable-warn-on-container: #f5a97f;
+
+  /* Crtical */
+  --sable-crit-main: #ed8796;
+  --sable-crit-main-hover: #ed8796d8;
+  --sable-crit-main-active: #ed8796b4;
+  --sable-crit-main-line: #00000000;
+  --sable-crit-on-main: #24273a;
+  --sable-crit-container: #313244;
+  --sable-crit-container-hover: #ed87961a;
+  --sable-crit-container-active: #ed879612;
+  --sable-crit-container-line: #313244;
+  --sable-crit-on-container: #ed8796;
+
+  /* Other */
+  --sable-focus-ring: rgb(203, 166, 247, 0.5);
+  --sable-shadow: rgba(0, 0, 0, 0.4);
+  --sable-overlay: rgb(24, 24, 37, 0.8);
+}
+
+/* --- Catppuccin Theme - Mocha --- */
 .catppuccin-mocha-theme {
   /* Background */
   --sable-bg-container: #181825;
@@ -1004,19 +1271,19 @@
   --sable-primary-main: #cba6f7;
   --sable-primary-main-hover: #cba6f7d8;
   --sable-primary-main-active: #cba6f7b4;
-  --sable-primary-main-line: #a79de6; /* ------------------------------- thing */
+  --sable-primary-main-line: #00000000;
   --sable-primary-on-main: #1e1e2e;
   --sable-primary-container: #cba6f712;
   --sable-primary-container-hover: #cba6f71a;
   --sable-primary-container-active: #cba6f712;
-  --sable-primary-container-line: #575086; /* ------------------------------- thing */
+  --sable-primary-container-line: #00000000;
   --sable-primary-on-container: #cba6f7;
 
   /* Secondary */
   --sable-sec-main: #bac2de;
   --sable-sec-main-hover: #a6adc8;
   --sable-sec-main-active: #9399b2;
-  --sable-sec-main-line: #cccccc; /* ------------------------------- thing */
+  --sable-sec-main-line: #00000000;
   --sable-sec-on-main: #1e1e2e;
   --sable-sec-container: #313244;
   --sable-sec-container-hover: #45475a;
@@ -1028,7 +1295,7 @@
   --sable-success-main: #a6e3a1;
   --sable-success-main-hover: #a6e3a1d8;
   --sable-success-main-active: #a6e3a1b4;
-  --sable-success-main-line: #5cd6a3; /* ------------------------------- thing */
+  --sable-success-main-line: #00000000;
   --sable-success-on-main: #181825;
   --sable-success-container: #313244;
   --sable-success-container-hover: #a6e3a11a;
@@ -1040,7 +1307,7 @@
   --sable-warn-main: #fab387;
   --sable-warn-main-hover: #fab387d8;
   --sable-warn-main-active: #fab387b4;
-  --sable-warn-main-line: #daa36c; /* ------------------ thing */
+  --sable-warn-main-line: #00000000;
   --sable-warn-on-main: #181825;
   --sable-warn-container: #313244;
   --sable-warn-container-hover: #fab3871a;
@@ -1052,7 +1319,7 @@
   --sable-crit-main: #f38ba8;
   --sable-crit-main-hover: #f38ba8d8;
   --sable-crit-main-active: #f38ba8b4;
-  --sable-crit-main-line: #de7d7d; /* ---------------------- thing */
+  --sable-crit-main-line: #00000000;
   --sable-crit-on-main: #181825;
   --sable-crit-container: #313244;
   --sable-crit-container-hover: #f38ba81a;

@@ -1,6 +1,6 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useState } from 'react';
-import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
+import { Box, Chip, color, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
 import { SettingMenuSelector } from '$components/setting-menu-selector';
@@ -30,6 +30,13 @@ function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
   return themes.map((theme) => ({
     value: theme.id,
     label: themeNames[theme.id] ?? theme.id,
+    icon: (
+      <Icon
+        size="50"
+        src={theme.kind === ThemeKind.Dark ? Icons.Star : Icons.Sun}
+        style={{ color: theme.kind === ThemeKind.Dark ? color.Primary.Main : color.Warning.Main }}
+      />
+    ),
   }));
 }
 

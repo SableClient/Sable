@@ -1005,19 +1005,19 @@
   --sable-primary-main: #8839ef;
   --sable-primary-main-hover: #8839efd8;
   --sable-primary-main-active: #8839efb4;
-  --sable-primary-main-line: #00000000;
+  --sable-primary-main-line: #8839efa0;
   --sable-primary-on-main: #eff1f5;
   --sable-primary-container: #cba6f712;
   --sable-primary-container-hover: #cba6f71a;
   --sable-primary-container-active: #cba6f712;
-  --sable-primary-container-line: #00000000;
+  --sable-primary-container-line: #cba6f708;
   --sable-primary-on-container: #8839ef;
 
   /* Secondary */
   --sable-sec-main: #5c5f77;
   --sable-sec-main-hover: #6c6f85;
   --sable-sec-main-active: #7c7f93;
-  --sable-sec-main-line: #00000000;
+  --sable-sec-main-line: #8c8fa1;
   --sable-sec-on-main: #eff1f5;
   --sable-sec-container: #ccd0da;
   --sable-sec-container-hover: #bcc0cc;
@@ -1029,7 +1029,7 @@
   --sable-success-main: #40a02b;
   --sable-success-main-hover: #40a02bd8;
   --sable-success-main-active: #40a02bb4;
-  --sable-success-main-line: #00000000;
+  --sable-success-main-line: #40a02ba0;
   --sable-success-on-main: #e6e9ef;
   --sable-success-container: #ccd0da;
   --sable-success-container-hover: #40a02b1a;
@@ -1041,7 +1041,7 @@
   --sable-warn-main: #fe640b;
   --sable-warn-main-hover: #fe640bd8;
   --sable-warn-main-active: #fe640bb4;
-  --sable-warn-main-line: #00000000;
+  --sable-warn-main-line: #fe640ba0;
   --sable-warn-on-main: #e6e9ef;
   --sable-warn-container: #ccd0da;
   --sable-warn-container-hover: #fe640b1a;
@@ -1053,7 +1053,7 @@
   --sable-crit-main: #d20f39;
   --sable-crit-main-hover: #d20f39d8;
   --sable-crit-main-active: #d20f39b4;
-  --sable-crit-main-line: #00000000;
+  --sable-crit-main-line: #d20f39a0;
   --sable-crit-on-main: #e6e9ef;
   --sable-crit-container: #ccd0da;
   --sable-crit-container-hover: #d20f391a;
@@ -1094,19 +1094,19 @@
   --sable-primary-main: #ca9ee6;
   --sable-primary-main-hover: #ca9ee6d8;
   --sable-primary-main-active: #ca9ee6b4;
-  --sable-primary-main-line: #00000000;
+  --sable-primary-main-line: #ca9ee6a0;
   --sable-primary-on-main: #303446;
   --sable-primary-container: #ca9ee612;
   --sable-primary-container-hover: #ca9ee61a;
   --sable-primary-container-active: #ca9ee612;
-  --sable-primary-container-line: #00000000;
+  --sable-primary-container-line: #ca9ee608;
   --sable-primary-on-container: #ca9ee6;
 
   /* Secondary */
   --sable-sec-main: #b5bfe2;
   --sable-sec-main-hover: #a5adce;
   --sable-sec-main-active: #949cbb;
-  --sable-sec-main-line: #00000000;
+  --sable-sec-main-line: #838ba7;
   --sable-sec-on-main: #303446;
   --sable-sec-container: #414559;
   --sable-sec-container-hover: #51576d;
@@ -1118,7 +1118,7 @@
   --sable-success-main: #a6d189;
   --sable-success-main-hover: #a6d189d8;
   --sable-success-main-active: #a6d189b4;
-  --sable-success-main-line: #00000000;
+  --sable-success-main-line: #a6d189a0;
   --sable-success-on-main: #292c3c;
   --sable-success-container: #414559;
   --sable-success-container-hover: #a6d1891a;
@@ -1130,7 +1130,7 @@
   --sable-warn-main: #ef9f76;
   --sable-warn-main-hover: #ef9f76d8;
   --sable-warn-main-active: #ef9f76b4;
-  --sable-warn-main-line: #00000000;
+  --sable-warn-main-line: #ef9f76a0;
   --sable-warn-on-main: #292c3c;
   --sable-warn-container: #414559;
   --sable-warn-container-hover: #ef9f761a;
@@ -1142,7 +1142,7 @@
   --sable-crit-main: #e78284;
   --sable-crit-main-hover: #e78284d8;
   --sable-crit-main-active: #e78284b4;
-  --sable-crit-main-line: #00000000;
+  --sable-crit-main-line: #e78284a0;
   --sable-crit-on-main: #292c3c;
   --sable-crit-container: #414559;
   --sable-crit-container-hover: #e782841a;
@@ -1183,19 +1183,19 @@
   --sable-primary-main: #c6a0f6;
   --sable-primary-main-hover: #c6a0f6d8;
   --sable-primary-main-active: #c6a0f6b4;
-  --sable-primary-main-line: #00000000;
+  --sable-primary-main-line: #c6a0f6a0;
   --sable-primary-on-main: #24273a;
   --sable-primary-container: #c6a0f612;
   --sable-primary-container-hover: #c6a0f61a;
   --sable-primary-container-active: #c6a0f612;
-  --sable-primary-container-line: #00000000;
+  --sable-primary-container-line: #c6a0f608;
   --sable-primary-on-container: #c6a0f6;
 
   /* Secondary */
   --sable-sec-main: #b8c0e0;
   --sable-sec-main-hover: #a5adcb;
   --sable-sec-main-active: #939ab7;
-  --sable-sec-main-line: #00000000;
+  --sable-sec-main-line: #8087a2;
   --sable-sec-on-main: #24273a;
   --sable-sec-container: #363a4f;
   --sable-sec-container-hover: #494d64;
@@ -1207,7 +1207,7 @@
   --sable-success-main: #a6da95;
   --sable-success-main-hover: #a6da95d8;
   --sable-success-main-active: #a6da95b4;
-  --sable-success-main-line: #00000000;
+  --sable-success-main-line: #a6da95a0;
   --sable-success-on-main: #24273a;
   --sable-success-container: #313244;
   --sable-success-container-hover: #a6da951a;
@@ -1219,7 +1219,7 @@
   --sable-warn-main: #f5a97f;
   --sable-warn-main-hover: #f5a97fd8;
   --sable-warn-main-active: #f5a97fb4;
-  --sable-warn-main-line: #00000000;
+  --sable-warn-main-line: #f5a97fa0;
   --sable-warn-on-main: #24273a;
   --sable-warn-container: #313244;
   --sable-warn-container-hover: #f5a97f1a;
@@ -1231,7 +1231,7 @@
   --sable-crit-main: #ed8796;
   --sable-crit-main-hover: #ed8796d8;
   --sable-crit-main-active: #ed8796b4;
-  --sable-crit-main-line: #00000000;
+  --sable-crit-main-line: #ed8796a0;
   --sable-crit-on-main: #24273a;
   --sable-crit-container: #313244;
   --sable-crit-container-hover: #ed87961a;
@@ -1272,19 +1272,19 @@
   --sable-primary-main: #cba6f7;
   --sable-primary-main-hover: #cba6f7d8;
   --sable-primary-main-active: #cba6f7b4;
-  --sable-primary-main-line: #00000000;
+  --sable-primary-main-line: #cba6f7a0;
   --sable-primary-on-main: #1e1e2e;
   --sable-primary-container: #cba6f712;
   --sable-primary-container-hover: #cba6f71a;
   --sable-primary-container-active: #cba6f712;
-  --sable-primary-container-line: #00000000;
+  --sable-primary-container-line: #cba6f708;
   --sable-primary-on-container: #cba6f7;
 
   /* Secondary */
   --sable-sec-main: #bac2de;
   --sable-sec-main-hover: #a6adc8;
   --sable-sec-main-active: #9399b2;
-  --sable-sec-main-line: #00000000;
+  --sable-sec-main-line: #7f849c;
   --sable-sec-on-main: #1e1e2e;
   --sable-sec-container: #313244;
   --sable-sec-container-hover: #45475a;
@@ -1296,7 +1296,7 @@
   --sable-success-main: #a6e3a1;
   --sable-success-main-hover: #a6e3a1d8;
   --sable-success-main-active: #a6e3a1b4;
-  --sable-success-main-line: #00000000;
+  --sable-success-main-line: #a6e3a1a0;
   --sable-success-on-main: #181825;
   --sable-success-container: #313244;
   --sable-success-container-hover: #a6e3a11a;
@@ -1308,7 +1308,7 @@
   --sable-warn-main: #fab387;
   --sable-warn-main-hover: #fab387d8;
   --sable-warn-main-active: #fab387b4;
-  --sable-warn-main-line: #00000000;
+  --sable-warn-main-line: #fab387a0;
   --sable-warn-on-main: #181825;
   --sable-warn-container: #313244;
   --sable-warn-container-hover: #fab3871a;
@@ -1320,7 +1320,7 @@
   --sable-crit-main: #f38ba8;
   --sable-crit-main-hover: #f38ba8d8;
   --sable-crit-main-active: #f38ba8b4;
-  --sable-crit-main-line: #00000000;
+  --sable-crit-main-line: #f38ba8a0;
   --sable-crit-on-main: #181825;
   --sable-crit-container: #313244;
   --sable-crit-container-hover: #f38ba81a;

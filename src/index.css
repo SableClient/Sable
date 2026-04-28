@@ -75,19 +75,65 @@
   --font-monospace: 'Space Mono', monospace;
 }
 
-.catppuccin-frappe-theme,
-.catppuccin-macchiato-theme,
-.catppuccin-mocha-theme {
-  --tc-link: #76aff6;
+.catppuccin-latte-theme {
+  --tc-link: #7287fd;
 
-  --mx-uc-1: hsl(260, 100%, 75%);
-  --mx-uc-2: hsl(320, 100%, 75%);
-  --mx-uc-3: hsl(180, 100%, 65%);
-  --mx-uc-4: hsl(150, 100%, 70%);
-  --mx-uc-5: hsl(200, 100%, 75%);
-  --mx-uc-6: hsl(280, 80%, 70%);
-  --mx-uc-7: hsl(40, 100%, 75%);
-  --mx-uc-8: hsl(0, 100%, 75%);
+  /* user mxid colors */
+  --mx-uc-1: hsl(197deg, 97%, 46%);
+  --mx-uc-2: hsl(266deg, 85%, 58%);
+  --mx-uc-3: hsl(109deg, 58%, 40%);
+  --mx-uc-4: hsl(347deg, 87%, 44%);
+  --mx-uc-5: hsl(22deg, 99%, 52%);
+  --mx-uc-6: hsl(183deg, 74%, 35%);
+  --mx-uc-7: hsl(220deg, 91%, 54%);
+  --mx-uc-8: hsl(189deg, 70%, 42%);
+
+  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+  --font-monospace: 'Space Mono', monospace;
+}
+
+.catppuccin-frappe-theme {
+  --tc-link: #babbf1;
+
+  --mx-uc-1: hsl(316deg, 73%, 84%);
+  --mx-uc-2: hsl(358deg, 66%, 76%);
+  --mx-uc-3: hsl(172deg, 39%, 65%);
+  --mx-uc-4: hsl(96deg, 44%, 68%);
+  --mx-uc-5: hsl(222deg, 74%, 74%);
+  --mx-uc-6: hsl(277deg, 59%, 76%);
+  --mx-uc-7: hsl(40deg, 62%, 73%);
+  --mx-uc-8: hsl(359deg, 68%, 71%);
+
+  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+  --font-monospace: 'Space Mono', monospace;
+}
+.catppuccin-macchiato-theme {
+  --tc-link: #b7bdf8;
+
+  --mx-uc-1: hsl(316deg, 74%, 85%);
+  --mx-uc-2: hsl(355deg, 71%, 77%);
+  --mx-uc-3: hsl(171deg, 47%, 69%);
+  --mx-uc-4: hsl(105deg, 48%, 72%);
+  --mx-uc-5: hsl(220deg, 83%, 75%);
+  --mx-uc-6: hsl(267deg, 83%, 80%);
+  --mx-uc-7: hsl(40deg, 70%, 78%);
+  --mx-uc-8: hsl(351deg, 74%, 73%);
+
+  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+  --font-monospace: 'Space Mono', monospace;
+}
+
+.catppuccin-mocha-theme {
+  --tc-link: #b4befe;
+
+  --mx-uc-1: hsl(316deg, 72%, 86%);
+  --mx-uc-2: hsl(350deg, 65%, 77%);
+  --mx-uc-3: hsl(170deg, 57%, 73%);
+  --mx-uc-4: hsl(115deg, 54%, 76%);
+  --mx-uc-5: hsl(217deg, 92%, 76%);
+  --mx-uc-6: hsl(267deg, 84%, 81%);
+  --mx-uc-7: hsl(41deg, 86%, 83%);
+  --mx-uc-8: hsl(343deg, 81%, 75%);
 
   --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
   --font-monospace: 'Space Mono', monospace;

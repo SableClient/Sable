@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "commandDefinition",
+  "type": "object",
+  "required": ["id", "description", "builtIn", "category"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 2,
+      "pattern": "^\\S+$",
+      "description": "what the command should be called by"
+    },
+    "builtIn": {
+      "type": "boolean",
+      "description": "whether this is a built in command"
+    },
+    "description": {
+      "maxLength": 75,
+      "type": "string",
+      "description": "a short human readable description of the command"
+    },
+    "helpUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "optional url leading to external docs"
+    },
+    "requiredPermission": {
+      "enum": [
+        "invite",
+        "ban",
+        "kick",
+        "acl",
+        "founder",
+        "upgrade",
+        "none",
+        "message",
+        "sticker",
+        "react",
+        "redactOthers",
+        "redactSelf",
+        "custom"
+      ],
+      "type": "string",
+      "default": "none"
+    },
+    "checkSpacePermission": {
+      "type": "boolean",
+      "default": false
+    },
+    "customPermission": {
+      "description": "id of the custom permission needed for this command",
+      "type": "string"
+    },
+    "requiredCofigFlag": {
+      "description": "a required client config flag",
+      "type": "string",
+      "enum": ["developer"]
+    },
+    "attributes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "required"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\S+$",
+            "description": "id for the attribute"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "color",
+              "custom",
+              "number",
+              "boolean",
+              "userMention",
+              "roomMention",
+              "eventMention",
+              "matrixMediaUrl"
+            ],
+            "type": "string",
+            "description": "What type of attribute",
+            "default": "string"
+          },
+          "format": {
+            "type": "string",
+            "description": "regex for the value"
+          },
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true,
+            "description": "an enum of allowed values"
+          },
+          "description": {
+            "maxLength": 75,
+            "type": "string",
+            "description": "short human readable description of what the attribute is for"
+          },
+          "exampleValue": {
+            "type": "string",
+            "description": "an example of what the attribute value can be"
+          },
+          "defaultValue": {
+            "type": "string",
+            "description": "the default value of the attr"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "whether this attribute required"
+          }
+        }
+      }
+    },
+    "executableInReply": {
+      "type": "boolean",
+      "description": "if this command can be called when you are currently replying to someone"
+    },
+    "botCommand": {
+      "type": "object",
+      "description": "additional information if this is a bot command",
+      "properties": {
+        "override": {
+          "type": "object",
+          "description": "when this command overrides a built in command",
+          "properties": {
+            "overrides": {
+              "type": "string",
+              "pattern": "^\\S+$",
+              "description": "the id of the builtin command it overrides"
+            }
+          }
+        },
+        "botMxId": {
+          "type": "string",
+          "description": "the mxid of the bot"
+        },
+        "stateEventId": {
+          "type": "string",
+          "description": "the state event id which introduces/describes this command"
+        }
+      },
+      "required": ["botMxId", "stateEventId"]
+    },
+    "category": {
+      "description": "in which category is this command",
+      "type": "string",
+      "enum": [
+        "core",
+        "developer",
+        "moderation",
+        "administration",
+        "cosmetics",
+        "misc",
+        "fun",
+        "persona",
+        "bot"
+      ],
+      "default": "core"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "requiredPermission": {
+            "const": "custom"
+          }
+        },
+        "required": ["requiredPermission"]
+      },
+      "then": {
+        "required": ["customPermission"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "builtIn": {
+            "const": true
+          }
+        },
+        "required": ["builtIn"]
+      },
+      "then": {
+        "not": {
+          "required": ["botCommand"]
+        }
+      }
+    }
+  ]
+}

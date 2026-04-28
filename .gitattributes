@@ -1,1 +1,3 @@
 * text=auto eol=lf
+src/types/schemas/command.d.ts linguist-generated
+src/types/schemas/commandList.d.ts linguist-generated

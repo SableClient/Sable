@@ -16,6 +16,8 @@ import { nicknamesAtom } from '$state/nicknames';
 import { BlockType } from './types';
 import { getBeginCommand } from './utils';
 import { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
+import { SlateInputForCommand } from '$plugins/commandHandling/slateInput';
+import { getFromCommandRegistry } from '$plugins/commandHandling/commandRegistry';
 
 // Put this at the start and end of an inline component to work around this Chromium bug:
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1249405
@@ -61,19 +63,15 @@ function RenderCommandElement({
   const selected = useSelected();
   const focused = useFocused();
   const editor = useSlate();
-
+  
   return (
-    <span
-      {...attributes}
-      className={css.Command({
+    <SlateInputForCommand
+      commandNameClassName={css.Command({
         focus: selected && focused,
         active: getBeginCommand(editor) === element.command,
       })}
-      contentEditable={false}
-    >
-      {`/${element.command}`}
-      {children}
-    </span>
+      command={getFromCommandRegistry(element.command)}
+    />
   );
 }
 

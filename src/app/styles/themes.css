@@ -889,6 +889,7 @@
   --sable-overlay: rgba(0, 0, 0, 0.8);
 }
 
+/* --- Black Theme --- */
 .black-theme {
   /* Background */
   --sable-bg-container: #000000;
@@ -977,7 +978,7 @@
   --sable-overlay: rgba(15, 14, 18, 0.85);
 }
 
-/* --- Catppuccin Theme - Latte --- */
+/* --- Catppuccin Latte --- */
 .catppuccin-latte-theme {
   /* Background */
   --sable-bg-container: #e6e9ef;
@@ -1013,7 +1014,7 @@
   --sable-primary-on-container: #8839ef;
 
   /* Secondary */
-  --sable-sec-main: #b5bfe2;
+  --sable-sec-main: #5c5f77;
   --sable-sec-main-hover: #6c6f85;
   --sable-sec-main-active: #7c7f93;
   --sable-sec-main-line: #00000000;
@@ -1032,7 +1033,7 @@
   --sable-success-on-main: #e6e9ef;
   --sable-success-container: #ccd0da;
   --sable-success-container-hover: #40a02b1a;
-  --sable-success-container-active: #a6d189b12;
+  --sable-success-container-active: #40a02b12;
   --sable-success-container-line: #ccd0da;
   --sable-success-on-container: #40a02b;
 
@@ -1061,12 +1062,12 @@
   --sable-crit-on-container: #d20f39;
 
   /* Other */
-  --sable-focus-ring: rgba(110, 86, 207, 0.4);
-  --sable-shadow: rgba(45, 35, 92, 0.1);
-  --sable-overlay: rgba(45, 35, 92, 0.4);
+  --sable-focus-ring: rgba(136, 57, 239, 0.5);
+  --sable-shadow: rgba(0, 0, 0, 0.4);
+  --sable-overlay: rgba(220, 224, 232, 0.8);
 }
 
-/* --- Catppuccin Theme - Frappe --- */
+/* --- Catppuccin Frappe --- */
 .catppuccin-frappe-theme {
   /* Background */
   --sable-bg-container: #292c3c;
@@ -1095,14 +1096,14 @@
   --sable-primary-main-active: #ca9ee6b4;
   --sable-primary-main-line: #00000000;
   --sable-primary-on-main: #303446;
-  --sable-primary-container: #cba6f712;
-  --sable-primary-container-hover: #cba6f71a;
-  --sable-primary-container-active: #cba6f712;
+  --sable-primary-container: #ca9ee612;
+  --sable-primary-container-hover: #ca9ee61a;
+  --sable-primary-container-active: #ca9ee612;
   --sable-primary-container-line: #00000000;
   --sable-primary-on-container: #ca9ee6;
 
   /* Secondary */
-  --sable-sec-main: #5c5f77;
+  --sable-sec-main: #b5bfe2;
   --sable-sec-main-hover: #a5adce;
   --sable-sec-main-active: #949cbb;
   --sable-sec-main-line: #00000000;
@@ -1150,12 +1151,12 @@
   --sable-crit-on-container: #e78284;
 
   /* Other */
-  --sable-focus-ring: rgb(203, 166, 247, 0.5);
+  --sable-focus-ring: rgb(202, 158, 230, 0.5);
   --sable-shadow: rgba(0, 0, 0, 0.4);
-  --sable-overlay: rgb(24, 24, 37, 0.8);
+  --sable-overlay: rgba(41, 44, 60, 0.8);
 }
 
-/* --- Catppuccin Theme - Macchiato --- */
+/* --- Catppuccin Macchiato --- */
 .catppuccin-macchiato-theme {
   /* Background */
   --sable-bg-container: #1e2030;
@@ -1184,9 +1185,9 @@
   --sable-primary-main-active: #c6a0f6b4;
   --sable-primary-main-line: #00000000;
   --sable-primary-on-main: #24273a;
-  --sable-primary-container: #cba6f712;
-  --sable-primary-container-hover: #cba6f71a;
-  --sable-primary-container-active: #cba6f712;
+  --sable-primary-container: #c6a0f612;
+  --sable-primary-container-hover: #c6a0f61a;
+  --sable-primary-container-active: #c6a0f612;
   --sable-primary-container-line: #00000000;
   --sable-primary-on-container: #c6a0f6;
 
@@ -1210,7 +1211,7 @@
   --sable-success-on-main: #24273a;
   --sable-success-container: #313244;
   --sable-success-container-hover: #a6da951a;
-  --sable-success-container-active: #a6da95b412;
+  --sable-success-container-active: #a6da9512;
   --sable-success-container-line: #313244;
   --sable-success-on-container: #a6da95;
 
@@ -1239,12 +1240,12 @@
   --sable-crit-on-container: #ed8796;
 
   /* Other */
-  --sable-focus-ring: rgb(203, 166, 247, 0.5);
+  --sable-focus-ring: rgba(198, 160, 246, 0.5);
   --sable-shadow: rgba(0, 0, 0, 0.4);
-  --sable-overlay: rgb(24, 24, 37, 0.8);
+  --sable-overlay: rgba(30, 32, 48, 0.8);
 }
 
-/* --- Catppuccin Theme - Mocha --- */
+/* --- Catppuccin Mocha --- */
 .catppuccin-mocha-theme {
   /* Background */
   --sable-bg-container: #181825;

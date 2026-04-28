@@ -312,15 +312,15 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                         >
                           Cinny
                         </a>
-                        is ©{' '}
+                         {` is © `}
                         <a
                           href="https://github.com/ajbura"
                           rel="noreferrer noopener"
                           target="_blank"
                         >
                           Ajay Bura
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {` used under the terms of `}
                         <a
                           href="https://github.com/cinnyapp/cinny/blob/dev/LICENSE"
                           rel="noreferrer noopener"
@@ -435,6 +435,31 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                           rel="noreferrer noopener"
                         >
                           CC-BY 4.0
+                        </a>
+                        .
+                      </Text>
+                    </li>
+                    <li>
+                      <Text size="T300">
+                        The{' '}
+                        <a
+                          href="https://catppuccin.com/"
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          Catppuccin Themes
+                        </a>{' '}
+                        are ©{' '}
+                        <a href="https://github.com/catppuccin" target="_blank" rel="noreferrer noopener">
+                          Catppuccin
+                        </a>{' '}
+                        used under the terms of{' '}
+                        <a
+                          href="https://github.com/catppuccin/catppuccin/blob/main/LICENSE"
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          MIT
                         </a>
                         .
                       </Text>

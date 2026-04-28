@@ -14,6 +14,7 @@ import {
   gruvdarkTheme,
   accordTheme,
   blackTheme,
+  catppuccinMochaTheme,
 } from '../../colors.css';
 
 export enum ThemeKind {
@@ -88,6 +89,12 @@ export const BlackTheme: Theme = {
   classNames: ['black-theme', blackTheme, onDarkFontWeight],
 };
 
+export const CatppuccinMochaTheme: Theme = {
+  id: 'catppuccin-mocha-theme',
+  kind: ThemeKind.Dark,
+  classNames: ['catppuccin-mocha-theme', catppuccinMochaTheme, onDarkFontWeight],
+};
+
 export const useThemes = (): Theme[] => {
   const themes: Theme[] = useMemo(
     () => [
@@ -102,6 +109,7 @@ export const useThemes = (): Theme[] => {
       GruvdarkTheme,
       AccordTheme,
       BlackTheme,
+      CatppuccinMochaTheme,
     ],
     []
   );
@@ -123,6 +131,7 @@ export const useThemeNames = (): Record<string, string> =>
       [GruvdarkTheme.id]: 'GruvDark',
       [AccordTheme.id]: 'Accord',
       [BlackTheme.id]: 'Black',
+      [CatppuccinMochaTheme.id]: 'Catppuccin Mocha',
     }),
     []
   );

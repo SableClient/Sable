@@ -75,6 +75,22 @@
   --font-monospace: 'Space Mono', monospace;
 }
 
+.catppuccin-mocha-theme {
+  --tc-link: #76aff6;
+
+  --mx-uc-1: hsl(260, 100%, 75%);
+  --mx-uc-2: hsl(320, 100%, 75%);
+  --mx-uc-3: hsl(180, 100%, 65%);
+  --mx-uc-4: hsl(150, 100%, 70%);
+  --mx-uc-5: hsl(200, 100%, 75%);
+  --mx-uc-6: hsl(280, 80%, 70%);
+  --mx-uc-7: hsl(40, 100%, 75%);
+  --mx-uc-8: hsl(0, 100%, 75%);
+
+  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+  --font-monospace: 'Space Mono', monospace;
+}
+
 html {
   height: 100%;
   overflow: hidden;

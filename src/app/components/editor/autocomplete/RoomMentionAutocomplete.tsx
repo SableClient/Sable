@@ -1,5 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
@@ -83,7 +83,11 @@ export function RoomMentionAutocomplete({
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
 
-  const allRooms = useAtomValue(allRoomsAtom).toSorted(factoryRoomIdByActivity(mx));
+  const allRoomsFromAtom = useAtomValue(allRoomsAtom);
+  const allRooms = useMemo(
+    () => allRoomsFromAtom.toSorted(factoryRoomIdByActivity(mx)),
+    [allRoomsFromAtom, mx]
+  );
 
   const [result, search, resetSearch] = useAsyncSearch(
     allRooms,

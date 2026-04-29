@@ -280,7 +280,8 @@ export function ThemeCatalogSettings({
   const showSavedLibrary =
     (mode === 'full' || mode === 'local' || isAppearanceMode) && !(isAppearanceMode && browseOpen);
 
-  const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
+  const [getFavorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
+  const [favorites, setFavorites] = useState(getFavorites ? getFavorites : []);
   const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
   const [enabledTweakFullUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
   const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
@@ -294,6 +295,8 @@ export function ThemeCatalogSettings({
   const [kindFilter, setKindFilter] = useState<'all' | 'light' | 'dark'>('all');
   const [contrastFilter, setContrastFilter] = useState<'all' | SableThemeContrast>('all');
   const [tweakApplyFilter, setTweakApplyFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+
+  useEffect(() => setFavorites(getFavorites ? getFavorites : []), [getFavorites]);
 
   const onThemeSearchChange: ChangeEventHandler<HTMLInputElement> = (e) =>
     setThemeSearch(e.target.value);

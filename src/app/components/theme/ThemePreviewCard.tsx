@@ -99,7 +99,9 @@ export function ThemePreviewCard({
                 position="Top"
                 tooltip={
                   <Tooltip style={{ maxWidth: toRem(280) }}>
-                    <Text size="T200">Third-party theme. Only use themes you trust.</Text>
+                    <Text size="T200">
+                      Third-party theme. Only use themes from Providers you trust.
+                    </Text>
                   </Tooltip>
                 }
               >

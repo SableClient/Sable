@@ -25,7 +25,8 @@ export function ThemeThirdPartyBanner({ hostLabel }: ThemeThirdPartyBannerProps)
           </Text>
           <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
             This preview is hosted on {hostLabel}, outside the Sable catalog allowlist. Saving or
-            applying installs full theme CSS from that host—only use themes you trust.
+            applying installs full theme CSS from that host. Only use themes from Providers you
+            trust.
           </Text>
         </Box>
       </Box>

@@ -1,18 +1,18 @@
-import type { Descendant, Editor } from 'slate';
-import { Text } from 'slate';
-import type { MatrixClient } from '$types/matrix-sdk';
-import { sanitizeText } from '$utils/sanitize';
+import type { Descendant, Editor } from "slate";
+import { Text } from "slate";
+import type { MatrixClient } from "$types/matrix-sdk";
+import { sanitizeText } from "$utils/sanitize";
 import {
   parseBlockMD,
   parseInlineMD,
   unescapeMarkdownBlockSequences,
   unescapeMarkdownInlineSequences,
-} from '$plugins/markdown';
-import { findAndReplace } from '$utils/findAndReplace';
-import { sanitizeForRegex } from '$utils/regex';
-import { isUserId } from '$utils/matrix';
-import type { CustomElement } from './slate';
-import { BlockType } from './types';
+} from "$plugins/markdown";
+import { findAndReplace } from "$utils/findAndReplace";
+import { sanitizeForRegex } from "$utils/regex";
+import { isUserId } from "$utils/matrix";
+import type { CustomElement } from "./slate";
+import { BlockType } from "./types";
 
 export type OutputOptions = {
   allowTextFormatting?: boolean;
@@ -78,16 +78,16 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
         fragment += `/${node.eventId}`;
       }
       if (node.viaServers && node.viaServers.length > 0) {
-        fragment += `?${node.viaServers.map((server) => `via=${server}`).join('&')}`;
+        fragment += `?${node.viaServers.map((server) => `via=${server}`).join("&")}`;
       }
 
       const matrixTo = `https://matrix.to/#/${fragment}`;
       return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://')
+      return node.key.startsWith("mxc://")
         ? `<img data-mx-emoticon src="${node.key}" alt="${sanitizeText(
-            node.shortcode
+            node.shortcode,
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
@@ -105,8 +105,8 @@ const ignoreHTMLParseInlineMD = (text: string): string =>
     text,
     HTML_TAG_REG_G,
     (match) => match[0],
-    (txt) => parseInlineMD(txt)
-  ).join('');
+    (txt) => parseInlineMD(txt),
+  ).join("");
 
 /**
  * convert slate internal representation to a custom HTML string that can be sent to the server
@@ -116,23 +116,31 @@ const ignoreHTMLParseInlineMD = (text: string): string =>
  */
 export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
-  opts: OutputOptions
+  opts: OutputOptions,
 ): string => {
-  let markdownLines = '';
-  const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
-    if (opts.allowBlockMarkdown && 'type' in n && n.type === BlockType.Paragraph) {
+  let markdownLines = "";
+  const parseNode = (
+    n: Descendant,
+    index: number,
+    targetNodes: Descendant[],
+  ) => {
+    if (
+      opts.allowBlockMarkdown &&
+      "type" in n &&
+      n.type === BlockType.Paragraph
+    ) {
       let line = toMatrixCustomHTML(n, {
         ...opts,
         allowInlineMarkdown: false,
         allowBlockMarkdown: false,
       })
-        .replace(/<br\/>$/, '\n')
-        .replace(/^(\\*)&gt;/, '$1>');
+        .replace(/<br\/>$/, "\n")
+        .replace(/^(\\*)&gt;/, "$1>");
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
         opts.nickNameReplacement?.keys().forEach((key) => {
-          const replacement = opts.nickNameReplacement!.get(key) ?? '';
+          const replacement = opts.nickNameReplacement!.get(key) ?? "";
           line = line.replaceAll(key, replacement);
         });
       }
@@ -140,23 +148,25 @@ export const toMatrixCustomHTML = (
       if (index === targetNodes.length - 1) {
         return parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
       }
-      return '';
+      return "";
     }
 
     const parsedMarkdown = parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
-    markdownLines = '';
-    const isCodeLine = 'type' in n && n.type === BlockType.CodeLine;
+    markdownLines = "";
+    const isCodeLine = "type" in n && n.type === BlockType.CodeLine;
     if (isCodeLine) return `${parsedMarkdown}${toMatrixCustomHTML(n, {})}`;
 
     return `${parsedMarkdown}${toMatrixCustomHTML(n, { ...opts, allowBlockMarkdown: false })}`;
   };
   if (Array.isArray(node))
-    return node.map((element, index, array) => parseNode(element, index, array)).join('');
+    return node
+      .map((element, index, array) => parseNode(element, index, array))
+      .join("");
   if (Text.isText(node)) return textToCustomHtml(node, opts);
 
   const children = node.children
     .map((element, index, array) => parseNode(element, index, array))
-    .join('');
+    .join("");
   return elementToCustomHtml(node, children);
 };
 
@@ -183,7 +193,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Mention:
       return node.id;
     case BlockType.Emoticon:
-      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
+      return node.key.startsWith("mxc://") ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
       return `[${children}](${node.href})`;
     case BlockType.Command:
@@ -211,16 +221,20 @@ export const toPlainText = (
   node: Descendant | Descendant[],
   isMarkdown: boolean,
   stripNickname = false,
-  nickNameReplacement?: Map<RegExp, string>
+  nickNameReplacement?: Map<RegExp, string>,
 ): string => {
   if (Array.isArray(node))
-    return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
+    return node
+      .map((n) =>
+        toPlainText(n, isMarkdown, stripNickname, nickNameReplacement),
+      )
+      .join("");
   if (Text.isText(node)) {
     let { text } = node;
-    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
+    text = text.replaceAll(SPOILERINPUTREGEX, "[Spoiler]");
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
-        const replacement = nickNameReplacement.get(key) ?? '';
+        const replacement = nickNameReplacement.get(key) ?? "";
         text = text.replaceAll(key, replacement);
       });
       return isMarkdown
@@ -232,7 +246,9 @@ export const toPlainText = (
       : text;
   }
 
-  const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');
+  const children = node.children
+    .map((n) => toPlainText(n, isMarkdown))
+    .join("");
   return elementToPlainText(node, children);
 };
 
@@ -245,13 +261,18 @@ export const toPlainText = (
  * @param plain string
  * @returns boolean
  */
-export const customHtmlEqualsPlainText = (customHtml: string, plain: string): boolean =>
-  customHtml.replaceAll('<br/>', '\n') === sanitizeText(plain);
+export const customHtmlEqualsPlainText = (
+  customHtml: string,
+  plain: string,
+): boolean => customHtml.replaceAll("<br/>", "\n") === sanitizeText(plain);
 
-export const trimCustomHtml = (customHtml: string) => customHtml.replaceAll(/<br\/>$/g, '').trim();
+export const trimCustomHtml = (customHtml: string) =>
+  customHtml.replaceAll(/<br\/>$/g, "").trim();
 
 export const trimCommand = (cmdName: string, str: string) => {
-  const cmdRegX = new RegExp(`^(\\s+)?(\\/${sanitizeForRegex(cmdName)})([^\\S\n]+)?`);
+  const cmdRegX = new RegExp(
+    `^(\\s+)?(\\/${sanitizeForRegex(cmdName)})([^\\S\n]+)?`,
+  );
 
   const match = new RegExp(cmdRegX).exec(str);
   if (!match) return str;
@@ -279,7 +300,11 @@ export type MentionsData = {
  * @param editor the slate editor
  * @returns the mentions in a message {@link MentionsData}
  */
-export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): MentionsData => {
+export const getMentions = (
+  mx: MatrixClient,
+  roomId: string,
+  editor: Editor,
+): MentionsData => {
   const mentionData: MentionsData = {
     room: false,
     users: new Set(),
@@ -290,7 +315,7 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
     if (node.type === BlockType.CodeBlock) return;
 
     if (node.type === BlockType.Mention) {
-      if (node.name === '@room') {
+      if (node.name === "@room") {
         mentionData.room = true;
       }
 

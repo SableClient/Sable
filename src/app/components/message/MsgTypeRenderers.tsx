@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
 import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
-import { JUMBO_EMOJI_REG, URL_REG } from '$utils/regex';
+import { JUMBO_EMOJI_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
 import type {
   IAudioContent,
@@ -36,8 +36,9 @@ import {
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
+import { LINKINPUTREGEX } from '$components/editor';
 
-interface BundleContent extends IPreviewUrlResponse {
+export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
 }
 
@@ -146,11 +147,24 @@ export function MText({
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
   let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(URL_REG);
+  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
   let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  urls = urls?.map(
+    (url) =>
+      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+      (url.startsWith('(') && url.substring(1)) ||
+      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+      url
+  );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-  if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
+  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
+  try {
+    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+    if (renderUrlsPreview && bundleContent)
+      urls = bundleContent.map((bundle) => bundle.matched_url);
+  } catch {
+    urls = [];
+  }
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
@@ -234,10 +248,24 @@ export function MEmote({
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
   let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
+  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  urls = urls?.map(
+    (url) =>
+      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+      (url.startsWith('(') && url.substring(1)) ||
+      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+      url
+  );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
+  try {
+    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+    if (renderUrlsPreview && bundleContent)
+      urls = bundleContent.map((bundle) => bundle.matched_url);
+  } catch {
+    urls = [];
+  }
 
   return (
     <>
@@ -286,10 +314,24 @@ export function MNotice({
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
   let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
+  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  urls = urls?.map(
+    (url) =>
+      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+      (url.startsWith('(') && url.substring(1)) ||
+      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+      url
+  );
   bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
+  try {
+    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+    if (renderUrlsPreview && bundleContent)
+      urls = bundleContent.map((bundle) => bundle.matched_url);
+  } catch {
+    urls = [];
+  }
 
   return (
     <>

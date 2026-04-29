@@ -39,7 +39,13 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
     if (node.spoiler) string = `<span data-mx-spoiler>${string}</span>`;
   }
 
-  if (opts.allowInlineMarkdown && string === sanitizeText(node.text)) {
+  // Don't parse inline markdown if this text node has the code mark
+  // (code nodes should have their literal content preserved)
+  if (
+    opts.allowInlineMarkdown &&
+    string === sanitizeText(node.text) &&
+    !node.code
+  ) {
     string = markdownToHtml(string);
   }
 
@@ -209,6 +215,12 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, "g");
+// Spoilered links are <url> (Matrix HTML format) or ||url|| (direct URL in spoiler)
+// Note: [text](url) is a normal markdown link and should be INCLUDED in link previews
+const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, "g");
+const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, "g");
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -232,7 +244,10 @@ export const toPlainText = (
       .join("");
   if (Text.isText(node)) {
     let { text } = node;
+
     text = text.replaceAll(SPOILERINPUTREGEX, "[Spoiler]");
+    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, "$1");
+
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
         const replacement = nickNameReplacement.get(key) ?? "";
@@ -333,4 +348,62 @@ export const getMentions = (
   editor.children.forEach(parseMentions);
 
   return mentionData;
+};
+
+export const getLinks = (
+  serialized: Descendant | Descendant[],
+): string[] | undefined => {
+  let finalList: string[] = [];
+  let isInsideCodeBlock = false;
+  const parseLinks = (node: Descendant): void => {
+    if (Text.isText(node)) {
+      let { text } = node;
+      if (text.startsWith("```") && !text.includes(" ")) {
+        isInsideCodeBlock = !isInsideCodeBlock;
+        return;
+      }
+      if (isInsideCodeBlock) return;
+      // get a list of all the urls and of the ones that are spoilered,
+      // truncate the spoilered ones of their <> and then remove the items that are present in both lists
+      const urlsMatch = text.match(LINKINPUTREGEX);
+      let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith("(") &&
+            url.endsWith(")") &&
+            url.substring(1, url.length - 1)) ||
+          (url.startsWith("(") && url.substring(1)) ||
+          (url.endsWith("/)") && url.substring(0, url.length - 1)) ||
+          url,
+      );
+      const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
+      let spoileredUrls = spoileredUrlsMatch
+        ? [...new Set(spoileredUrlsMatch)]
+        : undefined;
+      spoileredUrls = spoileredUrls?.map((spoileredUrl) =>
+        spoileredUrl.slice(1, -1),
+      );
+
+      // Also handle direct ||url|| format
+      const directSpoileredUrlsMatch = text.match(SPOILEREDLINKDIRECTREGEX);
+      const directSpoileredUrls = directSpoileredUrlsMatch
+        ? directSpoileredUrlsMatch.map((url) => url.slice(2, -2))
+        : undefined;
+      if (directSpoileredUrls)
+        spoileredUrls = spoileredUrls
+          ? [...spoileredUrls, ...directSpoileredUrls]
+          : directSpoileredUrls;
+
+      spoileredUrls = spoileredUrls?.filter(
+        (item, index) => spoileredUrls?.indexOf(item) === index,
+      );
+      urls = urls?.filter((url) => !spoileredUrls?.includes(url));
+      finalList = finalList.concat(urls ?? []);
+      return;
+    }
+    node?.children?.forEach(parseLinks);
+  };
+  if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));
+  else parseLinks(serialized);
+  return finalList.filter((item, index) => finalList.indexOf(item) === index);
 };

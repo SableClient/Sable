@@ -36,6 +36,8 @@ import {
   useEditor,
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
+  getLinks,
+  LINKINPUTREGEX,
 } from '$components/editor';
 import { useSetting } from '$state/hooks/settings';
 import { CaptionPosition, settingsAtom } from '$state/settings';
@@ -56,6 +58,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { GetContentCallback } from '$types/matrix/room';
 import { sanitizeText } from '$utils/sanitize';
+import type { BundleContent } from '$components/message';
 
 type MessageEditorProps = {
   roomId: string;
@@ -116,9 +119,48 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         );
       }
 
+      const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+      const markHiddenLinks = (original: string, isHTML?: boolean) => {
+        if (!bundleContent) return original;
+        /* Split according to the following fule:
+              - if its not HTML just break it by spaces, newLines, and parans
+              - if it is HTML 
+                - break it before before any potential opening tag
+                - break it whenever a <a> tag starts
+                - break it after a closing </a> tag
+                - then for every non <a> portion find regular links as though it is plaintext
+                  * this is not recursive but needs flattening              
+         */
+        let splitBody = original.split(
+          isHTML ? /(?=^.+<)|(?=<a.+)|(?<=\/a>)|(?=<code.+)|(?<=\/code>)/gi : /(?=[ \n()])/gi
+        );
+        if (isHTML)
+          splitBody = splitBody
+            .map((item) => (item.startsWith('<a') ? [item] : item.split(/(?=[ \n()])/g)))
+            .reduce((acc, current) => acc.concat(current), []);
+        let newBody = '';
+        splitBody.map((s) => {
+          // the length is from the fact that a link is necessarily longer than 6
+          if (s.length < 6 || s.startsWith('<code') || s.endsWith('code>')) {
+            newBody += s;
+            return;
+          }
+          // since the way that the match works the key is at the start of the string,
+          // it needs to be separated such that it can be reintroduced before the < in case of regular text
+          // or after it in case that it is matching a <a> tag
+          const strippedS = s.substring(1);
+          const isHidden =
+            (bundleContent?.length === 0 ||
+              bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
+            strippedS.match(LINKINPUTREGEX) !== null;
+          newBody += `${isHidden ? (isHTML && ((s.startsWith('<a') && `&lt;${s[0]}`) || `${s[0]}&lt;`)) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+        });
+        return newBody;
+      };
+
       return [
-        typeof body === 'string' ? body : undefined,
-        typeof customHtml === 'string' ? customHtml : undefined,
+        typeof body === 'string' ? markHiddenLinks(body) : undefined,
+        typeof customHtml === 'string' ? markHiddenLinks(customHtml, true) : undefined,
         mMentions,
       ];
     }, [room, mEvent]);
@@ -212,6 +254,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         newContent['m.mentions'] = mMentions;
         contentBody['m.mentions'] = mMentions;
 
+        const links = getLinks(editor.children);
+
         if (!customHtmlEqualsPlainText(customHtml, plainText)) {
           newContent.format = 'org.matrix.custom.html';
           newContent.formatted_body = customHtml;
@@ -246,6 +290,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
               oldContent['page.codeberg.everypizza.msc4193.spoiler'];
           }
         }
+        content['com.beeper.linkpreviews'] = [];
+        links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+        content['m.new_content']['com.beeper.linkpreviews'] = content['com.beeper.linkpreviews'];
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
       }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])

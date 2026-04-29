@@ -22,6 +22,26 @@ const processor = marked.use({
 });
 
 /**
+ * Decodes common HTML entities in text for markdown processing.
+ * This allows markdown parsers to correctly interpret entities like &lt; as <.
+ */
+const decodeHtmlEntities = (text: string): string => {
+  const entities: Record<string, string> = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&nbsp;": " ",
+  };
+  let result = text;
+  for (const [entity, char] of Object.entries(entities)) {
+    result = result.split(entity).join(char);
+  }
+  return result;
+};
+
+/**
  * Converts markdown string to sanitized Matrix-compatible HTML.
  * Uses marked for parsing and DOMPurify for sanitization per Matrix spec.
  *
@@ -29,9 +49,13 @@ const processor = marked.use({
  * @returns Sanitized HTML string safe for Matrix client output
  */
 export function markdownToHtml(markdown: string): string {
+  // Decode HTML entities so marked can properly parse markdown syntax
+  // (e.g., &lt; becomes < for link URLs)
+  const decoded = decodeHtmlEntities(markdown);
+
   // First unescape any block-level escape sequences (e.g., \>, \#)
   const unescapedBlocks = unescapeMarkdownBlockSequences(
-    markdown,
+    decoded,
     (text) => text,
   );
 

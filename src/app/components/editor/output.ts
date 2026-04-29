@@ -3,8 +3,8 @@ import { Text } from "slate";
 import type { MatrixClient } from "$types/matrix-sdk";
 import { sanitizeText } from "$utils/sanitize";
 import {
-  parseBlockMD,
-  parseInlineMD,
+  markdownToHtml,
+  injectDataMd,
   unescapeMarkdownBlockSequences,
   unescapeMarkdownInlineSequences,
 } from "$plugins/markdown";
@@ -40,7 +40,7 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
   }
 
   if (opts.allowInlineMarkdown && string === sanitizeText(node.text)) {
-    string = parseInlineMD(string);
+    string = markdownToHtml(string);
   }
 
   return string;
@@ -105,7 +105,7 @@ const ignoreHTMLParseInlineMD = (text: string): string =>
     text,
     HTML_TAG_REG_G,
     (match) => match[0],
-    (txt) => parseInlineMD(txt),
+    (txt) => markdownToHtml(txt),
   ).join("");
 
 /**
@@ -146,12 +146,13 @@ export const toMatrixCustomHTML = (
       }
       markdownLines += line;
       if (index === targetNodes.length - 1) {
-        return parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
+        const html = markdownToHtml(markdownLines);
+        return injectDataMd(html);
       }
       return "";
     }
 
-    const parsedMarkdown = parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
+    const parsedMarkdown = markdownToHtml(markdownLines);
     markdownLines = "";
     const isCodeLine = "type" in n && n.type === BlockType.CodeLine;
     if (isCodeLine) return `${parsedMarkdown}${toMatrixCustomHTML(n, {})}`;

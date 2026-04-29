@@ -5,6 +5,7 @@ import {
   matrixMathExtension,
   matrixMathBlockExtension,
 } from "./extensions/matrix-math";
+import { matrixSubscriptExtension } from "./extensions/matrix-subscript";
 import {
   unescapeMarkdownBlockSequences,
   unescapeMarkdownInlineSequences,
@@ -16,6 +17,7 @@ const processor = marked.use({
     matrixSpoilerExtension,
     matrixMathExtension,
     matrixMathBlockExtension,
+    matrixSubscriptExtension,
   ],
 });
 
@@ -66,6 +68,7 @@ export function markdownToHtml(markdown: string): string {
       "img",
       "span",
       "div",
+      "sub",
       "details",
       "summary",
       "table",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { marked } from "marked";
 import { matrixSpoilerExtension } from "./matrix-spoiler";
 import { matrixMathExtension, matrixMathBlockExtension } from "./matrix-math";
+import { matrixSubscriptExtension } from "./matrix-subscript";
 
 function parse(input: string): string {
   const processor = marked.use({
@@ -9,6 +10,7 @@ function parse(input: string): string {
       matrixSpoilerExtension,
       matrixMathExtension,
       matrixMathBlockExtension,
+      matrixSubscriptExtension,
     ],
   });
   return processor.parse(input) as string;
@@ -60,5 +62,13 @@ describe("matrixMathBlockExtension (block)", () => {
     expect(result).not.toContain("<div");
     expect(result).toContain("data-mx-maths");
     expect(result).toContain("<span");
+  });
+});
+
+describe("matrixSubscriptExtension", () => {
+  it("parses -# syntax", () => {
+    const result = parse("-# subscript text");
+    expect(result).toContain("<sub");
+    expect(result).toContain('data-md="-#"');
   });
 });

@@ -1,8 +1,14 @@
-import { findAndReplace } from '$utils/findAndReplace';
-import { ESC_BLOCK_SEQ, UN_ESC_BLOCK_SEQ } from './block/rules';
-import { EscapeRule, CAP_INLINE_SEQ } from './inline/rules';
-import { runInlineRule } from './inline/runner';
-import { replaceMatch } from './internal';
+import { findAndReplace } from "$utils/findAndReplace";
+
+// Regex patterns for block-level markdown escape sequences
+// These match escaped markdown characters like \>, \#, \`, etc.
+const ESC_BLOCK_SEQ = /^\\(\\*[#>\[`])/;
+const UN_ESC_BLOCK_SEQ = /^\*[#>\[`]/;
+
+// URL-aware pattern for inline sequences
+const URL_NEG_LB = "(?<!(https?|ftp|mailto|magnet):\\/\\/\\S*)";
+const INLINE_SEQUENCE_SET = "[*_~`|]";
+const CAP_INLINE_SEQ = `${URL_NEG_LB}${INLINE_SEQUENCE_SET}`;
 
 /**
  * Removes escape sequences from markdown inline elements in the given plain-text.
@@ -12,11 +18,19 @@ import { replaceMatch } from './internal';
  * @param text - The input markdown plain-text containing escape characters (e.g., `"some \*italic\*"`)
  * @returns The plain-text with markdown escape sequences removed (e.g., `"some *italic*"`)
  */
-export const unescapeMarkdownInlineSequences = (text: string): string =>
-  runInlineRule(text, EscapeRule, (t) => {
-    if (t === '') return t;
-    return unescapeMarkdownInlineSequences(t);
-  }) ?? text;
+export const unescapeMarkdownInlineSequences = (text: string): string => {
+  const escapePattern = new RegExp(`${URL_NEG_LB}\\\\(${INLINE_SEQUENCE_SET})`);
+  const parts = findAndReplace(
+    text,
+    escapePattern,
+    (match) => {
+      const [, g1] = match;
+      return g1 ?? "";
+    },
+    (t) => t,
+  );
+  return parts.join("");
+};
 
 /**
  * Recovers the markdown escape sequences in the given plain-text.
@@ -27,7 +41,7 @@ export const unescapeMarkdownInlineSequences = (text: string): string =>
  * @returns The plain-text with markdown escape sequences added (e.g., `"some \*italic\*"`)
  */
 export const escapeMarkdownInlineSequences = (text: string): string => {
-  const regex = new RegExp(`(${CAP_INLINE_SEQ})`, 'g');
+  const regex = new RegExp(`(${CAP_INLINE_SEQ})`, "g");
   const parts = findAndReplace(
     text,
     regex,
@@ -35,10 +49,10 @@ export const escapeMarkdownInlineSequences = (text: string): string => {
       const [, g1] = match;
       return `\\${g1}`;
     },
-    (t) => t
+    (t) => t,
   );
 
-  return parts.join('');
+  return parts.join("");
 };
 
 /**
@@ -52,14 +66,14 @@ export const escapeMarkdownInlineSequences = (text: string): string => {
  */
 export const unescapeMarkdownBlockSequences = (
   text: string,
-  processPart: (text: string) => string
+  processPart: (text: string) => string,
 ): string => {
   const match = text.match(ESC_BLOCK_SEQ);
 
   if (!match) return processPart(text);
 
   const [, g1] = match;
-  return replaceMatch(text, match, g1, (t) => [processPart(t)]).join('');
+  return text.replace(ESC_BLOCK_SEQ, g1 ?? "");
 };
 
 /**
@@ -72,12 +86,12 @@ export const unescapeMarkdownBlockSequences = (
  */
 export const escapeMarkdownBlockSequences = (
   text: string,
-  processPart: (text: string) => string
+  processPart: (text: string) => string,
 ): string => {
   const match = text.match(UN_ESC_BLOCK_SEQ);
 
   if (!match) return processPart(text);
 
   const [, g1] = match;
-  return replaceMatch(text, match, `\\${g1}`, (t) => [processPart(t)]).join('');
+  return text.replace(UN_ESC_BLOCK_SEQ, `\\${g1}`);
 };

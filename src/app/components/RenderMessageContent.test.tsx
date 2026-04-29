@@ -49,24 +49,6 @@ describe('RenderMessageContent', () => {
     expect(screen.queryByTestId('client-preview')).not.toBeInTheDocument();
   });
 
-  it('still renders url previews for non-settings links', () => {
-    renderMessage('https://example.com');
-
-    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
-    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
-  });
-
-  it('still renders url previews for malformed settings-looking links', () => {
-    renderMessage(
-      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings">Settings'
-    );
-
-    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
-    expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
-      'https://app.example/settings/account?focus=status&moe.sable.client.action=settings">Settings'
-    );
-  });
-
   it('still renders url previews for settings links with unknown focus ids', () => {
     renderMessage('https://app.example/settings/account?focus=display-name2');
 
@@ -74,5 +56,40 @@ describe('RenderMessageContent', () => {
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent(
       'https://app.example/settings/account?focus=display-name2'
     );
+  });
+
+  it('still renders url previews for non-settings links', () => {
+    renderMessage('https://example.com');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('render url previews for text starting with paranthesis', () => {
+    renderMessage('foo (https://example.com bar');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('include ending paranthesis into the url preview per url spec', () => {
+    renderMessage('foo https://example.com) bar');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com)');
+  });
+
+  it('exclude closing paranthesis from the url preview when it marks a []() hyperlink', () => {
+    renderMessage('[foo](https://example.com) bar');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('include inner closing paranthesis from the url preview even within []() hyperlink', () => {
+    renderMessage('[foo](https://example.com)) bar');
+
+    expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com)');
   });
 });

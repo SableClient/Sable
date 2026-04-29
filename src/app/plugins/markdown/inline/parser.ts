@@ -2,6 +2,7 @@ import {
   BoldRule,
   CodeRule,
   EscapeRule,
+  HiddenLinkRule,
   ItalicRule1,
   ItalicRule2,
   LinkRule,
@@ -13,6 +14,7 @@ import { runInlineRule, runInlineRules } from './runner';
 import type { InlineMDParser } from './type';
 
 const LeveledRules = [
+  HiddenLinkRule,
   BoldRule,
   ItalicRule1,
   UnderlineRule,

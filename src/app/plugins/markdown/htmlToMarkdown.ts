@@ -17,8 +17,44 @@ export function htmlToMarkdown(html: string): string {
   return processNodes(domNodes).trim();
 }
 
+function isBlockTag(node: ChildNode | undefined): boolean {
+  if (!node || !isTag(node)) return false;
+  const blocks = [
+    'p',
+    'div',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'ul',
+    'ol',
+    'li',
+    'blockquote',
+    'pre',
+    'hr',
+    'table',
+    'details',
+    'summary',
+  ];
+  return blocks.includes(node.name.toLowerCase());
+}
+
 function processNodes(nodes: ChildNode[]): string {
-  return nodes.map((n) => processNode(n)).join('');
+  return nodes
+    .filter((n, i) => {
+      if (isText(n) && /^\s*$/.test(n.data)) {
+        const prev = nodes[i - 1];
+        const next = nodes[i + 1];
+        // Ignore whitespace between block tags or at the edges
+        const isBetweenBlocks = (!prev || isBlockTag(prev)) && (!next || isBlockTag(next));
+        if (isBetweenBlocks) return false;
+      }
+      return true;
+    })
+    .map((n) => processNode(n))
+    .join('');
 }
 
 function processNode(node: ChildNode, listDepth: number = 0): string {

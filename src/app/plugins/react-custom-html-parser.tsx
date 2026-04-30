@@ -306,17 +306,19 @@ export const highlightText = (
  * @returns {string} The concatenated plain text content of all descendant text nodes.
  */
 const extractTextFromChildren = (nodes: ChildNode[]): string => {
-  let text = '';
+  const worker = (n: ChildNode[]): string => {
+    let text = '';
+    n.forEach((node) => {
+      if ((node.type as unknown as string) === 'text') {
+        text += (node as unknown as Text).data;
+      } else if (node instanceof Element && node.children) {
+        text += worker(node.children);
+      }
+    });
+    return text;
+  };
 
-  nodes.forEach((node) => {
-    if ((node.type as unknown as string) === 'text') {
-      text += (node as unknown as Text).data;
-    } else if (node instanceof Element && node.children) {
-      text += extractTextFromChildren(node.children);
-    }
-  });
-
-  return text;
+  return worker(nodes).replace(/\n$/, '');
 };
 
 const getLanguageFromClassName = (className?: string): string | undefined => {
@@ -610,9 +612,10 @@ export const getReactCustomHtmlParser = (
               parent instanceof Element ? parent.children : [],
               parent instanceof Element ? parent.attribs : undefined
             );
+            const trimmedCode = codeContent.replace(/\n$/, '');
             return (
               <CodeHighlightRenderer
-                code={codeContent}
+                code={trimmedCode}
                 language={language}
                 allowDetect={false}
                 className={typeof props.className === 'string' ? props.className : undefined}

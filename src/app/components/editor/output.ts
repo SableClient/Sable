@@ -326,15 +326,11 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
 
 export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
   let finalList: string[] = [];
-  let isInsideCodeBlock = false;
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
-      let { text } = node;
-      if (text.startsWith('```') && !text.includes(' ')) {
-        isInsideCodeBlock = !isInsideCodeBlock;
-        return;
-      }
-      if (isInsideCodeBlock) return;
+      if (node.code) return;
+
+      const { text } = node;
       // get a list of all the urls and of the ones that are spoilered,
       // truncate the spoilered ones of their <> and then remove the items that are present in both lists
       const urlsMatch = text.match(LINKINPUTREGEX);
@@ -367,6 +363,7 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
       finalList = finalList.concat(urls ?? []);
       return;
     }
+    if ('type' in node && node.type === BlockType.CodeBlock) return;
     node?.children?.forEach(parseLinks);
   };
   if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));

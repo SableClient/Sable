@@ -93,6 +93,57 @@ type MTextProps = {
   renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
   style?: CSSProperties;
 };
+
+const getUrlsFromContent = (
+  content: Record<string, unknown>,
+  renderUrlsPreview?: (urls: string[]) => ReactNode
+): { urls?: string[]; bundleContent?: BundleContent[] } => {
+  const body = typeof content.body === 'string' ? content.body : '';
+  const customBody =
+    typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
+  const trimmedBody = trimReplyFromBody(body);
+
+  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
+  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  urls = urls?.map(
+    (url) =>
+      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+      (url.startsWith('(') && url.substring(1)) ||
+      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+      url
+  );
+
+  if (urls && customBody) {
+    // Filter out URLs that only appear inside <code> or <pre> tags in the formatted body
+    const safeHtml = customBody
+      .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
+      .replace(/<code[^>]*>.*?<\/code>/gs, '');
+    const safeText = safeHtml.replace(/<[^>]*>/g, '');
+    const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
+    let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
+    safeUrls = safeUrls.map(
+      (url) =>
+        (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+        (url.startsWith('(') && url.substring(1)) ||
+        (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+        url
+    );
+    const safeUrlsSet = new Set(safeUrls);
+    urls = urls.filter((url) => safeUrlsSet.has(url));
+  }
+
+  let bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  try {
+    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+    if (renderUrlsPreview && bundleContent)
+      urls = bundleContent.map((bundle) => bundle.matched_url);
+  } catch {
+    urls = [];
+  }
+
+  return { urls, bundleContent };
+};
+
 export function MText({
   edited,
   content,
@@ -146,25 +197,7 @@ export function MText({
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
-  let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map(
-    (url) =>
-      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-      (url.startsWith('(') && url.substring(1)) ||
-      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-      url
-  );
-  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
-  try {
-    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent)
-      urls = bundleContent.map((bundle) => bundle.matched_url);
-  } catch {
-    urls = [];
-  }
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
@@ -247,25 +280,7 @@ export function MEmote({
   const trimmedBody = trimReplyFromBody(body);
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
-  let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map(
-    (url) =>
-      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-      (url.startsWith('(') && url.substring(1)) ||
-      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-      url
-  );
-  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
-  try {
-    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent)
-      urls = bundleContent.map((bundle) => bundle.matched_url);
-  } catch {
-    urls = [];
-  }
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
   return (
     <>
@@ -313,25 +328,7 @@ export function MNotice({
   const trimmedBody = trimReplyFromBody(body);
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
 
-  let bundleContent: BundleContent[] | undefined;
-  const urlsMatch = trimmedBody.match(LINKINPUTREGEX);
-  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
-  urls = urls?.map(
-    (url) =>
-      (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
-      (url.startsWith('(') && url.substring(1)) ||
-      (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
-      url
-  );
-  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
-  //small "fix" for if someone sends malformed objects (ie not arrays of objects)
-  try {
-    bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent)
-      urls = bundleContent.map((bundle) => bundle.matched_url);
-  } catch {
-    urls = [];
-  }
+  const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
   return (
     <>

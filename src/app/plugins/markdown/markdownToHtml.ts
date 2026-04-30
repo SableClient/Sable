@@ -7,6 +7,10 @@ import {
 } from "./extensions/matrix-math";
 import { matrixSubscriptExtension } from "./extensions/matrix-subscript";
 import {
+  matrixEmoticonExtension,
+  preprocessEmoticon,
+} from "./extensions/matrix-emoticon";
+import {
   unescapeMarkdownBlockSequences,
   unescapeMarkdownInlineSequences,
 } from "./utils";
@@ -18,6 +22,7 @@ const processor = marked.use({
     matrixMathExtension,
     matrixMathBlockExtension,
     matrixSubscriptExtension,
+    matrixEmoticonExtension,
   ],
 });
 
@@ -59,8 +64,10 @@ export function markdownToHtml(markdown: string): string {
     (text) => text,
   );
 
+  const preprocessed = preprocessEmoticon(unescapedBlocks);
+
   // Parse markdown to HTML using marked with our Matrix extensions
-  const html = processor.parse(unescapedBlocks) as string;
+  const html = processor.parse(preprocessed) as string;
 
   // Unescape inline sequences (e.g., \*, \_) after parsing
   const unescapedInline = unescapeMarkdownInlineSequences(html);
@@ -126,6 +133,7 @@ export function markdownToHtml(markdown: string): string {
     ADD_ATTR: ["target", "rel"],
     // Force all links to have safe rel attribute
     FORCE_BODY: false,
+    ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,
   });
 
   return sanitized;

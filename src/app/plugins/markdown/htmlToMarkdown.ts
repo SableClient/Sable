@@ -1,10 +1,8 @@
 import parse from "html-dom-parser";
-import type { ChildNode, Element, Text as DomText } from "domhandler";
+import type { ChildNode, Element } from "domhandler";
 import { isText, isTag } from "domhandler";
-import {
-  escapeMarkdownInlineSequences,
-  escapeMarkdownBlockSequences,
-} from "./utils";
+import { validateMxcUrl } from "./extensions/matrix-emoticon";
+import { escapeMarkdownInlineSequences } from "./utils";
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -110,6 +108,9 @@ function processNode(node: ChildNode): string {
 
     case "sub":
       return processSubscript(node);
+
+    case "img":
+      return processImage(node);
 
     default:
       return processInlineElements(node);
@@ -234,4 +235,19 @@ function processInlineMarkdown(node: Element): string {
   const mdSequence = node.attribs["data-md"] ?? "";
   const content = node.children.map(processNode).join("");
   return `${mdSequence}${content}${mdSequence}`;
+}
+
+function processImage(node: Element): string {
+  if (node.attribs["data-mx-emoticon"] === undefined) {
+    return "";
+  }
+
+  const src = node.attribs.src ?? "";
+  const alt = node.attribs.alt ?? "";
+
+  if (!validateMxcUrl(src)) {
+    return "";
+  }
+
+  return `<img data-mx-emoticon src="${src}" alt="${alt}" />`;
 }

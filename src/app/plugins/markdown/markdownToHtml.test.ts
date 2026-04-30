@@ -69,4 +69,47 @@ describe("markdownToHtml", () => {
     expect(result).not.toContain("<strong>");
     expect(result).toContain("not bold");
   });
+
+  it("preserves img[data-mx-emoticon] tags with valid mxc URLs", () => {
+    const html =
+      '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" title=":blobcat:" height="32" />';
+    const result = markdownToHtml(html);
+    expect(result).toContain("mxc://example.org/emote");
+    expect(result).toContain("data-mx-emoticon");
+  });
+
+  it("rejects img tags with non-mxc protocols", () => {
+    const html =
+      '<img data-mx-emoticon src="https://evil.com/image.png" alt="test" />';
+    const result = markdownToHtml(html);
+    expect(result).not.toContain("https://evil.com");
+  });
+
+  it("rejects img tags with javascript: protocol", () => {
+    const html =
+      '<img data-mx-emoticon src="javascript:alert(1)" alt="test" />';
+    const result = markdownToHtml(html);
+    expect(result).not.toContain("javascript:");
+  });
+
+  it("rejects img tags with data: protocol", () => {
+    const html =
+      '<img data-mx-emoticon src="data:text/html,<script>alert(1)</script>" alt="test" />';
+    const result = markdownToHtml(html);
+    expect(result).not.toContain("data:");
+  });
+
+  it("rejects img tags with mxc URL containing credentials", () => {
+    const html =
+      '<img data-mx-emoticon src="mxc://user:pass@evil.com/image" alt="test" />';
+    const result = markdownToHtml(html);
+    expect(result).not.toContain("user:pass");
+  });
+
+  it("rejects img tags with mxc URL containing search params", () => {
+    const html =
+      '<img data-mx-emoticon src="mxc://example.com/image?x=y" alt="test" />';
+    const result = markdownToHtml(html);
+    expect(result).not.toContain("?");
+  });
 });

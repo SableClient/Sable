@@ -107,4 +107,14 @@ describe("bidirectional round-trip", () => {
     expect(result).not.toContain("<ul>");
     expect(result).toContain("k.");
   });
+
+  it("round-trips img[data-mx-emoticon] tags", () => {
+    const html =
+      '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" />';
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain("<img");
+    expect(result).toContain("data-mx-emoticon");
+    expect(result).toContain("mxc://");
+  });
 });

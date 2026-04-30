@@ -1,4 +1,4 @@
-import type { TokenizerExtension, RendererExtension } from 'marked';
+import type { TokenizerExtension, RendererExtension, Tokens } from 'marked';
 
 // Subscript extension: -# text (Matrix spec small/sub tag)
 export const matrixSubscriptExtension = {
@@ -7,21 +7,28 @@ export const matrixSubscriptExtension = {
   start(src: string) {
     return src.indexOf('-#');
   },
-  tokenizer(this: any, src: string) {
+  tokenizer(
+    this: { lexer: { inlineTokens: (t: string, tokens: Tokens.Generic[]) => void } },
+    src: string
+  ) {
     const match = /^-# +(.+)/.exec(src);
     if (match) {
       const token = {
         type: 'subscript',
         raw: match[0],
         text: match[1],
-        tokens: [] as any[],
+        tokens: [] as Tokens.Generic[],
       };
       this.lexer.inlineTokens(token.text, token.tokens);
       return token;
     }
     return undefined;
   },
-  renderer(this: any, token: any) {
-    return `<sub data-md="-#">${this.parser.parseInline(token.tokens)}</sub>`;
+  renderer(
+    this: { parser: { parseInline: (tokens: Tokens.Generic[]) => string } },
+    token: Tokens.Generic
+  ) {
+    const tokens = (token as { tokens: Tokens.Generic[] }).tokens || [];
+    return `<sub data-md="-#">${this.parser.parseInline(tokens)}</sub>`;
   },
 } satisfies TokenizerExtension & RendererExtension;

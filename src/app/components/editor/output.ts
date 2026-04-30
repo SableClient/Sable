@@ -134,13 +134,9 @@ export const toMatrixCustomHTML = (
         allowBlockMarkdown: false,
       });
 
-      const rawText = line.replace(/<br\/>$/, '');
-
       // Use \n for all paragraphs to prevent extra blank lines from
       // accumulating on each edit cycle.
-      line = line
-        .replace(/<br\/>$/, '\n')
-        .replace(/^(\\*)&gt;/, '$1>');
+      line = line.replace(/<br\/>$/, '\n').replace(/^(\\*)&gt;/, '$1>');
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {

@@ -166,7 +166,6 @@ function reconstructTag(node: Element): string {
   return `<${node.name}${attributes}>${content}</${node.name}>`;
 }
 
-
 function processInlineElements(node: Element): string {
   return node.children.map((c) => processNode(c)).join('');
 }

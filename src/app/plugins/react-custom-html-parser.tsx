@@ -700,11 +700,7 @@ export const getReactCustomHtmlParser = (
           if (typeof math === 'string') {
             const html = katex.renderToString(math, { throwOnError: false, displayMode: true });
             return (
-              <div
-                {...props}
-                dangerouslySetInnerHTML={{ __html: html }}
-                style={matrixColorStyle}
-              />
+              <div {...props} dangerouslySetInnerHTML={{ __html: html }} style={matrixColorStyle} />
             );
           }
         }

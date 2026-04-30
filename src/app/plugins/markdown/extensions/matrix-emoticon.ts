@@ -1,19 +1,18 @@
-import type { marked } from "marked";
+import type { TokenizerExtension, RendererExtension } from 'marked';
 
 /**
  * Validates that a URL is a proper mxc:// URI.
  * Returns true if valid, false otherwise.
  */
 function validateMxcUrlInternal(url: string): boolean {
-  if (!url.startsWith("mxc://")) return false;
+  if (!url.startsWith('mxc://')) return false;
 
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== "mxc:") return false;
+    if (parsed.protocol !== 'mxc:') return false;
     if (!parsed.host) return false;
     if (!parsed.pathname || parsed.pathname.length < 1) return false;
-    if (parsed.username || parsed.password || parsed.search || parsed.hash)
-      return false;
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return false;
     return true;
   } catch {
     return false;
@@ -22,10 +21,10 @@ function validateMxcUrlInternal(url: string): boolean {
 
 // Extension to preserve img[data-mx-emoticon] tags through markdown pipeline
 export const matrixEmoticonExtension = {
-  name: "emoticon",
-  level: "inline",
+  name: 'emoticon',
+  level: 'inline',
   start(src: string) {
-    return src.indexOf("data-mx-emoticon");
+    return src.indexOf('data-mx-emoticon');
   },
   tokenizer(src: string) {
     const rule = /^<img\s+[^>]*data-mx-emoticon[^>]*(?:\/>|>(?=\s*<\/img>))/i;
@@ -38,10 +37,10 @@ export const matrixEmoticonExtension = {
     if (!srcMatch) return undefined;
 
     const srcValue = srcMatch[1];
-    if (!validateMxcUrlInternal(srcValue)) return undefined;
+    if (!srcValue || !validateMxcUrlInternal(srcValue)) return undefined;
 
     return {
-      type: "emoticon",
+      type: 'emoticon',
       raw: rawHtml,
       html: rawHtml,
     };
@@ -49,7 +48,7 @@ export const matrixEmoticonExtension = {
   renderer(token) {
     return token.html;
   },
-} satisfies marked.TokenizerExtension & marked.RendererExtension;
+} satisfies TokenizerExtension & RendererExtension;
 
 // Preprocessor to strip invalid emoticon img tags before marked processing
 export function preprocessEmoticon(markdown: string): string {
@@ -58,7 +57,7 @@ export function preprocessEmoticon(markdown: string): string {
     const srcMatch = /src\s*=\s*["']([^"']*)["']/i.exec(tag);
     if (!srcMatch) return tag; // Keep if no src attribute
     const srcValue = srcMatch[1];
-    if (!validateMxcUrlInternal(srcValue)) return ""; // Remove invalid
+    if (!srcValue || !validateMxcUrlInternal(srcValue)) return ''; // Remove invalid
     return tag; // Keep valid
   });
 }

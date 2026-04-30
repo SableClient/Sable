@@ -1,18 +1,17 @@
-import type { Descendant, Editor } from "slate";
-import { Text } from "slate";
-import type { MatrixClient } from "$types/matrix-sdk";
-import { sanitizeText } from "$utils/sanitize";
+import type { Descendant, Editor } from 'slate';
+import { Text } from 'slate';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { sanitizeText } from '$utils/sanitize';
 import {
   markdownToHtml,
   injectDataMd,
   unescapeMarkdownBlockSequences,
   unescapeMarkdownInlineSequences,
-} from "$plugins/markdown";
-import { findAndReplace } from "$utils/findAndReplace";
-import { sanitizeForRegex } from "$utils/regex";
-import { isUserId } from "$utils/matrix";
-import type { CustomElement } from "./slate";
-import { BlockType } from "./types";
+} from '$plugins/markdown';
+import { sanitizeForRegex } from '$utils/regex';
+import { isUserId } from '$utils/matrix';
+import type { CustomElement } from './slate';
+import { BlockType } from './types';
 
 export type OutputOptions = {
   allowTextFormatting?: boolean;
@@ -35,7 +34,7 @@ export type OutputOptions = {
 const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
   let string = sanitizeText(node.text);
   if (!opts.insidePre && !opts.allowBlockMarkdown) {
-    string = string.replaceAll("\n", "<br/>");
+    string = string.replaceAll('\n', '<br/>');
   }
   if (opts.allowTextFormatting) {
     if (node.bold) string = `<strong>${string}</strong>`;
@@ -48,18 +47,18 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
 
   // Don't parse inline markdown if this text node has the code mark
   // (code nodes should have their literal content preserved)
-  if (
-    opts.allowInlineMarkdown &&
-    string === sanitizeText(node.text) &&
-    !node.code
-  ) {
+  if (opts.allowInlineMarkdown && string === sanitizeText(node.text) && !node.code) {
     string = markdownToHtml(string);
   }
 
   return string;
 };
 
-const elementToCustomHtml = (node: CustomElement, children: string): string => {
+const elementToCustomHtml = (
+  node: CustomElement,
+  children: string,
+  opts: OutputOptions
+): string => {
   switch (node.type) {
     case BlockType.Paragraph:
       return `${children}<br/>`;
@@ -69,10 +68,8 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       return `${children}\n`;
     case BlockType.CodeBlock: {
       const childrenInsidePre = node.children
-        .map((element, index, array) =>
-          toMatrixCustomHTML(element, { ...opts, insidePre: true }),
-        )
-        .join("");
+        .map((element) => toMatrixCustomHTML(element, { ...opts, insidePre: true }))
+        .join('');
       return `<pre><code>${childrenInsidePre}</code></pre>`;
     }
     case BlockType.QuoteLine:
@@ -97,16 +94,16 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
         fragment += `/${node.eventId}`;
       }
       if (node.viaServers && node.viaServers.length > 0) {
-        fragment += `?${node.viaServers.map((server) => `via=${server}`).join("&")}`;
+        fragment += `?${node.viaServers.map((server) => `via=${server}`).join('&')}`;
       }
 
       const matrixTo = `https://matrix.to/#/${fragment}`;
       return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
-      return node.key.startsWith("mxc://")
+      return node.key.startsWith('mxc://')
         ? `<img data-mx-emoticon src="${node.key}" alt="${sanitizeText(
-            node.shortcode,
+            node.shortcode
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
@@ -118,15 +115,6 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
   }
 };
 
-const HTML_TAG_REG_G = /<([\w-]+)(?: [^>]*)?(?:(?:\/>)|(?:>.*?<\/\1>))/g;
-const ignoreHTMLParseInlineMD = (text: string): string =>
-  findAndReplace(
-    text,
-    HTML_TAG_REG_G,
-    (match) => match[0],
-    (txt) => markdownToHtml(txt),
-  ).join("");
-
 /**
  * convert slate internal representation to a custom HTML string that can be sent to the server
  * @param node slate node
@@ -135,31 +123,23 @@ const ignoreHTMLParseInlineMD = (text: string): string =>
  */
 export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
-  opts: OutputOptions,
+  opts: OutputOptions
 ): string => {
-  let markdownLines = "";
-  const parseNode = (
-    n: Descendant,
-    index: number,
-    targetNodes: Descendant[],
-  ) => {
-    if (
-      opts.allowBlockMarkdown &&
-      "type" in n &&
-      n.type === BlockType.Paragraph
-    ) {
+  let markdownLines = '';
+  const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
+    if (opts.allowBlockMarkdown && 'type' in n && n.type === BlockType.Paragraph) {
       let line = toMatrixCustomHTML(n, {
         ...opts,
         allowInlineMarkdown: false,
         allowBlockMarkdown: false,
       })
-        .replace(/<br\/>$/, "\n\n")
-        .replace(/^(\\*)&gt;/, "$1>");
+        .replace(/<br\/>$/, '\n\n')
+        .replace(/^(\\*)&gt;/, '$1>');
 
       // strip nicknames if needed
       if (opts.stripNickname && opts.nickNameReplacement) {
         opts.nickNameReplacement?.keys().forEach((key) => {
-          const replacement = opts.nickNameReplacement!.get(key) ?? "";
+          const replacement = opts.nickNameReplacement!.get(key) ?? '';
           line = line.replaceAll(key, replacement);
         });
       }
@@ -168,26 +148,24 @@ export const toMatrixCustomHTML = (
         const html = markdownToHtml(markdownLines);
         return injectDataMd(html);
       }
-      return "";
+      return '';
     }
 
     const parsedMarkdown = markdownToHtml(markdownLines);
-    markdownLines = "";
-    const isCodeLine = "type" in n && n.type === BlockType.CodeLine;
+    markdownLines = '';
+    const isCodeLine = 'type' in n && n.type === BlockType.CodeLine;
     if (isCodeLine) return `${parsedMarkdown}${toMatrixCustomHTML(n, {})}`;
 
     return `${parsedMarkdown}${toMatrixCustomHTML(n, { ...opts, allowBlockMarkdown: false })}`;
   };
   if (Array.isArray(node))
-    return node
-      .map((element, index, array) => parseNode(element, index, array))
-      .join("");
+    return node.map((element, index, array) => parseNode(element, index, array)).join('');
   if (Text.isText(node)) return textToCustomHtml(node, opts);
 
   const children = node.children
     .map((element, index, array) => parseNode(element, index, array))
-    .join("");
-  return elementToCustomHtml(node, children);
+    .join('');
+  return elementToCustomHtml(node, children, opts);
 };
 
 const elementToPlainText = (node: CustomElement, children: string): string => {
@@ -213,7 +191,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Mention:
       return node.id;
     case BlockType.Emoticon:
-      return node.key.startsWith("mxc://") ? `:${node.shortcode}:` : node.key;
+      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
       return `[${children}](${node.href})`;
     case BlockType.Command:
@@ -229,11 +207,9 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
 const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
-export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, "g");
-// Spoilered links are <url> (Matrix HTML format) or ||url|| (direct URL in spoiler)
-// Note: [text](url) is a normal markdown link and should be INCLUDED in link previews
-const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, "g");
-const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, "g");
+export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
+const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
+const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, 'g');
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -247,23 +223,19 @@ export const toPlainText = (
   node: Descendant | Descendant[],
   isMarkdown: boolean,
   stripNickname = false,
-  nickNameReplacement?: Map<RegExp, string>,
+  nickNameReplacement?: Map<RegExp, string>
 ): string => {
   if (Array.isArray(node))
-    return node
-      .map((n) =>
-        toPlainText(n, isMarkdown, stripNickname, nickNameReplacement),
-      )
-      .join("");
+    return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
     let { text } = node;
 
-    text = text.replaceAll(SPOILERINPUTREGEX, "[Spoiler]");
-    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, "$1");
+    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
+    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
 
     if (stripNickname && nickNameReplacement) {
       nickNameReplacement?.keys().forEach((key) => {
-        const replacement = nickNameReplacement.get(key) ?? "";
+        const replacement = nickNameReplacement.get(key) ?? '';
         text = text.replaceAll(key, replacement);
       });
       return isMarkdown
@@ -275,9 +247,7 @@ export const toPlainText = (
       : text;
   }
 
-  const children = node.children
-    .map((n) => toPlainText(n, isMarkdown))
-    .join("");
+  const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');
   return elementToPlainText(node, children);
 };
 
@@ -290,18 +260,13 @@ export const toPlainText = (
  * @param plain string
  * @returns boolean
  */
-export const customHtmlEqualsPlainText = (
-  customHtml: string,
-  plain: string,
-): boolean => customHtml.replaceAll("<br/>", "\n") === sanitizeText(plain);
+export const customHtmlEqualsPlainText = (customHtml: string, plain: string): boolean =>
+  customHtml.replaceAll('<br/>', '\n') === sanitizeText(plain);
 
-export const trimCustomHtml = (customHtml: string) =>
-  customHtml.replaceAll(/<br\/>$/g, "").trim();
+export const trimCustomHtml = (customHtml: string) => customHtml.replaceAll(/<br\/>$/g, '').trim();
 
 export const trimCommand = (cmdName: string, str: string) => {
-  const cmdRegX = new RegExp(
-    `^(\\s+)?(\\/${sanitizeForRegex(cmdName)})([^\\S\n]+)?`,
-  );
+  const cmdRegX = new RegExp(`^(\\s+)?(\\/${sanitizeForRegex(cmdName)})([^\\S\n]+)?`);
 
   const match = new RegExp(cmdRegX).exec(str);
   if (!match) return str;
@@ -329,11 +294,7 @@ export type MentionsData = {
  * @param editor the slate editor
  * @returns the mentions in a message {@link MentionsData}
  */
-export const getMentions = (
-  mx: MatrixClient,
-  roomId: string,
-  editor: Editor,
-): MentionsData => {
+export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): MentionsData => {
   const mentionData: MentionsData = {
     room: false,
     users: new Set(),
@@ -344,7 +305,7 @@ export const getMentions = (
     if (node.type === BlockType.CodeBlock) return;
 
     if (node.type === BlockType.Mention) {
-      if (node.name === "@room") {
+      if (node.name === '@room') {
         mentionData.room = true;
       }
 
@@ -363,15 +324,13 @@ export const getMentions = (
   return mentionData;
 };
 
-export const getLinks = (
-  serialized: Descendant | Descendant[],
-): string[] | undefined => {
+export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
   let finalList: string[] = [];
   let isInsideCodeBlock = false;
   const parseLinks = (node: Descendant): void => {
     if (Text.isText(node)) {
       let { text } = node;
-      if (text.startsWith("```") && !text.includes(" ")) {
+      if (text.startsWith('```') && !text.includes(' ')) {
         isInsideCodeBlock = !isInsideCodeBlock;
         return;
       }
@@ -382,20 +341,14 @@ export const getLinks = (
       let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
       urls = urls?.map(
         (url) =>
-          (url.startsWith("(") &&
-            url.endsWith(")") &&
-            url.substring(1, url.length - 1)) ||
-          (url.startsWith("(") && url.substring(1)) ||
-          (url.endsWith("/)") && url.substring(0, url.length - 1)) ||
-          url,
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
       );
       const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
-      let spoileredUrls = spoileredUrlsMatch
-        ? [...new Set(spoileredUrlsMatch)]
-        : undefined;
-      spoileredUrls = spoileredUrls?.map((spoileredUrl) =>
-        spoileredUrl.slice(1, -1),
-      );
+      let spoileredUrls = spoileredUrlsMatch ? [...new Set(spoileredUrlsMatch)] : undefined;
+      spoileredUrls = spoileredUrls?.map((spoileredUrl) => spoileredUrl.slice(1, -1));
 
       // Also handle direct ||url|| format
       const directSpoileredUrlsMatch = text.match(SPOILEREDLINKDIRECTREGEX);
@@ -408,7 +361,7 @@ export const getLinks = (
           : directSpoileredUrls;
 
       spoileredUrls = spoileredUrls?.filter(
-        (item, index) => spoileredUrls?.indexOf(item) === index,
+        (item, index) => spoileredUrls?.indexOf(item) === index
       );
       urls = urls?.filter((url) => !spoileredUrls?.includes(url));
       finalList = finalList.concat(urls ?? []);

@@ -1,84 +1,79 @@
-import { describe, expect, it } from "vitest";
-import { getLinks, toPlainText } from "./output";
-import { ParagraphElement } from "slate";
+import { describe, expect, it } from 'vitest';
+import { getLinks, toPlainText } from './output';
+import type { ParagraphElement } from './slate';
+import { BlockType } from './types';
 
-describe("getLinks", () => {
-  it("extracts URLs from text", () => {
+describe('getLinks', () => {
+  it('extracts URLs from text', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [{ text: "Check out https://example.com for more info" }],
+      type: BlockType.Paragraph,
+      children: [{ text: 'Check out https://example.com for more info' }],
     };
     const links = getLinks([node]);
-    expect(links).toContain("https://example.com");
+    expect(links).toContain('https://example.com');
   });
 
-  it("excludes URLs in angle brackets (Matrix HTML spoiler)", () => {
+  it('excludes URLs in angle brackets (Matrix HTML spoiler)', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [{ text: "Check out <https://example.com> for more info" }],
+      type: BlockType.Paragraph,
+      children: [{ text: 'Check out <https://example.com> for more info' }],
     };
     const links = getLinks([node]);
-    expect(links).not.toContain("https://example.com");
+    expect(links).not.toContain('https://example.com');
     expect(links).toHaveLength(0);
   });
 
-  it("extracts markdown link URLs", () => {
+  it('extracts markdown link URLs', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [
-        { text: "Check [my link](https://example.com) for more info" },
-      ],
+      type: BlockType.Paragraph,
+      children: [{ text: 'Check [my link](https://example.com) for more info' }],
     };
     const links = getLinks([node]);
-    expect(links).toContain("https://example.com");
+    expect(links).toContain('https://example.com');
   });
 
-  it("excludes URLs inside code blocks", () => {
+  it('excludes URLs inside code blocks', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [
-        { text: "```" },
-        { text: "https://example.com" },
-        { text: "```" },
-      ],
+      type: BlockType.Paragraph,
+      children: [{ text: '```' }, { text: 'https://example.com' }, { text: '```' }],
     };
     const links = getLinks([node]);
     expect(links).toHaveLength(0);
   });
 });
 
-describe("toPlainText spoiler handling", () => {
-  it("replaces ||spoilered text|| with [Spoiler]", () => {
+describe('toPlainText spoiler handling', () => {
+  it('replaces ||spoilered text|| with [Spoiler]', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [{ text: "Hello ||spoilered|| world" }],
+      type: BlockType.Paragraph,
+      children: [{ text: 'Hello ||spoilered|| world' }],
     };
     const plain = toPlainText(node, true);
-    expect(plain).toContain("[Spoiler]");
-    expect(plain).not.toContain("||spoilered||");
+    expect(plain).toContain('[Spoiler]');
+    expect(plain).not.toContain('||spoilered||');
   });
 
-  it("replaces ||spoilered links|| with [Spoiler]", () => {
+  it('replaces ||spoilered links|| with [Spoiler]', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
-      children: [{ text: "Hello ||https://example.com|| world" }],
+      type: BlockType.Paragraph,
+      children: [{ text: 'Hello ||https://example.com|| world' }],
     };
     const plain = toPlainText(node, true);
-    expect(plain).toContain("[Spoiler]");
-    expect(plain).not.toContain("||https://example.com||");
+    expect(plain).toContain('[Spoiler]');
+    expect(plain).not.toContain('||https://example.com||');
   });
 
-  it("extracts non-spoilered markdown link URLs alongside spoilered ones", () => {
+  it('extracts non-spoilered markdown link URLs alongside spoilered ones', () => {
     const node: ParagraphElement = {
-      type: "paragraph",
+      type: BlockType.Paragraph,
       children: [
         {
-          text: "Check [visible](https://visible.com) and ||https://hidden.com||",
+          text: 'Check [visible](https://visible.com) and ||https://hidden.com||',
         },
       ],
     };
     const links = getLinks([node]);
-    expect(links).toContain("https://visible.com");
-    expect(links).not.toContain("https://hidden.com");
+    expect(links).toContain('https://visible.com');
+    expect(links).not.toContain('https://hidden.com');
   });
 });

@@ -1,115 +1,111 @@
-import { describe, expect, it } from "vitest";
-import { markdownToHtml } from "./markdownToHtml";
+import { describe, expect, it } from 'vitest';
+import { markdownToHtml } from './markdownToHtml';
 
-describe("markdownToHtml", () => {
-  it("converts headings", () => {
-    const result = markdownToHtml("# Hello World");
-    expect(result).toContain("<h1");
-    expect(result).toContain("Hello World");
+describe('markdownToHtml', () => {
+  it('converts headings', () => {
+    const result = markdownToHtml('# Hello World');
+    expect(result).toContain('<h1');
+    expect(result).toContain('Hello World');
   });
 
-  it("converts bold text", () => {
-    const result = markdownToHtml("**bold**");
-    expect(result).toContain("<strong>bold</strong>");
+  it('converts bold text', () => {
+    const result = markdownToHtml('**bold**');
+    expect(result).toContain('<strong>bold</strong>');
   });
 
-  it("converts italic text", () => {
-    const result = markdownToHtml("*italic*");
-    expect(result).toContain("<em>italic</em>");
+  it('converts italic text', () => {
+    const result = markdownToHtml('*italic*');
+    expect(result).toContain('<em>italic</em>');
   });
 
-  it("converts inline code", () => {
-    const result = markdownToHtml("`code`");
-    expect(result).toContain("<code>code</code>");
+  it('converts inline code', () => {
+    const result = markdownToHtml('`code`');
+    expect(result).toContain('<code>code</code>');
   });
 
-  it("converts links", () => {
-    const result = markdownToHtml("[link](https://example.com)");
+  it('converts links', () => {
+    const result = markdownToHtml('[link](https://example.com)');
     expect(result).toContain('<a href="https://example.com"');
   });
 
-  it("converts spoiler syntax", () => {
-    const result = markdownToHtml("||spoiler||");
-    expect(result).toContain("data-mx-spoiler");
-    expect(result).toContain("spoiler");
+  it('converts spoiler syntax', () => {
+    const result = markdownToHtml('||spoiler||');
+    expect(result).toContain('data-mx-spoiler');
+    expect(result).toContain('spoiler');
   });
 
-  it("converts inline math syntax", () => {
-    const result = markdownToHtml("$E = mc^2$");
-    expect(result).toContain("data-mx-maths");
-    expect(result).toContain("E = mc^2");
+  it('converts inline math syntax', () => {
+    const result = markdownToHtml('$E = mc^2$');
+    expect(result).toContain('data-mx-maths');
+    expect(result).toContain('E = mc^2');
   });
 
-  it("converts block math syntax", () => {
-    const result = markdownToHtml("$$\\frac{a}{b}$$");
-    expect(result).toContain("data-mx-maths");
-    expect(result).toContain("<div");
+  it('converts block math syntax', () => {
+    const result = markdownToHtml('$$\\frac{a}{b}$$');
+    expect(result).toContain('data-mx-maths');
+    expect(result).toContain('<div');
   });
 
-  it("does not parse k. as a list", () => {
-    const result = markdownToHtml("k. Hello world");
-    expect(result).not.toContain("<li>");
-    expect(result).not.toContain("<ol>");
-    expect(result).not.toContain("<ul>");
+  it('does not parse k. as a list', () => {
+    const result = markdownToHtml('k. Hello world');
+    expect(result).not.toContain('<li>');
+    expect(result).not.toContain('<ol>');
+    expect(result).not.toContain('<ul>');
   });
 
-  it("handles text without markdown", () => {
-    const result = markdownToHtml("Plain text without any formatting");
-    expect(result).toContain("Plain text");
+  it('handles text without markdown', () => {
+    const result = markdownToHtml('Plain text without any formatting');
+    expect(result).toContain('Plain text');
   });
 
-  it("handles multiline content", () => {
-    const result = markdownToHtml("Line 1\nLine 2\nLine 3");
-    expect(result).toContain("Line 1");
-    expect(result).toContain("Line 2");
+  it('handles multiline content', () => {
+    const result = markdownToHtml('Line 1\nLine 2\nLine 3');
+    expect(result).toContain('Line 1');
+    expect(result).toContain('Line 2');
   });
 
-  it("handles escaped markdown characters", () => {
-    const result = markdownToHtml("This is \\*not bold\\*");
-    expect(result).not.toContain("<strong>");
-    expect(result).toContain("not bold");
+  it('handles escaped markdown characters', () => {
+    const result = markdownToHtml('This is \\*not bold\\*');
+    expect(result).not.toContain('<strong>');
+    expect(result).toContain('not bold');
   });
 
-  it("preserves img[data-mx-emoticon] tags with valid mxc URLs", () => {
+  it('preserves img[data-mx-emoticon] tags with valid mxc URLs', () => {
     const html =
       '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" title=":blobcat:" height="32" />';
     const result = markdownToHtml(html);
-    expect(result).toContain("mxc://example.org/emote");
-    expect(result).toContain("data-mx-emoticon");
+    expect(result).toContain('mxc://example.org/emote');
+    expect(result).toContain('data-mx-emoticon');
   });
 
-  it("rejects img tags with non-mxc protocols", () => {
-    const html =
-      '<img data-mx-emoticon src="https://evil.com/image.png" alt="test" />';
+  it('rejects img tags with non-mxc protocols', () => {
+    const html = '<img data-mx-emoticon src="https://evil.com/image.png" alt="test" />';
     const result = markdownToHtml(html);
-    expect(result).not.toContain("https://evil.com");
+    expect(result).not.toContain('https://evil.com');
   });
 
-  it("rejects img tags with javascript: protocol", () => {
-    const html =
-      '<img data-mx-emoticon src="javascript:alert(1)" alt="test" />';
+  it('rejects img tags with javascript: protocol', () => {
+    const html = '<img data-mx-emoticon src="javascript:alert(1)" alt="test" />';
     const result = markdownToHtml(html);
-    expect(result).not.toContain("javascript:");
+    expect(result).not.toContain('javascript:');
   });
 
-  it("rejects img tags with data: protocol", () => {
+  it('rejects img tags with data: protocol', () => {
     const html =
       '<img data-mx-emoticon src="data:text/html,<script>alert(1)</script>" alt="test" />';
     const result = markdownToHtml(html);
-    expect(result).not.toContain("data:");
+    expect(result).not.toContain('data:');
   });
 
-  it("rejects img tags with mxc URL containing credentials", () => {
-    const html =
-      '<img data-mx-emoticon src="mxc://user:pass@evil.com/image" alt="test" />';
+  it('rejects img tags with mxc URL containing credentials', () => {
+    const html = '<img data-mx-emoticon src="mxc://user:pass@evil.com/image" alt="test" />';
     const result = markdownToHtml(html);
-    expect(result).not.toContain("user:pass");
+    expect(result).not.toContain('user:pass');
   });
 
-  it("rejects img tags with mxc URL containing search params", () => {
-    const html =
-      '<img data-mx-emoticon src="mxc://example.com/image?x=y" alt="test" />';
+  it('rejects img tags with mxc URL containing search params', () => {
+    const html = '<img data-mx-emoticon src="mxc://example.com/image?x=y" alt="test" />';
     const result = markdownToHtml(html);
-    expect(result).not.toContain("?");
+    expect(result).not.toContain('?');
   });
 });

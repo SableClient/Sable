@@ -1,8 +1,8 @@
-import parse from "html-dom-parser";
-import type { ChildNode, Element } from "domhandler";
-import { isText, isTag } from "domhandler";
-import { validateMxcUrl } from "./extensions/matrix-emoticon";
-import { escapeMarkdownInlineSequences } from "./utils";
+import parse from 'html-dom-parser';
+import type { ChildNode, Element } from 'domhandler';
+import { isText, isTag } from 'domhandler';
+import { validateMxcUrl } from './extensions/matrix-emoticon';
+import { escapeMarkdownInlineSequences } from './utils';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -18,7 +18,7 @@ export function htmlToMarkdown(html: string): string {
 }
 
 function processNodes(nodes: ChildNode[]): string {
-  return nodes.map(processNode).join("");
+  return nodes.map(processNode).join('');
 }
 
 function processNode(node: ChildNode): string {
@@ -27,89 +27,89 @@ function processNode(node: ChildNode): string {
   }
 
   if (!isTag(node)) {
-    return "";
+    return '';
   }
 
   const tag = node.name.toLowerCase();
 
   // Handle Matrix-specific attributes
-  if (tag === "span") {
-    if (node.attribs["data-mx-spoiler"] !== undefined) {
+  if (tag === 'span') {
+    if (node.attribs['data-mx-spoiler'] !== undefined) {
       return processSpoiler(node);
     }
-    if (node.attribs["data-mx-maths"] !== undefined) {
-      return processMath(node, "inline");
+    if (node.attribs['data-mx-maths'] !== undefined) {
+      return processMath(node, 'inline');
     }
-    if (node.attribs["data-md"] !== undefined) {
+    if (node.attribs['data-md'] !== undefined) {
       return processInlineMarkdown(node);
     }
   }
 
-  if (tag === "div") {
-    if (node.attribs["data-mx-maths"] !== undefined) {
-      return processMath(node, "block");
+  if (tag === 'div') {
+    if (node.attribs['data-mx-maths'] !== undefined) {
+      return processMath(node, 'block');
     }
   }
 
   // Handle block elements
   switch (tag) {
-    case "h1":
-    case "h2":
-    case "h3":
-    case "h4":
-    case "h5":
-    case "h6":
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
       return processHeading(node, tag);
 
-    case "p":
+    case 'p':
       return processParagraph(node);
 
-    case "strong":
-    case "b":
-      return processInlineWrapper(node, "**");
+    case 'strong':
+    case 'b':
+      return processInlineWrapper(node, '**');
 
-    case "em":
-    case "i":
-      return processInlineWrapper(node, "*");
+    case 'em':
+    case 'i':
+      return processInlineWrapper(node, '*');
 
-    case "u":
-      return processInlineWrapper(node, "_");
+    case 'u':
+      return processInlineWrapper(node, '_');
 
-    case "s":
-    case "del":
-      return processInlineWrapper(node, "~~");
+    case 's':
+    case 'del':
+      return processInlineWrapper(node, '~~');
 
-    case "code":
+    case 'code':
       return processCode(node);
 
-    case "pre":
+    case 'pre':
       return processPre(node);
 
-    case "blockquote":
+    case 'blockquote':
       return processBlockquote(node);
 
-    case "ul":
+    case 'ul':
       return processUnorderedList(node);
 
-    case "ol":
+    case 'ol':
       return processOrderedList(node);
 
-    case "li":
+    case 'li':
       return processListItem(node);
 
-    case "a":
+    case 'a':
       return processLink(node);
 
-    case "br":
-      return "\n";
+    case 'br':
+      return '\n';
 
-    case "hr":
-      return "\n---\n";
+    case 'hr':
+      return '\n---\n';
 
-    case "sub":
+    case 'sub':
       return processSubscript(node);
 
-    case "img":
+    case 'img':
       return processImage(node);
 
     default:
@@ -118,19 +118,19 @@ function processNode(node: ChildNode): string {
 }
 
 function processInlineElements(node: Element): string {
-  return node.children.map(processNode).join("");
+  return node.children.map(processNode).join('');
 }
 
 function processInlineWrapper(node: Element, marker: string): string {
-  const content = node.children.map(processNode).join("");
+  const content = node.children.map(processNode).join('');
   return `${marker}${content}${marker}`;
 }
 
 function processCode(node: Element): string {
-  const codeContent = node.children.map(processNode).join("");
+  const codeContent = node.children.map(processNode).join('');
 
   // Check if this is inside a pre (code block)
-  if (node.parent && isTag(node.parent) && node.parent.name === "pre") {
+  if (node.parent && isTag(node.parent) && node.parent.name === 'pre') {
     return codeContent;
   }
 
@@ -140,61 +140,63 @@ function processCode(node: Element): string {
 
 function processPre(node: Element): string {
   // Get language from class="language-xxx"
-  const codeChild = node.children.find(
-    (c): c is Element => isTag(c) && c.name === "code",
-  );
-  const className = codeChild?.attribs.class ?? "";
+  const codeChild = node.children.find((c): c is Element => isTag(c) && c.name === 'code');
+  const className = codeChild?.attribs.class ?? '';
   const langMatch = className.match(/language-(\S+)/);
-  const lang = langMatch ? langMatch[1] : "";
+  const lang = langMatch ? langMatch[1] : '';
 
   const codeContent = codeChild
-    ? codeChild.children.map(processNode).join("")
-    : node.children.map(processNode).join("");
+    ? codeChild.children.map(processNode).join('')
+    : node.children.map(processNode).join('');
 
   return `\`\`\`${lang}\n${codeContent}\`\`\``;
 }
 
 function processHeading(node: Element, tag: string): string {
   const level = tag.charAt(1);
-  const content = node.children.map(processNode).join("");
-  return `\n${"#".repeat(parseInt(level, 10))} ${content}\n`;
+  const content = node.children.map(processNode).join('');
+  return `\n${'#'.repeat(parseInt(level, 10))} ${content}\n`;
 }
 
 function processParagraph(node: Element): string {
-  const content = node.children.map(processNode).join("");
+  const content = node.children.map(processNode).join('');
   return `${content}\n`;
 }
 
 function processBlockquote(node: Element): string {
   const content = node.children
     .map((child) => {
-      if (isTag(child) && child.name === "br") return "\n";
+      if (isTag(child) && child.name === 'br') return '\n';
       const text = processNode(child);
-      return text.replace(/\n/g, "\n> ");
+      return text.replace(/\n/g, '\n> ');
     })
-    .join("");
+    .join('');
   return `> ${content}\n`;
 }
 
 function processUnorderedList(node: Element): string {
-  const mdSequence = node.attribs["data-md"] || "-";
+  const mdSequence = node.attribs['data-md'] || '-';
   const items = node.children
-    .filter((c): c is Element => isTag(c) && c.name === "li")
+    .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li) => {
-      const content = li.children.map(processNode).join("").trim();
+      const content = li.children.map(processNode).join('').trim();
       return `${mdSequence} ${content}\n`;
     })
-    .join("");
+    .join('');
   return items;
 }
 
 function processOrderedList(node: Element): string {
-  const mdSequence = node.attribs["data-md"] || "1.";
+  const mdSequence = node.attribs['data-md'] || '1.';
   const [starOrHyphen] = mdSequence.match(/^\*|-$/) ?? [];
-  const outPrefix = starOrHyphen ? starOrHyphen : (mdSequence.endsWith(".") ? mdSequence : `${mdSequence}.`);
-  
+  const outPrefix = starOrHyphen
+    ? starOrHyphen
+    : mdSequence.endsWith('.')
+      ? mdSequence
+      : `${mdSequence}.`;
+
   const items = node.children
-    .filter((c): c is Element => isTag(c) && c.name === "li")
+    .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li, index) => {
       let currentPrefix = outPrefix;
       if (!starOrHyphen) {
@@ -203,65 +205,65 @@ function processOrderedList(node: Element): string {
           currentPrefix = `${start + index}.`;
         }
       }
-      const content = li.children.map(processNode).join("").trim();
+      const content = li.children.map(processNode).join('').trim();
       return `${currentPrefix} ${content}\n`;
     })
-    .join("");
+    .join('');
   return items;
 }
 
 function processListItem(node: Element): string {
   const content = node.children
     .map((child) => {
-      if (isTag(child) && child.name === "p") {
-        return child.children.map(processNode).join("");
+      if (isTag(child) && child.name === 'p') {
+        return child.children.map(processNode).join('');
       }
       return processNode(child);
     })
-    .join("");
+    .join('');
   return `- ${content}\n`;
 }
 
 function processSubscript(node: Element): string {
-  const content = node.children.map(processNode).join("");
+  const content = node.children.map(processNode).join('');
   return `-# ${content}\n`;
 }
 
 function processLink(node: Element): string {
-  const href = node.attribs.href ?? "";
-  const content = node.children.map(processNode).join("");
+  const href = node.attribs.href ?? '';
+  const content = node.children.map(processNode).join('');
   return `[${content}](${href})`;
 }
 
 function processSpoiler(node: Element): string {
-  const content = node.children.map(processNode).join("");
+  const content = node.children.map(processNode).join('');
   return `||${content}||`;
 }
 
-function processMath(node: Element, mode: "inline" | "block"): string {
-  const latex = node.attribs["data-mx-maths"] ?? "";
-  if (mode === "block") {
+function processMath(node: Element, mode: 'inline' | 'block'): string {
+  const latex = node.attribs['data-mx-maths'] ?? '';
+  if (mode === 'block') {
     return `$$${latex}$$`;
   }
   return `$${latex}$`;
 }
 
 function processInlineMarkdown(node: Element): string {
-  const mdSequence = node.attribs["data-md"] ?? "";
-  const content = node.children.map(processNode).join("");
+  const mdSequence = node.attribs['data-md'] ?? '';
+  const content = node.children.map(processNode).join('');
   return `${mdSequence}${content}${mdSequence}`;
 }
 
 function processImage(node: Element): string {
-  if (node.attribs["data-mx-emoticon"] === undefined) {
-    return "";
+  if (node.attribs['data-mx-emoticon'] === undefined) {
+    return '';
   }
 
-  const src = node.attribs.src ?? "";
-  const alt = node.attribs.alt ?? "";
+  const src = node.attribs.src ?? '';
+  const alt = node.attribs.alt ?? '';
 
   if (!validateMxcUrl(src)) {
-    return "";
+    return '';
   }
 
   return `<img data-mx-emoticon src="${src}" alt="${alt}" />`;

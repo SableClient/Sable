@@ -259,18 +259,21 @@ const parseListNode = (
   node.children.forEach((child) => {
     if (isTag(child) && child.name === 'li') {
       const liContent = child.children.flatMap((c) => getInlineElement(c, processText));
-      
+
       // Trim leading/trailing whitespace elements from the list item
       const trimmed = [...liContent];
       if (trimmed.length > 0) {
-        trimmed[0] = { ...trimmed[0], text: trimmed[0].text.trimStart() };
-        trimmed[trimmed.length - 1] = { 
-          ...trimmed[trimmed.length - 1], 
-          text: trimmed[trimmed.length - 1].text.trimEnd() 
-        };
+        const first = trimmed[0]!;
+        if (Text.isText(first)) {
+          trimmed[0] = { ...first, text: first.text.trimStart() };
+        }
+        const last = trimmed[trimmed.length - 1]!;
+        if (Text.isText(last)) {
+          trimmed[trimmed.length - 1] = { ...last, text: last.text.trimEnd() };
+        }
       }
-      const filtered = trimmed.filter(e => e.text !== '');
-      
+      const filtered = trimmed.filter((e) => !Text.isText(e) || e.text !== '');
+
       listLines.push(filtered);
     }
   });
@@ -279,7 +282,7 @@ const parseListNode = (
   if (mdSequence !== undefined) {
     const prefix = mdSequence || '-';
     const [starOrHyphen] = prefix.match(/^\*|-$/) ?? [];
-    const outPrefix = starOrHyphen ? starOrHyphen : (prefix.endsWith('.') ? prefix : `${prefix}.`);
+    const outPrefix = starOrHyphen ? starOrHyphen : prefix.endsWith('.') ? prefix : `${prefix}.`;
     return listLines.map((lineChildren, index) => {
       let currentPrefix = outPrefix;
       if (!starOrHyphen) {

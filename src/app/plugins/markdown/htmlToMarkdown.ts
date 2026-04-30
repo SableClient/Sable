@@ -158,6 +158,14 @@ function processNode(node: ChildNode, listDepth: number = 0): string {
       return processInlineElements(node);
   }
 }
+function reconstructTag(node: Element): string {
+  const content = processInlineElements(node);
+  const attributes = Object.entries(node.attribs)
+    .map(([key, value]) => ` ${key}="${value}"`)
+    .join('');
+  return `<${node.name}${attributes}>${content}</${node.name}>`;
+}
+
 
 function processInlineElements(node: Element): string {
   return node.children.map((c) => processNode(c)).join('');

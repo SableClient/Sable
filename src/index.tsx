@@ -43,22 +43,6 @@ if ('serviceWorker' in navigator) {
     swRegisterOptions.type = 'module';
   }
 
-  const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-    const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-    const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-    if (userPreference === 'true') {
-      return;
-    }
-
-    if (window.confirm('A new version of the app is available. Refresh to update?')) {
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-      }
-      window.location.reload();
-    }
-  };
-
   const sendSessionToSW = () => {
     // Use the active session from the new multi-session store, fall back to legacy
     const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
@@ -77,10 +61,12 @@ if ('serviceWorker' in navigator) {
       const installingWorker = registration.installing;
       if (installingWorker) {
         installingWorker.onstatechange = () => {
-          if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              showUpdateAvailablePrompt(registration);
-            }
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Automatically apply the update without prompting. window.confirm() is suppressed
+            // in iOS Safari PWA mode, causing the new SW to sit in "waiting" forever and
+            // preventing any updates from taking effect on mobile.
+            registration.waiting?.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
+            window.location.reload();
           }
         };
       }
@@ -109,10 +95,13 @@ if ('serviceWorker' in navigator) {
     }
 
     if (data.type === 'token' && data.id) {
-      const token = localStorage.getItem('cinny_access_token') ?? undefined;
+      const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+      const activeId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+      const active =
+        sessions.find((s) => s.userId === activeId) ?? sessions[0] ?? getFallbackSession();
       ev.source?.postMessage({
         replyTo: data.id,
-        payload: token,
+        payload: active?.accessToken,
       });
     } else if (data.type === 'openRoom' && data.id) {
       /* Example:

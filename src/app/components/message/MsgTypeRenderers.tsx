@@ -157,11 +157,15 @@ export function MText({
   const body = typeof content.body === 'string' ? content.body : '';
   const customBody =
     typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
+  const cleanedMessage = useMemo(
+    () => customBody?.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>'),
+    [customBody]
+  );
 
   const trimmedBody = useMemo(() => trimReplyFromBody(body), [body]);
   const unwrappedForwardedContent = useMemo(
-    () => unwrapForwardedContent(customBody ?? body),
-    [customBody, body]
+    () => unwrapForwardedContent(cleanedMessage ?? customBody ?? body),
+    [cleanedMessage, customBody, body]
   );
 
   const isForwarded = useMemo(() => {
@@ -173,14 +177,15 @@ export function MText({
    * For the unwrapping of per-message profile fallbacks, we look for <strong> tags with the data-mx-profile-fallback attribute
    */
   const unwrappedPerMessageProfileMessage = useMemo(
-    () => customBody?.replace(/<strong[^>]*data-mx-profile-fallback[^>]*>(.*?):\s*<\/strong>/i, ''),
-    [customBody]
+    () =>
+      cleanedMessage?.replace(/<strong[^>]*data-mx-profile-fallback[^>]*>(.*?):\s*<\/strong>/i, ''),
+    [cleanedMessage]
   );
 
   const isJumbo = useMemo(() => {
     if (!trimmedBody || trimmedBody.length >= 500) return false;
     if (
-      (unwrappedPerMessageProfileMessage ?? customBody)?.match(
+      (unwrappedPerMessageProfileMessage ?? cleanedMessage ?? customBody)?.match(
         /^(<img[^>]*data-mx-emoticon[^>]*\/>){1,20}$/i
       )
     )
@@ -193,7 +198,7 @@ export function MText({
     }
 
     return true;
-  }, [unwrappedPerMessageProfileMessage, trimmedBody, customBody]);
+  }, [unwrappedPerMessageProfileMessage, cleanedMessage, trimmedBody, customBody]);
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
@@ -203,7 +208,7 @@ export function MText({
     // unwrap per-message profile fallback if present
     return (
       <MessageTextBody
-        preWrap={typeof customBody !== 'string'}
+        preWrap={typeof cleanedMessage !== 'string'}
         style={style}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
       >
@@ -236,13 +241,13 @@ export function MText({
   return (
     <>
       <MessageTextBody
-        preWrap={typeof customBody !== 'string'}
+        preWrap={typeof cleanedMessage !== 'string'}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         style={style}
       >
         {renderBody({
           body: trimmedBody,
-          customBody: typeof customBody === 'string' ? customBody : undefined,
+          customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
@@ -272,6 +277,10 @@ export function MEmote({
   renderBundledPreviews,
 }: MEmoteProps) {
   const { body, formatted_body: customBody } = content;
+  const cleanedMessage = useMemo(
+    () => (typeof customBody === 'string' ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>') : undefined),
+    [customBody]
+  );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
   if (typeof body !== 'string') {
@@ -286,13 +295,13 @@ export function MEmote({
     <>
       <MessageTextBody
         emote
-        preWrap={typeof customBody !== 'string'}
+        preWrap={typeof cleanedMessage !== 'string'}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
       >
         <b>{`${displayName} `}</b>
         {renderBody({
           body: trimmedBody,
-          customBody: typeof customBody === 'string' ? customBody : undefined,
+          customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
@@ -320,6 +329,10 @@ export function MNotice({
   renderBundledPreviews,
 }: MNoticeProps) {
   const { body, formatted_body: customBody } = content;
+  const cleanedMessage = useMemo(
+    () => (typeof customBody === 'string' ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>') : undefined),
+    [customBody]
+  );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
   if (typeof body !== 'string') {
@@ -334,12 +347,12 @@ export function MNotice({
     <>
       <MessageTextBody
         notice
-        preWrap={typeof customBody !== 'string'}
+        preWrap={typeof cleanedMessage !== 'string'}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
       >
         {renderBody({
           body: trimmedBody,
-          customBody: typeof customBody === 'string' ? customBody : undefined,
+          customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>

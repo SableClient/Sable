@@ -77,7 +77,7 @@ const elementToCustomHtml = (
     case BlockType.BlockQuote:
       return `<blockquote>${children}</blockquote>`;
     case BlockType.ListItem:
-      return `<li><p>${children}</p></li>`;
+      return `<li><p>${children || '<br/>'}</p></li>`;
     case BlockType.OrderedList:
       return `<ol>${children}</ol>`;
     case BlockType.UnorderedList:

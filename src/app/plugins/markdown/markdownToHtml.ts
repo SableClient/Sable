@@ -134,5 +134,5 @@ export function markdownToHtml(markdown: string): string {
 
   DOMPurify.removeHook('afterSanitizeAttributes');
 
-  return sanitized;
+  return sanitized.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
 }

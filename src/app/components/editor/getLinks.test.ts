@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Descendant } from 'slate';
 import { getLinks, toPlainText } from './output';
-import type { CustomElement, ParagraphElement } from './slate';
+import type { ParagraphElement } from './slate';
 import { BlockType } from './types';
 
 describe('getLinks', () => {
@@ -19,8 +20,7 @@ describe('getLinks', () => {
       children: [{ text: 'Check out <https://example.com> for more info' }],
     };
     const links = getLinks([node]);
-    expect(links).not.toContain('https://example.com');
-    expect(links).toHaveLength(0);
+    expect(links).toEqual([]);
   });
 
   it('extracts markdown link URLs', () => {
@@ -32,27 +32,23 @@ describe('getLinks', () => {
     expect(links).toContain('https://example.com');
   });
 
-  it('excludes URLs inside code blocks', () => {
-    const node = {
-      type: BlockType.CodeBlock,
-      children: [
-        {
-          type: BlockType.CodeLine,
-          children: [{ text: 'https://example.com' }],
-        },
-      ],
-    };
-    const links = getLinks([node as unknown as CustomElement]);
-    expect(links).toHaveLength(0);
-  });
-
-  it('excludes URLs with code mark (inline code)', () => {
+  it('excludes URLs inside markdown inline code spans', () => {
     const node: ParagraphElement = {
       type: BlockType.Paragraph,
-      children: [{ text: 'https://example.com', code: true }],
+      children: [{ text: 'Do not visit `https://example.com` please' }],
     };
     const links = getLinks([node]);
-    expect(links).toHaveLength(0);
+    expect(links).toEqual([]);
+  });
+
+  it('excludes URLs inside markdown code blocks spanning multiple paragraphs', () => {
+    const nodes: Descendant[] = [
+      { type: BlockType.Paragraph, children: [{ text: '```' }] },
+      { type: BlockType.Paragraph, children: [{ text: 'https://example.com' }] },
+      { type: BlockType.Paragraph, children: [{ text: '```' }] },
+    ];
+    const links = getLinks(nodes);
+    expect(links).toEqual([]);
   });
 });
 
@@ -62,7 +58,7 @@ describe('toPlainText spoiler handling', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Hello ||spoilered|| world' }],
     };
-    const plain = toPlainText(node, true);
+    const plain = toPlainText(node);
     expect(plain).toContain('[Spoiler]');
     expect(plain).not.toContain('||spoilered||');
   });
@@ -72,7 +68,7 @@ describe('toPlainText spoiler handling', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Hello ||https://example.com|| world' }],
     };
-    const plain = toPlainText(node, true);
+    const plain = toPlainText(node);
     expect(plain).toContain('[Spoiler]');
     expect(plain).not.toContain('||https://example.com||');
   });

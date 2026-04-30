@@ -34,8 +34,6 @@ export interface Settings {
   arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
-  isMarkdown: boolean;
-  editorToolbar: boolean;
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
@@ -134,8 +132,6 @@ const defaultSettings: Settings = {
   arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
-  isMarkdown: true,
-  editorToolbar: false,
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,

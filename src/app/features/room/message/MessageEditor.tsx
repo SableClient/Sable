@@ -1,7 +1,7 @@
 import type { KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, Line, PopOut, Spinner, Text, as, config } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, as, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type {
@@ -21,7 +21,6 @@ import {
   CustomEditor,
   EmoticonAutocomplete,
   RoomMentionAutocomplete,
-  Toolbar,
   UserMentionAutocomplete,
   createEmoticonElement,
   customHtmlEqualsPlainText,
@@ -72,9 +71,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const mx = useMatrixClient();
     const editor = useEditor();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-    const [globalToolbar] = useSetting(settingsAtom, 'editorToolbar');
-    const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
-    const [toolbar, setToolbar] = useState(globalToolbar);
     const isComposing = useComposingCheck();
 
     const [autocompleteQuery, setAutocompleteQuery] =
@@ -168,14 +164,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const [saveState, save] = useAsyncCallback(
       useCallback(async () => {
         const oldContent = mEvent.getContent();
-        let plainText = toPlainText(editor.children, isMarkdown).trim();
-        let customHtml = trimCustomHtml(
-          toMatrixCustomHTML(editor.children, {
-            allowTextFormatting: true,
-            allowBlockMarkdown: isMarkdown,
-            allowInlineMarkdown: isMarkdown,
-          })
-        );
+        let plainText = toPlainText(editor.children).trim();
+        let customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
 
         const [prevBody, prevCustomHtml, prevMentions] = getPrevBodyAndFormattedBody();
 
@@ -295,7 +285,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         content['m.new_content']['com.beeper.linkpreviews'] = content['com.beeper.linkpreviews'];
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
-      }, [mx, editor, roomId, mEvent, isMarkdown, getPrevBodyAndFormattedBody, room])
+      }, [mx, editor, roomId, mEvent, getPrevBodyAndFormattedBody, room])
     );
 
     const handleSave = useCallback(() => {
@@ -357,10 +347,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     useEffect(() => {
       const [body, customHtml] = getPrevBodyAndFormattedBody();
 
-      const initialValue =
-        typeof customHtml === 'string'
-          ? plainToEditorInput(htmlToMarkdown(customHtml))
-          : plainToEditorInput(typeof body === 'string' ? body : '', isMarkdown);
+      const initialValue = plainToEditorInput(
+        customHtml ? htmlToMarkdown(customHtml) : typeof body === 'string' ? body : ''
+      );
 
       Transforms.select(editor, {
         anchor: Editor.start(editor, []),
@@ -369,7 +358,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
       editor.insertFragment(initialValue);
       if (!mobileOrTablet()) ReactEditor.focus(editor);
-    }, [editor, getPrevBodyAndFormattedBody, isMarkdown]);
+    }, [editor, getPrevBodyAndFormattedBody]);
 
     useEffect(() => {
       if (saveState.status === AsyncStatus.Success) {
@@ -504,14 +493,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                       </Chip>
                     </Box>
                     <Box gap="Inherit">
-                      <IconButton
-                        variant="SurfaceVariant"
-                        size="300"
-                        radii="300"
-                        onClick={() => setToolbar(!toolbar)}
-                      >
-                        <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-                      </IconButton>
                       <UseStateProvider initial={undefined}>
                         {(anchor: RectCords | undefined, setAnchor) => (
                           <PopOut
@@ -556,12 +537,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                       </UseStateProvider>
                     </Box>
                   </Box>
-                  {toolbar && (
-                    <div>
-                      <Line variant="SurfaceVariant" size="300" />
-                      <Toolbar />
-                    </div>
-                  )}
                 </>
               }
             />

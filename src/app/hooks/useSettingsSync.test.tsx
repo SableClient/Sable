@@ -124,20 +124,20 @@ describe('useSettingsSyncEffect — sync enabled on mount', () => {
   it('reads account data on mount and applies it to the atom', () => {
     const remoteContent = {
       v: SETTINGS_SYNC_VERSION,
-      settings: { isMarkdown: false },
+      settings: { twitterEmoji: false },
     };
     mockMx.getAccountData.mockReturnValueOnce({
       getContent: () => remoteContent,
     });
 
-    const store = makeStore({ settingsSyncEnabled: true, isMarkdown: true });
+    const store = makeStore({ settingsSyncEnabled: true, twitterEmoji: true });
     renderHook(() => useSettingsSyncEffect(), { wrapper: makeWrapper(store) });
 
-    expect(store.get(settingsAtom).isMarkdown).toBe(false);
+    expect(store.get(settingsAtom).twitterEmoji).toBe(false);
   });
 
   it('sets lastSynced after loading from account data on mount', () => {
-    const remoteContent = { v: SETTINGS_SYNC_VERSION, settings: { isMarkdown: false } };
+    const remoteContent = { v: SETTINGS_SYNC_VERSION, settings: { twitterEmoji: false } };
     mockMx.getAccountData.mockReturnValueOnce({ getContent: () => remoteContent });
 
     const store = makeStore({ settingsSyncEnabled: true });
@@ -230,7 +230,7 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
   });
 
   it('skips re-applying an event that echoes our own upload token', async () => {
-    const store = makeStore({ settingsSyncEnabled: true, isMarkdown: true });
+    const store = makeStore({ settingsSyncEnabled: true, twitterEmoji: true });
     renderHook(() => useSettingsSyncEffect(), { wrapper: makeWrapper(store) });
 
     // Trigger the upload.
@@ -247,15 +247,15 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
     const echoEvent = makeSableSettingsEvent({
       v: SETTINGS_SYNC_VERSION,
       synctoken: echoToken,
-      settings: { isMarkdown: false }, // different — must be ignored
+      settings: { twitterEmoji: false }, // different — must be ignored
     });
 
     act(() => {
       callbackHolder.current?.(echoEvent);
     });
 
-    // isMarkdown should stay true (echo was ignored).
-    expect(store.get(settingsAtom).isMarkdown).toBe(true);
+    // twitterEmoji should stay true (echo was ignored).
+    expect(store.get(settingsAtom).twitterEmoji).toBe(true);
   });
 
   it('marks sync status as idle and updates lastSynced when own echo arrives', async () => {
@@ -290,12 +290,12 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
   });
 
   it('applies an event from another device (different or absent echo token)', () => {
-    const store = makeStore({ settingsSyncEnabled: true, isMarkdown: true });
+    const store = makeStore({ settingsSyncEnabled: true, twitterEmoji: true });
     renderHook(() => useSettingsSyncEffect(), { wrapper: makeWrapper(store) });
 
     const remoteEvent = makeSableSettingsEvent({
       v: SETTINGS_SYNC_VERSION,
-      settings: { isMarkdown: false },
+      settings: { twitterEmoji: false },
       // No synctoken — definitely from another device.
     });
 
@@ -303,6 +303,6 @@ describe('useSettingsSyncEffect — echo-token loop prevention', () => {
       callbackHolder.current?.(remoteEvent);
     });
 
-    expect(store.get(settingsAtom).isMarkdown).toBe(false);
+    expect(store.get(settingsAtom).twitterEmoji).toBe(false);
   });
 });

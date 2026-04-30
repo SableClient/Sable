@@ -79,6 +79,12 @@ function processNode(node: ChildNode, listDepth: number = 0): string {
     if (node.attribs['data-md'] !== undefined) {
       return processInlineMarkdown(node);
     }
+    if (
+      node.attribs['data-mx-color'] !== undefined ||
+      node.attribs['data-mx-bg-color'] !== undefined
+    ) {
+      return reconstructTag(node);
+    }
   }
 
   if (tag === 'div') {

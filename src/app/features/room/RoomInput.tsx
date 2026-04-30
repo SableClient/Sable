@@ -22,7 +22,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  Line,
   Menu,
   MenuItem,
   Overlay,
@@ -46,7 +45,6 @@ import {
   resetEditor,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
-  Toolbar,
   toPlainText,
   trimCustomHtml,
   UserMentionAutocomplete,
@@ -60,6 +58,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   getLinks,
+  BlockType,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -234,7 +233,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-    const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
+
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
@@ -285,7 +284,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
-    const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef(0);
@@ -506,7 +504,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleSendUpload = async (uploads: UploadSuccess[]) => {
-      const plainText = toPlainText(editor.children, isMarkdown).trim();
+      const plainText = toPlainText(editor.children).trim();
 
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
@@ -719,8 +717,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * the plain text we will send
        */
       let serializedChildren = editor.children;
+      if (commandName) {
+        // Strip the empty text node and command node from the beginning of the first paragraph
+        const firstPara = serializedChildren[0];
+        if (
+          firstPara &&
+          'type' in firstPara &&
+          firstPara.type === BlockType.Paragraph &&
+          firstPara.children.length >= 2
+        ) {
+          serializedChildren = [
+            {
+              ...firstPara,
+              children: firstPara.children.slice(2),
+            },
+            ...serializedChildren.slice(1),
+          ];
+        }
+      }
       const outgoingTransformContext = {
-        isMarkdown,
+        isMarkdown: true,
         settingsLinkBaseUrl,
       };
 
@@ -729,16 +745,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
       });
 
-      let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
+      let plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
 
       /**
        * the html we will send
        */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(serializedChildren, {
-          allowTextFormatting: true,
-          allowBlockMarkdown: isMarkdown,
-          allowInlineMarkdown: isMarkdown,
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
         })
@@ -967,7 +980,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       replyEvent,
       mx,
       roomId,
-      isMarkdown,
       canSendReaction,
       pkCompatEnable,
       replyDraft,
@@ -1461,17 +1473,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </IconButton>
 
-              <IconButton
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                aria-pressed={toolbar}
-                aria-label={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                onClick={() => setToolbar(!toolbar)}
-              >
-                <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-              </IconButton>
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut
@@ -1643,14 +1644,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </Box>
             </>
-          }
-          bottom={
-            toolbar && (
-              <div>
-                <Line variant="SurfaceVariant" size="300" />
-                <Toolbar />
-              </div>
-            )
           }
         />
         {showSchedulePicker && (

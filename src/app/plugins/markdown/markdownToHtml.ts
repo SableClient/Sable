@@ -119,6 +119,8 @@ export function markdownToHtml(markdown: string): string {
       'data-mx-spoiler',
       'data-mx-maths',
       'data-md',
+      'data-mx-color',
+      'data-mx-bg-color',
       'data-lang',
       'class',
       'start',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getLinks, toPlainText } from './output';
-import type { ParagraphElement } from './slate';
+import type { CustomElement, ParagraphElement } from './slate';
 import { BlockType } from './types';
 
 describe('getLinks', () => {
@@ -42,7 +42,7 @@ describe('getLinks', () => {
         },
       ],
     };
-    const links = getLinks([node as any]);
+    const links = getLinks([node as unknown as CustomElement]);
     expect(links).toHaveLength(0);
   });
 

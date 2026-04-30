@@ -47,7 +47,12 @@ export type CommandElement = {
   children: Text[];
 };
 
-export type InlineElement = Text | LinkElement | MentionElement | EmoticonElement | CommandElement;
+export type InlineElement =
+  | FormattedText
+  | LinkElement
+  | MentionElement
+  | EmoticonElement
+  | CommandElement;
 
 export type ParagraphElement = {
   type: BlockType.Paragraph;

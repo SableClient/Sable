@@ -19,7 +19,7 @@ export const matrixSubscriptExtension = {
         text: match[1],
         tokens: [] as Tokens.Generic[],
       };
-      this.lexer.inlineTokens(token.text, token.tokens);
+      this.lexer.inlineTokens(token.text!, token.tokens);
       return token;
     }
     return undefined;

@@ -9,6 +9,7 @@ import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
+import katex from 'katex';
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -678,6 +679,34 @@ export const getReactCustomHtmlParser = (
               {renderChildren()}
             </span>
           );
+        }
+
+        if (name === 'span' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            const html = katex.renderToString(math, { throwOnError: false, displayMode: false });
+            return (
+              <span
+                {...props}
+                dangerouslySetInnerHTML={{ __html: html }}
+                style={matrixColorStyle}
+              />
+            );
+          }
+        }
+
+        if (name === 'div' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            const html = katex.renderToString(math, { throwOnError: false, displayMode: true });
+            return (
+              <div
+                {...props}
+                dangerouslySetInnerHTML={{ __html: html }}
+                style={matrixColorStyle}
+              />
+            );
+          }
         }
 
         if (name === 'span' && matrixColorStyle) {

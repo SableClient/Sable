@@ -278,7 +278,10 @@ export function MEmote({
 }: MEmoteProps) {
   const { body, formatted_body: customBody } = content;
   const cleanedMessage = useMemo(
-    () => (typeof customBody === 'string' ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>') : undefined),
+    () =>
+      typeof customBody === 'string'
+        ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>')
+        : undefined,
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
@@ -330,7 +333,10 @@ export function MNotice({
 }: MNoticeProps) {
   const { body, formatted_body: customBody } = content;
   const cleanedMessage = useMemo(
-    () => (typeof customBody === 'string' ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>') : undefined),
+    () =>
+      typeof customBody === 'string'
+        ? customBody.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>')
+        : undefined,
     [customBody]
   );
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');

@@ -1,6 +1,6 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
-import { ClientConfig } from '../../../hooks/useClientConfig';
+import type { ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 
@@ -57,7 +57,7 @@ export async function enablePushNotifications(
       kind: 'http' as const,
       app_id: clientConfig.pushNotificationDetails?.webPushAppID,
       pushkey: keys.p256dh,
-      app_display_name: 'Cinny',
+      app_display_name: 'Sable',
       device_display_name: 'This Browser',
       lang: navigator.language || 'en',
       data: {
@@ -69,14 +69,15 @@ export async function enablePushNotifications(
       },
       append: false,
     };
-    const toggleMsg = {
+    // Use registration.active (already resolved above) rather than
+    // navigator.serviceWorker.controller which is null during the SW claim race
+    // on first install, silently dropping the pusher registration.
+    registration.active?.postMessage({
       url: mx.baseUrl,
       type: 'togglePush',
       pusherData,
       token: mx.getAccessToken(),
-    };
-    navigator.serviceWorker.controller?.postMessage(toggleMsg);
-    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(toggleMsg));
+    });
     return;
   }
 
@@ -106,7 +107,7 @@ export async function enablePushNotifications(
     kind: 'http' as const,
     app_id: clientConfig.pushNotificationDetails?.webPushAppID,
     pushkey: keys.p256dh,
-    app_display_name: 'Cinny',
+    app_display_name: 'Sable',
     device_display_name:
       (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
     lang: navigator.language || 'en',
@@ -120,9 +121,12 @@ export async function enablePushNotifications(
     append: false,
   };
 
-  const enableMsg = { url: mx.baseUrl, type: 'togglePush', pusherData, token: mx.getAccessToken() };
-  navigator.serviceWorker.controller?.postMessage(enableMsg);
-  navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(enableMsg));
+  registration.active?.postMessage({
+    url: mx.baseUrl,
+    type: 'togglePush',
+    pusherData,
+    token: mx.getAccessToken(),
+  });
 }
 
 /**
@@ -143,14 +147,13 @@ export async function disablePushNotifications(
     pushkey: pushSubAtom?.keys?.p256dh,
   };
 
-  const disableMsg = {
+  const registration = await navigator.serviceWorker.ready;
+  registration.active?.postMessage({
     url: mx.baseUrl,
     type: 'togglePush',
     pusherData,
     token: mx.getAccessToken(),
-  };
-  navigator.serviceWorker.controller?.postMessage(disableMsg);
-  navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(disableMsg));
+  });
 }
 
 export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {
@@ -159,12 +162,12 @@ export async function deRegisterAllPushers(mx: MatrixClient): Promise<void> {
   if (pushers.length === 0) return;
 
   const deletionPromises = pushers.map((pusher) => {
-    const pusherToDelete = {
+    const pusherToDelete: { kind: null; app_id: string; pushkey: string } = {
       kind: null,
       app_id: pusher.app_id,
       pushkey: pusher.pushkey,
     };
-    return mx.setPusher(pusherToDelete as any);
+    return mx.setPusher(pusherToDelete as unknown as Parameters<typeof mx.setPusher>[0]);
   });
 
   await Promise.allSettled(deletionPromises);

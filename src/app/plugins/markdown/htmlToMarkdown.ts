@@ -177,22 +177,37 @@ function processBlockquote(node: Element): string {
 }
 
 function processUnorderedList(node: Element): string {
-  const items = node.children
-    .filter((c): c is Element => isTag(c) && c.name === "li")
-    .map(processListItem)
-    .join("");
-  return `\n${items}\n`;
-}
-
-function processOrderedList(node: Element): string {
+  const mdSequence = node.attribs["data-md"] || "-";
   const items = node.children
     .filter((c): c is Element => isTag(c) && c.name === "li")
     .map((li) => {
-      const content = li.children.map(processNode).join("");
-      return `1. ${content}\n`;
+      const content = li.children.map(processNode).join("").trim();
+      return `${mdSequence} ${content}\n`;
     })
     .join("");
-  return `\n${items}\n`;
+  return items;
+}
+
+function processOrderedList(node: Element): string {
+  const mdSequence = node.attribs["data-md"] || "1.";
+  const [starOrHyphen] = mdSequence.match(/^\*|-$/) ?? [];
+  const outPrefix = starOrHyphen ? starOrHyphen : (mdSequence.endsWith(".") ? mdSequence : `${mdSequence}.`);
+  
+  const items = node.children
+    .filter((c): c is Element => isTag(c) && c.name === "li")
+    .map((li, index) => {
+      let currentPrefix = outPrefix;
+      if (!starOrHyphen) {
+        const start = parseInt(node.attribs.start || mdSequence, 10);
+        if (!isNaN(start)) {
+          currentPrefix = `${start + index}.`;
+        }
+      }
+      const content = li.children.map(processNode).join("").trim();
+      return `${currentPrefix} ${content}\n`;
+    })
+    .join("");
+  return items;
 }
 
 function processListItem(node: Element): string {

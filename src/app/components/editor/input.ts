@@ -179,6 +179,7 @@ const parseBlockquoteNode = (
 
   node.children.forEach((child) => {
     if (isText(child)) {
+      if (child.data.trim() === '') return;
       lineHolder.push({ text: processText(child.data) });
       return;
     }
@@ -254,49 +255,44 @@ const parseListNode = (
   processText: ProcessTextCallback
 ): OrderedListElement[] | UnorderedListElement[] | ParagraphElement[] => {
   const listLines: Array<InlineElement[]> = [];
-  let lineHolder: InlineElement[] = [];
-
-  const appendLine = () => {
-    if (lineHolder.length === 0) return;
-
-    listLines.push(lineHolder);
-    lineHolder = [];
-  };
 
   node.children.forEach((child) => {
-    if (isText(child)) {
-      lineHolder.push({ text: processText(child.data) });
-      return;
-    }
-    if (isTag(child)) {
-      if (child.name === 'br') {
-        lineHolder.push({ text: '' });
-        appendLine();
-        return;
+    if (isTag(child) && child.name === 'li') {
+      const liContent = child.children.flatMap((c) => getInlineElement(c, processText));
+      
+      // Trim leading/trailing whitespace elements from the list item
+      const trimmed = [...liContent];
+      if (trimmed.length > 0) {
+        trimmed[0] = { ...trimmed[0], text: trimmed[0].text.trimStart() };
+        trimmed[trimmed.length - 1] = { 
+          ...trimmed[trimmed.length - 1], 
+          text: trimmed[trimmed.length - 1].text.trimEnd() 
+        };
       }
-
-      if (child.name === 'li') {
-        appendLine();
-        listLines.push(child.children.flatMap((c) => getInlineElement(c, processText)));
-        return;
-      }
-
-      lineHolder.push(...getInlineElement(child, processText));
+      const filtered = trimmed.filter(e => e.text !== '');
+      
+      listLines.push(filtered);
     }
   });
-  appendLine();
 
   const mdSequence = node.attribs['data-md'];
   if (mdSequence !== undefined) {
     const prefix = mdSequence || '-';
     const [starOrHyphen] = prefix.match(/^\*|-$/) ?? [];
-    return listLines.map((lineChildren) => ({
-      type: BlockType.Paragraph,
-      children: [
-        { text: `${starOrHyphen ? `${starOrHyphen} ` : `${prefix}. `} ` },
-        ...lineChildren,
-      ],
-    }));
+    const outPrefix = starOrHyphen ? starOrHyphen : (prefix.endsWith('.') ? prefix : `${prefix}.`);
+    return listLines.map((lineChildren, index) => {
+      let currentPrefix = outPrefix;
+      if (!starOrHyphen) {
+        const start = parseInt(node.attribs.start || prefix, 10);
+        if (!isNaN(start)) {
+          currentPrefix = `${start + index}.`;
+        }
+      }
+      return {
+        type: BlockType.Paragraph,
+        children: [{ text: `${currentPrefix} ` }, ...lineChildren],
+      };
+    });
   }
 
   if (node.name === 'ol') {

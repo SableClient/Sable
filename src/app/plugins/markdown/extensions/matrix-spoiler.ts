@@ -5,24 +5,26 @@ export const matrixSpoilerExtension = {
   name: 'spoiler',
   level: 'inline',
   start(src: string) {
-    const idx = src.indexOf('||');
-    return idx === -1 ? idx : idx;
+    return src.indexOf('||');
   },
-  tokenizer(src: string) {
+  tokenizer(this: any, src: string) {
     // Only match if || at the very start of the remaining text
     if (!src.startsWith('||')) return undefined;
     const rule = /^\|\|(.+?)\|\|/;
     const match = rule.exec(src);
     if (match) {
-      return {
+      const token = {
         type: 'spoiler',
         raw: match[0],
         text: match[1],
+        tokens: [] as any[],
       };
+      this.lexer.inlineTokens(token.text, token.tokens);
+      return token;
     }
     return undefined;
   },
-  renderer(token) {
-    return `<span data-mx-spoiler>${token.text}</span>`;
+  renderer(this: any, token: any) {
+    return `<span data-mx-spoiler>${this.parser.parseInline(token.tokens)}</span>`;
   },
 } satisfies TokenizerExtension & RendererExtension;

@@ -7,18 +7,21 @@ export const matrixSubscriptExtension = {
   start(src: string) {
     return src.indexOf('-#');
   },
-  tokenizer(src: string) {
+  tokenizer(this: any, src: string) {
     const match = /^-# +(.+)/.exec(src);
     if (match) {
-      return {
+      const token = {
         type: 'subscript',
         raw: match[0],
         text: match[1],
+        tokens: [] as any[],
       };
+      this.lexer.inlineTokens(token.text, token.tokens);
+      return token;
     }
     return undefined;
   },
-  renderer(token: unknown) {
-    return `<sub data-md="-#">${(token as { text: string }).text}</sub>`;
+  renderer(this: any, token: any) {
+    return `<sub data-md="-#">${this.parser.parseInline(token.tokens)}</sub>`;
   },
 } satisfies TokenizerExtension & RendererExtension;

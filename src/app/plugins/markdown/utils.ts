@@ -6,7 +6,7 @@ const ESC_BLOCK_SEQ = /^\\(\\*[#>\[`])/;
 const UN_ESC_BLOCK_SEQ = /^\*[#>\[`]/;
 
 // URL-aware pattern for inline sequences
-const URL_NEG_LB = "(?<!(https?|ftp|mailto|magnet):\\/\\/\\S*)";
+const URL_NEG_LB = "(?<!(?:https?|ftp|mailto|magnet):\\/\\/\\S*)";
 const INLINE_SEQUENCE_SET = "[*_~`|]";
 const CAP_INLINE_SEQ = `${URL_NEG_LB}${INLINE_SEQUENCE_SET}`;
 
@@ -19,7 +19,7 @@ const CAP_INLINE_SEQ = `${URL_NEG_LB}${INLINE_SEQUENCE_SET}`;
  * @returns The plain-text with markdown escape sequences removed (e.g., `"some *italic*"`)
  */
 export const unescapeMarkdownInlineSequences = (text: string): string => {
-  const escapePattern = new RegExp(`${URL_NEG_LB}\\\\(${INLINE_SEQUENCE_SET})`);
+  const escapePattern = new RegExp(`${URL_NEG_LB}\\\\(${INLINE_SEQUENCE_SET})`, "g");
   const parts = findAndReplace(
     text,
     escapePattern,

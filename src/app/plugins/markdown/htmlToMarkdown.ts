@@ -14,14 +14,14 @@ import { escapeMarkdownInlineSequences } from './utils';
  */
 export function htmlToMarkdown(html: string): string {
   const domNodes = parse(html);
-  return processNodes(domNodes);
+  return processNodes(domNodes).trim();
 }
 
 function processNodes(nodes: ChildNode[]): string {
-  return nodes.map(processNode).join('');
+  return nodes.map((n) => processNode(n)).join('');
 }
 
-function processNode(node: ChildNode): string {
+function processNode(node: ChildNode, listDepth: number = 0): string {
   if (isText(node)) {
     return escapeMarkdownInlineSequences(node.data);
   }
@@ -89,10 +89,10 @@ function processNode(node: ChildNode): string {
       return processBlockquote(node);
 
     case 'ul':
-      return processUnorderedList(node);
+      return processUnorderedList(node, listDepth);
 
     case 'ol':
-      return processOrderedList(node);
+      return processOrderedList(node, listDepth);
 
     case 'li':
       return processListItem(node);
@@ -104,7 +104,7 @@ function processNode(node: ChildNode): string {
       return '\n';
 
     case 'hr':
-      return '\n---\n';
+      return '---\n';
 
     case 'sub':
       return processSubscript(node);
@@ -118,16 +118,16 @@ function processNode(node: ChildNode): string {
 }
 
 function processInlineElements(node: Element): string {
-  return node.children.map(processNode).join('');
+  return node.children.map((c) => processNode(c)).join('');
 }
 
 function processInlineWrapper(node: Element, marker: string): string {
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `${marker}${content}${marker}`;
 }
 
 function processCode(node: Element): string {
-  const codeContent = node.children.map(processNode).join('');
+  const codeContent = node.children.map((c) => processNode(c)).join('');
 
   // Check if this is inside a pre (code block)
   if (node.parent && isTag(node.parent) && node.parent.name === 'pre') {
@@ -146,20 +146,20 @@ function processPre(node: Element): string {
   const lang = langMatch ? langMatch[1] : '';
 
   const codeContent = codeChild
-    ? codeChild.children.map(processNode).join('')
-    : node.children.map(processNode).join('');
+    ? codeChild.children.map((c) => processNode(c)).join('')
+    : node.children.map((c) => processNode(c)).join('');
 
-  return `\`\`\`${lang}\n${codeContent}\`\`\``;
+  return `\`\`\`${lang}\n${codeContent}\`\`\`\n`;
 }
 
 function processHeading(node: Element, tag: string): string {
   const level = tag.charAt(1);
-  const content = node.children.map(processNode).join('');
-  return `\n${'#'.repeat(parseInt(level, 10))} ${content}\n`;
+  const content = node.children.map((c) => processNode(c)).join('');
+  return `${'#'.repeat(parseInt(level, 10))} ${content}\n`;
 }
 
 function processParagraph(node: Element): string {
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `${content}\n`;
 }
 
@@ -174,19 +174,47 @@ function processBlockquote(node: Element): string {
   return `> ${content}\n`;
 }
 
-function processUnorderedList(node: Element): string {
+/**
+ * Process children of a list item, separating inline content from nested lists.
+ * Nested lists are processed with increased depth for indentation.
+ */
+function processListItemChildren(li: Element, depth: number): string {
+  const inlineParts: string[] = [];
+  const nestedParts: string[] = [];
+
+  li.children.forEach((child) => {
+    if (isTag(child) && (child.name === 'ul' || child.name === 'ol')) {
+      // Nested list, process with increased depth
+      nestedParts.push(processNode(child, depth + 1));
+    } else if (isTag(child) && child.name === 'p') {
+      // Unwrap <p> inside <li>
+      inlineParts.push(child.children.map((c) => processNode(c)).join(''));
+    } else {
+      inlineParts.push(processNode(child));
+    }
+  });
+
+  let result = inlineParts.join('').trim();
+  if (nestedParts.length > 0) {
+    result += '\n' + nestedParts.join('').trimEnd();
+  }
+  return result;
+}
+
+function processUnorderedList(node: Element, depth: number = 0): string {
   const mdSequence = node.attribs['data-md'] || '-';
+  const indent = '  '.repeat(depth);
   const items = node.children
     .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li) => {
-      const content = li.children.map(processNode).join('').trim();
-      return `${mdSequence} ${content}\n`;
+      const content = processListItemChildren(li, depth);
+      return `${indent}${mdSequence} ${content}`;
     })
-    .join('');
-  return items;
+    .join('\n');
+  return items + '\n';
 }
 
-function processOrderedList(node: Element): string {
+function processOrderedList(node: Element, depth: number = 0): string {
   const mdSequence = node.attribs['data-md'] || '1.';
   const [starOrHyphen] = mdSequence.match(/^\*|-$/) ?? [];
   const outPrefix = starOrHyphen
@@ -195,6 +223,7 @@ function processOrderedList(node: Element): string {
       ? mdSequence
       : `${mdSequence}.`;
 
+  const indent = '  '.repeat(depth);
   const items = node.children
     .filter((c): c is Element => isTag(c) && c.name === 'li')
     .map((li, index) => {
@@ -205,18 +234,18 @@ function processOrderedList(node: Element): string {
           currentPrefix = `${start + index}.`;
         }
       }
-      const content = li.children.map(processNode).join('').trim();
-      return `${currentPrefix} ${content}\n`;
+      const content = processListItemChildren(li, depth);
+      return `${indent}${currentPrefix} ${content}`;
     })
-    .join('');
-  return items;
+    .join('\n');
+  return items + '\n';
 }
 
 function processListItem(node: Element): string {
   const content = node.children
     .map((child) => {
       if (isTag(child) && child.name === 'p') {
-        return child.children.map(processNode).join('');
+        return child.children.map((c) => processNode(c)).join('');
       }
       return processNode(child);
     })
@@ -225,18 +254,18 @@ function processListItem(node: Element): string {
 }
 
 function processSubscript(node: Element): string {
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `-# ${content}\n`;
 }
 
 function processLink(node: Element): string {
   const href = node.attribs.href ?? '';
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `[${content}](${href})`;
 }
 
 function processSpoiler(node: Element): string {
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `||${content}||`;
 }
 
@@ -250,7 +279,7 @@ function processMath(node: Element, mode: 'inline' | 'block'): string {
 
 function processInlineMarkdown(node: Element): string {
   const mdSequence = node.attribs['data-md'] ?? '';
-  const content = node.children.map(processNode).join('');
+  const content = node.children.map((c) => processNode(c)).join('');
   return `${mdSequence}${content}${mdSequence}`;
 }
 

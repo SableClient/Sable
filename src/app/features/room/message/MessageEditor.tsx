@@ -27,7 +27,6 @@ import {
   customHtmlEqualsPlainText,
   getAutocompleteQuery,
   getPrevWorldRange,
-  htmlToEditorInput,
   moveCursor,
   plainToEditorInput,
   toMatrixCustomHTML,
@@ -39,6 +38,7 @@ import {
   getLinks,
   LINKINPUTREGEX,
 } from '$components/editor';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { useSetting } from '$state/hooks/settings';
 import { CaptionPosition, settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -359,7 +359,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
       const initialValue =
         typeof customHtml === 'string'
-          ? htmlToEditorInput(customHtml, isMarkdown)
+          ? plainToEditorInput(htmlToMarkdown(customHtml))
           : plainToEditorInput(typeof body === 'string' ? body : '', isMarkdown);
 
       Transforms.select(editor, {

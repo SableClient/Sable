@@ -15,7 +15,6 @@ import {
   createEmoticonElement,
   getAutocompleteQuery,
   getPrevWorldRange,
-  htmlToEditorInput,
   plainToEditorInput,
   moveCursor,
   toMatrixCustomHTML,
@@ -23,6 +22,7 @@ import {
   trimCustomHtml,
   useEditor,
 } from '$components/editor';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -95,7 +95,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';
 
       const incomingPlainText = toPlainText(
-        htmlToEditorInput(safeValue, isMarkdown),
+        plainToEditorInput(safeValue.includes('<') ? htmlToMarkdown(safeValue) : safeValue),
         isMarkdown
       ).trim();
       const currentPlainText = toPlainText(editor.children, isMarkdown).trim();
@@ -104,7 +104,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
 
       const isLikelyHtml = safeValue.includes('<') || safeValue.includes('>');
       const initialValue = isLikelyHtml
-        ? htmlToEditorInput(safeValue, isMarkdown)
+        ? plainToEditorInput(htmlToMarkdown(safeValue))
         : plainToEditorInput(safeValue, isMarkdown);
 
       editor.children = initialValue;

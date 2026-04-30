@@ -98,7 +98,7 @@ const elementToCustomHtml = (
       }
 
       const matrixTo = `https://matrix.to/#/${fragment}`;
-      return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
+      return `<a href="${encodeURI(matrixTo)}" target="_blank" rel="noreferrer noopener">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://')
@@ -107,7 +107,7 @@ const elementToCustomHtml = (
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}">${children}</a>`;
+      return `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:

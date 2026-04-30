@@ -250,7 +250,11 @@ export const factoryRenderLinkifyWithMention = (
       }
     }
 
-    return <a {...attributes}>{content}</a>;
+    return (
+      <a {...attributes} target="_blank" rel="noreferrer noopener">
+        {content}
+      </a>
+    );
   };
 
   return renderLink;
@@ -629,6 +633,7 @@ export const getReactCustomHtmlParser = (
           const renderedChildren = renderChildren();
           const anchorProps = {
             ...props,
+            target: '_blank',
             rel: ensureNoopenerRel(props.rel),
           };
 

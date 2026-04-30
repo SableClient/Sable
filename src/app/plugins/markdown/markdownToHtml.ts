@@ -61,7 +61,14 @@ export function markdownToHtml(markdown: string): string {
   // Unescape inline sequences (e.g., \*, \_) after parsing
   const unescapedInline = unescapeMarkdownInlineSequences(html);
 
-  // Sanitize using DOMPurify, restricting to Matrix-spec allowed HTML tags/attributes
+  // Force all links to open in a new tab
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A' && node.getAttribute('href')) {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noreferrer noopener');
+    }
+  });
+
   const sanitized = DOMPurify.sanitize(unescapedInline, {
     ALLOWED_TAGS: [
       'h1',
@@ -124,6 +131,8 @@ export function markdownToHtml(markdown: string): string {
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,
   });
+
+  DOMPurify.removeHook('afterSanitizeAttributes');
 
   return sanitized;
 }

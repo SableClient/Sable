@@ -26,10 +26,17 @@ export type OutputOptions = {
    * a map of regex patterns to replace nicknames with, used when stripNickname is true
    */
   nickNameReplacement?: Map<RegExp, string>;
+  /**
+   * if true, we are inside a <pre> block and should not convert newlines to <br/>
+   */
+  insidePre?: boolean;
 };
 
 const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
   let string = sanitizeText(node.text);
+  if (!opts.insidePre && !opts.allowBlockMarkdown) {
+    string = string.replaceAll("\n", "<br/>");
+  }
   if (opts.allowTextFormatting) {
     if (node.bold) string = `<strong>${string}</strong>`;
     if (node.italic) string = `<i>${string}</i>`;
@@ -60,8 +67,14 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       return `<h${node.level}>${children}</h${node.level}>`;
     case BlockType.CodeLine:
       return `${children}\n`;
-    case BlockType.CodeBlock:
-      return `<pre><code>${children}</code></pre>`;
+    case BlockType.CodeBlock: {
+      const childrenInsidePre = node.children
+        .map((element, index, array) =>
+          toMatrixCustomHTML(element, { ...opts, insidePre: true }),
+        )
+        .join("");
+      return `<pre><code>${childrenInsidePre}</code></pre>`;
+    }
     case BlockType.QuoteLine:
       return `${children}<br/>`;
     case BlockType.BlockQuote:
@@ -140,7 +153,7 @@ export const toMatrixCustomHTML = (
         allowInlineMarkdown: false,
         allowBlockMarkdown: false,
       })
-        .replace(/<br\/>$/, "\n")
+        .replace(/<br\/>$/, "\n\n")
         .replace(/^(\\*)&gt;/, "$1>");
 
       // strip nicknames if needed

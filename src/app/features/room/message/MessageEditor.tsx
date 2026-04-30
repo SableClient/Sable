@@ -256,7 +256,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
         const links = getLinks(editor.children);
 
-        if (!customHtmlEqualsPlainText(customHtml, plainText)) {
+        if (pmpDisplayname || !customHtmlEqualsPlainText(customHtml, plainText)) {
           newContent.format = 'org.matrix.custom.html';
           newContent.formatted_body = customHtml;
           contentBody.format = 'org.matrix.custom.html';

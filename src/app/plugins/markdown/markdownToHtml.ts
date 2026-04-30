@@ -17,6 +17,7 @@ import {
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
+  breaks: true,
   extensions: [
     matrixSpoilerExtension,
     matrixMathExtension,

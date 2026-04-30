@@ -399,6 +399,7 @@ export const domToEditorInput = (
 
   domNodes.forEach((node) => {
     if (isText(node)) {
+      if (node.data.trim() === '' && node.data.includes('\n')) return;
       if (lineHolder.length === 0) {
         // we are inserting first part of line
         // it may contain block markdown starting data

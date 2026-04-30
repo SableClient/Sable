@@ -126,14 +126,25 @@ export const toMatrixCustomHTML = (
   opts: OutputOptions
 ): string => {
   let markdownLines = '';
+  let insideCodeFence = false;
   const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
     if (opts.allowBlockMarkdown && 'type' in n && n.type === BlockType.Paragraph) {
       let line = toMatrixCustomHTML(n, {
         ...opts,
         allowInlineMarkdown: false,
         allowBlockMarkdown: false,
-      })
-        .replace(/<br\/>$/, '\n\n')
+      });
+
+      const rawText = line.replace(/<br\/>$/, '');
+      const isCodeFenceLine = /^`{3}/.test(rawText);
+      if (isCodeFenceLine) {
+        insideCodeFence = !insideCodeFence;
+      }
+
+      // Use \n inside code fences to prevent extra blank lines from
+      // accumulating on each edit cycle. Normal paragraphs use \n\n.
+      line = line
+        .replace(/<br\/>$/, insideCodeFence || isCodeFenceLine ? '\n' : '\n\n')
         .replace(/^(\\*)&gt;/, '$1>');
 
       // strip nicknames if needed

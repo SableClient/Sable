@@ -33,9 +33,23 @@ describe('getLinks', () => {
   });
 
   it('excludes URLs inside code blocks', () => {
+    const node = {
+      type: BlockType.CodeBlock,
+      children: [
+        {
+          type: BlockType.CodeLine,
+          children: [{ text: 'https://example.com' }],
+        },
+      ],
+    };
+    const links = getLinks([node as any]);
+    expect(links).toHaveLength(0);
+  });
+
+  it('excludes URLs with code mark (inline code)', () => {
     const node: ParagraphElement = {
       type: BlockType.Paragraph,
-      children: [{ text: '```' }, { text: 'https://example.com' }, { text: '```' }],
+      children: [{ text: 'https://example.com', code: true }],
     };
     const links = getLinks([node]);
     expect(links).toHaveLength(0);

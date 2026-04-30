@@ -50,7 +50,9 @@ describe('settingsLinkMessage', () => {
           allowInlineMarkdown: false,
         })
       )
-    ).toBe(`<a href="${settingsUrl}">Settings &gt; Account &gt; Display Name</a>`);
+    ).toBe(
+      `<a href="${settingsUrl}" target="_blank" rel="noreferrer noopener">Settings &gt; Account &gt; Display Name</a>`
+    );
   });
 
   it('rewrites same-base settings links with extra query params', () => {

@@ -1,4 +1,6 @@
-import { MouseEventHandler, ReactNode, useCallback, useRef, useState } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -14,11 +16,10 @@ import {
   config,
   Menu,
   MenuItem,
-  RectCords,
 } from 'folds';
 import classNames from 'classnames';
-import { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
+import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
@@ -331,7 +332,7 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
   };
 
   const handleCreateSpace = () => {
-    openCreateSpaceModal(item.roomId as any);
+    openCreateSpaceModal(item.roomId);
     setCords(undefined);
   };
 

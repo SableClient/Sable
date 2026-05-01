@@ -1,3 +1,4 @@
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -15,12 +16,12 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
   Spinner,
   Text,
   toRem,
 } from 'folds';
-import { MouseEventHandler, useCallback, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -28,7 +29,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useGetMemberPowerLevel, usePowerLevels } from '$hooks/usePowerLevels';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { stopPropagation } from '$utils/keyboard';
-import { StateEvent } from '$types/matrix/room';
+
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { useRoom } from '$hooks/useRoom';
@@ -43,6 +44,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { CutoutCard } from '$components/cutout-card';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import { EventType } from '$types/matrix-sdk';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -164,7 +166,7 @@ export function PowerChip({ userId }: { userId: string }) {
 
   const myUserId = mx.getSafeUserId();
   const canChangePowers =
-    permissions.stateEvent(StateEvent.RoomPowerLevels, myUserId) &&
+    permissions.stateEvent(EventType.RoomPowerLevels, myUserId) &&
     (myUserId === userId ? true : hasMorePower(myUserId, userId));
 
   const tag = getMemberPowerTag(userId);
@@ -250,7 +252,7 @@ export function PowerChip({ userId }: { userId: string }) {
                   </CutoutCard>
                 )}
                 {getPowers(powerLevelTags).map((power) => {
-                  const powerTag = powerLevelTags[power];
+                  const powerTag = powerLevelTags[power]!;
                   const powerTagIconSrc =
                     powerTag.icon && getPowerTagIconSrc(mx, useAuthentication, powerTag.icon);
 

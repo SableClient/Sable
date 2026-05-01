@@ -12,7 +12,7 @@ import {
   as,
   config,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -59,8 +59,8 @@ export const EventReaders = as<'div', EventReadersProps>(
           </IconButton>
         </Header>
         <Box grow="Yes">
-          <Scroll visibility="Hover" hideTrack size="300">
             <Box className={css.Content} direction="Column">
+          <Scroll visibility="Hover" hideTrack size="300">
               {latestEventReaders.map((readerId) => {
                 const name = getName(readerId);
                 const avatarMxcUrl = room.getMember(readerId)?.getMxcAvatarUrl();
@@ -107,8 +107,8 @@ export const EventReaders = as<'div', EventReadersProps>(
                   </MenuItem>
                 );
               })}
-            </Box>
           </Scroll>
+            </Box>
         </Box>
       </Box>
     );

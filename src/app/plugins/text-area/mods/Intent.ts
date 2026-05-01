@@ -1,6 +1,6 @@
 import { Cursor } from '$plugins/text-area/Cursor';
-import { Operations } from '$plugins/text-area/Operations';
-import { TextArea } from '$plugins/text-area/TextArea';
+import type { Operations } from '$plugins/text-area/Operations';
+import type { TextArea } from '$plugins/text-area/TextArea';
 
 export class Intent {
   public readonly textArea: TextArea;
@@ -60,7 +60,7 @@ export class Intent {
     });
     const intentCursor = this.operations.insert(linesCursor, intentLines.join('\n'));
 
-    const firstLineTrimLength = lines[0].length - intentLines[0].length;
+    const firstLineTrimLength = (lines[0]?.length ?? 0) - (intentLines[0]?.length ?? 0);
     const lastLine = this.textArea.cursorLines(
       new Cursor(intentCursor.end, intentCursor.end, 'none')
     );

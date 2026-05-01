@@ -41,10 +41,9 @@ export function WelcomePage() {
                     Source Code
                   </Text>
                 </Button>
-                {/*
                 <Button
                   as="a"
-                  href="https://github.com/SableClient/Sable"
+                  href="https://opencollective.com/sable"
                   target="_blank"
                   rel="noreferrer noopener"
                   fill="Soft"
@@ -54,7 +53,6 @@ export function WelcomePage() {
                     Support
                   </Text>
                 </Button>
-                */}
               </Box>
             </Box>
             <Box direction="Column" gap="200" alignItems="Center">

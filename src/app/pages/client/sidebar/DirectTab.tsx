@@ -1,6 +1,8 @@
-import { MouseEventHandler, forwardRef, useMemo, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
@@ -82,7 +84,10 @@ export function DirectTab() {
 
   const handleDirectClick = () => {
     const activePath = navToActivePath.get('direct');
-    if (activePath && screenSize !== ScreenSize.Mobile) {
+    const activePathname = activePath?.pathname;
+    const isValidDirectPath =
+      typeof activePathname === 'string' && activePathname.startsWith('/direct/');
+    if (activePath && isValidDirectPath && screenSize !== ScreenSize.Mobile) {
       navigate(joinPathComponent(activePath));
       return;
     }

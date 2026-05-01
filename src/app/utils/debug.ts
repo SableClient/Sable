@@ -16,7 +16,6 @@ type LogLevel = 'log' | 'warn' | 'error';
 const fmt = (namespace: string, level: LogLevel, ...args: unknown[]): void => {
   if (!isDebug() && level === 'log') return;
   const prefix = `[sable:${namespace}]`;
-  // eslint-disable-next-line no-console
   console[level](prefix, ...args);
 };
 

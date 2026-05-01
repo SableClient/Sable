@@ -1,5 +1,5 @@
-import { MouseEvent } from 'react';
-import { Room, MatrixEvent } from '$types/matrix-sdk';
+import type { MouseEvent } from 'react';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import { MenuItem, Icon, Icons, Text } from 'folds';
 import { TextViewer } from '$components/text-viewer';
@@ -38,15 +38,15 @@ type MessageSourceInternalProps = {
   onClose: () => void;
 };
 
-export function MessageSourceInternal({ room, mEvent, onClose }: MessageSourceInternalProps) {
-  const getContent = (evt: MatrixEvent) =>
-    evt.isEncrypted()
-      ? {
-          [`<== DECRYPTED_EVENT ==>`]: evt.getEffectiveEvent(),
-          [`<== ORIGINAL_EVENT ==>`]: evt.event,
-        }
-      : evt.event;
+const getContent = (evt: MatrixEvent) =>
+  evt.isEncrypted()
+    ? {
+        [`<== DECRYPTED_EVENT ==>`]: evt.getEffectiveEvent(),
+        [`<== ORIGINAL_EVENT ==>`]: evt.event,
+      }
+    : evt.event;
 
+export function MessageSourceInternal({ room, mEvent, onClose }: MessageSourceInternalProps) {
   const getText = (): string => {
     const evtId = mEvent.getId()!;
     const evtTimeline = room.getTimelineForEvent(evtId);

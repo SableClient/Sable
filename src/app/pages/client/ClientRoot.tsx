@@ -1,3 +1,4 @@
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -9,13 +10,14 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
 } from 'folds';
-import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import type { HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import { HttpApiEvent } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
@@ -247,8 +249,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     if (!mx || !activeSession) return;
     await logoutClient(mx, activeSession);
     setSessions({ type: 'DELETE', session: activeSession } as SessionsAction);
-    const remaining = sessions.filter((s) => s.userId !== activeSession.userId);
-    setActiveSessionId(remaining[0]?.userId ?? undefined);
+    setActiveSessionId(
+      sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
+    );
     window.location.reload();
   }, [mx, activeSession, sessions, setSessions, setActiveSessionId]);
 
@@ -352,8 +355,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   }, [startState]);
 
   return (
-    <AutoDiscovery userId={userId} baseUrl={baseUrl}>
-      <SpecVersions baseUrl={baseUrl}>
+    <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
+      <SpecVersions baseUrl={baseUrl ?? ''}>
         {mx && <SyncStatus mx={mx} />}
         {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (

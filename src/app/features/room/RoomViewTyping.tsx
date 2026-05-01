@@ -1,5 +1,5 @@
 import { Box, Icon, IconButton, Icons, Text, as } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { roomIdToTypingMembersAtom } from '$state/typingMembers';
@@ -27,7 +27,7 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
         (receipt) =>
           getMemberDisplayName(room, receipt.userId, nicknames) ?? getMxIdLocalPart(receipt.userId)
       )
-      .reverse();
+      .toReversed();
 
     if (typingNames.length === 0) {
       return null;

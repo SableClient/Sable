@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Session } from '$state/sessions';
+import type { Session } from '$state/sessions';
 
 export type SessionProfile = {
   displayName?: string;
@@ -11,7 +11,10 @@ type SessionProfiles = Record<string, SessionProfile>;
 const parseMxc = (mxcUrl: string): { serverName: string; mediaId: string } | undefined => {
   const match = mxcUrl.match(/^mxc:\/\/([^/]+)\/(.+)$/);
   if (!match) return undefined;
-  return { serverName: match[1], mediaId: match[2] };
+  const serverName = match[1];
+  const mediaId = match[2];
+  if (!serverName || !mediaId) return undefined;
+  return { serverName, mediaId };
 };
 
 const fetchAvatarBlobUrl = async (

@@ -1,6 +1,7 @@
-import { BasePoint, BaseRange, Editor, Element, Point, Range, Text, Transforms } from 'slate';
+import type { BasePoint, BaseRange } from 'slate';
+import { Editor, Element, Point, Range, Text, Transforms } from 'slate';
 import { BlockType, MarkType } from './types';
-import {
+import type {
   CommandElement,
   EmoticonElement,
   FormattedText,
@@ -63,12 +64,12 @@ export const headingLevel = (editor: Editor): HeadingLevel | undefined => {
 };
 
 type BlockOption = { level: HeadingLevel };
-const NESTED_BLOCK = [
+const NESTED_BLOCK = new Set([
   BlockType.OrderedList,
   BlockType.UnorderedList,
   BlockType.BlockQuote,
   BlockType.CodeBlock,
-];
+]);
 
 export const toggleBlock = (editor: Editor, format: BlockType, option?: BlockOption) => {
   Transforms.collapse(editor, {
@@ -77,7 +78,7 @@ export const toggleBlock = (editor: Editor, format: BlockType, option?: BlockOpt
   const isActive = isBlockActive(editor, format);
 
   Transforms.unwrapNodes(editor, {
-    match: (node) => Element.isElement(node) && NESTED_BLOCK.includes(node.type),
+    match: (node) => Element.isElement(node) && NESTED_BLOCK.has(node.type),
     split: true,
   });
 
@@ -161,7 +162,6 @@ export const resetEditor = (editor: Editor) => {
 };
 
 export const resetEditorHistory = (editor: Editor) => {
-  // eslint-disable-next-line no-param-reassign
   editor.history = {
     undos: [],
     redos: [],
@@ -242,7 +242,6 @@ export const getPointUntilChar = (
     reverse: options.reverse,
   });
 
-  // eslint-disable-next-line no-restricted-syntax
   for (const point of pointItr) {
     if (!Point.equals(point, cursorPoint) && prevPoint) {
       char = Editor.string(editor, { anchor: point, focus: prevPoint });

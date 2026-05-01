@@ -1,11 +1,6 @@
-import {
-  ChangeEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Chip,
@@ -15,14 +10,13 @@ import {
   Icons,
   Input,
   PopOut,
-  RectCords,
   Scroll,
   Spinner,
   Text,
   toRem,
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { RoomMember } from '$types/matrix-sdk';
+import type { RoomMember } from '$types/matrix-sdk';
 import { Page, PageContent, PageHeader } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -34,7 +28,8 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { getMxIdLocalPart, getMxIdServer } from '$utils/matrix';
 import { ServerBadge } from '$components/server-badge';
 import { useDebounce } from '$hooks/useDebounce';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { getMemberSearchStr } from '$utils/room';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
@@ -96,7 +91,7 @@ export function Members({ requestClose }: MembersProps) {
     () =>
       Array.from(members)
         .filter(membershipFilter.filterFn)
-        .sort(memberSort.sortFn)
+        .toSorted(memberSort.sortFn)
         .sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
   );
@@ -301,10 +296,11 @@ export function Members({ requestClose }: MembersProps) {
                 gap="100"
               >
                 {virtualizer.getVirtualItems().map((vItem) => {
-                  const tagOrMember = flattenTagMembers[vItem.index];
+                  const tagOrMember = flattenTagMembers[vItem.index]!;
 
                   if ('userId' in tagOrMember) {
                     const server = getMxIdServer(tagOrMember.userId);
+                    const username = getMxIdLocalPart(tagOrMember.userId);
                     return (
                       <VirtualTile
                         virtualItem={vItem}
@@ -322,7 +318,12 @@ export function Members({ requestClose }: MembersProps) {
                             useAuthentication={useAuthentication}
                             after={
                               server && (
-                                <Box as="span" shrink="No" alignSelf="End">
+                                <Box as="span" shrink="No" alignSelf="End" direction="Column">
+                                  <ServerBadge
+                                    server={username ?? ''}
+                                    fill="None"
+                                    style={{ alignSelf: 'End' }}
+                                  />
                                   <ServerBadge server={server} fill="None" />
                                 </Box>
                               )

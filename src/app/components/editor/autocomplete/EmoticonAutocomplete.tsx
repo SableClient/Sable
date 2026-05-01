@@ -1,25 +1,29 @@
-import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo } from 'react';
-import { Editor } from 'slate';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo } from 'react';
+import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { Box, MenuItem, Text, toRem } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { useRelevantImagePacks } from '$hooks/useImagePacks';
-import { IEmoji, emojis } from '$plugins/emoji';
+import type { IEmoji } from '$plugins/emoji';
+import { emojis } from '$plugins/emoji';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { ImageUsage, PackImageReader } from '$plugins/custom-emoji';
+import type { PackImageReader } from '$plugins/custom-emoji';
+import { ImageUsage } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { createEmoticonElement, moveCursor, replaceWithElement } from '$components/editor/utils';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import { AutocompleteQuery } from './autocompleteQuery';
+import type { AutocompleteQuery } from './autocompleteQuery';
 
 type EmoticonCompleteHandler = (key: string, shortcode: string) => void;
 
@@ -96,7 +100,7 @@ export function EmoticonAutocomplete({
   useKeyDown(window, (evt: KeyboardEvent) => {
     onTabPress(evt, () => {
       if (autoCompleteEmoticon.length === 0) return;
-      const emoticon = autoCompleteEmoticon[0];
+      const emoticon = autoCompleteEmoticon[0]!;
       const key = 'url' in emoticon ? emoticon.url : emoticon.unicode;
       handleAutocomplete(key, emoticon.shortcode);
     });
@@ -129,7 +133,11 @@ export function EmoticonAutocomplete({
                   as="img"
                   src={customEmojiUrl}
                   alt={emoticon.shortcode}
-                  style={{ width: toRem(24), height: toRem(24), objectFit: 'contain' }}
+                  style={{
+                    width: toRem(24),
+                    height: toRem(24),
+                    objectFit: 'contain',
+                  }}
                 />
               ) : (
                 <Box

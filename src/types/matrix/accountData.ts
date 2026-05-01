@@ -1,31 +1,16 @@
-export enum AccountDataEvent {
-  // Cinny and Matrix Account data
-  PushRules = 'm.push_rules',
-  Direct = 'm.direct',
-  IgnoredUserList = 'm.ignored_user_list',
-
-  CinnySpaces = 'in.cinny.spaces',
-
-  ElementRecentEmoji = 'io.element.recent_emoji',
-
-  PoniesUserEmotes = 'im.ponies.user_emotes',
-  PoniesEmoteRooms = 'im.ponies.emote_rooms',
-
-  SecretStorageDefaultKey = 'm.secret_storage.default_key',
-
-  CrossSigningMaster = 'm.cross_signing.master',
-  CrossSigningSelf = 'm.cross_signing.self',
-  CrossSigningUser = 'm.cross_signing.user',
-  MegolmBackupV1 = 'm.megolm_backup.v1',
-
-  // Sable account data
-  SableNicknames = 'moe.sable.app.nicknames',
-  SablePinStatus = 'moe.sable.app.pins_read_marker',
-
+export const CustomAccountDataEvent = {
+  CinnySpaces: 'in.cinny.spaces',
+  ElementRecentEmoji: 'io.element.recent_emoji',
+  PoniesUserEmotes: 'im.ponies.user_emotes',
+  PoniesEmoteRooms: 'im.ponies.emote_rooms',
+  SableNicknames: 'moe.sable.app.nicknames',
+  SablePinStatus: 'moe.sable.app.pins_read_marker',
   // because of a mistake hasn't been renamed in time
-  SablePerProfileMessageProfiles = 'fyi.cisnt.permessageprofile',
-  SableSettings = 'moe.sable.app.settings',
-}
+  SablePerProfileMessageProfiles: 'fyi.cisnt.permessageprofile',
+  SableSettings: 'moe.sable.app.settings',
+} as const;
+export type CustomAccountDataEvent =
+  (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];
 
 export type MDirectContent = Record<string, string[]>;
 

@@ -8,12 +8,12 @@ export type ImageEditorProps = {
   requestClose: () => void;
 };
 
+const handleApply = () => {
+  //
+};
+
 export const ImageEditor = as<'div', ImageEditorProps>(
   ({ className, name, url, requestClose, ...props }, ref) => {
-    const handleApply = () => {
-      //
-    };
-
     return (
       <Box
         className={classNames(css.ImageEditor, className)}

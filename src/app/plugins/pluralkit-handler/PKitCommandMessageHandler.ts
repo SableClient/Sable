@@ -1,13 +1,13 @@
+import type { PerMessageProfile } from '$hooks/usePerMessageProfile';
 import {
   addOrUpdatePerMessageProfile,
   associateProxyWithProfile,
   dropProxyAssociationForPMP,
   getAllPerMessageProfiles,
   getPerMessageProfileById,
-  PerMessageProfile,
 } from '$hooks/usePerMessageProfile';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
-import { MatrixClient, Room } from 'matrix-js-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { generateShortId } from '$utils/shortIdGen';
 
 const pkMemberRenameRegex = /^(pk;member)\s+"?([\w\s]+)"?\s*rename\s+"?([\w\s]+)"?$/;
@@ -34,10 +34,11 @@ function regexEscapeFallBackFunc(template: string): string {
  * @return {*}  {RegExp}
  */
 function buildRegex(template: string): RegExp {
-  const [before, after] = template.split('text');
-  // RegExp.escape is baseline since May 2025
-  // @ts-ignore TS2322
-  const escape = RegExp.escape ?? regexEscapeFallBackFunc;
+  const [before = '', after = ''] = template.split('text');
+  const escape = (s: string) =>
+    // @ts-ignore TS2339 - RegExp.escape is a new/proposed method
+    typeof RegExp.escape === 'function' ? RegExp.escape(s) : regexEscapeFallBackFunc(s);
+
   const pattern = `${escape(before)}(.+)${escape(after)}`;
   return new RegExp(`^${pattern}$`);
 }
@@ -91,6 +92,10 @@ export class PKitCommandMessageHandler {
         return;
       }
       const memberName = cmdParts[2];
+      if (!memberName) {
+        sendFeedback(`malformed input, ${helpTextPkMemberNew}`, this.room, this.mx.getSafeUserId());
+        return;
+      }
       const generatedID = generateShortId(5);
       sendFeedback(
         `adding new member has been created with id: ${generatedID} and name ${memberName}`,
@@ -150,6 +155,14 @@ export class PKitCommandMessageHandler {
         return;
       }
       // actually change the name
+      if (!newName) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberRename}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
       pmp.name = newName;
       sendFeedback(
         `renaming your profile ${pmpId} from ${oldName} to ${newName}`,
@@ -174,6 +187,14 @@ export class PKitCommandMessageHandler {
         return;
       }
 
+      if (!matchAgainst) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberRemoveProxy}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
       dropProxyAssociationForPMP(this.mx, matchAgainst);
 
       sendFeedback(
@@ -192,6 +213,14 @@ export class PKitCommandMessageHandler {
       if (!pmpId) {
         sendFeedback(
           `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" doesn't exist in your records, ${helpTextPkMemberNew}`,
+          this.room,
+          this.mx.getSafeUserId()
+        );
+        return;
+      }
+      if (!matchAgainst) {
+        sendFeedback(
+          `malformed input, ${helpTextPkMemberNewProxy}`,
           this.room,
           this.mx.getSafeUserId()
         );

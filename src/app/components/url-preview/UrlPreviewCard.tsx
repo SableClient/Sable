@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse } from '$types/matrix-sdk';
 import { Box, Icon, IconButton, Icons, Scroll, Spinner, Text, as, color, config } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -17,12 +18,12 @@ const linkStyles = { color: color.Success.Main };
 // Module-level in-flight deduplication: prevents N+1 concurrent requests when a
 // large event batch renders many UrlPreviewCard instances for the same URL.
 // Scoped by MatrixClient to avoid cross-account dedup if multiple clients exist.
-// Inner cache keyed by URL only (not ts) — the same URL shows the same preview
+// Inner cache keyed by URL only (not ts) â€” the same URL shows the same preview
 // regardless of which message referenced it. Promises are evicted after settling
 // so a later render can retry after network recovery.
-const previewRequestCache = new WeakMap<any, Map<string, Promise<IPreviewUrlResponse>>>();
+const previewRequestCache = new WeakMap<MatrixClient, Map<string, Promise<IPreviewUrlResponse>>>();
 
-const getClientCache = (mx: any): Map<string, Promise<IPreviewUrlResponse>> => {
+const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlResponse>> => {
   let clientCache = previewRequestCache.get(mx);
   if (!clientCache) {
     clientCache = new Map();
@@ -41,177 +42,99 @@ const openMediaInNewTab = async (url: string | undefined) => {
   window.open(blobUrl, '_blank');
 };
 
-export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: string | null }>(
-  ({ url, ts, mediaType, ...props }, ref) => {
-    const mx = useMatrixClient();
-    const useAuthentication = useMediaAuthentication();
+export const UrlPreviewCard = as<
+  'div',
+  {
+    urlPreview: boolean;
+    url: string;
+    ts?: number;
+    mediaType?: string | null;
+    bundle?: IPreviewUrlResponse;
+  }
+>(({ urlPreview, url, ts, mediaType, bundle, ...props }, ref) => {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
 
-    const isDirect = !!mediaType;
+  const isDirect = !!mediaType;
 
-    const [previewStatus, loadPreview] = useAsyncCallback(
-      useCallback(() => {
-        if (isDirect) return Promise.resolve(null);
+  const [previewStatus, loadPreview] = useAsyncCallback(
+    useCallback(() => {
+      if (isDirect) return Promise.resolve(null);
+      if (!ts && !bundle) return Promise.resolve(null);
+      if (urlPreview && ts) {
         const clientCache = getClientCache(mx);
         const cached = clientCache.get(url);
         if (cached !== undefined) return cached;
-        const urlPreview = mx.getUrlPreview(url, ts);
-        clientCache.set(url, urlPreview);
-        urlPreview.finally(() => clientCache.delete(url));
-        return urlPreview;
-      }, [url, ts, mx, isDirect])
+        const previewResult = mx?.getUrlPreview(url, ts);
+        clientCache.set(url, previewResult);
+        previewResult.finally(() => clientCache.delete(url));
+        return previewResult;
+      }
+      return Promise.resolve(bundle);
+    }, [isDirect, ts, bundle, urlPreview, mx, url])
+  );
+
+  useEffect(() => {
+    loadPreview();
+  }, [url, loadPreview]);
+
+  if (previewStatus.status === AsyncStatus.Error) return null;
+
+  const renderContent = (prev: IPreviewUrlResponse) => {
+    const siteName = prev['og:site_name'];
+    const title = prev['og:title'];
+    const description = prev['og:description'];
+    const imgUrl = mxcUrlToHttp(
+      mx,
+      prev['og:image'] || '',
+      useAuthentication,
+      256,
+      256,
+      'scale',
+      false
     );
-
-    useEffect(() => {
-      loadPreview();
-    }, [url, loadPreview]);
-
-    if (previewStatus.status === AsyncStatus.Error) return null;
-
-    const renderContent = (prev: IPreviewUrlResponse) => {
-      const siteName = prev['og:site_name'];
-      const title = prev['og:title'];
-      const description = prev['og:description'];
-      const imgUrl = mxcUrlToHttp(
-        mx,
-        prev['og:image'] || '',
-        useAuthentication,
-        256,
-        256,
-        'scale',
-        false
-      );
-      const handleAuxClick = (ev: React.MouseEvent) => {
-        if (!prev['og:image']) {
-          console.warn('No image');
+    const handleAuxClick = (ev: React.MouseEvent) => {
+      if (!prev['og:image']) {
+        console.warn('No image');
+        return;
+      }
+      if (ev.button === 1) {
+        ev.preventDefault();
+        const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
+        if (!mxcUrl) {
+          console.error('Error converting mxc:// url.');
           return;
         }
-        if (ev.button === 1) {
-          ev.preventDefault();
-          const mxcUrl = mxcUrlToHttp(mx, prev['og:image'], /* useAuthentication */ true);
-          if (!mxcUrl) {
-            console.error('Error converting mxc:// url.');
-            return;
-          }
-          openMediaInNewTab(mxcUrl);
-        }
-      };
-
-      return (
-        <Box
-          grow="Yes"
-          direction="Column"
-          style={{
-            overflow: 'hidden',
-            width: '100%',
-          }}
-        >
-          <UrlPreviewContent
-            style={{
-              minWidth: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              style={linkStyles}
-              truncate
-              as="a"
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              size="T200"
-              priority="300"
-            >
-              {typeof siteName === 'string' && `${siteName} | `}
-              {safeDecodeUrl(url)}
-            </Text>
-            {title && (
-              <Text truncate priority="400">
-                <b>{title}</b>
-              </Text>
-            )}
-            {description && (
-              <Text size="T200" priority="300">
-                <UrlPreviewDescription>{description}</UrlPreviewDescription>
-              </Text>
-            )}
-          </UrlPreviewContent>
-          {prev['og:video'] && (
-            <VideoContent
-              style={{
-                width: '100%',
-                aspectRatio:
-                  ((prev['og:video:width'] as number) ?? 1) /
-                  ((prev['og:video:height'] as number) ?? 1),
-              }}
-              body={prev['og:title']}
-              info={{}}
-              url={prev['og:video'] as string}
-              mimeType={(prev['og:video:type'] as string) ?? ''}
-              renderVideo={(vidProps) => <Video style={{ objectFit: 'contain' }} {...vidProps} />}
-              renderThumbnail={() => <Image src={imgUrl ?? undefined} />}
-            />
-          )}
-          {!prev['og:video'] &&
-            prev['og:image'] &&
-            (() => {
-              const ogW = prev['og:image:width'];
-              const ogH = prev['og:image:height'];
-              const aspectRatio = ogW && ogH ? `${ogW} / ${ogH}` : undefined;
-              return (
-                <Box
-                  style={{
-                    width: '100%',
-                    maxHeight: '400px',
-                    aspectRatio: aspectRatio ?? '16 / 9',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    position: 'relative',
-                  }}
-                >
-                  <ImageContent
-                    style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
-                    autoPlay
-                    onAuxClick={handleAuxClick}
-                    body={prev['og:title']}
-                    url={prev['og:image']}
-                    renderViewer={(p) => <ImageViewer {...p} />}
-                    renderImage={(p) => (
-                      <Image
-                        {...p}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          objectPosition: 'center',
-                        }}
-                      />
-                    )}
-                  />
-                </Box>
-              );
-            })()}
-          {!prev['og:video'] && !prev['og:image'] && prev['og:audio'] && (
-            <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
-              <AudioContent
-                url={(prev['og:audio'] as string) ?? ''}
-                mimeType={(prev['og:audio:type'] as string) ?? ''}
-                info={{}}
-                renderMediaControl={(p) => <MediaControl {...p} />}
-              />
-            </Box>
-          )}
-        </Box>
-      );
+        openMediaInNewTab(mxcUrl);
+      }
     };
 
-    let previewContent;
-    if (previewStatus.status === AsyncStatus.Success) {
-      previewContent = previewStatus.data ? (
-        renderContent(previewStatus.data)
-      ) : (
-        <UrlPreviewContent>
+    const ogW = ((prev['og:video'] && prev['og:video:width']) ||
+      (prev['og:image'] && prev['og:image:width']) ||
+      1) as number;
+    const ogH = ((prev['og:video'] && prev['og:video:height']) ||
+      (prev['og:image'] && prev['og:image:height']) ||
+      1) as number;
+
+    const aspectRatio = ogW && ogH ? `${ogW} / ${ogH}` : undefined;
+
+    return (
+      <Box
+        grow="Yes"
+        direction="Column"
+        style={{
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        <UrlPreviewContent
+          style={{
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
           <Text
             style={linkStyles}
             truncate
@@ -222,43 +145,143 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number; mediaType?: s
             size="T200"
             priority="300"
           >
+            {typeof siteName === 'string' && `${siteName} | `}
             {safeDecodeUrl(url)}
           </Text>
+          {title && (
+            <Text truncate priority="400">
+              <b>{title}</b>
+            </Text>
+          )}
+          {description && (
+            <Text size="T200" priority="300">
+              <UrlPreviewDescription>{description}</UrlPreviewDescription>
+            </Text>
+          )}
         </UrlPreviewContent>
-      );
-    } else {
-      previewContent = (
-        <Box grow="Yes" alignItems="Center" justifyContent="Center">
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
-    }
-    return (
-      <UrlPreview
-        {...props}
-        ref={ref}
-        style={
-          isDirect
-            ? {
-                background: 'transparent',
-                border: 'none',
-                padding: 0,
-                boxShadow: 'none',
-                display: 'inline-block',
-                verticalAlign: 'middle',
-                width: 'max-content',
-                minWidth: 0,
-                maxWidth: '100%',
-                margin: 0,
-              }
-            : undefined
-        }
-      >
-        {previewContent}
-      </UrlPreview>
+        {prev['og:video'] && (
+          <VideoContent
+            style={{
+              width: '100%',
+              aspectRatio: aspectRatio ?? '10 / 9',
+            }}
+            body={prev['og:title']}
+            info={{}}
+            url={prev['og:video'] as string}
+            mimeType={(prev['og:video:type'] as string) ?? ''}
+            renderVideo={(vidProps) => <Video style={{ objectFit: 'contain' }} {...vidProps} />}
+            renderThumbnail={() => <Image src={imgUrl ?? undefined} />}
+          />
+        )}
+        {!prev['og:video'] &&
+          prev['og:image'] &&
+          (() => (
+            <Box
+              style={{
+                width: '100%',
+                maxHeight: '320px',
+                aspectRatio: aspectRatio ?? '16 / 9',
+                flexShrink: 1,
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <ImageContent
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'absolute',
+                  inset: 0,
+                  minHeight: 0,
+                }}
+                autoPlay
+                onAuxClick={handleAuxClick}
+                body={prev['og:title']}
+                url={prev['og:image']}
+                renderViewer={(p) => <ImageViewer {...p} />}
+                renderImage={(p) => (
+                  <Image
+                    {...p}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          ))()}
+        {!prev['og:video'] && !prev['og:image'] && prev['og:audio'] && (
+          <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
+            <AudioContent
+              url={(prev['og:audio'] as string) ?? ''}
+              mimeType={(prev['og:audio:type'] as string) ?? ''}
+              info={{}}
+              renderMediaControl={(p) => <MediaControl {...p} />}
+            />
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
+  let previewContent;
+  if (previewStatus.status === AsyncStatus.Success) {
+    previewContent = previewStatus.data ? (
+      renderContent(previewStatus.data)
+    ) : (
+      <UrlPreviewContent>
+        <Text
+          style={linkStyles}
+          truncate
+          as="a"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          size="T200"
+          priority="300"
+        >
+          {safeDecodeUrl(url)}
+        </Text>
+      </UrlPreviewContent>
+    );
+  } else {
+    previewContent = (
+      <Box grow="Yes" alignItems="Center" justifyContent="Center">
+        <Spinner variant="Secondary" size="400" />
+      </Box>
     );
   }
-);
+  return (
+    <UrlPreview
+      {...props}
+      ref={ref}
+      style={
+        isDirect
+          ? {
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              boxShadow: 'none',
+              display: 'inline-block',
+              verticalAlign: 'middle',
+              width: 'max-content',
+              minWidth: 0,
+              maxWidth: '100%',
+              margin: 0,
+              alignSelf: 'start',
+            }
+          : {
+              alignSelf: 'start',
+            }
+      }
+    >
+      {previewContent}
+    </UrlPreview>
+  );
+});
 
 export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -334,24 +357,31 @@ export const UrlPreviewHolder = as<'div'>(({ children, ...props }, ref) => {
               </IconButton>
             </>
           )}
-          <Box ref={innerBoxRef} alignItems="Inherit" gap="200">
+          <Box
+            ref={innerBoxRef}
+            alignItems="Inherit"
+            gap="200"
+            style={{
+              alignItems: 'baseline',
+            }}
+          >
             {children}
-            {canScrollRight && (
-              <>
-                <div className={css.UrlPreviewHolderGradient({ position: 'Right' })} />
-                <IconButton
-                  className={css.UrlPreviewHolderBtn({ position: 'Right' })}
-                  variant="Primary"
-                  radii="Pill"
-                  size="300"
-                  outlined
-                  onClick={handleScrollFront}
-                >
-                  <Icon size="300" src={Icons.ArrowRight} />
-                </IconButton>
-              </>
-            )}
           </Box>
+          {canScrollRight && (
+            <>
+              <div className={css.UrlPreviewHolderGradient({ position: 'Right' })} />
+              <IconButton
+                className={css.UrlPreviewHolderBtn({ position: 'Right' })}
+                variant="Primary"
+                radii="Pill"
+                size="300"
+                outlined
+                onClick={handleScrollFront}
+              >
+                <Icon size="300" src={Icons.ArrowRight} />
+              </IconButton>
+            </>
+          )}
         </Box>
       </Scroll>
     </Box>

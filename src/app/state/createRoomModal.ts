@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { CreateRoomType } from '$components/create-room/types';
+import type { CreateRoomType } from '$components/create-room/types';
 
 export type CreateRoomModalState = {
   spaceId?: string;

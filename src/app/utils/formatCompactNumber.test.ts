@@ -8,7 +8,7 @@ afterEach(() => {
 describe('formatCompactNumber', () => {
   it('uses navigator.languages by default', () => {
     const originalLanguages = navigator.languages;
-    const format = vi.fn().mockReturnValue('formatted');
+    const format = vi.fn<(num: number) => string>().mockReturnValue('formatted');
     const numberFormat = vi
       .spyOn(Intl, 'NumberFormat')
       .mockImplementation(function MockNumberFormat() {
@@ -38,7 +38,7 @@ describe('formatCompactNumber', () => {
   });
 
   it('passes explicit locales and options to Intl.NumberFormat', () => {
-    const format = vi.fn().mockReturnValue('formatted');
+    const format = vi.fn<(num: number) => string>().mockReturnValue('formatted');
     const numberFormat = vi
       .spyOn(Intl, 'NumberFormat')
       .mockImplementation(function MockNumberFormat() {

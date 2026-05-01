@@ -1,4 +1,5 @@
-import { MouseEventHandler, useCallback, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Box,
   Modal,
@@ -12,7 +13,7 @@ import {
   toRem,
 } from 'folds';
 import classNames from 'classnames';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { type Relations } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -110,7 +111,7 @@ export const Reactions = as<'div', ReactionsProps>(
         })}
         {reactions.length > 0 && (
           <Overlay
-            onContextMenu={(evt: any) => {
+            onContextMenu={(evt: React.MouseEvent) => {
               evt.stopPropagation();
             }}
             open={!!viewer}

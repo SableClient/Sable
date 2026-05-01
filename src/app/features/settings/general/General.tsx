@@ -1,13 +1,13 @@
-import {
+import type {
   ChangeEventHandler,
   FormEventHandler,
   KeyboardEventHandler,
   MouseEventHandler,
-  useEffect,
-  useState,
 } from 'react';
+import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { useAtomValue, useSetAtom } from 'jotai';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -20,7 +20,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Switch,
   Text,
@@ -30,14 +29,8 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import {
-  DateFormat,
-  MessageLayout,
-  MessageSpacing,
-  RightSwipeAction,
-  CaptionPosition,
-  settingsAtom,
-} from '$state/settings';
+import type { DateFormat, MessageSpacing, CaptionPosition } from '$state/settings';
+import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
@@ -54,7 +47,6 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { SettingsLinkBaseUrlSetting } from './SettingsLinkBaseUrlSetting';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -883,17 +875,6 @@ function Messages() {
     'hideNickAvatarEvents'
   );
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
-  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
-  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
-    settingsAtom,
-    'encClientUrlPreview'
-  );
-  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
-    settingsAtom,
-    'clientPreviewYoutube'
-  );
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -949,6 +930,19 @@ function Messages() {
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          title="Disable Media Auto Load"
+          focusId="disable-media-auto-load"
+          after={
+            <Switch
+              variant="Primary"
+              value={!mediaAutoLoad}
+              onChange={(v) => setMediaAutoLoad(!v)}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
           title="Hide Membership Change"
           focusId="hide-membership-change"
           after={
@@ -972,97 +966,6 @@ function Messages() {
             />
           }
         />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Disable Media Auto Load"
-          focusId="disable-media-auto-load"
-          after={
-            <Switch
-              variant="Primary"
-              value={!mediaAutoLoad}
-              onChange={(v) => setMediaAutoLoad(!v)}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Url Preview"
-          focusId="url-preview"
-          after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Url Preview in Encrypted Room"
-          focusId="encrypted-room-url-preview"
-          after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Client Side Embeds"
-          focusId="client-side-embeds"
-          description="Attempt to preview unsupported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
-          after={
-            <Switch
-              variant="Primary"
-              value={clientUrlPreview}
-              onChange={setClientUrlPreview}
-              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
-        <SettingTile
-          title="Client Embeds in Encrypted Rooms"
-          focusId="encrypted-room-embeds"
-          after={
-            <Switch
-              variant="Primary"
-              value={encClientUrlPreview}
-              onChange={setEncClientUrlPreview}
-              title={
-                encClientUrlPreview
-                  ? 'Disable client-side embeds in encrypted rooms'
-                  : 'Enable client-side embeds in encrypted rooms'
-              }
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        style={clientUrlPreview ? {} : { display: 'none' }}
-      >
-        <SettingTile
-          title="Embed YouTube Links"
-          focusId="embed-youtube-links"
-          after={
-            <Switch
-              variant="Primary"
-              value={clientPreviewYoutube}
-              onChange={setClientPreviewYoutube}
-              title={
-                clientPreviewYoutube
-                  ? 'Disable client-side Youtube video embeds'
-                  : 'Enable client-side Youtube video embeds'
-              }
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingsLinkBaseUrlSetting />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -1106,6 +1009,122 @@ function Messages() {
               onChange={setShowTombstoneEvents}
               disabled={showHiddenEvents}
               title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
+function Embeds() {
+  const [multiplePreviews, setMultiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
+  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
+  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Embeds</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Multiple Embeds"
+          focusId="display-multiple-embeds"
+          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+          after={
+            <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Bundled Embeds"
+          focusId="display-bundled-embeds"
+          description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
+          after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Server-side Embeds"
+          focusId="url-preview"
+          description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
+          after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Server-side Embeds in Encrypted Room"
+          focusId="encrypted-room-url-preview"
+          description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
+          after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Client-side Embeds"
+          focusId="client-side-embeds"
+          description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          after={
+            <Switch
+              variant="Primary"
+              value={clientUrlPreview}
+              onChange={setClientUrlPreview}
+              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Client-side Embeds in Encrypted Rooms"
+          focusId="encrypted-room-embeds"
+          after={
+            <Switch
+              variant="Primary"
+              value={encClientUrlPreview}
+              onChange={setEncClientUrlPreview}
+              title={
+                encClientUrlPreview
+                  ? 'Disable client-side embeds in encrypted rooms'
+                  : 'Enable client-side embeds in encrypted rooms'
+              }
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Embed YouTube Links"
+          focusId="embed-youtube-links"
+          after={
+            <Switch
+              variant="Primary"
+              value={clientPreviewYoutube}
+              onChange={setClientPreviewYoutube}
+              title={
+                clientPreviewYoutube
+                  ? 'Disable client-side Youtube video embeds'
+                  : 'Enable client-side Youtube video embeds'
+              }
             />
           }
         />
@@ -1401,6 +1420,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
+              <Embeds />
               <Calls />
               <SettingsSyncSection />
               <DiagnosticsAndPrivacy />

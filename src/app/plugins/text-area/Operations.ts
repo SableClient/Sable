@@ -1,4 +1,4 @@
-import { Cursor } from './Cursor';
+import type { Cursor } from './Cursor';
 
 export interface Operations {
   select(cursor: Cursor): void;

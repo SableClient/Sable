@@ -10,7 +10,7 @@ import {
   UnderlineRule,
 } from './rules';
 import { runInlineRule, runInlineRules } from './runner';
-import { InlineMDParser } from './type';
+import type { InlineMDParser } from './type';
 
 const LeveledRules = [
   BoldRule,

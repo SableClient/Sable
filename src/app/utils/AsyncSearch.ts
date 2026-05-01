@@ -64,8 +64,9 @@ export const AsyncSearch = <TSearchItem extends object | string | number>(
 
     sessionStartTimestamp = globalThis.performance.now();
     for (; searchIndex < list.length; searchIndex += 1) {
-      if (match(list[searchIndex], query)) {
-        resultList.push(list[searchIndex]);
+      const item = list[searchIndex];
+      if (item !== undefined && match(item, query)) {
+        resultList.push(item);
         if (typeof options?.limit === 'number' && resultList.length >= options.limit) {
           break;
         }

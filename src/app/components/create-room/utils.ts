@@ -1,13 +1,13 @@
-import {
+import type {
   ICreateRoomOpts,
   ICreateRoomStateEvent,
-  JoinRule,
   MatrixClient,
-  RestrictedAllowType,
   Room,
   RoomJoinRulesEventContent,
 } from '$types/matrix-sdk';
-import { RoomType, StateEvent } from '$types/matrix/room';
+import { JoinRule, RestrictedAllowType, EventType, RoomType } from '$types/matrix-sdk';
+
+import type { StateEvents } from '$types/matrix-sdk';
 import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from '$utils/matrix';
 import { CreateRoomAccess } from './types';
@@ -17,11 +17,11 @@ export const createRoomCreationContent = (
   allowFederation: boolean,
   additionalCreators: string[] | undefined
 ): object => {
-  const content: Record<string, any> = {};
+  const content: Record<string, unknown> = {};
   if (typeof type === 'string') {
     content.type = type;
   }
-  if (allowFederation === false) {
+  if (!allowFederation) {
     content['m.federate'] = false;
   }
   if (Array.isArray(additionalCreators)) {
@@ -59,14 +59,14 @@ export const createRoomJoinRulesState = (
   }
 
   return {
-    type: StateEvent.RoomJoinRules,
+    type: EventType.RoomJoinRules,
     state_key: '',
     content,
   };
 };
 
 export const createRoomParentState = (parent: Room) => ({
-  type: StateEvent.SpaceParent,
+  type: EventType.SpaceParent,
   state_key: parent.roomId,
   content: {
     canonical: true,
@@ -94,7 +94,7 @@ export const createRoomCallState = () => ({
 
 export const createVoiceRoomPowerLevelsOverride = () => ({
   events: {
-    [StateEvent.GroupCallMemberPrefix]: 0,
+    [EventType.GroupCallMemberPrefix]: 0,
   },
 });
 
@@ -122,7 +122,7 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
     initialState.push(createRoomParentState(data.parent));
   }
 
-  if (data.type === RoomType.Call) {
+  if (data.type === RoomType.UnstableCall) {
     initialState.push(createRoomCallState());
   }
 
@@ -139,7 +139,7 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
       data.additionalCreators
     ),
     power_level_content_override:
-      data.type === RoomType.Call ? createVoiceRoomPowerLevelsOverride() : undefined,
+      data.type === RoomType.UnstableCall ? createVoiceRoomPowerLevelsOverride() : undefined,
     initial_state: initialState,
   };
 
@@ -152,12 +152,12 @@ export const createRoom = async (mx: MatrixClient, data: CreateRoomData): Promis
   if (data.parent) {
     await mx.sendStateEvent(
       data.parent.roomId,
-      StateEvent.SpaceChild as any,
+      EventType.SpaceChild as keyof StateEvents,
       {
         auto_join: false,
         suggested: false,
         via: [getMxIdServer(mx.getUserId() ?? '') ?? ''],
-      },
+      } as StateEvents[keyof StateEvents],
       result.room_id
     );
   }

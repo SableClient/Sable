@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import {
   Fragment,
-  ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,11 +8,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Editor } from 'slate';
+import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { VList, VListHandle } from 'virtua';
+import type { VListHandle } from 'virtua';
+import { VList } from 'virtua';
+import type { ContainerColor } from 'folds';
 import {
   as,
   Box,
@@ -25,13 +28,13 @@ import {
   color,
   config,
   toRem,
-  ContainerColor,
   Spinner,
 } from 'folds';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
+import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
 import { markAsRead } from '$utils/notifications';
 import {
@@ -74,7 +77,8 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
+import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
@@ -124,6 +128,8 @@ export function RoomTimeline({
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
+
+  const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
@@ -132,6 +138,7 @@ export function RoomTimeline({
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
@@ -166,7 +173,6 @@ export function RoomTimeline({
     return myPowerLevel < sendLevel;
   }, [powerLevels, mx]);
 
-  const [editId, setEditId] = useState<string>();
   const [unreadInfo, setUnreadInfo] = useState(() => getRoomUnreadInfo(room, true));
 
   const readUptoEventIdRef = useRef<string | undefined>(undefined);
@@ -327,6 +333,17 @@ export function RoomTimeline({
     []
   );
 
+  // If the timeline was blanked while content was already visible — e.g. a
+  // TimelineReset fired by mx.retryImmediately() when the app comes back from
+  // background — hide the timeline (opacity 0) and re-arm the initial-scroll so
+  // it runs again once events refill the live timeline.
+  useLayoutEffect(() => {
+    if (!isReady) return;
+    if (timelineSync.eventsLength > 0) return;
+    setIsReady(false);
+    hasInitialScrolledRef.current = false;
+  }, [isReady, timelineSync.eventsLength]);
+
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
     if (!v) return;
@@ -441,7 +458,7 @@ export function RoomTimeline({
     if (!el) return () => {};
 
     const observer = new ResizeObserver((entries) => {
-      const newHeight = entries[0].contentRect.height;
+      const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;
@@ -460,17 +477,22 @@ export function RoomTimeline({
     room,
     mx,
     editor,
-    alive,
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
-    openUserRoomProfile,
+    openUserRoomProfile: openUserRoomProfile as unknown as (
+      roomId: string,
+      spaceId: string | undefined,
+      userId: string,
+      rect: DOMRect,
+      undefinedArg?: undefined,
+      options?: unknown
+    ) => void,
     activeReplyId,
-    setReplyDraft,
+    setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
-    setOpenThread,
-    setEditId,
-    onEditorReset,
+    setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
+    handleEdit,
     handleOpenEvent: (id) => {
       const evtTimeline = getEventTimeline(room, id);
       const absoluteIndex = evtTimeline
@@ -520,7 +542,7 @@ export function RoomTimeline({
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
-        replaceTextNode: buildAbbrReplaceTextNode(abbrMap),
+        replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
       mx,
@@ -550,6 +572,7 @@ export function RoomTimeline({
       hour24Clock,
       dateFormatString,
       mediaAutoLoad,
+      showBundledPreview,
       showUrlPreview,
       showClientUrlPreview,
       autoplayStickers,
@@ -638,7 +661,7 @@ export function RoomTimeline({
 
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -706,14 +729,14 @@ export function RoomTimeline({
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
-    (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
+    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
-  const vListIndices = useMemo(
-    () => Array.from({ length: vListItemCount }, (_, i) => i),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
-  );
+  const vListIndices = useMemo(() => {
+    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
+    void timelineSync.timeline;
+    return Array.from({ length: vListItemCount }, (_, i) => i);
+  }, [vListItemCount, timelineSync.timeline]);
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
@@ -749,7 +772,7 @@ export function RoomTimeline({
     ref.current = () => {
       const myUserId = mx.getUserId();
       const found = [...processedEventsRef.current]
-        .reverse()
+        .toReversed()
         .find(
           (e) =>
             e.mEvent.getSender() === myUserId &&
@@ -838,7 +861,7 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: isReady ? 1 : 0,
+          opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
         <VList<ProcessedEvent>

@@ -1,15 +1,9 @@
 import to from 'await-to-js';
-import {
-  IAuthData,
-  MatrixClient,
-  MatrixError,
-  RegisterRequest,
-  RegisterResponse,
-} from '$types/matrix-sdk';
+import type { IAuthData, MatrixClient, RegisterRequest, RegisterResponse } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetAtom } from 'jotai';
-import { LoginPathSearchParams } from '$pages/paths';
 import {
   deleteAfterLoginRedirectPath,
   getAfterLoginRedirectPath,
@@ -141,8 +135,8 @@ export const useRegisterComplete = (data?: CustomRegisterResponse) => {
         const username = getMxIdLocalPart(userId);
         const userServer = getMxIdServer(userId);
         navigate(
-          withSearchParam<LoginPathSearchParams>(getLoginPath(userServer), {
-            username,
+          withSearchParam(getLoginPath(userServer), {
+            username: username ?? '',
           }),
           { replace: true }
         );

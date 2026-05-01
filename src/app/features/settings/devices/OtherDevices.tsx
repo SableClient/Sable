@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Box, Button, config, Menu, Spinner, Text } from 'folds';
-import { AuthDict, IMyDevice, MatrixError } from '$types/matrix-sdk';
+import type { AuthDict, IMyDevice, MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { ActionUIA, ActionUIAFlowsLoader } from '$components/ActionUIA';
-import { AsyncState, AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
+import type { AsyncState } from '$hooks/useAsyncCallback';
+import { AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUIAMatrixError } from '$hooks/useUIAFlows';
 import { DeviceVerificationStatus } from '$components/DeviceVerificationStatus';
@@ -27,7 +28,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const authMetadata = useAuthMetadata();
   const accountManagementActions = useAccountManagementActions();
 
-  const [deleted, setDeleted] = useState<Set<string>>(new Set());
+  const [deleted, setDeleted] = useState(new Set());
 
   const handleDashboardOIDC = useCallback(() => {
     const authUrl = authMetadata?.account_management_uri ?? authMetadata?.issuer;
@@ -76,7 +77,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
   const deleteDevices = useAsync(
     useCallback(
       async (authDict?: AuthDict) => {
-        await mx.deleteMultipleDevices(Array.from(deleted), authDict);
+        await mx.deleteMultipleDevices(Array.from(deleted) as string[], authDict);
       },
       [mx, deleted]
     ),
@@ -132,7 +133,7 @@ export function OtherDevices({ devices, refreshDeviceList, showVerification }: O
           </SequenceCard>
         )}
         {devices
-          .sort((d1, d2) => {
+          .toSorted((d1, d2) => {
             if (!d1.last_seen_ts || !d2.last_seen_ts) return 0;
             return d1.last_seen_ts < d2.last_seen_ts ? 1 : -1;
           })

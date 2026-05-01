@@ -1,9 +1,10 @@
-import { CSSProperties, ReactNode, useMemo } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useMemo } from 'react';
 import { Box, Chip, Icon, Icons, Text, toRem } from 'folds';
-import { IContent } from '$types/matrix-sdk';
+import type { IContent, IPreviewUrlResponse } from '$types/matrix-sdk';
 import { JUMBO_EMOJI_REG, URL_REG } from '$utils/regex';
 import { trimReplyFromBody } from '$utils/room';
-import {
+import type {
   IAudioContent,
   IAudioInfo,
   IEncryptedFile,
@@ -14,6 +15,8 @@ import {
   IThumbnailContent,
   IVideoContent,
   IVideoInfo,
+} from '$types/matrix/common';
+import {
   MATRIX_SPOILER_PROPERTY_NAME,
   MATRIX_SPOILER_REASON_PROPERTY_NAME,
 } from '$types/matrix/common';
@@ -21,7 +24,7 @@ import { FALLBACK_MIMETYPE, getBlobSafeMimeType } from '$utils/mimeTypes';
 import { parseGeoUri, scaleYDimension } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
+import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
 import {
@@ -33,6 +36,10 @@ import {
 } from './content';
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
+
+interface BundleContent extends IPreviewUrlResponse {
+  matched_url: string;
+}
 
 export function MBadEncrypted() {
   return (
@@ -82,9 +89,17 @@ type MTextProps = {
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
+  renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
   style?: CSSProperties;
 };
-export function MText({ edited, content, renderBody, renderUrlsPreview, style }: MTextProps) {
+export function MText({
+  edited,
+  content,
+  renderBody,
+  renderUrlsPreview,
+  renderBundledPreviews,
+  style,
+}: MTextProps) {
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
   const body = typeof content.body === 'string' ? content.body : '';
@@ -96,15 +111,6 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     () => unwrapForwardedContent(customBody ?? body),
     [customBody, body]
   );
-
-  const safeCustomBody = useMemo(() => {
-    if (!customBody) return undefined;
-    if (customBody.length > 8000) {
-      const imageTags = customBody.match(/<img[^>]*>/g);
-      return imageTags ? imageTags.join(' ') : undefined;
-    }
-    return customBody;
-  }, [customBody]);
 
   const isForwarded = useMemo(() => {
     const forwardMeta = content['moe.sable.message.forward'];
@@ -122,7 +128,7 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
   const isJumbo = useMemo(() => {
     if (!trimmedBody || trimmedBody.length >= 500) return false;
     if (
-      (unwrappedPerMessageProfileMessage ?? safeCustomBody)?.match(
+      (unwrappedPerMessageProfileMessage ?? customBody)?.match(
         /^(<img[^>]*data-mx-emoticon[^>]*\/>){1,20}$/i
       )
     )
@@ -130,17 +136,21 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
     if (!JUMBO_EMOJI_REG.test(trimmedBody)) return false;
 
     if (trimmedBody.includes(':')) {
-      const hasImage = safeCustomBody && /<img[^>]*>/i.test(safeCustomBody);
+      const hasImage = customBody && /<img[^>]*>/i.test(customBody);
       if (!hasImage) return false;
     }
 
     return true;
-  }, [unwrappedPerMessageProfileMessage, trimmedBody, safeCustomBody]);
+  }, [unwrappedPerMessageProfileMessage, trimmedBody, customBody]);
 
   if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
 
-  const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  let bundleContent: BundleContent[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
+  if (renderUrlsPreview && bundleContent) urls = bundleContent.map((bundle) => bundle.matched_url);
 
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
@@ -167,7 +177,11 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
           customBody: unwrappedForwardedContent,
         })}
         {edited && <MessageEditedContent />}
-        {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
+        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
+          (renderBundledPreviews &&
+            bundleContent &&
+            bundleContent.length > 0 &&
+            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
       </MessageTextBody>
     );
   }
@@ -175,17 +189,21 @@ export function MText({ edited, content, renderBody, renderUrlsPreview, style }:
   return (
     <>
       <MessageTextBody
-        preWrap={typeof safeCustomBody !== 'string'}
+        preWrap={typeof customBody !== 'string'}
         jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
         style={style}
       >
         {renderBody({
           body: trimmedBody,
-          customBody: safeCustomBody,
+          customBody: typeof customBody === 'string' ? customBody : undefined,
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
+      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
+        (renderBundledPreviews &&
+          bundleContent &&
+          bundleContent.length > 0 &&
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }
@@ -196,6 +214,7 @@ type MEmoteProps = {
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
+  renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
 };
 export function MEmote({
   displayName,
@@ -203,6 +222,7 @@ export function MEmote({
   content,
   renderBody,
   renderUrlsPreview,
+  renderBundledPreviews,
 }: MEmoteProps) {
   const { body, formatted_body: customBody } = content;
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
@@ -211,9 +231,13 @@ export function MEmote({
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+
+  let bundleContent: BundleContent[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
 
   return (
     <>
@@ -229,7 +253,11 @@ export function MEmote({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
+      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
+        (renderBundledPreviews &&
+          bundleContent &&
+          bundleContent.length > 0 &&
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }
@@ -239,8 +267,15 @@ type MNoticeProps = {
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
+  renderBundledPreviews?: (bundles: IPreviewUrlResponse[]) => ReactNode;
 };
-export function MNotice({ edited, content, renderBody, renderUrlsPreview }: MNoticeProps) {
+export function MNotice({
+  edited,
+  content,
+  renderBody,
+  renderUrlsPreview,
+  renderBundledPreviews,
+}: MNoticeProps) {
   const { body, formatted_body: customBody } = content;
   const [jumboEmojiSize] = useSetting(settingsAtom, 'jumboEmojiSize');
 
@@ -248,9 +283,13 @@ export function MNotice({ edited, content, renderBody, renderUrlsPreview }: MNot
     return <BrokenContent body={typeof customBody === 'string' ? customBody : undefined} />;
   }
   const trimmedBody = trimReplyFromBody(body);
-  const urlsMatch = renderUrlsPreview && trimmedBody.match(URL_REG);
-  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
   const isJumbo = JUMBO_EMOJI_REG.test(trimmedBody);
+
+  let bundleContent: BundleContent[] | undefined;
+  const urlsMatch = trimmedBody.match(URL_REG);
+  const urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+  bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+  bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
 
   return (
     <>
@@ -265,7 +304,11 @@ export function MNotice({ edited, content, renderBody, renderUrlsPreview }: MNot
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
+      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
+        (renderBundledPreviews &&
+          bundleContent &&
+          bundleContent.length > 0 &&
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
     </>
   );
 }

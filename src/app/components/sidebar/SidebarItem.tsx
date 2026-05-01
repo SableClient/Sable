@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import { as, Avatar, Text, Tooltip, TooltipProvider, toRem } from 'folds';
-import { ComponentProps, ReactNode, RefCallback } from 'react';
+import type { ComponentProps, ReactNode, RefCallback } from 'react';
 import * as css from './Sidebar.css';
 
 export const SidebarItem = as<'div', css.SidebarItemVariants>(

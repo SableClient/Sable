@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useAtom } from 'jotai';
 import { togglePusher } from '../features/settings/notifications/PushNotifications';
 import { appEvents } from '../utils/appEvents';
@@ -40,14 +40,13 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   }, []);
 
   useEffect(() => {
-    if (!mx) return;
+    if (!mx) return undefined;
 
     const handleVisibilityForNotifications = (isVisible: boolean) => {
       togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
     };
 
     appEvents.onVisibilityChange = handleVisibilityForNotifications;
-    // eslint-disable-next-line consistent-return
     return () => {
       appEvents.onVisibilityChange = null;
     };

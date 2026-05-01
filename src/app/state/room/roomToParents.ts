@@ -1,16 +1,17 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
-  MatrixClient,
-  MatrixEvent,
-  Room,
   RoomEvent,
   RoomStateEvent,
   SyncState,
+  EventType,
+  KnownMembership,
 } from '$types/matrix-sdk';
 import { useCallback, useEffect } from 'react';
-import { Membership, RoomToParents, StateEvent } from '$types/matrix/room';
+import type { RoomToParents } from '$types/matrix/room';
+
 import {
   getRoomToParents,
   getSpaceChildren,
@@ -40,7 +41,7 @@ export type RoomToParentsAction =
       roomId: string;
     };
 
-const baseRoomToParents = atom<RoomToParents>(new Map());
+const baseRoomToParents = atom(new Map());
 export const roomToParentsAtom = atom<RoomToParents, [RoomToParentsAction], undefined>(
   (get) => get(baseRoomToParents),
   (get, set, action) => {
@@ -119,28 +120,37 @@ export const useBindRoomToParentsAtom = (
     resetRoomToParents();
 
     const handleAddRoom = (room: Room) => {
-      if (isSpace(room) && room.getMyMembership() === Membership.Join) {
-        setRoomToParents({ type: 'PUT', parent: room.roomId, children: getSpaceChildren(room) });
+      if (isSpace(room) && room.getMyMembership() === (KnownMembership.Join as string)) {
+        setRoomToParents({
+          type: 'PUT',
+          parent: room.roomId,
+          children: getSpaceChildren(room),
+        });
       }
     };
 
     const handleMembershipChange = (room: Room, membership: string) => {
-      if (isSpace(room) && membership !== Membership.Join) {
+      if (isSpace(room) && membership !== (KnownMembership.Join as string)) {
         setRoomToParents({ type: 'DELETE', roomId: room.roomId });
         return;
       }
-      if (isSpace(room) && membership === Membership.Join) {
-        setRoomToParents({ type: 'PUT', parent: room.roomId, children: getSpaceChildren(room) });
+      if (isSpace(room) && membership === (KnownMembership.Join as string)) {
+        setRoomToParents({
+          type: 'PUT',
+          parent: room.roomId,
+          children: getSpaceChildren(room),
+        });
       }
     };
 
     const handleStateChange = (mEvent: MatrixEvent) => {
-      if (mEvent.getType() === StateEvent.SpaceChild) {
+      if (mEvent.getType() === (EventType.SpaceChild as string)) {
         const childId = mEvent.getStateKey();
         const roomId = mEvent.getRoomId();
         if (childId && roomId) {
           const parentRoom = mx.getRoom(roomId);
-          if (!parentRoom || parentRoom.getMyMembership() !== Membership.Join) return;
+          if (!parentRoom || parentRoom.getMyMembership() !== (KnownMembership.Join as string))
+            return;
           if (isValidChild(mEvent)) {
             setRoomToParents({ type: 'PUT', parent: roomId, children: [childId] });
           } else {

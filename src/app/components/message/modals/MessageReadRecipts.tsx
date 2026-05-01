@@ -1,5 +1,6 @@
+
 import { useState } from 'react';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { MenuItem, Icon, Icons, Text, OverlayCenter, Overlay, OverlayBackdrop, Modal } from 'folds';
 import { EventReaders } from '$components/event-readers';
 import * as css from '$features/room/message/styles.css';

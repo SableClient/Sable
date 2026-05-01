@@ -1,11 +1,7 @@
-import {
-  ShowSasCallbacks,
-  VerificationPhase,
-  VerificationRequest,
-  Verifier,
-  VerificationMethod,
-} from '$types/matrix-sdk';
-import { CSSProperties, useCallback, useEffect, useState } from 'react';
+import type { ShowSasCallbacks, VerificationRequest, Verifier } from '$types/matrix-sdk';
+import { VerificationPhase, VerificationMethod } from '$types/matrix-sdk';
+import type { CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -119,6 +115,15 @@ function AutoVerificationStart({ onStart }: VerificationStartProps) {
 
 function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
   const [confirmState, confirm] = useAsyncCallback(useCallback(() => sasData.confirm(), [sasData]));
+  const emojiEntries = useMemo<{ id: string; emoji: string; name: string }[]>(
+    () =>
+      (sasData.sas.emoji ?? []).map(([emoji, name], index) => ({
+        id: `emoji-${index}`,
+        emoji,
+        name,
+      })),
+    [sasData]
+  );
 
   const confirming =
     confirmState.status === AsyncStatus.Loading || confirmState.status === AsyncStatus.Success;
@@ -136,15 +141,8 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
         wrap="Wrap"
         justifyContent="Center"
       >
-        {sasData.sas.emoji?.map(([emoji, name], index) => (
-          <Box
-            // eslint-disable-next-line react/no-array-index-key
-            key={`${emoji}${name}${index}`}
-            direction="Column"
-            gap="100"
-            justifyContent="Center"
-            alignItems="Center"
-          >
+        {emojiEntries.map(({ id, emoji, name }) => (
+          <Box key={id} direction="Column" gap="100" justifyContent="Center" alignItems="Center">
             <Text size="H1">{emoji}</Text>
             <Text size="T200">{name}</Text>
           </Box>

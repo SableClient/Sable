@@ -1084,7 +1084,6 @@ function MessageInternal(
                           <MessageReadReceiptItem
                             room={room}
                             eventId={mEvent.getId() ?? ''}
-                            onClose={closeMenu}
                           />
                         )}
                         {isEdited && (
@@ -1426,7 +1425,6 @@ export const Event = as<'div', EventProps>(
                               <MessageReadReceiptItem
                                 room={room}
                                 eventId={mEvent.getId() ?? ''}
-                                onClose={closeMenu}
                               />
                             )}
                             {isEdited && (

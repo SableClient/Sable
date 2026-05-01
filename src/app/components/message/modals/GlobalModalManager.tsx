@@ -9,6 +9,7 @@ import { MessageEditHistoryInternal } from './MessageEditHistory';
 import { MessageSourceInternal } from './MessageSource';
 import { MessageForwardInternal } from './MessageForward';
 import { MessageAllReactionInternal } from './MessageReactions';
+import { MessageReadReceiptInternal } from './MessageReadRecipts';
 
 export function GlobalModalManager() {
   const [modal, setModal] = useAtom(modalAtom);

@@ -60,6 +60,7 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { useSetting } from '$state/hooks/settings';
 import { useBlobCache } from '$hooks/useBlobCache';
 import { MessageAllReactionItem } from '$components/message/modals/MessageReactions';
+import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import { MessageEditHistoryItem } from '$components/message/modals/MessageEditHistory';
 import { MessageSourceCodeItem } from '$components/message/modals/MessageSource';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
@@ -68,7 +69,6 @@ import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import type { PronounSet } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { MessageReadReceiptItem } from '$components/message/modals/MessageReadRecipts';
 import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
@@ -380,6 +380,11 @@ function MessageInternal(
       setContentVersion((v) => v + 1);
       triggerTimelineRegroup();
     };
+
+    if (mEvent.getClearContent()) {
+      setContentVersion((v) => (v === 0 ? 1 : v));
+      triggerTimelineRegroup();
+    }
 
     mEvent.on(MatrixEventEvent.Decrypted, onUpdate);
     mEvent.on(MatrixEventEvent.Replaced, onUpdate);

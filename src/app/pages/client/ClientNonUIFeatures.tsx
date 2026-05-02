@@ -844,6 +844,7 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
 
   useEffect(() => {
     // Classic sync: set_presence query param on every /sync poll.
@@ -852,6 +853,64 @@ function PresenceFeature() {
     // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
   }, [mx, sendPresence]);
+
+  // Auto-idle: set presence to unavailable after 5 minutes of inactivity or
+  // when the tab is hidden, and restore online on activity.
+  useEffect(() => {
+    if (!sendPresence || !autoIdlePresence) return undefined;
+
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let isIdle = false;
+
+    const goOnline = () => {
+      if (!isIdle) return;
+      isIdle = false;
+      mx.setPresence({ presence: 'online' }).catch(() => {});
+    };
+
+    const goIdle = () => {
+      if (isIdle) return;
+      isIdle = true;
+      mx.setPresence({ presence: 'unavailable' }).catch(() => {});
+    };
+
+    const resetTimer = () => {
+      goOnline();
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(goIdle, IDLE_TIMEOUT_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(idleTimer);
+        goIdle();
+      } else {
+        resetTimer();
+      }
+    };
+
+    const ACTIVITY_EVENTS: (keyof DocumentEventMap)[] = [
+      'mousemove',
+      'keydown',
+      'pointerdown',
+      'scroll',
+    ];
+
+    ACTIVITY_EVENTS.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    resetTimer();
+
+    return () => {
+      clearTimeout(idleTimer);
+      ACTIVITY_EVENTS.forEach((e) => document.removeEventListener(e, resetTimer));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Restore online when feature is disabled
+      if (isIdle) {
+        mx.setPresence({ presence: 'online' }).catch(() => {});
+      }
+    };
+  }, [mx, sendPresence, autoIdlePresence]);
 
   return null;
 }

@@ -419,6 +419,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [autoIdlePresence, setAutoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
 
   return (
@@ -476,6 +477,22 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
         />
       </SequenceCard>
+      {sendPresence && (
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Auto-Idle"
+            focusId="auto-idle-presence"
+            description="Automatically appear unavailable after 5 minutes of inactivity or when the tab is hidden."
+            after={
+              <Switch
+                variant="Primary"
+                value={autoIdlePresence}
+                onChange={setAutoIdlePresence}
+              />
+            }
+          />
+        </SequenceCard>
+      )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Send notifications for replies"

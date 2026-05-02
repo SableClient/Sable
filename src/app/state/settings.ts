@@ -131,6 +131,7 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
+  autoIdlePresence: boolean;
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -263,6 +264,7 @@ export const defaultSettings: Settings = {
 
   // Sable features!
   sendPresence: true,
+  autoIdlePresence: true,
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,

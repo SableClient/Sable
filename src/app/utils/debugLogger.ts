@@ -47,8 +47,15 @@ class DebugLoggerService {
   private sentryStats = { errors: 0, warnings: 0 };
 
   constructor() {
-    // Check if debug logging is enabled from localStorage
-    this.enabled = localStorage.getItem('sable_internal_debug') === '1';
+    // Check if debug logging is enabled from localStorage.
+    // Guarded with try/catch because this module is instantiated as a singleton
+    // at import time, which in Node.js 22+ can run before a jsdom environment
+    // is ready (Node has a built-in but non-functional localStorage stub).
+    try {
+      this.enabled = localStorage.getItem('sable_internal_debug') === '1';
+    } catch {
+      this.enabled = false;
+    }
     // Load disabled breadcrumb categories
     try {
       const stored = localStorage.getItem(BREADCRUMB_DISABLED_KEY);

@@ -369,13 +369,17 @@ export function mergePersistedSettings(
   const base = { ...defaultSettings, ...fileDefaults };
   if (rawLocalStorage === null) return base;
 
-  const parsed = JSON.parse(rawLocalStorage) as Record<string, unknown>;
-  migrateParsedLocalStorage(parsed);
+  try {
+    const parsed = JSON.parse(rawLocalStorage) as Record<string, unknown>;
+    migrateParsedLocalStorage(parsed);
 
-  return {
-    ...base,
-    ...(parsed as unknown as Settings),
-  };
+    return {
+      ...base,
+      ...(parsed as unknown as Settings),
+    };
+  } catch {
+    return base;
+  }
 }
 
 const MESSAGE_SPACING_VALUES = new Set<MessageSpacing>(['0', '100', '200', '300', '400', '500']);
@@ -550,15 +554,30 @@ export const baseSettings = atom<Settings>(cloneDefaultSettings());
 export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
   const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);
   runtimeSettingsDefaults = sanitized;
-  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), sanitized);
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // localStorage unavailable (e.g. Node.js 22 test environment)
+  }
+  const merged = mergePersistedSettings(raw, sanitized);
   store.set(baseSettings, merged);
 }
 
-export const getSettings = (): Settings =>
-  mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
+export const getSettings = (): Settings => {
+  try {
+    return mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
+  } catch {
+    return { ...defaultSettings, ...runtimeSettingsDefaults };
+  }
+};
 
 export const setSettings = (settings: Settings) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // localStorage unavailable (e.g. Node.js 22 test environment)
+  }
 };
 
 export const settingsAtom = atom<Settings, [Settings], undefined>(

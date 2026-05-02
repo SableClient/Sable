@@ -45,6 +45,8 @@ import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 
 const log = createLogger('AccountSwitcherTab');
 const debugLog = createDebugLogger('AccountSwitcherTab');
@@ -174,6 +176,7 @@ export function AccountSwitcherTab() {
     ? (mxcUrlToHttp(mx, activeProfile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
   const activeDisplayName = activeProfile.displayName;
+  const myPresence = useUserPresence(myUserId);
 
   const sessionProfiles = useSessionProfiles(sessions);
 
@@ -269,19 +272,28 @@ export function AccountSwitcherTab() {
     <SidebarItem active={!!menuAnchor}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            onClick={handleToggle}
-            outlined={sessions.length > 1}
+          <AvatarPresence
+            badge={
+              myPresence &&
+              myPresence.presence !== Presence.Offline && (
+                <PresenceBadge presence={myPresence.presence} size="200" />
+              )
+            }
           >
-            <UserAvatar
-              userId={activeSession.userId}
-              src={activeAvatarUrl}
-              alt={label}
-              renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
-            />
-          </SidebarAvatar>
+            <SidebarAvatar
+              as="button"
+              ref={triggerRef}
+              onClick={handleToggle}
+              outlined={sessions.length > 1}
+            >
+              <UserAvatar
+                userId={activeSession.userId}
+                src={activeAvatarUrl}
+                alt={label}
+                renderFallback={() => <Text size="H4">{nameInitials(label)}</Text>}
+              />
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (

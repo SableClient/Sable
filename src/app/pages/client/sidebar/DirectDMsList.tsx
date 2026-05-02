@@ -22,6 +22,8 @@ import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 import * as css from './DirectDMsList.css';
 
 const MAX_GROUP_MEMBERS = 3;
@@ -43,6 +45,9 @@ function DMItem({ room, selected }: DMItemProps) {
 
   // Check if this is a group DM (more than 2 members)
   const isGroupDM = room.getJoinedMemberCount() > 2;
+
+  const dmUserId = !isGroupDM ? room.getAvatarFallbackMember()?.userId : undefined;
+  const dmPresence = useUserPresence(dmUserId ?? '');
 
   // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
   // Members are sorted by who last sent messages (most recent first)
@@ -135,9 +140,19 @@ function DMItem({ room, selected }: DMItemProps) {
     <SidebarItem active={selected}>
       <SidebarItemTooltip tooltip={room.name}>
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
-            {renderAvatar()}
-          </SidebarAvatar>
+          <AvatarPresence
+            badge={
+              !isGroupDM &&
+              dmPresence &&
+              dmPresence.presence !== Presence.Offline && (
+                <PresenceBadge presence={dmPresence.presence} size="200" />
+              )
+            }
+          >
+            <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick} size="400">
+              {renderAvatar()}
+            </SidebarAvatar>
+          </AvatarPresence>
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (

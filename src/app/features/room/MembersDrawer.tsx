@@ -26,7 +26,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
 
 import { AvatarPresence, PresenceBadge } from '$components/presence';
-import { useUserPresence } from '$hooks/useUserPresence';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
@@ -150,7 +150,7 @@ function MemberItem({
     >
       <AvatarPresence
         badge={
-          presence && presence.lastActiveTs !== 0 ? (
+          presence && presence.presence !== Presence.Offline ? (
             <PresenceBadge presence={presence.presence} size="200" />
           ) : undefined
         }

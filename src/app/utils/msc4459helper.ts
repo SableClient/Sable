@@ -7,6 +7,7 @@ import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableSet } from '$types/wrapper/SerializableSet';
 import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from './mxIdHelper';
+import { isRoomPrivate } from './roomVisibility';
 
 export function getImagePackReferencesForMxc(
   mxcUrl: string,
@@ -21,6 +22,7 @@ export function getImagePackReferencesForMxc(
     .forEach((pack) => {
       const img = pack.getImages(imageUsage).find((val) => val.url === mxcUrl);
       const room = matrixClient.getRoom(pack.address?.roomId);
+      if (!room || isRoomPrivate(matrixClient, room)) return;
       const viaServers = new SerializableSet<string>();
       if (room)
         getViaServers(room).forEach((via) => {

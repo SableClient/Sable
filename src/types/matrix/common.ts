@@ -62,6 +62,10 @@ export type MatrixReactionEvent = {
   [MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<string, MSC4459ImagePackReference>;
 };
 
+export interface IGenericMSC4459 {
+  [MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<string, MSC4459ImagePackReference>;
+}
+
 export type IVideoInfo = {
   w?: number;
   h?: number;

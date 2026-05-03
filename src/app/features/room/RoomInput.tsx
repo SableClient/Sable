@@ -147,6 +147,14 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import {
+  IGenericMSC4459,
+  MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME,
+  MSC4459ImagePackReference,
+} from '$types/matrix/common';
+import { getImagePackReferencesForMxc } from '$utils/msc4459helper';
+import { ImageUsage } from '$plugins/custom-emoji';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -252,6 +260,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const commands = useCommands(mx, room);
+    const imagePacksUsedRef = useRef(new SerializableMap<string, MSC4459ImagePackReference>());
     /**
      * handle pluralkit-style messages
      */
@@ -854,6 +863,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
+        imagePacksUsedRef.current.clear();
         if (threadRootId) {
           // Re-seed the thread reply draft so the next message also goes to the thread.
           setReplyDraft({
@@ -1104,11 +1114,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent & IContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,
         url: mxc,
         info,
       };
+
+      // add the image pack reference
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxc(
+        mxc,
+        mx,
+        ImageUsage.Sticker
+      );
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.

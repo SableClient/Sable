@@ -15,8 +15,9 @@ import {
   getAfterLoginRedirectPath,
 } from '$pages/afterLoginRedirectPath';
 import { getHomePath, getLoginPath, withSearchParam } from '$pages/pathUtils';
-import { getMxIdLocalPart, getMxIdServer } from '$utils/matrix';
+import { getMxIdLocalPart } from '$utils/matrix';
 import { activeSessionIdAtom, sessionsAtom, setFallbackSession } from '$state/sessions';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { ErrorCode } from '../../../cs-errorcode';
 
 export enum RegisterError {

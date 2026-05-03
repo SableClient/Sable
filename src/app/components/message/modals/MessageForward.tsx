@@ -17,7 +17,8 @@ import {
   as,
 } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { MatrixEvent, Room } from '$types/matrix-sdk';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import { JoinRule, EventType } from '$types/matrix-sdk';
 import { useEffect, useMemo, useState } from 'react';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
@@ -242,7 +243,7 @@ export function MessageForwardInternal({
       };
     }
 
-    const msgtype = String(originalContent.msgtype ?? 'unknown');
+    const msgtype = originalContent.msgtype ?? 'unknown';
     debugLog.info('ui', 'Forwarding message', {
       sourceRoomId: room.roomId,
       targetRoomId: targetRoom.roomId,

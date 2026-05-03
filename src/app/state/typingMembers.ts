@@ -1,6 +1,7 @@
 import { produce } from 'immer';
 import { atom, useSetAtom } from 'jotai';
-import { MatrixClient, RoomMemberEvent, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
+import type { MatrixClient, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
+import { RoomMemberEvent } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 import { useSetting } from './hooks/settings';
 import { settingsAtom } from './settings';
@@ -26,7 +27,7 @@ type TypingMemberDeleteAction = {
 };
 export type IRoomIdToTypingMembersAction = TypingMemberPutAction | TypingMemberDeleteAction;
 
-const baseRoomIdToTypingMembersAtom = atom<IRoomIdToTypingMembers>(new Map());
+const baseRoomIdToTypingMembersAtom = atom(new Map());
 
 const putTypingMember = (
   roomToMembers: IRoomIdToTypingMembers,
@@ -114,7 +115,9 @@ export const roomIdToTypingMembersAtom = atom<
 
     if (
       action.type === 'DELETE' &&
-      rToTyping.get(action.roomId)?.find((receipt) => receipt.userId === action.userId)
+      rToTyping
+        .get(action.roomId)
+        ?.find((receipt: { userId: string }) => receipt.userId === action.userId)
     ) {
       set(
         baseRoomIdToTypingMembersAtom,

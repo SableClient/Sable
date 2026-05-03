@@ -178,6 +178,7 @@ export const MentionWithIcon = style({
   display: 'inline-flex',
   alignItems: 'center',
   gap: toRem(2),
+  verticalAlign: 'middle',
 });
 
 export const MentionIcon = style({

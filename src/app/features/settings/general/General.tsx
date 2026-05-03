@@ -1,13 +1,13 @@
-import {
+import type {
   ChangeEventHandler,
   FormEventHandler,
   KeyboardEventHandler,
   MouseEventHandler,
-  useEffect,
-  useState,
 } from 'react';
+import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { useAtomValue, useSetAtom } from 'jotai';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -20,7 +20,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Switch,
   Text,
@@ -30,14 +29,8 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import {
-  DateFormat,
-  MessageLayout,
-  MessageSpacing,
-  RightSwipeAction,
-  CaptionPosition,
-  settingsAtom,
-} from '$state/settings';
+import type { DateFormat, MessageSpacing, CaptionPosition } from '$state/settings';
+import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
@@ -54,7 +47,6 @@ import { isKeyHotkey } from 'is-hotkey';
 import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { SettingsSectionPage } from '../SettingsSectionPage';
-import { SettingsLinkBaseUrlSetting } from './SettingsLinkBaseUrlSetting';
 
 type DateHintProps = {
   hasChanges: boolean;
@@ -883,18 +875,6 @@ function Messages() {
     'hideNickAvatarEvents'
   );
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
-  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
-  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
-  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
-    settingsAtom,
-    'encClientUrlPreview'
-  );
-  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
-    settingsAtom,
-    'clientPreviewYoutube'
-  );
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -950,6 +930,19 @@ function Messages() {
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          title="Disable Media Auto Load"
+          focusId="disable-media-auto-load"
+          after={
+            <Switch
+              variant="Primary"
+              value={!mediaAutoLoad}
+              onChange={(v) => setMediaAutoLoad(!v)}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
           title="Hide Membership Change"
           focusId="hide-membership-change"
           after={
@@ -976,14 +969,78 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Disable Media Auto Load"
-          focusId="disable-media-auto-load"
+          title="Hide Member Events in Read-Only Rooms"
+          focusId="hide-member-events-read-only-rooms"
           after={
             <Switch
               variant="Primary"
-              value={!mediaAutoLoad}
-              onChange={(v) => setMediaAutoLoad(!v)}
+              value={hideMembershipInReadOnly}
+              onChange={setHideMembershipInReadOnly}
             />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Hidden Events"
+          focusId="show-hidden-events"
+          after={
+            <Switch
+              variant="Primary"
+              value={showHiddenEvents}
+              onChange={setShowHiddenEvents}
+              title={
+                showHiddenEvents
+                  ? 'Disable to hide hidden events'
+                  : 'Enable to show hidden events, this will cause visual clutter in busy rooms.'
+              }
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Tombstones for Redacted Messages"
+          focusId="show-redacted-message-tombstones"
+          after={
+            <Switch
+              variant="Primary"
+              value={showTombstoneEvents || showHiddenEvents}
+              onChange={setShowTombstoneEvents}
+              disabled={showHiddenEvents}
+              title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
+function Embeds() {
+  const [multiplePreviews, setMultiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
+  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
+  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Embeds</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Multiple Embeds"
+          focusId="display-multiple-embeds"
+          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+          after={
+            <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
           }
         />
       </SequenceCard>
@@ -1068,55 +1125,6 @@ function Messages() {
                   ? 'Disable client-side Youtube video embeds'
                   : 'Enable client-side Youtube video embeds'
               }
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingsLinkBaseUrlSetting />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Hide Member Events in Read-Only Rooms"
-          focusId="hide-member-events-read-only-rooms"
-          after={
-            <Switch
-              variant="Primary"
-              value={hideMembershipInReadOnly}
-              onChange={setHideMembershipInReadOnly}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Hidden Events"
-          focusId="show-hidden-events"
-          after={
-            <Switch
-              variant="Primary"
-              value={showHiddenEvents}
-              onChange={setShowHiddenEvents}
-              title={
-                showHiddenEvents
-                  ? 'Disable to hide hidden events'
-                  : 'Enable to show hidden events, this will cause visual clutter in busy rooms.'
-              }
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Show Tombstones for Redacted Messages"
-          focusId="show-redacted-message-tombstones"
-          after={
-            <Switch
-              variant="Primary"
-              value={showTombstoneEvents || showHiddenEvents}
-              onChange={setShowTombstoneEvents}
-              disabled={showHiddenEvents}
-              title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
             />
           }
         />
@@ -1412,6 +1420,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
+              <Embeds />
               <Calls />
               <SettingsSyncSection />
               <DiagnosticsAndPrivacy />

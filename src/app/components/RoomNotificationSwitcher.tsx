@@ -1,5 +1,6 @@
 import { Box, Icon, Text } from 'folds';
-import { type MouseEventHandler, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { type MouseEventHandler } from 'react';
 import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import {
   getRoomNotificationModeIcon,

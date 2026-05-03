@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Avatar, Box, Button, Icon, Icons, Spinner, Text, as } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import { IRoomCreateContent, Membership, StateEvent } from '$types/matrix/room';
+import type { IRoomCreateContent } from '$types/matrix/room';
+
 import { getMemberDisplayName, getStateEvent } from '$utils/room';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,6 +21,7 @@ import { RoomAvatar } from '$components/room-avatar';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { InfoCard } from '$components/info-card';
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
+import { EventType, KnownMembership } from '$types/matrix-sdk';
 
 export type RoomIntroProps = {
   room: Room;
@@ -35,7 +37,7 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
   const [invitePrompt, setInvitePrompt] = useState(false);
   const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
 
-  const createEvent = getStateEvent(room, StateEvent.RoomCreate);
+  const createEvent = getStateEvent(room, EventType.RoomCreate);
   const avatarMxc = useRoomAvatar(room, mDirects.has(room.roomId));
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
@@ -133,7 +135,7 @@ export const RoomIntro = as<'div', RoomIntroProps>(({ room, ...props }, ref) => 
             </Button>
           )}
           {typeof prevRoomId === 'string' &&
-            (mx.getRoom(prevRoomId)?.getMyMembership() === Membership.Join ? (
+            (mx.getRoom(prevRoomId)?.getMyMembership() === KnownMembership.Join ? (
               <Button
                 onClick={() => navigateRoom(prevRoomId, createContent?.predecessor?.event_id)}
                 variant="Success"

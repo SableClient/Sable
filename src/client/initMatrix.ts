@@ -1,28 +1,23 @@
+import type { CryptoCallbacks, MatrixClient, ISyncStateData } from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
-  MatrixClient,
   IndexedDBStore,
   IndexedDBCryptoStore,
   SyncState,
-  ISyncStateData,
 } from '$types/matrix-sdk';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
-import {
-  Session,
-  Sessions,
-  SessionStoreName,
-  getSessionStoreName,
-  MATRIX_SESSIONS_KEY,
-} from '$state/sessions';
+import type { Session, Sessions, SessionStoreName } from '$state/sessions';
+import { getSessionStoreName, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
 import { cryptoCallbacks } from './secretStorageKeys';
-import { SlidingSyncConfig, SlidingSyncDiagnostics, SlidingSyncManager } from './slidingSync';
+import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
+import { SlidingSyncManager } from './slidingSync';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
@@ -68,9 +63,9 @@ export const resolveSlidingEnabled = (enabled: SlidingSyncConfig['enabled']): bo
 const deleteDatabase = (name: string): Promise<void> =>
   new Promise((resolve) => {
     const req = window.indexedDB.deleteDatabase(name);
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve(); // resolve anyway — we tried
-    req.onblocked = () => resolve();
+    req.addEventListener('success', () => resolve());
+    req.addEventListener('error', () => resolve()); // resolve anyway — we tried
+    req.addEventListener('blocked', () => resolve());
   });
 
 const deleteSyncStoreGroup = async (syncStoreName: string): Promise<void> => {
@@ -95,36 +90,42 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
  */
 const readStoredAccount = (dbName: string): Promise<string | undefined> =>
   new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: string | undefined) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
     const req = window.indexedDB.open(dbName);
-    req.onerror = () => resolve(undefined);
-    req.onsuccess = () => {
+    req.addEventListener('error', () => finish(undefined));
+    req.addEventListener('success', () => {
       const db = req.result;
       try {
         if (!db.objectStoreNames.contains('account')) {
           db.close();
-          resolve(undefined);
+          finish(undefined);
         } else {
           const tx = db.transaction('account', 'readonly');
           const store = tx.objectStore('account');
           const getReq = store.get('account');
-          getReq.onsuccess = () => {
+          getReq.addEventListener('success', () => {
             db.close();
             const record = getReq.result;
             if (!record?.account_data) {
-              resolve(undefined);
+              finish(undefined);
             } else {
               try {
                 const data = JSON.parse(record.account_data);
-                resolve(data?.user_id ?? undefined);
+                finish(data?.user_id ?? undefined);
               } catch {
-                resolve(undefined);
+                finish(undefined);
               }
             }
-          };
-          getReq.onerror = () => {
+          });
+          getReq.addEventListener('error', () => {
             db.close();
-            resolve(undefined);
-          };
+            finish(undefined);
+          });
         }
       } catch {
         try {
@@ -132,9 +133,9 @@ const readStoredAccount = (dbName: string): Promise<string | undefined> =>
         } catch {
           /* ignore */
         }
-        resolve(undefined);
+        finish(undefined);
       }
-    };
+    });
   });
 
 const databaseExists = async (dbName: string): Promise<boolean> => {
@@ -149,30 +150,22 @@ const databaseExists = async (dbName: string): Promise<boolean> => {
 const isClientReadyForUi = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
 
+const isMismatch = (err: unknown): boolean => {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("doesn't match") ||
+    msg.includes('does not match') ||
+    msg.includes('account in the store') ||
+    msg.includes('account in the constructor')
+  );
+};
+
 const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
+  /* oxlint-disable promise/no-multiple-resolved */
   new Promise((resolve) => {
     const waitStart = performance.now();
-    if (isClientReadyForUi(mx.getSyncState())) {
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
-        attributes: { timed_out: 'false' },
-      });
-      resolve();
-      return;
-    }
-
-    let timer = 0;
-    let timedOut = false;
-    let finish = () => {};
-    const onSync = (state: string) => {
-      debugLog.info('sync', `Sync state changed: ${state}`, {
-        state,
-        ready: isClientReadyForUi(state),
-      });
-      if (isClientReadyForUi(state)) finish();
-    };
-
     let settled = false;
-    finish = () => {
+    const finish = () => {
       if (settled) return;
       settled = true;
       mx.removeListener(ClientEvent.Sync, onSync);
@@ -190,6 +183,25 @@ const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> 
         });
       }
       resolve();
+    };
+    /* oxlint-enable promise/no-multiple-resolved */
+
+    if (isClientReadyForUi(mx.getSyncState())) {
+      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
+        attributes: { timed_out: 'false' },
+      });
+      finish();
+      return;
+    }
+
+    let timer = 0;
+    let timedOut = false;
+    const onSync = (state: string) => {
+      debugLog.info('sync', `Sync state changed: ${state}`, {
+        state,
+        ready: isClientReadyForUi(state),
+      });
+      if (isClientReadyForUi(state)) finish();
     };
 
     timer = window.setTimeout(() => {
@@ -286,7 +298,7 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     cryptoStore: legacyCryptoStore,
     deviceId: session.deviceId,
     timelineSupport: true,
-    cryptoCallbacks: cryptoCallbacks as any,
+    cryptoCallbacks: cryptoCallbacks as unknown as CryptoCallbacks,
     verificationMethods: ['m.sas.v1'],
   });
 
@@ -300,16 +312,6 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     userId: session.userId,
     baseUrl: session.baseUrl,
   });
-
-  const isMismatch = (err: unknown): boolean => {
-    const msg = err instanceof Error ? err.message : String(err);
-    return (
-      msg.includes("doesn't match") ||
-      msg.includes('does not match') ||
-      msg.includes('account in the store') ||
-      msg.includes('account in the constructor')
-    );
-  };
 
   const wipeAllStores = async () => {
     log.warn('initClient: wiping all stores for', session.userId);
@@ -442,7 +444,9 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       data?: ISyncStateData
     ) => {
       classicSyncCount += 1;
-      Sentry.metrics.count('sable.sync.cycle', 1, { attributes: { transport: 'classic', state } });
+      Sentry.metrics.count('sable.sync.cycle', 1, {
+        attributes: { transport: 'classic', state },
+      });
       debugLog.info('sync', `Classic sync state: ${state}`, {
         state,
         prevState: prevState ?? 'null',
@@ -463,7 +467,12 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
           category: 'sync.classic',
           message: `Classic sync problem: ${state}`,
           level: 'warning',
-          data: { state, prevState, error: data?.error?.message, syncNumber: classicSyncCount },
+          data: {
+            state,
+            prevState,
+            error: data?.error?.message,
+            syncNumber: classicSyncCount,
+          },
         });
       }
       if (
@@ -559,7 +568,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   }
 
   const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...(slidingConfig ?? {}),
+    ...slidingConfig,
     includeInviteList: true,
     pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
   });

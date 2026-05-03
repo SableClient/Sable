@@ -2,6 +2,7 @@
 // Shows how to build lightweight fakes/stubs instead of using a full mock library —
 // for factoryRoomIdByActivity and factoryRoomIdByAtoZ the MatrixClient is stubbed
 // with a plain object, keeping tests readable without heavy setup.
+
 import { describe, it, expect } from 'vitest';
 import type { MatrixClient } from '$types/matrix-sdk';
 import {
@@ -18,24 +19,26 @@ function makeClient(rooms: Record<string, { name: string; ts: number }>): Matrix
     getRoom: (id: string) => {
       const r = rooms[id];
       if (!r) return null;
-      return { name: r.name, getLastActiveTimestamp: () => r.ts } as any;
+      return { name: r.name, getLastActiveTimestamp: () => r.ts } as unknown as ReturnType<
+        MatrixClient['getRoom']
+      >;
     },
   } as unknown as MatrixClient;
 }
 
 describe('byTsOldToNew', () => {
   it('sorts ascending by timestamp', () => {
-    expect([300, 100, 200].sort(byTsOldToNew)).toEqual([100, 200, 300]);
+    expect([300, 100, 200].toSorted(byTsOldToNew)).toEqual([100, 200, 300]);
   });
 });
 
 describe('byOrderKey', () => {
   it('sorts defined keys lexicographically', () => {
-    expect(['c', 'a', 'b'].sort(byOrderKey)).toEqual(['a', 'b', 'c']);
+    expect(['c', 'a', 'b'].toSorted(byOrderKey)).toEqual(['a', 'b', 'c']);
   });
 
   it('puts undefined keys after defined keys', () => {
-    expect([undefined, 'a', undefined, 'b'].sort(byOrderKey)).toEqual([
+    expect([undefined, 'a', undefined, 'b'].toSorted(byOrderKey)).toEqual([
       'a',
       'b',
       undefined,
@@ -52,13 +55,13 @@ describe('factoryRoomIdByActivity', () => {
       '!mid:h': { name: 'Mid', ts: 5000 },
     });
     const sort = factoryRoomIdByActivity(mx);
-    expect(['!old:h', '!new:h', '!mid:h'].sort(sort)).toEqual(['!new:h', '!mid:h', '!old:h']);
+    expect(['!old:h', '!new:h', '!mid:h'].toSorted(sort)).toEqual(['!new:h', '!mid:h', '!old:h']);
   });
 
   it('places unknown room IDs last', () => {
     const mx = makeClient({ '!known:h': { name: 'Known', ts: 1000 } });
     const sort = factoryRoomIdByActivity(mx);
-    expect(['!unknown:h', '!known:h'].sort(sort)).toEqual(['!known:h', '!unknown:h']);
+    expect(['!unknown:h', '!known:h'].toSorted(sort)).toEqual(['!known:h', '!unknown:h']);
   });
 });
 
@@ -70,7 +73,7 @@ describe('factoryRoomIdByAtoZ', () => {
       '!b:h': { name: 'bob', ts: 0 },
     });
     const sort = factoryRoomIdByAtoZ(mx);
-    expect(['!c:h', '!a:h', '!b:h'].sort(sort)).toEqual(['!a:h', '!b:h', '!c:h']);
+    expect(['!c:h', '!a:h', '!b:h'].toSorted(sort)).toEqual(['!a:h', '!b:h', '!c:h']);
   });
 
   it('strips leading # before comparing', () => {
@@ -80,7 +83,7 @@ describe('factoryRoomIdByAtoZ', () => {
     });
     const sort = factoryRoomIdByAtoZ(mx);
     // #alpha → "alpha" sorts before "beta"
-    expect(['!plain:h', '!hash:h'].sort(sort)).toEqual(['!hash:h', '!plain:h']);
+    expect(['!plain:h', '!hash:h'].toSorted(sort)).toEqual(['!hash:h', '!plain:h']);
   });
 });
 
@@ -88,12 +91,12 @@ describe('factoryRoomIdByUnreadCount', () => {
   it('sorts rooms with more unreads first', () => {
     const counts: Record<string, number> = { '!a:h': 5, '!b:h': 20, '!c:h': 1 };
     const sort = factoryRoomIdByUnreadCount((id) => counts[id] ?? 0);
-    expect(['!a:h', '!b:h', '!c:h'].sort(sort)).toEqual(['!b:h', '!a:h', '!c:h']);
+    expect(['!a:h', '!b:h', '!c:h'].toSorted(sort)).toEqual(['!b:h', '!a:h', '!c:h']);
   });
 
   it('treats missing counts as 0', () => {
     const sort = factoryRoomIdByUnreadCount(() => 0);
-    const result = ['!a:h', '!b:h'].sort(sort);
+    const result = ['!a:h', '!b:h'].toSorted(sort);
     expect(result).toHaveLength(2);
   });
 });

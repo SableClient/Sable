@@ -9,13 +9,13 @@ export const checkIndexedDBSupport = async (): Promise<boolean> => {
       resolve(false);
       return;
     }
-    db.onsuccess = () => {
+    db.addEventListener('success', () => {
       resolve(true);
       indexedDB.deleteDatabase(dbName);
-    };
-    db.onerror = () => {
+    });
+    db.addEventListener('error', () => {
       resolve(false);
       indexedDB.deleteDatabase(dbName);
-    };
+    });
   });
 };

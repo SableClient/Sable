@@ -237,7 +237,10 @@ function BugReportModal() {
             <Box direction="Column" style={{ maxHeight: '90vh', overflow: 'hidden' }}>
               <Header
                 size="500"
-                style={{ padding: config.space.S200, paddingLeft: config.space.S400 }}
+                style={{
+                  padding: config.space.S200,
+                  paddingLeft: config.space.S400,
+                }}
               >
                 <Box grow="Yes">
                   <Text size="H4">Report an Issue</Text>
@@ -248,7 +251,10 @@ function BugReportModal() {
               </Header>
               <Scroll size="300" hideTrack>
                 <Box
-                  style={{ padding: config.space.S400, paddingRight: config.space.S200 }}
+                  style={{
+                    padding: config.space.S400,
+                    paddingRight: config.space.S200,
+                  }}
                   direction="Column"
                   gap="500"
                 >
@@ -449,7 +455,10 @@ function BugReportModal() {
                           as="label"
                           gap="200"
                           alignItems="Center"
-                          style={{ cursor: 'pointer', paddingLeft: config.space.S400 }}
+                          style={{
+                            cursor: 'pointer',
+                            paddingLeft: config.space.S400,
+                          }}
                         >
                           <Checkbox
                             variant="Primary"

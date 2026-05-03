@@ -57,7 +57,7 @@ export class ASCIILexicalTable {
   }
 
   private getWidthToSize(width: number): number {
-    return this.widthToSize[width - 1];
+    return this.widthToSize[width - 1] ?? 0;
   }
 
   first(): string {

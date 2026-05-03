@@ -1,5 +1,6 @@
-import { Descendant, Editor, Text } from 'slate';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { Descendant, Editor } from 'slate';
+import { Text } from 'slate';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';
 import {
   parseBlockMD,
@@ -10,7 +11,7 @@ import {
 import { findAndReplace } from '$utils/findAndReplace';
 import { sanitizeForRegex } from '$utils/regex';
 import { isUserId } from '$utils/matrix';
-import { CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import { BlockType } from './types';
 
 export type OutputOptions = {
@@ -38,7 +39,7 @@ const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
     if (node.spoiler) string = `<span data-mx-spoiler>${string}</span>`;
   }
 
-  if (opts.allowInlineMarkdown && string === sanitizeText(node.text)) {
+  if (opts.allowInlineMarkdown && string === sanitizeText(node.text) && !node.code) {
     string = parseInlineMD(string);
   }
 
@@ -90,7 +91,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}">${node.children}</a>`;
+      return `<a href="${encodeURI(node.href)}">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:
@@ -184,7 +185,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
-      return `[${node.children}](${node.href})`;
+      return `[${children}](${node.href})`;
     case BlockType.Command:
       return `/${node.command}`;
     case BlockType.Small:
@@ -195,6 +196,12 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
       return children;
   }
 };
+
+const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
+const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
+const MASKEDSPOILEREDLINKINPUTREGEX = new RegExp(`\\[.+\\]\\(${LINK_URL}\\)`, 'g');
 
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
@@ -213,8 +220,12 @@ export const toPlainText = (
   if (Array.isArray(node))
     return node.map((n) => toPlainText(n, isMarkdown, stripNickname, nickNameReplacement)).join('');
   if (Text.isText(node)) {
+    let { text } = node;
+
+    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
+    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
+
     if (stripNickname && nickNameReplacement) {
-      let { text } = node;
       nickNameReplacement?.keys().forEach((key) => {
         const replacement = nickNameReplacement.get(key) ?? '';
         text = text.replaceAll(key, replacement);
@@ -224,8 +235,8 @@ export const toPlainText = (
         : text;
     }
     return isMarkdown
-      ? unescapeMarkdownBlockSequences(node.text, unescapeMarkdownInlineSequences)
-      : node.text;
+      ? unescapeMarkdownBlockSequences(text, unescapeMarkdownInlineSequences)
+      : text;
   }
 
   const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');
@@ -303,4 +314,59 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
   editor.children.forEach(parseMentions);
 
   return mentionData;
+};
+
+export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
+  let finalList: string[] = [];
+  let isInsideCodeBlock = false;
+  const parseLinks = (node: Descendant): void => {
+    if (Text.isText(node)) {
+      let { text } = node;
+      if (text.startsWith('```') && !text.includes(' ')) {
+        isInsideCodeBlock = !isInsideCodeBlock;
+        return;
+      }
+      if (isInsideCodeBlock) return;
+      // get a list of all the urls and of the ones that are spoilered,
+      // truncate the spoilered ones of their <> and then remove the items that are present in both lists
+      const urlsMatch = text.match(LINKINPUTREGEX);
+      let urls = urlsMatch ? [...new Set(urlsMatch)] : undefined;
+      urls = urls?.map(
+        (url) =>
+          (url.startsWith('(') && url.endsWith(')') && url.substring(1, url.length - 1)) ||
+          (url.startsWith('(') && url.substring(1)) ||
+          (url.endsWith('/)') && url.substring(0, url.length - 1)) ||
+          url
+      );
+      const spoileredUrlsMatch = text.match(SPOILEREDLINKINPUTREGEX);
+      let spoileredUrls = spoileredUrlsMatch ? [...new Set(spoileredUrlsMatch)] : undefined;
+      spoileredUrls = spoileredUrls?.map((spoileredUrl) => spoileredUrl.slice(1, -1));
+
+      const maskedSpoileredUrlsMatch = text.match(MASKEDSPOILEREDLINKINPUTREGEX);
+      let maskedSpoileredUrls = maskedSpoileredUrlsMatch
+        ? [...new Set(maskedSpoileredUrlsMatch)]
+        : undefined;
+      maskedSpoileredUrls = maskedSpoileredUrls?.map((maskedSpoileredUrl) =>
+        maskedSpoileredUrl?.substring(
+          maskedSpoileredUrl.indexOf('](') + 2,
+          maskedSpoileredUrl.lastIndexOf(')')
+        )
+      );
+      if (maskedSpoileredUrls)
+        spoileredUrls = spoileredUrls
+          ? [...spoileredUrls, ...maskedSpoileredUrls]
+          : maskedSpoileredUrls;
+
+      spoileredUrls = spoileredUrls?.filter(
+        (item, index) => spoileredUrls?.indexOf(item) === index
+      );
+      urls = urls?.filter((url) => !spoileredUrls?.includes(url));
+      finalList = finalList.concat(urls ?? []);
+      return;
+    }
+    node?.children?.forEach(parseLinks);
+  };
+  if (Array.isArray(serialized)) serialized.map((n) => parseLinks(n));
+  else parseLinks(serialized);
+  return finalList.filter((item, index) => finalList.indexOf(item) === index);
 };

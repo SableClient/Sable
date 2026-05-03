@@ -46,12 +46,12 @@ describe('Arborium theme registry', () => {
       .filter((fileName) => fileName.endsWith('.css'))
       .map((fileName) => fileName.replace(/\.css$/, ''))
       .filter((themeId) => themeId !== 'base' && themeId !== 'base-rustdoc')
-      .sort();
+      .toSorted();
 
     const exportedThemeIds = [
       ...getArboriumThemeOptions('light').map((theme) => theme.id),
       ...getArboriumThemeOptions('dark').map((theme) => theme.id),
-    ].sort();
+    ].toSorted();
 
     expect(exportedThemeIds).toEqual(installedThemes);
   });

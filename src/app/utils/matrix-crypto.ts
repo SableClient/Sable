@@ -1,4 +1,4 @@
-import { CryptoApi } from '$types/matrix-sdk';
+import type { CryptoApi } from '$types/matrix-sdk';
 
 export const verifiedDevice = async (
   api: CryptoApi,

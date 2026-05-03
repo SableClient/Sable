@@ -1,15 +1,7 @@
-import {
-  MouseEventHandler,
-  ReactNode,
-  RefObject,
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { MouseEventHandler, ReactNode, RefObject } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { RectCords } from 'folds';
 import {
   Box,
   Icon,
@@ -19,22 +11,21 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   config,
   toRem,
 } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import {
   draggable,
   dropTargetForElements,
   monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import type { Instruction } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import {
   attachInstruction,
   extractInstruction,
-  Instruction,
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
@@ -63,16 +54,14 @@ import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
+import type { ISidebarFolder, SidebarItems, TSidebarItem } from '$hooks/useSidebarItems';
 import {
-  ISidebarFolder,
-  SidebarItems,
-  TSidebarItem,
   makeCinnySpacesContent,
   parseSidebar,
   sidebarItemWithout,
   useSidebarItems,
 } from '$hooks/useSidebarItems';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useOpenedSidebarFolderAtom } from '$state/hooks/openedSidebarFolder';
@@ -92,6 +81,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 type SpaceMenuProps = {
   room: Room;
@@ -366,8 +356,9 @@ const useDnDMonitor = (
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) return;
           const item = source.data.item as SidebarDraggable;
-          const containerItem = dropTargets[0].data.item as SidebarDraggable;
-          const instructionType = dropTargets[0].data.instructionType as
+          const containerItem = dropTargets[0]?.data?.item as SidebarDraggable | undefined;
+          if (!containerItem) return;
+          const instructionType = dropTargets[0]?.data?.instructionType as
             | InstructionType
             | undefined;
           if (!instructionType) return;
@@ -729,7 +720,10 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               }
               if (sameFolders && typeof i === 'object') {
                 // remove from folder if placing around itself
-                const newI = { ...i, content: i.content.filter((sId) => sId !== item.spaceId) };
+                const newI = {
+                  ...i,
+                  content: i.content.filter((sId) => sId !== item.spaceId),
+                };
                 if (newI.content.length > 0) newItems.push(newI);
               } else {
                 newItems.push(i);
@@ -749,7 +743,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
         const newSpacesContent = makeCinnySpacesContent(mx, newItems);
         localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-        mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+        mx.setAccountData(CustomAccountDataEvent.CinnySpaces, newSpacesContent);
       },
       [mx, sidebarItems, setOpenedFolder, localEchoSidebarItem, orphanSpaces]
     )
@@ -795,7 +789,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
       localEchoSidebarItem(parseSidebar(mx, orphanSpaces, newSpacesContent));
-      mx.setAccountData(AccountDataEvent.CinnySpaces, newSpacesContent);
+      mx.setAccountData(CustomAccountDataEvent.CinnySpaces, newSpacesContent);
     },
     [mx, sidebarItems, orphanSpaces, localEchoSidebarItem]
   );

@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { as, Box, Text, config, Button, Menu, Spinner } from 'folds';
-import {
-  ImagePack,
-  ImageUsage,
-  PackContent,
-  PackImage,
-  PackImageReader,
-  packMetaEqual,
-  PackMetaReader,
-} from '$plugins/custom-emoji';
+import type { ImagePack, ImageUsage, PackContent, PackImage } from '$plugins/custom-emoji';
+import { PackImageReader, packMetaEqual, PackMetaReader } from '$plugins/custom-emoji';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useFilePicker } from '$hooks/useFilePicker';
-import { UploadSuccess } from '$state/upload';
-import { getImageInfo, TUploadContent } from '$utils/matrix';
+import type { UploadSuccess } from '$state/upload';
+import type { TUploadContent } from '$utils/matrix';
+import { getImageInfo } from '$utils/matrix';
 import { getImageFileUrl, loadImageElement, renameFile } from '$utils/dom';
 import { replaceSpaceWithDash, suffixRename } from '$utils/common';
 import { getFileNameWithoutExt } from '$utils/mimeTypes';

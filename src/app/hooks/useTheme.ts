@@ -129,7 +129,7 @@ export const useThemeNames = (): Record<string, string> =>
 
 export const useSystemThemeKind = (): ThemeKind => {
   const darkModeQueryList = useMemo(() => window.matchMedia('(prefers-color-scheme: dark)'), []);
-  const [themeKind, setThemeKind] = useState<ThemeKind>(
+  const [themeKind, setThemeKind] = useState(
     darkModeQueryList.matches ? ThemeKind.Dark : ThemeKind.Light
   );
 

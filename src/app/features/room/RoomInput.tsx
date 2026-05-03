@@ -1137,7 +1137,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (!imagePacksUsedRef.current.has(key))
         imagePacksUsedRef.current.set(
           key,
-          getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon)
+          getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room)
         );
       moveCursor(editor);
       handleCloseAutocomplete();
@@ -1162,7 +1162,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
         mxc,
         mx,
-        ImageUsage.Sticker
+        ImageUsage.Sticker,
+        room
       );
 
       /**
@@ -1181,7 +1182,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
         mxc,
         mx,
-        ImageUsage.Sticker
+        ImageUsage.Sticker,
+        room
       );
 
       if (replyDraft) {

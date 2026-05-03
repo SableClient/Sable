@@ -420,6 +420,12 @@ export const toggleReaction = (
   mx.sendEvent(
     room.roomId,
     EventType.Reaction as string as unknown as keyof TimelineEvents,
-    getReactionContent(targetEventId, key, mx, rShortcode) as TimelineEvents[keyof TimelineEvents]
+    getReactionContent(
+      targetEventId,
+      key,
+      mx,
+      room,
+      rShortcode
+    ) as TimelineEvents[keyof TimelineEvents]
   );
 };

@@ -9,17 +9,26 @@ import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from './mxIdHelper';
 import { isRoomPrivate } from './roomVisibility';
 
-export function getImagePackReferencesForMxc(
+export function getImagePackReferencesForMxcWrappedInMap(
   mxcUrl: string,
   matrixClient: MatrixClient,
   imageUsage: ImageUsage
 ): SerializableMap<string, MSC4459ImagePackReference> {
+  const retMap = new SerializableMap<string, MSC4459ImagePackReference>();
+  retMap.set(mxcUrl, getImagePackReferencesForMxc(mxcUrl, matrixClient, imageUsage));
+  return retMap;
+}
+
+export function getImagePackReferencesForMxc(
+  mxcUrl: string,
+  matrixClient: MatrixClient,
+  imageUsage: ImageUsage
+): MSC4459ImagePackReference {
   const globalImgPacks: ImagePack[] = getGlobalImagePacks(matrixClient);
-  if (!mxcUrl.startsWith('mxc')) return new SerializableMap<string, MSC4459ImagePackReference>();
-  const imagePackReferences = new SerializableMap<string, MSC4459ImagePackReference>();
-  globalImgPacks
+  if (!mxcUrl.startsWith('mxc')) return {};
+  const imgPkRef = globalImgPacks
     .filter((val) => val.getImages(imageUsage).find((img) => img.url === mxcUrl))
-    .forEach((pack) => {
+    .map((pack) => {
       const img = pack.getImages(imageUsage).find((val) => val.url === mxcUrl);
       const room = matrixClient.getRoom(pack.address?.roomId);
       if (!room || isRoomPrivate(matrixClient, room)) return;
@@ -31,13 +40,13 @@ export function getImagePackReferencesForMxc(
       // add ones own hs as via server, as that server evidently is alive
       const ownViaHS = getMxIdServer(matrixClient.getSafeUserId());
       if (ownViaHS) viaServers.add(ownViaHS);
-      const imgPkRef = {
+      return {
         room_id: pack.address?.roomId,
         state_key: pack.address?.stateKey,
         via: viaServers,
         shortcode: img?.shortcode,
       } satisfies MSC4459ImagePackReference;
-      imagePackReferences.set(mxcUrl, imgPkRef);
-    });
-  return imagePackReferences;
+    })
+    .at(0);
+  return imgPkRef ?? {};
 }

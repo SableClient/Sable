@@ -60,6 +60,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   getLinks,
+  replaceWithElement,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -129,8 +130,11 @@ import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
 import { MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME } from '$types/matrix/common';
-import type {IGenericMSC4459, MSC4459ImagePackReference} from '$types/matrix/common'
-import { getImagePackReferencesForMxc } from '$utils/msc4459helper';
+import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
+import {
+  getImagePackReferencesForMxc,
+  getImagePackReferencesForMxcWrappedInMap,
+} from '$utils/msc4459helper';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -171,7 +175,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
+    return liveEvents.at(-1)!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -749,6 +753,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           nickNameReplacement: nicknameReplacement,
         })
       );
+
       let msgType = MsgType.Text;
 
       // quick text react
@@ -809,6 +814,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
 
       const links = getLinks(serializedChildren);
       content['com.beeper.linkpreviews'] = [];
@@ -1122,8 +1128,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
-      editor.insertNode(createEmoticonElement(key, shortcode));
+      const emoticonEl = createEmoticonElement(key, shortcode);
+      if (autocompleteQuery) {
+        replaceWithElement(editor, autocompleteQuery.range, emoticonEl);
+      } else {
+        editor.insertNode(emoticonEl);
+      }
+      if (!imagePacksUsedRef.current.has(key))
+        imagePacksUsedRef.current.set(
+          key,
+          getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon)
+        );
       moveCursor(editor);
+      handleCloseAutocomplete();
     };
 
     const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
@@ -1142,7 +1159,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       };
 
       // add the image pack reference
-      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxc(
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
         mxc,
         mx,
         ImageUsage.Sticker
@@ -1161,6 +1178,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           false
         );
       }
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
+        mxc,
+        mx,
+        ImageUsage.Sticker
+      );
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
@@ -1259,6 +1281,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             editor={editor}
             query={autocompleteQuery}
             requestClose={handleCloseAutocomplete}
+            onEmoticonSelected={handleEmoticonSelect}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.Reaction &&

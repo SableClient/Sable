@@ -47,8 +47,8 @@ import { MemberPowerTag, MemberPowerTagIcon, StateEvent } from '$types/matrix/ro
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
-import { creatorsSupported } from '$utils/matrix';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { creatorsSupported } from '$utils/roomSupport';
 
 type EditPowerProps = {
   maxPower: number;

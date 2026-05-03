@@ -16,12 +16,6 @@ import {
 } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
-import {
-  creatorsSupported,
-  knockRestrictedSupported,
-  knockSupported,
-  restrictedSupported,
-} from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { millisecondsToMinutes, replaceSpaceWithDash } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -42,6 +36,12 @@ import { RoomType } from '$types/matrix/room';
 import { CreateRoomTypeSelector } from '$components/create-room/CreateRoomTypeSelector';
 import { getRoomIconSrc } from '$utils/room';
 import { createDebugLogger } from '$utils/debugLogger';
+import {
+  restrictedSupported,
+  creatorsSupported,
+  knockSupported,
+  knockRestrictedSupported,
+} from '$utils/roomSupport';
 import { ErrorCode } from '../../cs-errorcode';
 
 const debugLog = createDebugLogger('CreateRoom');

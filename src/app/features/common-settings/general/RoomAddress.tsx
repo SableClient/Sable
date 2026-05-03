@@ -32,7 +32,7 @@ import { replaceSpaceWithDash } from '$utils/common';
 import { useAlive } from '$hooks/useAlive';
 import { StateEvent } from '$types/matrix/room';
 import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
-import { getMxIdServer } from '$utils/matrix';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 type RoomPublishedAddressesProps = {
   permissions: RoomPermissionsAPI;

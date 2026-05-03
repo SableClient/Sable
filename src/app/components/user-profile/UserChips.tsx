@@ -29,7 +29,6 @@ import {
   Avatar,
 } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer } from '$utils/matrix';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -50,6 +49,7 @@ import { useNickname, useSetNickname } from '$hooks/useNickname';
 import { CutoutCard } from '$components/cutout-card';
 import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 export function ServerChip({ server }: { server: string }) {
   const mx = useMatrixClient();

@@ -7,7 +7,7 @@ import { useAtomValue } from 'jotai';
 
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer, isRoomAlias } from '$utils/matrix';
+import { isRoomAlias } from '$utils/matrix';
 import { UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
@@ -17,6 +17,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getViaServers } from '$plugins/via-servers';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import { AutocompleteQuery } from './autocompleteQuery';
 

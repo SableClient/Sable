@@ -23,11 +23,11 @@ import { getExploreFeaturedPath, getExploreServerPath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useExploreFeaturedSelected, useExploreServer } from '$hooks/router/useExploreSelected';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer } from '$utils/matrix';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { stopPropagation } from '$utils/keyboard';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 export function AddServer() {
   const mx = useMatrixClient();

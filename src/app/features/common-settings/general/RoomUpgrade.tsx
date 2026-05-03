@@ -35,9 +35,9 @@ import {
   useAdditionalCreators,
 } from '$components/create-room';
 import { useAlive } from '$hooks/useAlive';
-import { creatorsSupported } from '$utils/matrix';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { BreakWord } from '$styles/Text.css';
+import { creatorsSupported } from '$utils/roomSupport';
 
 function RoomUpgradeDialog({ requestClose }: { requestClose: () => void }) {
   const mx = useMatrixClient();

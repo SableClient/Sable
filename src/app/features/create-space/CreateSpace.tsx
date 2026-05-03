@@ -16,12 +16,6 @@ import {
 } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
-import {
-  creatorsSupported,
-  knockRestrictedSupported,
-  knockSupported,
-  restrictedSupported,
-} from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { millisecondsToMinutes, replaceSpaceWithDash } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -38,6 +32,12 @@ import {
   useAdditionalCreators,
 } from '$components/create-room';
 import { RoomType } from '$types/matrix/room';
+import {
+  restrictedSupported,
+  creatorsSupported,
+  knockSupported,
+  knockRestrictedSupported,
+} from '$utils/roomSupport';
 import { ErrorCode } from '../../cs-errorcode';
 
 const getCreateSpaceAccessToIcon = (access: CreateRoomAccess) => {

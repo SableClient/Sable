@@ -1,9 +1,9 @@
 import { getGlobalImagePacks } from '$plugins/custom-emoji/utils';
-import { ImagePack } from '$plugins/custom-emoji/ImagePack';
-import { MSC4459ImagePackReference } from '$types/matrix/common';
+import type { ImagePack } from '$plugins/custom-emoji/ImagePack';
+import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
-import { MatrixClient } from 'matrix-js-sdk';
-import { ImageUsage } from '$plugins/custom-emoji';
+import type { MatrixClient } from 'matrix-js-sdk';
+import type { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableSet } from '$types/wrapper/SerializableSet';
 import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from './mxIdHelper';

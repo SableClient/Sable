@@ -128,11 +128,8 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
-import {
-  IGenericMSC4459,
-  MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME,
-  MSC4459ImagePackReference,
-} from '$types/matrix/common';
+import { MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME } from '$types/matrix/common';
+import type {IGenericMSC4459, MSC4459ImagePackReference} from '$types/matrix/common'
 import { getImagePackReferencesForMxc } from '$utils/msc4459helper';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';

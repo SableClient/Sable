@@ -1,5 +1,5 @@
-import { SerializableMap } from '$types/wrapper/SerializableMap';
-import { SerializableSet } from '$types/wrapper/SerializableSet';
+import type { SerializableMap } from '$types/wrapper/SerializableMap';
+import type { SerializableSet } from '$types/wrapper/SerializableSet';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { MsgType } from '$types/matrix-sdk';
 

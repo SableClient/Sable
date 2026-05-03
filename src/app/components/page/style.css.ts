@@ -14,9 +14,6 @@ export const PageNav = recipe({
       },
     },
   },
-  defaultVariants: {
-    size: '400',
-  },
 });
 export type PageNavVariants = RecipeVariants<typeof PageNav>;
 

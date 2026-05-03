@@ -1,4 +1,4 @@
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Icon, Icons, Text, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import { NavCategory, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getInboxInvitesPath, getInboxNotificationsPath } from '$pages/pathUtils';
@@ -7,6 +7,9 @@ import { UnreadBadge } from '$components/unread-badge';
 import { allInvitesAtom } from '$state/room-list/inviteList';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 function InvitesNavItem() {
   const invitesSelected = useInboxInvitesSelected();
@@ -43,41 +46,51 @@ export function Inbox() {
   useNavToActivePathMapper('inbox');
   const notificationsSelected = useInboxNotificationsSelected();
 
+  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   return (
-    <PageNav>
-      <PageNavHeader>
-        <Box grow="Yes" gap="300">
-          <Box grow="Yes">
-            <Text size="H4" truncate>
-              Inbox
-            </Text>
-          </Box>
-        </Box>
-      </PageNavHeader>
+    <>
+      <div style={{ width: toRem(roomSidebarWidth) }}>
+        <PageNav>
+          <PageNavHeader>
+            <Box grow="Yes" gap="300">
+              <Box grow="Yes">
+                <Text size="H4" truncate>
+                  Inbox
+                </Text>
+              </Box>
+            </Box>
+          </PageNavHeader>
 
-      <PageNavContent>
-        <Box direction="Column" gap="300">
-          <NavCategory>
-            <NavItem variant="Background" radii="400" aria-selected={notificationsSelected}>
-              <NavLink to={getInboxNotificationsPath()}>
-                <NavItemContent>
-                  <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                    <Avatar size="200" radii="400">
-                      <Icon src={Icons.MessageUnread} size="100" filled={notificationsSelected} />
-                    </Avatar>
-                    <Box as="span" grow="Yes">
-                      <Text as="span" size="Inherit" truncate>
-                        Notifications
-                      </Text>
-                    </Box>
-                  </Box>
-                </NavItemContent>
-              </NavLink>
-            </NavItem>
-            <InvitesNavItem />
-          </NavCategory>
-        </Box>
-      </PageNavContent>
-    </PageNav>
+          <PageNavContent>
+            <Box direction="Column" gap="300">
+              <NavCategory>
+                <NavItem variant="Background" radii="400" aria-selected={notificationsSelected}>
+                  <NavLink to={getInboxNotificationsPath()}>
+                    <NavItemContent>
+                      <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Avatar size="200" radii="400">
+                          <Icon
+                            src={Icons.MessageUnread}
+                            size="100"
+                            filled={notificationsSelected}
+                          />
+                        </Avatar>
+                        <Box as="span" grow="Yes">
+                          <Text as="span" size="Inherit" truncate>
+                            Notifications
+                          </Text>
+                        </Box>
+                      </Box>
+                    </NavItemContent>
+                  </NavLink>
+                </NavItem>
+                <InvitesNavItem />
+              </NavCategory>
+            </Box>
+          </PageNavContent>
+        </PageNav>
+      </div>
+      <SidebarResizer />
+    </>
   );
 }

@@ -118,6 +118,7 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  roomSidebarWidth: number;
 
   // furry stuff
   renderAnimals: boolean;
@@ -219,6 +220,7 @@ const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+  roomSidebarWidth: 400,
 
   // furry stuff
   renderAnimals: true,

@@ -53,6 +53,7 @@ import {
 } from '$hooks/useRoomsNotificationPreferences';
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -179,6 +180,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -238,80 +240,85 @@ export function Direct() {
   );
 
   return (
-    <PageNav>
-      <DirectHeader />
-      {noRoomToDisplay ? (
-        <DirectEmpty />
-      ) : (
-        <PageNavContent scrollRef={scrollRef}>
-          <Box direction="Column" gap="300">
-            <NavCategory>
-              <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
-                <NavButton onClick={() => navigate(getDirectCreatePath())}>
-                  <NavItemContent>
-                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                      <Avatar size="200" radii="400">
-                        <Icon src={Icons.Plus} size="100" />
-                      </Avatar>
-                      <Box as="span" grow="Yes">
-                        <Text as="span" size="Inherit" truncate>
-                          Create Chat
-                        </Text>
-                      </Box>
-                    </Box>
-                  </NavItemContent>
-                </NavButton>
-              </NavItem>
-            </NavCategory>
-            <NavCategory>
-              <NavCategoryHeader>
-                <RoomNavCategoryButton
-                  closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                  data-category-id={DEFAULT_CATEGORY_ID}
-                  onClick={handleCategoryClick}
-                >
-                  Chats
-                </RoomNavCategoryButton>
-              </NavCategoryHeader>
-              <div
-                style={{
-                  position: 'relative',
-                  height: virtualizer.getTotalSize(),
-                }}
-              >
-                {virtualizer.getVirtualItems().map((vItem) => {
-                  const roomId = sortedDirects[vItem.index];
-                  if (!roomId) return null;
-                  const room = mx.getRoom(roomId);
-                  if (!room) return null;
-                  const selected = selectedRoomId === roomId;
-
-                  return (
-                    <VirtualTile
-                      virtualItem={vItem}
-                      key={vItem.index}
-                      ref={virtualizer.measureElement}
+    <>
+      <div style={{ width: toRem(roomSidebarWidth) }}>
+        <PageNav>
+          <DirectHeader />
+          {noRoomToDisplay ? (
+            <DirectEmpty />
+          ) : (
+            <PageNavContent scrollRef={scrollRef}>
+              <Box direction="Column" gap="300">
+                <NavCategory>
+                  <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
+                    <NavButton onClick={() => navigate(getDirectCreatePath())}>
+                      <NavItemContent>
+                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                          <Avatar size="200" radii="400">
+                            <Icon src={Icons.Plus} size="100" />
+                          </Avatar>
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Create Chat
+                            </Text>
+                          </Box>
+                        </Box>
+                      </NavItemContent>
+                    </NavButton>
+                  </NavItem>
+                </NavCategory>
+                <NavCategory>
+                  <NavCategoryHeader>
+                    <RoomNavCategoryButton
+                      closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                      data-category-id={DEFAULT_CATEGORY_ID}
+                      onClick={handleCategoryClick}
                     >
-                      <RoomNavItem
-                        room={room}
-                        selected={selected}
-                        showAvatar
-                        direct
-                        customDMCards={customDMCards}
-                        linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                        notificationMode={getRoomNotificationMode(
-                          notificationPreferences,
-                          room.roomId
-                        )}
-                      />
-                    </VirtualTile>
-                  );
-                })}
-              </div>
-            </NavCategory>
-          </Box>
-        </PageNavContent>
-      )}
-    </PageNav>
+                      Chats
+                    </RoomNavCategoryButton>
+                  </NavCategoryHeader>
+                  <div
+                    style={{
+                      position: 'relative',
+                      height: virtualizer.getTotalSize(),
+                    }}
+                  >
+                    {virtualizer.getVirtualItems().map((vItem) => {
+                      const roomId = sortedDirects[vItem.index];
+                      if (!roomId) return null;
+                      const room = mx.getRoom(roomId);
+                      if (!room) return null;
+                      const selected = selectedRoomId === roomId;
+
+                      return (
+                        <VirtualTile
+                          virtualItem={vItem}
+                          key={vItem.index}
+                          ref={virtualizer.measureElement}
+                        >
+                          <RoomNavItem
+                            room={room}
+                            selected={selected}
+                            showAvatar
+                            direct
+                            customDMCards={customDMCards}
+                            linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            notificationMode={getRoomNotificationMode(
+                              notificationPreferences,
+                              room.roomId
+                            )}
+                          />
+                        </VirtualTile>
+                      );
+                    })}
+                  </div>
+                </NavCategory>
+              </Box>
+            </PageNavContent>
+          )}
+        </PageNav>
+      </div>
+      <SidebarResizer />
+    </>
   );
 }

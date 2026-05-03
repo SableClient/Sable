@@ -852,6 +852,11 @@ function PresenceFeature() {
     mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
     // Sliding sync: enable/disable the presence extension on the next poll.
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
+    // Explicitly publish online so the server echoes back our presence event,
+    // which lets useUserPresence update the badge immediately.
+    if (sendPresence) {
+      mx.setPresence({ presence: 'online' }).catch(() => {});
+    }
   }, [mx, sendPresence]);
 
   // Auto-idle: set presence to unavailable after 5 minutes of inactivity or

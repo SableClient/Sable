@@ -482,7 +482,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           <SettingTile
             title="Auto-Idle"
             focusId="auto-idle-presence"
-            description="Automatically appear unavailable after 5 minutes of inactivity or when the tab is hidden."
+            description="Automatically appear unavailable after 5 minutes of inactivity or when the app isn't active."
             after={
               <Switch
                 variant="Primary"

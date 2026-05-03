@@ -385,7 +385,6 @@ export const toggleReaction = (
   room: Room,
   targetEventId: string,
   key: string,
-  matrixClient: MatrixClient,
   shortcode?: string,
   timelineSet?: EventTimelineSet
 ) => {
@@ -408,6 +407,6 @@ export const toggleReaction = (
   mx.sendEvent(
     room.roomId,
     MessageEvent.Reaction as any,
-    getReactionContent(targetEventId, key, matrixClient, rShortcode)
+    getReactionContent(targetEventId, key, mx, rShortcode)
   );
 };

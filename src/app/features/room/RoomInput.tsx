@@ -657,7 +657,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           const lastMessageId = lastMessage?.getId();
 
           if (lastMessageId) {
-            toggleReaction(mx, room, lastMessageId, key, mx, shortcode);
+            toggleReaction(mx, room, lastMessageId, key, shortcode);
           }
         }
 

@@ -391,6 +391,7 @@ export function Space() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);
   const selectedRoomId = useSelectedRoom();
@@ -399,6 +400,8 @@ export function Space() {
   const callEmbed = useCallEmbed();
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
+
+  useEffect(() => {setCurWidth(roomSidebarWidth)}, [roomSidebarWidth]);
 
   const getRoom = useCallback(
     (rId: string): Room | undefined => {
@@ -715,7 +718,7 @@ export function Space() {
 
   return (
     <>
-      <div style={{ width: toRem(roomSidebarWidth) }}>
+      <div style={{ width: toRem(curWidth) }}>
         <PageNav>
           <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
             <SpaceHeader />
@@ -854,7 +857,7 @@ export function Space() {
           </SwipeableOverlayWrapper>
         </PageNav>
       </div>
-      <SidebarResizer />
+      <SidebarResizer setCurWidth={setCurWidth}/>
     </>
   );
 }

@@ -9,6 +9,7 @@ export const NavCategory = style([
   DefaultReset,
   {
     position: 'relative',
+    overflow: 'scroll',
   },
 ]);
 

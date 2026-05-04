@@ -164,9 +164,10 @@ export function Explore() {
   const selectedServer = useExploreServer();
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   return (
     <>
-      <div style={{ width: toRem(roomSidebarWidth) }}>
+      <div style={{ width: toRem(curWidth) }}>
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">
@@ -267,7 +268,7 @@ export function Explore() {
           </PageNavContent>
         </PageNav>
       </div>
-      <SidebarResizer />
+      <SidebarResizer setCurWidth={setCurWidth}/>
     </>
   );
 }

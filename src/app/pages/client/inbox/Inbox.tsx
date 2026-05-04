@@ -10,6 +10,7 @@ import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useState } from 'react';
 
 function InvitesNavItem() {
   const invitesSelected = useInboxInvitesSelected();
@@ -47,9 +48,10 @@ export function Inbox() {
   const notificationsSelected = useInboxNotificationsSelected();
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   return (
     <>
-      <div style={{ width: toRem(roomSidebarWidth) }}>
+      <div style={{ width: toRem(curWidth) }}>
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">
@@ -90,7 +92,7 @@ export function Inbox() {
           </PageNavContent>
         </PageNav>
       </div>
-      <SidebarResizer />
+      <SidebarResizer setCurWidth={setCurWidth}/>
     </>
   );
 }

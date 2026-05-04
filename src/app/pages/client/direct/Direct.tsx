@@ -181,6 +181,7 @@ export function Direct() {
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   const createDirectSelected = useDirectCreateSelected();
 
@@ -241,7 +242,7 @@ export function Direct() {
 
   return (
     <>
-      <div style={{ width: toRem(roomSidebarWidth) }}>
+      <div style={{ width: toRem(curWidth) }}>
         <PageNav>
           <DirectHeader />
           {noRoomToDisplay ? (
@@ -318,7 +319,7 @@ export function Direct() {
           )}
         </PageNav>
       </div>
-      <SidebarResizer />
+      <SidebarResizer setCurWidth={setCurWidth}/>
     </>
   );
 }

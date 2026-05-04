@@ -1,48 +1,66 @@
+// The disable is because the position should only update whenever the new one is updated
+// oxlint-disable eslint-plugin-react-hooks/exhaustive-deps
 import { Box } from 'folds';
 import * as css from '$pages/client/sidebar/SidebarResizer.css';
-import type { SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 
-export function SidebarResizer() {
+export function SidebarResizer(
+  { setCurWidth }: { setCurWidth?: Dispatch<SetStateAction<number>> }
+) {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const [isPointerOver, setIsPointerOver] = useState(false);
+  const [isPointerDown, setIsPointerDown] = useState(false);
   const [oldX, setOldX] = useState(0);
+  const [interimX, setInterimX] = useState(0);
   const [newX, setNewX] = useState(0);
 
   useEffect(() => {
     const change = oldX - newX;
-    if (change) setRoomSidebarWidth(Math.max(roomSidebarWidth - change, 0));
-    // The disable is because the position should only update whenever the new one is updated
-    // oxlint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps
+    if (change) setRoomSidebarWidth(Math.min(Math.max(roomSidebarWidth - change, 0), 1200));
   }, [newX]);
-  const onMouseUp = useCallback((e: { clientX: SetStateAction<number> }) => {
+
+  useEffect(() => {
+    const change = oldX - interimX;
+    if (change && setCurWidth) setCurWidth(Math.min(Math.max(roomSidebarWidth - change, 0), 1200));
+  }, [interimX]);
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    e.preventDefault();
+     setInterimX(e.clientX);
+  }, []);
+  const onPointerUp = useCallback((e: PointerEvent) => {
+    e.preventDefault();
     setNewX(e.clientX);
-    window.removeEventListener('pointerup', onMouseUp);
+    setIsPointerDown(false);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointermove', onPointerMove);
   }, []);
 
-  const onMouseDown = useCallback(
+  const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
       setOldX(e.clientX);
-      window.addEventListener('pointerup', onMouseUp);
+      setIsPointerDown(true);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointermove', onPointerMove);
     },
-    [onMouseUp]
+    [onPointerUp, onPointerMove]
   );
 
   return (
     <Box
-      className={css.SidebarResizer}
+      className={`${css.SidebarResizer} ${isPointerOver || isPointerDown ? css.SidebarResizerHover : ''}`}
       onPointerEnter={() => setIsPointerOver(true)}
       onPointerLeave={() => setIsPointerOver(false)}
-      onPointerDown={onMouseDown}
-      onPointerUp={onMouseUp}
+      onPointerDown={onPointerDown}
     >
       <Box
         className={css.SideBarResizerAnimation}
-        style={{ height: isPointerOver ? '100%' : '0px' }}
+        style={{ height: isPointerOver || isPointerDown ? '100%' : '0px' }}
       />
     </Box>
   );

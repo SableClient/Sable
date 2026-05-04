@@ -202,6 +202,7 @@ export function Home() {
   const navigate = useNavigate();
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   const selectedRoomId = useSelectedRoom();
   const createRoomSelected = useHomeCreateSelected();
@@ -238,7 +239,7 @@ export function Home() {
 
   return (
     <>
-      <div style={{ width: toRem(roomSidebarWidth) }}>
+      <div style={{ width: toRem(curWidth) }}>
         <PageNav>
           <HomeHeader />
           {noRoomToDisplay ? (
@@ -366,7 +367,7 @@ export function Home() {
           )}
         </PageNav>
       </div>
-      <SidebarResizer />
+      <SidebarResizer setCurWidth={setCurWidth}/>
     </>
   );
 }

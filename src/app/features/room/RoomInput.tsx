@@ -1570,9 +1570,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               }
             >
               <IconButton
-                onClick={(evt) =>
-                  setAttachMenuAnchor(evt.currentTarget.getBoundingClientRect())
-                }
+                onClick={(evt) => setAttachMenuAnchor(evt.currentTarget.getBoundingClientRect())}
                 variant="SurfaceVariant"
                 size="300"
                 radii="300"
@@ -1824,6 +1822,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
+        {pollCreatorOpen && <PollCreator room={room} onClose={() => setPollCreatorOpen(false)} />}
       </div>
     );
   }

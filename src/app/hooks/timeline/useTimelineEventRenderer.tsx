@@ -644,6 +644,11 @@ export function useTimelineEventRenderer({
                       )}
                     />
                   );
+                if (
+                  type === (M_POLL_START.name as string) ||
+                  type === (M_POLL_START.altName as string)
+                )
+                  return <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />;
                 if (type === (EventType.RoomMessage as string)) {
                   const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
                   let editedNewContent: unknown;
@@ -686,6 +691,12 @@ export function useTimelineEventRenderer({
           </Message>
         );
       },
+      [M_POLL_START.name]: (_mEventId, mEvent) => (
+        <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+      ),
+      [M_POLL_START.altName]: (_mEventId, mEvent) => (
+        <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+      ),
       [EventType.Sticker]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);

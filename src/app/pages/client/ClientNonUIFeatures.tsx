@@ -745,7 +745,6 @@ function SentryTagsFeature() {
     Sentry.setTag('message_layout', String(settings.messageLayout));
     Sentry.setTag('message_spacing', settings.messageSpacing);
     Sentry.setTag('twitter_emoji', String(settings.twitterEmoji));
-    Sentry.setTag('is_markdown', String(settings.isMarkdown));
     Sentry.setTag('page_zoom', String(settings.pageZoom));
     if (settings.themeId) Sentry.setTag('theme_id', settings.themeId);
     // Additional high-value tags for bug reproduction

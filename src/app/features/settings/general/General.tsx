@@ -415,7 +415,6 @@ function DateAndTime() {
 
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-  const [isMarkdown, setIsMarkdown] = useSetting(settingsAtom, 'isMarkdown');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
@@ -442,13 +441,6 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
               disabled={isMobile}
             />
           }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Markdown Formatting"
-          focusId="markdown-formatting"
-          after={<Switch variant="Primary" value={isMarkdown} onChange={setIsMarkdown} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

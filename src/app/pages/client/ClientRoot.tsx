@@ -205,7 +205,7 @@ export function ClientRoot({ children }: ClientRootProps) {
       log.log('initClient for', activeSession.userId);
       const newMx = await initClient(activeSession);
       loadedUserIdRef.current = activeSession.userId;
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       return newMx;
     }, [activeSession, activeSessionId, setActiveSessionId])
   );
@@ -234,7 +234,7 @@ export function ClientRoot({ children }: ClientRootProps) {
         activeSession.userId,
         '— reloading client'
       );
-      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken);
+      pushSessionToSW(activeSession.baseUrl, activeSession.accessToken, activeSession.userId);
       if (mx?.clientRunning) {
         stopClient(mx);
       }
@@ -258,6 +258,28 @@ export function ClientRoot({ children }: ClientRootProps) {
   useSyncNicknames(mx);
   useLogoutListener(mx);
   useAppVisibility(mx);
+
+  // Keep the SW session warm so media fetches and push notifications work
+  // reliably after iOS kills and restarts the SW in the background.
+  // - Immediate resync whenever the tab comes back to the foreground.
+  // - Periodic heartbeat (10 min) keeps the persisted session up to date
+  //   while the app is running.
+  const swSessionBaseUrl = activeSession?.baseUrl;
+  const swSessionAccessToken = activeSession?.accessToken;
+  const swSessionUserId = activeSession?.userId;
+  useEffect(() => {
+    if (!swSessionBaseUrl || !swSessionAccessToken) return undefined;
+    const resync = () => pushSessionToSW(swSessionBaseUrl, swSessionAccessToken, swSessionUserId);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') resync();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    const timer = setInterval(resync, 10 * 60 * 1000);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(timer);
+    };
+  }, [swSessionBaseUrl, swSessionAccessToken, swSessionUserId]);
 
   useEffect(
     () => () => {

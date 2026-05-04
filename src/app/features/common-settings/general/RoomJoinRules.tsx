@@ -22,7 +22,7 @@ import { getStateEvents } from '$utils/room';
 import { useRecursiveChildSpaceScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { knockRestrictedSupported, knockSupported, restrictedSupported } from '$utils/matrix';
+import { knockRestrictedSupported, restrictedSupported, knockSupported } from '$utils/roomSupport';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 type RestrictedRoomAllowContent = {

@@ -58,6 +58,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   getLinks,
+  replaceWithElement,
   BlockType,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
@@ -127,6 +128,14 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import { MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME } from '$types/matrix/common';
+import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
+import {
+  getImagePackReferencesForMxc,
+  getImagePackReferencesForMxcWrappedInMap,
+} from '$utils/msc4459helper';
+import { ImageUsage } from '$plugins/custom-emoji';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
@@ -165,7 +174,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
+    return liveEvents.at(-1)!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -238,6 +247,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const commands = useCommands(mx, room);
+    const imagePacksUsedRef = useRef(new SerializableMap<string, MSC4459ImagePackReference>());
     /**
      * handle pluralkit-style messages
      */
@@ -756,6 +766,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           nickNameReplacement: nicknameReplacement,
         })
       );
+
       let msgType = MsgType.Text;
 
       // quick text react
@@ -816,6 +827,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
 
       const links = getLinks(serializedChildren);
       content['com.beeper.linkpreviews'] = [];
@@ -881,6 +893,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
+        imagePacksUsedRef.current.clear();
         if (threadRootId) {
           // Re-seed the thread reply draft so the next message also goes to the thread.
           setReplyDraft({
@@ -1128,8 +1141,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
-      editor.insertNode(createEmoticonElement(key, shortcode));
+      const emoticonEl = createEmoticonElement(key, shortcode);
+      if (autocompleteQuery) {
+        replaceWithElement(editor, autocompleteQuery.range, emoticonEl);
+      } else {
+        editor.insertNode(emoticonEl);
+      }
+      if (!imagePacksUsedRef.current.has(key)) {
+        const imgPkRef = getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room);
+        if (imgPkRef?.room_id && imgPkRef?.shortcode) imagePacksUsedRef.current.set(key, imgPkRef);
+      }
       moveCursor(editor);
+      handleCloseAutocomplete();
     };
 
     const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
@@ -1141,11 +1164,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent & IContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,
         url: mxc,
         info,
       };
+
+      // add the image pack reference
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
+        mxc,
+        mx,
+        ImageUsage.Sticker,
+        room
+      );
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -1160,6 +1191,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           false
         );
       }
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
+        mxc,
+        mx,
+        ImageUsage.Sticker,
+        room
+      );
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
@@ -1258,6 +1295,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             editor={editor}
             query={autocompleteQuery}
             requestClose={handleCloseAutocomplete}
+            onEmoticonSelected={handleEmoticonSelect}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.Reaction &&

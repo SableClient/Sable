@@ -41,14 +41,13 @@ import { CompactUploadCardRenderer } from '$components/upload-card';
 import type { UploadSuccess } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import type { MemberPowerTag, MemberPowerTagIcon } from '$types/matrix/room';
+import { CustomStateEvent, type MemberPowerTag, type MemberPowerTagIcon } from '$types/matrix/room';
 
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
-import { creatorsSupported } from '$utils/matrix';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { CustomStateEvent } from '$types/matrix/room';
+import { creatorsSupported } from '$utils/roomSupport';
 
 type EditPowerProps = {
   maxPower: number;

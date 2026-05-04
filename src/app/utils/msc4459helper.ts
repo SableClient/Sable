@@ -9,6 +9,17 @@ import { getViaServers } from '$plugins/via-servers';
 import { getMxIdServer } from './mxIdHelper';
 import { isRoomPrivate } from './roomVisibility';
 
+/**
+ * lookup table for global mxc => MSC4459ImagePackReference
+ * TODO this is far from a perfect solution
+ */
+const globalLookupTable = new Map<string, MSC4459ImagePackReference>();
+/**
+ * lookup table for room local mxc => MSC4459ImagePackReference
+ * TODO this is far from a perfect solution
+ */
+const roomLookupTable = new Map<string, Map<string, MSC4459ImagePackReference>>();
+
 export function getImagePackReferencesForMxcWrappedInMap(
   mxcUrl: string,
   matrixClient: MatrixClient,
@@ -62,7 +73,8 @@ export function getImagePackReferencesForMxc(
   room: Room
 ): MSC4459ImagePackReference {
   if (!mxcUrl.startsWith('mxc')) return {};
-  const globalImgPacks: ImagePack[] = getGlobalImagePacks(matrixClient);
+  if (roomLookupTable.get(room.roomId)?.has(mxcUrl))
+    return roomLookupTable.get(room.roomId)!.get(mxcUrl)!;
   const roomLocalImgPacks: ImagePack[] = getRoomImagePacks(room);
   const roomLocalMatch = getImagePackReferencesForMxcInternal(
     mxcUrl,
@@ -71,8 +83,17 @@ export function getImagePackReferencesForMxc(
     imageUsage,
     true
   );
+  if (roomLocalMatch) {
+    const roomLookupTabRes =
+      roomLookupTable.get(room.roomId) ?? new Map<string, MSC4459ImagePackReference>();
+    roomLookupTabRes.set(mxcUrl, roomLocalMatch);
+    roomLookupTable.set(room.roomId, roomLookupTabRes);
+  }
   // prefer room local match as they're probably often more relevant
   if (roomLocalMatch) return roomLocalMatch;
+  // simple caching
+  if (globalLookupTable.has(mxcUrl)) return globalLookupTable.get(mxcUrl)!;
+  const globalImgPacks: ImagePack[] = getGlobalImagePacks(matrixClient);
   const globalMatch = getImagePackReferencesForMxcInternal(
     mxcUrl,
     matrixClient,
@@ -80,6 +101,7 @@ export function getImagePackReferencesForMxc(
     imageUsage,
     false
   );
+  if (globalMatch) globalLookupTable.set(mxcUrl, globalMatch);
 
   return globalMatch ?? {};
 }

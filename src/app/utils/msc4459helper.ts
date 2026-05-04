@@ -30,7 +30,7 @@ export function getImagePackReferencesForMxcWrappedInMap(
   if (!mxcUrl.startsWith('mxc')) return retMap;
   const result = getImagePackReferencesForMxc(mxcUrl, matrixClient, imageUsage, room);
   // if the result is undefined return the empty map, to not produce invalid entries
-  if (!result?.room_id) return retMap;
+  if (!result?.room_id || !result?.state_key || !result?.shortcode) return retMap;
   retMap.set(mxcUrl, result);
   return retMap;
 }
@@ -90,7 +90,7 @@ export function getImagePackReferencesForMxc(
     roomLookupTable.set(room.roomId, roomLookupTabRes);
   }
   // prefer room local match as they're probably often more relevant
-  if (roomLocalMatch) return roomLocalMatch;
+  if (roomLocalMatch?.room_id && roomLocalMatch?.shortcode) return roomLocalMatch;
   // simple caching
   if (globalLookupTable.has(mxcUrl)) return globalLookupTable.get(mxcUrl)!;
   const globalImgPacks: ImagePack[] = getGlobalImagePacks(matrixClient);
@@ -101,7 +101,10 @@ export function getImagePackReferencesForMxc(
     imageUsage,
     false
   );
-  if (globalMatch) globalLookupTable.set(mxcUrl, globalMatch);
+  if (globalMatch?.room_id && globalMatch?.shortcode) {
+    globalLookupTable.set(mxcUrl, globalMatch);
+    return globalMatch;
+  }
 
-  return globalMatch ?? {};
+  return {};
 }

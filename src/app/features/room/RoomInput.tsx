@@ -1134,11 +1134,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else {
         editor.insertNode(emoticonEl);
       }
-      if (!imagePacksUsedRef.current.has(key))
-        imagePacksUsedRef.current.set(
-          key,
-          getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room)
-        );
+      if (!imagePacksUsedRef.current.has(key)) {
+        const imgPkRef = getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room);
+        if (imgPkRef?.room_id && imgPkRef?.shortcode) imagePacksUsedRef.current.set(key, imgPkRef);
+      }
       moveCursor(editor);
       handleCloseAutocomplete();
     };

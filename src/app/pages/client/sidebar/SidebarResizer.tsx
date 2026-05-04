@@ -7,9 +7,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 
-export function SidebarResizer(
-  { setCurWidth }: { setCurWidth?: Dispatch<SetStateAction<number>> }
-) {
+export function SidebarResizer({
+  setCurWidth,
+}: {
+  setCurWidth?: Dispatch<SetStateAction<number>>;
+}) {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
   const [isPointerOver, setIsPointerOver] = useState(false);
@@ -30,7 +32,7 @@ export function SidebarResizer(
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     e.preventDefault();
-     setInterimX(e.clientX);
+    setInterimX(e.clientX);
   }, []);
   const onPointerUp = useCallback((e: PointerEvent) => {
     e.preventDefault();

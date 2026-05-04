@@ -54,6 +54,7 @@ import {
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -242,7 +243,7 @@ export function Direct() {
 
   return (
     <>
-      <div style={{ width: toRem(curWidth) }}>
+      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
         <PageNav>
           <DirectHeader />
           {noRoomToDisplay ? (
@@ -318,8 +319,8 @@ export function Direct() {
             </PageNavContent>
           )}
         </PageNav>
-      </div>
-      <SidebarResizer setCurWidth={setCurWidth}/>
+      </Box>
+      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
     </>
   );
 }

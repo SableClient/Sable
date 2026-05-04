@@ -11,6 +11,7 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useState } from 'react';
+import { mobileOrTablet } from '$utils/user-agent';
 
 function InvitesNavItem() {
   const invitesSelected = useInboxInvitesSelected();
@@ -51,7 +52,7 @@ export function Inbox() {
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   return (
     <>
-      <div style={{ width: toRem(curWidth) }}>
+      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">
@@ -91,8 +92,8 @@ export function Inbox() {
             </Box>
           </PageNavContent>
         </PageNav>
-      </div>
-      <SidebarResizer setCurWidth={setCurWidth}/>
+      </Box>
+      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
     </>
   );
 }

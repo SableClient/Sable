@@ -33,6 +33,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
+import { mobileOrTablet } from '$utils/user-agent';
 
 export function AddServer() {
   const mx = useMatrixClient();
@@ -167,7 +168,7 @@ export function Explore() {
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
   return (
     <>
-      <div style={{ width: toRem(curWidth) }}>
+      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">
@@ -267,8 +268,8 @@ export function Explore() {
             </Box>
           </PageNavContent>
         </PageNav>
-      </div>
-      <SidebarResizer setCurWidth={setCurWidth}/>
+      </Box>
+      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
     </>
   );
 }

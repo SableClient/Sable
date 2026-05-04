@@ -401,7 +401,9 @@ export function Space() {
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
-  useEffect(() => {setCurWidth(roomSidebarWidth)}, [roomSidebarWidth]);
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
 
   const getRoom = useCallback(
     (rId: string): Room | undefined => {
@@ -718,7 +720,7 @@ export function Space() {
 
   return (
     <>
-      <div style={{ width: toRem(curWidth) }}>
+      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
         <PageNav>
           <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
             <SpaceHeader />
@@ -856,8 +858,8 @@ export function Space() {
             </PageNavContent>
           </SwipeableOverlayWrapper>
         </PageNav>
-      </div>
-      <SidebarResizer setCurWidth={setCurWidth}/>
+      </Box>
+      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
     </>
   );
 }

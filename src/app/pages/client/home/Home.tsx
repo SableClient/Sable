@@ -63,6 +63,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -239,7 +240,7 @@ export function Home() {
 
   return (
     <>
-      <div style={{ width: toRem(curWidth) }}>
+      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
         <PageNav>
           <HomeHeader />
           {noRoomToDisplay ? (
@@ -366,8 +367,8 @@ export function Home() {
             </PageNavContent>
           )}
         </PageNav>
-      </div>
-      <SidebarResizer setCurWidth={setCurWidth}/>
+      </Box>
+      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
     </>
   );
 }

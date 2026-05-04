@@ -6,6 +6,9 @@ import { DefaultReset, color, config, toRem } from 'folds';
 export const PageNav = recipe({
   variants: {
     size: {
+      '100%': {
+        width: '100%',
+      },
       '400': {
         width: toRem(256),
       },
@@ -13,6 +16,9 @@ export const PageNav = recipe({
         width: toRem(222),
       },
     },
+  },
+  defaultVariants: {
+    size: '100%',
   },
 });
 export type PageNavVariants = RecipeVariants<typeof PageNav>;

@@ -1,6 +1,6 @@
 /* oxlint-disable jsx-a11y/alt-text */
 import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
 import type { MatrixClient } from '$types/matrix-sdk';
@@ -9,6 +9,7 @@ import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem
 import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
 import type { ChildNode } from 'domhandler';
+
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -95,6 +96,43 @@ const ensureNoopenerRel = (rel: unknown): string => {
 
   return parts.join(' ');
 };
+
+function KatexRenderer({
+  math,
+  displayMode,
+  style,
+}: {
+  math: string;
+  displayMode: boolean;
+  style?: CSSProperties;
+}) {
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([katex]) => {
+      if (mounted) {
+        setHtml(katex.default.renderToString(math, { throwOnError: false, displayMode }));
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [math, displayMode]);
+
+  if (html === null) {
+    return (
+      <code style={style}>
+        {displayMode ? '$$\n' : '$'}
+        {math}
+        {displayMode ? '\n$$' : '$'}
+      </code>
+    );
+  }
+
+  const Tag = displayMode ? 'div' : 'span';
+  return <Tag style={style} dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
 export const makeMentionCustomProps = (
   handleMentionClick?: ReactEventHandler<HTMLElement>,
@@ -249,7 +287,11 @@ export const factoryRenderLinkifyWithMention = (
       }
     }
 
-    return <a {...attributes}>{content}</a>;
+    return (
+      <a {...attributes} target="_blank" rel="noreferrer noopener">
+        {content}
+      </a>
+    );
   };
 
   return renderLink;
@@ -301,17 +343,19 @@ export const highlightText = (
  * @returns {string} The concatenated plain text content of all descendant text nodes.
  */
 const extractTextFromChildren = (nodes: ChildNode[]): string => {
-  let text = '';
+  const worker = (n: ChildNode[]): string => {
+    let text = '';
+    n.forEach((node) => {
+      if ((node.type as unknown as string) === 'text') {
+        text += (node as unknown as Text).data;
+      } else if (node instanceof Element && node.children) {
+        text += worker(node.children);
+      }
+    });
+    return text;
+  };
 
-  nodes.forEach((node) => {
-    if ((node.type as unknown as string) === 'text') {
-      text += (node as unknown as Text).data;
-    } else if (node instanceof Element && node.children) {
-      text += extractTextFromChildren(node.children);
-    }
-  });
-
-  return text;
+  return worker(nodes).replace(/\n$/, '');
 };
 
 const getLanguageFromClassName = (className?: string): string | undefined => {
@@ -605,9 +649,10 @@ export const getReactCustomHtmlParser = (
               parent instanceof Element ? parent.children : [],
               parent instanceof Element ? parent.attribs : undefined
             );
+            const trimmedCode = codeContent.replace(/\n$/, '');
             return (
               <CodeHighlightRenderer
-                code={codeContent}
+                code={trimmedCode}
                 language={language}
                 allowDetect={false}
                 className={typeof props.className === 'string' ? props.className : undefined}
@@ -628,6 +673,7 @@ export const getReactCustomHtmlParser = (
           const renderedChildren = renderChildren();
           const anchorProps = {
             ...props,
+            target: '_blank',
             rel: ensureNoopenerRel(props.rel),
           };
 
@@ -678,6 +724,20 @@ export const getReactCustomHtmlParser = (
               {renderChildren()}
             </span>
           );
+        }
+
+        if (name === 'span' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            return <KatexRenderer math={math} displayMode={false} style={matrixColorStyle} />;
+          }
+        }
+
+        if (name === 'div' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            return <KatexRenderer math={math} displayMode={true} style={matrixColorStyle} />;
+          }
         }
 
         if (name === 'span' && matrixColorStyle) {

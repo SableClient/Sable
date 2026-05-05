@@ -22,7 +22,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  Line,
   Menu,
   MenuItem,
   Overlay,
@@ -46,7 +45,6 @@ import {
   resetEditor,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
-  Toolbar,
   toPlainText,
   trimCustomHtml,
   UserMentionAutocomplete,
@@ -59,6 +57,9 @@ import {
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
+  getLinks,
+  replaceWithElement,
+  BlockType,
 } from '$components/editor';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -127,6 +128,14 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import { MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME } from '$types/matrix/common';
+import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
+import {
+  getImagePackReferencesForMxc,
+  getImagePackReferencesForMxcWrappedInMap,
+} from '$utils/msc4459helper';
+import { ImageUsage } from '$plugins/custom-emoji';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
@@ -165,7 +174,7 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
         ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
+    return liveEvents.at(-1)!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -233,11 +242,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-    const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
+
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const commands = useCommands(mx, room);
+    const imagePacksUsedRef = useRef(new SerializableMap<string, MSC4459ImagePackReference>());
     /**
      * handle pluralkit-style messages
      */
@@ -284,7 +294,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
-    const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef(0);
@@ -505,7 +514,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleSendUpload = async (uploads: UploadSuccess[]) => {
-      const plainText = toPlainText(editor.children, isMarkdown).trim();
+      const plainText = toPlainText(editor.children).trim();
 
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
@@ -718,8 +727,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * the plain text we will send
        */
       let serializedChildren = editor.children;
+      if (commandName) {
+        // Strip the empty text node and command node from the beginning of the first paragraph
+        const firstPara = serializedChildren[0];
+        if (
+          firstPara &&
+          'type' in firstPara &&
+          firstPara.type === BlockType.Paragraph &&
+          firstPara.children.length >= 2
+        ) {
+          serializedChildren = [
+            {
+              ...firstPara,
+              children: firstPara.children.slice(2),
+            },
+            ...serializedChildren.slice(1),
+          ];
+        }
+      }
       const outgoingTransformContext = {
-        isMarkdown,
+        isMarkdown: true,
         settingsLinkBaseUrl,
       };
 
@@ -728,19 +755,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
       });
 
-      let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
+      let plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
+
       /**
        * the html we will send
        */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(serializedChildren, {
-          allowTextFormatting: true,
-          allowBlockMarkdown: isMarkdown,
-          allowInlineMarkdown: isMarkdown,
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
         })
       );
+
       let msgType = MsgType.Text;
 
       // quick text react
@@ -801,6 +827,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
+
+      const links = getLinks(serializedChildren);
+      content['com.beeper.linkpreviews'] = [];
+      links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -846,7 +877,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             // we don't have a formatted body, but we need one
             content.format = 'org.matrix.custom.html';
-            content.formatted_body = `${htmlPrefix}${plainText}`;
+            const escapedBody = sanitizeText(plainText).replaceAll('\n', '<br/>');
+            content.formatted_body = `${htmlPrefix}${escapedBody}`;
           }
         }
       }
@@ -861,6 +893,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
+        imagePacksUsedRef.current.clear();
         if (threadRootId) {
           // Re-seed the thread reply draft so the next message also goes to the thread.
           setReplyDraft({
@@ -960,7 +993,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       replyEvent,
       mx,
       roomId,
-      isMarkdown,
       canSendReaction,
       pkCompatEnable,
       replyDraft,
@@ -1109,8 +1141,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
-      editor.insertNode(createEmoticonElement(key, shortcode));
+      const emoticonEl = createEmoticonElement(key, shortcode);
+      if (autocompleteQuery) {
+        replaceWithElement(editor, autocompleteQuery.range, emoticonEl);
+      } else {
+        editor.insertNode(emoticonEl);
+      }
+      if (!imagePacksUsedRef.current.has(key)) {
+        const imgPkRef = getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room);
+        if (imgPkRef?.room_id && imgPkRef?.shortcode) imagePacksUsedRef.current.set(key, imgPkRef);
+      }
       moveCursor(editor);
+      handleCloseAutocomplete();
     };
 
     const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
@@ -1122,11 +1164,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent & IContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,
         url: mxc,
         info,
       };
+
+      // add the image pack reference
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
+        mxc,
+        mx,
+        ImageUsage.Sticker,
+        room
+      );
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -1141,6 +1191,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           false
         );
       }
+      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
+        mxc,
+        mx,
+        ImageUsage.Sticker,
+        room
+      );
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
@@ -1239,6 +1295,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             editor={editor}
             query={autocompleteQuery}
             requestClose={handleCloseAutocomplete}
+            onEmoticonSelected={handleEmoticonSelect}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.Reaction &&
@@ -1454,17 +1511,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </IconButton>
 
-              <IconButton
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                aria-pressed={toolbar}
-                aria-label={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                onClick={() => setToolbar(!toolbar)}
-              >
-                <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-              </IconButton>
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut
@@ -1636,14 +1682,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </Box>
             </>
-          }
-          bottom={
-            toolbar && (
-              <div>
-                <Line variant="SurfaceVariant" size="300" />
-                <Toolbar />
-              </div>
-            )
           }
         />
         {showSchedulePicker && (

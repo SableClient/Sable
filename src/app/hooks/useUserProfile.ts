@@ -7,8 +7,9 @@ import { EventTimeline, EventType } from '$types/matrix-sdk';
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, shouldApplyUserHeroCards } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
+import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
@@ -31,6 +32,7 @@ export type UserProfile = {
   nameColor?: string;
   nameColorDark?: string;
   nameColorLight?: string;
+  heroColorScheme?: Record<string, string>;
   isCat?: boolean;
   hasCats?: boolean;
   extended?: Record<string, unknown>;
@@ -53,6 +55,7 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     'moe.sable.app.name_color',
     'moe.sable.app.name_color_dark_theme',
     'moe.sable.app.name_color_light_theme',
+    'chat.commet.profile_color_scheme',
     'kitty.meow.has_cats',
     'kitty.meow.is_cat',
   ]);
@@ -78,6 +81,7 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     nameColor: info['moe.sable.app.name_color'] as string | undefined,
     nameColorDark: info['moe.sable.app.name_color_dark_theme'] as string | undefined,
     nameColorLight: info['moe.sable.app.name_color_light_theme'] as string | undefined,
+    heroColorScheme: info['chat.commet.profile_color_scheme'] as Record<string, string> | undefined,
     isCat: info['kitty.meow.is_cat'] === true,
     hasCats: info['kitty.meow.has_cats'] === true,
     extended,
@@ -102,12 +106,16 @@ export const useUserProfile = (
   resolvedColor?: string;
   resolvedFont?: string;
   resolvedPronouns?: PronounSet[];
+  heroColor?: string;
+  heroNameColor?: string;
+  heroBrightness?: string;
 } => {
   const mx = useMatrixClient();
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [renderGlobalColors] = useSetting(settingsAtom, 'renderGlobalNameColors');
   const [renderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
+  const [renderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
   const themeKind = useActiveTheme().kind;
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
@@ -184,7 +192,6 @@ export const useUserProfile = (
           Array.isArray(localFontEvent) ? localFontEvent[0] : localFontEvent
         )?.getContent()?.font;
       }
-
       const localPronounEvent = state?.getStateEvents(
         CustomStateEvent.RoomCosmeticsPronouns as string,
         userId
@@ -221,6 +228,7 @@ export const useUserProfile = (
         )?.getContent()?.pronouns;
       }
     }
+
     const validGlobalVal = isValidHex(data?.nameColor);
     const validGlobalValDark = isValidHex(data?.nameColorDark);
     const validGlobalValLight = isValidHex(data?.nameColorLight);
@@ -262,12 +270,31 @@ export const useUserProfile = (
 
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
+    const rawHeroBrightness = data?.heroColorScheme?.brightness;
+    const heroCardsAllowed = shouldApplyUserHeroCards(renderUserCardsMode, rawHeroBrightness);
+    const validHeroColor = heroCardsAllowed ? isValidHex(data?.heroColorScheme?.color) : undefined;
+    const heroBrightness = heroCardsAllowed ? rawHeroBrightness : undefined;
+    const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
+
+    const heroNameColor = heroCardsAllowed
+      ? ((renderGlobalColors || userId === mx.getUserId()) &&
+          heroBrightness === 'light' &&
+          !areColorsTooSimilar(testUserHeroColor, validGlobalValLight) &&
+          validGlobalValLight) ||
+        (heroBrightness === 'dark' &&
+          !areColorsTooSimilar(testUserHeroColor, validGlobalValDark) &&
+          validGlobalValDark) ||
+        resolvedColor
+      : resolvedColor;
     return {
       ...data,
       resolvedColor,
       resolvedFont,
       resolvedPronouns,
       pronouns: resolvedPronouns,
+      heroColor: validHeroColor,
+      heroBrightness,
+      heroNameColor,
     };
   }, [
     cached,
@@ -278,6 +305,7 @@ export const useUserProfile = (
     renderRoomColors,
     renderRoomFonts,
     renderGlobalColors,
+    renderUserCardsMode,
     themeKind,
     legacyUsernameColor,
   ]);

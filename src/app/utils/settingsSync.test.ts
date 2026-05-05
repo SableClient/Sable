@@ -41,7 +41,6 @@ describe('NON_SYNCABLE_KEYS', () => {
 
   it('does not include ordinary syncable keys', () => {
     const syncable = [
-      'isMarkdown',
       'twitterEmoji',
       'messageLayout',
       'urlPreview',
@@ -65,9 +64,8 @@ describe('serializeForSync', () => {
   });
 
   it('includes syncable settings fields', () => {
-    const settings = { ...base, isMarkdown: false, twitterEmoji: false };
+    const settings = { ...base, twitterEmoji: false };
     const { settings: s } = serializeForSync(settings);
-    expect(s.isMarkdown).toBe(false);
     expect(s.twitterEmoji).toBe(false);
   });
 
@@ -126,11 +124,10 @@ describe('deserializeFromSync', () => {
   it('merges remote settings over local', () => {
     const remote = {
       v: SETTINGS_SYNC_VERSION,
-      settings: { isMarkdown: false, urlPreview: false },
+      settings: { urlPreview: false },
     };
-    const result = deserializeFromSync(remote, { ...base, isMarkdown: true, urlPreview: true });
+    const result = deserializeFromSync(remote, { ...base, urlPreview: true });
     expect(result).not.toBeNull();
-    expect(result!.isMarkdown).toBe(false);
     expect(result!.urlPreview).toBe(false);
   });
 
@@ -154,11 +151,10 @@ describe('deserializeFromSync', () => {
   });
 
   it('round-trips through serialize then deserialize correctly', () => {
-    const tweaked = { ...base, isMarkdown: false, hour24Clock: true };
+    const tweaked = { ...base, hour24Clock: true };
     const payload = serializeForSync(tweaked);
     const result = deserializeFromSync(payload, base);
     expect(result).not.toBeNull();
-    expect(result!.isMarkdown).toBe(false);
     expect(result!.hour24Clock).toBe(true);
     // non-syncable comes from base, not tweaked (pageZoom etc. same anyway)
     expect(result!.settingsSyncEnabled).toBe(base.settingsSyncEnabled);
@@ -167,11 +163,11 @@ describe('deserializeFromSync', () => {
   it('ignores extra unknown keys in the remote payload', () => {
     const remote = {
       v: SETTINGS_SYNC_VERSION,
-      settings: { isMarkdown: false, __unknown: 'surprise' },
+      settings: { twitterEmoji: false, __unknown: 'surprise' },
     };
     const result = deserializeFromSync(remote, base);
     expect(result).not.toBeNull();
-    expect(result!.isMarkdown).toBe(false);
+    expect(result!.twitterEmoji).toBe(false);
   });
 });
 
@@ -284,7 +280,7 @@ describe('importSettingsFromJson', () => {
   });
 
   it('resolves merged settings when a valid JSON file is provided', async () => {
-    const payload = { v: SETTINGS_SYNC_VERSION, settings: { isMarkdown: false } };
+    const payload = { v: SETTINGS_SYNC_VERSION, settings: { twitterEmoji: false } };
     const fileContent = JSON.stringify(payload);
     const file = new File([fileContent], 'settings.json', { type: 'application/json' });
 
@@ -292,14 +288,14 @@ describe('importSettingsFromJson', () => {
     const fakeFileList = { 0: file, length: 1, item: () => file } as unknown as FileList;
     mockInput.files = fakeFileList;
 
-    const promise = importSettingsFromJson({ ...base, isMarkdown: true });
+    const promise = importSettingsFromJson({ ...base, twitterEmoji: true });
 
     // Trigger the change event; the file reader will asynchronously call onload.
     changeListener?.(new Event('change'));
 
     const result = await promise;
     expect(result).not.toBeNull();
-    expect(result!.isMarkdown).toBe(false);
+    expect(result!.twitterEmoji).toBe(false);
   });
 
   it('resolves null when the file contains invalid JSON', async () => {
@@ -314,7 +310,7 @@ describe('importSettingsFromJson', () => {
   });
 
   it('resolves null when the JSON has an incompatible schema version', async () => {
-    const payload = { v: 99, settings: { isMarkdown: false } };
+    const payload = { v: 99, settings: { twitterEmoji: false } };
     const file = new File([JSON.stringify(payload)], 'settings.json', {
       type: 'application/json',
     });

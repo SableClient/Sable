@@ -22,7 +22,6 @@ import {
   Avatar,
 } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer } from '$utils/matrix';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -43,10 +42,21 @@ import { useNickname, useSetNickname } from '$hooks/useNickname';
 import { CutoutCard } from '$components/cutout-card';
 import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
+import * as css from './styles.css';
 
-export function ServerChip({ server }: { server: string }) {
-  const mx = useMatrixClient();
-  const myServer = getMxIdServer(mx.getSafeUserId());
+export function ServerChip({
+  server,
+  innerColor,
+  cardColor,
+  textColor,
+  backgroundColor,
+}: {
+  server: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  backgroundColor?: string;
+}) {
   const navigate = useNavigate();
   const closeProfile = useCloseUserRoomProfile();
   const [copied, setCopied] = useTimeoutToggle();
@@ -77,9 +87,14 @@ export function ServerChip({ server }: { server: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
+            <div
+              style={{
+                padding: config.space.S100,
+                maxWidth: toRem(200),
+                backgroundColor: innerColor,
+              }}
+            >
               <MenuItem
-                variant="Surface"
                 fill="None"
                 size="300"
                 radii="300"
@@ -88,11 +103,15 @@ export function ServerChip({ server }: { server: string }) {
                   setCopied();
                   close();
                 }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
               >
                 <Text size="B300">Copy Server</Text>
               </MenuItem>
               <MenuItem
-                variant="Surface"
                 fill="None"
                 size="300"
                 radii="300"
@@ -100,20 +119,31 @@ export function ServerChip({ server }: { server: string }) {
                   navigate(getExploreServerPath(server));
                   closeProfile();
                 }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
               >
                 <Text size="B300">Explore Community</Text>
               </MenuItem>
             </div>
             <Line size="300" />
-            <div style={{ padding: config.space.S100 }}>
+            <div
+              style={{ padding: config.space.S100, backgroundColor: cardColor, color: textColor }}
+            >
               <MenuItem
-                variant={myServer === server ? 'Surface' : 'Critical'}
                 fill="None"
                 size="300"
                 radii="300"
                 onClick={() => {
                   window.open(`https://${server}`, '_blank');
                   close();
+                }}
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
                 }}
               >
                 <Text size="B300">Open in Browser</Text>
@@ -124,7 +154,6 @@ export function ServerChip({ server }: { server: string }) {
       }
     >
       <Chip
-        variant={myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
         before={
           cords ? (
@@ -135,6 +164,12 @@ export function ServerChip({ server }: { server: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={css.UserHeroChip}
+        style={{
+          backgroundColor: cardColor,
+          borderColor: backgroundColor,
+          color: textColor,
+        }}
       >
         <Text size="B300" truncate>
           {server}
@@ -144,7 +179,19 @@ export function ServerChip({ server }: { server: string }) {
   );
 }
 
-export function ShareChip({ userId }: { userId: string }) {
+export function ShareChip({
+  userId,
+  innerColor,
+  cardColor,
+  textColor,
+  backgroundColor,
+}: {
+  userId: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  backgroundColor?: string;
+}) {
   const [cords, setCords] = useState<RectCords>();
 
   const [copied, setCopied] = useTimeoutToggle();
@@ -173,12 +220,16 @@ export function ShareChip({ userId }: { userId: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
+            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
               <MenuItem
-                variant="Surface"
                 fill="None"
                 size="300"
                 radii="300"
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
                 onClick={() => {
                   copyToClipboard(userId);
                   setCopied();
@@ -188,10 +239,14 @@ export function ShareChip({ userId }: { userId: string }) {
                 <Text size="B300">Copy User ID</Text>
               </MenuItem>
               <MenuItem
-                variant="Surface"
                 fill="None"
                 size="300"
                 radii="300"
+                className={css.UserHeroMenuItem}
+                style={{
+                  backgroundColor: cardColor,
+                  color: textColor,
+                }}
                 onClick={() => {
                   copyToClipboard(getMatrixToUser(userId));
                   setCopied();
@@ -206,7 +261,7 @@ export function ShareChip({ userId }: { userId: string }) {
       }
     >
       <Chip
-        variant={copied ? 'Success' : 'SurfaceVariant'}
+        variant={copied ? 'Success' : undefined}
         radii="Pill"
         before={
           cords ? (
@@ -217,6 +272,12 @@ export function ShareChip({ userId }: { userId: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={css.UserHeroChip}
+        style={{
+          backgroundColor: (!copied && cardColor) || undefined,
+          borderColor: backgroundColor,
+          color: textColor,
+        }}
       >
         <Text size="B300" truncate>
           Share
@@ -232,7 +293,19 @@ type MutualRoomsData = {
   directs: Room[];
 };
 
-export function MutualRoomsChip({ userId }: { userId: string }) {
+export function MutualRoomsChip({
+  userId,
+  backgroundColor,
+  innerColor,
+  cardColor,
+  textColor,
+}: {
+  userId: string;
+  backgroundColor?: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+}) {
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
   const mutualRoomsState = useMutualRooms(userId);
@@ -298,7 +371,12 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
         fill="None"
         size="300"
         radii="300"
-        style={{ paddingLeft: config.space.S100 }}
+        className={css.UserHeroMenuItem}
+        style={{
+          paddingLeft: config.space.S100,
+          backgroundColor: cardColor,
+          color: textColor,
+        }}
         onClick={() => {
           if (room.isSpaceRoom()) {
             navigateSpace(roomId);
@@ -325,12 +403,17 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                 )}
               />
             ) : (
-              <RoomIcon size="100" joinRule={room.getJoinRule()} roomType={room.getType()} />
+              <RoomIcon
+                size="100"
+                joinRule={room.getJoinRule()}
+                roomType={room.getType()}
+                style={{ color: textColor }}
+              />
             )}
           </Avatar>
         }
       >
-        <Text size="B300" truncate>
+        <Text size="B300" truncate style={{ color: textColor }}>
           {room.name}
         </Text>
       </MenuItem>
@@ -360,6 +443,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                 display: 'flex',
                 maxWidth: toRem(200),
                 maxHeight: '80vh',
+                backgroundColor: innerColor,
               }}
             >
               <Box grow="Yes">
@@ -367,7 +451,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                   <Box
                     direction="Column"
                     gap="400"
-                    style={{ padding: config.space.S200, paddingRight: 0 }}
+                    style={{ padding: config.space.S200, paddingRight: 0, color: textColor }}
                   >
                     {mutual.spaces.length > 0 && (
                       <Box direction="Column" gap="100">
@@ -402,7 +486,6 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
       }
     >
       <Chip
-        variant="SurfaceVariant"
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
         disabled={
@@ -410,8 +493,14 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={css.UserHeroChip}
+        style={{
+          backgroundColor: cardColor,
+          borderColor: backgroundColor,
+          color: textColor,
+        }}
       >
-        <Text size="B300">
+        <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
             `${mutualRoomsState.data.length} Mutual Rooms`}
           {mutualRoomsState.status === AsyncStatus.Loading && 'Mutual Rooms'}
@@ -438,7 +527,19 @@ export function IgnoredUserAlert() {
   );
 }
 
-export function OptionsChip({ userId }: { userId: string }) {
+export function OptionsChip({
+  userId,
+  backgroundColor,
+  innerColor,
+  cardColor,
+  textColor,
+}: {
+  userId: string;
+  backgroundColor?: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+}) {
   const mx = useMatrixClient();
   const [cords, setCords] = useState<RectCords>();
   const [editingNick, setEditingNick] = useState(false);
@@ -503,12 +604,12 @@ export function OptionsChip({ userId }: { userId: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
+            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
               {editingNick ? (
                 <Box
                   direction="Column"
                   gap="100"
-                  style={{ padding: `${config.space.S100} ${config.space.S200}` }}
+                  style={{ padding: `${config.space.S100} ${config.space.S200}`, color: textColor }}
                 >
                   <Text size="L400">Nickname</Text>
                   <input
@@ -534,6 +635,11 @@ export function OptionsChip({ userId }: { userId: string }) {
                       variant="Success"
                       fill="None"
                       onClick={handleSaveNick}
+                      className={css.UserHeroMenuItem}
+                      style={{
+                        backgroundColor: cardColor,
+                        color: textColor,
+                      }}
                     >
                       <Text size="B300">Save</Text>
                     </MenuItem>
@@ -543,9 +649,14 @@ export function OptionsChip({ userId }: { userId: string }) {
                         radii="300"
                         variant="Critical"
                         fill="None"
+                        className={css.UserHeroMenuItem}
                         onClick={() => {
                           setNickname(userId, undefined);
                           close();
+                        }}
+                        style={{
+                          backgroundColor: cardColor,
+                          color: textColor,
                         }}
                       >
                         <Text size="B300">Clear</Text>
@@ -561,6 +672,11 @@ export function OptionsChip({ userId }: { userId: string }) {
                   radii="300"
                   before={<Icon size="50" src={Icons.Pencil} />}
                   onClick={() => setEditingNick(true)}
+                  className={css.UserHeroMenuItem}
+                  style={{
+                    backgroundColor: cardColor,
+                    color: textColor,
+                  }}
                 >
                   <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
                 </MenuItem>
@@ -574,6 +690,8 @@ export function OptionsChip({ userId }: { userId: string }) {
                   toggleIgnore();
                   close();
                 }}
+                className={css.UserHeroMenuItem}
+                style={{ backgroundColor: cardColor }}
                 before={
                   ignoring ? (
                     <Spinner variant="Critical" size="50" />
@@ -583,14 +701,26 @@ export function OptionsChip({ userId }: { userId: string }) {
                 }
                 disabled={ignoring}
               >
-                <Text size="B300">{ignored ? 'Unblock User' : 'Block User'}</Text>
+                <Text size="B300" style={{ color: textColor }}>
+                  {ignored ? 'Unblock User' : 'Block User'}
+                </Text>
               </MenuItem>
             </div>
           </Menu>
         </FocusTrap>
       }
     >
-      <Chip variant="SurfaceVariant" radii="Pill" onClick={open} aria-pressed={!!cords}>
+      <Chip
+        radii="Pill"
+        onClick={open}
+        aria-pressed={!!cords}
+        className={css.UserHeroChip}
+        style={{
+          backgroundColor: cardColor,
+          borderColor: backgroundColor,
+          color: textColor,
+        }}
+      >
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />
         ) : (

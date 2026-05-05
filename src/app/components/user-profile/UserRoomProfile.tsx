@@ -1,11 +1,23 @@
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  color,
+  config,
+  Icon,
+  Icons,
+  Menu,
+  MenuItem,
+  Scroll,
+  Text,
+  toRem,
+} from 'folds';
 import type { SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { getMxIdServer, mxcUrlToHttp } from '$utils/matrix';
+import { mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -37,13 +49,16 @@ import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { TextViewerContent } from '$components/text-viewer';
+import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
 import { KnownMembership } from '$types/matrix-sdk';
+import * as css from './styles.css';
 
 const KNOWN_KEYS = new Set([
   'moe.sable.app.bio',
@@ -64,6 +79,10 @@ type UserExtendedSectionProps = {
   profile: UserProfile;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
+  backgroundColor?: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
 };
 
 const renderValue = (val: unknown) => {
@@ -77,6 +96,10 @@ function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
+  backgroundColor,
+  innerColor,
+  cardColor,
+  textColor,
 }: Readonly<UserExtendedSectionProps>) {
   const [showMisc, setShowMisc] = useState(false);
   const [miscDataIndex, setMiscDataIndex] = useState(-1);
@@ -162,13 +185,24 @@ function UserExtendedSection({
       return null;
     }
     return (
-      <Menu style={{ position: 'absolute', zIndex: '100', transform: `translateY(${toRem(32)})` }}>
+      <Menu
+        style={{
+          position: 'absolute',
+          zIndex: '100',
+          transform: `translateY(${toRem(32)})`,
+          backgroundColor: innerColor,
+        }}
+      >
         <MenuItem
           size="300"
           radii="300"
           fill="None"
-          variant="Primary"
-          style={{ justifyContent: 'Center', textAlign: 'center' }}
+          style={{
+            justifyContent: 'Center',
+            textAlign: 'center',
+            backgroundColor: cardColor,
+            color: textColor,
+          }}
           onClick={() => handleMiscSelector(-1)}
         >
           <Icon src={Icons.ChevronTop} size="50" />
@@ -180,8 +214,7 @@ function UserExtendedSection({
             size="300"
             radii="300"
             fill="None"
-            variant="Secondary"
-            style={{ justifyContent: 'Center' }}
+            style={{ justifyContent: 'Center', backgroundColor: cardColor, color: textColor }}
             onClick={() => handleMiscSelector(index)}
           >
             <Text>{key}</Text>
@@ -189,7 +222,7 @@ function UserExtendedSection({
         ))}
       </Menu>
     );
-  }, [miscDataIndex, showMisc, unknownFields]);
+  }, [cardColor, innerColor, miscDataIndex, showMisc, textColor, unknownFields]);
   const miscHeader = useMemo(
     () => (
       <Box justifyContent="Center" grow="Yes">
@@ -204,6 +237,7 @@ function UserExtendedSection({
             justifyContent: 'flex-start',
             width: 'fit-content',
             textAlign: 'center',
+            color: textColor,
           }}
         >
           <Text size="T200" priority="400">
@@ -215,11 +249,10 @@ function UserExtendedSection({
         {showMisc && miscSelector}
       </Box>
     ),
-    [miscSelector, miscDataIndex, selectedUnknownField, showMisc, unknownFields]
+    [miscSelector, miscDataIndex, selectedUnknownField, showMisc, unknownFields, textColor]
   );
-
   return (
-    <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100 }}>
+    <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
       {(pronouns || localTime) && (
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
@@ -257,14 +290,23 @@ function UserExtendedSection({
           visibility="Always"
           size="300"
           style={{
-            backgroundColor: 'var(--sable-bg-container)',
+            backgroundColor: cardColor,
             borderRadius: config.radii.R400,
+            borderColor: backgroundColor,
+            borderStyle: 'solid',
+            borderWidth: '1px',
             maxHeight: '200px',
             marginTop: config.space.S0,
             overflowY: 'auto',
           }}
         >
-          <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
+          <Box
+            style={{
+              padding: config.space.S200,
+              wordBreak: 'break-word',
+              backgroundColor: cardColor,
+            }}
+          >
             <Text size="T200" priority="400" as="div">
               <RenderBody
                 body={bioContent}
@@ -284,9 +326,10 @@ function UserExtendedSection({
             <div
               style={{
                 border: '2px solid',
-                backgroundColor: 'var(--sable-bg-container)',
+                backgroundColor: cardColor,
                 borderColor: 'var(--sable-surface-container-line)',
                 borderRadius: config.radii.R400,
+                borderWidth: '1px',
               }}
             >
               <Box
@@ -299,7 +342,6 @@ function UserExtendedSection({
               >
                 {unknownFields.length > 1 && (
                   <Button
-                    variant="Secondary"
                     size="300"
                     fill="None"
                     onClick={() =>
@@ -307,6 +349,7 @@ function UserExtendedSection({
                         miscDataIndex === 0 ? unknownFields.length - 1 : miscDataIndex - 1
                       )
                     }
+                    style={{ color: textColor }}
                   >
                     <Icon src={Icons.ArrowLeft} size="50" />
                   </Button>
@@ -314,16 +357,23 @@ function UserExtendedSection({
                 {miscHeader}
                 {unknownFields.length > 1 && (
                   <Button
-                    variant="Secondary"
                     size="300"
                     fill="None"
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
+                    style={{ color: textColor }}
                   >
                     <Icon src={Icons.ArrowRight} size="50" />
                   </Button>
                 )}
               </Box>
-              <Scroll size="300" direction="Both">
+              <Scroll
+                size="300"
+                direction="Both"
+                style={{
+                  backgroundColor: color.Background.Container,
+                  color: color.Background.OnContainer,
+                }}
+              >
                 <Box
                   direction="Column"
                   style={{
@@ -451,8 +501,21 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
   );
 
+  const backgroundColor = fetchedProfile.heroColor ?? color.Surface.Container;
+  const fetchedBrightness = fetchedProfile?.heroBrightness;
+  const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
+  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -50 : 50);
+  const cardColor =
+    shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? color.Background.Container;
+  const textColor =
+    ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', innerColor)) && '#FFFFFF') ||
+    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', innerColor)) && '#000000') ||
+    undefined;
+
+  const showCustomHeroCard = !!fetchedProfile.heroColor;
+
   return (
-    <Box direction="Column">
+    <Box direction="Column" style={{ color: textColor }}>
       <UserHero
         userId={userId}
         avatarUrl={avatarUrl}
@@ -460,10 +523,32 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         presence={presence && presence.lastActiveTs !== 0 ? presence : undefined}
         autoplayGifs={autoplayGifs}
       />
-      <Box direction="Column" gap="300" style={{ padding: config.space.S400 }}>
-        <Box direction="Column" gap="200">
+      <Box
+        direction="Column"
+        gap="300"
+        style={{
+          padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S0,
+          backgroundColor,
+        }}
+      >
+        <Box
+          direction="Column"
+          gap="200"
+          style={{
+            backgroundColor: innerColor,
+            borderRadius: toRem(5),
+            borderWidth: toRem(5),
+            borderColor: '#00000000',
+            borderStyle: 'solid',
+            padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S300,
+          }}
+        >
           <Box gap="200" alignItems="Center" wrap="Wrap">
-            <UserHeroName displayName={displayName} userId={userId} />
+            <UserHeroName
+              displayName={displayName}
+              userId={userId}
+              customHeroCards={showCustomHeroCard}
+            />
             {userId !== myUserId && (
               <Button
                 size="300"
@@ -472,7 +557,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 radii="300"
                 before={<Icon size="50" src={Icons.Message} filled />}
                 onClick={handleMessage}
-                style={{ marginLeft: 'auto' }}
+                className={css.UserHeroChip}
+                style={{
+                  marginLeft: 'auto',
+                  backgroundColor:
+                    backgroundColor !== color.Surface.Container ? cardColor : undefined,
+                  borderColor: backgroundColor,
+                  color: backgroundColor !== color.Surface.Container ? textColor : undefined,
+                }}
               >
                 <Text size="B300">Message</Text>
               </Button>
@@ -482,13 +574,62 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             profile={extendedProfile}
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
+            backgroundColor={backgroundColor}
+            innerColor={innerColor}
+            cardColor={cardColor}
+            textColor={textColor}
           />
           <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
-            {server && <ServerChip server={server} />}
-            <ShareChip userId={userId} />
-            {creator ? <CreatorChip /> : <PowerChip userId={userId} />}
-            {userId !== myUserId && <MutualRoomsChip userId={userId} />}
-            {userId !== myUserId && <OptionsChip userId={userId} />}
+            {server && (
+              <ServerChip
+                server={server}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            <ShareChip
+              userId={userId}
+              backgroundColor={backgroundColor}
+              innerColor={innerColor}
+              cardColor={cardColor}
+              textColor={textColor}
+            />
+            {creator ? (
+              <CreatorChip
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            ) : (
+              <PowerChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            {userId !== myUserId && (
+              <MutualRoomsChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
+            {userId !== myUserId && (
+              <OptionsChip
+                userId={userId}
+                backgroundColor={backgroundColor}
+                innerColor={innerColor}
+                cardColor={cardColor}
+                textColor={textColor}
+              />
+            )}
           </Box>
         </Box>
         {ignored && <IgnoredUserAlert />}

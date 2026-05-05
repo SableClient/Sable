@@ -40,6 +40,19 @@ export type ThemeRemoteTweakFavorite = {
   importedLocal?: boolean;
 };
 
+/** Custom profile card hero colors: which brightness schemes to honor. */
+export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
+
+export function shouldApplyUserHeroCards(
+  mode: RenderUserCardsMode,
+  brightness: string | undefined
+): boolean {
+  if (mode === 'none') return false;
+  if (mode === 'both') return true;
+  if (brightness !== 'light' && brightness !== 'dark') return false;
+  return brightness === mode;
+}
+
 export interface Settings {
   themeId?: string;
   useSystemTheme: boolean;
@@ -51,8 +64,6 @@ export interface Settings {
   arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
-  isMarkdown: boolean;
-  editorToolbar: boolean;
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
@@ -101,6 +112,7 @@ export interface Settings {
   showPronouns: boolean;
   parsePronouns: boolean;
   renderGlobalNameColors: boolean;
+  renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
   renderRoomColors: boolean;
@@ -167,8 +179,6 @@ export const defaultSettings: Settings = {
   arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
-  isMarkdown: true,
-  editorToolbar: false,
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
@@ -220,6 +230,7 @@ export const defaultSettings: Settings = {
   showPronouns: true,
   parsePronouns: true,
   renderGlobalNameColors: true,
+  renderUserCards: 'both',
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
@@ -287,7 +298,21 @@ export const getSettings = () => {
   }
   delete parsed.monochromeMode;
 
-  return parsed;
+  if (typeof parsed.renderUserCards === 'boolean') {
+    parsed.renderUserCards = parsed.renderUserCards ? 'both' : 'none';
+  } else if (
+    parsed.renderUserCards !== 'both' &&
+    parsed.renderUserCards !== 'light' &&
+    parsed.renderUserCards !== 'dark' &&
+    parsed.renderUserCards !== 'none'
+  ) {
+    parsed.renderUserCards = 'both';
+  }
+
+  return {
+    ...defaultSettings,
+    ...(parsed as Settings),
+  };
 };
 
 export const setSettings = (settings: Settings) => {

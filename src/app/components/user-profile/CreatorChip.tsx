@@ -16,8 +16,19 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { SpaceSettingsPage } from '$state/spaceSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import * as css from './styles.css';
 
-export function CreatorChip() {
+export function CreatorChip({
+  backgroundColor,
+  innerColor,
+  cardColor,
+  textColor,
+}: {
+  backgroundColor?: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+}) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
@@ -53,10 +64,12 @@ export function CreatorChip() {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
+            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
               <MenuItem
                 variant="Surface"
                 fill="None"
+                className={css.UserHeroMenuItem}
+                style={{ backgroundColor: cardColor, color: textColor }}
                 size="300"
                 radii="300"
                 onClick={() => {
@@ -80,8 +93,6 @@ export function CreatorChip() {
       }
     >
       <Chip
-        variant="Success"
-        outlined
         radii="Pill"
         before={
           cords ? (
@@ -93,6 +104,12 @@ export function CreatorChip() {
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
         onClick={open}
         aria-pressed={!!cords}
+        className={css.UserHeroChip}
+        style={{
+          backgroundColor: cardColor,
+          borderColor: backgroundColor,
+          color: textColor,
+        }}
       >
         <Text size="B300" truncate>
           {tag.name}

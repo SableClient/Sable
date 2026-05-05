@@ -42,15 +42,13 @@ async function discoverGateway(
     (candidate): candidate is string => !!candidate?.trim()
   );
 
-  for (const candidate of probeCandidates) {
+  const probeCandidate = async (candidate: string): Promise<string | undefined> => {
     try {
       const probeUrl = new URL(candidate);
       probeUrl.pathname = '/_matrix/push/v1/notify';
       probeUrl.search = '';
       const res = await fetch(probeUrl.toString());
-      if (!res.ok) {
-        continue;
-      }
+      if (!res.ok) return undefined;
 
       const body = await res.json();
       if (
@@ -60,11 +58,23 @@ async function discoverGateway(
         return probeUrl.toString();
       }
     } catch {
-      // probe failed
+      // Probe failed (network error, invalid URL, etc)
     }
-  }
+    return undefined;
+  };
 
-  return unifiedPushGateway ?? UP_PUBLIC_GATEWAY;
+  const probeAtIndex = async (index: number): Promise<string | undefined> => {
+    if (index >= probeCandidates.length) return undefined;
+
+    const candidate = probeCandidates[index];
+    const result = await probeCandidate(candidate);
+    if (result) return result;
+
+    return probeAtIndex(index + 1);
+  };
+
+  const discoveredGateway = await probeAtIndex(0);
+  return discoveredGateway ?? unifiedPushGateway ?? UP_PUBLIC_GATEWAY;
 }
 
 const UP_REGISTER_TIMEOUT_MS = 30_000;

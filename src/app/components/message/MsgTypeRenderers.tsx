@@ -37,6 +37,7 @@ import {
 import { MessageTextBody } from './layout';
 import { unwrapForwardedContent } from './modals/MessageForward';
 import { LINKINPUTREGEX } from '$components/editor';
+import { MATRIX_TO_BASE } from '$plugins/matrix-to';
 
 export interface BundleContent extends IPreviewUrlResponse {
   matched_url: string;
@@ -118,7 +119,7 @@ const getUrlsFromContent = (
     const safeHtml = customBody
       .replace(/<pre[^>]*>.*?<\/pre>/gs, '')
       .replace(/<code[^>]*>.*?<\/code>/gs, '');
-    const safeText = safeHtml.replace(/<[^>]*>/g, '');
+    const safeText = safeHtml.replace(/<[^a][^>]*>/g, '');
     const safeUrlsMatch = safeText.match(LINKINPUTREGEX);
     let safeUrls = safeUrlsMatch ? [...new Set(safeUrlsMatch)] : [];
     safeUrls = safeUrls.map(
@@ -129,7 +130,7 @@ const getUrlsFromContent = (
         url
     );
     const safeUrlsSet = new Set(safeUrls);
-    urls = urls.filter((url) => safeUrlsSet.has(url));
+    urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
   }
 
   let bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];

@@ -642,7 +642,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           onSave={(color) =>
             handleSaveField('chat.commet.profile_color_scheme', {
               color,
-              brightness: profile?.heroColorScheme?.brightness,
+              brightness: color ? profile?.heroColorScheme?.brightness : null,
             })
           }
         />

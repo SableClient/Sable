@@ -148,7 +148,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           const isHidden =
             (bundleContent?.length === 0 ||
               bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
-            strippedS.match(LINKINPUTREGEX) !== null;
+            strippedS.match(LINKINPUTREGEX) !== null &&
+            strippedS.startsWith('https://matrix.to/');
           newBody += `${isHidden ? (isHTML && ((s.startsWith('<a') && `&lt;${s[0]}`) || `${s[0]}&lt;`)) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
         });
         return newBody;

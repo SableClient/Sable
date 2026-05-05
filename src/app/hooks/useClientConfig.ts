@@ -42,7 +42,6 @@ export type ClientConfig = {
   hashRouter?: HashRouterConfig;
 
   matrixToBaseUrl?: string;
-  settingsLinkBaseUrl?: string;
 
   themeCatalogBaseUrl?: string;
   themeCatalogManifestUrl?: string;

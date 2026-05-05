@@ -488,7 +488,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
   const currentStatus = presence?.status || '';
 
   // Keys we don't render here nor handle seperately but still need to exclude
-  const EXCLUDED_KEYS = new Set(['kitty.meow.is_cat', 'kitty.meow.has_cats']);
+  const EXCLUDED_KEYS = new Set([
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
+  ]);
 
   // Unknown fields / unimplemented non-matrix-spec fields
   // Only renders them, can't edit or set

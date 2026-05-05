@@ -20,8 +20,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
   const [renderAnimals, setRenderAnimals] = useSetting(settingsAtom, 'renderAnimals');
 
-  const isCat = profile.isCat || profile.extended?.['kitty.meow.is_cat'] === true;
-  const hasCats = profile.hasCats || profile.extended?.['kitty.meow.has_cats'] === true;
+  const isCat =
+    profile.isCat ||
+    profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true;
+  const hasCats =
+    profile.hasCats ||
+    profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true;
 
   const handleSaveField = useCallback(
     async (key: string, value: boolean) => {

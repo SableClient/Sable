@@ -166,7 +166,10 @@ export function ThemeAppearanceSection({
     [store]
   );
 
-  const { dialog, openOnboarding } = useThemeCatalogOnboardingGate(onboardingDone, completeOnboarding);
+  const { dialog, openOnboarding } = useThemeCatalogOnboardingGate(
+    onboardingDone,
+    completeOnboarding
+  );
 
   return (
     <Box direction="Column" gap="100">

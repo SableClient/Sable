@@ -2,19 +2,14 @@ import type { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { SerializableSet } from '$types/wrapper/SerializableSet';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { MsgType } from '$types/matrix-sdk';
-
-export const MATRIX_BLUR_HASH_PROPERTY_NAME = 'xyz.amorgan.blurhash';
-export const MATRIX_SPOILER_PROPERTY_NAME = 'page.codeberg.everypizza.msc4193.spoiler';
-export const MATRIX_SPOILER_REASON_PROPERTY_NAME =
-  'page.codeberg.everypizza.msc4193.spoiler.reason';
-export const MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME = 'com.beeper.msc4459.image_source_packs';
+import type * as prefix from '$unstable/prefixes';
 
 export type IImageInfo = {
   w?: number;
   h?: number;
   mimetype?: string;
   size?: number;
-  [MATRIX_BLUR_HASH_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]?: string;
 };
 
 export type MatrixRelatesTo = {
@@ -59,11 +54,17 @@ export type MatrixReactionEvent = {
   /**
    * a map of image pack references
    */
-  [MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<string, MSC4459ImagePackReference>;
+  [prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
+    string,
+    MSC4459ImagePackReference
+  >;
 };
 
 export interface IGenericMSC4459 {
-  [MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<string, MSC4459ImagePackReference>;
+  [prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
+    string,
+    MSC4459ImagePackReference
+  >;
 }
 
 export type IVideoInfo = {
@@ -102,8 +103,8 @@ export type IImageContent = {
   url?: string;
   info?: IImageInfo & IThumbnailContent;
   file?: IEncryptedFile;
-  [MATRIX_SPOILER_PROPERTY_NAME]?: boolean;
-  [MATRIX_SPOILER_REASON_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
+  [prefix.MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
 };
 
 export type IVideoContent = {
@@ -113,8 +114,8 @@ export type IVideoContent = {
   url?: string;
   info?: IVideoInfo & IThumbnailContent;
   file?: IEncryptedFile;
-  [MATRIX_SPOILER_PROPERTY_NAME]?: boolean;
-  [MATRIX_SPOILER_REASON_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
+  [prefix.MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
 };
 
 export type IAudioContent = {

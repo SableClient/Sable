@@ -145,6 +145,7 @@ export default defineConfig(({ command }) => ({
       $types: path.resolve(__dirname, 'src/types'),
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
+      $unstable: path.resolve(__dirname, 'src/unstable'),
     },
   },
   server: {

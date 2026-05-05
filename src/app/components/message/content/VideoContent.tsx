@@ -20,7 +20,6 @@ import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
-import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
@@ -28,6 +27,7 @@ import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
+import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
 
 type RenderVideoProps = {
   title: string;
@@ -69,7 +69,7 @@ export const VideoContent = as<'div', VideoContentProps>(
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
-    const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
+    const blurHash = validBlurHash(info.thumbnail_info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);

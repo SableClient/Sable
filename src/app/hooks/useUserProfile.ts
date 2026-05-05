@@ -14,6 +14,7 @@ import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
 import { CustomStateEvent } from '$types/matrix/room';
+import * as prefix from '$unstable/prefixes';
 
 const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
 
@@ -40,24 +41,26 @@ export type UserProfile = {
 };
 
 const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
-  const msc4440Bio = info['gay.fomx.biography'] as MSC4440Bio | undefined;
+  const msc4440Bio = info[MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as
+    | MSC4440Bio
+    | undefined;
   const knownKeys = new Set([
     'avatar_url',
     'displayname',
-    'io.fsky.nyx.pronouns',
-    'us.cloke.msc4175.tz',
-    'm.tz',
-    'moe.sable.app.bio',
-    'chat.commet.profile_bio',
-    'gay.fomx.biography',
-    'chat.commet.profile_banner',
-    'chat.commet.profile_status',
-    'moe.sable.app.name_color',
-    'moe.sable.app.name_color_dark_theme',
-    'moe.sable.app.name_color_light_theme',
-    'chat.commet.profile_color_scheme',
-    'kitty.meow.has_cats',
-    'kitty.meow.is_cat',
+    prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME,
+    prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME,
+    prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME,
+    prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME,
+    prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME,
+    prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
+    prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME,
+    prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
   ]);
 
   const extended: Record<string, unknown> = {};
@@ -70,20 +73,21 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
   return {
     avatarUrl: info.avatar_url as string | undefined,
     displayName: info.displayname as string | undefined,
-    pronouns: info['io.fsky.nyx.pronouns'] as PronounSet[] | undefined,
-    timezone: (info['us.cloke.msc4175.tz'] || info['m.tz']) as string | undefined,
+    pronouns: info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as PronounSet[] | undefined,
+    timezone: (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
+      info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined,
     bio:
       msc4440Bio?.['m.text']?.[0]?.body ||
-      (info['moe.sable.app.bio'] as string | undefined) ||
-      (info['chat.commet.profile_bio'] as string | undefined),
-    status: info['chat.commet.profile_status'] as string | undefined,
-    bannerUrl: info['chat.commet.profile_banner'] as string | undefined,
-    nameColor: info['moe.sable.app.name_color'] as string | undefined,
-    nameColorDark: info['moe.sable.app.name_color_dark_theme'] as string | undefined,
-    nameColorLight: info['moe.sable.app.name_color_light_theme'] as string | undefined,
-    heroColorScheme: info['chat.commet.profile_color_scheme'] as Record<string, string> | undefined,
-    isCat: info['kitty.meow.is_cat'] === true,
-    hasCats: info['kitty.meow.has_cats'] === true,
+      (info[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as string | undefined) ||
+      (info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as string | undefined),
+    status: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as string | undefined,
+    bannerUrl: info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as string | undefined,
+    nameColor: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as string | undefined,
+    nameColorDark: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as string | undefined,
+    nameColorLight: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as string | undefined,
+    heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as Record<string, string> | undefined,
+    isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true,
+    hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true,
     extended,
     _fetched: true,
   };

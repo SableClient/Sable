@@ -1,13 +1,14 @@
+import * as prefix from '$unstable/prefixes';
+
 export const CustomAccountDataEvent = {
-  CinnySpaces: 'in.cinny.spaces',
-  ElementRecentEmoji: 'io.element.recent_emoji',
-  PoniesUserEmotes: 'im.ponies.user_emotes',
-  PoniesEmoteRooms: 'im.ponies.emote_rooms',
-  SableNicknames: 'moe.sable.app.nicknames',
-  SablePinStatus: 'moe.sable.app.pins_read_marker',
-  // because of a mistake hasn't been renamed in time
-  SablePerProfileMessageProfiles: 'fyi.cisnt.permessageprofile',
-  SableSettings: 'moe.sable.app.settings',
+  CinnySpaces: prefix.MATRIX_CINNY_UNSTABLE_ACCOUNT_SPACES_PROPERTY_NAME,
+  ElementRecentEmoji: prefix.MATRIX_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME,
+  PoniesUserEmotes: prefix.MATRIX_UNSTABLE_ACCOUNT_USER_EMOTES_PROPERTY_NAME,
+  PoniesEmoteRooms: prefix.MATRIX_UNSTABLE_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME,
+  SableNicknames: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_NICKNAMES_PROPERTY_NAME,
+  SablePinStatus: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PIN_STATUS_PROPERTY_NAME,
+  SablePerProfileMessageProfiles: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
+  SableSettings: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME,
 } as const;
 export type CustomAccountDataEvent =
   (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];

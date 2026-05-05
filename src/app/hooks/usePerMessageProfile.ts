@@ -3,6 +3,7 @@ import type { AccountDataCompatVersion } from '$types/matrix/accountData';
 import type { PronounSet } from '$utils/pronouns';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME } from '$unstable/prefixes';
 
 const ACCOUNT_DATA_PREFIX = CustomAccountDataEvent.SablePerProfileMessageProfiles;
 
@@ -53,7 +54,7 @@ export type PerMessageProfileBeeperFormat = {
   /**
    * using the unstable prefix for pronouns, under which it is also stored in profiles
    */
-  'io.fsky.nyx.pronouns'?: PronounSet[];
+  [MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME]?: PronounSet[];
   has_fallback?: boolean;
 };
 
@@ -72,14 +73,15 @@ export function convertPerMessageProfileToBeeperFormat(
     id: profile.id,
     displayname: profile.name,
     avatar_url: profile.avatarUrl,
-    'io.fsky.nyx.pronouns': profile.pronouns,
+    [MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME]: profile.pronouns,
     has_fallback,
   };
   // delete empty fields
   // to-do maybe find a better way of doing it
   if (!profile.name || profile?.name.trim().length === 0) delete beeperPMP.displayname;
   if (!profile.avatarUrl) delete beeperPMP.avatar_url;
-  if (!profile.pronouns || profile.pronouns?.length === 0) delete beeperPMP['io.fsky.nyx.pronouns'];
+  if (!profile.pronouns || profile.pronouns?.length === 0)
+    delete beeperPMP[MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME];
   if (!has_fallback) delete beeperPMP.has_fallback;
   return beeperPMP;
 }
@@ -99,7 +101,7 @@ export function convertBeeperFormatToOurPerMessageProfile(
     id: beeperProfile.id,
     name: beeperProfile.displayname ?? '',
     avatarUrl: beeperProfile.avatar_url,
-    pronouns: beeperProfile['io.fsky.nyx.pronouns'],
+    pronouns: beeperProfile[MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME],
   };
 }
 

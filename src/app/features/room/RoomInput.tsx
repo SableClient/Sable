@@ -128,7 +128,6 @@ import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supporte
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
-import { MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME } from '$types/matrix/common';
 import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
 import {
   getImagePackReferencesForMxc,
@@ -152,6 +151,11 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
+import {
+  MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME,
+  MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME,
+  MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME,
+} from '$unstable/prefixes';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -546,10 +550,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-            perMessageProfile,
-            false
-          );
+          c[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+            convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
         });
       }
 
@@ -827,11 +829,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
-      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
+      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
 
       const links = getLinks(serializedChildren);
-      content['com.beeper.linkpreviews'] = [];
-      links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
+      content[MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
+      links?.forEach((link) =>
+        content[MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({ matched_url: link })
+      );
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -851,10 +855,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
         plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-          perMessageProfile,
-          perMessageProfile.name.trim() !== ''
-        );
+        content[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+          convertPerMessageProfileToBeeperFormat(
+            perMessageProfile,
+            perMessageProfile.name.trim() !== ''
+          );
 
         if (perMessageProfile.name.trim() !== '') {
           // if a per-message profile is used, it must per spec include a fallback
@@ -1171,12 +1176,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       };
 
       // add the image pack reference
-      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
-        mxc,
-        mx,
-        ImageUsage.Sticker,
-        room
-      );
+      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -1186,17 +1187,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-          perMessageProfile,
-          false
-        );
+        content[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+          convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
       }
-      content[MATRIX_IMAGE_SOURCE_PACK_PROPERTY_NAME] = getImagePackReferencesForMxcWrappedInMap(
-        mxc,
-        mx,
-        ImageUsage.Sticker,
-        room
-      );
+      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);

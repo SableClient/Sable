@@ -27,6 +27,7 @@ import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
+import * as prefix from '$unstable/prefixes';
 
 const debugLog = createDebugLogger('MessageForward');
 
@@ -203,7 +204,7 @@ export function MessageForwardInternal({
     const baseContent = { ...mEvent.getContent() };
     delete baseContent['m.relates_to']; // remove relations from the forwarded message
     delete baseContent['m.mentions']; // remove mentions from forwarded message
-    delete baseContent['com.beeper.per_message_profile']; // remove per-message profile as that could confuse clients in the target room
+    delete baseContent[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME]; // remove per-message profile as that could confuse clients in the target room
     let content;
     // handle privacy stuff
     if (isRoomPrivate(mx, room)) {
@@ -212,13 +213,13 @@ export function MessageForwardInternal({
       content = {
         ...baseContent,
         ...forwardedTextContent,
-        'moe.sable.message.forward': {
+        [prefix.MATRIX_SABLE_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           v: 1,
           is_forwarded: true,
           original_timestamp: mEvent.getTs(),
           original_event_private: true,
         } satisfies ForwardMeta,
-        'com.famedly.app.forwarded': {
+        [prefix.MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           origin_server_ts: mEvent.getTs(),
         } satisfies MSC2723ForwardMeta,
       };
@@ -226,7 +227,7 @@ export function MessageForwardInternal({
       content = {
         ...baseContent,
         ...forwardedTextContent,
-        'moe.sable.message.forward': {
+        [prefix.MATRIX_SABLE_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           v: 1,
           is_forwarded: true,
           original_timestamp: mEvent.getTs(),
@@ -234,7 +235,7 @@ export function MessageForwardInternal({
           original_event_id: eventId,
           original_event_private: false,
         } satisfies ForwardMeta,
-        'com.famedly.app.forwarded': {
+        [prefix.MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           event_id: eventId,
           room_id: room.roomId,
           origin_server_ts: mEvent.getTs(),

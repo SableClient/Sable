@@ -845,6 +845,7 @@ function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
   const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
+  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
 
   useEffect(() => {
     // Classic sync: set_presence query param on every /sync poll.
@@ -859,12 +860,12 @@ function PresenceFeature() {
     }
   }, [mx, sendPresence]);
 
-  // Auto-idle: set presence to unavailable after 5 minutes of inactivity or
+  // Auto-idle: set presence to unavailable after inactivity or
   // when the tab is hidden, and restore online on activity.
   useEffect(() => {
     if (!sendPresence || !autoIdlePresence) return undefined;
 
-    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    const IDLE_TIMEOUT_MS = Math.max(1, presenceIdleTimeoutMins) * 60 * 1000;
     let idleTimer: ReturnType<typeof setTimeout> | undefined;
     let isIdle = false;
 
@@ -915,7 +916,7 @@ function PresenceFeature() {
         mx.setPresence({ presence: 'online' }).catch(() => {});
       }
     };
-  }, [mx, sendPresence, autoIdlePresence]);
+  }, [mx, sendPresence, autoIdlePresence, presenceIdleTimeoutMins]);
 
   return null;
 }

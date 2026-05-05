@@ -79,6 +79,7 @@ export interface Settings {
   isWidgetDrawer: boolean;
   memberSortFilterIndex: number;
   enterForNewline: boolean;
+  isMarkdown: boolean;
   editorToolbar: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
@@ -132,6 +133,7 @@ export interface Settings {
   // Sable features!
   sendPresence: boolean;
   autoIdlePresence: boolean;
+  presenceIdleTimeoutMins: number;
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -211,6 +213,7 @@ export const defaultSettings: Settings = {
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
   enterForNewline: false,
+  isMarkdown: true,
   editorToolbar: false,
   composerToolbarOpen: false,
   messageLayout: 0,
@@ -265,6 +268,7 @@ export const defaultSettings: Settings = {
   // Sable features!
   sendPresence: true,
   autoIdlePresence: true,
+  presenceIdleTimeoutMins: 5,
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,

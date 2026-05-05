@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { User, UserEventHandlerMap } from '$types/matrix-sdk';
-import { UserEvent } from '$types/matrix-sdk';
+import type { MatrixEvent, User, UserEventHandlerMap } from '$types/matrix-sdk';
+import { ClientEvent, UserEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export enum Presence {
@@ -31,7 +31,21 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
   useEffect(() => {
     if (!user) {
       setPresence(undefined);
-      return undefined;
+
+      // When the user isn't in the SDK store yet (e.g., presence arrived before
+      // any membership event), listen on the client for incoming events so we
+      // can re-evaluate once a presence event for this user is stored.
+      const handleEvent = (event: MatrixEvent) => {
+        if (event.getType() !== 'm.presence') return;
+        const sender = event.getSender();
+        if (sender !== userId) return;
+        const latestUser = mx.getUser(userId);
+        if (latestUser) setPresence(getUserPresence(latestUser));
+      };
+      mx.on(ClientEvent.Event, handleEvent);
+      return () => {
+        mx.removeListener(ClientEvent.Event, handleEvent);
+      };
     }
     setPresence(getUserPresence(user));
     const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (e, u) => {
@@ -48,7 +62,7 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
       user.removeListener(UserEvent.CurrentlyActive, updatePresence);
       user.removeListener(UserEvent.LastPresenceTs, updatePresence);
     };
-  }, [user]);
+  }, [mx, user, userId]);
 
   return presence;
 };

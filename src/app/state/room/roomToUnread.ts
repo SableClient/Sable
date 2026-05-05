@@ -312,7 +312,8 @@ export const useBindRoomToUnreadAtom = (mx: MatrixClient, unreadAtom: typeof roo
         if (room.getMyMembership() !== (KnownMembership.Join as string)) return;
 
         const unreadInfo = getUnreadInfo(room, {
-          applyFixup: shouldApplyUnreadFixup(),
+          // Counts are already updated before this event would recurse if true
+          applyFixup: false,
           mDirects,
         });
         if (unreadInfo.total === 0 && unreadInfo.highlight === 0) {

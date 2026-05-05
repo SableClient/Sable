@@ -287,11 +287,17 @@ type UnreadInfoOptions = {
   mDirects?: Set<string>;
 };
 
+const unreadInfoFixupInProgress = new WeakSet<Room>();
+
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
   const userId = room.client.getUserId();
-  if (userId && options?.applyFixup) {
-    // Reconcile known notification-count drift (notably with Sliding Sync / mixed receipts).
-    room.fixupNotifications(userId);
+  if (userId && options?.applyFixup && !unreadInfoFixupInProgress.has(room)) {
+    unreadInfoFixupInProgress.add(room);
+    try {
+      room.fixupNotifications(userId);
+    } finally {
+      unreadInfoFixupInProgress.delete(room);
+    }
   }
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);

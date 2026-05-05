@@ -6,7 +6,7 @@ devAssets
 
 .DS_Store
 .idea
-
+*.code-workspace
 .env
 
 .wrangler

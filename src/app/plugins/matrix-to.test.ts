@@ -3,6 +3,7 @@ import {
   getMatrixToRoom,
   getMatrixToRoomEvent,
   getMatrixToUser,
+  isRedundantMatrixToAnchorText,
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
   parseMatrixToUser,
@@ -227,5 +228,45 @@ describe('parseMatrixToRoomEvent', () => {
       eventId: '$event123',
       viaServers: undefined,
     });
+  });
+});
+
+describe('isRedundantMatrixToAnchorText', () => {
+  it('treats empty anchor text as redundant', () => {
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', undefined)).toBe(
+      true
+    );
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', '')).toBe(true);
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', '   ')).toBe(true);
+  });
+
+  it('treats anchor text that repeats the same permalink as redundant', () => {
+    const url =
+      'https://matrix.to/#/!a6sXbRuOyyc7MKutmy:sable.moe/$6C-iT549tGKwcQy3Vmb-GgwVZPXiyQ4paJY8-IN2ohs?via=matrix.org&via=unredacted.org&via=4d2.org';
+    expect(isRedundantMatrixToAnchorText(url, url)).toBe(true);
+  });
+
+  it('treats http vs https with the same fragment as redundant', () => {
+    const httpsUrl = 'https://matrix.to/#/!room:example.com/$event123';
+    const httpUrl = 'http://matrix.to/#/!room:example.com/$event123';
+    expect(isRedundantMatrixToAnchorText(httpsUrl, httpUrl)).toBe(true);
+  });
+
+  it('does not treat different permalinks as redundant', () => {
+    expect(
+      isRedundantMatrixToAnchorText(
+        'https://matrix.to/#/!a:example.com/$e1',
+        'https://matrix.to/#/!b:example.com/$e2'
+      )
+    ).toBe(false);
+  });
+
+  it('does not treat plain-language anchor text as redundant', () => {
+    expect(
+      isRedundantMatrixToAnchorText(
+        'https://matrix.to/#/!room:example.com/$event123',
+        'read this post'
+      )
+    ).toBe(false);
   });
 });

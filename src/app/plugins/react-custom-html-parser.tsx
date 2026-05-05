@@ -29,6 +29,7 @@ import { getSettingsLinkChipLabel, parseSettingsLink } from '$features/settings/
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
+  isRedundantMatrixToAnchorText,
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
   parseMatrixToUser,
@@ -148,6 +149,18 @@ export const makeMentionCustomProps = (
   children: content,
 });
 
+const matrixPermalinkDisplayLabel = (
+  href: string,
+  customChildren: ReactNode | undefined,
+  fallback: ReactNode
+): ReactNode => {
+  if (customChildren === undefined || customChildren === null) return fallback;
+  if (typeof customChildren === 'string') {
+    return isRedundantMatrixToAnchorText(href, customChildren) ? fallback : customChildren;
+  }
+  return customChildren;
+};
+
 export const renderMatrixMention = (
   mx: MatrixClient,
   currentRoomId: string | undefined,
@@ -182,6 +195,7 @@ export const renderMatrixMention = (
     );
 
     const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
 
     return (
       <a
@@ -193,7 +207,7 @@ export const renderMatrixMention = (
         data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
         data-mention-via={viaServers?.join(',')}
       >
-        {customProps.children ? customProps.children : fallbackContent}
+        {label}
       </a>
     );
   }
@@ -204,7 +218,20 @@ export const renderMatrixMention = (
     const mentionRoom = mx.getRoom(
       isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
     );
-    const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    let fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    if (mentionRoom) {
+      const linkedEvent = mentionRoom.findEventById?.(eventId);
+      if (linkedEvent) {
+        const raw = linkedEvent.getContent() as { body?: unknown };
+        const body = typeof raw.body === 'string' ? raw.body.trim() : '';
+        if (body) {
+          const singleLine = body.replace(/\s+/g, ' ');
+          const short = singleLine.length > 72 ? `${singleLine.slice(0, 69)}…` : singleLine;
+          fallbackContent = `#${mentionRoom.name}: ${short}`;
+        }
+      }
+    }
+    const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
 
     return (
       <a
@@ -223,7 +250,7 @@ export const renderMatrixMention = (
         <span aria-hidden="true" className={css.MentionIcon}>
           <Icon size="50" src={Icons.Message} />
         </span>
-        {customProps.children ? customProps.children : fallbackContent}
+        {label}
       </a>
     );
   }

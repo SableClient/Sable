@@ -229,6 +229,8 @@ export const PronounPill = style({
 
 export const MessageTextBody = recipe({
   base: {
+    unicodeBidi: 'plaintext',
+    alignSelf: 'start',
     wordBreak: 'break-word',
     fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
   },

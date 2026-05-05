@@ -1205,7 +1205,9 @@ export function ThemeCatalogSettings({
                       outlined
                       size="300"
                       radii="300"
-                      onClick={() => queryClient.invalidateQueries({ queryKey: ['theme-catalog-bundle'] })}
+                      onClick={() =>
+                        queryClient.invalidateQueries({ queryKey: ['theme-catalog-bundle'] })
+                      }
                     >
                       <Text size="B300">Refresh catalog</Text>
                     </Button>
@@ -1255,123 +1257,134 @@ export function ThemeCatalogSettings({
             </SequenceCard>
           ) : null}
 
-          {catalogQuery.isSuccess && catalogHasEntries && catalogThemeCount > 0 && previewsQuery.isSuccess && (
-            <SequenceCard
-              className={SequenceCardStyle}
-              variant="SurfaceVariant"
-              direction="Column"
-              gap="300"
-            >
-              <SettingTile title="Themes" focusId="catalog-themes" />
-              <Input
-                size="300"
-                radii="300"
-                outlined
-                placeholder="Search themes…"
-                value={themeSearch}
-                onChange={onThemeSearchChange}
-              />
-              <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                <Text size="T300">Kind:</Text>
-                {(['all', 'light', 'dark'] as const).map((k) => (
-                  <Chip
-                    key={k}
-                    type="button"
-                    variant={kindFilter === k ? 'Primary' : 'Secondary'}
-                    outlined={kindFilter === k}
-                    radii="Pill"
-                    onClick={() => setKindFilter(k)}
-                  >
-                    <Text size="B300">{k === 'all' ? 'All' : k}</Text>
-                  </Chip>
-                ))}
-                <Text size="T300">Contrast:</Text>
-                {(['all', 'low', 'high'] as const).map((c) => (
-                  <Chip
-                    key={c}
-                    type="button"
-                    variant={contrastFilter === c ? 'Primary' : 'Secondary'}
-                    outlined={contrastFilter === c}
-                    radii="Pill"
-                    onClick={() => setContrastFilter(c)}
-                  >
-                    <Text size="B300">{c === 'all' ? 'All' : c}</Text>
-                  </Chip>
-                ))}
-              </Box>
-              <Scroll
-                direction="Vertical"
-                size="300"
-                hideTrack
-                visibility="Hover"
-                style={{
-                  height: 'min(33vh, 16rem)',
-                  minHeight: 0,
-                  maxWidth: '100%',
-                }}
+          {catalogQuery.isSuccess &&
+            catalogHasEntries &&
+            catalogThemeCount > 0 &&
+            previewsQuery.isSuccess && (
+              <SequenceCard
+                className={SequenceCardStyle}
+                variant="SurfaceVariant"
+                direction="Column"
+                gap="300"
               >
-                <Box direction="Column" gap="400">
-                  <Box
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                      gap: toRem(16),
-                    }}
-                  >
-                    {filteredRows.map((row) => {
-                      const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                      const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
-                      const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
-                      const line1 = `${kindLabel} · ${row.contrast} contrast`;
-                      const line2 = `${row.author ? `by ${row.author}` : ''}${
-                        row.tags.length > 0 ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}` : ''
-                      }`.trim();
-                      const subtitle = (
-                        <>
-                          {line1}
-                          {line2 ? (
-                            <>
-                              <br />
-                              {line2}
-                            </>
-                          ) : null}
-                        </>
-                      );
-                      return (
-                        <ThemePreviewCard
-                          key={row.basename}
-                          title={row.displayName}
-                          subtitle={subtitle}
-                          previewCssText={row.previewText}
-                          scopeSlug={`catalog-${slug}`}
-                          copyText={row.previewUrl}
-                          thirdParty={isThirdPartyThemeUrl(
-                            row.previewUrl,
-                            clientConfig.themeCatalogApprovedHostPrefixes
-                          )}
-                          isFavorited={isFav}
-                          onToggleFavorite={() => toggleFavorite(row)}
-                          systemTheme={systemTheme}
-                          onApplyLight={systemTheme ? () => installFromCatalogLight(row) : undefined}
-                          onApplyDark={systemTheme ? () => installFromCatalogDark(row) : undefined}
-                          onApplyManual={!systemTheme ? () => installFromCatalogManual(row) : undefined}
-                          isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
-                          isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
-                          isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
-                        />
-                      );
-                    })}
-                  </Box>
-
-                  {filteredRows.length === 0 && (
-                    <Text size="T300" priority="300">
-                      No themes match filters.
-                    </Text>
-                  )}
+                <SettingTile title="Themes" focusId="catalog-themes" />
+                <Input
+                  size="300"
+                  radii="300"
+                  outlined
+                  placeholder="Search themes…"
+                  value={themeSearch}
+                  onChange={onThemeSearchChange}
+                />
+                <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+                  <Text size="T300">Kind:</Text>
+                  {(['all', 'light', 'dark'] as const).map((k) => (
+                    <Chip
+                      key={k}
+                      type="button"
+                      variant={kindFilter === k ? 'Primary' : 'Secondary'}
+                      outlined={kindFilter === k}
+                      radii="Pill"
+                      onClick={() => setKindFilter(k)}
+                    >
+                      <Text size="B300">{k === 'all' ? 'All' : k}</Text>
+                    </Chip>
+                  ))}
+                  <Text size="T300">Contrast:</Text>
+                  {(['all', 'low', 'high'] as const).map((c) => (
+                    <Chip
+                      key={c}
+                      type="button"
+                      variant={contrastFilter === c ? 'Primary' : 'Secondary'}
+                      outlined={contrastFilter === c}
+                      radii="Pill"
+                      onClick={() => setContrastFilter(c)}
+                    >
+                      <Text size="B300">{c === 'all' ? 'All' : c}</Text>
+                    </Chip>
+                  ))}
                 </Box>
-              </Scroll>
-            </SequenceCard>
-          )}
+                <Scroll
+                  direction="Vertical"
+                  size="300"
+                  hideTrack
+                  visibility="Hover"
+                  style={{
+                    height: 'min(33vh, 16rem)',
+                    minHeight: 0,
+                    maxWidth: '100%',
+                  }}
+                >
+                  <Box direction="Column" gap="400">
+                    <Box
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                        gap: toRem(16),
+                      }}
+                    >
+                      {filteredRows.map((row) => {
+                        const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
+                        const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
+                        const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
+                        const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                        const line2 = `${row.author ? `by ${row.author}` : ''}${
+                          row.tags.length > 0
+                            ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
+                            : ''
+                        }`.trim();
+                        const subtitle = (
+                          <>
+                            {line1}
+                            {line2 ? (
+                              <>
+                                <br />
+                                {line2}
+                              </>
+                            ) : null}
+                          </>
+                        );
+                        return (
+                          <ThemePreviewCard
+                            key={row.basename}
+                            title={row.displayName}
+                            subtitle={subtitle}
+                            previewCssText={row.previewText}
+                            scopeSlug={`catalog-${slug}`}
+                            copyText={row.previewUrl}
+                            thirdParty={isThirdPartyThemeUrl(
+                              row.previewUrl,
+                              clientConfig.themeCatalogApprovedHostPrefixes
+                            )}
+                            isFavorited={isFav}
+                            onToggleFavorite={() => toggleFavorite(row)}
+                            systemTheme={systemTheme}
+                            onApplyLight={
+                              systemTheme ? () => installFromCatalogLight(row) : undefined
+                            }
+                            onApplyDark={
+                              systemTheme ? () => installFromCatalogDark(row) : undefined
+                            }
+                            onApplyManual={
+                              !systemTheme ? () => installFromCatalogManual(row) : undefined
+                            }
+                            isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
+                            isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
+                            isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
+                          />
+                        );
+                      })}
+                    </Box>
+
+                    {filteredRows.length === 0 && (
+                      <Text size="T300" priority="300">
+                        No themes match filters.
+                      </Text>
+                    )}
+                  </Box>
+                </Scroll>
+              </SequenceCard>
+            )}
 
           {catalogQuery.isSuccess &&
             catalogHasEntries &&
@@ -1436,7 +1449,8 @@ export function ThemeCatalogSettings({
                         row.tags.length > 0 ? row.tags.join(', ') : '',
                       ].filter(Boolean);
                       const desc =
-                        descParts.join(' · ') || 'Applies on top of your current theme after it loads.';
+                        descParts.join(' · ') ||
+                        'Applies on top of your current theme after it loads.';
                       return (
                         <CatalogTweakCard
                           key={row.fullUrl}

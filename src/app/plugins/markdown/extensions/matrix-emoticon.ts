@@ -1,5 +1,14 @@
 import type { TokenizerExtension, RendererExtension } from 'marked';
 
+/** Delimiters for round-tripping Matrix emoticons from HTML through markdown into the Slate composer. */
+export const MX_EMOTICON_MD_START = '\uE000';
+export const MX_EMOTICON_MD_SEP = '\uE001';
+export const MX_EMOTICON_MD_END = '\uE002';
+
+export function encodeMxEmoticonForMarkdownPlaceholder(src: string, shortcode: string): string {
+  return `${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}${shortcode}${MX_EMOTICON_MD_END}`;
+}
+
 /**
  * Validates that a URL is a proper mxc:// URI.
  * Returns true if valid, false otherwise.

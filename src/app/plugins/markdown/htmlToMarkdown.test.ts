@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import {
+  MX_EMOTICON_MD_END,
+  MX_EMOTICON_MD_SEP,
+  MX_EMOTICON_MD_START,
+} from './extensions/matrix-emoticon';
+import { plainToEditorInput } from '$components/editor/input';
+import { BlockType } from '$components/editor/types';
 import { htmlToMarkdown } from './htmlToMarkdown';
 
 describe('htmlToMarkdown', () => {
@@ -80,5 +87,33 @@ describe('htmlToMarkdown', () => {
   it('escapes markdown special characters in text', () => {
     const result = htmlToMarkdown('<p>Hello *world*</p>');
     expect(result).toContain('\\*');
+  });
+
+  it('encodes mx emoticons as private-use placeholders instead of literal img snippets', () => {
+    const src = 'mxc://matrix.org/emote';
+    const html = `<p>hi<img data-mx-emoticon src="${src}" alt="blobcat" title="blobcat" height="32" />bye</p>`;
+    const md = htmlToMarkdown(html);
+    expect(md).not.toContain('<img');
+    expect(md).toContain(
+      `${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}blobcat${MX_EMOTICON_MD_END}`
+    );
+  });
+
+  it('plainToEditorInput expands emoticon placeholders into Slate emoticon elements', () => {
+    const src = 'mxc://matrix.org/emote';
+    const md = `before${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}blobcat${MX_EMOTICON_MD_END}after`;
+    const doc = plainToEditorInput(md);
+    expect(doc).toHaveLength(1);
+    const p = doc[0] as { type: BlockType; children: unknown[] };
+    expect(p.type).toBe(BlockType.Paragraph);
+    expect(p.children).toEqual([
+      { text: 'before' },
+      expect.objectContaining({
+        type: BlockType.Emoticon,
+        key: src,
+        shortcode: 'blobcat',
+      }),
+      { text: 'after' },
+    ]);
   });
 });

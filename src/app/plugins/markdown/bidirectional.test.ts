@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { encodeMxEmoticonForMarkdownPlaceholder } from './extensions/matrix-emoticon';
 import { markdownToHtml } from './markdownToHtml';
 import { htmlToMarkdown } from './htmlToMarkdown';
 import { injectDataMd } from './injectDataMd';
@@ -108,12 +109,14 @@ describe('bidirectional round-trip', () => {
     expect(result).toContain('k.');
   });
 
-  it('round-trips img[data-mx-emoticon] tags', () => {
+  it('preserves mx emoticons as editor placeholders (mxc URI + shortcode)', () => {
     const html = '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" />';
     const injected = injectDataMd(html);
     const result = htmlToMarkdown(injected);
-    expect(result).toContain('<img');
-    expect(result).toContain('data-mx-emoticon');
-    expect(result).toContain('mxc://');
+    expect(result).not.toContain('<img');
+    expect(result).toContain(
+      encodeMxEmoticonForMarkdownPlaceholder('mxc://example.org/emote', 'blobcat')
+    );
+    expect(result).toContain('mxc://example.org/emote');
   });
 });

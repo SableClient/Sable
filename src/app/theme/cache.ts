@@ -11,11 +11,11 @@ export type CachedThemeEntry = {
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
-    req.onupgradeneeded = () => {
+    req.addEventListener('error', () => reject(req.error));
+    req.addEventListener('success', () => resolve(req.result));
+    req.addEventListener('upgradeneeded', () => {
       req.result.createObjectStore(STORE, { keyPath: 'url' });
-    };
+    });
   });
 }
 
@@ -24,11 +24,11 @@ export async function getCachedThemeCss(url: string): Promise<string | undefined
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).get(url);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => {
+    req.addEventListener('error', () => reject(req.error));
+    req.addEventListener('success', () => {
       const row = req.result as CachedThemeEntry | undefined;
       resolve(row?.cssText);
-    };
+    });
   });
 }
 
@@ -38,8 +38,8 @@ export async function putCachedThemeCss(url: string, cssText: string): Promise<v
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(entry);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.addEventListener('complete', () => resolve());
+    tx.addEventListener('error', () => reject(tx.error));
   });
 }
 
@@ -48,7 +48,7 @@ export async function clearThemeCache(): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).clear();
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.addEventListener('complete', () => resolve());
+    tx.addEventListener('error', () => reject(tx.error));
   });
 }

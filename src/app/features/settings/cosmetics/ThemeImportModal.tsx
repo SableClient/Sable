@@ -165,9 +165,9 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     setImportFileName(file.name);
     setImportPaste('');
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.addEventListener('load', () => {
       setUploadedFileCss(typeof reader.result === 'string' ? reader.result : '');
-    };
+    });
     reader.readAsText(file);
   };
 

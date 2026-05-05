@@ -31,8 +31,8 @@ export function getSableCssPackageKind(cssText: string): 'theme' | 'tweak' | 'un
     const end = cssText.indexOf('*/', start + 2);
     if (end === -1) break;
     const block = cssText.slice(start + 2, end);
-    if (block.includes(META_TWEAK)) return 'tweak';
-    if (block.includes(META_THEME)) return 'theme';
+    if (block.indexOf(META_TWEAK) !== -1) return 'tweak';
+    if (block.indexOf(META_THEME) !== -1) return 'theme';
     pos = end + 2;
   }
   return 'unknown';
@@ -46,7 +46,7 @@ function extractBlockCommentContaining(cssText: string, marker: string): string 
     const end = cssText.indexOf('*/', start + 2);
     if (end === -1) return '';
     const block = cssText.slice(start + 2, end);
-    if (block.includes(marker)) {
+    if (block.indexOf(marker) !== -1) {
       return block;
     }
     pos = end + 2;

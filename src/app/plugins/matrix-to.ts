@@ -118,3 +118,46 @@ export const parseMatrixToRoomEvent = (href: string): MatrixToRoomEvent | undefi
     viaServers: viaServers.length === 0 ? undefined : viaServers,
   };
 };
+
+const tryDecodeUriComponent = (s: string): string => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+};
+
+/**
+ * Normalized Matrix permalink fragment (path after `#/`, lowercased), for comparing href vs anchor text.
+ */
+export const matrixPermalinkFragmentKey = (url: string): string | undefined => {
+  const trimmed = url.trim();
+  const decoded = tryDecodeUriComponent(trimmed);
+  const candidate = testMatrixTo(trimmed) ? trimmed : testMatrixTo(decoded) ? decoded : undefined;
+  if (!candidate) return undefined;
+  try {
+    const u = new URL(candidate);
+    const frag = u.hash.startsWith('#') ? u.hash.slice(1) : '';
+    const key = frag.replace(/^\/+/u, '').replace(/\/+$/u, '').toLowerCase();
+    return key || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * True when anchor text is empty or only repeats the same permalink as `href` (e.g. pasted full URL).
+ */
+export const isRedundantMatrixToAnchorText = (
+  href: string,
+  anchorText: string | undefined
+): boolean => {
+  if (anchorText == null || anchorText.trim() === '') return true;
+  const keyHref = matrixPermalinkFragmentKey(href);
+  if (!keyHref) return false;
+  const t = anchorText.trim();
+  const keyText =
+    matrixPermalinkFragmentKey(t) ?? matrixPermalinkFragmentKey(tryDecodeUriComponent(t));
+  if (!keyText) return false;
+  return keyHref === keyText;
+};

@@ -33,13 +33,23 @@ const unifiedPushLog = createDebugLogger('unifiedpush');
  * Falls back to the configured or public UP gateway.
  * Note: pushNotifyUrl (Sygnal) is NOT suitable — only a proper UP gateway works.
  */
-async function discoverGateway(upEndpoint: string, unifiedPushGateway?: string): Promise<string> {
-  try {
-    const probeUrl = new URL(upEndpoint);
-    probeUrl.pathname = '/_matrix/push/v1/notify';
-    probeUrl.search = '';
-    const res = await fetch(probeUrl.toString());
-    if (res.ok) {
+async function discoverGateway(
+  upEndpoint: string,
+  unifiedPushGateway?: string,
+  upInstance?: string
+): Promise<string> {
+  const probeCandidates = [upInstance, upEndpoint].filter(
+    (candidate): candidate is string => !!candidate?.trim()
+  );
+
+  const probeCandidate = async (candidate: string): Promise<string | undefined> => {
+    try {
+      const probeUrl = new URL(candidate);
+      probeUrl.pathname = '/_matrix/push/v1/notify';
+      probeUrl.search = '';
+      const res = await fetch(probeUrl.toString());
+      if (!res.ok) return undefined;
+
       const body = await res.json();
       if (
         body?.gateway === 'matrix' ||
@@ -47,11 +57,24 @@ async function discoverGateway(upEndpoint: string, unifiedPushGateway?: string):
       ) {
         return probeUrl.toString();
       }
+    } catch {
+      // Probe failed (network error, invalid URL, etc)
     }
-  } catch {
-    // probe failed
-  }
-  return unifiedPushGateway ?? UP_PUBLIC_GATEWAY;
+    return undefined;
+  };
+
+  const probeAtIndex = async (index: number): Promise<string | undefined> => {
+    if (index >= probeCandidates.length) return undefined;
+
+    const candidate = probeCandidates[index];
+    const result = await probeCandidate(candidate);
+    if (result) return result;
+
+    return probeAtIndex(index + 1);
+  };
+
+  const discoveredGateway = await probeAtIndex(0);
+  return discoveredGateway ?? unifiedPushGateway ?? UP_PUBLIC_GATEWAY;
 }
 
 const UP_REGISTER_TIMEOUT_MS = 30_000;
@@ -85,6 +108,7 @@ export type EnableUnifiedPushResult =
       status: 'registered';
       endpoint: string;
       instance: string;
+      gatewayUrl: string;
       distributor: string;
       pubKeySet?: {
         pubKey: string;
@@ -132,7 +156,7 @@ export async function tryEnableUnifiedPush(
 
   const { endpoint, instance, pubKeySet } = registration;
   const resolvedConfig = resolveUnifiedPushPusherConfig(config);
-  const gatewayUrl = await discoverGateway(endpoint, resolvedConfig.gatewayUrl);
+  const gatewayUrl = await discoverGateway(endpoint, resolvedConfig.gatewayUrl, instance);
 
   const pusherData: Record<string, string> = {
     url: gatewayUrl,
@@ -160,6 +184,7 @@ export async function tryEnableUnifiedPush(
     status: 'registered',
     endpoint,
     instance,
+    gatewayUrl,
     distributor: registration.distributor,
     pubKeySet,
   };
@@ -168,7 +193,7 @@ export async function tryEnableUnifiedPush(
 export async function enableUnifiedPush(
   mx: MatrixClient,
   config?: UnifiedPushTransportConfigInput
-): Promise<{ endpoint: string; instance: string }> {
+): Promise<{ endpoint: string; instance: string; gatewayUrl: string }> {
   const result = await tryEnableUnifiedPush(mx, config);
   if (result.status !== 'registered') {
     throw new Error(result.error ?? 'UnifiedPush registration failed');
@@ -177,6 +202,7 @@ export async function enableUnifiedPush(
   return {
     endpoint: result.endpoint,
     instance: result.instance,
+    gatewayUrl: result.gatewayUrl,
   };
 }
 

@@ -78,7 +78,7 @@ pub fn run() {
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_edge_to_edge::init());
 
-    builder
+    let app = builder
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -122,9 +122,17 @@ pub fn run() {
             #[cfg(windows)]
             desktop::windows::window_tracking::is_window_tracking_active,
         ])
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|app, event| {
+        .build(tauri::generate_context!());
+
+    let Ok(app) = app else {
+        // On Android this function is called through JNI. Panicking here causes
+        // "panic_cannot_unwind" and aborts the whole process without a useful
+        // message in logcat.
+        eprintln!("failed to build tauri application: {app:?}");
+        return;
+    };
+
+    app.run(|app, event| {
             #[cfg(desktop)]
             desktop::tray::handle_run_event(app, event);
 

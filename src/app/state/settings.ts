@@ -1,4 +1,4 @@
-import { atom } from 'jotai';
+import { atom, type WritableAtom } from 'jotai';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const STORAGE_KEY = 'settings';
@@ -22,6 +22,23 @@ export enum CaptionPosition {
   Below = 'below',
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
+
+export type ThemeRemoteFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  kind: 'light' | 'dark';
+  pinned?: boolean;
+  importedLocal?: boolean;
+};
+
+export type ThemeRemoteTweakFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  pinned?: boolean;
+  importedLocal?: boolean;
+};
 
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
@@ -133,9 +150,26 @@ export interface Settings {
 
   // furry stuff
   renderAnimals: boolean;
+
+  // theme catalog
+  themeCatalogOnboardingDone: boolean;
+  themeRemoteFavorites: ThemeRemoteFavorite[];
+  themeRemoteCatalogEnabled: boolean;
+  themeChatSableWidgetsEnabled: boolean;
+  themeChatAutoPreviewApprovedUrls: boolean;
+  themeChatAutoPreviewAnyUrl: boolean;
+  themeRemoteManualFullUrl?: string;
+  themeRemoteLightFullUrl?: string;
+  themeRemoteDarkFullUrl?: string;
+  themeRemoteManualKind?: 'light' | 'dark';
+  themeRemoteLightKind?: 'light' | 'dark';
+  themeRemoteDarkKind?: 'light' | 'dark';
+  themeMigrationDismissed: boolean;
+  themeRemoteTweakFavorites: ThemeRemoteTweakFavorite[];
+  themeRemoteEnabledTweakFullUrls: string[];
 }
 
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   themeId: undefined,
   useSystemTheme: true,
   lightThemeId: undefined,
@@ -233,6 +267,23 @@ const defaultSettings: Settings = {
 
   // furry stuff
   renderAnimals: true,
+
+  // theme catalog
+  themeCatalogOnboardingDone: false,
+  themeRemoteFavorites: [],
+  themeRemoteCatalogEnabled: false,
+  themeChatSableWidgetsEnabled: true,
+  themeChatAutoPreviewApprovedUrls: true,
+  themeChatAutoPreviewAnyUrl: false,
+  themeRemoteManualFullUrl: undefined,
+  themeRemoteLightFullUrl: undefined,
+  themeRemoteDarkFullUrl: undefined,
+  themeRemoteManualKind: undefined,
+  themeRemoteLightKind: undefined,
+  themeRemoteDarkKind: undefined,
+  themeMigrationDismissed: false,
+  themeRemoteTweakFavorites: [],
+  themeRemoteEnabledTweakFullUrls: [],
 };
 
 export const getSettings = () => {
@@ -260,6 +311,16 @@ export const getSettings = () => {
     parsed.renderUserCards = 'both';
   }
 
+  const parsedRecord = parsed as Record<string, unknown>;
+  if (
+    typeof parsedRecord.themeChatAutoPreviewAnyUrl !== 'boolean' &&
+    typeof parsedRecord.themeChatPreviewAnyUrl === 'boolean'
+  ) {
+    parsedRecord.themeChatAutoPreviewAnyUrl = parsedRecord.themeChatPreviewAnyUrl;
+  }
+  delete parsedRecord.themeChatPreviewAnyUrl;
+  delete parsedRecord.themeChatPreviewApprovedCatalogOnly;
+
   return {
     ...defaultSettings,
     ...(parsed as Settings),
@@ -273,8 +334,11 @@ export const setSettings = (settings: Settings) => {
 const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
-  (get, set, update) => {
-    set(baseSettings, update);
+  (_get, set, update) => {
+    (set as (atom: WritableAtom<Settings, [Settings], void>, val: Settings) => void)(
+      baseSettings as WritableAtom<Settings, [Settings], void>,
+      update
+    );
     setSettings(update);
   }
 );

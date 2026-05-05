@@ -12,26 +12,11 @@ import {
   getArboriumThemeLabel,
   getArboriumThemeOptions,
 } from '$plugins/arborium';
-import type { Theme } from '$hooks/useTheme';
-import {
-  DarkTheme,
-  LightTheme,
-  ThemeKind,
-  useActiveTheme,
-  useSystemThemeKind,
-  useThemeNames,
-  useThemes,
-} from '$hooks/useTheme';
+import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-
-function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
-  return themes.map((theme) => ({
-    value: theme.id,
-    label: themeNames[theme.id] ?? theme.id,
-  }));
-}
+import { ThemeAppearanceSection } from './ThemeAppearanceSection';
 
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
   const themes = kind
@@ -67,86 +52,6 @@ function ThemeTrigger({
     >
       <Text size="B300">{selectedLabel}</Text>
     </Chip>
-  );
-}
-
-function SelectTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
-  const themes = useThemes();
-  const themeNames = useThemeNames();
-  const [themeId, setThemeId] = useSetting(settingsAtom, 'themeId');
-
-  const themeOptions = makeThemeOptions(themes, themeNames);
-  const selectedThemeId =
-    themeOptions.find((theme) => theme.value === themeId)?.value ?? LightTheme.id;
-
-  return (
-    <SettingMenuSelector
-      value={selectedThemeId}
-      options={themeOptions}
-      onSelect={setThemeId}
-      disabled={disabled}
-    />
-  );
-}
-
-function SystemThemePreferences() {
-  const themeKind = useSystemThemeKind();
-  const themeNames = useThemeNames();
-  const themes = useThemes();
-  const [lightThemeId, setLightThemeId] = useSetting(settingsAtom, 'lightThemeId');
-  const [darkThemeId, setDarkThemeId] = useSetting(settingsAtom, 'darkThemeId');
-
-  const lightThemes = themes.filter((theme) => theme.kind === ThemeKind.Light);
-  const darkThemes = themes.filter((theme) => theme.kind === ThemeKind.Dark);
-  const lightThemeOptions = makeThemeOptions(lightThemes, themeNames);
-  const darkThemeOptions = makeThemeOptions(darkThemes, themeNames);
-
-  const selectedLightThemeId =
-    lightThemeOptions.find((theme) => theme.value === lightThemeId)?.value ?? LightTheme.id;
-  const selectedDarkThemeId =
-    darkThemeOptions.find((theme) => theme.value === darkThemeId)?.value ?? DarkTheme.id;
-
-  return (
-    <Box wrap="Wrap" gap="400">
-      <SettingTile
-        title="Light Theme:"
-        focusId="light-theme"
-        after={
-          <SettingMenuSelector
-            value={selectedLightThemeId}
-            options={lightThemeOptions}
-            onSelect={setLightThemeId}
-            renderTrigger={({ selectedOption, openMenu, disabled }) => (
-              <ThemeTrigger
-                selectedLabel={selectedOption.label}
-                onClick={openMenu}
-                active={themeKind === ThemeKind.Light}
-                disabled={disabled}
-              />
-            )}
-          />
-        }
-      />
-      <SettingTile
-        title="Dark Theme:"
-        focusId="dark-theme"
-        after={
-          <SettingMenuSelector
-            value={selectedDarkThemeId}
-            options={darkThemeOptions}
-            onSelect={setDarkThemeId}
-            renderTrigger={({ selectedOption, openMenu, disabled }) => (
-              <ThemeTrigger
-                selectedLabel={selectedOption.label}
-                onClick={openMenu}
-                active={themeKind === ThemeKind.Dark}
-                disabled={disabled}
-              />
-            )}
-          />
-        }
-      />
-    </Box>
   );
 }
 
@@ -281,8 +186,7 @@ function CodeBlockThemeSettings() {
   );
 }
 
-function ThemeSettings() {
-  const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
+function ThemeVisualPreferences() {
   const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion, setReducedMotion] = useSetting(settingsAtom, 'reducedMotion');
@@ -292,31 +196,7 @@ function ThemeSettings() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Theme</Text>
-
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="System Theme"
-          focusId="system-theme"
-          description="Sync with your device's light/dark mode."
-          after={<Switch variant="Primary" value={systemTheme} onChange={setSystemTheme} />}
-        />
-        {systemTheme && <SystemThemePreferences />}
-      </SequenceCard>
-
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Manual Theme"
-          focusId="manual-theme"
-          description="Active when System Theme is disabled."
-          after={<SelectTheme disabled={systemTheme} />}
-        />
-      </SequenceCard>
+      <Text size="L400">Display</Text>
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -480,10 +360,15 @@ function PageZoomInput() {
   );
 }
 
-export function Appearance() {
+export function Appearance({
+  onThemeBrowserOpenChange,
+}: {
+  onThemeBrowserOpenChange?: (open: boolean) => void;
+} = {}) {
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
@@ -491,67 +376,81 @@ export function Appearance() {
 
   return (
     <Box direction="Column" gap="700">
-      <ThemeSettings />
-      <CodeBlockThemeSettings />
+      <ThemeAppearanceSection
+        onBrowseOpenChange={(open) => {
+          setThemeBrowserOpen(open);
+          onThemeBrowserOpenChange?.(open);
+        }}
+      />
+      {!themeBrowserOpen && (
+        <>
+          <ThemeVisualPreferences />
+          <CodeBlockThemeSettings />
 
-      <Box direction="Column" gap="100">
-        <Text size="L400">Visual Tweaks</Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">Visual Tweaks</Text>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Twitter Emoji"
-            focusId="twitter-emoji"
-            description="Use Twitter-style emojis instead of system native ones."
-            after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
-          />
-        </SequenceCard>
-
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Close Space Folders by Default"
-            focusId="collapse-folders-by-default"
-            description="Collapse sidebar folders upon loading."
-            after={
-              <Switch
-                variant="Primary"
-                value={closeFoldersByDefault}
-                onChange={setCloseFoldersByDefault}
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Twitter Emoji"
+                focusId="twitter-emoji"
+                description="Use Twitter-style emojis instead of system native ones."
+                after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
               />
-            }
-          />
-        </SequenceCard>
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Customize DM cards"
-            focusId="customize-dm-cards"
-            description="Show a custom DM card instead of the DM-ed's details"
-            after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
-          />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Close Space Folders by Default"
+                focusId="collapse-folders-by-default"
+                description="Collapse sidebar folders upon loading."
+                after={
+                  <Switch
+                    variant="Primary"
+                    value={closeFoldersByDefault}
+                    onChange={setCloseFoldersByDefault}
+                  />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Show Easter Eggs"
-            focusId="show-easter-eggs"
-            description="Lets the interface keep a little mischief turned on."
-            after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
-          />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Customize DM cards"
+                focusId="customize-dm-cards"
+                description="Show a custom DM card instead of the DM-ed's details"
+                after={
+                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Easter Eggs"
+                focusId="show-easter-eggs"
+                description="Lets the interface keep a little mischief turned on."
+                after={
+                  <Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Subspace Hierarchy Limit"
-            focusId="subspace-hierarchy-limit"
-            description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
-            after={<SubnestedSpaceLinkDepthInput />}
-          />
-        </SequenceCard>
-      </Box>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Subspace Hierarchy Limit"
+                focusId="subspace-hierarchy-limit"
+                description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
+                after={<SubnestedSpaceLinkDepthInput />}
+              />
+            </SequenceCard>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

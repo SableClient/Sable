@@ -1,5 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
 import type { MouseEventHandler } from 'react';
-import { useState } from 'react';
 import type { RectCords } from 'folds';
 import {
   Box,
@@ -344,17 +344,45 @@ type CosmeticsProps = {
 };
 
 export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
+  const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
+  const appearanceScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+    const el = appearanceScrollRef.current;
+
+    if (themeBrowserOpen && el) {
+      const scrollToTop = () => {
+        el.scrollTop = 0;
+      };
+
+      scrollToTop();
+      requestAnimationFrame(scrollToTop);
+      timeoutId = window.setTimeout(scrollToTop, 0);
+    }
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [themeBrowserOpen]);
+
   return (
     <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
-        <Scroll hideTrack visibility="Hover">
+        <Scroll ref={appearanceScrollRef} hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
-              <Appearance />
-              <IdentityCosmetics />
-              <JumboEmoji />
-              <Privacy />
-              <LanguageSpecificPronouns />
+              <Appearance onThemeBrowserOpenChange={setThemeBrowserOpen} />
+              {!themeBrowserOpen && (
+                <>
+                  <IdentityCosmetics />
+                  <JumboEmoji />
+                  <Privacy />
+                  <LanguageSpecificPronouns />
+                </>
+              )}
             </Box>
           </PageContent>
         </Scroll>

@@ -1,6 +1,6 @@
 import { type ChangeEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { copyToClipboard } from '$utils/dom';
+import { copyToClipboard, downloadTextFile } from '$utils/dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
@@ -62,6 +62,7 @@ export type CatalogPreviewRow = ThemePair & {
 export type LocalPreviewRow = ThemeRemoteFavorite & {
   previewUrl: string;
   previewText: string;
+  fullCssText: string;
   displayName: string;
   author?: string;
   contrast: SableThemeContrast;
@@ -102,6 +103,7 @@ type CatalogTweakCardProps = {
   onToggleFavorite: () => void | Promise<void>;
   isOn: boolean;
   onSetApplied: (v: boolean) => void;
+  onExport?: () => void;
 };
 
 function CatalogTweakCard({
@@ -113,6 +115,7 @@ function CatalogTweakCard({
   onToggleFavorite,
   isOn,
   onSetApplied,
+  onExport,
 }: CatalogTweakCardProps) {
   const [copied, setCopied] = useTimeoutToggle();
   const handleCopy = useCallback(async () => {
@@ -158,6 +161,21 @@ function CatalogTweakCard({
                 }}
               >
                 <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+              </IconButton>
+            )}
+            {onExport && (
+              <IconButton
+                size="300"
+                variant="Secondary"
+                fill="Soft"
+                outlined
+                radii="300"
+                aria-label="Export tweak CSS"
+                onClick={() => {
+                  onExport();
+                }}
+              >
+                <Icon size="200" src={Icons.Download} />
               </IconButton>
             )}
             <IconButton
@@ -420,12 +438,21 @@ export function ThemeCatalogSettings({
 
           try {
             let previewText: string;
+            let fullCssText = '';
             if (isLocalImportThemeUrl(previewUrl)) {
               previewText = (await getCachedThemeCss(previewUrl)) ?? '';
             } else {
               const res = await fetch(previewUrl, { mode: 'cors' });
               if (!res.ok) return undefined;
               previewText = await res.text();
+            }
+            if (isLocalImportBundledUrl(fav.fullUrl)) {
+              fullCssText = (await getCachedThemeCss(fav.fullUrl)) ?? '';
+            } else {
+              const fullRes = await fetch(fav.fullUrl, { mode: 'cors' });
+              if (fullRes.ok) {
+                fullCssText = await fullRes.text();
+              }
             }
             const meta = parseSableThemeMetadata(previewText);
             const displayName = meta.name?.trim() || fav.displayName || fav.basename;
@@ -435,6 +462,7 @@ export function ThemeCatalogSettings({
               ...fav,
               previewUrl,
               previewText,
+              fullCssText,
               displayName,
               contrast,
               tags: meta.tags ?? [],
@@ -833,6 +861,16 @@ export function ThemeCatalogSettings({
     [enabledTweakFullUrls, patchSettings, pruneTweakFavorites, tweakFavorites]
   );
 
+  const downloadThemeFile = useCallback((row: LocalPreviewRow) => {
+    const filename = `${row.basename || 'theme'}.sable.css`;
+    downloadTextFile(row.fullCssText, filename);
+  }, []);
+
+  const downloadTweakFile = useCallback((row: LocalTweakRow) => {
+    const filename = `${row.basename || 'tweak'}.sable.css`;
+    downloadTextFile(row.fullCssText, filename);
+  }, []);
+
   const catalogBundle = catalogQuery.data;
   const catalogThemeCount = catalogBundle?.themes.length ?? 0;
   const catalogTweakCount = catalogBundle?.tweaks.length ?? 0;
@@ -1000,6 +1038,7 @@ export function ThemeCatalogSettings({
                           }
                           isFavorited
                           onToggleFavorite={() => removeFavorite(row.fullUrl)}
+                          onExport={() => downloadThemeFile(row)}
                           systemTheme={systemTheme}
                           onApplyLight={systemTheme ? () => applyFavoriteToLight(row) : undefined}
                           onApplyDark={systemTheme ? () => applyFavoriteToDark(row) : undefined}
@@ -1069,6 +1108,7 @@ export function ThemeCatalogSettings({
                         }
                         isFavorited
                         onToggleFavorite={() => removeTweakFavorite(row.fullUrl)}
+                        onExport={() => downloadTweakFile(row)}
                         isOn={isOn}
                         onSetApplied={(v) =>
                           setTweakApplied(row.fullUrl, v, {

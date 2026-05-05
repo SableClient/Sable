@@ -37,6 +37,8 @@ export type ThemePreviewCardProps = {
   onRevert?: () => void;
   canRevert?: boolean;
   thirdParty?: boolean;
+
+  onExport?: () => void;
 };
 
 function safeSlug(input: string): string {
@@ -62,6 +64,7 @@ export function ThemePreviewCard({
   onRevert,
   canRevert,
   thirdParty,
+  onExport,
 }: ThemePreviewCardProps) {
   const [copied, setCopied] = useTimeoutToggle();
 
@@ -139,6 +142,22 @@ export function ThemePreviewCard({
               }}
             >
               <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            </IconButton>
+          )}
+
+          {onExport && (
+            <IconButton
+              size="300"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+              aria-label="Export theme CSS"
+              onClick={() => {
+                onExport();
+              }}
+            >
+              <Icon size="200" src={Icons.Download} />
             </IconButton>
           )}
 

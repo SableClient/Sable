@@ -1,7 +1,7 @@
 import { type ChangeEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard, downloadTextFile } from '$utils/dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Button,
@@ -205,6 +205,7 @@ export function ThemeCatalogSettings({
 }: ThemeCatalogSettingsProps) {
   const clientConfig = useClientConfig();
   const patchSettings = usePatchSettings();
+  const queryClient = useQueryClient();
   const configBase = clientConfig.themeCatalogBaseUrl?.trim();
   const catalogBase = themeCatalogListingBaseUrl(configBase);
   const catalogManifestUrl = clientConfig.themeCatalogManifestUrl?.trim() || undefined;
@@ -972,7 +973,7 @@ export function ThemeCatalogSettings({
             direction="Column"
             gap="400"
           >
-            <Text size="L400">Saved themes</Text>
+            <Text size="T300">Saved themes</Text>
             {localPreviewsQuery.isPending && favorites.length > 0 && (
               <Box direction="Row" gap="200" alignItems="Center">
                 <Spinner variant="Primary" size="400" />
@@ -1063,7 +1064,7 @@ export function ThemeCatalogSettings({
             direction="Column"
             gap="400"
           >
-            <Text size="L400">Saved tweaks</Text>
+            <Text size="T300">Saved tweaks</Text>
             {localTweaksQuery.isPending && tweakFavorites.length > 0 && (
               <Box direction="Row" gap="200" alignItems="Center">
                 <Spinner variant="Primary" size="400" />
@@ -1176,9 +1177,12 @@ export function ThemeCatalogSettings({
         <>
           {!isAppearanceMode && <Text size="L400">Browse catalog</Text>}
 
-          {(catalogQuery.isPending ||
-            catalogQuery.isError ||
-            (catalogQuery.isSuccess && catalogHasEntries)) && (
+          {(isAppearanceMode && browseOpen) ||
+          catalogQuery.isPending ||
+          catalogQuery.isError ||
+          (catalogQuery.isSuccess &&
+            ((catalogThemeCount > 0 && previewsQuery.isPending) ||
+              (catalogTweakCount > 0 && tweakDetailsQuery.isPending))) ? (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
@@ -1187,11 +1191,24 @@ export function ThemeCatalogSettings({
               style={{ overflowX: 'hidden', minWidth: 0 }}
             >
               {isAppearanceMode && browseOpen && (
-                <SettingTile
-                  title="Browse catalog"
-                  focusId="theme-browse-back"
-                  description="Download themes and tweaks from the catalog."
-                  after={
+                <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
+                  <Box direction="Column" gap="100">
+                    <Text size="T300">Browse catalog</Text>
+                    <Text size="T200" priority="300">
+                      Download themes and tweaks from the catalog.
+                    </Text>
+                  </Box>
+                  <Box direction="Row" gap="100" alignItems="Center" shrink="No">
+                    <Button
+                      variant="Secondary"
+                      fill="Soft"
+                      outlined
+                      size="300"
+                      radii="300"
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['theme-catalog-bundle'] })}
+                    >
+                      <Text size="B300">Refresh catalog</Text>
+                    </Button>
                     <Button
                       variant="Secondary"
                       fill="Soft"
@@ -1202,8 +1219,8 @@ export function ThemeCatalogSettings({
                     >
                       <Text size="B300">Back</Text>
                     </Button>
-                  }
-                />
+                  </Box>
+                </Box>
               )}
 
               {(catalogQuery.isPending || catalogQuery.isError) && (
@@ -1222,241 +1239,240 @@ export function ThemeCatalogSettings({
                 </Box>
               )}
 
-              {catalogQuery.isSuccess && catalogHasEntries && (
-                <Box direction="Column" gap="400">
-                  {catalogThemeCount > 0 && previewsQuery.isPending && (
-                    <Box direction="Row" gap="200" alignItems="Center">
-                      <Spinner variant="Primary" size="400" />
-                      <Text size="T300">Loading previews…</Text>
-                    </Box>
-                  )}
+              {catalogQuery.isSuccess && catalogThemeCount > 0 && previewsQuery.isPending && (
+                <Box direction="Row" gap="200" alignItems="Center">
+                  <Spinner variant="Primary" size="400" />
+                  <Text size="T300">Loading previews…</Text>
+                </Box>
+              )}
 
-                  {catalogTweakCount > 0 && tweakDetailsQuery.isPending && (
-                    <Box direction="Row" gap="200" alignItems="Center">
-                      <Spinner variant="Primary" size="400" />
-                      <Text size="T300">Loading tweaks…</Text>
-                    </Box>
-                  )}
-
-                  {catalogThemeCount > 0 && previewsQuery.isSuccess && (
-                    <Box direction="Column" gap="300">
-                      <Text size="L400">Themes</Text>
-                      <Input
-                        size="300"
-                        radii="300"
-                        outlined
-                        placeholder="Search themes…"
-                        value={themeSearch}
-                        onChange={onThemeSearchChange}
-                      />
-                      <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                        <Text size="T300">Kind:</Text>
-                        {(['all', 'light', 'dark'] as const).map((k) => (
-                          <Chip
-                            key={k}
-                            type="button"
-                            variant={kindFilter === k ? 'Primary' : 'Secondary'}
-                            outlined={kindFilter === k}
-                            radii="Pill"
-                            onClick={() => setKindFilter(k)}
-                          >
-                            <Text size="B300">{k === 'all' ? 'All' : k}</Text>
-                          </Chip>
-                        ))}
-                        <Text size="T300">Contrast:</Text>
-                        {(['all', 'low', 'high'] as const).map((c) => (
-                          <Chip
-                            key={c}
-                            type="button"
-                            variant={contrastFilter === c ? 'Primary' : 'Secondary'}
-                            outlined={contrastFilter === c}
-                            radii="Pill"
-                            onClick={() => setContrastFilter(c)}
-                          >
-                            <Text size="B300">{c === 'all' ? 'All' : c}</Text>
-                          </Chip>
-                        ))}
-                      </Box>
-                      <Scroll
-                        direction="Vertical"
-                        size="300"
-                        hideTrack
-                        visibility="Hover"
-                        style={{
-                          height: 'min(33vh, 16rem)',
-                          minHeight: 0,
-                          maxWidth: '100%',
-                        }}
-                      >
-                        <Box direction="Column" gap="400">
-                          <Box
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                              gap: toRem(16),
-                            }}
-                          >
-                            {filteredRows.map((row) => {
-                              const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
-                              const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
-                              const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
-                              const line1 = `${kindLabel} · ${row.contrast} contrast`;
-                              const line2 = `${row.author ? `by ${row.author}` : ''}${
-                                row.tags.length > 0
-                                  ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}`
-                                  : ''
-                              }`.trim();
-                              const subtitle = (
-                                <>
-                                  {line1}
-                                  {line2 ? (
-                                    <>
-                                      <br />
-                                      {line2}
-                                    </>
-                                  ) : null}
-                                </>
-                              );
-                              return (
-                                <ThemePreviewCard
-                                  key={row.basename}
-                                  title={row.displayName}
-                                  subtitle={subtitle}
-                                  previewCssText={row.previewText}
-                                  scopeSlug={`catalog-${slug}`}
-                                  copyText={row.previewUrl}
-                                  thirdParty={isThirdPartyThemeUrl(
-                                    row.previewUrl,
-                                    clientConfig.themeCatalogApprovedHostPrefixes
-                                  )}
-                                  isFavorited={isFav}
-                                  onToggleFavorite={() => toggleFavorite(row)}
-                                  systemTheme={systemTheme}
-                                  onApplyLight={
-                                    systemTheme ? () => installFromCatalogLight(row) : undefined
-                                  }
-                                  onApplyDark={
-                                    systemTheme ? () => installFromCatalogDark(row) : undefined
-                                  }
-                                  onApplyManual={
-                                    !systemTheme ? () => installFromCatalogManual(row) : undefined
-                                  }
-                                  isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
-                                  isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
-                                  isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
-                                />
-                              );
-                            })}
-                          </Box>
-
-                          {filteredRows.length === 0 && (
-                            <Text size="T300" priority="300">
-                              No themes match filters.
-                            </Text>
-                          )}
-                        </Box>
-                      </Scroll>
-                    </Box>
-                  )}
-
-                  {catalogTweakCount > 0 && tweakDetailsQuery.isSuccess && (
-                    <Box direction="Column" gap="300">
-                      <Text size="L400">Tweaks</Text>
-                      <Input
-                        size="300"
-                        radii="300"
-                        outlined
-                        placeholder="Search tweaks…"
-                        value={tweakSearch}
-                        onChange={onTweakSearchChange}
-                      />
-                      <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                        <Text size="T300">Status:</Text>
-                        {(['all', 'enabled', 'disabled'] as const).map((f) => (
-                          <Chip
-                            key={f}
-                            type="button"
-                            variant={tweakApplyFilter === f ? 'Primary' : 'Secondary'}
-                            outlined={tweakApplyFilter === f}
-                            radii="Pill"
-                            onClick={() => setTweakApplyFilter(f)}
-                          >
-                            <Text size="B300">
-                              {
-                                {
-                                  all: 'All',
-                                  enabled: 'Enabled',
-                                  disabled: 'Disabled',
-                                }[f]
-                              }
-                            </Text>
-                          </Chip>
-                        ))}
-                      </Box>
-                      <Scroll
-                        direction="Vertical"
-                        size="300"
-                        hideTrack
-                        visibility="Hover"
-                        style={{
-                          height: 'min(33vh, 16rem)',
-                          minHeight: 0,
-                          maxWidth: '100%',
-                        }}
-                      >
-                        <Box direction="Column" gap="200">
-                          {catalogTweaksAfterApplyFilter.map((row) => {
-                            const isFav = tweakFavorites.some((f) => f.fullUrl === row.fullUrl);
-                            const isOn = enabledTweakFullUrls.includes(row.fullUrl);
-                            const descParts = [
-                              row.description,
-                              row.author ? `by ${row.author}` : '',
-                              row.tags.length > 0 ? row.tags.join(', ') : '',
-                            ].filter(Boolean);
-                            const desc =
-                              descParts.join(' · ') ||
-                              'Applies on top of your current theme after it loads.';
-                            return (
-                              <CatalogTweakCard
-                                key={row.fullUrl}
-                                displayName={row.displayName}
-                                description={desc}
-                                copyUrl={row.fullUrl}
-                                thirdPartyChip={isThirdPartyThemeUrl(
-                                  row.fullUrl,
-                                  clientConfig.themeCatalogApprovedHostPrefixes
-                                )}
-                                isFavorited={isFav}
-                                onToggleFavorite={() => toggleCatalogTweakFavorite(row)}
-                                isOn={isOn}
-                                onSetApplied={(v) =>
-                                  setTweakApplied(row.fullUrl, v, {
-                                    displayName: row.displayName,
-                                    basename: row.basename,
-                                  })
-                                }
-                              />
-                            );
-                          })}
-                          {filteredTweakRows.length === 0 && (
-                            <Text size="T300" priority="300">
-                              No tweaks match your search.
-                            </Text>
-                          )}
-                          {filteredTweakRows.length > 0 &&
-                            catalogTweaksAfterApplyFilter.length === 0 && (
-                              <Text size="T300" priority="300">
-                                No tweaks match this status filter.
-                              </Text>
-                            )}
-                        </Box>
-                      </Scroll>
-                    </Box>
-                  )}
+              {catalogQuery.isSuccess && catalogTweakCount > 0 && tweakDetailsQuery.isPending && (
+                <Box direction="Row" gap="200" alignItems="Center">
+                  <Spinner variant="Primary" size="400" />
+                  <Text size="T300">Loading tweaks…</Text>
                 </Box>
               )}
             </SequenceCard>
+          ) : null}
+
+          {catalogQuery.isSuccess && catalogHasEntries && catalogThemeCount > 0 && previewsQuery.isSuccess && (
+            <SequenceCard
+              className={SequenceCardStyle}
+              variant="SurfaceVariant"
+              direction="Column"
+              gap="300"
+            >
+              <SettingTile title="Themes" focusId="catalog-themes" />
+              <Input
+                size="300"
+                radii="300"
+                outlined
+                placeholder="Search themes…"
+                value={themeSearch}
+                onChange={onThemeSearchChange}
+              />
+              <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+                <Text size="T300">Kind:</Text>
+                {(['all', 'light', 'dark'] as const).map((k) => (
+                  <Chip
+                    key={k}
+                    type="button"
+                    variant={kindFilter === k ? 'Primary' : 'Secondary'}
+                    outlined={kindFilter === k}
+                    radii="Pill"
+                    onClick={() => setKindFilter(k)}
+                  >
+                    <Text size="B300">{k === 'all' ? 'All' : k}</Text>
+                  </Chip>
+                ))}
+                <Text size="T300">Contrast:</Text>
+                {(['all', 'low', 'high'] as const).map((c) => (
+                  <Chip
+                    key={c}
+                    type="button"
+                    variant={contrastFilter === c ? 'Primary' : 'Secondary'}
+                    outlined={contrastFilter === c}
+                    radii="Pill"
+                    onClick={() => setContrastFilter(c)}
+                  >
+                    <Text size="B300">{c === 'all' ? 'All' : c}</Text>
+                  </Chip>
+                ))}
+              </Box>
+              <Scroll
+                direction="Vertical"
+                size="300"
+                hideTrack
+                visibility="Hover"
+                style={{
+                  height: 'min(33vh, 16rem)',
+                  minHeight: 0,
+                  maxWidth: '100%',
+                }}
+              >
+                <Box direction="Column" gap="400">
+                  <Box
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                      gap: toRem(16),
+                    }}
+                  >
+                    {filteredRows.map((row) => {
+                      const slug = row.basename.replace(/[^a-zA-Z0-9_-]/g, '-') || 'theme';
+                      const kindLabel = row.kind === ThemeKind.Dark ? 'Dark' : 'Light';
+                      const isFav = favorites.some((f) => f.fullUrl === row.fullInstallUrl);
+                      const line1 = `${kindLabel} · ${row.contrast} contrast`;
+                      const line2 = `${row.author ? `by ${row.author}` : ''}${
+                        row.tags.length > 0 ? `${row.author ? ' · ' : ''}${row.tags.join(', ')}` : ''
+                      }`.trim();
+                      const subtitle = (
+                        <>
+                          {line1}
+                          {line2 ? (
+                            <>
+                              <br />
+                              {line2}
+                            </>
+                          ) : null}
+                        </>
+                      );
+                      return (
+                        <ThemePreviewCard
+                          key={row.basename}
+                          title={row.displayName}
+                          subtitle={subtitle}
+                          previewCssText={row.previewText}
+                          scopeSlug={`catalog-${slug}`}
+                          copyText={row.previewUrl}
+                          thirdParty={isThirdPartyThemeUrl(
+                            row.previewUrl,
+                            clientConfig.themeCatalogApprovedHostPrefixes
+                          )}
+                          isFavorited={isFav}
+                          onToggleFavorite={() => toggleFavorite(row)}
+                          systemTheme={systemTheme}
+                          onApplyLight={systemTheme ? () => installFromCatalogLight(row) : undefined}
+                          onApplyDark={systemTheme ? () => installFromCatalogDark(row) : undefined}
+                          onApplyManual={!systemTheme ? () => installFromCatalogManual(row) : undefined}
+                          isAppliedLight={lightRemoteFullUrl === row.fullInstallUrl}
+                          isAppliedDark={darkRemoteFullUrl === row.fullInstallUrl}
+                          isAppliedManual={manualRemoteFullUrl === row.fullInstallUrl}
+                        />
+                      );
+                    })}
+                  </Box>
+
+                  {filteredRows.length === 0 && (
+                    <Text size="T300" priority="300">
+                      No themes match filters.
+                    </Text>
+                  )}
+                </Box>
+              </Scroll>
+            </SequenceCard>
           )}
+
+          {catalogQuery.isSuccess &&
+            catalogHasEntries &&
+            catalogTweakCount > 0 &&
+            tweakDetailsQuery.isSuccess && (
+              <SequenceCard
+                className={SequenceCardStyle}
+                variant="SurfaceVariant"
+                direction="Column"
+                gap="300"
+              >
+                <SettingTile title="Tweaks" focusId="catalog-tweaks" />
+                <Input
+                  size="300"
+                  radii="300"
+                  outlined
+                  placeholder="Search tweaks…"
+                  value={tweakSearch}
+                  onChange={onTweakSearchChange}
+                />
+                <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+                  <Text size="T300">Status:</Text>
+                  {(['all', 'enabled', 'disabled'] as const).map((f) => (
+                    <Chip
+                      key={f}
+                      type="button"
+                      variant={tweakApplyFilter === f ? 'Primary' : 'Secondary'}
+                      outlined={tweakApplyFilter === f}
+                      radii="Pill"
+                      onClick={() => setTweakApplyFilter(f)}
+                    >
+                      <Text size="B300">
+                        {
+                          {
+                            all: 'All',
+                            enabled: 'Enabled',
+                            disabled: 'Disabled',
+                          }[f]
+                        }
+                      </Text>
+                    </Chip>
+                  ))}
+                </Box>
+                <Scroll
+                  direction="Vertical"
+                  size="300"
+                  hideTrack
+                  visibility="Hover"
+                  style={{
+                    height: 'min(33vh, 16rem)',
+                    minHeight: 0,
+                    maxWidth: '100%',
+                  }}
+                >
+                  <Box direction="Column" gap="200">
+                    {catalogTweaksAfterApplyFilter.map((row) => {
+                      const isFav = tweakFavorites.some((f) => f.fullUrl === row.fullUrl);
+                      const isOn = enabledTweakFullUrls.includes(row.fullUrl);
+                      const descParts = [
+                        row.description,
+                        row.author ? `by ${row.author}` : '',
+                        row.tags.length > 0 ? row.tags.join(', ') : '',
+                      ].filter(Boolean);
+                      const desc =
+                        descParts.join(' · ') || 'Applies on top of your current theme after it loads.';
+                      return (
+                        <CatalogTweakCard
+                          key={row.fullUrl}
+                          displayName={row.displayName}
+                          description={desc}
+                          copyUrl={row.fullUrl}
+                          thirdPartyChip={isThirdPartyThemeUrl(
+                            row.fullUrl,
+                            clientConfig.themeCatalogApprovedHostPrefixes
+                          )}
+                          isFavorited={isFav}
+                          onToggleFavorite={() => toggleCatalogTweakFavorite(row)}
+                          isOn={isOn}
+                          onSetApplied={(v) =>
+                            setTweakApplied(row.fullUrl, v, {
+                              displayName: row.displayName,
+                              basename: row.basename,
+                            })
+                          }
+                        />
+                      );
+                    })}
+                    {filteredTweakRows.length === 0 && (
+                      <Text size="T300" priority="300">
+                        No tweaks match your search.
+                      </Text>
+                    )}
+                    {filteredTweakRows.length > 0 && catalogTweaksAfterApplyFilter.length === 0 && (
+                      <Text size="T300" priority="300">
+                        No tweaks match this status filter.
+                      </Text>
+                    )}
+                  </Box>
+                </Scroll>
+              </SequenceCard>
+            )}
         </>
       )}
 

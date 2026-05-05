@@ -526,7 +526,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         direction="Column"
         gap="300"
         style={{
-          padding: config.space.S200,
+          padding: renderUserCards && innerColor ? config.space.S200 : config.space.S0,
           backgroundColor,
         }}
       >
@@ -539,11 +539,15 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             borderWidth: toRem(5),
             borderColor: '#00000000',
             borderStyle: 'solid',
-            padding: config.space.S200,
+            padding: renderUserCards && innerColor ? config.space.S200 : config.space.S300,
           }}
         >
           <Box gap="200" alignItems="Center" wrap="Wrap">
-            <UserHeroName displayName={displayName} userId={userId} customHeroCards={renderUserCards}/>
+            <UserHeroName
+              displayName={displayName}
+              userId={userId}
+              customHeroCards={renderUserCards}
+            />
             {userId !== myUserId && (
               <Button
                 size="300"

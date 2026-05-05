@@ -84,11 +84,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
     undefined;
 
   return (
-    <Box
-      direction="Column"
-      className={css.UserHero}
-      style={{ backgroundColor: backgroundColor }}
-    >
+    <Box direction="Column" className={css.UserHero} style={{ backgroundColor: backgroundColor }}>
       <div
         className={css.UserHeroCoverContainer}
         style={{

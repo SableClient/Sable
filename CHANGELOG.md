@@ -1,5 +1,65 @@
 # Sable Client Changelog
 
+## 1.15.0 (2026-05-05)
+
+### Features
+
+* Add background styling to user profile cards ([#712](https://github.com/SableClient/Sable/pull/712) by @nushea)
+* Add preventing url preview cards by surrounding a link in anglebrackets like <https://app.sable.moe> ([#717](https://github.com/SableClient/Sable/pull/717) by @nushea)
+* Reorganize Embed settings and reintroduce multiple embeds ([#667](https://github.com/SableClient/Sable/pull/667) by @nushea)
+* Change Misc. data styling in users profile pages ([#663](https://github.com/SableClient/Sable/pull/663) by @nushea)
+* add initial support for sending discoverable emojis and sticker ([#730](https://github.com/SableClient/Sable/pull/730) by @dozro)
+
+#### Themes and tweaks from the catalog ([#633](https://github.com/SableClient/Sable/pull/633) by @7w1)
+
+Themes are pulled from [a repo](https://github.com/SableClient/themes) now, so you get the full power of CSS instead of a palette. Tweaks are new: CSS overlays that sit on top of whatever theme you are using.
+
+You'll be prompted to migrate to the new system whenever you update, if you choose not to, you'll be limited to the basic dark/light themes. A few additional themes have been added (Rose Pine variantes, Catpuccin) along with some basic tweaks (circular avatars, monochrome avatars, and square stuff).
+
+You can share themes and tweaks. For themes uploaded online, simply hit the copy button in settings and paste the link in chat. If the setting is enabled, a preview will be generated. Third party themes (as defined by the config.json) have prominent warning banners and fetching is disabled by default.
+
+You can also export and share theme files directly, although no previews are generated for these.
+
+If you're intrested in getting a theme or tweak added to the official catalog, contribute to the themes repo linked above! We're eager to add more!
+
+#### Markdown parser and render updates ([#727](https://github.com/SableClient/Sable/pull/727) by @7w1)
+
+Migrated markdown parsing and rendering to use marked, which should fix most (all?) markdown issues involving lists/nested structures, inconsistent/inaccurate code blocks, escape sequences, and all the other bugs with literally everything.
+
+Added math rendering support via marked and KaTeX, uses standard `$$` and `$` delimiters. Only renders a subset of latex tags that will likely need to be expanded so feel free to make issues if needed.
+
+Also adds support for sending markdown tables (although they're rendered rather plainly at the moment), sending valid html directly (such as for colored text), and properly escaping anything with backslashes.
+
+Fixes link previews appearing in code blocks, fixes pmp new line behavior, fixes links not opening in new tabs, and fixes editing arbitrary html messages, probably.
+
+Finally, the old WYSIWYG editor has been completely removed.
+
+### Fixes
+
+* Fix spam-clicking abbreviations crashing sable ([#665](https://github.com/SableClient/Sable/pull/665) by @nushea)
+* Add cache-control headers in Caddyfile for assets, service worker, and index.html ([#609](https://github.com/SableClient/Sable/pull/609) by @Just-Insane)
+* Fix the first pin event in a room looking empty ([#685](https://github.com/SableClient/Sable/pull/685) by @nushea)
+* Fix read receipt scrolling not working ([#631](https://github.com/SableClient/Sable/pull/631) by @Septicity)
+* Fix status sometimes sticking in member tile ([#664](https://github.com/SableClient/Sable/pull/664) by @nushea)
+* Fix apng files not animating. ([#737](https://github.com/SableClient/Sable/pull/737) by @7w1)
+* Some fixes to sync requests being spammed on loading screen and for multi-account background syncing, it should also load faster now! ([#736](https://github.com/SableClient/Sable/pull/736) by @7w1)
+* Fix other dmed party not being added as a founder by default when creating a dm. ([#737](https://github.com/SableClient/Sable/pull/737) by @7w1)
+* Update verbiage in the credits ([#728](https://github.com/SableClient/Sable/pull/728) by @nushea)
+* spoilered text now gets replaced with `[Spoiler]` in the plain text fallback, as per MSC4454 ([#715](https://github.com/SableClient/Sable/pull/715) by @dozro)
+* Hide copied settings links on dynamic rows ([#695](https://github.com/SableClient/Sable/pull/695) by @hazre)
+* Fix button hover background smearing in virtual list rows by suppressing transform on hover ([#614](https://github.com/SableClient/Sable/pull/614) by @Just-Insane)
+* Fix Workbox precaching by removing injectionPoint override that was silently disabling all precache entries ([#611](https://github.com/SableClient/Sable/pull/611) by @Just-Insane)
+
+#### Change how settings links are shared ([#695](https://github.com/SableClient/Sable/pull/695) by @hazre)
+
+Settings links copied from Sable now stay on the current client URL and include a small Sable marker in the link. That lets Sable recognize settings links copied from other Sable instances without treating unrelated third-party `/settings/...` links as Sable settings links.
+
+When you send a bare settings link in the composer, Sable now rewrites it into a labeled link so it looks better on non-Sable clients too. For example: `[Settings > Account > Display Name](https://client.example/settings/account?focus=display-name&moe.sable.client.action=settings)`.
+
+Invalid or malformed settings-looking links now stay normal links instead of being shown as settings chips.
+
+If you previously set `settingsLinkBaseUrl` in `config.json`, remove it. Sable now derives settings links from the runtime app URL, and the old config key is no longer used.
+
 ## 1.14.0 (2026-04-10)
 
 ### Features

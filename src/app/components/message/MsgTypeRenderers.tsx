@@ -207,17 +207,24 @@ export function MText({
   if ((content['com.beeper.per_message_profile'] as PerMessageProfileBeeperFormat)?.has_fallback) {
     // unwrap per-message profile fallback if present
     return (
-      <MessageTextBody
-        preWrap={typeof cleanedMessage !== 'string'}
-        style={style}
-        jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
-      >
-        {renderBody({
-          body: trimmedBody,
-          customBody: unwrappedPerMessageProfileMessage,
-        })}
-        {edited && <MessageEditedContent />}
-      </MessageTextBody>
+      <>
+        <MessageTextBody
+          preWrap={typeof cleanedMessage !== 'string'}
+          style={style}
+          jumboEmoji={isJumbo ? jumboEmojiSize : 'none'}
+        >
+          {renderBody({
+            body: trimmedBody,
+            customBody: unwrappedPerMessageProfileMessage,
+          })}
+          {edited && <MessageEditedContent />}
+        </MessageTextBody>
+        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
+          (renderBundledPreviews &&
+            bundleContent &&
+            bundleContent.length > 0 &&
+            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      </>
     );
   }
 

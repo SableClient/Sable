@@ -200,8 +200,6 @@ export function MText({
     return true;
   }, [unwrappedPerMessageProfileMessage, cleanedMessage, trimmedBody, customBody]);
 
-  if (!body && !customBody) return <BrokenContent body={customBody ?? body} />;
-
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
   if (

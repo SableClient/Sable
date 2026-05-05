@@ -254,7 +254,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
 
   return (
     <Box direction="Column" gap="400" style={{ padding: config.space.S200 }}>
-      <Box direction="Column" gap="200" >
+      <Box direction="Column" gap="200">
         <Box grow="Yes" direction="Column" gap="100">
           <Text size="L400" align="Center">
             Moderation

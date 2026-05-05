@@ -48,7 +48,53 @@ type SyncTransportMeta = {
   reason: SyncTransportReason;
 };
 const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
+const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 20000;
+
+type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
+type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
+  fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
+};
+
+// Replace fetchRoomEvent for first sync so thread roots don't each trigger GET /event
+// Uses cached timeline events when present otherwise a stub that fetches when user opens thread
+function installStartupFetchRoomEventPatch(mx: MatrixClient): void {
+  fetchRoomEventStartupCleanupByClient.get(mx)?.();
+
+  const mxWritable = mx as MatrixClientWithWritableFetchRoomEvent;
+  const origFetchRoomEvent = mx.fetchRoomEvent.bind(mx);
+  let restored = false;
+
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    fetchRoomEventStartupCleanupByClient.delete(mx);
+    // Put the real fetchRoomEvent back and detach this
+    mxWritable.fetchRoomEvent = origFetchRoomEvent;
+    mx.off(ClientEvent.Sync, onSync);
+  };
+
+  const onSync = (state: SyncState) => {
+    // Initial sync burst is over, let normal server fetches run again
+    if (state === SyncState.Prepared || state === SyncState.Syncing) {
+      restore();
+    }
+  };
+
+  mxWritable.fetchRoomEvent = (roomId: string, eventId: string) => {
+    if (restored) return origFetchRoomEvent(roomId, eventId);
+    const cachedEvent = mx.getRoom(roomId)?.findEventById(eventId);
+    // Reuse sync payload instead of another GET when we already have the root.
+    const payload: FetchRoomEventResult = cachedEvent?.event ?? {
+      event_id: eventId,
+      room_id: roomId,
+    };
+    return Promise.resolve(payload);
+  };
+
+  mx.on(ClientEvent.Sync, onSync);
+  fetchRoomEventStartupCleanupByClient.set(mx, restore);
+}
 
 export const resolveSlidingEnabled = (enabled: SlidingSyncConfig['enabled']): boolean => {
   if (enabled === undefined) return false;
@@ -472,12 +518,20 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       (filterDefinition.room.timeline as { lazy_load_members?: boolean }).lazy_load_members = true;
     }
 
-    const syncStarted = mx.startClient({
-      lazyLoadMembers: true,
-      pollTimeout: effectivePollTimeout,
-      threadSupport: true,
-      filter: classicFilter,
-    });
+    installStartupFetchRoomEventPatch(mx);
+
+    let syncStarted: Promise<void>;
+    try {
+      syncStarted = mx.startClient({
+        lazyLoadMembers: true,
+        pollTimeout: effectivePollTimeout,
+        threadSupport: true,
+        filter: classicFilter,
+      });
+    } catch (syncErr) {
+      fetchRoomEventStartupCleanupByClient.get(mx)?.();
+      throw syncErr;
+    }
 
     await Promise.race([syncStarted, startupTimeout]);
     // Attach an ongoing classic-sync observer — equivalent to SlidingSyncManager's
@@ -639,12 +693,14 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   });
 
   try {
+    installStartupFetchRoomEventPatch(mx);
     await mx.startClient({
       lazyLoadMembers: true,
       slidingSync: manager.slidingSync,
       threadSupport: true,
     });
   } catch (err) {
+    fetchRoomEventStartupCleanupByClient.get(mx)?.();
     debugLog.error('network', 'Failed to start client with sliding sync', {
       error: err instanceof Error ? err.message : String(err),
       userId: mx.getUserId(),
@@ -659,6 +715,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
 export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
+  fetchRoomEventStartupCleanupByClient.get(mx)?.();
   disposeSlidingSync(mx);
   const classicSyncListener = classicSyncObserverByClient.get(mx);
   if (classicSyncListener) {

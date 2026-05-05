@@ -36,4 +36,4 @@ export const MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME = 'com.beeper.l
  * unstable prefix for message forwards meta
  * defined in MSC2723 https://github.com/matrix-org/matrix-spec-proposals/pull/2723
  */
-export const MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME = 'com.famedly.app.forwarded'
+export const MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME = 'com.famedly.app.forwarded';

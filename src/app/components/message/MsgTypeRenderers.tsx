@@ -129,7 +129,9 @@ const getUrlsFromContent = (
     urls = urls.filter((url) => safeUrlsSet.has(url));
   }
 
-  let bundleContent = content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] as BundleContent[];
+  let bundleContent = content[
+    prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
+  ] as BundleContent[];
   try {
     bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
     if (renderUrlsPreview && bundleContent)
@@ -201,7 +203,13 @@ export function MText({
 
   const { urls, bundleContent } = getUrlsFromContent(content, renderUrlsPreview);
 
-  if ((content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] as PerMessageProfileBeeperFormat)?.has_fallback) {
+  if (
+    (
+      content[
+        prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME
+      ] as PerMessageProfileBeeperFormat
+    )?.has_fallback
+  ) {
     // unwrap per-message profile fallback if present
     return (
       <>
@@ -496,8 +504,8 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
           mimeType: safeMimeType,
           url: mxcUrl,
           encInfo: content.file,
-          markedAsSpoiler: content[MATRIX_SPOILER_PROPERTY_NAME],
-          spoilerReason: content[MATRIX_SPOILER_REASON_PROPERTY_NAME],
+          markedAsSpoiler: content[prefix.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME],
+          spoilerReason: content[prefix.MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME],
         })}
       </AttachmentBox>
     </Attachment>

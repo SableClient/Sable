@@ -41,7 +41,7 @@ export type UserProfile = {
 };
 
 const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
-  const msc4440Bio = info[MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as
+  const msc4440Bio = info[prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as
     | MSC4440Bio
     | undefined;
   const knownKeys = new Set([
@@ -73,7 +73,9 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
   return {
     avatarUrl: info.avatar_url as string | undefined,
     displayName: info.displayname as string | undefined,
-    pronouns: info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as PronounSet[] | undefined,
+    pronouns: info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as
+      | PronounSet[]
+      | undefined,
     timezone: (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
       info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined,
     bio:
@@ -83,9 +85,15 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     status: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as string | undefined,
     bannerUrl: info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as string | undefined,
     nameColor: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as string | undefined,
-    nameColorDark: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as string | undefined,
-    nameColorLight: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as string | undefined,
-    heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as Record<string, string> | undefined,
+    nameColorDark: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
+      | string
+      | undefined,
+    nameColorLight: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as
+      | string
+      | undefined,
+    heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as
+      | Record<string, string>
+      | undefined,
     isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true,
     hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true,
     extended,

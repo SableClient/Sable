@@ -151,11 +151,7 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
-import {
-  MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME,
-  MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME,
-  MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME,
-} from '$unstable/prefixes';
+import * as prefix from '$unstable/prefixes';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -550,7 +546,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          c[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+          c[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
             convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
         });
       }
@@ -829,12 +825,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
-      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsedRef.current.toJSON();
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        imagePacksUsedRef.current.toJSON();
 
       const links = getLinks(serializedChildren);
-      content[MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
+      content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
       links?.forEach((link) =>
-        content[MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({ matched_url: link })
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+          matched_url: link,
+        })
       );
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
@@ -855,7 +854,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       if (pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
         plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
       if (perMessageProfile) {
-        content[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+        content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
           convertPerMessageProfileToBeeperFormat(
             perMessageProfile,
             perMessageProfile.name.trim() !== ''
@@ -863,11 +862,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
         if (perMessageProfile.name.trim() !== '') {
           // if a per-message profile is used, it must per spec include a fallback
-          const prefix = `${perMessageProfile.name}: `;
+          const pmpPrefix = `${perMessageProfile.name}: `;
 
-          if (!content.body.startsWith(prefix)) {
+          if (!content.body.startsWith(pmpPrefix)) {
             // to prevent double-prefixing when the fallback is already present
-            content.body = prefix + content.body;
+            content.body = pmpPrefix + content.body;
           }
 
           /**
@@ -1176,7 +1175,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       };
 
       // add the image pack reference
-      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
         getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       /**
@@ -1187,10 +1186,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content[MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+        content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
           convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
       }
-      content[MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
         getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       if (replyDraft) {

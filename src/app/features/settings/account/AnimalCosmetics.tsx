@@ -9,6 +9,7 @@ import { Box, Switch, Text } from 'folds';
 import { useSetAtom } from 'jotai';
 import { useCallback } from 'react';
 import { SequenceCardStyle } from '../styles.css';
+import * as prefix from '$unstable/prefixes';
 
 type AnimalCosmeticsProps = {
   profile: UserProfile;
@@ -54,7 +55,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
             <Switch
               variant="Primary"
               value={isCat}
-              onChange={() => handleSaveField('kitty.meow.is_cat', !isCat)}
+              onChange={() =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+                  !isCat
+                )
+              }
             />
           }
         />
@@ -68,7 +74,12 @@ export function AnimalCosmetics({ profile, userId }: Readonly<AnimalCosmeticsPro
             <Switch
               variant="Primary"
               value={hasCats}
-              onChange={() => handleSaveField('kitty.meow.has_cats', !hasCats)}
+              onChange={() =>
+                handleSaveField(
+                  prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
+                  !hasCats
+                )
+              }
             />
           }
         />

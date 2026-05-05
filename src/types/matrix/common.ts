@@ -2,19 +2,14 @@ import type { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { SerializableSet } from '$types/wrapper/SerializableSet';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { MsgType } from '$types/matrix-sdk';
-import {
-  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
-  MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME,
-  MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
-  MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME,
-} from '$unstable/prefixes';
+import type * as prefix from '$unstable/prefixes';
 
 export type IImageInfo = {
   w?: number;
   h?: number;
   mimetype?: string;
   size?: number;
-  [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]?: string;
 };
 
 export type MatrixRelatesTo = {
@@ -59,14 +54,14 @@ export type MatrixReactionEvent = {
   /**
    * a map of image pack references
    */
-  [MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
+  [prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
     string,
     MSC4459ImagePackReference
   >;
 };
 
 export interface IGenericMSC4459 {
-  [MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
+  [prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME]?: SerializableMap<
     string,
     MSC4459ImagePackReference
   >;
@@ -108,8 +103,8 @@ export type IImageContent = {
   url?: string;
   info?: IImageInfo & IThumbnailContent;
   file?: IEncryptedFile;
-  [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
-  [MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
+  [prefix.MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
 };
 
 export type IVideoContent = {
@@ -119,8 +114,8 @@ export type IVideoContent = {
   url?: string;
   info?: IVideoInfo & IThumbnailContent;
   file?: IEncryptedFile;
-  [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
-  [MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
+  [prefix.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]?: boolean;
+  [prefix.MATRIX_UNSTABLE_SPOILER_REASON_PROPERTY_NAME]?: string;
 };
 
 export type IAudioContent = {

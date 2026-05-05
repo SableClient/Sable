@@ -337,11 +337,15 @@ function RenderMessageContentInternal({
     const info = (content as { info?: { mimetype?: string } }).info;
     const isGif =
       info?.mimetype === 'image/gif' ||
+      info?.mimetype === 'image/apng' ||
       info?.mimetype === 'image/webp' ||
       (content.body as string)?.toLowerCase().endsWith('.gif') ||
+      (content.body as string)?.toLowerCase().endsWith('.apng') ||
       (content.body as string)?.toLowerCase().endsWith('.webp') ||
       (typeof (content as { url?: string }).url === 'string' &&
-        (content as { url?: string }).url?.toLowerCase().includes('gif'));
+        ((content as { url?: string }).url?.toLowerCase().endsWith('.gif') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.apng') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.webp')));
 
     return renderCaptionedAttachment(
       <MImage

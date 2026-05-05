@@ -375,11 +375,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
             </Box>
           </Box>
         </>
-      ) : (
-        <Text size="T300" priority="300">
-          No preview tokens in this tweak
-        </Text>
-      )}
+      ) : null}
     </Box>
   );
 }

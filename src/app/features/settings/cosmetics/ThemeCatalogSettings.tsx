@@ -131,122 +131,50 @@ function CatalogTweakCard({
         background: 'var(--sable-surface-container)',
       }}
     >
-      <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200" wrap="Wrap">
+      <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200">
         <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
           <Text size="H6">{displayName}</Text>
           <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
             {description}
           </Text>
         </Box>
-        <Box direction="Row" gap="100" alignItems="Center" shrink="No" wrap="Wrap">
+        <Box direction="Column" gap="100" alignItems="End" shrink="No">
           {thirdPartyChip && (
             <Chip variant="Critical" outlined radii="Pill">
               <Text size="B300">Third-party URL</Text>
             </Chip>
           )}
-          {copyUrl && (
+          <Box direction="Row" gap="100" alignItems="Center">
+            {copyUrl && (
+              <IconButton
+                size="300"
+                variant="Secondary"
+                fill="Soft"
+                outlined
+                radii="300"
+                aria-label={copied ? 'Copied tweak link' : 'Copy tweak link'}
+                onClick={() => {
+                  handleCopy().catch(() => undefined);
+                }}
+              >
+                <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+              </IconButton>
+            )}
             <IconButton
               size="300"
-              variant="Secondary"
+              variant={isFavorited ? 'Primary' : 'Secondary'}
               fill="Soft"
               outlined
               radii="300"
-              aria-label={copied ? 'Copied tweak link' : 'Copy tweak link'}
+              aria-label={isFavorited ? 'Remove tweak from saved' : 'Save tweak'}
               onClick={() => {
-                handleCopy().catch(() => undefined);
+                Promise.resolve(onToggleFavorite()).catch(() => undefined);
               }}
             >
-              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+              <Icon size="200" src={Icons.Star} filled={isFavorited} />
             </IconButton>
-          )}
-          <IconButton
-            size="300"
-            variant={isFavorited ? 'Primary' : 'Secondary'}
-            fill="Soft"
-            outlined
-            radii="300"
-            aria-label={isFavorited ? 'Remove tweak from saved' : 'Save tweak'}
-            onClick={() => {
-              Promise.resolve(onToggleFavorite()).catch(() => undefined);
-            }}
-          >
-            <Icon size="200" src={Icons.Star} filled={isFavorited} />
-          </IconButton>
-          <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-type SavedTweakRowProps = {
-  displayName: string;
-  description: string;
-  copyUrl?: string;
-  thirdPartyChip: boolean;
-  isOn: boolean;
-  onRemove: () => void;
-  onSetApplied: (v: boolean) => void;
-};
-
-function SavedTweakRow({
-  displayName,
-  description,
-  copyUrl,
-  thirdPartyChip,
-  isOn,
-  onRemove,
-  onSetApplied,
-}: SavedTweakRowProps) {
-  const [copied, setCopied] = useTimeoutToggle();
-  const handleCopy = useCallback(async () => {
-    if (!copyUrl) return;
-    if (await copyToClipboard(copyUrl)) setCopied();
-  }, [copyUrl, setCopied]);
-
-  return (
-    <Box
-      direction="Column"
-      gap="200"
-      style={{
-        padding: toRem(12),
-        borderRadius: config.radii.R300,
-        border: `${toRem(1)} solid var(--sable-surface-container-line)`,
-        background: 'var(--sable-surface-container)',
-      }}
-    >
-      <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200" wrap="Wrap">
-        <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
-          <Text size="H6">{displayName}</Text>
-          <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
-            {description}
-          </Text>
-        </Box>
-        <Box direction="Row" gap="100" alignItems="Center" shrink="No" wrap="Wrap">
-          {thirdPartyChip && (
-            <Chip variant="Critical" outlined radii="Pill">
-              <Text size="B300">Third-party URL</Text>
-            </Chip>
-          )}
-          {copyUrl && (
-            <IconButton
-              size="300"
-              variant="Secondary"
-              fill="Soft"
-              outlined
-              radii="300"
-              aria-label={copied ? 'Copied tweak link' : 'Copy tweak link'}
-              onClick={() => {
-                handleCopy().catch(() => undefined);
-              }}
-            >
-              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
-            </IconButton>
-          )}
-          <Button variant="Critical" fill="Soft" outlined size="300" radii="300" onClick={onRemove}>
-            <Text size="B300">Remove</Text>
-          </Button>
-          <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
+            <Switch variant="Primary" value={isOn} onChange={onSetApplied} />
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -1116,7 +1044,7 @@ export function ThemeCatalogSettings({
                       descParts.join(' · ') ||
                       'Applies on top of your current theme after it loads.';
                     return (
-                      <SavedTweakRow
+                      <CatalogTweakCard
                         key={row.fullUrl}
                         displayName={row.displayName}
                         description={desc}
@@ -1128,8 +1056,9 @@ export function ThemeCatalogSettings({
                             clientConfig.themeCatalogApprovedHostPrefixes
                           )
                         }
+                        isFavorited
+                        onToggleFavorite={() => removeTweakFavorite(row.fullUrl)}
                         isOn={isOn}
-                        onRemove={() => removeTweakFavorite(row.fullUrl)}
                         onSetApplied={(v) =>
                           setTweakApplied(row.fullUrl, v, {
                             displayName: row.displayName,

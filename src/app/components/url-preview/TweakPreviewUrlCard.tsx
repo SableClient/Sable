@@ -287,7 +287,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
           </Text>
         </Box>
 
-        <Box direction="Row" gap="100" alignItems="Center" shrink="No" wrap="Wrap">
+        <Box direction="Row" gap="100" alignItems="Center" shrink="No">
           <IconButton
             size="300"
             variant="Secondary"

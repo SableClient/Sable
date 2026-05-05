@@ -12,7 +12,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useStore } from 'jotai/react';
 
 import { useThemeCatalogOnboardingGate } from './ThemeCatalogOnboarding';
-import { ThemeCatalogSettings, usePatchSettings } from './ThemeCatalogSettings';
+import { ThemeCatalogSettings } from './ThemeCatalogSettings';
 
 function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
   return themes.map((theme) => ({
@@ -84,7 +84,7 @@ function SystemThemePreferences() {
   );
 }
 
-function ClassicThemeSection({ onBrowseCatalog }: { onBrowseCatalog: () => void }) {
+function ClassicThemeSection({ onRequestCatalogEnable }: { onRequestCatalogEnable: () => void }) {
   const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
 
   return (
@@ -115,9 +115,9 @@ function ClassicThemeSection({ onBrowseCatalog }: { onBrowseCatalog: () => void 
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Remote catalog"
+          title="Enable catalog"
           focusId="browse-remote-catalog"
-          description="Open the catalog to browse themes and optional tweaks, save favorites, and sync with light and dark mode."
+          description="Load remote themes and tweaks from the official catalog. You will be asked to confirm before any catalog content is fetched."
           after={
             <Button
               variant="Secondary"
@@ -125,9 +125,9 @@ function ClassicThemeSection({ onBrowseCatalog }: { onBrowseCatalog: () => void 
               outlined
               size="300"
               radii="300"
-              onClick={onBrowseCatalog}
+              onClick={onRequestCatalogEnable}
             >
-              <Text size="B300">Browse catalog…</Text>
+              <Text size="B300">Enable catalog</Text>
             </Button>
           }
         />
@@ -166,12 +166,7 @@ export function ThemeAppearanceSection({
     [store]
   );
 
-  const { dialog } = useThemeCatalogOnboardingGate(onboardingDone, completeOnboarding);
-
-  const patchSettings = usePatchSettings();
-  const enableCatalog = useCallback(() => {
-    patchSettings({ themeRemoteCatalogEnabled: true, themeCatalogOnboardingDone: true });
-  }, [patchSettings]);
+  const { dialog, openOnboarding } = useThemeCatalogOnboardingGate(onboardingDone, completeOnboarding);
 
   return (
     <Box direction="Column" gap="100">
@@ -180,7 +175,7 @@ export function ThemeAppearanceSection({
       {catalogEnabled ? (
         <RemoteCatalogThemeSection onBrowseOpenChange={onBrowseOpenChange} />
       ) : (
-        <ClassicThemeSection onBrowseCatalog={enableCatalog} />
+        <ClassicThemeSection onRequestCatalogEnable={openOnboarding} />
       )}
     </Box>
   );

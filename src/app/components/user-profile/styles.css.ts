@@ -78,3 +78,19 @@ export const UserHeroAvatarImg = style({
     },
   },
 });
+export const UserHeroChip = style({
+  borderStyle: 'solid',
+  borderWidth: '1px',
+  ':hover': {
+    filter: 'brightness(0.8)',
+    transform: 'translateY(-1px)',
+  },
+});
+export const UserHeroMenuItem = style({
+  borderStyle: 'hidden',
+  borderWidth: '1px',
+  ':hover': {
+    filter: 'brightness(0.8)',
+    transform: 'translateY(-1px)',
+  },
+});

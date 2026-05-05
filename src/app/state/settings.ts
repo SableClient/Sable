@@ -23,6 +23,19 @@ export enum CaptionPosition {
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
+/** Custom profile card hero colors: which brightness schemes to honor. */
+export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
+
+export function shouldApplyUserHeroCards(
+  mode: RenderUserCardsMode,
+  brightness: string | undefined
+): boolean {
+  if (mode === 'none') return false;
+  if (mode === 'both') return true;
+  if (brightness !== 'light' && brightness !== 'dark') return false;
+  return brightness === mode;
+}
+
 export interface Settings {
   themeId?: string;
   useSystemTheme: boolean;
@@ -82,6 +95,7 @@ export interface Settings {
   showPronouns: boolean;
   parsePronouns: boolean;
   renderGlobalNameColors: boolean;
+  renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
   renderRoomColors: boolean;
@@ -183,6 +197,7 @@ const defaultSettings: Settings = {
   showPronouns: true,
   parsePronouns: true,
   renderGlobalNameColors: true,
+  renderUserCards: 'both',
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
@@ -233,6 +248,17 @@ export const getSettings = () => {
     parsed.saturationLevel = 100;
   }
   delete parsed.monochromeMode;
+
+  if (typeof parsed.renderUserCards === 'boolean') {
+    parsed.renderUserCards = parsed.renderUserCards ? 'both' : 'none';
+  } else if (
+    parsed.renderUserCards !== 'both' &&
+    parsed.renderUserCards !== 'light' &&
+    parsed.renderUserCards !== 'dark' &&
+    parsed.renderUserCards !== 'none'
+  ) {
+    parsed.renderUserCards = 'both';
+  }
 
   return {
     ...defaultSettings,

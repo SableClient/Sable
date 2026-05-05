@@ -1,5 +1,13 @@
 # Sable Client Changelog
 
+## 1.15.1 (2026-05-05)
+
+### Fixes
+
+* Fix editing messages with custom emojis being converted into html tags. ([#749](https://github.com/SableClient/Sable/pull/749) by @7w1)
+* Fix muted rooms appearing as standard unread rooms. ([#750](https://github.com/SableClient/Sable/pull/750) by @7w1)
+* Fix the call stack size crash on load when sliding sync is enabled. ([#748](https://github.com/SableClient/Sable/pull/748) by @7w1)
+
 ## 1.15.0 (2026-05-05)
 
 ### Features

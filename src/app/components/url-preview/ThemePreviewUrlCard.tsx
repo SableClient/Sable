@@ -15,6 +15,7 @@ import {
 } from '../../theme/metadata';
 import { putCachedThemeCss } from '../../theme/cache';
 import { fullUrlFromPreviewUrl } from '../../theme/previewUrls';
+import { isApprovedCatalogHostUrl } from '../../theme/themeApproval';
 import { ThemePreviewCard } from '../theme/ThemePreviewCard';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
@@ -24,11 +25,6 @@ function isHttps(url: string): boolean {
 
 function isPreviewThemeUrl(url: string): boolean {
   return /\.preview\.sable\.css(\?|#|$)/i.test(url);
-}
-
-function isApprovedByPrefix(url: string, prefixes: string[] | undefined): boolean {
-  if (!prefixes || prefixes.length === 0) return true;
-  return prefixes.some((p) => url.startsWith(p));
 }
 
 function basenameFromUrl(url: string): string {
@@ -70,15 +66,14 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     return isHttps(url) && isPreviewThemeUrl(url);
   }, [chatAny, url]);
 
-  const isOfficial = useMemo(
-    () => isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes),
-    [clientConfig.themeCatalogApprovedHostPrefixes, url]
-  );
+  const prefixes = clientConfig.themeCatalogApprovedHostPrefixes;
 
-  const showThirdPartyBanner = useMemo(() => {
-    const p = clientConfig.themeCatalogApprovedHostPrefixes;
-    return Boolean(p && p.length > 0 && !isApprovedByPrefix(url, p));
-  }, [clientConfig.themeCatalogApprovedHostPrefixes, url]);
+  const isOfficial = useMemo(() => isApprovedCatalogHostUrl(url, prefixes), [prefixes, url]);
+
+  const showThirdPartyBanner = useMemo(
+    () => !isApprovedCatalogHostUrl(url, prefixes),
+    [prefixes, url]
+  );
 
   const previewQuery = useQuery({
     queryKey: ['theme-preview-embed', url],

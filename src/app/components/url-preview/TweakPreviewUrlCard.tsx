@@ -24,7 +24,7 @@ import { putCachedThemeCss } from '../../theme/cache';
 import { getSableCssPackageKind, parseSableTweakMetadata } from '../../theme/metadata';
 import { isHttpsFullSableCssUrl } from '../../theme/previewUrls';
 import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
-import { isThirdPartyThemeUrl } from '../../theme/themeApproval';
+import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
 function baseLabel(url: string): string {
@@ -33,11 +33,6 @@ function baseLabel(url: string): string {
   } catch {
     return 'Unofficial tweak';
   }
-}
-
-function isApprovedByPrefix(url: string, prefixes: string[] | undefined): boolean {
-  if (!prefixes || prefixes.length === 0) return true;
-  return prefixes.some((p) => url.startsWith(p));
 }
 
 function basenameFromFullSableUrl(url: string): string {
@@ -86,19 +81,13 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
 
   const allowed = useMemo(() => chatAny && isHttpsFullSableCssUrl(url), [chatAny, url]);
 
-  const isOfficial = useMemo(
-    () => isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes),
-    [clientConfig.themeCatalogApprovedHostPrefixes, url]
-  );
+  const prefixes = clientConfig.themeCatalogApprovedHostPrefixes;
+
+  const isOfficial = useMemo(() => isApprovedCatalogHostUrl(url, prefixes), [prefixes, url]);
 
   const showThirdPartyBanner = useMemo(
-    () =>
-      Boolean(
-        clientConfig.themeCatalogApprovedHostPrefixes &&
-        clientConfig.themeCatalogApprovedHostPrefixes.length > 0 &&
-        !isApprovedByPrefix(url, clientConfig.themeCatalogApprovedHostPrefixes)
-      ),
-    [clientConfig.themeCatalogApprovedHostPrefixes, url]
+    () => !isApprovedCatalogHostUrl(url, prefixes),
+    [prefixes, url]
   );
 
   const tweakPreviewQuery = useQuery({

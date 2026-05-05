@@ -56,11 +56,17 @@ type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
   fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
 };
 
-// Replace fetchRoomEvent for first sync so thread roots don't each trigger GET /event
-// Uses cached timeline events when present otherwise a stub that fetches when user opens thread
-function installStartupFetchRoomEventPatch(mx: MatrixClient): void {
+type StartupFetchRoomEventPatchOptions = {
+  stubOnCacheMiss: boolean;
+};
+
+function installStartupFetchRoomEventPatch(
+  mx: MatrixClient,
+  options: StartupFetchRoomEventPatchOptions
+): void {
   fetchRoomEventStartupCleanupByClient.get(mx)?.();
 
+  const { stubOnCacheMiss } = options;
   const mxWritable = mx as MatrixClientWithWritableFetchRoomEvent;
   const origFetchRoomEvent = mx.fetchRoomEvent.bind(mx);
   let restored = false;
@@ -84,12 +90,17 @@ function installStartupFetchRoomEventPatch(mx: MatrixClient): void {
   mxWritable.fetchRoomEvent = (roomId: string, eventId: string) => {
     if (restored) return origFetchRoomEvent(roomId, eventId);
     const cachedEvent = mx.getRoom(roomId)?.findEventById(eventId);
-    // Reuse sync payload instead of another GET when we already have the root.
-    const payload: FetchRoomEventResult = cachedEvent?.event ?? {
-      event_id: eventId,
-      room_id: roomId,
-    };
-    return Promise.resolve(payload);
+    if (cachedEvent) {
+      return Promise.resolve(cachedEvent.event);
+    }
+    if (stubOnCacheMiss) {
+      const payload: FetchRoomEventResult = {
+        event_id: eventId,
+        room_id: roomId,
+      };
+      return Promise.resolve(payload);
+    }
+    return origFetchRoomEvent(roomId, eventId);
   };
 
   mx.on(ClientEvent.Sync, onSync);
@@ -518,7 +529,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       (filterDefinition.room.timeline as { lazy_load_members?: boolean }).lazy_load_members = true;
     }
 
-    installStartupFetchRoomEventPatch(mx);
+    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: true });
 
     let syncStarted: Promise<void>;
     try {
@@ -693,7 +704,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   });
 
   try {
-    installStartupFetchRoomEventPatch(mx);
+    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: false });
     await mx.startClient({
       lazyLoadMembers: true,
       slidingSync: manager.slidingSync,

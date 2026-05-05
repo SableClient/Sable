@@ -20,6 +20,7 @@ export const findAndReplace = <ReplaceReturnType, ConvertReturnType>(
 
     lastEnd = match.index + match[0].length;
     if (regex.global) match = regex.exec(text);
+    else match = null;
   }
 
   result.push(convertPart(text.slice(lastEnd), result.length));

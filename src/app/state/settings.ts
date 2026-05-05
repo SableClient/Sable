@@ -34,8 +34,6 @@ export interface Settings {
   arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
-  isMarkdown: boolean;
-  editorToolbar: boolean;
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
@@ -84,6 +82,7 @@ export interface Settings {
   showPronouns: boolean;
   parsePronouns: boolean;
   renderGlobalNameColors: boolean;
+  renderUserCards: boolean;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
   renderRoomColors: boolean;
@@ -134,8 +133,6 @@ const defaultSettings: Settings = {
   arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
-  isMarkdown: true,
-  editorToolbar: false,
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
@@ -187,6 +184,7 @@ const defaultSettings: Settings = {
   showPronouns: true,
   parsePronouns: true,
   renderGlobalNameColors: true,
+  renderUserCards: true,
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,

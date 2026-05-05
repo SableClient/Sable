@@ -115,6 +115,7 @@ export const useUserProfile = (
   const [renderGlobalColors] = useSetting(settingsAtom, 'renderGlobalNameColors');
   const [renderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
+  const [renderUserCards] = useSetting(settingsAtom, 'renderUserCards');
   const themeKind = useActiveTheme().kind;
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
@@ -269,19 +270,20 @@ export const useUserProfile = (
 
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
-    const validHeroColor = isValidHex(data?.heroColorScheme?.color);
-    const heroBrightness = data?.heroColorScheme?.brightness;
+    const validHeroColor = renderUserCards ? isValidHex(data?.heroColorScheme?.color) : undefined;
+    const heroBrightness = renderUserCards ? data?.heroColorScheme?.brightness : undefined;
     const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
 
-    const heroNameColor =
-      ((renderGlobalColors || userId === mx.getUserId()) &&
-        heroBrightness === 'light' &&
-        !areColorsTooSimilar(testUserHeroColor, validGlobalValLight) &&
-        validGlobalValLight) ||
-      (heroBrightness === 'dark' &&
-        !areColorsTooSimilar(testUserHeroColor, validGlobalValDark) &&
-        validGlobalValDark) ||
-      resolvedColor;
+    const heroNameColor = renderUserCards
+      ? ((renderGlobalColors || userId === mx.getUserId()) &&
+          heroBrightness === 'light' &&
+          !areColorsTooSimilar(testUserHeroColor, validGlobalValLight) &&
+          validGlobalValLight) ||
+        (heroBrightness === 'dark' &&
+          !areColorsTooSimilar(testUserHeroColor, validGlobalValDark) &&
+          validGlobalValDark) ||
+        resolvedColor
+      : resolvedColor;
     return {
       ...data,
       resolvedColor,
@@ -301,6 +303,7 @@ export const useUserProfile = (
     renderRoomColors,
     renderRoomFonts,
     renderGlobalColors,
+    renderUserCards,
     themeKind,
     legacyUsernameColor,
   ]);

@@ -1,3 +1,3 @@
 export * from './utils';
-export * from './block';
-export * from './inline';
+export { markdownToHtml } from './markdownToHtml';
+export { htmlToMarkdown, injectDataMd } from './markdownPipeline';

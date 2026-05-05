@@ -180,6 +180,7 @@ function IdentityCosmetics() {
   const [renderRoomColors, setRenderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts, setRenderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
   const [uniformIcons, setUniformIcons] = useSetting(settingsAtom, 'uniformIcons');
+  const [renderUserCards, setRenderUserCards] = useSetting(settingsAtom, 'renderUserCards');
 
   return (
     <Box direction="Column" gap="100">
@@ -212,6 +213,14 @@ function IdentityCosmetics() {
           focusId="pronoun-pills-for-all"
           description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Render Custom Profile Cards"
+          focusId="custom-profile-cards"
+          description="Display the custom styling of a user card"
+          after={<Switch variant="Primary" value={renderUserCards} onChange={setRenderUserCards} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

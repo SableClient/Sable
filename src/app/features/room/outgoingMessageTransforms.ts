@@ -1,11 +1,7 @@
 import type { Descendant } from 'slate';
-import {
-  hasSettingsLinksToRewriteInDescendants,
-  rewriteSettingsLinksInDescendants,
-} from './settingsLinkMessage';
+import { hasSettingsLinksToRewrite, rewriteSettingsLinks } from './settingsLinkMessage';
 
 export type OutgoingMessageTransformContext = {
-  isMarkdown: boolean;
   settingsLinkBaseUrl: string;
 };
 
@@ -16,13 +12,8 @@ export type OutgoingMessageTransform = {
 
 export const outgoingMessageTransforms: OutgoingMessageTransform[] = [
   {
-    apply: (children, context) =>
-      rewriteSettingsLinksInDescendants(children, context.settingsLinkBaseUrl, context.isMarkdown),
+    apply: (children, context) => rewriteSettingsLinks(children, context.settingsLinkBaseUrl),
     shouldApply: (children, context) =>
-      hasSettingsLinksToRewriteInDescendants(
-        children,
-        context.settingsLinkBaseUrl,
-        context.isMarkdown
-      ),
+      hasSettingsLinksToRewrite(children, context.settingsLinkBaseUrl),
   },
 ];

@@ -31,9 +31,9 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { CutoutCard } from '$components/cutout-card';
 import { replaceSpaceWithDash } from '$utils/common';
 import { useAlive } from '$hooks/useAlive';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
-import { getMxIdServer } from '$utils/matrix';
 import { EventType } from '$types/matrix-sdk';
 
 type RoomPublishedAddressesProps = {

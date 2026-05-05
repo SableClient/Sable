@@ -9,7 +9,7 @@ import { JoinRule, RestrictedAllowType, EventType, RoomType } from '$types/matri
 
 import type { StateEvents } from '$types/matrix-sdk';
 import { getViaServers } from '$plugins/via-servers';
-import { getMxIdServer } from '$utils/matrix';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { CreateRoomAccess } from './types';
 
 export const createRoomCreationContent = (

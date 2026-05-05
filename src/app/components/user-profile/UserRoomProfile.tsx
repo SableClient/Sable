@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { getMxIdServer, mxcUrlToHttp } from '$utils/matrix';
+import { mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -49,6 +49,7 @@ import { getSettings, settingsAtom } from '$state/settings';
 import { filterPronounsByLanguage } from '$utils/pronouns';
 import { useSetting } from '$state/hooks/settings';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { TextViewerContent } from '$components/text-viewer';
 import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import { CreatorChip } from './CreatorChip';
@@ -408,6 +409,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const ignored = ignoredUsers.includes(userId);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
+  const [renderUserCards] = useSetting(settingsAtom, 'renderUserCards');
 
   const room = useRoom();
   const powerLevels = usePowerLevels(room);
@@ -541,7 +543,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           }}
         >
           <Box gap="200" alignItems="Center" wrap="Wrap">
-            <UserHeroName displayName={displayName} userId={userId} />
+            <UserHeroName displayName={displayName} userId={userId} customHeroCards={renderUserCards}/>
             {userId !== myUserId && (
               <Button
                 size="300"

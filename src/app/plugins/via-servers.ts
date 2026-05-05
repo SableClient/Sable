@@ -1,8 +1,8 @@
+import { getMxIdServer } from '$utils/mxIdHelper';
+import { creatorsSupported } from '$utils/roomSupport';
 import type { Room } from '$types/matrix-sdk';
 import type { IRoomCreateContent } from '$types/matrix/room';
-
 import type { IPowerLevels } from '$hooks/usePowerLevels';
-import { creatorsSupported, getMxIdServer } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
 import { EventType } from '$types/matrix-sdk';
 

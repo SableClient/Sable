@@ -87,7 +87,7 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
     <Box
       direction="Column"
       className={css.UserHero}
-      style={{ backgroundColor: fetchedProfile?.heroColorScheme?.color }}
+      style={{ backgroundColor: backgroundColor }}
     >
       <div
         className={css.UserHeroCoverContainer}
@@ -215,13 +215,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
 type UserHeroNameProps = {
   displayName?: string;
   userId: string;
+  customHeroCards?: boolean;
 };
-export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
+export function UserHeroName({ displayName, userId, customHeroCards }: UserHeroNameProps) {
   const username = getMxIdLocalPart(userId);
   const nick = useNickname(userId);
 
   // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom(), true);
+  const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
   const shownName = nick ?? displayName ?? username ?? userId;
 
   return (

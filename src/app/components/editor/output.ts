@@ -8,6 +8,7 @@ import { isUserId } from '$utils/matrix';
 import type { CustomElement } from './slate';
 import { BlockType } from './types';
 import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from './utils';
+import { MATRIX_TO_BASE } from '$plugins/matrix-to';
 
 export type OutputOptions = {
   /**
@@ -293,6 +294,8 @@ export const getLinks = (serialized: Descendant | Descendant[]): string[] | unde
     if (isInsideMarkdownCodeSpan(index, index + fullMatch.length, codeSpanRanges)) {
       continue;
     }
+
+    if (url.startsWith(MATRIX_TO_BASE)) continue;
 
     finalList.add(url);
   }

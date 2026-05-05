@@ -631,42 +631,42 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
               />
             )}
           </Box>
-        </Box>
-        {ignored && <IgnoredUserAlert />}
-        {member && membership === bannedMembership && (
-          <UserBanAlert
-            userId={userId}
-            reason={member.events.member?.getContent().reason}
-            canUnban={canUnban}
-            bannedBy={member.events.member?.getSender()}
-            ts={member.events.member?.getTs()}
-          />
-        )}
-        {member &&
-          membership === leftMembership &&
-          member.events.member &&
-          member.events.member.getSender() !== userId && (
-            <UserKickAlert
+          {ignored && <IgnoredUserAlert />}
+          {member && membership === bannedMembership && (
+            <UserBanAlert
+              userId={userId}
               reason={member.events.member?.getContent().reason}
-              kickedBy={member.events.member?.getSender()}
+              canUnban={canUnban}
+              bannedBy={member.events.member?.getSender()}
               ts={member.events.member?.getTs()}
             />
           )}
-        {member && membership === invitedMembership && (
-          <UserInviteAlert
+          {member &&
+            membership === leftMembership &&
+            member.events.member &&
+            member.events.member.getSender() !== userId && (
+              <UserKickAlert
+                reason={member.events.member?.getContent().reason}
+                kickedBy={member.events.member?.getSender()}
+                ts={member.events.member?.getTs()}
+              />
+            )}
+          {member && membership === invitedMembership && (
+            <UserInviteAlert
+              userId={userId}
+              reason={member.events.member?.getContent().reason}
+              canKick={canKickUser}
+              invitedBy={member.events.member?.getSender()}
+              ts={member.events.member?.getTs()}
+            />
+          )}
+          <UserModeration
             userId={userId}
-            reason={member.events.member?.getContent().reason}
-            canKick={canKickUser}
-            invitedBy={member.events.member?.getSender()}
-            ts={member.events.member?.getTs()}
+            canInvite={canInvite && membership === leftMembership}
+            canKick={canKickUser && membership === joinedMembership}
+            canBan={canBanUser && membership !== bannedMembership}
           />
-        )}
-        <UserModeration
-          userId={userId}
-          canInvite={canInvite && membership === leftMembership}
-          canKick={canKickUser && membership === joinedMembership}
-          canBan={canBanUser && membership !== bannedMembership}
-        />
+        </Box>
       </Box>
     </Box>
   );

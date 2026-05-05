@@ -47,7 +47,7 @@ function getImagePackReferencesForMxcInternal(
     .map((pack) => {
       const img = pack.getImages(imageUsage).find((val) => val.url === mxcUrl);
       const room = matrixClient.getRoom(pack.address?.roomId);
-      if (!room || (isRoomPrivate(matrixClient, room) && !bypassPrivateFilter)) return;
+      if (!room || (isRoomPrivate(matrixClient, room) && !bypassPrivateFilter)) return undefined;
       const viaServers = new SerializableSet<string>();
       if (room)
         getViaServers(room).forEach((via) => {

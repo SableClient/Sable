@@ -18,7 +18,7 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import type { JumboEmojiSize } from '$state/settings';
+import type { JumboEmojiSize, RenderUserCardsMode } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
@@ -89,6 +89,82 @@ function SelectJumboEmojiSize() {
                     key={item.id}
                     size="300"
                     variant={jumboEmojiSize === item.id ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item.id)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+
+const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
+  { id: 'both', name: 'Light & dark' },
+  { id: 'light', name: 'Light only' },
+  { id: 'dark', name: 'Dark only' },
+  { id: 'none', name: 'Off' },
+];
+
+function SelectRenderCustomProfileCards() {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const [renderUserCardsMode, setRenderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (mode: RenderUserCardsMode) => {
+    setRenderUserCardsMode(mode);
+    setMenuCords(undefined);
+  };
+
+  const currentLabel =
+    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ?? 'Light & dark';
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">{currentLabel}</Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {profileCardRenderItems.map((item) => (
+                  <MenuItem
+                    key={item.id}
+                    size="300"
+                    variant={renderUserCardsMode === item.id ? 'Primary' : 'Surface'}
                     radii="300"
                     onClick={() => handleSelect(item.id)}
                   >
@@ -180,7 +256,6 @@ function IdentityCosmetics() {
   const [renderRoomColors, setRenderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts, setRenderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
   const [uniformIcons, setUniformIcons] = useSetting(settingsAtom, 'uniformIcons');
-  const [renderUserCards, setRenderUserCards] = useSetting(settingsAtom, 'renderUserCards');
 
   return (
     <Box direction="Column" gap="100">
@@ -219,8 +294,8 @@ function IdentityCosmetics() {
         <SettingTile
           title="Render Custom Profile Cards"
           focusId="custom-profile-cards"
-          description="Display the custom styling of a user card"
-          after={<Switch variant="Primary" value={renderUserCards} onChange={setRenderUserCards} />}
+          description="Choose whose profile card colors to show: everyone with a scheme, only light or dark schemes, or hide them."
+          after={<SelectRenderCustomProfileCards />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

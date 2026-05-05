@@ -7,7 +7,7 @@ import { EventTimeline, EventType } from '$types/matrix-sdk';
 import colorMXID from '$utils/colorMXID';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, shouldApplyUserHeroCards } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
 import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
@@ -115,7 +115,7 @@ export const useUserProfile = (
   const [renderGlobalColors] = useSetting(settingsAtom, 'renderGlobalNameColors');
   const [renderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
-  const [renderUserCards] = useSetting(settingsAtom, 'renderUserCards');
+  const [renderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
   const themeKind = useActiveTheme().kind;
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
@@ -270,11 +270,13 @@ export const useUserProfile = (
 
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
-    const validHeroColor = renderUserCards ? isValidHex(data?.heroColorScheme?.color) : undefined;
-    const heroBrightness = renderUserCards ? data?.heroColorScheme?.brightness : undefined;
+    const rawHeroBrightness = data?.heroColorScheme?.brightness;
+    const heroCardsAllowed = shouldApplyUserHeroCards(renderUserCardsMode, rawHeroBrightness);
+    const validHeroColor = heroCardsAllowed ? isValidHex(data?.heroColorScheme?.color) : undefined;
+    const heroBrightness = heroCardsAllowed ? rawHeroBrightness : undefined;
     const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
 
-    const heroNameColor = renderUserCards
+    const heroNameColor = heroCardsAllowed
       ? ((renderGlobalColors || userId === mx.getUserId()) &&
           heroBrightness === 'light' &&
           !areColorsTooSimilar(testUserHeroColor, validGlobalValLight) &&
@@ -303,7 +305,7 @@ export const useUserProfile = (
     renderRoomColors,
     renderRoomFonts,
     renderGlobalColors,
-    renderUserCards,
+    renderUserCardsMode,
     themeKind,
     legacyUsernameColor,
   ]);

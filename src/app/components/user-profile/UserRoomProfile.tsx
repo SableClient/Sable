@@ -409,7 +409,6 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const ignored = ignoredUsers.includes(userId);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
-  const [renderUserCards] = useSetting(settingsAtom, 'renderUserCards');
 
   const room = useRoom();
   const powerLevels = usePowerLevels(room);
@@ -513,6 +512,8 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', innerColor)) && '#000000') ||
     undefined;
 
+  const showCustomHeroCard = !!fetchedProfile.heroColor;
+
   return (
     <Box direction="Column" style={{ color: textColor }}>
       <UserHero
@@ -526,7 +527,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         direction="Column"
         gap="300"
         style={{
-          padding: renderUserCards && innerColor ? config.space.S200 : config.space.S0,
+          padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S0,
           backgroundColor,
         }}
       >
@@ -539,14 +540,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             borderWidth: toRem(5),
             borderColor: '#00000000',
             borderStyle: 'solid',
-            padding: renderUserCards && innerColor ? config.space.S200 : config.space.S300,
+            padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S300,
           }}
         >
           <Box gap="200" alignItems="Center" wrap="Wrap">
             <UserHeroName
               displayName={displayName}
               userId={userId}
-              customHeroCards={renderUserCards}
+              customHeroCards={showCustomHeroCard}
             />
             {userId !== myUserId && (
               <Button

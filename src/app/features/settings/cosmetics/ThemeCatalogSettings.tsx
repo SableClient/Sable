@@ -947,7 +947,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Clear theme assignments"
               focusId="theme-catalog-clear-remote"
-              description="Clears which saved themes apply to light/dark or manual mode. Saved stars stay available."
+              description="Clears which saved themes apply to light/dark or manual mode. Favorites stay available."
               after={
                 <Button
                   variant="Secondary"
@@ -1073,8 +1073,8 @@ export function ThemeCatalogSettings({
             )}
             {tweakFavorites.length === 0 && (
               <Text size="T300" priority="300">
-                No saved tweaks. Star tweaks in the catalog to keep them here, or enable a tweak to
-                cache it automatically.
+                No saved tweaks. Favorite tweaks in the catalog to keep them here, or enable a tweak
+                to cache it automatically.
               </Text>
             )}
             {localTweaksQuery.isSuccess && tweakFavorites.length > 0 && (
@@ -1133,7 +1133,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Browse catalog"
               focusId="theme-browse-remote"
-              description="Download themes and tweaks from the official catalog (star to save locally)."
+              description="Download themes and tweaks from the official catalog."
               after={
                 <Button
                   variant="Secondary"
@@ -1496,7 +1496,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Theme & tweak links in chat"
               focusId="theme-chat-sable-widgets"
-              description="When disabled, messages do not show theme or tweak cards (or placeholders) for Sable CSS links — only the normal link text."
+              description="When disabled, messages do not show theme or tweak cards (or placeholders) for Sable CSS links, only a plain link."
               after={
                 <Switch variant="Primary" value={sableChatWidgets} onChange={setSableChatWidgets} />
               }
@@ -1506,7 +1506,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Theme & tweak previews from approved URLs"
               focusId="theme-chat-auto-approved"
-              description="When enabled, approved catalog hosts automatically fetch and show a preview. When disabled, a “Load preview” control is shown for those links instead (this message only)."
+              description="When enabled, approved catalog hosts fetch and show a preview. When disabled, a “Load preview” control is shown."
               after={
                 <Switch
                   variant="Primary"
@@ -1526,7 +1526,7 @@ export function ThemeCatalogSettings({
             <SettingTile
               title="Theme & tweak previews from any URL"
               focusId="theme-chat-auto-any"
-              description="When enabled, non-catalog (third-party) Sable CSS links also fetch automatically. Strongly discouraged. When disabled, those links never load until you use Load preview on the card."
+              description="Strongy discouraged. When enabled, potentially dangerous third-party Sable CSS links also fetch automatically. When disabled, those links never load until you use Load preview on the card."
               after={
                 <Switch
                   variant="Primary"
@@ -1536,12 +1536,6 @@ export function ThemeCatalogSettings({
                 />
               }
             />
-            {sableChatWidgets && autoPreviewAnyUrl && (
-              <Text size="T200" priority="400" style={{ color: 'var(--sable-warn-on-container)' }}>
-                Third-party CSS can change how Sable looks and may not be safe. Prefer keeping this
-                off and loading previews manually only when you trust the link.
-              </Text>
-            )}
           </SequenceCard>
         </>
       )}

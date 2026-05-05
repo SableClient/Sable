@@ -15,12 +15,12 @@ import type {
   StateEvents,
 } from '$types/matrix-sdk';
 import {
-  ConditionKind,
   EventTimeline,
   EventType,
   JoinRule,
   NotificationCountType,
   PushProcessor,
+  PushRuleActionName,
   RelationType,
   MsgType,
   KnownMembership,
@@ -178,15 +178,25 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
-export const isMutedRule = (rule: IPushRule) =>
-  // Check for empty actions (new spec) or dont_notify (deprecated)
-  (rule.actions.length === 0 || (rule.actions[0] as unknown as string) === 'dont_notify') &&
-  rule.conditions?.[0]?.kind === ConditionKind.EventMatch;
+const hasNotifyPushAction = (actions: IPushRule['actions']): boolean =>
+  actions.some((a) => typeof a === 'string' && a === PushRuleActionName.Notify);
 
-export const findMutedRule = (overrideRules: IPushRule[], roomId: string) =>
-  overrideRules.find((rule) => rule.rule_id === roomId && isMutedRule(rule));
+const findRoomMuteOverrideRule = (
+  overrideRules: IPushRule[] | undefined,
+  roomId: string
+): IPushRule | undefined =>
+  overrideRules?.find(
+    (rule) =>
+      rule.rule_id === roomId && rule.rule_id.startsWith('!') && !hasNotifyPushAction(rule.actions)
+  );
 
 export const getNotificationType = (mx: MatrixClient, roomId: string): NotificationType => {
+  const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
+    ?.global?.override;
+  if (findRoomMuteOverrideRule(overrideRules, roomId)) {
+    return NotificationType.Mute;
+  }
+
   let roomPushRule: IPushRule | undefined;
   try {
     roomPushRule = mx.getRoomPushRule('global', roomId);
@@ -195,11 +205,7 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
   }
 
   if (!roomPushRule) {
-    const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
-      ?.global?.override;
-    if (!overrideRules) return NotificationType.Default;
-
-    return findMutedRule(overrideRules, roomId) ? NotificationType.Mute : NotificationType.Default;
+    return NotificationType.Default;
   }
 
   if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
@@ -254,6 +260,7 @@ export const roomHaveNotification = (room: Room): boolean => {
 };
 
 export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
+  if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return false;
   const userId = mx.getUserId();
   if (!userId) return false;
   const readUpToId = room.getEventReadUpTo(userId);
@@ -290,6 +297,10 @@ type UnreadInfoOptions = {
 const unreadInfoFixupInProgress = new WeakSet<Room>();
 
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
+  if (getNotificationType(room.client, room.roomId) === NotificationType.Mute) {
+    return { roomId: room.roomId, highlight: 0, total: 0 };
+  }
+
   const userId = room.client.getUserId();
   if (userId && options?.applyFixup && !unreadInfoFixupInProgress.has(room)) {
     unreadInfoFixupInProgress.add(room);

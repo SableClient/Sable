@@ -1,7 +1,10 @@
 import parse from 'html-dom-parser';
 import type { ChildNode, Element } from 'domhandler';
 import { isText, isTag } from 'domhandler';
-import { validateMxcUrl } from './extensions/matrix-emoticon';
+import {
+  encodeMxEmoticonForMarkdownPlaceholder,
+  validateMxcUrl,
+} from './extensions/matrix-emoticon';
 import { escapeMarkdownInlineSequences } from './utils';
 
 /**
@@ -338,11 +341,16 @@ function processImage(node: Element): string {
   }
 
   const src = node.attribs.src ?? '';
-  const alt = node.attribs.alt ?? '';
+  const alt = node.attribs.alt ?? node.attribs.title ?? '';
 
   if (!validateMxcUrl(src)) {
     return '';
   }
 
-  return `<img data-mx-emoticon src="${src}" alt="${alt}" />`;
+  const shortcode = alt.replace(/^:|:$/g, '');
+  if (!shortcode) {
+    return '';
+  }
+
+  return encodeMxEmoticonForMarkdownPlaceholder(src, shortcode);
 }

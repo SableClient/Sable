@@ -114,6 +114,7 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
   const lastAutoSavedUrlRef = useRef<string | null>(null);
   const [canRevert, setCanRevert] = useState(false);
   const [favoriteTouched, setFavoriteTouched] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
 
   const appliedHere = useMemo(() => {
     const u = previewQuery.data?.fullUrl;
@@ -149,6 +150,8 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     const fullUrl = previewQuery.data?.fullUrl;
     if (!fullUrl) return;
 
+    setFavoriteError(null);
+
     const existing = favorites.find((f) => f.fullUrl === fullUrl);
     if (existing) {
       setFavoriteTouched(false);
@@ -177,7 +180,10 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     setFavoriteTouched(true);
     const res = await fetch(fullUrl, { mode: 'cors' });
     if (!mountedRef.current) return;
-    if (!res.ok) return;
+    if (!res.ok) {
+      setFavoriteError(`Theme CSS not found (${res.status})`);
+      return;
+    }
     const cssText = await res.text();
     if (!mountedRef.current) return;
     await putCachedThemeCss(fullUrl, cssText);
@@ -422,6 +428,8 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
   return (
     <Box
+      direction="Column"
+      gap="300"
       style={{
         width: '400px',
         maxWidth: '100%',
@@ -465,6 +473,11 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       {previewQuery.isPending && (
         <Text size="T200" priority="300">
           Loading preview…
+        </Text>
+      )}
+      {favoriteError && (
+        <Text size="T200" priority="300">
+          {favoriteError}
         </Text>
       )}
     </Box>

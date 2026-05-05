@@ -1474,7 +1474,7 @@ export function ThemeCatalogSettings({
           </SequenceCard>
           <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
             <SettingTile
-              title="Theme & tweak previews from URLs"
+              title="Theme & tweak previews from approved URLs"
               focusId="theme-chat-auto-approved"
               description="When enabled, approved catalog hosts automatically fetch and show a preview. When disabled, a “Load preview” control is shown for those links instead (this message only)."
               after={

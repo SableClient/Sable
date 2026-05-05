@@ -155,8 +155,9 @@ export interface Settings {
   themeCatalogOnboardingDone: boolean;
   themeRemoteFavorites: ThemeRemoteFavorite[];
   themeRemoteCatalogEnabled: boolean;
-  themeChatPreviewAnyUrl: boolean;
-  themeChatPreviewApprovedCatalogOnly: boolean;
+  themeChatSableWidgetsEnabled: boolean;
+  themeChatAutoPreviewApprovedUrls: boolean;
+  themeChatAutoPreviewAnyUrl: boolean;
   themeRemoteManualFullUrl?: string;
   themeRemoteLightFullUrl?: string;
   themeRemoteDarkFullUrl?: string;
@@ -271,8 +272,9 @@ export const defaultSettings: Settings = {
   themeCatalogOnboardingDone: false,
   themeRemoteFavorites: [],
   themeRemoteCatalogEnabled: false,
-  themeChatPreviewAnyUrl: false,
-  themeChatPreviewApprovedCatalogOnly: false,
+  themeChatSableWidgetsEnabled: true,
+  themeChatAutoPreviewApprovedUrls: true,
+  themeChatAutoPreviewAnyUrl: false,
   themeRemoteManualFullUrl: undefined,
   themeRemoteLightFullUrl: undefined,
   themeRemoteDarkFullUrl: undefined,
@@ -308,6 +310,16 @@ export const getSettings = () => {
   ) {
     parsed.renderUserCards = 'both';
   }
+
+  const parsedRecord = parsed as Record<string, unknown>;
+  if (
+    typeof parsedRecord.themeChatAutoPreviewAnyUrl !== 'boolean' &&
+    typeof parsedRecord.themeChatPreviewAnyUrl === 'boolean'
+  ) {
+    parsedRecord.themeChatAutoPreviewAnyUrl = parsedRecord.themeChatPreviewAnyUrl;
+  }
+  delete parsedRecord.themeChatPreviewAnyUrl;
+  delete parsedRecord.themeChatPreviewApprovedCatalogOnly;
 
   return {
     ...defaultSettings,

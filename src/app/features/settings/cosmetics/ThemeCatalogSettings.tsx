@@ -216,7 +216,18 @@ export function ThemeCatalogSettings({
   const [manualRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
   const [lightRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
   const [darkRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
-  const [chatAny, setChatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
+  const [sableChatWidgets, setSableChatWidgets] = useSetting(
+    settingsAtom,
+    'themeChatSableWidgetsEnabled'
+  );
+  const [autoPreviewApprovedUrls, setAutoPreviewApprovedUrls] = useSetting(
+    settingsAtom,
+    'themeChatAutoPreviewApprovedUrls'
+  );
+  const [autoPreviewAnyUrl, setAutoPreviewAnyUrl] = useSetting(
+    settingsAtom,
+    'themeChatAutoPreviewAnyUrl'
+  );
 
   const [themeSearch, setThemeSearch] = useState('');
   const [tweakSearch, setTweakSearch] = useState('');
@@ -1410,19 +1421,59 @@ export function ThemeCatalogSettings({
       )}
 
       {isChatMode && (
-        <SequenceCard
-          className={SequenceCardStyle}
-          variant="SurfaceVariant"
-          direction="Column"
-          gap="400"
-        >
-          <SettingTile
-            title="Theme & tweak previews from URLs"
-            focusId="theme-chat-preview-any"
-            description="When enabled, messages linking to .preview.sable.css may fetch and show theme previews, and links to full .sable.css files with @sable-tweak metadata may show tweak metadata. Third-party CSS is not necessarily safe."
-            after={<Switch variant="Primary" value={chatAny} onChange={setChatAny} />}
-          />
-        </SequenceCard>
+        <>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Theme & tweak links in chat"
+              focusId="theme-chat-sable-widgets"
+              description="When disabled, messages do not show theme or tweak cards (or placeholders) for Sable CSS links — only the normal link text."
+              after={
+                <Switch variant="Primary" value={sableChatWidgets} onChange={setSableChatWidgets} />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+            <SettingTile
+              title="Theme & tweak previews from URLs"
+              focusId="theme-chat-auto-approved"
+              description="When enabled, approved catalog hosts automatically fetch and show a preview. When disabled, a “Load preview” control is shown for those links instead (this message only)."
+              after={
+                <Switch
+                  variant="Primary"
+                  value={autoPreviewApprovedUrls}
+                  onChange={setAutoPreviewApprovedUrls}
+                  disabled={!sableChatWidgets}
+                />
+              }
+            />
+          </SequenceCard>
+          <SequenceCard
+            className={SequenceCardStyle}
+            variant="SurfaceVariant"
+            direction="Column"
+            gap="400"
+          >
+            <SettingTile
+              title="Theme & tweak previews from any URL"
+              focusId="theme-chat-auto-any"
+              description="When enabled, non-catalog (third-party) Sable CSS links also fetch automatically. Strongly discouraged. When disabled, those links never load until you use Load preview on the card."
+              after={
+                <Switch
+                  variant="Primary"
+                  value={autoPreviewAnyUrl}
+                  onChange={setAutoPreviewAnyUrl}
+                  disabled={!sableChatWidgets}
+                />
+              }
+            />
+            {sableChatWidgets && autoPreviewAnyUrl && (
+              <Text size="T200" priority="400" style={{ color: 'var(--sable-warn-on-container)' }}>
+                Third-party CSS can change how Sable looks and may not be safe. Prefer keeping this
+                off and loading previews manually only when you trust the link.
+              </Text>
+            )}
+          </SequenceCard>
+        </>
       )}
     </Box>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
@@ -25,6 +25,7 @@ import { getSableCssPackageKind, parseSableTweakMetadata } from '../../theme/met
 import { isHttpsFullSableCssUrl } from '../../theme/previewUrls';
 import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
 import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
+import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
 function baseLabel(url: string): string {
@@ -73,17 +74,34 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
     };
   }, []);
 
-  const [chatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
+  const [autoPreviewApproved] = useSetting(settingsAtom, 'themeChatAutoPreviewApprovedUrls');
+  const [autoPreviewAny] = useSetting(settingsAtom, 'themeChatAutoPreviewAnyUrl');
   const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
   const [enabledTweakFullUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
   const [copied, setCopied] = useTimeoutToggle();
 
-  const allowed = useMemo(() => chatAny && isHttpsFullSableCssUrl(url), [chatAny, url]);
+  const isEligibleUrl = useMemo(() => isHttpsFullSableCssUrl(url), [url]);
 
   const prefixes = clientConfig.themeCatalogApprovedHostPrefixes;
 
   const isOfficial = useMemo(() => isApprovedCatalogHostUrl(url, prefixes), [prefixes, url]);
+
+  const shouldAutoFetch = useMemo(
+    () => (isOfficial && autoPreviewApproved) || (!isOfficial && autoPreviewAny),
+    [isOfficial, autoPreviewApproved, autoPreviewAny]
+  );
+
+  const [userTriggeredLoad, setUserTriggeredLoad] = useState(false);
+
+  useEffect(() => {
+    setUserTriggeredLoad(false);
+  }, [url]);
+
+  const fetchEnabled = useMemo(
+    () => isEligibleUrl && (shouldAutoFetch || userTriggeredLoad),
+    [isEligibleUrl, shouldAutoFetch, userTriggeredLoad]
+  );
 
   const showThirdPartyBanner = useMemo(
     () => !isApprovedCatalogHostUrl(url, prefixes),
@@ -92,7 +110,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
 
   const tweakPreviewQuery = useQuery({
     queryKey: ['tweak-preview-embed', url],
-    enabled: allowed,
+    enabled: fetchEnabled,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<TweakPreviewData | null> => {
       const res = await fetch(url, { mode: 'cors' });
@@ -187,7 +205,21 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
     [data, enabledTweakFullUrls, patchSettings, tweakFavorites, url]
   );
 
-  if (!allowed) return null;
+  if (!isEligibleUrl) return null;
+
+  if (!shouldAutoFetch && !userTriggeredLoad) {
+    return (
+      <SableChatPreviewPlaceholder
+        kind="tweak"
+        url={url}
+        hostLabel={baseLabel(url)}
+        isApprovedHost={isOfficial}
+        onLoadPreview={() => {
+          setUserTriggeredLoad(true);
+        }}
+      />
+    );
+  }
 
   if (tweakPreviewQuery.isPending) {
     return (
@@ -313,7 +345,9 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
         </Box>
       </Box>
 
-      {showThirdPartyBanner ? <ThemeThirdPartyBanner hostLabel={baseLabel(url)} /> : undefined}
+      {showThirdPartyBanner ? (
+        <ThemeThirdPartyBanner kind="tweak" hostLabel={baseLabel(url)} />
+      ) : undefined}
 
       {styleBlock ? (
         <>

@@ -17,6 +17,7 @@ import { putCachedThemeCss } from '../../theme/cache';
 import { fullUrlFromPreviewUrl } from '../../theme/previewUrls';
 import { isApprovedCatalogHostUrl } from '../../theme/themeApproval';
 import { ThemePreviewCard } from '../theme/ThemePreviewCard';
+import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
 
 function isHttps(url: string): boolean {
@@ -54,21 +55,35 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     };
   }, []);
 
-  const [chatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
+  const [autoPreviewApproved] = useSetting(settingsAtom, 'themeChatAutoPreviewApprovedUrls');
+  const [autoPreviewAny] = useSetting(settingsAtom, 'themeChatAutoPreviewAnyUrl');
   const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
   const [systemTheme] = useSetting(settingsAtom, 'useSystemTheme');
   const [manualRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
   const [lightRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
   const [darkRemoteFullUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
 
-  const allowed = useMemo(() => {
-    if (!chatAny) return false;
-    return isHttps(url) && isPreviewThemeUrl(url);
-  }, [chatAny, url]);
+  const isEligibleUrl = useMemo(() => isHttps(url) && isPreviewThemeUrl(url), [url]);
 
   const prefixes = clientConfig.themeCatalogApprovedHostPrefixes;
 
   const isOfficial = useMemo(() => isApprovedCatalogHostUrl(url, prefixes), [prefixes, url]);
+
+  const shouldAutoFetch = useMemo(
+    () => (isOfficial && autoPreviewApproved) || (!isOfficial && autoPreviewAny),
+    [isOfficial, autoPreviewApproved, autoPreviewAny]
+  );
+
+  const [userTriggeredLoad, setUserTriggeredLoad] = useState(false);
+
+  useEffect(() => {
+    setUserTriggeredLoad(false);
+  }, [url]);
+
+  const fetchEnabled = useMemo(
+    () => isEligibleUrl && (shouldAutoFetch || userTriggeredLoad),
+    [isEligibleUrl, shouldAutoFetch, userTriggeredLoad]
+  );
 
   const showThirdPartyBanner = useMemo(
     () => !isApprovedCatalogHostUrl(url, prefixes),
@@ -77,7 +92,7 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
 
   const previewQuery = useQuery({
     queryKey: ['theme-preview-embed', url],
-    enabled: allowed,
+    enabled: fetchEnabled,
     staleTime: 10 * 60_000,
     queryFn: async () => {
       const res = await fetch(url, { mode: 'cors' });
@@ -360,7 +375,21 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     store,
   ]);
 
-  if (!allowed) return null;
+  if (!isEligibleUrl) return null;
+
+  if (!shouldAutoFetch && !userTriggeredLoad) {
+    return (
+      <SableChatPreviewPlaceholder
+        kind="theme"
+        url={url}
+        hostLabel={baseLabel(url)}
+        isApprovedHost={isOfficial}
+        onLoadPreview={() => {
+          setUserTriggeredLoad(true);
+        }}
+      />
+    );
+  }
 
   const title = previewQuery.data?.displayName ?? 'Theme preview';
   let kindLabel = 'Theme';

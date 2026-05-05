@@ -71,6 +71,10 @@ const getMediaType = (url: string) => {
   return null;
 };
 
+const isSableChatEmbedCandidate = (url: string): boolean =>
+  /^https:\/\//i.test(url) &&
+  (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
+
 const CAPTION_STYLE = { marginTop: config.space.S200 };
 
 function RenderMessageContentInternal({
@@ -93,7 +97,7 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
-  const [themeChatAny] = useSetting(settingsAtom, 'themeChatPreviewAnyUrl');
+  const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
   const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
@@ -124,12 +128,14 @@ function RenderMessageContentInternal({
       );
       if (filteredUrls.length === 0) return undefined;
 
-      const themePreviewUrls = themeChatAny
-        ? filteredUrls.filter((u) => /\.preview\.sable\.css(\?|#|$)/i.test(u))
+      const themePreviewUrls = themeChatSableWidgets
+        ? filteredUrls.filter(
+            (u) => /^https:\/\//i.test(u) && /\.preview\.sable\.css(\?|#|$)/i.test(u)
+          )
         : [];
       const themeToRender = themePreviewUrls.filter((u) => /^https:\/\//i.test(u));
 
-      const tweakCandidateUrls = themeChatAny
+      const tweakCandidateUrls = themeChatSableWidgets
         ? filteredUrls.filter((u) => isHttpsFullSableCssUrl(u))
         : [];
 
@@ -155,6 +161,7 @@ function RenderMessageContentInternal({
             if (type) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
+            if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
             if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview key={url} url={url} />;
             }
@@ -166,7 +173,7 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [multiplePreviews, themeChatAny, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
+    [multiplePreviews, themeChatSableWidgets, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
   );
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (
@@ -183,7 +190,7 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview || themeChatAny ? renderUrlsPreview : undefined;
+  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {

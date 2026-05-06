@@ -8,21 +8,21 @@ function isDockedDevtoolsLikely(): boolean {
 
 export function installConsolePasteScamWarning(): void {
   const BANNER_STYLE =
-    "font-size:56px;font-weight:900;color:#ff0033;background:#1a0006;padding:16px 24px;border:6px solid #ff0033;line-height:1.1;";
+    'font-size:56px;font-weight:900;color:#ff0033;background:#1a0006;padding:16px 24px;border:6px solid #ff0033;line-height:1.1;';
   const BODY_STYLE =
-    "font-size:22px;font-weight:700;color:#ffb3c1;background:#120008;padding:14px 20px;line-height:1.35;max-width:920px;";
+    'font-size:22px;font-weight:700;color:#ffb3c1;background:#120008;padding:14px 20px;line-height:1.35;max-width:920px;';
   const CONTRIBUTE_STYLE =
-    "font-size:18px;font-weight:600;color:#a8d4ff;background:#0a1520;padding:12px 20px;line-height:1.35;max-width:920px;";
+    'font-size:18px;font-weight:600;color:#a8d4ff;background:#0a1520;padding:12px 20px;line-height:1.35;max-width:920px;';
 
   const spamWarnings = () => {
     const repeat = 15;
     const betweenPairsMs = 300;
 
     const emitPair = (index: number) => {
-      console.warn("%cSTOP", BANNER_STYLE);
+      console.warn('%cSTOP', BANNER_STYLE);
       console.warn(
-        "%cIf anyone told you to paste code or text here, you are being scammed. Close this window, do not paste anything, and report their account.",
-        BODY_STYLE,
+        '%cIf anyone told you to paste code or text here, you are being scammed. Close this window, do not paste anything, and report their account.',
+        BODY_STYLE
       );
       if (index + 1 < repeat) {
         window.setTimeout(() => {
@@ -32,7 +32,7 @@ export function installConsolePasteScamWarning(): void {
         window.setTimeout(() => {
           console.warn(
             "%cIf you know what you're doing, check out our GitHub and contribute: https://github.com/SableClient/Sable",
-            CONTRIBUTE_STYLE,
+            CONTRIBUTE_STYLE
           );
         }, betweenPairsMs);
       }
@@ -52,7 +52,7 @@ export function installConsolePasteScamWarning(): void {
   };
 
   window.setInterval(check, 1500);
-  window.addEventListener("resize", () => queueMicrotask(check));
+  window.addEventListener('resize', () => queueMicrotask(check));
 
   queueMicrotask(check);
 }

@@ -40,6 +40,27 @@ describe('markdownToHtml', () => {
     expect(result).toContain('E = mc^2');
   });
 
+  it('does not parse dollars inside fenced code as math', () => {
+    expect(markdownToHtml('```\n$$test$$\n```')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('```\n$$test$$\n```')).toContain('$$test$$');
+  });
+
+  it('does not parse dollars inside single-line fenced code as math', () => {
+    expect(markdownToHtml('```$$test$$```')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('```$$test$$```')).toContain('$$test$$');
+  });
+
+  it('does not parse dollars inside inline code as math', () => {
+    expect(markdownToHtml('`$$test$$`')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('`$$test$$`')).toContain('$$test$$');
+  });
+
+  it('does not parse inline math when dollars are only inside backticks in a sentence', () => {
+    const result = markdownToHtml('See `$$test$$` here.');
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$$test$$');
+  });
+
   it('converts block math syntax', () => {
     const result = markdownToHtml('$$\\frac{a}{b}$$');
     expect(result).toContain('data-mx-maths');

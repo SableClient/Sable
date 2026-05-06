@@ -47,13 +47,13 @@ function makeRemoteTheme(url: string, kind: ThemeKind): Theme {
 export const LightTheme: Theme = {
   id: 'light-theme',
   kind: ThemeKind.Light,
-  classNames: ['light-theme', lightTheme, onLightFontWeight],
+  classNames: ['sable-remote-theme', 'light-theme', lightTheme, onLightFontWeight],
 };
 
 export const DarkTheme: Theme = {
   id: 'dark-theme',
   kind: ThemeKind.Dark,
-  classNames: ['dark-theme', darkTheme, onDarkFontWeight],
+  classNames: ['sable-remote-theme', 'dark-theme', darkTheme, onDarkFontWeight],
 };
 
 export const useThemes = (): Theme[] => {

@@ -70,6 +70,24 @@ describe('markdownToHtml', () => {
     expect(result).toContain('not bold');
   });
 
+  it('does not treat >:3 as a block quote (requires space after >)', () => {
+    const result = markdownToHtml('>:3');
+    expect(result).not.toContain('<blockquote>');
+    expect(result).toContain(':3');
+  });
+
+  it('treats > followed by space as block quote', () => {
+    const result = markdownToHtml('> quoted');
+    expect(result).toContain('<blockquote>');
+    expect(result).toContain('quoted');
+  });
+
+  it('escapes block quote with a single backslash before >', () => {
+    const result = markdownToHtml('\\>:3');
+    expect(result).not.toContain('<blockquote>');
+    expect(result).toContain(':3');
+  });
+
   it('preserves img[data-mx-emoticon] tags with valid mxc URLs', () => {
     const html =
       '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" title=":blobcat:" height="32" />';

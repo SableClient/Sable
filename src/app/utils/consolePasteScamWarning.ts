@@ -15,8 +15,8 @@ export function installConsolePasteScamWarning(): void {
     "font-size:18px;font-weight:600;color:#a8d4ff;background:#0a1520;padding:12px 20px;line-height:1.35;max-width:920px;";
 
   const spamWarnings = () => {
-    const repeat = 5;
-    const betweenPairsMs = 120;
+    const repeat = 15;
+    const betweenPairsMs = 300;
 
     const emitPair = (index: number) => {
       console.warn("%cSTOP", BANNER_STYLE);

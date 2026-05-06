@@ -4,12 +4,14 @@ import { matrixSpoilerExtension } from './extensions/matrix-spoiler';
 import { matrixMathExtension, matrixMathBlockExtension } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
+import { matrixUnderlineExtension } from './extensions/matrix-underline';
 import { unescapeMarkdownBlockSequences, unescapeMarkdownInlineSequences } from './utils';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
   breaks: true,
   extensions: [
+    matrixUnderlineExtension,
     matrixSpoilerExtension,
     matrixMathExtension,
     matrixMathBlockExtension,

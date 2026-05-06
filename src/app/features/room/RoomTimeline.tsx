@@ -45,6 +45,7 @@ import {
   factoryRenderLinkifyWithMention,
 } from '$plugins/react-custom-html-parser';
 import { today, yesterday, timeDayMonthYear } from '$utils/time';
+import { unwrapRelationJumpTarget } from '$utils/room';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -77,8 +78,11 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
-import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import {
+  useProcessedTimeline,
+  getProcessedRowIndexForRawTimelineIndex,
+  type ProcessedEvent,
+} from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
@@ -494,19 +498,40 @@ export function RoomTimeline({
     setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
     handleEdit,
     handleOpenEvent: (id) => {
-      const evtTimeline = getEventTimeline(room, id);
+      const anchorId = unwrapRelationJumpTarget(room, id);
+      let evtTimeline = getEventTimeline(room, anchorId);
+      let resolvedForIndex = anchorId;
+      if (!evtTimeline && anchorId !== id) {
+        evtTimeline = getEventTimeline(room, id);
+        resolvedForIndex = id;
+      }
       const absoluteIndex = evtTimeline
-        ? getEventIdAbsoluteIndex(timelineSync.timeline.linkedTimelines, evtTimeline, id)
+        ? getEventIdAbsoluteIndex(
+            timelineSync.timeline.linkedTimelines,
+            evtTimeline,
+            resolvedForIndex
+          )
         : undefined;
 
       if (typeof absoluteIndex === 'number') {
-        const processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
+        let processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
+        let focusRawIndex = absoluteIndex;
+        if (processedIndex === undefined) {
+          const nearest = getProcessedRowIndexForRawTimelineIndex(
+            processedEventsRef.current,
+            absoluteIndex
+          );
+          if (nearest) {
+            processedIndex = nearest.rowIndex;
+            focusRawIndex = nearest.focusRawIndex;
+          }
+        }
         if (vListRef.current && processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
         }
-        timelineSync.setFocusItem({ index: absoluteIndex, scrollTo: false, highlight: true });
+        timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
-        timelineSync.loadEventTimeline(id);
+        timelineSync.loadEventTimeline(anchorId);
       }
     },
   });

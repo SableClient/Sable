@@ -1,5 +1,22 @@
 # Sable Client Changelog
 
+## 1.15.2 (2026-05-07)
+
+### Fixes
+
+* Adds back the message editor toolbar under an optional setting. No longer uses WYSIWYG, just applies markdown. http://localhost:8080/settings/general?focus=composer-formatting-toolbar&moe.sable.client.action=settings ([#762](<https://github.com/SableClient/Sable/pull/762>) by @7w1)
+* Fixed blockquotes needing a double backslash to escape and require a space after the `>` in order to form a blockquote. ([#758](<https://github.com/SableClient/Sable/pull/758>) by @7w1)
+* Fix empty messages being displayed as broken messages. ([#754](<https://github.com/SableClient/Sable/pull/754>) by @7w1)
+* Reescape arrow brackets when editing a message. ([#763](<https://github.com/SableClient/Sable/pull/763>) by @7w1)
+* Fix extraneous markdown escape characters when editing code blocks. ([#762](<https://github.com/SableClient/Sable/pull/762>) by @7w1)
+* Fixed jumpting to arbitrary events (e.g. reactions, edits, pins, leaves/joins). ([#759](<https://github.com/SableClient/Sable/pull/759>) by @7w1)
+* Fix latex in codeblocks getting parsed. ([#758](<https://github.com/SableClient/Sable/pull/758>) by @7w1)
+* Fixed message links being rendered as full links. ([#751](<https://github.com/SableClient/Sable/pull/751>) by @7w1)
+* Fixed per-message profile proxies not unwrapping and generally just not working. (`f8a9a8f`)
+* Fixed tweak automatic favoriting behavior when entering/leaving the catalog. ([#757](<https://github.com/SableClient/Sable/pull/757>) by @7w1)
+* Fix tweaks not applying on built-in themes. ([#756](<https://github.com/SableClient/Sable/pull/756>) by @7w1)
+* Added the ability to **underline** using `__underscores__`. ([#761](<https://github.com/SableClient/Sable/pull/761>) by @7w1)
+
 ## 1.15.1 (2026-05-05)
 
 ### Fixes

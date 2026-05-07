@@ -29,7 +29,7 @@ export const MemberTile = as<'button', MemberTileProps>(
     const name = getName(room, member, nicknames);
     const presence = useUserPresence(member.userId ?? '');
 
-    const avatarMxcUrl = member.getMxcAvatarUrl();
+    const avatarMxcUrl = member.getMxcAvatarUrl() ?? mx.getUser(member.userId)?.avatarUrl;
     const avatarUrl = avatarMxcUrl
       ? mx.mxcUrlToHttp(avatarMxcUrl, 100, 100, 'crop', undefined, false, useAuthentication)
       : undefined;

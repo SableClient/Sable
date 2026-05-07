@@ -78,6 +78,10 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
     ? memberStateContent?.avatar_url
     : member.getMxcAvatarUrl();
   const avatarMxc = roomAvatarMxc ?? globalAvatarMxc;
+  const hasRoomAvatarOverride =
+    memberStateEvent !== undefined &&
+    memberStateContent?.avatar_url !== undefined &&
+    memberStateContent.avatar_url !== globalAvatarMxc;
   const avatarUrl =
     avatarMxc && (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined);
 
@@ -147,7 +151,7 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
           >
             <Text size="B300">Upload</Text>
           </Button>
-          {roomAvatarMxc && roomAvatarMxc !== globalAvatarMxc && (
+          {hasRoomAvatarOverride && (
             <Button
               size="300"
               variant="Critical"

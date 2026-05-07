@@ -1,11 +1,19 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { matrixSpoilerExtension } from './extensions/matrix-spoiler';
-import { matrixMathExtension, matrixMathBlockExtension } from './extensions/matrix-math';
+import {
+  matrixMathExtension,
+  matrixMathBlockExtension,
+  maskDollarSignsInsideMarkdownCode,
+  unmaskMathCodeDollarPlaceholders,
+} from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
 import { matrixUnderlineExtension } from './extensions/matrix-underline';
-import { unescapeMarkdownBlockSequences, unescapeMarkdownInlineSequences } from './utils';
+import {
+  escapeLineStartBlockquoteWithoutFollowingSpace,
+  unescapeMarkdownInlineSequences,
+} from './utils';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
@@ -52,13 +60,15 @@ export function markdownToHtml(markdown: string): string {
   // (e.g., &lt; becomes < for link URLs)
   const decoded = decodeHtmlEntities(markdown);
 
-  // First unescape any block-level escape sequences (e.g., \>, \#)
-  const unescapedBlocks = unescapeMarkdownBlockSequences(decoded, (text) => text);
+  // Only treat `> ` as block quote, escape bare `>` at line start (e.g. `>:3`)
+  const blockquotePrefixed = escapeLineStartBlockquoteWithoutFollowingSpace(decoded);
 
-  const preprocessed = preprocessEmoticon(unescapedBlocks);
+  const preprocessed = preprocessEmoticon(blockquotePrefixed);
+
+  const mathInput = maskDollarSignsInsideMarkdownCode(preprocessed);
 
   // Parse markdown to HTML using marked with our Matrix extensions
-  const html = processor.parse(preprocessed) as string;
+  const html = processor.parse(mathInput) as string;
 
   // Unescape inline sequences (e.g., \*, \_) after parsing
   const unescapedInline = unescapeMarkdownInlineSequences(html);
@@ -138,5 +148,8 @@ export function markdownToHtml(markdown: string): string {
 
   DOMPurify.removeHook('afterSanitizeAttributes');
 
-  return sanitized.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  return unmaskMathCodeDollarPlaceholders(sanitized).replace(
+    /<li>(<p><\/p>)?<\/li>/gi,
+    '<li><br></li>'
+  );
 }

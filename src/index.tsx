@@ -22,8 +22,10 @@ import type { Sessions } from './app/state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY, ACTIVE_SESSION_KEY } from './app/state/sessions';
 import { createLogger } from './app/utils/debug';
 import { getLocalStorageItem } from './app/state/utils/atomWithLocalStorage';
+import { installConsolePasteScamWarning } from './app/utils/consolePasteScamWarning';
 
 enableMapSet();
+installConsolePasteScamWarning();
 const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);

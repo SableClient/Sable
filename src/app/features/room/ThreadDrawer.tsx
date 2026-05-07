@@ -23,7 +23,12 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
-import { getEditedEvent, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
+import {
+  getEditedEvent,
+  getMemberDisplayName,
+  reactionOrEditEvent,
+  unwrapRelationJumpTarget,
+} from '$utils/room';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -49,8 +54,11 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMessageEdit } from '$hooks/useMessageEdit';
-import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
-import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import {
+  useProcessedTimeline,
+  getProcessedRowIndexForRawTimelineIndex,
+  type ProcessedEvent,
+} from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
@@ -627,18 +635,32 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     (evt) => {
       const targetId = evt.currentTarget.getAttribute('data-event-id');
       if (!targetId) return;
-      const isRoot = targetId === threadRootId;
-      const isInReplies = processedEventsRef.current.some((e) => e.id === targetId);
+      let anchorId = unwrapRelationJumpTarget(room, targetId);
+      const threadLive = thread?.timelineSet.getLiveTimeline();
+      const threadEvents = threadLive?.getEvents();
+      const rawIndex = threadEvents?.findIndex((e) => e.getId() === anchorId) ?? -1;
+      if (rawIndex >= 0) {
+        const nearest = getProcessedRowIndexForRawTimelineIndex(
+          processedEventsRef.current,
+          rawIndex
+        );
+        if (nearest) {
+          const rowEv = processedEventsRef.current[nearest.rowIndex];
+          if (rowEv) anchorId = rowEv.id;
+        }
+      }
+      const isRoot = anchorId === threadRootId;
+      const isInReplies = processedEventsRef.current.some((e) => e.id === anchorId);
       if (!isRoot && !isInReplies) return;
-      setJumpToEventId(targetId);
+      setJumpToEventId(anchorId);
       setTimeout(() => setJumpToEventId(undefined), 2500);
       const el = drawerRef.current;
       if (el) {
-        const target = el.querySelector(`[data-message-id="${targetId}"]`);
+        const target = el.querySelector(`[data-message-id="${anchorId}"]`);
         target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     },
-    [threadRootId]
+    [threadRootId, room, thread]
   );
 
   // Map jumpToEventId to a focusItem index for useTimelineEventRenderer highlighting

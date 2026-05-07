@@ -12,7 +12,7 @@ import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix
 import { matrixUnderlineExtension } from './extensions/matrix-underline';
 import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
-  unescapeMarkdownInlineSequences,
+  unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
 
 // Configure marked with Matrix extensions
@@ -70,8 +70,8 @@ export function markdownToHtml(markdown: string): string {
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(mathInput) as string;
 
-  // Unescape inline sequences (e.g., \*, \_) after parsing
-  const unescapedInline = unescapeMarkdownInlineSequences(html);
+  // Unescape inline sequences (e.g., \*, \_) after parsing, but not inside <pre>/<code>
+  const unescapedInline = unescapeMarkdownInlineSequencesExceptInCodeHtml(html);
 
   // Force all links to open in a new tab
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {

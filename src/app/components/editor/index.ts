@@ -6,4 +6,5 @@ export * from './keyboard';
 export * from './output';
 
 export * from './input';
+export * from './MarkdownToolbar';
 export * from './types';

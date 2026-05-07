@@ -58,6 +58,8 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   getLinks,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
   replaceWithElement,
   BlockType,
 } from '$components/editor';
@@ -1505,6 +1507,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </IconButton>
 
+              <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
+
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut
@@ -1677,6 +1681,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               </Box>
             </>
           }
+          bottom={<MarkdownFormattingToolbarBottom />}
         />
         {showSchedulePicker && (
           <SchedulePickerDialog

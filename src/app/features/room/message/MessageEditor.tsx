@@ -20,6 +20,8 @@ import {
   AutocompletePrefix,
   CustomEditor,
   EmoticonAutocomplete,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
   RoomMentionAutocomplete,
   UserMentionAutocomplete,
   createEmoticonElement,
@@ -468,6 +470,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
               onKeyUp={handleKeyUp}
               bottom={
                 <>
+                  <MarkdownFormattingToolbarBottom />
                   <Box
                     style={{ padding: config.space.S200, paddingTop: 0 }}
                     alignItems="End"
@@ -494,6 +497,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                       </Chip>
                     </Box>
                     <Box gap="Inherit">
+                      <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
                       <UseStateProvider initial={undefined}>
                         {(anchor: RectCords | undefined, setAnchor) => (
                           <PopOut

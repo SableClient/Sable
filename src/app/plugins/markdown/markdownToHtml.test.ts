@@ -99,6 +99,17 @@ describe('markdownToHtml', () => {
     expect(result).toContain('not bold');
   });
 
+  it('preserves typed backslashes before punctuation inside fenced code', () => {
+    const result = markdownToHtml('```\n\\*literal\\*\n```');
+    expect(result).toContain('\\*literal\\*');
+    expect(result).toContain('<pre');
+  });
+
+  it('preserves typed backslashes inside inline code', () => {
+    const result = markdownToHtml('Hi `\\*x\\*` there');
+    expect(result).toContain('\\*x\\*');
+  });
+
   it('does not treat >:3 as a block quote (requires space after >)', () => {
     const result = markdownToHtml('>:3');
     expect(result).not.toContain('<blockquote>');

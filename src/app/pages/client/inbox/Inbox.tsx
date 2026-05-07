@@ -10,7 +10,7 @@ import { PageNav, PageNavContent, PageNavHeader } from '$components/page';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { mobileOrTablet } from '$utils/user-agent';
 
 function InvitesNavItem() {
@@ -50,6 +50,10 @@ export function Inbox() {
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
+
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
   return (
     <>
       <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>

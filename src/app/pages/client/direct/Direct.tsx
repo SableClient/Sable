@@ -184,6 +184,10 @@ export function Direct() {
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
+
   const createDirectSelected = useDirectCreateSelected();
 
   const selectedRoomId = useSelectedRoom();

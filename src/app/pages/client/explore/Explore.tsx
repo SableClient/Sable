@@ -1,5 +1,5 @@
 import type { FormEventHandler } from 'react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import {
@@ -166,6 +166,10 @@ export function Explore() {
 
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
+
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
   return (
     <>
       <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>

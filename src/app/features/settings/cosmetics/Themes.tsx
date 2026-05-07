@@ -1,6 +1,21 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useState } from 'react';
-import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
+import {
+  Box,
+  Button,
+  Chip,
+  config,
+  Icon,
+  Icons,
+  Input,
+  Menu,
+  MenuItem,
+  PopOut,
+  Switch,
+  Text,
+  toRem,
+  type RectCords,
+} from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
 import { SettingMenuSelector } from '$components/setting-menu-selector';
@@ -14,9 +29,13 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
+import type { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
+import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
 
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
   const themes = kind
@@ -360,6 +379,117 @@ function PageZoomInput() {
   );
 }
 
+function RoomSidebarWidth() {
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [inputValue, setInputValue] = useState(roomSidebarWidth.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = parseInt(val, 10);
+    if (!Number.isNaN(parsed)) {
+      setRoomSidebarWidth(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(roomSidebarWidth.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={parseInt(inputValue, 10) === roomSidebarWidth ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="0"
+      max="1000"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      outlined
+    />
+  );
+}
+
+function SelectShowRoomIcon() {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const showRoomIconItems = useShowRoomIcon();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position: ShowRoomIcon) => {
+    setShowRoomIcon(position);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {showRoomIconItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item.layout)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
 export function Appearance({
   onThemeBrowserOpenChange,
 }: {
@@ -446,6 +576,24 @@ export function Appearance({
                 focusId="subspace-hierarchy-limit"
                 description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
                 after={<SubnestedSpaceLinkDepthInput />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Room Sidebar Width"
+                focusId="room-sidebar-width"
+                description="The width of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
+                after={<RoomSidebarWidth />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons"
+                focusId="show-room-icons"
+                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                after={<SelectShowRoomIcon />}
               />
             </SequenceCard>
           </Box>

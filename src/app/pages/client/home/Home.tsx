@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RectCords } from 'folds';
 import {
@@ -54,7 +54,7 @@ import { markAsRead } from '$utils/notifications';
 import { useClosedNavCategoriesAtom } from '$state/hooks/closedNavCategories';
 import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, ShowRoomIcon } from '$state/settings';
 import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
@@ -205,6 +205,16 @@ export function Home() {
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const showIcons = () => {
+    if (showRoomIcon === ShowRoomIcon.Always) return true;
+    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    return curWidth < 96;
+  };
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
+
   const selectedRoomId = useSelectedRoom();
   const createRoomSelected = useHomeCreateSelected();
   const searchSelected = useHomeSearchSelected();
@@ -352,7 +362,7 @@ export function Home() {
                           <RoomNavItem
                             room={room}
                             selected={selected}
-                            showAvatar
+                            showAvatar={showIcons()}
                             linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,

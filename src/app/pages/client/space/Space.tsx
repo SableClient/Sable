@@ -62,7 +62,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, ShowRoomIcon } from '$state/settings';
 import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
@@ -393,6 +393,16 @@ export function Space() {
   const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const showIcons = () => {
+    if (showRoomIcon === ShowRoomIcon.Always) return true;
+    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    return curWidth < 96;
+  };
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
+
   const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);
   const selectedRoomId = useSelectedRoom();
   const lobbySelected = useSpaceLobbySelected(spaceIdOrAlias);
@@ -400,10 +410,6 @@ export function Space() {
   const callEmbed = useCallEmbed();
 
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
-
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
 
   const getRoom = useCallback(
     (rId: string): Room | undefined => {
@@ -840,7 +846,7 @@ export function Space() {
                           <RoomNavItem
                             room={room}
                             selected={selectedRoomId === roomId}
-                            showAvatar={mDirects.has(roomId) || true}
+                            showAvatar={mDirects.has(roomId) || showIcons()}
                             direct={mDirects.has(roomId)}
                             linkPath={getToLink(roomId)}
                             notificationMode={getRoomNotificationMode(

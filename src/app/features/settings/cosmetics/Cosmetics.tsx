@@ -18,7 +18,7 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import type { JumboEmojiSize, RenderUserCardsMode, ShowRoomIcon } from '$state/settings';
+import type { JumboEmojiSize, RenderUserCardsMode } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
@@ -26,7 +26,6 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
-import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
 
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
@@ -105,80 +104,12 @@ function SelectJumboEmojiSize() {
   );
 }
 
-const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
+export const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
   { id: 'both', name: 'Light & dark' },
   { id: 'light', name: 'Light only' },
   { id: 'dark', name: 'Dark only' },
   { id: 'none', name: 'Off' },
 ];
-function SelectShowRoomIcon() {
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
-  const showRoomIconItems = useShowRoomIcon();
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (position: ShowRoomIcon) => {
-    setShowRoomIcon(position);
-    setMenuCords(undefined);
-  };
-
-  return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {showRoomIconItems.map((item) => (
-                  <MenuItem
-                    key={item.layout}
-                    size="300"
-                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item.layout)}
-                  >
-                    <Text size="T300">{item.name}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
-  );
-}
 
 function SelectRenderCustomProfileCards() {
   const [menuCords, setMenuCords] = useState<RectCords>();
@@ -359,14 +290,7 @@ function IdentityCosmetics() {
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
-      
-              <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-                <SettingTile
-                  title="File description placement"
-                  focusId="file-description-placement"
-                  after={<SelectShowRoomIcon />}
-                />
-              </SequenceCard>
+
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Custom Profile Cards"

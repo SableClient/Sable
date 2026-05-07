@@ -276,7 +276,7 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-  roomSidebarWidth: 400,
+  roomSidebarWidth: 256,
   showRoomIcon: ShowRoomIcon.Smart,
 
   // furry stuff

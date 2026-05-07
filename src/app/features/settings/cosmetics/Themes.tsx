@@ -315,7 +315,7 @@ function ThemeVisualPreferences() {
         <SettingTile
           title="Incoming inline images default height"
           focusId="incoming-inline-images-default-height"
-          description={`${incomingInlineImagesDefaultHeight}px`}
+          description={`Default height for incoming inline images that don't specify a height.`}
           after={
             <Input
               style={{ width: toRem(100) }}
@@ -346,7 +346,7 @@ function ThemeVisualPreferences() {
         <SettingTile
           title="Incoming inline images max height"
           focusId="incoming-inline-images-max-height"
-          description={`${incomingInlineImagesMaxHeight}px`}
+          description={`Maximum height for incoming inline images. Any incoming height above this is clamped down.`}
           after={
             <Input
               style={{ width: toRem(100) }}

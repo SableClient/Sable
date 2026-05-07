@@ -139,8 +139,9 @@ export function markdownToHtml(markdown: string): string {
       'type',
       'open',
     ],
-    // Allow safe rel attributes for links
-    ADD_ATTR: ['target', 'rel'],
+    // Ensure these safe attrs survive sanitization even when the input HTML
+    // originates from markdown-embedded tags (e.g. custom emoji <img>).
+    ADD_ATTR: ['target', 'rel', 'height', 'width'],
     // Force all links to have safe rel attribute
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,
@@ -148,8 +149,18 @@ export function markdownToHtml(markdown: string): string {
 
   DOMPurify.removeHook('afterSanitizeAttributes');
 
-  return unmaskMathCodeDollarPlaceholders(sanitized).replace(
-    /<li>(<p><\/p>)?<\/li>/gi,
-    '<li><br></li>'
+  const unmasked = unmaskMathCodeDollarPlaceholders(sanitized);
+
+  // DOMPurify's Node/JSdom build can drop <img> size attributes even when allowlisted.
+  // For Matrix custom emojis, always emit a stable height so outgoing messages have
+  // consistent layout across clients.
+  const restoredMxEmoticonHeight = unmasked.replace(
+    /<img\b([^>]*\bdata-mx-emoticon\b[^>]*)>/gi,
+    (full, attrs: string) => {
+      if (/\bheight\s*=/i.test(attrs)) return full;
+      return `<img${attrs} height="32">`;
+    }
   );
+
+  return restoredMxEmoticonHeight.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
 }

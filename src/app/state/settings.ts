@@ -139,6 +139,8 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  incomingInlineImagesDefaultHeight: number;
+  incomingInlineImagesMaxHeight: number;
   saveStickerEmojiBandwidth: boolean;
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
@@ -258,6 +260,8 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  incomingInlineImagesDefaultHeight: 32,
+  incomingInlineImagesMaxHeight: 64,
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,

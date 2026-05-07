@@ -134,6 +134,7 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml(html);
     expect(result).toContain('mxc://example.org/emote');
     expect(result).toContain('data-mx-emoticon');
+    expect(result).toContain('height="32"');
   });
 
   it('rejects img tags with non-mxc protocols', () => {

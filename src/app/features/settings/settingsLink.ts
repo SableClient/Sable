@@ -106,6 +106,8 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'system-theme',
     'twitter-emoji',
     'underline-links',
+    'incoming-inline-images-default-height',
+    'incoming-inline-images-max-height',
   ],
   notifications: [
     'background-push-notifications',

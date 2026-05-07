@@ -373,6 +373,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const linkifyOpts = useMemo<LinkifyOpts>(() => ({ ...LINKIFY_OPTS }), []);
     const spoilerClickHandler = useSpoilerClickHandler();
+    const [incomingInlineImagesDefaultHeight] = useSetting(
+      settingsAtom,
+      'incomingInlineImagesDefaultHeight'
+    );
+    const [incomingInlineImagesMaxHeight] = useSetting(
+      settingsAtom,
+      'incomingInlineImagesMaxHeight'
+    );
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
         getReactCustomHtmlParser(mx, mEvent.getRoomId(), {
@@ -380,8 +388,19 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           linkifyOpts,
           useAuthentication,
           handleSpoilerClick: spoilerClickHandler,
+          incomingInlineImagesDefaultHeight,
+          incomingInlineImagesMaxHeight,
         }),
-      [linkifyOpts, mEvent, mx, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
+      [
+        linkifyOpts,
+        mEvent,
+        mx,
+        settingsLinkBaseUrl,
+        spoilerClickHandler,
+        useAuthentication,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
+      ]
     );
     const getContent = (() => mEvent.getContent()) as GetContentCallback;
     const msgType = mEvent.getContent().msgtype;

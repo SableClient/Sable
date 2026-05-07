@@ -44,6 +44,27 @@ describe('settingsLink', () => {
     expect(parseSettingsLink('https://app.example', 'https://app.example/home/')).toBeUndefined();
   });
 
+  it('accepts the incoming inline image height focus ids', () => {
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=incoming-inline-images-default-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'incoming-inline-images-default-height',
+    });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=incoming-inline-images-max-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'incoming-inline-images-max-height',
+    });
+  });
+
   it('parses cross-base settings links only when the explicit action marker is present', () => {
     expect(
       parseSettingsLink(

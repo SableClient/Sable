@@ -21,6 +21,12 @@ export enum CaptionPosition {
   Hidden = 'hidden',
   Below = 'below',
 }
+
+export enum ShowRoomIcon {
+  Always = 'always',
+  Smart = 'smart',
+  Never = 'never',
+}
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export interface Settings {
@@ -119,6 +125,7 @@ export interface Settings {
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
   roomSidebarWidth: number;
+  showRoomIcon: ShowRoomIcon;
 
   // furry stuff
   renderAnimals: boolean;
@@ -221,6 +228,7 @@ const defaultSettings: Settings = {
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   roomSidebarWidth: 400,
+  showRoomIcon: ShowRoomIcon.Smart,
 
   // furry stuff
   renderAnimals: true,

@@ -72,6 +72,8 @@ export interface Settings {
   isWidgetDrawer: boolean;
   memberSortFilterIndex: number;
   enterForNewline: boolean;
+  editorToolbar: boolean;
+  composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
@@ -188,6 +190,8 @@ export const defaultSettings: Settings = {
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
   enterForNewline: false,
+  editorToolbar: false,
+  composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',
   hideMembershipEvents: false,

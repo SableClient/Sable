@@ -22,6 +22,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  Line,
   Menu,
   MenuItem,
   Overlay,
@@ -58,6 +59,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   getLinks,
+  MarkdownToolbar,
   replaceWithElement,
   BlockType,
 } from '$components/editor';
@@ -242,6 +244,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+    const [editorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+    const [composerToolbarOpen, setComposerToolbarOpen] = useSetting(
+      settingsAtom,
+      'composerToolbarOpen'
+    );
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
@@ -259,6 +266,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     useEffect(() => {
       pluralkitProxyMessageHandler.init();
     }, [pluralkitProxyMessageHandler]);
+
+    useEffect(() => {
+      if (!editorToolbar) setComposerToolbarOpen(false);
+    }, [editorToolbar, setComposerToolbarOpen]);
 
     const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
@@ -1505,6 +1516,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </IconButton>
 
+              {editorToolbar && (
+                <IconButton
+                  variant="SurfaceVariant"
+                  size="300"
+                  radii="300"
+                  title={
+                    composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'
+                  }
+                  aria-pressed={composerToolbarOpen}
+                  aria-label={
+                    composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'
+                  }
+                  onClick={() => setComposerToolbarOpen(!composerToolbarOpen)}
+                >
+                  <Icon src={composerToolbarOpen ? Icons.AlphabetUnderline : Icons.Alphabet} />
+                </IconButton>
+              )}
+
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut
@@ -1676,6 +1705,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </Box>
             </>
+          }
+          bottom={
+            editorToolbar &&
+            composerToolbarOpen && (
+              <div>
+                <Line variant="SurfaceVariant" size="300" />
+                <MarkdownToolbar />
+              </div>
+            )
           }
         />
         {showSchedulePicker && (

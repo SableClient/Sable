@@ -23,7 +23,7 @@ const isHeading1 = isKeyHotkey('mod+1');
 const isHeading2 = isKeyHotkey('mod+2');
 const isHeading3 = isKeyHotkey('mod+3');
 
-const insertMarkdownInline = (editor: Editor, marker: string) => {
+export const applyMarkdownInline = (editor: Editor, marker: string) => {
   if (editor.selection && Range.isExpanded(editor.selection)) {
     const text = Editor.string(editor, editor.selection);
     Transforms.insertText(editor, `${marker}${text}${marker}`);
@@ -33,7 +33,7 @@ const insertMarkdownInline = (editor: Editor, marker: string) => {
   }
 };
 
-const insertMarkdownBlock = (editor: Editor, prefix: string) => {
+export const applyMarkdownBlockPrefix = (editor: Editor, prefix: string) => {
   if (editor.selection) {
     const path = editor.selection.anchor.path;
     const startPoint = Editor.start(editor, path);
@@ -52,7 +52,7 @@ export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): bo
   const blockToggled = BLOCK_KEYS.find((hotkey) => {
     if (isKeyHotkey(hotkey, event)) {
       event.preventDefault();
-      insertMarkdownBlock(editor, BLOCK_HOTKEYS[hotkey]!);
+      applyMarkdownBlockPrefix(editor, BLOCK_HOTKEYS[hotkey]!);
       return true;
     }
     return false;
@@ -61,24 +61,24 @@ export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): bo
 
   if (isHeading1(event)) {
     event.preventDefault();
-    insertMarkdownBlock(editor, '# ');
+    applyMarkdownBlockPrefix(editor, '# ');
     return true;
   }
   if (isHeading2(event)) {
     event.preventDefault();
-    insertMarkdownBlock(editor, '## ');
+    applyMarkdownBlockPrefix(editor, '## ');
     return true;
   }
   if (isHeading3(event)) {
     event.preventDefault();
-    insertMarkdownBlock(editor, '### ');
+    applyMarkdownBlockPrefix(editor, '### ');
     return true;
   }
 
   const inlineToggled = INLINE_KEYS.find((hotkey) => {
     if (isKeyHotkey(hotkey, event)) {
       event.preventDefault();
-      insertMarkdownInline(editor, INLINE_HOTKEYS[hotkey]!);
+      applyMarkdownInline(editor, INLINE_HOTKEYS[hotkey]!);
       return true;
     }
     return false;

@@ -102,7 +102,10 @@ export class PKitCommandMessageHandler {
         this.room,
         this.mx.getSafeUserId()
       );
-      addOrUpdatePerMessageProfile(this.mx, { id: generatedID, name: memberName });
+      await addOrUpdatePerMessageProfile(this.mx, {
+        id: generatedID,
+        name: memberName,
+      });
       sendFeedback(
         `added new member has been created with id: ${generatedID} and name ${memberName}`,
         this.room,
@@ -169,7 +172,7 @@ export class PKitCommandMessageHandler {
         this.room,
         this.mx.getSafeUserId()
       );
-      addOrUpdatePerMessageProfile(this.mx, pmp);
+      await addOrUpdatePerMessageProfile(this.mx, pmp);
     } else if (pkMemberRemoveProxy.test(this.message)) {
       const cmdParts = pkMemberRemoveProxy.exec(this.message);
       if (!cmdParts) return;
@@ -195,7 +198,7 @@ export class PKitCommandMessageHandler {
         );
         return;
       }
-      dropProxyAssociationForPMP(this.mx, matchAgainst);
+      await dropProxyAssociationForPMP(this.mx, matchAgainst);
 
       sendFeedback(
         `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" (${pmpId}) is now no longer associated with ${matchAgainst}`,
@@ -227,7 +230,7 @@ export class PKitCommandMessageHandler {
         return;
       }
       const matchAgainstRegExp = buildRegex(matchAgainst);
-      associateProxyWithProfile(this.mx, pmpId, matchAgainst, matchAgainstRegExp, false);
+      await associateProxyWithProfile(this.mx, pmpId, matchAgainst, matchAgainstRegExp, false);
       sendFeedback(
         `Persona with ${this.useIdInsteadOfNameWherePossible ? 'id' : 'name'} "${name}" (${pmpId}) is now associated with ${matchAgainst}`,
         this.room,

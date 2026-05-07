@@ -13,6 +13,14 @@ describe('markdownToHtml', () => {
     expect(result).toContain('<strong>bold</strong>');
   });
 
+  it('converts __ to underline, not bold', () => {
+    const result = markdownToHtml('__underlined__');
+    expect(result).toContain('<u');
+    expect(result).toContain('data-md="__"');
+    expect(result).toContain('>underlined<');
+    expect(result).not.toContain('<strong>underlined</strong>');
+  });
+
   it('converts italic text', () => {
     const result = markdownToHtml('*italic*');
     expect(result).toContain('<em>italic</em>');

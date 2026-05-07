@@ -75,7 +75,7 @@ export function injectDataMd(html: string): string {
   // Inject inline markdown markers for underline
   html = html.replace(/<u([^>]*)>([^<]*)<\/u>/g, (_, attrs, content) => {
     if (attrs.includes('data-md')) return `<u${attrs}>${content}</u>`;
-    return `<u data-md="_"${attrs}>${content}</u>`;
+    return `<u data-md="__"${attrs}>${content}</u>`;
   });
 
   // Inject inline markdown markers for strikethrough

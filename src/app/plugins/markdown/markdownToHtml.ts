@@ -9,6 +9,7 @@ import {
 } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
+import { matrixUnderlineExtension } from './extensions/matrix-underline';
 import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequences,
@@ -18,6 +19,7 @@ import {
 const processor = marked.use({
   breaks: true,
   extensions: [
+    matrixUnderlineExtension,
     matrixSpoilerExtension,
     matrixMathExtension,
     matrixMathBlockExtension,

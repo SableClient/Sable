@@ -284,7 +284,7 @@ const Pronouns = as<
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   // if no language is given use english
   const selectedLanguages = (getSettings().filterPronounsLanguages ?? ['en'])
-    .map((lang) => lang.trim().toLowerCase())
+    .map((lang: string) => lang.trim().toLowerCase())
     .filter(Boolean);
 
   /**

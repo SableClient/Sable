@@ -415,7 +415,7 @@ function DateAndTime() {
 
 function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-  const [isMarkdown, setIsMarkdown] = useSetting(settingsAtom, 'isMarkdown');
+  const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
@@ -446,9 +446,10 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Markdown Formatting"
-          focusId="markdown-formatting"
-          after={<Switch variant="Primary" value={isMarkdown} onChange={setIsMarkdown} />}
+          title="Message Formatting Toolbar"
+          focusId="composer-formatting-toolbar"
+          description="Enable the formatting toolbar in the message composer."
+          after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

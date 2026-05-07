@@ -1,9 +1,8 @@
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 import type { IRoomCreateContent } from '$types/matrix/room';
-
-import { creatorsSupported } from '$utils/matrix';
 import { getStateEvent } from '$utils/room';
+import { creatorsSupported } from '$utils/roomSupport';
 import { useStateEvent } from './useStateEvent';
 import { EventType } from '$types/matrix-sdk';
 

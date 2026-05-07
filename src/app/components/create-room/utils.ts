@@ -9,8 +9,9 @@ import { JoinRule, RestrictedAllowType, EventType, RoomType } from '$types/matri
 
 import type { StateEvents } from '$types/matrix-sdk';
 import { getViaServers } from '$plugins/via-servers';
-import { getMxIdServer } from '$utils/matrix';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { CreateRoomAccess } from './types';
+import * as prefix from '$unstable/prefixes';
 
 export const createRoomCreationContent = (
   type: RoomType | undefined,
@@ -87,7 +88,7 @@ export const createRoomEncryptionState = () => ({
 });
 
 export const createRoomCallState = () => ({
-  type: 'org.matrix.msc3401.call',
+  type: prefix.MATRIX_UNSTABLE_ROOM_TYPE_CALL_PROPERTY_NAME,
   state_key: '',
   content: {},
 });

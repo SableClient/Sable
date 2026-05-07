@@ -13,6 +13,9 @@
     "webPushAppID": "moe.sable.app.sygnal"
   },
 
+  "themeCatalogBaseUrl": "https://raw.githubusercontent.com/SableClient/themes/main/",
+  "themeCatalogApprovedHostPrefixes": ["https://raw.githubusercontent.com/SableClient/themes/"],
+
   "slidingSync": {
     "enabled": true
   },

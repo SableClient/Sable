@@ -3,6 +3,7 @@ import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
+  IndexedDBStore,
   MatrixEventEvent,
   RoomEvent,
   SyncState,
@@ -47,6 +48,10 @@ import { mobileOrTablet } from '$utils/user-agent';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');
+
+const BACKGROUND_SYNC_POLL_TIMEOUT_MS = 60_000;
+const BACKGROUND_STAGGER_DELAY_MS = 5_000;
+
 const isClientReadyForNotifications = (state: SyncState | string | null): boolean =>
   state === SyncState.Prepared || state === SyncState.Syncing || state === SyncState.Catchup;
 
@@ -54,18 +59,36 @@ const startBackgroundClient = async (
   session: Session,
   slidingSyncConfig: ReturnType<typeof useClientConfig>['slidingSync']
 ): Promise<MatrixClient> => {
+  const storeName = {
+    sync: `bg-sync${session.userId}`,
+    crypto: `bg-crypto${session.userId}`,
+    rustCryptoPrefix: `bg-sync${session.userId}`,
+  };
+
+  const indexedDBStore = new IndexedDBStore({
+    indexedDB: global.indexedDB,
+    localStorage: global.localStorage,
+    dbName: storeName.sync,
+  });
+
   const mx = createClient({
     baseUrl: session.baseUrl,
     accessToken: session.accessToken,
     userId: session.userId,
     deviceId: session.deviceId,
+    store: indexedDBStore,
     timelineSupport: false,
   });
-  await startClient(mx, {
+
+  const startOpts = {
     baseUrl: session.baseUrl,
-    slidingSync: slidingSyncConfig,
+    slidingSync: session.slidingSyncOptIn ? slidingSyncConfig : undefined,
     sessionSlidingSyncOptIn: session.slidingSyncOptIn,
-  });
+    pollTimeoutMs: BACKGROUND_SYNC_POLL_TIMEOUT_MS,
+    timelineLimit: 1,
+  };
+
+  await startClient(mx, startOpts);
   return mx;
 };
 
@@ -136,9 +159,11 @@ export function BackgroundNotifications() {
   // listeners before stopping a background client.
   const clientCleanupRef = useRef(new Map());
 
+  const activeUserId = activeSessionId ?? sessions[0]?.userId;
+
   const inactiveSessions = useMemo(
-    () => sessions.filter((s) => s.userId !== (activeSessionId ?? sessions[0]?.userId)),
-    [sessions, activeSessionId]
+    () => sessions.filter((s) => s.userId !== activeUserId),
+    [sessions, activeUserId]
   );
   // Ref so retry setTimeout callbacks can access the current session list
   // without stale closures.
@@ -540,20 +565,30 @@ export function BackgroundNotifications() {
         });
     };
 
-    inactiveSessions.forEach((session) => {
-      if (!current.has(session.userId)) startSession(session);
+    const pendingSessions = inactiveSessions.filter((s) => !current.has(s.userId));
+    const staggerTimers: ReturnType<typeof setTimeout>[] = [];
+    pendingSessions.forEach((session, idx) => {
+      if (idx === 0) {
+        startSession(session);
+      } else {
+        staggerTimers.push(
+          setTimeout(() => startSession(session), idx * BACKGROUND_STAGGER_DELAY_MS)
+        );
+      }
     });
 
-    // Capture the cleanup map for this effect instance so teardown runs against
-    // the listeners registered while this effect was active.
     const cleanupMap = clientCleanupRef.current;
+    const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
+      staggerTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
-        cleanupMap.get(userId)?.();
-        cleanupMap.delete(userId);
-        stopClient(mx);
+        if (!activeUserIds.has(userId)) {
+          cleanupMap.get(userId)?.();
+          cleanupMap.delete(userId);
+          stopClient(mx);
+          current.delete(userId);
+        }
       });
-      current.clear();
     };
   }, [
     clientConfig.slidingSync,

@@ -255,6 +255,50 @@ describe('react custom html parser', () => {
     expect(link.querySelector('[aria-hidden="true"]')).not.toBeNull();
   });
 
+  it('uses room name when formatted body uses the full matrix.to URL as link text', () => {
+    const url = 'https://matrix.to/#/!room:example.org';
+    const mx = createMatrixClient({
+      getRoom: (id: string) =>
+        id === '!room:example.org' ? { roomId: '!room:example.org', name: 'Lobby' } : undefined,
+    });
+    renderParsedHtml(`<a href="${url}">${url}</a>`, { sanitize: false, mx });
+
+    expect(screen.getByRole('link', { name: '#Lobby' })).toHaveAttribute('href', url);
+  });
+
+  it('uses message snippet for event permalinks when the event is in the store', () => {
+    const url = 'https://matrix.to/#/!room:example.org/$eventABC';
+    const mx = createMatrixClient({
+      getRoom: () => ({
+        roomId: '!room:example.org',
+        name: 'Lobby',
+        findEventById: (id: string) =>
+          id === '$eventABC'
+            ? {
+                getContent: () => ({
+                  body: `${'Hello world '.repeat(12)}tail`,
+                }),
+              }
+            : null,
+      }),
+    });
+    renderParsedHtml(`<a href="${url}">${url}</a>`, { sanitize: false, mx });
+
+    const link = screen.getByRole('link', { name: /#Lobby: Hello world/ });
+    expect(link).toHaveAttribute('data-mention-event-id', '$eventABC');
+    expect(link.textContent).toMatch(/…/);
+  });
+
+  it('keeps custom link text when it is not just the permalink URL', () => {
+    const url = 'https://matrix.to/#/!room:example.org/$event123';
+    const mx = createMatrixClient({
+      getRoom: () => ({ roomId: '!room:example.org', name: 'Lobby' }),
+    });
+    renderParsedHtml(`<a href="${url}">see this thread</a>`, { sanitize: false, mx });
+
+    expect(screen.getByRole('link', { name: 'see this thread' })).toBeInTheDocument();
+  });
+
   it('translates Matrix color data attributes into rendered styles', () => {
     renderParsedHtml('<span data-mx-color="#ff0000" data-mx-bg-color="#00ff00">colored</span>');
 

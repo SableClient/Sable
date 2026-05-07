@@ -18,17 +18,16 @@ import {
 } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { JoinRule, EventType } from '$types/matrix-sdk';
 import { useEffect, useMemo, useState } from 'react';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { factoryRoomIdByActivity } from '$utils/sort';
 import * as css from '$features/room/message/styles.css';
 import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
-import { getStateEvents } from '$utils/room';
-
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
+import { isRoomPrivate } from '$utils/roomVisibility';
+import * as prefix from '$unstable/prefixes';
 
 const debugLog = createDebugLogger('MessageForward');
 
@@ -112,28 +111,6 @@ export function MessageForwardInternal({
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string | null>(null);
-
-  // detect if it's a public room or not
-  const joinRule = room.getJoinRule() ?? JoinRule.Invite;
-
-  const parentSpaceIds = getStateEvents(room, EventType.SpaceParent)
-    .map((e) => e.getStateKey())
-    .filter((id): id is string => Boolean(id));
-
-  const isInPublicSpace = parentSpaceIds.some((spaceId) => {
-    const space = mx.getRoom(spaceId);
-    return Boolean(space?.isSpaceRoom()) && space?.getJoinRule() === JoinRule.Public;
-  });
-
-  // A room is private if its join rule is Invite (or other non-public/non-knock/non-restricted),
-  // or it's Restricted but NOT inside a public space.
-  const isPrivate =
-    joinRule === JoinRule.Invite ||
-    (joinRule === JoinRule.Restricted && !isInPublicSpace) ||
-    (joinRule !== JoinRule.Public &&
-      joinRule !== JoinRule.Knock &&
-      joinRule !== JoinRule.Restricted);
-
   const allRooms = useAtomValue(allRoomsAtom);
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
@@ -191,7 +168,7 @@ export function MessageForwardInternal({
         : undefined;
 
     const bodyModifText = `(Forwarded message from ${
-      isPrivate ? 'a private room' : (getRoom(room.roomId)?.name ?? 'a room')
+      isRoomPrivate(mx, room) ? 'a private room' : (getRoom(room.roomId)?.name ?? 'a room')
     })`;
 
     let newBodyPlain = '';
@@ -227,22 +204,22 @@ export function MessageForwardInternal({
     const baseContent = { ...mEvent.getContent() };
     delete baseContent['m.relates_to']; // remove relations from the forwarded message
     delete baseContent['m.mentions']; // remove mentions from forwarded message
-    delete baseContent['com.beeper.per_message_profile']; // remove per-message profile as that could confuse clients in the target room
+    delete baseContent[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME]; // remove per-message profile as that could confuse clients in the target room
     let content;
     // handle privacy stuff
-    if (isPrivate) {
+    if (isRoomPrivate(mx, room)) {
       // if the message is from a private room, we should strip any media or mentions to avoid leaking information to the target room
       // we can still include the original message content in the body of the message, so we'll just use a fallback text/plain content with the original message body
       content = {
         ...baseContent,
         ...forwardedTextContent,
-        'moe.sable.message.forward': {
+        [prefix.MATRIX_SABLE_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           v: 1,
           is_forwarded: true,
           original_timestamp: mEvent.getTs(),
           original_event_private: true,
         } satisfies ForwardMeta,
-        'com.famedly.app.forwarded': {
+        [prefix.MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           origin_server_ts: mEvent.getTs(),
         } satisfies MSC2723ForwardMeta,
       };
@@ -250,7 +227,7 @@ export function MessageForwardInternal({
       content = {
         ...baseContent,
         ...forwardedTextContent,
-        'moe.sable.message.forward': {
+        [prefix.MATRIX_SABLE_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           v: 1,
           is_forwarded: true,
           original_timestamp: mEvent.getTs(),
@@ -258,7 +235,7 @@ export function MessageForwardInternal({
           original_event_id: eventId,
           original_event_private: false,
         } satisfies ForwardMeta,
-        'com.famedly.app.forwarded': {
+        [prefix.MATRIX_UNSTABLE_MESSAGE_FORWARD_META_PROPERTY_NAME]: {
           event_id: eventId,
           room_id: room.roomId,
           origin_server_ts: mEvent.getTs(),
@@ -271,7 +248,7 @@ export function MessageForwardInternal({
       sourceRoomId: room.roomId,
       targetRoomId: targetRoom.roomId,
       msgtype,
-      isPrivate,
+      isPrivate: isRoomPrivate(mx, room),
     });
     Sentry.metrics.count('sable.message.forward.attempt', 1, { attributes: { msgtype } });
     mx.sendEvent(targetRoom.roomId, null, eventType, content as unknown as SendEventContent)

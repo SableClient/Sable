@@ -1,4 +1,4 @@
-import { atom } from 'jotai';
+import { atom, type WritableAtom } from 'jotai';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const STORAGE_KEY = 'settings';
@@ -29,6 +29,36 @@ export enum ShowRoomIcon {
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
+export type ThemeRemoteFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  kind: 'light' | 'dark';
+  pinned?: boolean;
+  importedLocal?: boolean;
+};
+
+export type ThemeRemoteTweakFavorite = {
+  fullUrl: string;
+  displayName: string;
+  basename: string;
+  pinned?: boolean;
+  importedLocal?: boolean;
+};
+
+/** Custom profile card hero colors: which brightness schemes to honor. */
+export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
+
+export function shouldApplyUserHeroCards(
+  mode: RenderUserCardsMode,
+  brightness: string | undefined
+): boolean {
+  if (mode === 'none') return false;
+  if (mode === 'both') return true;
+  if (brightness !== 'light' && brightness !== 'dark') return false;
+  return brightness === mode;
+}
+
 export interface Settings {
   themeId?: string;
   useSystemTheme: boolean;
@@ -40,8 +70,6 @@ export interface Settings {
   arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
-  isMarkdown: boolean;
-  editorToolbar: boolean;
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
@@ -50,6 +78,8 @@ export interface Settings {
   isWidgetDrawer: boolean;
   memberSortFilterIndex: number;
   enterForNewline: boolean;
+  editorToolbar: boolean;
+  composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
@@ -90,6 +120,7 @@ export interface Settings {
   showPronouns: boolean;
   parsePronouns: boolean;
   renderGlobalNameColors: boolean;
+  renderUserCards: RenderUserCardsMode;
   filterPronounsBasedOnLanguage?: boolean;
   filterPronounsLanguages?: string[];
   renderRoomColors: boolean;
@@ -129,9 +160,26 @@ export interface Settings {
 
   // furry stuff
   renderAnimals: boolean;
+
+  // theme catalog
+  themeCatalogOnboardingDone: boolean;
+  themeRemoteFavorites: ThemeRemoteFavorite[];
+  themeRemoteCatalogEnabled: boolean;
+  themeChatSableWidgetsEnabled: boolean;
+  themeChatAutoPreviewApprovedUrls: boolean;
+  themeChatAutoPreviewAnyUrl: boolean;
+  themeRemoteManualFullUrl?: string;
+  themeRemoteLightFullUrl?: string;
+  themeRemoteDarkFullUrl?: string;
+  themeRemoteManualKind?: 'light' | 'dark';
+  themeRemoteLightKind?: 'light' | 'dark';
+  themeRemoteDarkKind?: 'light' | 'dark';
+  themeMigrationDismissed: boolean;
+  themeRemoteTweakFavorites: ThemeRemoteTweakFavorite[];
+  themeRemoteEnabledTweakFullUrls: string[];
 }
 
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   themeId: undefined,
   useSystemTheme: true,
   lightThemeId: undefined,
@@ -142,8 +190,6 @@ const defaultSettings: Settings = {
   arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
-  isMarkdown: true,
-  editorToolbar: false,
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
@@ -152,6 +198,8 @@ const defaultSettings: Settings = {
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
   enterForNewline: false,
+  editorToolbar: false,
+  composerToolbarOpen: false,
   messageLayout: 0,
   messageSpacing: '400',
   hideMembershipEvents: false,
@@ -195,6 +243,7 @@ const defaultSettings: Settings = {
   showPronouns: true,
   parsePronouns: true,
   renderGlobalNameColors: true,
+  renderUserCards: 'both',
   renderRoomColors: true,
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
@@ -232,6 +281,23 @@ const defaultSettings: Settings = {
 
   // furry stuff
   renderAnimals: true,
+
+  // theme catalog
+  themeCatalogOnboardingDone: false,
+  themeRemoteFavorites: [],
+  themeRemoteCatalogEnabled: false,
+  themeChatSableWidgetsEnabled: true,
+  themeChatAutoPreviewApprovedUrls: true,
+  themeChatAutoPreviewAnyUrl: false,
+  themeRemoteManualFullUrl: undefined,
+  themeRemoteLightFullUrl: undefined,
+  themeRemoteDarkFullUrl: undefined,
+  themeRemoteManualKind: undefined,
+  themeRemoteLightKind: undefined,
+  themeRemoteDarkKind: undefined,
+  themeMigrationDismissed: false,
+  themeRemoteTweakFavorites: [],
+  themeRemoteEnabledTweakFullUrls: [],
 };
 
 export const getSettings = () => {
@@ -248,6 +314,27 @@ export const getSettings = () => {
   }
   delete parsed.monochromeMode;
 
+  if (typeof parsed.renderUserCards === 'boolean') {
+    parsed.renderUserCards = parsed.renderUserCards ? 'both' : 'none';
+  } else if (
+    parsed.renderUserCards !== 'both' &&
+    parsed.renderUserCards !== 'light' &&
+    parsed.renderUserCards !== 'dark' &&
+    parsed.renderUserCards !== 'none'
+  ) {
+    parsed.renderUserCards = 'both';
+  }
+
+  const parsedRecord = parsed as Record<string, unknown>;
+  if (
+    typeof parsedRecord.themeChatAutoPreviewAnyUrl !== 'boolean' &&
+    typeof parsedRecord.themeChatPreviewAnyUrl === 'boolean'
+  ) {
+    parsedRecord.themeChatAutoPreviewAnyUrl = parsedRecord.themeChatPreviewAnyUrl;
+  }
+  delete parsedRecord.themeChatPreviewAnyUrl;
+  delete parsedRecord.themeChatPreviewApprovedCatalogOnly;
+
   return {
     ...defaultSettings,
     ...(parsed as Settings),
@@ -261,8 +348,11 @@ export const setSettings = (settings: Settings) => {
 const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
-  (get, set, update) => {
-    set(baseSettings, update);
+  (_get, set, update) => {
+    (set as (atom: WritableAtom<Settings, [Settings], void>, val: Settings) => void)(
+      baseSettings as WritableAtom<Settings, [Settings], void>,
+      update
+    );
     setSettings(update);
   }
 );

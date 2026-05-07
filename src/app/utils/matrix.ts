@@ -16,17 +16,13 @@ import to from 'await-to-js';
 import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 
 import * as Sentry from '@sentry/react';
-import { getEventReactions, getReactionContent, getStateEvent } from './room';
+import { getEventReactions, getStateEvent } from './room';
+import { getReactionContent } from './messageReaction';
+import { matchMxId, validMxId } from './mxIdHelper';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
 export const isServerName = (serverName: string): boolean => DOMAIN_REGEX.test(serverName);
-
-const matchMxId = (id: string): RegExpMatchArray | null => id.match(/^([@$+#])([^\s:]+):(\S+)$/);
-
-const validMxId = (id: string): boolean => !!matchMxId(id);
-
-export const getMxIdServer = (userId: string): string | undefined => matchMxId(userId)?.[3];
 
 export const getMxIdLocalPart = (userId: string): string | undefined => matchMxId(userId)?.[2];
 
@@ -396,23 +392,6 @@ export const rateLimitedActions = async <T, R = void>(
   }
 };
 
-export const knockSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6'];
-  return !unsupportedVersion.includes(version);
-};
-export const restrictedSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7'];
-  return !unsupportedVersion.includes(version);
-};
-export const knockRestrictedSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-  return !unsupportedVersion.includes(version);
-};
-export const creatorsSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
-  return !unsupportedVersion.includes(version);
-};
-
 export const toggleReaction = (
   mx: MatrixClient,
   room: Room,
@@ -437,9 +416,16 @@ export const toggleReaction = (
   }
   const rShortcode =
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
+  // send the reaction
   mx.sendEvent(
     room.roomId,
     EventType.Reaction as string as unknown as keyof TimelineEvents,
-    getReactionContent(targetEventId, key, rShortcode) as TimelineEvents[keyof TimelineEvents]
+    getReactionContent(
+      targetEventId,
+      key,
+      mx,
+      room,
+      rShortcode
+    ) as TimelineEvents[keyof TimelineEvents]
   );
 };

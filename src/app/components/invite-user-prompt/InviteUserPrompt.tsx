@@ -27,8 +27,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirectUsers } from '$hooks/useDirectUsers';
-import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
-
+import { getMxIdLocalPart, isUserId } from '$utils/matrix';
 import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
@@ -36,6 +35,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { KnownMembership } from '$types/matrix-sdk';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {

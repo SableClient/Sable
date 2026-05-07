@@ -1,6 +1,6 @@
 {
   "name": "sable",
-  "version": "1.14.0",
+  "version": "1.15.2",
   "description": "An almost stable Matrix client",
   "type": "module",
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
@@ -70,8 +70,10 @@
     "immer": "^9.0.21",
     "is-hotkey": "^0.2.0",
     "jotai": "^2.18.0",
+    "katex": "^0.16.45",
     "linkify-react": "^4.3.2",
     "linkifyjs": "^4.3.2",
+    "marked": "^18.0.2",
     "matrix-js-sdk": "^38.4.0",
     "matrix-widget-api": "^1.16.1",
     "pdfjs-dist": "^5.4.624",

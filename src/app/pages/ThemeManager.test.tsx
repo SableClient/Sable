@@ -9,6 +9,7 @@ const settings = {
   saturationLevel: 100,
   underlineLinks: false,
   reducedMotion: false,
+  themeRemoteEnabledTweakFullUrls: [] as string[],
 };
 
 let systemThemeKind = ThemeKind.Light;
@@ -68,6 +69,7 @@ beforeEach(() => {
   settings.saturationLevel = 100;
   settings.underlineLinks = false;
   settings.reducedMotion = false;
+  settings.themeRemoteEnabledTweakFullUrls = [];
   document.body.className = '';
   document.body.style.filter = '';
 });

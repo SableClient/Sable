@@ -54,6 +54,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import { useSlidingSyncActiveRoom } from '$hooks/useSlidingSyncActiveRoom';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
+import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
 import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
@@ -745,7 +746,6 @@ function SentryTagsFeature() {
     Sentry.setTag('message_layout', String(settings.messageLayout));
     Sentry.setTag('message_spacing', settings.messageSpacing);
     Sentry.setTag('twitter_emoji', String(settings.twitterEmoji));
-    Sentry.setTag('is_markdown', String(settings.isMarkdown));
     Sentry.setTag('page_zoom', String(settings.pageZoom));
     if (settings.themeId) Sentry.setTag('theme_id', settings.themeId);
     // Additional high-value tags for bug reproduction
@@ -877,6 +877,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />
+      <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
       <SentryRoomContextFeature />

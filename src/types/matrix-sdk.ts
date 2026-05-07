@@ -12,7 +12,7 @@ export * from 'matrix-js-sdk/lib/sliding-sync';
 export * from 'matrix-js-sdk/lib/sync-accumulator';
 export * from 'matrix-js-sdk/lib/scheduler';
 export * from 'matrix-js-sdk/lib/store/memory';
-export { createClient } from 'matrix-js-sdk/lib/matrix';
+export { createClient, Filter } from 'matrix-js-sdk/lib/matrix';
 
 export * from 'matrix-js-sdk/lib/models/event';
 export * from 'matrix-js-sdk/lib/models/room';

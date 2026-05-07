@@ -39,7 +39,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useListFocusIndex } from '$hooks/useListFocusIndex';
-import { getMxIdLocalPart, getMxIdServer, guessDmRoomUserId } from '$utils/matrix';
+import { getMxIdLocalPart, guessDmRoomUserId } from '$utils/matrix';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
@@ -49,6 +49,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 enum SearchRoomType {
   Rooms = '#',

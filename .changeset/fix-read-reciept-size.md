@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Fix the inconsistent sizing for the read reciept dialog boxes.
+Fix the inconsistent sizing for the read receipt dialog boxes.

@@ -29,6 +29,14 @@ describe('bidirectional round-trip', () => {
     expect(result).toContain('*italic text*');
   });
 
+  it('round-trips underline', () => {
+    const markdown = '__underlined__';
+    const html = markdownToHtml(markdown);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('__underlined__');
+  });
+
   it('round-trips inline code', () => {
     const markdown = '`inline code`';
     const html = markdownToHtml(markdown);

@@ -39,6 +39,19 @@ export interface ProcessedEvent {
   willRenderDayDivider: boolean;
 }
 
+/** Raw timeline indices for skipped events (reactions, edits, …) have no row; walk backward to a visible one. */
+export function getProcessedRowIndexForRawTimelineIndex(
+  processedEvents: ProcessedEvent[],
+  startRawIndex: number
+): { rowIndex: number; focusRawIndex: number } | undefined {
+  if (startRawIndex < 0) return undefined;
+  for (let i = startRawIndex; i >= 0; i -= 1) {
+    const rowIndex = processedEvents.findIndex((e) => e.itemIndex === i);
+    if (rowIndex >= 0) return { rowIndex, focusRawIndex: i };
+  }
+  return undefined;
+}
+
 const MESSAGE_EVENT_TYPES = new Set([
   'm.room.message',
   'm.room.message.encrypted',

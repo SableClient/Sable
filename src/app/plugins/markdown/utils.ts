@@ -1,10 +1,5 @@
 import { findAndReplace } from '$utils/findAndReplace';
 
-// Regex patterns for block-level markdown escape sequences
-// These match escaped markdown characters like \>, \#, \`, etc.
-const ESC_BLOCK_SEQ = /^\\(\\*[#>[ `])/;
-const UN_ESC_BLOCK_SEQ = /^\*[#>[ `]/;
-
 // URL-aware pattern for inline sequences
 const URL_NEG_LB = '(?<!(?:https?|ftp|mailto|magnet):\\/\\/\\S*)';
 const INLINE_SEQUENCE_SET = '[*_~`|]';
@@ -87,42 +82,9 @@ export const escapeMarkdownInlineSequences = (text: string): string => {
 };
 
 /**
- * Removes escape sequences from markdown block elements in the given plain-text.
- * This function unescapes characters that are escaped with backslashes (e.g., `\>`, `\#`)
- * in markdown syntax, returning the original plain-text with markdown characters in effect.
- *
- * @param {string} text - The input markdown plain-text containing escape characters (e.g., `\> block quote`).
- * @param {function} processPart - It takes the plain-text as input and returns a modified version of it.
- * @returns {string} The plain-text with markdown escape sequences removed and markdown formatting applied.
+ * CommonMark treats `>` at line start as a block quote marker even when not followed by
+ * space. We only start a block quote when `>` is followed by horizontal whitespace.
+ * Lines like `>:3` get a backslash so the `>` is literal.
  */
-export const unescapeMarkdownBlockSequences = (
-  text: string,
-  processPart: (text: string) => string
-): string => {
-  const match = text.match(ESC_BLOCK_SEQ);
-
-  if (!match) return processPart(text);
-
-  const [, g1] = match;
-  return text.replace(ESC_BLOCK_SEQ, g1 ?? '');
-};
-
-/**
- * Escapes markdown block elements by adding backslashes before markdown characters
- * (e.g., `\>`, `\#`) that are normally interpreted as markdown syntax.
- *
- * @param {string} text - The input markdown plain-text that may contain markdown elements (e.g., `> block quote`).
- * @param {function} processPart - It takes the plain-text as input and returns a modified version of it.
- * @returns {string} The plain-text with markdown escape sequences added, preventing markdown formatting.
- */
-export const escapeMarkdownBlockSequences = (
-  text: string,
-  processPart: (text: string) => string
-): string => {
-  const match = text.match(UN_ESC_BLOCK_SEQ);
-
-  if (!match) return processPart(text);
-
-  const [, g1] = match;
-  return text.replace(UN_ESC_BLOCK_SEQ, `\\${g1}`);
-};
+export const escapeLineStartBlockquoteWithoutFollowingSpace = (markdown: string): string =>
+  markdown.replace(/^(\s*)>(?![ \t])/gm, '$1\\>');

@@ -679,6 +679,24 @@ export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   return false;
 };
 
+/**
+ * Timeline rows skip reactions, edits, and other relation-only events.  When jumping
+ * to a reply target, unwrap to the event that is actually rendered (root of an
+ * edit chain, message for a reaction annotation, etc.).
+ */
+export const unwrapRelationJumpTarget = (room: Room, eventId: string, maxHops = 24): string => {
+  let current = eventId;
+  for (let hop = 0; hop < maxHops; hop += 1) {
+    const ev = room.findEventById(current);
+    if (!ev) return current;
+    if (!reactionOrEditEvent(ev)) return current;
+    const related = ev.getRelation()?.event_id;
+    if (typeof related !== 'string' || related === current) return current;
+    current = related;
+  }
+  return current;
+};
+
 export const getMentionContent = (userIds: string[], room: boolean): IMentions => {
   const mMentions: IMentions = {};
   if (userIds.length > 0) {

@@ -56,7 +56,7 @@ describe('injectDataMd', () => {
 
   it('injects data-md into u tags', () => {
     const result = injectDataMd('<u>underline</u>');
-    expect(result).toContain('data-md="_"');
+    expect(result).toContain('data-md="__"');
   });
 
   it('injects data-md into s tags', () => {

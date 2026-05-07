@@ -117,8 +117,10 @@ function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean
     case 'i':
       return processInlineWrapper(node, '*', listDepth, insideCode);
 
-    case 'u':
-      return processInlineWrapper(node, '_', listDepth, insideCode);
+    case 'u': {
+      const md = node.attribs['data-md'];
+      return processInlineWrapper(node, md ?? '__');
+    }
 
     case 's':
     case 'del':

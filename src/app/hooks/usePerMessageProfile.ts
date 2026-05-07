@@ -158,10 +158,12 @@ export type InternalPerMessageProfileProxyAssociation = {
 export function parsePerMessageProfileProxyAssociation(
   assoc: PerMessageProfileProxyAssociation
 ): InternalPerMessageProfileProxyAssociation {
+  const m = assoc.regexString.match(/^\/([\s\S]*)\/([gimsuy]*)$/);
+  const source = m?.[1] ?? assoc.regexString;
+  const flags = m?.[2] ?? '';
   return {
     profileId: assoc.profileId,
-    // we need to remove artifacts from the toString conversion
-    regex: new RegExp(assoc.regexString.slice(1, -1)),
+    regex: new RegExp(source, flags),
     setAt: assoc.setAt,
   } satisfies InternalPerMessageProfileProxyAssociation;
 }
@@ -431,7 +433,7 @@ export async function getProfileAssociatedWithProxy(
   mx: MatrixClient,
   proxy: string
 ): Promise<PerMessageProfile | undefined> {
-  const profileId = getAssociationsMap(
+  const profileId = getProxyAssociationMap(
     mx
       .getAccountData(
         `${ACCOUNT_DATA_PREFIX}.proxyassociation` as Parameters<typeof mx.getAccountData>[0]

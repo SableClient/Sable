@@ -632,7 +632,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           const pid: string = splitWithSpace(payload)[0] ?? '';
           const proxy: string = splitWithSpace(payload)[1] ?? '';
-          pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
+          await pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
         },
       },
       [Command.MyRoomAvatar]: {

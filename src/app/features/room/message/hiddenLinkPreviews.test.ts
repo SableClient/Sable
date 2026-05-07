@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { stripMarkdownEscapesForHiddenPreviews } from './hiddenLinkPreviews';
+import {
+  readdAngleBracketsForHiddenPreviews,
+  stripMarkdownEscapesForHiddenPreviews,
+} from './hiddenLinkPreviews';
 
 describe('stripMarkdownEscapesForHiddenPreviews', () => {
   it('removes backslashes around <url> suppressor wrappers', () => {
@@ -23,9 +26,6 @@ describe('stripMarkdownEscapesForHiddenPreviews', () => {
     );
   });
 });
-
-import { describe, expect, it } from 'vitest';
-import { readdAngleBracketsForHiddenPreviews } from './hiddenLinkPreviews';
 
 describe('readdAngleBracketsForHiddenPreviews', () => {
   it('wraps URLs in angle brackets when they are not previewed', () => {

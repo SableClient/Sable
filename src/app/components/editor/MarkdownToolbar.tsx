@@ -17,7 +17,9 @@ import {
   toRem,
 } from 'folds';
 import type { MouseEventHandler, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { ReactEditor, useSlate } from 'slate-react';
 import { isMacOS } from '$utils/user-agent';
 import { KeySymbol } from '$utils/key-symbol';
@@ -276,5 +278,53 @@ export function MarkdownToolbar() {
         </Box>
       </Scroll>
     </Box>
+  );
+}
+
+export type MarkdownFormattingToolbarToggleVariant = 'SurfaceVariant' | 'Background';
+
+export function MarkdownFormattingToolbarToggle({
+  variant,
+}: {
+  variant: MarkdownFormattingToolbarToggleVariant;
+}) {
+  const [editorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [composerToolbarOpen, setComposerToolbarOpen] = useSetting(
+    settingsAtom,
+    'composerToolbarOpen'
+  );
+
+  useEffect(() => {
+    if (!editorToolbar) setComposerToolbarOpen(false);
+  }, [editorToolbar, setComposerToolbarOpen]);
+
+  if (!editorToolbar) return null;
+
+  return (
+    <IconButton
+      variant={variant}
+      size="300"
+      radii="300"
+      title={composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+      aria-pressed={composerToolbarOpen}
+      aria-label={composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+      onClick={() => setComposerToolbarOpen(!composerToolbarOpen)}
+    >
+      <Icon src={composerToolbarOpen ? Icons.AlphabetUnderline : Icons.Alphabet} />
+    </IconButton>
+  );
+}
+
+export function MarkdownFormattingToolbarBottom() {
+  const [editorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [composerToolbarOpen] = useSetting(settingsAtom, 'composerToolbarOpen');
+
+  if (!editorToolbar || !composerToolbarOpen) return null;
+
+  return (
+    <div>
+      <Line variant="SurfaceVariant" size="300" />
+      <MarkdownToolbar />
+    </div>
   );
 }

@@ -11,6 +11,8 @@ import {
   AutocompletePrefix,
   CustomEditor,
   EmoticonAutocomplete,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
   createEmoticonElement,
   getAutocompleteQuery,
   getPrevWorldRange,
@@ -170,6 +172,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
           variant="Background"
           bottom={
             <Box direction="Column" style={{ backgroundColor: 'var(--sable-bg-container)' }}>
+              <MarkdownFormattingToolbarBottom />
               <Box
                 style={{ padding: config.space.S200, paddingTop: 0 }}
                 alignItems="End"
@@ -200,6 +203,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                   </Text>
                 </Box>
                 <Box gap="Inherit">
+                  <MarkdownFormattingToolbarToggle variant="Background" />
                   <UseStateProvider initial={undefined}>
                     {(anchor: RectCords | undefined, setAnchor) => (
                       <PopOut

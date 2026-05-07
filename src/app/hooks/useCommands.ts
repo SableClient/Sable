@@ -642,7 +642,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           let newAvatar: string | undefined = payload.trim();
           if (newAvatar.length === 0) {
             // no avatar, reset to global
-            newAvatar = profile.avatarUrl;
+            newAvatar = mx.getUser(mx.getSafeUserId())?.avatarUrl ?? profile.avatarUrl;
           } else if (!newAvatar.match(/^mxc:\/\/\S+$/)) {
             // bad mxc
             return;
@@ -653,7 +653,16 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
           const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
-          await mx.sendStateEvent(room.roomId, EventType.RoomMember, content, mx.getSafeUserId());
+          const updatedContent: RoomMemberEventContent = {
+            ...content,
+            avatar_url: newAvatar,
+          };
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomMember,
+            updatedContent,
+            mx.getSafeUserId()
+          );
         },
       },
       [Command.ConvertToDm]: {

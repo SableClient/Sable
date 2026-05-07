@@ -37,6 +37,12 @@ describe('settingsLink', () => {
     expect(
       parseSettingsLink(
         'https://app.example',
+        `https://app.example/settings/general?focus=composer-formatting-toolbar&${SETTINGS_LINK_ACTION_PARAM}=${SETTINGS_LINK_ACTION_SETTINGS}`
+      )
+    ).toEqual({ section: 'general', focus: 'composer-formatting-toolbar' });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
         'https://app.example/settings/account?focus=display-name&moe.sable.client.action=settings&hello=world'
       )
     ).toEqual({ section: 'account', focus: 'display-name' });

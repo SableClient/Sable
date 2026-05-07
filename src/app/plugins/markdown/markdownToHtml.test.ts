@@ -40,6 +40,27 @@ describe('markdownToHtml', () => {
     expect(result).toContain('E = mc^2');
   });
 
+  it('does not parse dollars inside fenced code as math', () => {
+    expect(markdownToHtml('```\n$$test$$\n```')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('```\n$$test$$\n```')).toContain('$$test$$');
+  });
+
+  it('does not parse dollars inside single-line fenced code as math', () => {
+    expect(markdownToHtml('```$$test$$```')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('```$$test$$```')).toContain('$$test$$');
+  });
+
+  it('does not parse dollars inside inline code as math', () => {
+    expect(markdownToHtml('`$$test$$`')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('`$$test$$`')).toContain('$$test$$');
+  });
+
+  it('does not parse inline math when dollars are only inside backticks in a sentence', () => {
+    const result = markdownToHtml('See `$$test$$` here.');
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$$test$$');
+  });
+
   it('converts block math syntax', () => {
     const result = markdownToHtml('$$\\frac{a}{b}$$');
     expect(result).toContain('data-mx-maths');
@@ -68,6 +89,24 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml('This is \\*not bold\\*');
     expect(result).not.toContain('<strong>');
     expect(result).toContain('not bold');
+  });
+
+  it('does not treat >:3 as a block quote (requires space after >)', () => {
+    const result = markdownToHtml('>:3');
+    expect(result).not.toContain('<blockquote>');
+    expect(result).toContain(':3');
+  });
+
+  it('treats > followed by space as block quote', () => {
+    const result = markdownToHtml('> quoted');
+    expect(result).toContain('<blockquote>');
+    expect(result).toContain('quoted');
+  });
+
+  it('escapes block quote with a single backslash before >', () => {
+    const result = markdownToHtml('\\>:3');
+    expect(result).not.toContain('<blockquote>');
+    expect(result).toContain(':3');
   });
 
   it('preserves img[data-mx-emoticon] tags with valid mxc URLs', () => {

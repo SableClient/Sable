@@ -381,7 +381,7 @@ function PageZoomInput() {
 
 function RoomSidebarWidth() {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [inputValue, setInputValue] = useState(roomSidebarWidth.toString());
+  const [inputValue, setInputValue] = useState(roomSidebarWidth?.toString());
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;

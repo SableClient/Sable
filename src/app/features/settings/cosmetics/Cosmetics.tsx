@@ -104,7 +104,7 @@ function SelectJumboEmojiSize() {
   );
 }
 
-export const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
+const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
   { id: 'both', name: 'Light & dark' },
   { id: 'light', name: 'Light only' },
   { id: 'dark', name: 'Dark only' },
@@ -290,7 +290,6 @@ function IdentityCosmetics() {
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
-
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Render Custom Profile Cards"

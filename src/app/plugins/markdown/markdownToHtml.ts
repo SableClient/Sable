@@ -13,7 +13,6 @@ import { matrixUnderlineExtension } from './extensions/matrix-underline';
 import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
-  unescapeMarkdownInlineSequences,
 } from './utils';
 
 // Configure marked with Matrix extensions

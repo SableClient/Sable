@@ -60,7 +60,10 @@ import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { GetContentCallback } from '$types/matrix/room';
 import { sanitizeText } from '$utils/sanitize';
 import type { BundleContent } from '$components/message';
-import { readdAngleBracketsForHiddenPreviews } from './hiddenLinkPreviews';
+import {
+  readdAngleBracketsForHiddenPreviews,
+  stripMarkdownEscapesForHiddenPreviews,
+} from './hiddenLinkPreviews';
 
 type MessageEditorProps = {
   roomId: string;
@@ -351,7 +354,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       const [body, customHtml] = getPrevBodyAndFormattedBody();
 
       const initialValue = plainToEditorInput(
-        customHtml ? htmlToMarkdown(customHtml) : typeof body === 'string' ? body : ''
+        customHtml
+          ? stripMarkdownEscapesForHiddenPreviews(htmlToMarkdown(customHtml))
+          : typeof body === 'string'
+            ? body
+            : ''
       );
 
       Transforms.select(editor, {

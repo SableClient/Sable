@@ -1,4 +1,30 @@
 import { describe, expect, it } from 'vitest';
+import { stripMarkdownEscapesForHiddenPreviews } from './hiddenLinkPreviews';
+
+describe('stripMarkdownEscapesForHiddenPreviews', () => {
+  it('removes backslashes around <url> suppressor wrappers', () => {
+    expect(
+      stripMarkdownEscapesForHiddenPreviews(String.raw`hello \<https://example.com\> world`)
+    ).toBe('hello <https://example.com> world');
+  });
+
+  it('handles paren-adjacent variants produced by link matching', () => {
+    expect(stripMarkdownEscapesForHiddenPreviews(String.raw`(\<https://a.b\>)`)).toBe(
+      '(<https://a.b>)'
+    );
+    expect(stripMarkdownEscapesForHiddenPreviews(String.raw`(\<https://a.b\>) and more`)).toBe(
+      '(<https://a.b>) and more'
+    );
+  });
+
+  it('does not touch unrelated markdown escapes', () => {
+    expect(stripMarkdownEscapesForHiddenPreviews(String.raw`keep \*this\* and \<not-a-url\>`)).toBe(
+      String.raw`keep \*this\* and \<not-a-url\>`
+    );
+  });
+});
+
+import { describe, expect, it } from 'vitest';
 import { readdAngleBracketsForHiddenPreviews } from './hiddenLinkPreviews';
 
 describe('readdAngleBracketsForHiddenPreviews', () => {

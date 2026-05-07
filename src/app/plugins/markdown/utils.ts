@@ -32,6 +32,37 @@ export const unescapeMarkdownInlineSequences = (text: string): string => {
   return parts.join('');
 };
 
+const PLACEHOLDER_START = '\uE000';
+const PLACEHOLDER_END = '\uE001';
+
+/**
+ * Like {@link unescapeMarkdownInlineSequences}, but leaves &lt;pre&gt;…&lt;/pre&gt; and
+ * &lt;code&gt;…&lt;/code&gt; regions unchanged so backslash escapes remain literal in HTML
+ * code blocks (CommonMark treats them as verbatim in the source markdown, and the post-parse
+ * HTML pass must not strip viewer-intended `\` characters there).
+ */
+export const unescapeMarkdownInlineSequencesExceptInCodeHtml = (html: string): string => {
+  const preserved: string[] = [];
+  const tag = (idx: number) => `${PLACEHOLDER_START}${idx}${PLACEHOLDER_END}`;
+
+  let masked = html.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>/gi, (chunk) => {
+    preserved.push(chunk);
+    return tag(preserved.length - 1);
+  });
+
+  masked = masked.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, (chunk) => {
+    preserved.push(chunk);
+    return tag(preserved.length - 1);
+  });
+
+  const unescaped = unescapeMarkdownInlineSequences(masked);
+
+  return unescaped.replace(
+    new RegExp(`${PLACEHOLDER_START}(\\d+)${PLACEHOLDER_END}`, 'g'),
+    (_, i) => preserved[parseInt(i, 10)] ?? ''
+  );
+};
+
 /**
  * Recovers the markdown escape sequences in the given plain-text.
  * This function adds backslashes (`\`) before markdown characters that may need escaping

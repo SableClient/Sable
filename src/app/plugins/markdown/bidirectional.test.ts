@@ -46,6 +46,24 @@ describe('bidirectional round-trip', () => {
     expect(result).toContain('fn main()');
   });
 
+  it('round-trips markdown-like characters inside code blocks without spurious escapes', () => {
+    const markdown = '```\n*literal* \\*typed\\*\n```';
+    const html = markdownToHtml(markdown);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('*literal*');
+    expect(result).toContain('\\*typed\\*');
+    expect(result).not.toContain('\\*literal\\*');
+  });
+
+  it('round-trips inline code containing asterisks', () => {
+    const markdown = 'Text `*x*` more';
+    const html = markdownToHtml(markdown);
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('`*x*`');
+  });
+
   it('round-trips blockquotes', () => {
     const markdown = '> Quote text';
     const html = markdownToHtml(markdown);

@@ -70,6 +70,17 @@ describe('markdownToHtml', () => {
     expect(result).toContain('not bold');
   });
 
+  it('preserves typed backslashes before punctuation inside fenced code', () => {
+    const result = markdownToHtml('```\n\\*literal\\*\n```');
+    expect(result).toContain('\\*literal\\*');
+    expect(result).toContain('<pre');
+  });
+
+  it('preserves typed backslashes inside inline code', () => {
+    const result = markdownToHtml('Hi `\\*x\\*` there');
+    expect(result).toContain('\\*x\\*');
+  });
+
   it('preserves img[data-mx-emoticon] tags with valid mxc URLs', () => {
     const html =
       '<img data-mx-emoticon src="mxc://example.org/emote" alt=":blobcat:" title=":blobcat:" height="32" />';

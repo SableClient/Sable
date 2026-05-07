@@ -4,7 +4,10 @@ import { matrixSpoilerExtension } from './extensions/matrix-spoiler';
 import { matrixMathExtension, matrixMathBlockExtension } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
-import { unescapeMarkdownBlockSequences, unescapeMarkdownInlineSequences } from './utils';
+import {
+  unescapeMarkdownBlockSequences,
+  unescapeMarkdownInlineSequencesExceptInCodeHtml,
+} from './utils';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
@@ -58,8 +61,8 @@ export function markdownToHtml(markdown: string): string {
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(preprocessed) as string;
 
-  // Unescape inline sequences (e.g., \*, \_) after parsing
-  const unescapedInline = unescapeMarkdownInlineSequences(html);
+  // Unescape inline sequences (e.g., \*, \_) after parsing, but not inside <pre>/<code>
+  const unescapedInline = unescapeMarkdownInlineSequencesExceptInCodeHtml(html);
 
   // Force all links to open in a new tab
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {

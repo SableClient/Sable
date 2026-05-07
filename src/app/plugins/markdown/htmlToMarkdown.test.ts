@@ -39,6 +39,23 @@ describe('htmlToMarkdown', () => {
     );
   });
 
+  it('does not escape markdown markers inside fenced code blocks', () => {
+    const result = htmlToMarkdown('<pre><code>*literal*</code></pre>');
+    expect(result).toContain('*literal*');
+    expect(result).not.toMatch(/\\\*literal\\\*/);
+  });
+
+  it('does not escape markdown markers inside inline code', () => {
+    const result = htmlToMarkdown('<p>before<code>*x*</code>after</p>');
+    expect(result).toContain('`*x*`');
+    expect(result).not.toContain('\\*x\\*');
+  });
+
+  it('preserves backslash-asterisk literals inside code blocks', () => {
+    const result = htmlToMarkdown('<pre><code>\\*typed\\*</code></pre>');
+    expect(result).toContain('\\*typed\\*');
+  });
+
   it('converts links', () => {
     expect(htmlToMarkdown('<a href="https://example.com">link</a>')).toContain(
       '[link](https://example.com)'

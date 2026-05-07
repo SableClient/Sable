@@ -202,10 +202,8 @@ function processChildren(
       isText(next2) &&
       next2.data === '>'
     ) {
-      const href = (next as Element).attribs.href ?? '';
-      const content = (next as Element).children
-        .map((c) => processNode(c, listDepth, insideCode))
-        .join('');
+      const href = next.attribs.href ?? '';
+      const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
       out.push(`[${content}](<${href}>)`);
       i += 2;
       continue;

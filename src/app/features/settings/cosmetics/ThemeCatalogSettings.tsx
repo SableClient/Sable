@@ -1,4 +1,4 @@
-import { type ChangeEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ChangeEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard, downloadTextFile } from '$utils/dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -214,6 +214,9 @@ export function ThemeCatalogSettings({
   const [browseOpen, setBrowseOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
 
+  const appearanceCatalogBrowseWasOpenRef = useRef(false);
+  const tweakFavoritesSnapshotAtAppearanceCatalogOpenRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (isAppearanceMode) {
       onBrowseOpenChange?.(browseOpen);
@@ -247,6 +250,19 @@ export function ThemeCatalogSettings({
     settingsAtom,
     'themeChatAutoPreviewAnyUrl'
   );
+
+  useEffect(() => {
+    if (!isAppearanceMode) {
+      appearanceCatalogBrowseWasOpenRef.current = false;
+      return;
+    }
+    if (browseOpen && !appearanceCatalogBrowseWasOpenRef.current) {
+      tweakFavoritesSnapshotAtAppearanceCatalogOpenRef.current = new Set(
+        tweakFavorites.map((f) => f.fullUrl.trim()).filter(Boolean)
+      );
+    }
+    appearanceCatalogBrowseWasOpenRef.current = browseOpen;
+  }, [browseOpen, isAppearanceMode, tweakFavorites]);
 
   const [themeSearch, setThemeSearch] = useState('');
   const [tweakSearch, setTweakSearch] = useState('');
@@ -779,7 +795,15 @@ export function ThemeCatalogSettings({
   }, [patchSettings]);
 
   const setTweakApplied = useCallback(
-    async (fullUrl: string, apply: boolean, hint?: { displayName?: string; basename?: string }) => {
+    async (
+      fullUrl: string,
+      apply: boolean,
+      hint?: {
+        displayName?: string;
+        basename?: string;
+        pruneUnpinnedFavoriteOnDisable?: boolean;
+      }
+    ) => {
       const trimmed = fullUrl.trim();
       if (!trimmed) return;
 
@@ -811,10 +835,25 @@ export function ThemeCatalogSettings({
         });
       } else {
         const nextEnabled = enabledTweakFullUrls.filter((u) => u !== trimmed);
-        patchSettings({
-          themeRemoteEnabledTweakFullUrls: nextEnabled,
-          themeRemoteTweakFavorites: pruneTweakFavorites(tweakFavorites, nextEnabled),
-        });
+        if (hint?.pruneUnpinnedFavoriteOnDisable) {
+          const enabledSet = new Set(nextEnabled);
+          const inLibraryBeforeThisCatalogVisit =
+            tweakFavoritesSnapshotAtAppearanceCatalogOpenRef.current;
+          const nextTweakFavs = tweakFavorites.filter(
+            (f) =>
+              f.pinned === true ||
+              enabledSet.has(f.fullUrl) ||
+              inLibraryBeforeThisCatalogVisit.has(f.fullUrl.trim())
+          );
+          patchSettings({
+            themeRemoteEnabledTweakFullUrls: nextEnabled,
+            themeRemoteTweakFavorites: nextTweakFavs,
+          });
+        } else {
+          patchSettings({
+            themeRemoteEnabledTweakFullUrls: nextEnabled,
+          });
+        }
       }
     },
     [enabledTweakFullUrls, patchSettings, prefetchFull, pruneTweakFavorites, tweakFavorites]
@@ -1468,6 +1507,7 @@ export function ThemeCatalogSettings({
                             setTweakApplied(row.fullUrl, v, {
                               displayName: row.displayName,
                               basename: row.basename,
+                              pruneUnpinnedFavoriteOnDisable: true,
                             })
                           }
                         />

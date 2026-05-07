@@ -198,7 +198,6 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
         const nextEnabled = enabledTweakFullUrls.filter((u) => u !== url);
         patchSettings({
           themeRemoteEnabledTweakFullUrls: nextEnabled,
-          themeRemoteTweakFavorites: pruneTweakFavorites(tweakFavorites, nextEnabled),
         });
       }
     },

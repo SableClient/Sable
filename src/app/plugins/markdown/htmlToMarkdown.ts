@@ -209,7 +209,9 @@ function processChildren(
       continue;
     }
 
-    out.push(processNode(cur, listDepth, insideCode));
+    if (cur) {
+      out.push(processNode(cur, listDepth, insideCode));
+    }
   }
 
   return out.join('');

@@ -75,7 +75,7 @@ export function GlobalModalManager() {
             )}
 
             {modal.type === ModalType.ReadReceipts && (
-              <Modal variant="Surface" size="200">
+              <Modal variant="Surface" size="300">
                 <MessageReadReceiptInternal
                   room={modal.room}
                   eventId={modal.eventId}

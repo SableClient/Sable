@@ -58,9 +58,14 @@ export const EventReaders = as<'div', EventReadersProps>(
             <Icon src={Icons.Cross} />
           </IconButton>
         </Header>
-        <Box grow="Yes">
-          <Box className={css.Content} direction="Column">
-            <Scroll visibility="Hover" hideTrack size="300">
+        <Box grow="Yes" style={{ width: '100%', minWidth: 0 }}>
+          <Box
+            grow="Yes"
+            className={css.Content}
+            direction="Column"
+            style={{ width: '100%', minWidth: 0 }}
+          >
+            <Scroll visibility="Hover" hideTrack size="300" style={{ width: '100%' }}>
               {latestEventReaders.map((readerId) => {
                 const name = getName(readerId);
                 const avatarMxcUrl = room.getMember(readerId)?.getMxcAvatarUrl();
@@ -79,7 +84,7 @@ export const EventReaders = as<'div', EventReadersProps>(
                 return (
                   <MenuItem
                     key={readerId}
-                    style={{ padding: `0 ${config.space.S200}` }}
+                    style={{ padding: `0 ${config.space.S200}`, width: '100%' }}
                     radii="400"
                     onClick={(event) => {
                       openProfile(

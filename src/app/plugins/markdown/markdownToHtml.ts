@@ -5,6 +5,7 @@ import {
   matrixMathExtension,
   matrixMathBlockExtension,
   maskDollarSignsInsideMarkdownCode,
+  shieldDollarRunsForMarked,
   unmaskMathCodeDollarPlaceholders,
 } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
@@ -65,7 +66,7 @@ export function markdownToHtml(markdown: string): string {
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
-  const mathInput = maskDollarSignsInsideMarkdownCode(preprocessed);
+  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(preprocessed));
 
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(mathInput) as string;

@@ -69,7 +69,7 @@ export function NotificationJumper() {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, pending.roomId);
       if (mDirects.has(pending.roomId)) {
         navigate(getDirectPath(), { replace: true });
-        navigate(getDirectRoomPath(roomIdOrAlias, targetEventId));
+        navigate(getDirectRoomPath(roomIdOrAlias));
       } else {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
@@ -83,10 +83,10 @@ export function NotificationJumper() {
             guessPerfectParent(mx, pending.roomId, orphanParents) ?? orphanParents[0];
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId);
           navigate(getSpacePath(spaceIdOrAlias), { replace: true });
-          navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAlias, targetEventId));
+          navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAlias));
         } else {
           navigate(getHomePath(), { replace: true });
-          navigate(getHomeRoomPath(roomIdOrAlias, targetEventId));
+          navigate(getHomeRoomPath(roomIdOrAlias));
         }
       }
       setPending(null);

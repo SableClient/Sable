@@ -33,7 +33,13 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
+import {
+  canEditEvent,
+  getEditedEvent,
+  getEventEdits,
+  getMemberAvatarMxc,
+  isThreadRelationEvent,
+} from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
@@ -839,7 +845,7 @@ function MessageInternal(
     setMobileOptionsOpen(true);
   });
 
-  const isThreadedMessage = mEvent.threadRootId !== undefined;
+  const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
   const isStickerMessage = mEvent.getType() === 'm.sticker';
 
   const evtId = mEvent.getId()!;

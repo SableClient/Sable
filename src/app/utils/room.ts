@@ -7,6 +7,7 @@ import type {
   IPowerLevelsContent,
   IPushRule,
   IPushRules,
+  IThreadBundledRelationship,
   MatrixClient,
   MatrixEvent,
   Room,
@@ -678,6 +679,30 @@ export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
 
   return false;
 };
+
+export const isThreadRelationEvent = (mEvent: MatrixEvent, threadRootId?: string): boolean => {
+  const relation =
+    mEvent.getRelation?.() ??
+    (
+      mEvent.getWireContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'] ??
+    (
+      mEvent.getContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'];
+
+  return (
+    relation?.rel_type === (RelationType.Thread as string) &&
+    (threadRootId === undefined || relation.event_id === threadRootId)
+  );
+};
+
+export const hasThreadRootAggregation = (mEvent: MatrixEvent): boolean =>
+  (mEvent.getServerAggregatedRelation?.<IThreadBundledRelationship>(RelationType.Thread as string)
+    ?.count ?? 0) > 0;
 
 /**
  * Timeline rows skip reactions, edits, and other relation-only events.  When jumping

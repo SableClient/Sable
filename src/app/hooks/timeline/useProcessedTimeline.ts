@@ -5,7 +5,7 @@ import {
   getTimelineRelativeIndex,
   getTimelineEvent,
 } from '$utils/timeline';
-import { reactionOrEditEvent, isMembershipChanged } from '$utils/room';
+import { isMembershipChanged, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
 
 export interface UseProcessedTimelineOptions {
@@ -132,7 +132,13 @@ export function useProcessedTimeline({
         }
       }
 
-      if (!skipThreadFilter && threadRootId !== undefined && threadRootId !== mEventId) return acc;
+      if (
+        !skipThreadFilter &&
+        threadRootId !== undefined &&
+        threadRootId !== mEventId &&
+        isThreadRelationEvent(mEvent, threadRootId)
+      )
+        return acc;
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;

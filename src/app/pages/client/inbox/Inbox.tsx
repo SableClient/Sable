@@ -109,6 +109,8 @@ export function Inbox() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          minValue={50}
+          maxValue={1200}
         />
       )}
     </>

@@ -285,6 +285,8 @@ export function Explore() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          minValue={50}
+          maxValue={1200}
         />
       )}
     </>

@@ -270,8 +270,13 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
 
   return (
     <>
-      <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300">
+      <PageNavHeader
+        style={{
+          paddingLeft: hideText ? toRem(4) : toRem(16),
+          paddingRight: hideText ? toRem(2) : '0',
+        }}
+      >
+        <Box alignItems="Center" grow={hideText ? 'No' : 'Yes'} gap="300">
           {hideText ? (
             <Avatar size={hideText ? undefined : '200'} radii="400">
               <RoomAvatar
@@ -754,7 +759,7 @@ export function Space() {
 
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
-  const hideText = curWidth < 64 && !isMobile;
+  const hideText = curWidth <= 80 && !isMobile;
   return (
     <>
       <Box
@@ -821,6 +826,7 @@ export function Space() {
                   style={{
                     height: virtualizer.getTotalSize(),
                     position: 'relative',
+                    overflow: 'clip',
                   }}
                 >
                   {virtualizedItems.map((vItem) => {
@@ -932,6 +938,10 @@ export function Space() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          instep={80}
+          outstep={180}
+          minValue={50}
+          maxValue={1200}
         />
       )}
     </>

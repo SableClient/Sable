@@ -303,6 +303,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
           setCurWidth={setCurWidth}
           sidebarWidth={memberSidebarWidth}
           setSidebarWidth={setMemberSidebarWidth}
+          minValue={50}
+          maxValue={1200}
           rightSided
         />
       )}

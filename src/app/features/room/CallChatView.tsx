@@ -30,6 +30,8 @@ export function CallChatView() {
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
+          minValue={50}
+          maxValue={1200}
           rightSided
         />
       )}

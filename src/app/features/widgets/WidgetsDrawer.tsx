@@ -261,6 +261,8 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
           setCurWidth={setCurWidth}
           sidebarWidth={widgetSidebarWidth}
           setSidebarWidth={setWidgetSidebarWidth}
+          minValue={50}
+          maxValue={1200}
           rightSided
         />
       )}

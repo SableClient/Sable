@@ -9,12 +9,20 @@ export function SidebarResizer({
   sidebarWidth,
   setSidebarWidth,
   setCurWidth,
+  minValue,
+  maxValue,
+  instep,
+  outstep,
   rightSided,
   topSided,
 }: {
   sidebarWidth: number;
   setSidebarWidth: (arg0: number) => void;
   setCurWidth?: Dispatch<SetStateAction<number>>;
+  minValue: number;
+  maxValue: number;
+  instep?: number;
+  outstep?: number;
   rightSided?: boolean;
   topSided?: boolean;
 }) {
@@ -26,12 +34,19 @@ export function SidebarResizer({
 
   useEffect(() => {
     const change = rightSided ? -(oldX - newX) : oldX - newX;
-    if (change) setSidebarWidth(Math.min(Math.max(sidebarWidth - change, 50), 1200));
+    let newValue = Math.min(Math.max(sidebarWidth - change, minValue), maxValue);
+    if (instep && outstep && newValue > instep && newValue < outstep)
+      newValue = newValue > (instep + outstep) / 2 ? outstep : instep;
+
+    if (change) setSidebarWidth(newValue);
   }, [newX]);
 
   useEffect(() => {
     const change = rightSided ? -(oldX - interimX) : oldX - interimX;
-    if (change && setCurWidth) setCurWidth(Math.min(Math.max(sidebarWidth - change, 50), 1200));
+    let newValue = Math.min(Math.max(sidebarWidth - change, minValue), maxValue);
+    if (instep && outstep && newValue > instep && newValue < outstep)
+      newValue = newValue > (instep + outstep) / 2 ? outstep : instep;
+    if (change && setCurWidth) setCurWidth(newValue);
   }, [interimX]);
 
   const onPointerMove = useCallback((e: PointerEvent) => {

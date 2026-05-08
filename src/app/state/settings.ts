@@ -170,6 +170,9 @@ export interface Settings {
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
 
+  // experimental
+  enableMessageBookmarks: boolean;
+
   // furry stuff
   renderAnimals: boolean;
 
@@ -320,6 +323,9 @@ export const defaultSettings: Settings = {
   themeMigrationDismissed: false,
   themeRemoteTweakFavorites: [],
   themeRemoteEnabledTweakFullUrls: [],
+
+  // experimental
+  enableMessageBookmarks: false,
 };
 
 function cloneDefaultSettings(): Settings {

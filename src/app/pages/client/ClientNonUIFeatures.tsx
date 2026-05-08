@@ -60,6 +60,8 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -861,11 +863,29 @@ function SettingsSyncFeature() {
   return null;
 }
 
+function BookmarksFeature() {
+  useInitBookmarks();
+  return null;
+}
+
+function ReminderSync() {
+  useReminderSync();
+  return null;
+}
+
+function RemindersFeature() {
+  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
+  if (!enableMessageBookmarks) return null;
+  return <ReminderSync />;
+}
+
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
     <>
       <SettingsSyncFeature />
+      <BookmarksFeature />
+      <RemindersFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
       <PrivacyBlurFeature />

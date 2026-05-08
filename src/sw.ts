@@ -28,6 +28,21 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
+// Inline type — mirrors BookmarkReminder in src/types/matrix/accountData.ts.
+// Defined here to avoid importing from the app bundle into the service worker.
+type BookmarkReminder = {
+  bookmarkId: string;
+  eventId: string;
+  roomId: string;
+  remindAt: number;
+  userId: string;
+  note?: string;
+};
+
+/** Cache key used to persist bookmark reminders so the SW can fire them after a restart. */
+const SW_REMINDERS_CACHE = 'sable-reminders-v1';
+const SW_REMINDERS_URL = '/sw-reminders-meta';
+
 async function persistSettings() {
   try {
     const cache = await self.caches.open(SW_SETTINGS_CACHE);
@@ -107,6 +122,58 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
     return undefined;
   }
 }
+
+async function persistReminders(reminders: BookmarkReminder[]): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    await cache.put(
+      SW_REMINDERS_URL,
+      new Response(JSON.stringify(reminders), { headers: { 'Content-Type': 'application/json' } })
+    );
+  } catch {
+    // best-effort
+  }
+}
+
+async function loadPersistedReminders(): Promise<BookmarkReminder[]> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    const response = await cache.match(SW_REMINDERS_URL);
+    if (!response) return [];
+    const data = await response.json();
+    if (Array.isArray(data)) return data as BookmarkReminder[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function checkDueReminders(): Promise<void> {
+  const reminders = await loadPersistedReminders();
+  if (reminders.length === 0) return;
+
+  const now = Date.now();
+  const due = reminders.filter((r) => r.remindAt <= now);
+  const remaining = reminders.filter((r) => r.remindAt > now);
+
+  await Promise.all(
+    due.map((r) =>
+      self.registration.showNotification('Bookmark Reminder', {
+        body: r.note ?? 'You have a bookmark reminder.',
+        tag: `reminder-${r.bookmarkId}`,
+        data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
+        icon: '/res/ic_launcher-192.png',
+      })
+    )
+  );
+
+  if (due.length > 0) {
+    await persistReminders(remaining);
+  }
+}
+
+// Check for due reminders every minute.
+setInterval(() => checkDueReminders().catch(() => undefined), 60_000);
 
 type SessionInfo = {
   accessToken: string;
@@ -549,6 +616,22 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // media fetch to trigger requestSessionWithTimeout.
       const windowClients = await self.clients.matchAll({ type: 'window' });
       windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
+      // Fire any bookmark reminders that became due while the SW was inactive.
+      checkDueReminders().catch(() => undefined);
+      // Register for a periodic background sync to check reminders (1-hour minimum interval).
+      if ('periodicSync' in self.registration) {
+        try {
+          await (
+            self.registration as ServiceWorkerRegistration & {
+              periodicSync: {
+                register(tag: string, options?: { minInterval: number }): Promise<void>;
+              };
+            }
+          ).periodicSync.register('check-reminders', { minInterval: 3_600_000 });
+        } catch {
+          // periodicSync not granted — the setInterval fallback above covers this.
+        }
+      }
     })()
   );
 });
@@ -609,6 +692,17 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
     // Persist so settings survive SW restart (iOS kills the SW aggressively).
     event.waitUntil(persistSettings());
+  }
+  if (data.type === 'updateReminders') {
+    const reminders = (data as { type: string; reminders: BookmarkReminder[] }).reminders;
+    event.waitUntil(persistReminders(reminders));
+  }
+});
+
+self.addEventListener('periodicsync', (event: Event) => {
+  const syncEvent = event as Event & { tag: string; waitUntil: (p: Promise<unknown>) => void };
+  if (syncEvent.tag === 'check-reminders') {
+    syncEvent.waitUntil(checkDueReminders());
   }
 });
 
@@ -848,6 +942,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   });
 
   const isCall = data?.isCall === true;
+  const isReminder = data?.isReminder === true;
 
   // Build a canonical deep-link URL.
   //
@@ -868,6 +963,10 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     const segments = pushEventId
       ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
       : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
+    targetUrl = new URL(segments, scope).href;
+  } else if (isReminder && data?.roomId && data?.eventId) {
+    // Reminder notifications carry roomId/eventId (no userId), so navigate directly.
+    const segments = `to/${encodeURIComponent(data.roomId as string)}/${encodeURIComponent(data.eventId as string)}/`;
     targetUrl = new URL(segments, scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.

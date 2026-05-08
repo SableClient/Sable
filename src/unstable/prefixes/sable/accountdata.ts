@@ -11,3 +11,6 @@ export const MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME = 'moe.sable.a
  */
 export const MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME =
   'fyi.cisnt.permessageprofile';
+
+export const MATRIX_SABLE_UNSTABLE_ACCOUNT_BOOKMARKS_REMINDERS_PROPERTY_NAME =
+  'moe.sable.bookmarks.reminders';

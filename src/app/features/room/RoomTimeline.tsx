@@ -115,6 +115,8 @@ const getDayDividerText = (ts: number) => {
   return timeDayMonthYear(ts);
 };
 
+const SCROLL_SETTLE_MS = 250;
+
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -249,6 +251,10 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  isReadyRef.current = isReady;
+
+  const lastProgrammaticBottomPinAtRef = useRef(0);
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;
@@ -277,7 +283,8 @@ export function RoomTimeline({
   // VList position so "Jump to Latest" appears correctly.
   const startJumpScrollBlock = useCallback(() => {
     jumpScrollBlockRef.current = true;
-    if (jumpScrollBlockTimerRef.current !== undefined) clearTimeout(jumpScrollBlockTimerRef.current);
+    if (jumpScrollBlockTimerRef.current !== undefined)
+      clearTimeout(jumpScrollBlockTimerRef.current);
     jumpScrollBlockTimerRef.current = setTimeout(() => {
       jumpScrollBlockRef.current = false;
       jumpScrollBlockTimerRef.current = undefined;
@@ -439,7 +446,13 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
     };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex, startJumpScrollBlock]);
+  }, [
+    timelineSync.focusItem,
+    timelineSync,
+    reducedMotion,
+    getRawIndexToProcessedIndex,
+    startJumpScrollBlock,
+  ]);
 
   useEffect(() => {
     if (timelineSync.focusItem) {

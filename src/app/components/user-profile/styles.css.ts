@@ -57,6 +57,9 @@ export const UserHeroStatusContainer = style({
 export const UserHeroStatusTooltip = style({
   maxWidth: '98%',
   justifySelf: 'left',
+});
+
+export const UserHeroStatusTooltipInteractive = style({
   cursor: 'pointer',
   ':hover': {
     filter: 'brightness(var(--user-hero-status-hover-brightness, 0.94))',

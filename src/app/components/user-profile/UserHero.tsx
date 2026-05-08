@@ -161,7 +161,10 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
               radii="400"
               variant="Surface"
               onClick={isExpandable ? () => setIsFullStatus(!isFullStatus) : undefined}
-              className={css.UserHeroStatusTooltip}
+              className={classNames(
+                css.UserHeroStatusTooltip,
+                isExpandable && css.UserHeroStatusTooltipInteractive
+              )}
               style={{
                 maxHeight: isFullStatus ? toRem(105) : toRem(48),
                 cursor: isExpandable ? 'pointer' : 'default',

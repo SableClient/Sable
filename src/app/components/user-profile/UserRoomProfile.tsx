@@ -322,11 +322,10 @@ function UserExtendedSection({
           {miscDataIndex > -1 && (
             <div
               style={{
-                border: '2px solid',
                 backgroundColor: cardColor,
-                borderColor: 'var(--sable-surface-container-line)',
                 borderRadius: config.radii.R400,
-                borderWidth: '1px',
+                boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+                overflow: 'hidden',
               }}
             >
               <Box
@@ -371,16 +370,19 @@ function UserExtendedSection({
                 visibility="Hover"
                 hideTrack
                 style={{
-                  backgroundColor: color.Background.Container,
-                  color: color.Background.OnContainer,
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  color: textColor,
+                  boxShadow:
+                    'inset 0 2px 0 rgba(0, 0, 0, 0.65), inset 0 4px 6px -2px rgba(0, 0, 0, 0.35)',
+                  fontFamily: 'monospace',
                 }}
               >
                 <Box
                   direction="Column"
                   style={{
                     padding: config.space.S200,
-                    borderRadius: config.radii.R400,
                     maxHeight: toRem(100),
+                    opacity: 0.85,
                   }}
                 >
                   <TextViewerContent

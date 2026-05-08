@@ -170,6 +170,9 @@ export interface Settings {
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
 
+  // experimental
+  editInInput: boolean;
+
   // furry stuff
   renderAnimals: boolean;
 
@@ -301,6 +304,9 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
+
+  // experimental
+  editInInput: false,
   // furry stuff
   renderAnimals: true,
 

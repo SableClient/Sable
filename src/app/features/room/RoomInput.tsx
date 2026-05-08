@@ -66,6 +66,7 @@ import {
   BlockType,
 } from '$components/editor';
 import { plainToEditorInput } from '$components/editor/input';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
@@ -80,6 +81,7 @@ import {
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
+  roomIdToEditDraftAtomFamily,
 } from '$state/room/roomInputDrafts';
 import { UploadCardRenderer } from '$components/upload-card';
 import type { UploadBoardImperativeHandlers } from '$components/upload-board';
@@ -91,7 +93,7 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
+import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent, getEditedEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -294,6 +296,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
+    const [editDraft, setEditDraft] = useAtom(roomIdToEditDraftAtomFamily(draftKey));
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
@@ -457,6 +460,45 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
       }
     }, [replyDraft?.eventId, editor]);
+
+    const prevEditEventId = useRef(editDraft?.eventId);
+    useEffect(() => {
+      if (editDraft?.eventId === prevEditEventId.current) return;
+      prevEditEventId.current = editDraft?.eventId;
+
+      if (!editDraft) {
+        // Edit was cancelled — editor was already reset by the cancel handler
+        return;
+      }
+
+      const editEvent = room.findEventById(editDraft.eventId);
+      if (!editEvent) return;
+
+      const evtId = editEvent.getId();
+      const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+      const editedVersion =
+        evtTimeline && evtId
+          ? getEditedEvent(evtId, editEvent, evtTimeline.getTimelineSet())
+          : undefined;
+      const content = editedVersion?.getContent()['m.new_content'] ?? editEvent.getContent();
+      const body = typeof content.body === 'string' ? content.body : '';
+      const formattedBody =
+        typeof content.formatted_body === 'string' ? content.formatted_body : undefined;
+
+      const initialValue = plainToEditorInput(formattedBody ? htmlToMarkdown(formattedBody) : body);
+
+      resetEditor(editor);
+      resetEditorHistory(editor);
+      Transforms.insertFragment(editor, initialValue);
+      requestAnimationFrame(() => {
+        try {
+          ReactEditor.focus(editor);
+          moveCursor(editor);
+        } catch {
+          // ignore focus errors
+        }
+      });
+    }, [editDraft, editor, room]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -827,6 +869,53 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       if (plainText === '') return;
 
+      // Discord-style edit: when an editDraft is active, send an m.replace event
+      // instead of a new message and clear the edit state.
+      if (editDraft) {
+        const editEvent = room.findEventById(editDraft.eventId);
+        if (editEvent) {
+          const oldContent = editEvent.getContent();
+          const msgtype = (oldContent.msgtype as string) ?? MsgType.Text;
+
+          const newContent: IContent = { msgtype, body: plainText };
+          if (!customHtmlEqualsPlainText(customHtml, plainText)) {
+            newContent.format = 'org.matrix.custom.html';
+            newContent.formatted_body = customHtml;
+          }
+          const mentionData = getMentions(mx, roomId, editor);
+          newContent['m.mentions'] = getMentionContent(
+            Array.from(mentionData.users),
+            mentionData.room
+          );
+
+          const sendContent: IContent = {
+            ...oldContent,
+            'm.relates_to': {
+              event_id: editDraft.eventId,
+              rel_type: RelationType.Replace,
+            },
+            body: `* ${plainText}`,
+            'm.new_content': newContent,
+            'm.mentions': newContent['m.mentions'],
+          };
+          if (newContent.format) {
+            sendContent.format = newContent.format;
+            sendContent.formatted_body = `* ${newContent.formatted_body as string}`;
+          }
+
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          setInputKey((prev) => prev + 1);
+          setEditDraft(undefined);
+          sendTypingStatus(false);
+
+          mx.sendMessage(roomId, sendContent as RoomMessageEventContent).catch((error: unknown) => {
+            log.error('failed to send edit', { roomId }, error);
+          });
+        }
+        return;
+      }
+
       // PluralKit-style proxy wrappers (per-message profile proxies) must be stripped
       // *before* building `content`, otherwise we end up sending the wrapper verbatim.
       let proxiedPerMessageProfile:
@@ -1079,6 +1168,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      editDraft,
+      setEditDraft,
       setServerMaxDelayMs,
     ]);
 
@@ -1145,6 +1236,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             setAutocompleteQuery(undefined);
             return;
           }
+          if (editDraft) {
+            setEditDraft(undefined);
+            resetEditor(editor);
+            resetEditorHistory(editor);
+            return;
+          }
           setReplyDraft(undefined);
         }
       },
@@ -1158,6 +1255,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         showAudioRecorder,
         editor,
         onEditLastMessage,
+        editDraft,
+        setEditDraft,
       ]
     );
 
@@ -1424,6 +1523,44 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       <Text size="T300">
                         Scheduled for {timeDayMonthYear(scheduledTime.getTime())} at{' '}
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
+                      </Text>
+                    </Box>
+                  </Box>
+                </div>
+              )}
+              {editDraft && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{
+                      padding: `${config.space.S200} ${config.space.S300} 0`,
+                    }}
+                  >
+                    <IconButton
+                      onClick={() => {
+                        setEditDraft(undefined);
+                        resetEditor(editor);
+                        resetEditorHistory(editor);
+                      }}
+                      variant="SurfaceVariant"
+                      size="300"
+                      radii="300"
+                      aria-label="Cancel edit"
+                      title="Cancel edit"
+                    >
+                      <Icon src={Icons.Cross} size="50" />
+                    </IconButton>
+                    <Box
+                      direction="Row"
+                      gap="200"
+                      alignItems="Center"
+                      grow="Yes"
+                      style={{ minWidth: 0 }}
+                    >
+                      <Icon size="100" src={Icons.Pencil} />
+                      <Text size="T300" truncate>
+                        Editing message
                       </Text>
                     </Box>
                   </Box>

@@ -49,7 +49,10 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import type { IReplyDraft } from '$state/room/roomInputDrafts';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
@@ -124,6 +127,18 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const serverFetchAttemptedRef = useRef<string | null>(null);
   const autoFillInProgressRef = useRef(false);
   const { editId, handleEdit } = useMessageEdit(editor);
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(threadRootId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
   const nicknames = useAtomValue(nicknamesAtom);
   const pushProcessor = useMemo(() => new PushProcessor(mx), [mx]);
   const useAuthentication = useMediaAuthentication();
@@ -711,7 +726,12 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       showHiddenEvents,
       hideThreadChip: true,
     },
-    state: { focusItem, editId, activeReplyId, openThreadId: threadRootId },
+    state: {
+      focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId: threadRootId,
+    },
     permissions: {
       canRedact,
       canDeleteOwn,
@@ -723,7 +743,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       onUsernameClick: handleUsernameClick,
       onReplyClick: handleReplyClick,
       onReactionToggle: handleReactionToggle,
-      onEditId: handleEdit,
+      onEditId: handleEditCallback,
       onResend: handleResend,
       onDeleteFailedSend: handleDeleteFailedSend,
       setOpenThread: () => {},

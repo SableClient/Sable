@@ -67,7 +67,10 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
   getRoomUnreadInfo,
@@ -135,6 +138,19 @@ export function RoomTimeline({
 
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
+
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(room.roomId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -616,7 +632,12 @@ export function RoomTimeline({
       hideNickAvatarEvents,
       showHiddenEvents,
     },
-    state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
+    state: {
+      focusItem: timelineSync.focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId,
+    },
     permissions: {
       canRedact: permissions.action('redact', mx.getSafeUserId()),
       canDeleteOwn: permissions.event('m.room.redaction', mx.getSafeUserId()),
@@ -628,7 +649,7 @@ export function RoomTimeline({
       onUsernameClick: actions.handleUsernameClick,
       onReplyClick: actions.handleReplyClick,
       onReactionToggle: actions.handleReactionToggle,
-      onEditId: actions.handleEdit,
+      onEditId: handleEditCallback,
       onResend: actions.handleResend,
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,

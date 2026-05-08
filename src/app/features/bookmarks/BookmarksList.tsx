@@ -44,16 +44,16 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
   };
 
   const handleRemove = (roomId: string, eventId: string) => {
-    toggleBookmark(mx, roomId, eventId, bookmarks).catch(() => {});
+    toggleBookmark(mx, roomId, eventId, bookmarks).catch(console.warn);
   };
 
   const handleRestore = (entry: (typeof archived)[number]) => {
-    restoreBookmark(mx, entry).catch(() => {});
+    restoreBookmark(mx, entry).catch(console.warn);
   };
 
   const handlePermanentDelete = (entry: (typeof archived)[number]) => {
     const allIds = [...bookmarks.map((b) => b.id), ...archived.map((b) => b.id)];
-    permanentlyDeleteBookmark(mx, entry, allIds).catch(() => {});
+    permanentlyDeleteBookmark(mx, entry, allIds).catch(console.warn);
   };
 
   if (bookmarks.length === 0 && archived.length === 0) {

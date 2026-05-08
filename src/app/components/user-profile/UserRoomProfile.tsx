@@ -80,7 +80,6 @@ type UserExtendedSectionProps = {
   profile: UserProfile;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
@@ -97,7 +96,6 @@ function UserExtendedSection({
   profile,
   htmlReactParserOptions,
   linkifyOpts,
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
@@ -293,9 +291,7 @@ function UserExtendedSection({
           style={{
             backgroundColor: cardColor,
             borderRadius: config.radii.R400,
-            borderColor: backgroundColor,
-            borderStyle: 'solid',
-            borderWidth: '1px',
+            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)',
             maxHeight: '200px',
             marginTop: config.space.S0,
             overflowY: 'auto',
@@ -556,9 +552,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           style={{
             backgroundColor: innerColor,
             borderRadius: toRem(5),
-            borderWidth: toRem(5),
-            borderColor: '#00000000',
-            borderStyle: 'solid',
+            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)',
             padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S300,
           }}
         >
@@ -590,7 +584,6 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             profile={extendedProfile}
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
-            backgroundColor={backgroundColor}
             innerColor={innerColor}
             cardColor={cardColor}
             textColor={textColor}

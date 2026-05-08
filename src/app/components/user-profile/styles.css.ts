@@ -81,6 +81,7 @@ export const UserHeroAvatarImg = style({
 export const UserHeroChip = style({
   borderStyle: 'solid',
   borderWidth: '1px',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
   ':hover': {
     filter: 'brightness(0.8)',
     transform: 'translateY(-1px)',
@@ -91,6 +92,7 @@ export const UserHeroChipThemed = style({
   borderStyle: 'solid',
   borderWidth: '1px',
   borderColor: 'transparent',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
   ':hover': {
     filter: 'brightness(var(--user-hero-chip-hover-brightness, 0.94))',
     transform: 'translateY(-1px)',

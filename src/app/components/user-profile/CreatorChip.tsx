@@ -20,13 +20,11 @@ import { PowerColorBadge, PowerIcon } from '$components/power';
 import * as css from './styles.css';
 
 export function CreatorChip({
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
   chipSurfaceStyle,
 }: {
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;

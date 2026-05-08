@@ -51,14 +51,12 @@ export function ServerChip({
   innerColor,
   cardColor,
   textColor,
-  backgroundColor,
   chipSurfaceStyle,
 }: {
   server: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
-  backgroundColor?: string;
   chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
@@ -187,14 +185,12 @@ export function ShareChip({
   innerColor,
   cardColor,
   textColor,
-  backgroundColor,
   chipSurfaceStyle,
 }: {
   userId: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
-  backgroundColor?: string;
   chipSurfaceStyle?: CSSProperties;
 }) {
   const [cords, setCords] = useState<RectCords>();
@@ -296,14 +292,12 @@ type MutualRoomsData = {
 
 export function MutualRoomsChip({
   userId,
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
   chipSurfaceStyle,
 }: {
   userId: string;
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
@@ -529,14 +523,12 @@ export function IgnoredUserAlert() {
 
 export function OptionsChip({
   userId,
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
   chipSurfaceStyle,
 }: {
   userId: string;
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;

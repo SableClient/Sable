@@ -532,7 +532,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       : undefined;
 
   const chipColors = showCustomHeroCard
-    ? { backgroundColor, innerColor, cardColor, textColor, chipSurfaceStyle }
+    ? { innerColor, cardColor, textColor, chipSurfaceStyle }
     : {};
 
   return (

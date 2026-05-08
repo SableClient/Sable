@@ -150,14 +150,12 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
 
 export function PowerChip({
   userId,
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
   chipSurfaceStyle,
 }: {
   userId: string;
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;

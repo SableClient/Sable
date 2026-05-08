@@ -144,7 +144,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     useEffect(() => {
       if (!viewer) {
         setViewerFullSrc(null);
-        return;
+        return undefined;
       }
       if (
         typeof matrixThumbnailMaxEdge !== 'number' ||
@@ -152,7 +152,7 @@ export const ImageContent = as<'div', ImageContentProps>(
         encInfo ||
         url.startsWith('http')
       ) {
-        return;
+        return undefined;
       }
       let cancelled = false;
       void (async () => {
@@ -200,7 +200,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       : isContained
         ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
         : hasDimensions
-          ? { aspectRatio: `${info!.w} / ${info!.h}` }
+          ? { aspectRatio: `${info.w} / ${info.h}` }
           : { minHeight: '150px' };
 
     const fillPreviewSlotStyle = fillsSlot

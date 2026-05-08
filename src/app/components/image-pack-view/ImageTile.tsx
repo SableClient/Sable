@@ -72,6 +72,7 @@ export function ImageTile({
               variant={deleted ? 'Critical' : 'Secondary'}
               fill="None"
               radii="Pill"
+              aria-label={deleted ? 'Undo deletion' : 'Mark for deletion'}
               onClick={() => onDeleteToggle?.(defaultShortcode)}
             >
               {deleted ? <Text size="B300">Undo</Text> : <Icon size="50" src={Icons.Delete} />}

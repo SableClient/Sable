@@ -305,7 +305,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
             if (room.getThread(threadRootId)) return; // created concurrently
             room.createThread(threadRootId, new MatrixEvent(rawEvt as IEvent), [], false);
           })
-          .catch(() => {});
+          .catch(console.warn);
       }
     }
 
@@ -347,7 +347,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
     mx.paginateEventTimeline(currThread.timelineSet.getLiveTimeline(), { backwards: true })
       .then(() => forceUpdate((n) => n + 1))
-      .catch(() => {});
+      .catch(console.warn);
     // forceUpdateCounter must be in deps so this effect re-runs after
     // ThreadEvent.Update fires (which flips initialEventsFetched from false to
     // true).

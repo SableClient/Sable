@@ -25,7 +25,8 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
     startCall(room, { microphone, video, sound });
     try {
       const now = Date.now();
-      // TODO not use as any one day someday i swear
+      // org.matrix.msc4075.rtc.notification is not yet in the SDK's TimelineEvents union;
+      // cast to keyof TimelineEvents to satisfy sendEvent's overload until MSC4075 lands.
       await mx.sendEvent(
         room.roomId,
         'org.matrix.msc4075.rtc.notification' as keyof TimelineEvents,

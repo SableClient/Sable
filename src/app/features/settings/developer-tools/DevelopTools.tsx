@@ -28,7 +28,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
 
   const submitAccountData: AccountDataSubmitCallback = useCallback(
     async (type, content) => {
-      // TODO: remove cast once account data typing is unified.
+      // as never: developer tools submit arbitrary account data types beyond the typed enum.
       await mx.setAccountData(type as never, content as never);
     },
     [mx]
@@ -40,7 +40,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
         type={accountDataType ?? undefined}
         content={
           accountDataType
-            ? // TODO: remove cast once account data typing is unified.
+            ? // as never: developer tools read arbitrary account data types beyond the typed enum.
               mx.getAccountData(accountDataType as never)?.getContent()
             : undefined
         }

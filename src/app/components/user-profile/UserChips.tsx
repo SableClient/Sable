@@ -22,6 +22,7 @@ import {
   Avatar,
 } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -57,6 +58,8 @@ export function ServerChip({
   textColor?: string;
   backgroundColor?: string;
 }) {
+  const mx = useMatrixClient();
+  const myServer = getMxIdServer(mx.getSafeUserId());
   const navigate = useNavigate();
   const closeProfile = useCloseUserRoomProfile();
   const [copied, setCopied] = useTimeoutToggle();
@@ -154,6 +157,7 @@ export function ServerChip({
       }
     >
       <Chip
+        variant={cardColor ? undefined : myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
         before={
           cords ? (
@@ -164,12 +168,12 @@ export function ServerChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: cardColor,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChip : undefined}
+        style={
+          cardColor
+            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
+            : undefined
+        }
       >
         <Text size="B300" truncate>
           {server}
@@ -261,7 +265,7 @@ export function ShareChip({
       }
     >
       <Chip
-        variant={copied ? 'Success' : undefined}
+        variant={copied ? 'Success' : cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={
           cords ? (
@@ -272,12 +276,16 @@ export function ShareChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: (!copied && cardColor) || undefined,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChip : undefined}
+        style={
+          cardColor
+            ? {
+                backgroundColor: (!copied && cardColor) || undefined,
+                borderColor: backgroundColor,
+                color: textColor,
+              }
+            : undefined
+        }
       >
         <Text size="B300" truncate>
           Share
@@ -486,6 +494,7 @@ export function MutualRoomsChip({
       }
     >
       <Chip
+        variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
         disabled={
@@ -493,12 +502,12 @@ export function MutualRoomsChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: cardColor,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChip : undefined}
+        style={
+          cardColor
+            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
+            : undefined
+        }
       >
         <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
@@ -711,15 +720,16 @@ export function OptionsChip({
       }
     >
       <Chip
+        variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: cardColor,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChip : undefined}
+        style={
+          cardColor
+            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
+            : undefined
+        }
       >
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />

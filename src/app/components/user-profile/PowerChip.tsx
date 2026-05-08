@@ -340,14 +340,18 @@ export function PowerChip({
         }
       >
         <Chip
-          variant={error ? 'Critical' : undefined}
+          variant={error ? 'Critical' : cardColor ? undefined : 'SurfaceVariant'}
           radii="Pill"
-          className={css.UserHeroChip}
-          style={{
-            backgroundColor: (!error && cardColor) || undefined,
-            borderColor: backgroundColor,
-            color: textColor,
-          }}
+          className={cardColor ? css.UserHeroChip : undefined}
+          style={
+            cardColor
+              ? {
+                  backgroundColor: (!error && cardColor) || undefined,
+                  borderColor: backgroundColor,
+                  color: textColor,
+                }
+              : undefined
+          }
           before={
             cords ? (
               <Icon size="50" src={Icons.ChevronBottom} />

@@ -93,6 +93,8 @@ export function CreatorChip({
       }
     >
       <Chip
+        variant={cardColor ? undefined : 'Success'}
+        outlined={!cardColor}
         radii="Pill"
         before={
           cords ? (
@@ -104,12 +106,12 @@ export function CreatorChip({
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: cardColor,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChip : undefined}
+        style={
+          cardColor
+            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
+            : undefined
+        }
       >
         <Text size="B300" truncate>
           {tag.name}

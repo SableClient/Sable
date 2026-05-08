@@ -515,6 +515,11 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const showCustomHeroCard = !!fetchedProfile.heroColor;
 
+  // Without a custom hero color, fall back to folds defaults
+  const chipColors = showCustomHeroCard
+    ? { backgroundColor, innerColor, cardColor, textColor }
+    : {};
+
   return (
     <Box direction="Column" style={{ color: textColor }}>
       <UserHero
@@ -581,56 +586,15 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             textColor={textColor}
           />
           <Box alignItems="Center" gap="100" wrap="Wrap" justifyContent="Center">
-            {server && (
-              <ServerChip
-                server={server}
-                backgroundColor={backgroundColor}
-                innerColor={innerColor}
-                cardColor={cardColor}
-                textColor={textColor}
-              />
-            )}
-            <ShareChip
-              userId={userId}
-              backgroundColor={backgroundColor}
-              innerColor={innerColor}
-              cardColor={cardColor}
-              textColor={textColor}
-            />
+            {server && <ServerChip server={server} {...chipColors} />}
+            <ShareChip userId={userId} {...chipColors} />
             {creator ? (
-              <CreatorChip
-                backgroundColor={backgroundColor}
-                innerColor={innerColor}
-                cardColor={cardColor}
-                textColor={textColor}
-              />
+              <CreatorChip {...chipColors} />
             ) : (
-              <PowerChip
-                userId={userId}
-                backgroundColor={backgroundColor}
-                innerColor={innerColor}
-                cardColor={cardColor}
-                textColor={textColor}
-              />
+              <PowerChip userId={userId} {...chipColors} />
             )}
-            {userId !== myUserId && (
-              <MutualRoomsChip
-                userId={userId}
-                backgroundColor={backgroundColor}
-                innerColor={innerColor}
-                cardColor={cardColor}
-                textColor={textColor}
-              />
-            )}
-            {userId !== myUserId && (
-              <OptionsChip
-                userId={userId}
-                backgroundColor={backgroundColor}
-                innerColor={innerColor}
-                cardColor={cardColor}
-                textColor={textColor}
-              />
-            )}
+            {userId !== myUserId && <MutualRoomsChip userId={userId} {...chipColors} />}
+            {userId !== myUserId && <OptionsChip userId={userId} {...chipColors} />}
           </Box>
           {ignored && <IgnoredUserAlert />}
           {member && membership === bannedMembership && (

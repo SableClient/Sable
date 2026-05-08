@@ -4,16 +4,20 @@ import { Box } from 'folds';
 import * as css from '$pages/client/sidebar/SidebarResizer.css';
 import type { Dispatch, SetStateAction } from 'react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
 
 export function SidebarResizer({
+  sidebarWidth,
+  setSidebarWidth,
   setCurWidth,
+  rightSided,
+  topSided,
 }: {
+  sidebarWidth: number;
+  setSidebarWidth: (arg0: number) => void;
   setCurWidth?: Dispatch<SetStateAction<number>>;
+  rightSided?: boolean;
+  topSided?: boolean;
 }) {
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-
   const [isPointerOver, setIsPointerOver] = useState(false);
   const [isPointerDown, setIsPointerDown] = useState(false);
   const [oldX, setOldX] = useState(0);
@@ -21,22 +25,22 @@ export function SidebarResizer({
   const [newX, setNewX] = useState(0);
 
   useEffect(() => {
-    const change = oldX - newX;
-    if (change) setRoomSidebarWidth(Math.min(Math.max(roomSidebarWidth - change, 0), 1200));
+    const change = rightSided ? -(oldX - newX) : oldX - newX;
+    if (change) setSidebarWidth(Math.min(Math.max(sidebarWidth - change, 0), 1200));
   }, [newX]);
 
   useEffect(() => {
-    const change = oldX - interimX;
-    if (change && setCurWidth) setCurWidth(Math.min(Math.max(roomSidebarWidth - change, 0), 1200));
+    const change = rightSided ? -(oldX - interimX) : oldX - interimX;
+    if (change && setCurWidth) setCurWidth(Math.min(Math.max(sidebarWidth - change, 0), 1200));
   }, [interimX]);
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    setInterimX(e.clientX);
+    setInterimX(topSided ? e.clientY : e.clientX);
   }, []);
   const onPointerUp = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    setNewX(e.clientX);
+    setNewX(topSided ? e.clientY : e.clientX);
     setIsPointerDown(false);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointermove', onPointerMove);
@@ -45,7 +49,7 @@ export function SidebarResizer({
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-      setOldX(e.clientX);
+      setOldX(topSided ? e.clientY : e.clientX);
       setIsPointerDown(true);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointermove', onPointerMove);
@@ -59,6 +63,10 @@ export function SidebarResizer({
       onPointerEnter={() => setIsPointerOver(true)}
       onPointerLeave={() => setIsPointerOver(false)}
       onPointerDown={onPointerDown}
+      style={{
+        width: topSided ? '100%' : '4px',
+        height: topSided ? '4px' : '100%',
+      }}
     >
       <Box
         className={css.SideBarResizerAnimation}

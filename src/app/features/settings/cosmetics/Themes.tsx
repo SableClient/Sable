@@ -36,6 +36,8 @@ import { ThemeAppearanceSection } from './ThemeAppearanceSection';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
 import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
+import type { PanelSizetItem} from '$hooks/usePanelSizes';
+import { usePanelSizeItems } from '$hooks/usePanelSizes';
 
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
   const themes = kind
@@ -379,9 +381,89 @@ function PageZoomInput() {
   );
 }
 
-function RoomSidebarWidth() {
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [inputValue, setInputValue] = useState(roomSidebarWidth?.toString());
+function PanelSelector({
+  sidebarSelector,
+  setSidebarSelector,
+}: {
+  sidebarSelector: string;
+  setSidebarSelector: (arg0: string) => void;
+}) {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const panelSizeItems = usePanelSizeItems();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position: PanelSizetItem) => {
+    setSidebarSelector(position.layout);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {panelSizeItems.find((i) => i.layout === sidebarSelector)?.name ?? sidebarSelector}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {panelSizeItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={sidebarSelector === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+function SidebarWidth({
+  sidebarWidth,
+  setSidebarWidth,
+  sidebarSelector,
+}: {
+  sidebarWidth: number;
+  setSidebarWidth: (arg0: number) => void;
+  sidebarSelector: string;
+}) {
+  const [inputValue, setInputValue] = useState(sidebarWidth?.toString());
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
@@ -389,14 +471,14 @@ function RoomSidebarWidth() {
 
     const parsed = parseInt(val, 10);
     if (!Number.isNaN(parsed)) {
-      setRoomSidebarWidth(parsed);
+      setSidebarWidth(parsed);
     }
   };
 
   const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
     if (isKeyHotkey('escape', evt)) {
       evt.stopPropagation();
-      setInputValue(roomSidebarWidth.toString());
+      setInputValue(sidebarWidth.toString());
       (evt.target as HTMLInputElement).blur();
     }
 
@@ -406,9 +488,10 @@ function RoomSidebarWidth() {
   };
 
   return (
+    <>
     <Input
       style={{ width: toRem(80) }}
-      variant={parseInt(inputValue, 10) === roomSidebarWidth ? 'Secondary' : 'Success'}
+      variant={parseInt(inputValue, 10) === sidebarWidth ? 'Secondary' : 'Success'}
       size="300"
       radii="300"
       type="number"
@@ -419,6 +502,8 @@ function RoomSidebarWidth() {
       onKeyDown={handleKeyDown}
       outlined
     />
+    {sidebarSelector}
+    </>
   );
 }
 
@@ -495,6 +580,22 @@ export function Appearance({
 }: {
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
+    settingsAtom,
+    'memberSidebarWidth'
+  );
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [vcmsgSidebarWidth, setvcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+  const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
@@ -581,19 +682,31 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Room Sidebar Width"
-                focusId="room-sidebar-width"
-                description="The width of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
-                after={<RoomSidebarWidth />}
+                title="Show Room Icons"
+                focusId="show-room-icons"
+                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                after={<SelectShowRoomIcon />}
               />
             </SequenceCard>
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Show Room Icons"
-                focusId="show-room-icons"
-                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
-                after={<SelectShowRoomIcon />}
+                title="Room Sidebar Width"
+                focusId="room-sidebar-width"
+                description="The width of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
+                after={
+                  <>
+                  <PanelSelector
+                    sidebarSelector={sidebarSelector}
+                    setSidebarSelector={setSidebarSelector}
+                  />
+                  <SidebarWidth
+                    sidebarWidth={roomSidebarWidth}
+                    setSidebarWidth={setRoomSidebarWidth}
+                    sidebarSelector={sidebarSelector}
+                  />
+                  </>
+                }
               />
             </SequenceCard>
           </Box>

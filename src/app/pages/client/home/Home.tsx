@@ -202,7 +202,7 @@ export function Home() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
 
-  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
@@ -379,7 +379,13 @@ export function Home() {
           )}
         </PageNav>
       </Box>
-      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={roomSidebarWidth}
+          setSidebarWidth={setRoomSidebarWidth}
+        />
+      )}
     </>
   );
 }

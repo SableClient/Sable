@@ -1,8 +1,7 @@
 import { style, globalStyle } from '@vanilla-extract/css';
-import { config, color, toRem } from 'folds';
+import { config, color } from 'folds';
 
 export const ThreadDrawer = style({
-  width: toRem(440),
   height: '100%',
   display: 'flex',
   flexDirection: 'column',

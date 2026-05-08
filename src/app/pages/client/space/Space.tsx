@@ -390,7 +390,7 @@ export function Space() {
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
-  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
@@ -865,7 +865,13 @@ export function Space() {
           </SwipeableOverlayWrapper>
         </PageNav>
       </Box>
-      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={roomSidebarWidth}
+          setSidebarWidth={setRoomSidebarWidth}
+        />
+      )}
     </>
   );
 }

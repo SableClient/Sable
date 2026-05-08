@@ -164,7 +164,7 @@ export function Explore() {
   const featuredSelected = useExploreFeaturedSelected();
   const selectedServer = useExploreServer();
 
-  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   useEffect(() => {
@@ -273,7 +273,13 @@ export function Explore() {
           </PageNavContent>
         </PageNav>
       </Box>
-      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={roomSidebarWidth}
+          setSidebarWidth={setRoomSidebarWidth}
+        />
+      )}
     </>
   );
 }

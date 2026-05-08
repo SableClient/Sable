@@ -1,10 +1,15 @@
 import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
-import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton, toRem } from 'folds';
+import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton } from 'folds';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';
 import { RoomView } from './RoomView';
 import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { mobileOrTablet } from '$utils/user-agent';
+import { useState, useEffect } from 'react';
 
 export function CallChatView() {
   const { eventId } = useParams();
@@ -13,44 +18,59 @@ export function CallChatView() {
 
   const handleClose = () => setChat(false);
 
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  useEffect(() => {
+    setCurWidth(threadSidebarWidth);
+  }, [threadSidebarWidth]);
   return (
-    <Page
-      style={{
-        width: screenSize === ScreenSize.Desktop ? toRem(399) : '100%',
-        flexShrink: 0,
-        flexGrow: 0,
-      }}
-    >
-      <PageHeader>
-        <Box grow="Yes" alignItems="Center" gap="200">
-          <Box grow="Yes">
-            <Text size="H5" truncate>
-              Chat
-            </Text>
+    <>
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={threadSidebarWidth}
+          setSidebarWidth={setThreadSidebarWidth}
+          rightSided
+        />
+      )}
+      <Page
+        style={{
+          width: screenSize === ScreenSize.Desktop ? curWidth : '100%',
+          flexShrink: 0,
+          flexGrow: 0,
+        }}
+      >
+        <PageHeader>
+          <Box grow="Yes" alignItems="Center" gap="200">
+            <Box grow="Yes">
+              <Text size="H5" truncate>
+                Chat
+              </Text>
+            </Box>
+            <Box shrink="No" alignItems="Center">
+              <TooltipProvider
+                position="Bottom"
+                align="End"
+                offset={4}
+                tooltip={
+                  <Tooltip>
+                    <Text>Close</Text>
+                  </Tooltip>
+                }
+              >
+                {(triggerRef) => (
+                  <IconButton ref={triggerRef} variant="Surface" onClick={handleClose}>
+                    <Icon src={Icons.Cross} />
+                  </IconButton>
+                )}
+              </TooltipProvider>
+            </Box>
           </Box>
-          <Box shrink="No" alignItems="Center">
-            <TooltipProvider
-              position="Bottom"
-              align="End"
-              offset={4}
-              tooltip={
-                <Tooltip>
-                  <Text>Close</Text>
-                </Tooltip>
-              }
-            >
-              {(triggerRef) => (
-                <IconButton ref={triggerRef} variant="Surface" onClick={handleClose}>
-                  <Icon src={Icons.Cross} />
-                </IconButton>
-              )}
-            </TooltipProvider>
-          </Box>
+        </PageHeader>
+        <Box grow="Yes" direction="Column">
+          <RoomView eventId={eventId} />
         </Box>
-      </PageHeader>
-      <Box grow="Yes" direction="Column">
-        <RoomView eventId={eventId} />
-      </Box>
-    </Page>
+      </Page>
+    </>
   );
 }

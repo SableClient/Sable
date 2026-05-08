@@ -155,8 +155,13 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
-  roomSidebarWidth: number;
   showRoomIcon: ShowRoomIcon;
+  roomSidebarWidth: number;
+  memberSidebarWidth: number;
+  threadSidebarWidth: number;
+  threadRootHeight: number;
+  vcmsgSidebarWidth: number;
+  widgetSidebarWidth: number;
 
   // furry stuff
   renderAnimals: boolean;
@@ -276,9 +281,13 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-  roomSidebarWidth: 256,
   showRoomIcon: ShowRoomIcon.Smart,
-
+  roomSidebarWidth: 256,
+  memberSidebarWidth: 262,
+  threadSidebarWidth: 440,
+  threadRootHeight: 220,
+  vcmsgSidebarWidth: 399,
+  widgetSidebarWidth: 420,
   // furry stuff
   renderAnimals: true,
 

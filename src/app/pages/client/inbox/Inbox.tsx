@@ -48,7 +48,7 @@ export function Inbox() {
   useNavToActivePathMapper('inbox');
   const notificationsSelected = useInboxNotificationsSelected();
 
-  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   useEffect(() => {
@@ -97,7 +97,13 @@ export function Inbox() {
           </PageNavContent>
         </PageNav>
       </Box>
-      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={roomSidebarWidth}
+          setSidebarWidth={setRoomSidebarWidth}
+        />
+      )}
     </>
   );
 }

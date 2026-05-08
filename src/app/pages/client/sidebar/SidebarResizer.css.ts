@@ -10,10 +10,10 @@ export const SidebarResizer = style({
 export const SidebarResizerHover = style({
   height: '100%',
   zIndex: '100',
-  boxShadow: `0px 0px 32px 8px ${color.Primary.Container}`,
+  boxShadow: `0px 0px 32px 8px ${color.Primary.Main}`,
 });
 export const SideBarResizerAnimation = style({
   width: '100%',
-  backgroundColor: color.Primary.Container,
+  backgroundColor: color.Primary.Main,
   transition: '0.2s',
 });

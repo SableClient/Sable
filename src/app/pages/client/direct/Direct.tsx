@@ -181,7 +181,7 @@ export function Direct() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
-  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
   useEffect(() => {
@@ -324,7 +324,13 @@ export function Direct() {
           )}
         </PageNav>
       </Box>
-      {!mobileOrTablet() && <SidebarResizer setCurWidth={setCurWidth} />}
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={roomSidebarWidth}
+          setSidebarWidth={setRoomSidebarWidth}
+        />
+      )}
     </>
   );
 }

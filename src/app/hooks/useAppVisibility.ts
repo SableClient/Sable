@@ -7,7 +7,6 @@ import { useClientConfig } from './useClientConfig';
 import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
-import { mobileOrTablet } from '../utils/user-agent';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('AppVisibility');
@@ -16,7 +15,6 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
   const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
   const pushSubAtom = useAtom(pushSubscriptionAtom);
-  const isMobile = mobileOrTablet();
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -43,12 +41,17 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     if (!mx) return undefined;
 
     const handleVisibilityForNotifications = (isVisible: boolean) => {
-      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
+      // Always keep the pusher registered regardless of visibility — the SW's
+      // hasVisibleClient check handles OS-notification suppression when the app
+      // is in the foreground, so we never need to delete the pusher.  Keeping
+      // it permanently avoids the enable/disable race that can leave the
+      // homeserver without a valid pusher after rapid tab-focus changes.
+      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, true);
     };
 
     appEvents.onVisibilityChange = handleVisibilityForNotifications;
     return () => {
       appEvents.onVisibilityChange = null;
     };
-  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
+  }, [mx, clientConfig, usePushNotifications, pushSubAtom]);
 }

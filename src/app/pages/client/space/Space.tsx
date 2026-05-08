@@ -398,7 +398,7 @@ export function Space() {
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
-    return curWidth < 96;
+    return curWidth < 144;
   };
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
@@ -726,12 +726,13 @@ export function Space() {
   }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
 
   const screenSize = useScreenSizeContext();
-
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const hideText = curWidth < 96 && !isMobile;
   return (
     <>
       <Box
         style={{
-          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+          width: isMobile ? '100%' : toRem(curWidth),
         }}
       >
         <PageNav>
@@ -750,14 +751,19 @@ export function Space() {
                     <NavLink to={getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
                         <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar size="200" radii="400">
+                          <Avatar
+                            radii="400"
+                            style={hideText ? { width: '100%' } : { height: '100%' }}
+                          >
                             <Icon src={Icons.Flag} size="100" filled={lobbySelected} />
                           </Avatar>
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Lobby
-                            </Text>
-                          </Box>
+                          {!hideText && (
+                            <Box as="span" grow="Yes">
+                              <Text as="span" size="Inherit" truncate>
+                                Lobby
+                              </Text>
+                            </Box>
+                          )}
                         </Box>
                       </NavItemContent>
                     </NavLink>
@@ -766,13 +772,18 @@ export function Space() {
                     <NavLink to={getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
                         <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar size="200" radii="400">
+                          <Avatar
+                            radii="400"
+                            style={hideText ? { width: '100%' } : { height: '100%' }}
+                          >
                             <Icon src={Icons.Search} size="100" filled={searchSelected} />
                           </Avatar>
                           <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Message Search
-                            </Text>
+                            {!hideText && (
+                              <Text as="span" size="Inherit" truncate>
+                                Message Search
+                              </Text>
+                            )}
                           </Box>
                         </Box>
                       </NavItemContent>
@@ -801,14 +812,19 @@ export function Space() {
                           ref={virtualizer.measureElement}
                         >
                           <div
-                            style={{
-                              paddingLeft: `calc(${renderDepth} * ${config.space.S400})`,
-                            }}
+                            style={
+                              hideText
+                                ? {}
+                                : {
+                                    paddingLeft: `calc(${renderDepth} * ${config.space.S400})`,
+                                  }
+                            }
                           >
                             <SpaceNavItem
                               room={room}
                               selected={selectedRoomId === roomId}
                               linkPath={getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                              hideText={hideText}
                             />
                           </div>
                         </VirtualTile>
@@ -828,14 +844,14 @@ export function Space() {
                           key={vItem.index}
                           ref={virtualizer.measureElement}
                         >
-                          <div style={{ paddingTop, paddingLeft }}>
-                            <NavCategoryHeader>
+                          <div style={hideText ? {} : { paddingTop, paddingLeft }}>
+                            <NavCategoryHeader style={hideText ? { justifyContent: 'Center' } : {}}>
                               <RoomNavCategoryButton
                                 data-category-id={categoryId}
                                 onClick={handleCategoryClick}
                                 closed={closedCategories.has(categoryId) || closedViaCategory}
                               >
-                                {roomId === space.roomId ? 'Rooms' : room?.name}
+                                {!hideText && (roomId === space.roomId ? 'Rooms' : room?.name)}
                               </RoomNavCategoryButton>
                             </NavCategoryHeader>
                           </div>
@@ -849,13 +865,25 @@ export function Space() {
                         key={vItem.index}
                         ref={virtualizer.measureElement}
                       >
-                        <div style={{ paddingLeft }}>
+                        <div
+                          style={
+                            hideText
+                              ? {
+                                  padding: '0',
+                                  width: '100%',
+                                  aspectRatio: 1,
+                                  display: 'flex,',
+                                }
+                              : { paddingLeft }
+                          }
+                        >
                           <RoomNavItem
                             room={room}
                             selected={selectedRoomId === roomId}
                             showAvatar={mDirects.has(roomId) || showIcons()}
                             direct={mDirects.has(roomId)}
                             linkPath={getToLink(roomId)}
+                            hideText={hideText}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId

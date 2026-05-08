@@ -247,6 +247,7 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
 
   return (
     <>
@@ -309,18 +310,32 @@ export function Direct() {
                           key={vItem.index}
                           ref={virtualizer.measureElement}
                         >
-                          <RoomNavItem
-                            room={room}
-                            selected={selected}
-                            showAvatar
-                            direct
-                            customDMCards={customDMCards}
-                            linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                            notificationMode={getRoomNotificationMode(
-                              notificationPreferences,
-                              room.roomId
-                            )}
-                          />
+                          <div
+                            style={
+                              curWidth < 96 && !isMobile
+                                ? {
+                                    padding: '0',
+                                    width: '100%',
+                                    aspectRatio: 1,
+                                    display: 'flex,',
+                                  }
+                                : {}
+                            }
+                          >
+                            <RoomNavItem
+                              room={room}
+                              selected={selected}
+                              showAvatar
+                              direct
+                              customDMCards={customDMCards}
+                              hideText={curWidth < 96 && !isMobile}
+                              linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                              notificationMode={getRoomNotificationMode(
+                                notificationPreferences,
+                                room.roomId
+                              )}
+                            />
+                          </div>
                         </VirtualTile>
                       );
                     })}

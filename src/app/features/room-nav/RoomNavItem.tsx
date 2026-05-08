@@ -252,6 +252,9 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
   }
 );
 
+export const hideTextStyling = (isHidden: boolean | undefined) =>
+  isHidden ? { width: '100%', height: '100%', padding: '0', paddingTop: '0px' } : {};
+
 type RoomNavItemProps = {
   room: Room;
   selected: boolean;
@@ -260,6 +263,7 @@ type RoomNavItemProps = {
   showAvatar?: boolean;
   direct?: boolean;
   customDMCards?: boolean;
+  hideText?: boolean;
 };
 
 export function RoomNavItem({
@@ -270,6 +274,7 @@ export function RoomNavItem({
   customDMCards,
   notificationMode,
   linkPath,
+  hideText,
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -374,9 +379,12 @@ export function RoomNavItem({
     .flat()
     .filter(Boolean)
     .join(', ');
-
   return (
-    <Box direction="Column" grow="Yes">
+    <Box
+      direction="Column"
+      grow="Yes"
+      style={{ ...hideTextStyling(hideText), marginTop: hideText ? toRem(5) : '0' }}
+    >
       <NavItem
         variant="Background"
         radii="400"
@@ -386,111 +394,145 @@ export function RoomNavItem({
         onContextMenu={handleContextMenu}
         {...hoverProps}
         {...focusWithinProps}
+        style={hideTextStyling(hideText)}
       >
-        <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
-          <NavItemContent>
-            <Box as="span" grow="Yes" alignItems="Center" gap="200">
-              <AvatarPresence
-                badge={
-                  presence &&
-                  presence.presence !== Presence.Offline && (
-                    <PresenceBadge presence={presence.presence} size="200" />
-                  )
-                }
-              >
-                <Avatar size="200" radii="400">
-                  {showAvatar ? (
-                    <RoomAvatar
-                      roomId={room.roomId}
-                      src={
-                        ((!direct || customDMCards) &&
-                          getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
-                        getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
-                      }
-                      uniformIcons
-                      alt={roomName}
-                      renderFallback={() => (
-                        <Text as="span" size="H6">
-                          {nameInitials(roomName)}
-                        </Text>
-                      )}
-                    />
-                  ) : (
-                    <RoomIcon
-                      style={{
-                        opacity:
-                          unread || hasRoomUnread || isActiveCall
-                            ? config.opacity.P500
-                            : config.opacity.P300,
-                      }}
-                      filled={selected || isActiveCall}
-                      size="100"
-                      joinRule={room.getJoinRule()}
-                      roomType={room.getType()}
-                    />
-                  )}
-                </Avatar>
-              </AvatarPresence>
-              <Box as="span" grow="Yes" direction="Column">
-                <Text
-                  priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
-                  as="span"
-                  size="Inherit"
-                  truncate
-                >
-                  {roomName}
-                </Text>
-                {roomTopic && (
-                  <Text
-                    truncate
-                    size="T200"
-                    priority="300"
-                    style={{
-                      opacity: config.opacity.P300,
-                      marginTop: '-2px',
-                    }}
+        <TooltipProvider
+          position="Right"
+          offset={4}
+          tooltip={
+            hideText && (
+              <Tooltip>
+                <Text>{roomName}</Text>
+              </Tooltip>
+            )
+          }
+        >
+          {(triggerRef) => (
+            <NavButton
+              onClick={handleNavItemClick}
+              aria-label={ariaLabel}
+              ref={triggerRef}
+              style={hideTextStyling(hideText)}
+            >
+              <NavItemContent style={hideTextStyling(hideText)}>
+                <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
+                  <AvatarPresence
+                    badge={
+                      presence &&
+                      presence.presence !== Presence.Offline && (
+                        <PresenceBadge
+                          presence={presence.presence}
+                          size={hideText ? undefined : '200'}
+                        />
+                      )
+                    }
+                    style={hideTextStyling(hideText)}
                   >
-                    {roomTopic}
-                  </Text>
-                )}
-              </Box>
-              {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
-                <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>
-                  <TypingIndicator size="300" disableAnimation />
-                </Badge>
-              )}
-              {!optionsVisible && shouldShowUnreadIndicator && (
-                <UnreadBadgeCenter>
-                  <UnreadBadge
-                    highlight={!!unread && unread.highlight > 0}
-                    count={unreadCount}
-                    dm={direct}
-                  />
-                </UnreadBadgeCenter>
-              )}
-              {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
-                <Icon
-                  size="50"
-                  src={getRoomNotificationModeIcon(notificationMode)}
-                  aria-label={notificationMode}
-                />
-              )}
-              {(room.isCallRoom() || direct) && callMembers.length > 0 && !optionsVisible && (
-                <Badge variant="Critical" fill="Solid" size="400">
-                  <Box alignItems="Center" gap="100">
-                    <Icon size="50" src={Icons.Phone} color="Inherit" />
-                    <Text as="span" size="L400" truncate>
-                      {direct ? 'Calling' : `${callMembers.length} Live`}
-                    </Text>
-                  </Box>
-                </Badge>
-              )}
-            </Box>
-          </NavItemContent>
-        </NavButton>
+                    <Avatar
+                      size={hideText ? undefined : '200'}
+                      radii="400"
+                      style={hideTextStyling(hideText)}
+                    >
+                      {showAvatar ? (
+                        <RoomAvatar
+                          roomId={room.roomId}
+                          src={
+                            ((!direct || customDMCards) &&
+                              getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
+                            getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                          }
+                          uniformIcons
+                          alt={roomName}
+                          renderFallback={() => (
+                            <Text as="span" size="H6">
+                              {nameInitials(roomName)}
+                            </Text>
+                          )}
+                        />
+                      ) : (
+                        <RoomIcon
+                          style={{
+                            opacity:
+                              unread || hasRoomUnread || isActiveCall
+                                ? config.opacity.P500
+                                : config.opacity.P300,
+                          }}
+                          filled={selected || isActiveCall}
+                          size="100"
+                          joinRule={room.getJoinRule()}
+                          roomType={room.getType()}
+                        />
+                      )}
+                    </Avatar>
+                  </AvatarPresence>
+                  {!hideText && (
+                    <>
+                      <Box as="span" grow="Yes" direction="Column">
+                        <Text
+                          priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
+                          as="span"
+                          size="Inherit"
+                          truncate
+                        >
+                          {roomName}
+                        </Text>
+                        {roomTopic && (
+                          <Text
+                            truncate
+                            size="T200"
+                            priority="300"
+                            style={{
+                              opacity: config.opacity.P300,
+                              marginTop: '-2px',
+                            }}
+                          >
+                            {roomTopic}
+                          </Text>
+                        )}
+                      </Box>
+                      {!optionsVisible && !unread && !selected && typingMember.length > 0 && (
+                        <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>
+                          <TypingIndicator size="300" disableAnimation />
+                        </Badge>
+                      )}
+                      {!optionsVisible && shouldShowUnreadIndicator && (
+                        <UnreadBadgeCenter>
+                          <UnreadBadge
+                            highlight={!!unread && unread.highlight > 0}
+                            count={unreadCount}
+                            dm={direct}
+                          />
+                        </UnreadBadgeCenter>
+                      )}
+                      {!optionsVisible && notificationMode !== RoomNotificationMode.Unset && (
+                        <Icon
+                          size="50"
+                          src={getRoomNotificationModeIcon(notificationMode)}
+                          aria-label={notificationMode}
+                        />
+                      )}
+                      {(room.isCallRoom() || direct) &&
+                        callMembers.length > 0 &&
+                        !optionsVisible && (
+                          <Badge variant="Critical" fill="Solid" size="400">
+                            <Box alignItems="Center" gap="100">
+                              <Icon size="50" src={Icons.Phone} color="Inherit" />
+                              <Text as="span" size="L400" truncate>
+                                {direct ? 'Calling' : `${callMembers.length} Live`}
+                              </Text>
+                            </Box>
+                          </Badge>
+                        )}
+                    </>
+                  )}
+                </Box>
+              </NavItemContent>
+            </NavButton>
+          )}
+        </TooltipProvider>
         {optionsVisible && (
           <NavItemOptions>
-            {(room.isCallRoom() || (direct && callMembers.length > 0)) && (
+            {(room.isCallRoom() || (direct && callMembers.length > 0)) && !hideText && (
               <TooltipProvider
                 position="Bottom"
                 offset={4}
@@ -545,18 +587,20 @@ export function RoomNavItem({
                 </FocusTrap>
               }
             >
-              <IconButton
-                onClick={handleOpenMenu}
-                aria-pressed={!!menuAnchor}
-                aria-controls={`menu-${room.roomId}`}
-                aria-label="More Options"
-                variant="Background"
-                fill="None"
-                size="300"
-                radii="300"
-              >
-                <Icon size="50" src={Icons.VerticalDots} />
-              </IconButton>
+              {!hideText && (
+                <IconButton
+                  onClick={handleOpenMenu}
+                  aria-pressed={!!menuAnchor}
+                  aria-controls={`menu-${room.roomId}`}
+                  aria-label="More Options"
+                  variant="Background"
+                  fill="None"
+                  size="300"
+                  radii="300"
+                >
+                  <Icon size="50" src={Icons.VerticalDots} />
+                </IconButton>
+              )}
             </PopOut>
           </NavItemOptions>
         )}

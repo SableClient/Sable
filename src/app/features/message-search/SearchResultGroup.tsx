@@ -56,6 +56,8 @@ import {
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import type { ResultItem } from './useMessageSearch';
 
 type SearchResultGroupProps = {
@@ -95,6 +97,11 @@ export function SearchResultGroup({
   const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
   const nicknames = useAtomValue(nicknamesAtom);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
 
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
@@ -127,6 +134,8 @@ export function SearchResultGroup({
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
       }),
     [
       mx,
@@ -138,6 +147,8 @@ export function SearchResultGroup({
       useAuthentication,
       nicknames,
       settingsLinkBaseUrl,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
     ]
   );
 

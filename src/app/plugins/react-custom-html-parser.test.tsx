@@ -128,6 +128,39 @@ describe('getReactCustomHtmlParser code blocks', () => {
 });
 
 describe('react custom html parser', () => {
+  it('defaults custom emoji img height to 32 when missing', () => {
+    const { container } = renderParsedHtml(
+      '<img data-mx-emoticon src="mxc://example.org/emote" alt="blobcat" title="blobcat" />',
+      {
+        sanitize: false,
+        mx: createMatrixClient({
+          mxcUrlToHttp: () => 'https://cdn.example/emote.png',
+        }),
+      }
+    );
+
+    const img = container.querySelector('img');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('height', '32');
+  });
+
+  it('clamps incoming inline image height to the configured max', () => {
+    const { container } = renderParsedHtml(
+      '<img data-mx-emoticon src="mxc://example.org/emote" alt="blobcat" title="blobcat" height="128" />',
+      {
+        sanitize: false,
+        mx: createMatrixClient({
+          mxcUrlToHttp: () => 'https://cdn.example/emote.png',
+        }),
+      }
+    );
+
+    const img = container.querySelector('img');
+    expect(img).toBeInTheDocument();
+    // Default max is 64 unless overridden by settings.
+    expect(img).toHaveAttribute('height', '64');
+  });
+
   it('renders same-origin raw settings links as mention-style chips through the factory link render path', () => {
     const renderLink = factoryRenderLinkifyWithMention(
       settingsLinkBaseUrl,

@@ -26,6 +26,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useStateEvent } from '$hooks/useStateEvent';
 
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -70,8 +71,17 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
   const capabilities = useCapabilities();
   const [alertRemove, setAlertRemove] = useState(false);
   const disableSetAvatar = capabilities['m.set_avatar_url']?.enabled === false;
-
-  const avatarMxc = member.getMxcAvatarUrl();
+  const memberStateEvent = useStateEvent(room, EventType.RoomMember, userId);
+  const memberStateContent = memberStateEvent?.getContent<{ avatar_url?: string }>();
+  const globalAvatarMxc = mx.getUser(userId)?.avatarUrl ?? profile.avatarUrl;
+  const roomAvatarMxc = memberStateEvent
+    ? memberStateContent?.avatar_url
+    : member.getMxcAvatarUrl();
+  const avatarMxc = roomAvatarMxc ?? globalAvatarMxc;
+  const hasRoomAvatarOverride =
+    memberStateEvent !== undefined &&
+    memberStateContent?.avatar_url !== undefined &&
+    memberStateContent.avatar_url !== globalAvatarMxc;
   const avatarUrl =
     avatarMxc && (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined);
 
@@ -92,15 +102,17 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
   const handleUploaded = useCallback(
     (upload: UploadSuccess) => {
       const { mxc } = upload;
-      myRoomAvatar.exe(mxc);
-      handleRemoveUpload();
+      myRoomAvatar.exe(mxc).finally(() => {
+        handleRemoveUpload();
+      });
     },
     [myRoomAvatar, handleRemoveUpload]
   );
 
   const handleRemoveAvatar = () => {
-    myRoomAvatar.exe('');
-    setAlertRemove(false);
+    myRoomAvatar.exe('').finally(() => {
+      setAlertRemove(false);
+    });
   };
 
   return (
@@ -139,20 +151,18 @@ export function CosmeticsAvatar({ profile, member, userId, room }: CosmeticsSett
           >
             <Text size="B300">Upload</Text>
           </Button>
-          {avatarUrl &&
-            avatarUrl !==
-              mxcUrlToHttp(mx, profile.avatarUrl ?? '', useAuthentication, 96, 96, 'crop') && (
-              <Button
-                size="300"
-                variant="Critical"
-                fill="None"
-                radii="300"
-                disabled={disableSetAvatar}
-                onClick={() => setAlertRemove(true)}
-              >
-                <Text size="B300">Remove</Text>
-              </Button>
-            )}
+          {hasRoomAvatarOverride && (
+            <Button
+              size="300"
+              variant="Critical"
+              fill="None"
+              radii="300"
+              disabled={disableSetAvatar}
+              onClick={() => setAlertRemove(true)}
+            >
+              <Text size="B300">Remove</Text>
+            </Button>
+          )}
         </Box>
       )}
 

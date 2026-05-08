@@ -176,7 +176,45 @@ function processInlineElements(
   listDepth: number = 0,
   insideCode: boolean = false
 ): string {
-  return node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+  return processChildren(node.children, listDepth, insideCode);
+}
+
+function processChildren(
+  children: ChildNode[],
+  listDepth: number = 0,
+  insideCode: boolean = false
+): string {
+  const out: string[] = [];
+
+  for (let i = 0; i < children.length; i += 1) {
+    const cur = children[i];
+    const next = children[i + 1];
+    const next2 = children[i + 2];
+
+    if (
+      cur &&
+      next &&
+      next2 &&
+      isText(cur) &&
+      cur.data === '<' &&
+      isTag(next) &&
+      next.name.toLowerCase() === 'a' &&
+      isText(next2) &&
+      next2.data === '>'
+    ) {
+      const href = next.attribs.href ?? '';
+      const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+      out.push(`[${content}](<${href}>)`);
+      i += 2;
+      continue;
+    }
+
+    if (cur) {
+      out.push(processNode(cur, listDepth, insideCode));
+    }
+  }
+
+  return out.join('');
 }
 
 function processInlineWrapper(
@@ -185,7 +223,7 @@ function processInlineWrapper(
   listDepth: number = 0,
   insideCode: boolean = false
 ): string {
-  const content = node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+  const content = processChildren(node.children, listDepth, insideCode);
   return `${marker}${content}${marker}`;
 }
 
@@ -222,7 +260,7 @@ function processHeading(
   insideCode: boolean = false
 ): string {
   const level = tag.charAt(1);
-  const content = node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+  const content = processChildren(node.children, listDepth, insideCode);
   return `${'#'.repeat(parseInt(level, 10))} ${content}\n`;
 }
 
@@ -231,7 +269,7 @@ function processParagraph(
   listDepth: number = 0,
   insideCode: boolean = false
 ): string {
-  const content = node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+  const content = processChildren(node.children, listDepth, insideCode);
   return `${content}\n`;
 }
 

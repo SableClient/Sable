@@ -62,6 +62,11 @@ describe('htmlToMarkdown', () => {
     );
   });
 
+  it('converts hidden-preview wrapped links to markdown with <href>', () => {
+    const html = '<p>&lt;<a href="https://example.org/">https://example.org/</a>&gt;</p>';
+    expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
+  });
+
   it('converts spoiler spans', () => {
     expect(htmlToMarkdown('<span data-mx-spoiler>hidden</span>')).toContain('||hidden||');
   });

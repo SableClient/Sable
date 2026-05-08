@@ -59,7 +59,7 @@ export const UserHeroStatusTooltip = style({
   justifySelf: 'left',
   cursor: 'pointer',
   ':hover': {
-    filter: 'brightness(0.8)',
+    filter: 'brightness(var(--user-hero-status-hover-brightness, 0.94))',
     transform: 'translateY(-1px)',
   },
 });

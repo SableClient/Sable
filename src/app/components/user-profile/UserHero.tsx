@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   Avatar,
   Box,
@@ -78,10 +79,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
   const cardColor =
     shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? standardColors.Background.Container;
+  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -50 : 50) ?? backgroundColor;
+  const statusSurfaceColor =
+    shadeColor(innerColor, fetchedBrightness === 'light' ? -14 : 32) ?? cardColor;
   const textColor =
     ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', cardColor)) && '#FFFFFF') ||
     ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', cardColor)) && '#000000') ||
     undefined;
+  const statusHoverBrightness = fetchedBrightness === 'light' ? 0.94 : 1.08;
 
   return (
     <Box direction="Column" className={css.UserHero} style={{ backgroundColor: backgroundColor }}>
@@ -153,6 +158,8 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
         {status && status.length > 0 && (
           <div className={css.UserHeroStatusContainer}>
             <Tooltip
+              radii="400"
+              variant="Surface"
               onClick={isExpandable ? () => setIsFullStatus(!isFullStatus) : undefined}
               className={css.UserHeroStatusTooltip}
               style={{
@@ -161,8 +168,16 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
                 transform: 'none',
                 transition: 'none',
                 display: 'flex',
-                backgroundColor: cardColor,
+                padding: `${toRem(8)} ${toRem(12)}`,
+                backgroundColor: statusSurfaceColor,
                 color: textColor,
+                borderStyle: 'none',
+                borderWidth: 0,
+                outline: 'none',
+                boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.05)',
+                ...({
+                  '--user-hero-status-hover-brightness': String(statusHoverBrightness),
+                } as CSSProperties),
               }}
             >
               <Box direction="Row" gap="100" style={{ height: '100%', width: '100%' }}>

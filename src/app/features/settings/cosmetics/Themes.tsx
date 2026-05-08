@@ -1,5 +1,5 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
-import { type MouseEventHandler, useState } from 'react';
+import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -36,7 +36,7 @@ import { ThemeAppearanceSection } from './ThemeAppearanceSection';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
 import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
-import type { PanelSizetItem} from '$hooks/usePanelSizes';
+import type { PanelSizetItem } from '$hooks/usePanelSizes';
 import { usePanelSizeItems } from '$hooks/usePanelSizes';
 
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
@@ -454,16 +454,59 @@ function PanelSelector({
     </>
   );
 }
-function SidebarWidth({
-  sidebarWidth,
-  setSidebarWidth,
-  sidebarSelector,
-}: {
-  sidebarWidth: number;
-  setSidebarWidth: (arg0: number) => void;
-  sidebarSelector: string;
-}) {
-  const [inputValue, setInputValue] = useState(sidebarWidth?.toString());
+function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
+    settingsAtom,
+    'memberSidebarWidth'
+  );
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [vcmsgSidebarWidth, setvcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+
+  // Yandere style code but it works  and is as straight forward as can be :shrug:
+  const getCurValue = useMemo(() => {
+    if (sidebarSelector === 'roomSidebarWidth') return roomSidebarWidth;
+    if (sidebarSelector === 'memberSidebarWidth') return memberSidebarWidth;
+    if (sidebarSelector === 'threadSidebarWidth') return threadSidebarWidth;
+    if (sidebarSelector === 'threadRootHeight') return threadRootHeight;
+    if (sidebarSelector === 'vcmsgSidebarWidth') return vcmsgSidebarWidth;
+    if (sidebarSelector === 'widgetSidebarWidth') return widgetSidebarWidth;
+    return undefined;
+  }, [
+    sidebarSelector,
+    roomSidebarWidth,
+    memberSidebarWidth,
+    threadSidebarWidth,
+    threadRootHeight,
+    vcmsgSidebarWidth,
+    widgetSidebarWidth,
+  ]);
+  const [curValue, setCurValue] = useState(getCurValue);
+  const setValue = (value: number) => {
+    if (sidebarSelector === 'roomSidebarWidth') setRoomSidebarWidth(value);
+    if (sidebarSelector === 'memberSidebarWidth') setMemberSidebarWidth(value);
+    if (sidebarSelector === 'threadSidebarWidth') setThreadSidebarWidth(value);
+    if (sidebarSelector === 'threadRootHeight') setThreadRootHeight(value);
+    if (sidebarSelector === 'vcmsgSidebarWidth') setvcmsgSidebarWidth(value);
+    if (sidebarSelector === 'widgetSidebarWidth') setWidgetSidebarWidth(value);
+  };
+
+  useEffect(() => {
+    setInputValue(curValue?.toString());
+  }, [curValue]);
+  useEffect(() => {
+    setCurValue(getCurValue);
+  }, [getCurValue]);
+
+  const [inputValue, setInputValue] = useState(curValue?.toString());
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
@@ -471,14 +514,14 @@ function SidebarWidth({
 
     const parsed = parseInt(val, 10);
     if (!Number.isNaN(parsed)) {
-      setSidebarWidth(parsed);
+      setValue(parsed);
     }
   };
 
   const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
     if (isKeyHotkey('escape', evt)) {
       evt.stopPropagation();
-      setInputValue(sidebarWidth.toString());
+      setInputValue(curValue?.toString());
       (evt.target as HTMLInputElement).blur();
     }
 
@@ -488,10 +531,9 @@ function SidebarWidth({
   };
 
   return (
-    <>
     <Input
       style={{ width: toRem(80) }}
-      variant={parseInt(inputValue, 10) === sidebarWidth ? 'Secondary' : 'Success'}
+      variant={parseInt(inputValue ?? '', 10) === curValue ? 'Secondary' : 'Success'}
       size="300"
       radii="300"
       type="number"
@@ -502,8 +544,6 @@ function SidebarWidth({
       onKeyDown={handleKeyDown}
       outlined
     />
-    {sidebarSelector}
-    </>
   );
 }
 
@@ -580,21 +620,6 @@ export function Appearance({
 }: {
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
-  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
-  const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
-    settingsAtom,
-    'memberSidebarWidth'
-  );
-  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
-    settingsAtom,
-    'threadSidebarWidth'
-  );
-  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
-  const [vcmsgSidebarWidth, setvcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
-  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
-    settingsAtom,
-    'widgetSidebarWidth'
-  );
   const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
@@ -691,20 +716,16 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Room Sidebar Width"
-                focusId="room-sidebar-width"
-                description="The width of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
+                title="Sidebar Size"
+                focusId="sidebar-size"
+                description="The Size of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
                 after={
                   <>
-                  <PanelSelector
-                    sidebarSelector={sidebarSelector}
-                    setSidebarSelector={setSidebarSelector}
-                  />
-                  <SidebarWidth
-                    sidebarWidth={roomSidebarWidth}
-                    setSidebarWidth={setRoomSidebarWidth}
-                    sidebarSelector={sidebarSelector}
-                  />
+                    <PanelSelector
+                      sidebarSelector={sidebarSelector}
+                      setSidebarSelector={setSidebarSelector}
+                    />
+                    <SidebarWidth sidebarSelector={sidebarSelector} />
                   </>
                 }
               />

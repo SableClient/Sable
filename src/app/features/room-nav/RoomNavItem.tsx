@@ -331,7 +331,7 @@ export function RoomNavItem({
       if (!livekitSupport(autoDiscoveryInfo) && callMembers.length === 0) return;
       if (callEmbed && !isActiveCall) return;
 
-      if (!isMobile) {
+      if (!isMobile && !hideText) {
         if (!isActiveCall && !callEmbed) {
           startCall(
             room,

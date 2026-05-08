@@ -13,6 +13,7 @@ export const SidebarResizerHover = style({
 });
 export const SideBarResizerAnimation = style({
   width: '100%',
-  backgroundColor: color.Primary.Main,
-  transition: '0.2s',
+  height: '100%',
+  backgroundColor: color.Surface.ContainerLine,
+  transition: '0.5s',
 });

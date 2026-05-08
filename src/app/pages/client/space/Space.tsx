@@ -23,7 +23,7 @@ import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
-import type { Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import type { MatrixClient, Room, RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { JoinRule, EventType, KnownMembership } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
@@ -82,6 +82,10 @@ import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { RoomAvatar } from '$components/room-avatar';
+import { getRoomAvatarUrl } from '$utils/room';
+import { nameInitials } from '$utils/common';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 
 const debugLog = createDebugLogger('Space');
 
@@ -245,10 +249,11 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   );
 });
 
-function SpaceHeader() {
+function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient }) {
   const space = useSpace();
   const spaceName = useRoomName(space);
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const useAuthentication = useMediaAuthentication();
 
   const joinRules = useStateEvent(
     space,
@@ -267,17 +272,39 @@ function SpaceHeader() {
     <>
       <PageNavHeader>
         <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes" alignItems="Center" gap="100">
-            <Text size="H4" truncate>
-              {spaceName}
-            </Text>
-            {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
-          </Box>
-          <Box shrink="No">
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
-            </IconButton>
-          </Box>
+          {hideText ? (
+            <Avatar size={hideText ? undefined : '200'} radii="400">
+              <RoomAvatar
+                roomId={space.roomId}
+                src={getRoomAvatarUrl(mx, space, 96, useAuthentication)}
+                uniformIcons
+                alt={spaceName}
+                renderFallback={() => (
+                  <Text as="span" size="H6">
+                    {nameInitials(spaceName)}
+                  </Text>
+                )}
+              />
+            </Avatar>
+          ) : (
+            <>
+              <Box grow="Yes" alignItems="Center" gap="100">
+                <Text size="H4" truncate>
+                  {spaceName}
+                </Text>
+                {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
+              </Box>
+              <Box shrink="No">
+                <IconButton
+                  aria-pressed={!!menuAnchor}
+                  variant="Background"
+                  onClick={handleOpenMenu}
+                >
+                  <Icon src={Icons.VerticalDots} size="200" />
+                </IconButton>
+              </Box>
+            </>
+          )}
         </Box>
       </PageNavHeader>
       {menuAnchor && (
@@ -727,7 +754,7 @@ export function Space() {
 
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
-  const hideText = curWidth < 96 && !isMobile;
+  const hideText = curWidth < 64 && !isMobile;
   return (
     <>
       <Box
@@ -737,7 +764,7 @@ export function Space() {
       >
         <PageNav>
           <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
-            <SpaceHeader />
+            <SpaceHeader hideText={hideText} mx={mx} />
             <PageNavContent scrollRef={scrollRef}>
               <Box direction="Column" gap="300">
                 {tombstoneEvent && (
@@ -753,7 +780,7 @@ export function Space() {
                         <Box as="span" grow="Yes" alignItems="Center" gap="200">
                           <Avatar
                             radii="400"
-                            style={hideText ? { width: '100%' } : { height: '100%' }}
+                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
                           >
                             <Icon src={Icons.Flag} size="100" filled={lobbySelected} />
                           </Avatar>
@@ -844,7 +871,7 @@ export function Space() {
                           key={vItem.index}
                           ref={virtualizer.measureElement}
                         >
-                          <div style={hideText ? {} : { paddingTop, paddingLeft }}>
+                          <div style={hideText ? { paddingTop: '0' } : { paddingTop, paddingLeft }}>
                             <NavCategoryHeader style={hideText ? { justifyContent: 'Center' } : {}}>
                               <RoomNavCategoryButton
                                 data-category-id={categoryId}

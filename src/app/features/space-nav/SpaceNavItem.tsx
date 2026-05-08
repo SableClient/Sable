@@ -50,7 +50,13 @@ export function SpaceNavItem({ room, selected, linkPath, hideText }: SpaceNavIte
       >
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
-            <Box as="span" grow="Yes" alignItems="Center" gap="200">
+            <Box
+              as="span"
+              grow="Yes"
+              alignItems="Center"
+              gap="200"
+              style={{ padding: hideText ? '0' : '1' }}
+            >
               <Avatar size="200" radii="400">
                 <Icon
                   src={Icons.Space}

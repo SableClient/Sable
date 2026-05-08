@@ -26,12 +26,12 @@ export function SidebarResizer({
 
   useEffect(() => {
     const change = rightSided ? -(oldX - newX) : oldX - newX;
-    if (change) setSidebarWidth(Math.min(Math.max(sidebarWidth - change, 0), 1200));
+    if (change) setSidebarWidth(Math.min(Math.max(sidebarWidth - change, 50), 1200));
   }, [newX]);
 
   useEffect(() => {
     const change = rightSided ? -(oldX - interimX) : oldX - interimX;
-    if (change && setCurWidth) setCurWidth(Math.min(Math.max(sidebarWidth - change, 0), 1200));
+    if (change && setCurWidth) setCurWidth(Math.min(Math.max(sidebarWidth - change, 50), 1200));
   }, [interimX]);
 
   const onPointerMove = useCallback((e: PointerEvent) => {
@@ -70,7 +70,7 @@ export function SidebarResizer({
     >
       <Box
         className={css.SideBarResizerAnimation}
-        style={{ height: isPointerOver || isPointerDown ? '100%' : '0px' }}
+        style={{ opacity: isPointerOver || isPointerDown ? '100%' : '0%' }}
       />
     </Box>
   );

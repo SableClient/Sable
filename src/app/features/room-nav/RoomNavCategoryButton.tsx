@@ -29,15 +29,17 @@ export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
       );
     return (
       <IconButton
-          className={classNames(css.CategoryButton, className)}
-          variant="Background"
-          radii="400"
-          {...props}
-          ref={ref}
-          >
+        className={classNames(css.CategoryButton, className)}
+        variant="Background"
+        radii="400"
+        {...props}
+        style={{ padding: '0' }}
+        ref={ref}
+      >
         <Icon
           className={css.CategoryButtonIcon}
           size="50"
+          style={{ padding: '0' }}
           src={closed ? Icons.ChevronRight : Icons.ChevronBottom}
         />
       </IconButton>

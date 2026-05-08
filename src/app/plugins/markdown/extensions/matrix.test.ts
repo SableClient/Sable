@@ -48,6 +48,23 @@ describe('matrixMathExtension (inline)', () => {
   it('does not parse unmatched $', () => {
     expect(parse('No $ math here')).not.toContain('data-mx-maths');
   });
+
+  it('does not parse dollar amounts in a sentence as inline math', () => {
+    const input = 'I just bought something for $10 on sale, it was originally $20!';
+    const result = parse(input);
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$10');
+    expect(result).toContain('$20');
+  });
+
+  it('does not treat $ as math when the opening is followed by whitespace', () => {
+    expect(parse('$ E = mc^2$')).not.toContain('data-mx-maths');
+  });
+
+  it('still parses valid inline math', () => {
+    expect(parse('$E = mc^2$')).toContain('data-mx-maths');
+    expect(parse('$2+2$')).toContain('data-mx-maths');
+  });
 });
 
 describe('matrixMathBlockExtension (block)', () => {

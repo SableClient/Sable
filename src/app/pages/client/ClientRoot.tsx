@@ -288,6 +288,17 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx]);
 
+  // Once the client has started (store loaded from IndexedDB, sync loop running),
+  // hide the splash immediately if there are cached rooms — no need to wait for
+  // the first server response. The SyncStatus banner shows "Connecting..." instead.
+  useEffect(() => {
+    if (startState.status !== AsyncStatus.Success || !mx) return;
+    if (isClientReady(mx.getSyncState())) return;
+    if (mx.getRooms().length > 0) {
+      setLoading(false);
+    }
+  }, [mx, startState.status]);
+
   useSyncState(
     mx,
     useCallback((state: string) => {

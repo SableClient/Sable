@@ -57,7 +57,7 @@ export async function enablePushNotifications(
       kind: 'http' as const,
       app_id: clientConfig.pushNotificationDetails?.webPushAppID,
       pushkey: keys.p256dh,
-      app_display_name: 'Cinny',
+      app_display_name: 'Sable',
       device_display_name: 'This Browser',
       lang: navigator.language || 'en',
       data: {
@@ -104,7 +104,7 @@ export async function enablePushNotifications(
     kind: 'http' as const,
     app_id: clientConfig.pushNotificationDetails?.webPushAppID,
     pushkey: keys.p256dh,
-    app_display_name: 'Cinny',
+    app_display_name: 'Sable',
     device_display_name:
       (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
     lang: navigator.language || 'en',

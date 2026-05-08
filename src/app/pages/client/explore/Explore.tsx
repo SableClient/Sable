@@ -34,6 +34,7 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { mobileOrTablet } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 export function AddServer() {
   const mx = useMatrixClient();
@@ -170,9 +171,15 @@ export function Explore() {
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+  const screenSize = useScreenSizeContext();
+
   return (
     <>
-      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
+      <Box
+        style={{
+          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+        }}
+      >
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">

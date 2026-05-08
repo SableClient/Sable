@@ -81,6 +81,7 @@ import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 const debugLog = createDebugLogger('Space');
 
@@ -724,9 +725,15 @@ export function Space() {
     }
   }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
 
+  const screenSize = useScreenSizeContext();
+
   return (
     <>
-      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
+      <Box
+        style={{
+          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+        }}
+      >
         <PageNav>
           <SwipeableOverlayWrapper direction="left" onClose={handleSwipeToRoom}>
             <SpaceHeader />

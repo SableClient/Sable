@@ -55,6 +55,7 @@ import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -245,9 +246,15 @@ export function Direct() {
     closedCategories.has(categoryId)
   );
 
+  const screenSize = useScreenSizeContext();
+
   return (
     <>
-      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
+      <Box
+        style={{
+          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+        }}
+      >
         <PageNav>
           <DirectHeader />
           {noRoomToDisplay ? (

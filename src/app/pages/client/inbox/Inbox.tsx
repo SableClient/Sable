@@ -12,6 +12,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
 import { mobileOrTablet } from '$utils/user-agent';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 function InvitesNavItem() {
   const invitesSelected = useInboxInvitesSelected();
@@ -54,9 +55,15 @@ export function Inbox() {
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+  const screenSize = useScreenSizeContext();
+
   return (
     <>
-      <Box style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}>
+      <Box
+        style={{
+          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+        }}
+      >
         <PageNav>
           <PageNavHeader>
             <Box grow="Yes" gap="300">

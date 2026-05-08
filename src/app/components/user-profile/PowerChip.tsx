@@ -20,6 +20,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -153,12 +154,14 @@ export function PowerChip({
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
 }: {
   userId: string;
   backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
   const room = useRoom();
@@ -342,16 +345,8 @@ export function PowerChip({
         <Chip
           variant={error ? 'Critical' : cardColor ? undefined : 'SurfaceVariant'}
           radii="Pill"
-          className={cardColor ? css.UserHeroChip : undefined}
-          style={
-            cardColor
-              ? {
-                  backgroundColor: (!error && cardColor) || undefined,
-                  borderColor: backgroundColor,
-                  color: textColor,
-                }
-              : undefined
-          }
+          className={cardColor && !error ? css.UserHeroChipThemed : undefined}
+          style={cardColor && !error ? chipSurfaceStyle : undefined}
           before={
             cords ? (
               <Icon size="50" src={Icons.ChevronBottom} />

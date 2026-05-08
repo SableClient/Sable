@@ -1,5 +1,6 @@
 import type { RectCords } from 'folds';
 import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
+import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -23,11 +24,13 @@ export function CreatorChip({
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
 }: {
   backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -106,12 +109,8 @@ export function CreatorChip({
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChip : undefined}
-        style={
-          cardColor
-            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
-            : undefined
-        }
+        className={cardColor ? css.UserHeroChipThemed : undefined}
+        style={cardColor ? chipSurfaceStyle : undefined}
       >
         <Text size="B300" truncate>
           {tag.name}

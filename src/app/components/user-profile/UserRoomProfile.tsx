@@ -11,7 +11,7 @@ import {
   Text,
   toRem,
 } from 'folds';
-import type { SyntheticEvent } from 'react';
+import type { CSSProperties, SyntheticEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
@@ -515,9 +515,22 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const showCustomHeroCard = !!fetchedProfile.heroColor;
 
-  // Without a custom hero color, fall back to folds defaults
+  const chipFillColor =
+    shadeColor(innerColor, fetchedBrightness === 'light' ? -14 : 32) ?? cardColor;
+  // Dark heroes brighten on hover, light heroes darken.
+  const chipHoverBrightness = fetchedBrightness === 'light' ? 0.94 : 1.12;
+  const chipSurfaceStyle: CSSProperties | undefined =
+    showCustomHeroCard && chipFillColor
+      ? ({
+          backgroundColor: chipFillColor,
+          borderColor: 'transparent',
+          color: textColor,
+          '--user-hero-chip-hover-brightness': chipHoverBrightness,
+        } as CSSProperties)
+      : undefined;
+
   const chipColors = showCustomHeroCard
-    ? { backgroundColor, innerColor, cardColor, textColor }
+    ? { backgroundColor, innerColor, cardColor, textColor, chipSurfaceStyle }
     : {};
 
   return (
@@ -563,13 +576,10 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 radii="300"
                 before={<Icon size="50" src={Icons.Message} filled />}
                 onClick={handleMessage}
-                className={css.UserHeroChip}
+                className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
                 style={{
                   marginLeft: 'auto',
-                  backgroundColor:
-                    backgroundColor !== color.Surface.Container ? cardColor : undefined,
-                  borderColor: backgroundColor,
-                  color: backgroundColor !== color.Surface.Container ? textColor : undefined,
+                  ...(showCustomHeroCard && chipSurfaceStyle ? chipSurfaceStyle : {}),
                 }}
               >
                 <Text size="B300">Message</Text>

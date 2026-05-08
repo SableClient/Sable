@@ -2,4 +2,4 @@
 default: patch
 ---
 
-Restores the old chip colors when custom profile themes aren't set.
+Various small adjustments to the themed profiles for better consistency.

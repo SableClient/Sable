@@ -1,4 +1,5 @@
 import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
@@ -51,12 +52,14 @@ export function ServerChip({
   cardColor,
   textColor,
   backgroundColor,
+  chipSurfaceStyle,
 }: {
   server: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   backgroundColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
   const myServer = getMxIdServer(mx.getSafeUserId());
@@ -168,12 +171,8 @@ export function ServerChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChip : undefined}
-        style={
-          cardColor
-            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
-            : undefined
-        }
+        className={cardColor ? css.UserHeroChipThemed : undefined}
+        style={cardColor ? chipSurfaceStyle : undefined}
       >
         <Text size="B300" truncate>
           {server}
@@ -189,12 +188,14 @@ export function ShareChip({
   cardColor,
   textColor,
   backgroundColor,
+  chipSurfaceStyle,
 }: {
   userId: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   backgroundColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const [cords, setCords] = useState<RectCords>();
 
@@ -276,16 +277,8 @@ export function ShareChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChip : undefined}
-        style={
-          cardColor
-            ? {
-                backgroundColor: (!copied && cardColor) || undefined,
-                borderColor: backgroundColor,
-                color: textColor,
-              }
-            : undefined
-        }
+        className={cardColor ? css.UserHeroChipThemed : undefined}
+        style={cardColor && !copied && chipSurfaceStyle ? chipSurfaceStyle : undefined}
       >
         <Text size="B300" truncate>
           Share
@@ -307,12 +300,14 @@ export function MutualRoomsChip({
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
 }: {
   userId: string;
   backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
@@ -502,12 +497,8 @@ export function MutualRoomsChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChip : undefined}
-        style={
-          cardColor
-            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
-            : undefined
-        }
+        className={cardColor ? css.UserHeroChipThemed : undefined}
+        style={cardColor ? chipSurfaceStyle : undefined}
       >
         <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
@@ -542,12 +533,14 @@ export function OptionsChip({
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
 }: {
   userId: string;
   backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
 }) {
   const mx = useMatrixClient();
   const [cords, setCords] = useState<RectCords>();
@@ -724,12 +717,8 @@ export function OptionsChip({
         radii="Pill"
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChip : undefined}
-        style={
-          cardColor
-            ? { backgroundColor: cardColor, borderColor: backgroundColor, color: textColor }
-            : undefined
-        }
+        className={cardColor ? css.UserHeroChipThemed : undefined}
+        style={cardColor ? chipSurfaceStyle : undefined}
       >
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />

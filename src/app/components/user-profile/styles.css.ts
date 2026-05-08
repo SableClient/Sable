@@ -86,6 +86,16 @@ export const UserHeroChip = style({
     transform: 'translateY(-1px)',
   },
 });
+
+export const UserHeroChipThemed = style({
+  borderStyle: 'solid',
+  borderWidth: '1px',
+  borderColor: 'transparent',
+  ':hover': {
+    filter: 'brightness(var(--user-hero-chip-hover-brightness, 0.94))',
+    transform: 'translateY(-1px)',
+  },
+});
 export const UserHeroMenuItem = style({
   borderStyle: 'hidden',
   borderWidth: '1px',

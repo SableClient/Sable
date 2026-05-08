@@ -66,6 +66,27 @@ import { useSyncState } from '$hooks/useSyncState';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
+function postToServiceWorker(data: unknown): void {
+  if (!('serviceWorker' in navigator)) return;
+
+  const posted = new Set<ServiceWorker>();
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || posted.has(worker)) return;
+    posted.add(worker);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage(data);
+  };
+
+  postToWorker(navigator.serviceWorker.controller);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      postToWorker(registration.active);
+      postToWorker(registration.waiting);
+      postToWorker(registration.installing);
+    })
+    .catch(() => undefined);
+}
+
 function clearMediaSessionQuickly(): void {
   if (!('mediaSession' in navigator)) return;
   // iOS registers the lock screen media player as a side-effect of
@@ -658,8 +679,7 @@ function SyncNotificationSettingsWithServiceWorker() {
     const postVisibility = () => {
       const visible = document.visibilityState === 'visible';
       const msg = { type: 'setAppVisible', visible };
-      navigator.serviceWorker.controller?.postMessage(msg);
-      navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+      postToServiceWorker(msg);
     };
 
     // Report initial visibility immediately, then track changes.
@@ -669,7 +689,6 @@ function SyncNotificationSettingsWithServiceWorker() {
   }, []);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
     // notificationSoundEnabled is intentionally excluded: push notification sound
     // is governed by the push rule's tweakSound alone (OS/Sygnal handles it).
     // The in-app sound setting only controls the in-page <audio> playback above.
@@ -680,10 +699,7 @@ function SyncNotificationSettingsWithServiceWorker() {
       clearNotificationsOnRead,
     };
 
-    navigator.serviceWorker.controller?.postMessage(payload);
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.active?.postMessage(payload);
-    });
+    postToServiceWorker(payload);
   }, [showMessageContent, showEncryptedMessageContent, clearNotificationsOnRead]);
 
   return null;
@@ -699,10 +715,8 @@ function SyncStateWithServiceWorker() {
   const mx = useMatrixClient();
 
   const postSyncHealth = useCallback((healthy: boolean) => {
-    if (!('serviceWorker' in navigator)) return;
     const msg = { type: 'setSyncState', healthy };
-    navigator.serviceWorker.controller?.postMessage(msg);
-    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+    postToServiceWorker(msg);
   }, []);
 
   useSyncState(
@@ -839,7 +853,7 @@ function HandleDecryptPushEvent() {
           appVisible: visible,
         });
 
-        navigator.serviceWorker.controller?.postMessage({
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: true,
@@ -856,7 +870,7 @@ function HandleDecryptPushEvent() {
           'Push relay decryption failed',
           err instanceof Error ? err : new Error(String(err))
         );
-        navigator.serviceWorker.controller?.postMessage({
+        postToServiceWorker({
           type: 'pushDecryptResult',
           eventId,
           success: false,

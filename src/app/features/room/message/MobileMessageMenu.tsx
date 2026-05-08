@@ -14,8 +14,6 @@ import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { copyToClipboard } from '$utils/dom';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
-import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
-import { createBookmarkItem, computeBookmarkId } from '$features/bookmarks/bookmarkDomain';
 import * as css from './MobileMessageMenu.css';
 
 export type MobileMessageMenuProps = {
@@ -92,38 +90,6 @@ function ActionItem({ icon, label, danger, onClick }: ActionItemProps) {
         {label}
       </Text>
     </button>
-  );
-}
-
-function BookmarkActionItem({
-  room,
-  mEvent,
-  onClose,
-}: {
-  room: Room;
-  mEvent: MatrixEvent;
-  onClose: () => void;
-}) {
-  const eventId = mEvent.getId() ?? '';
-  const bookmarked = useIsBookmarked(room.roomId, eventId);
-  const { add, remove } = useBookmarkActions();
-
-  if (mEvent.isRedacted()) return null;
-
-  return (
-    <ActionItem
-      icon={<Icon src={Icons.Star} size="200" />}
-      label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
-      onClick={() => {
-        if (bookmarked) {
-          remove(computeBookmarkId(room.roomId, eventId)).catch(() => {});
-        } else {
-          const item = createBookmarkItem(room, mEvent);
-          if (item) add(item).catch(() => {});
-        }
-        onClose();
-      }}
-    />
   );
 }
 
@@ -411,7 +377,6 @@ export function MobileMessageMenu({
                   }}
                 />
               )}
-              <BookmarkActionItem room={room} mEvent={mEvent} onClose={onClose} />
             </div>
 
             {/* Group 3: Destructive actions */}

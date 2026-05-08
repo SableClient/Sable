@@ -65,6 +65,9 @@ export const EditorTextarea = style([
   {
     flexGrow: 1,
     height: 'auto',
+    // Detect text direction per-keystroke so RTL text right-aligns automatically.
+    // Matches the unicodeBidi: 'plaintext' pattern used by MessageTextBody.
+    unicodeBidi: 'plaintext',
     padding: `${toRem(13)} 0 0`,
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {

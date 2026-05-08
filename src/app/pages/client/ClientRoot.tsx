@@ -175,7 +175,6 @@ type ClientRootProps = {
   children: ReactNode;
 };
 export function ClientRoot({ children }: ClientRootProps) {
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
@@ -190,6 +189,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   const loadedUserIdRef = useRef<string | undefined>(undefined);
   const syncStartTimeRef = useRef(performance.now());
   const firstSyncReadyRef = useRef(false);
+
+  const [loading, setLoading] = useState(true);
 
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(async () => {
@@ -238,8 +239,8 @@ export function ClientRoot({ children }: ClientRootProps) {
       if (mx?.clientRunning) {
         stopClient(mx);
       }
-      setLoading(true);
       loadedUserIdRef.current = undefined;
+      setLoading(true);
       setLoadState({ status: AsyncStatus.Idle });
       navigate(getHomePath(), { replace: true });
     }
@@ -310,10 +311,22 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx]);
 
+  // Once the client has started (store loaded from IndexedDB, sync loop running),
+  // hide the splash immediately if there are cached rooms — no need to wait for
+  // the first server response. The SyncStatus banner shows "Connecting..." instead.
+  useEffect(() => {
+    if (startState.status !== AsyncStatus.Success || !mx) return;
+    if (isClientReady(mx.getSyncState())) return;
+    if (mx.getRooms().length > 0) {
+      setLoading(false);
+    }
+  }, [mx, startState.status]);
+
   useSyncState(
     mx,
     useCallback((state: string) => {
       if (isClientReady(state)) {
+        setLoading(false);
         if (!firstSyncReadyRef.current) {
           firstSyncReadyRef.current = true;
           Sentry.metrics.distribution(
@@ -321,7 +334,6 @@ export function ClientRoot({ children }: ClientRootProps) {
             performance.now() - syncStartTimeRef.current
           );
         }
-        setLoading(false);
       }
     }, [])
   );
@@ -376,12 +388,15 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [startState]);
 
+  const hasClientRootError =
+    loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error;
+
   return (
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
       <SpecVersions baseUrl={baseUrl ?? ''}>
         {mx && <SyncStatus mx={mx} />}
-        {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
-        {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (
+        {(loading || !mx) && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
+        {hasClientRootError ? (
           <SplashScreen>
             <Box
               direction="Column"
@@ -407,8 +422,7 @@ export function ClientRoot({ children }: ClientRootProps) {
               </Dialog>
             </Box>
           </SplashScreen>
-        )}
-        {loading || !mx ? (
+        ) : loading || !mx ? (
           <ClientRootLoading />
         ) : (
           <MatrixClientProvider value={mx}>

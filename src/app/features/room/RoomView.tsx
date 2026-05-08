@@ -141,12 +141,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
   return (
     <BackRouteHandler>
       {(onBack) => (
-        <Page
-          ref={roomViewRef}
-          style={{
-            width: '99',
-          }}
-        >
+        <Page ref={roomViewRef}>
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
             <Box grow="Yes" direction="Column">
               {showCallView && (

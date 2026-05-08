@@ -368,6 +368,8 @@ function UserExtendedSection({
               <Scroll
                 size="300"
                 direction="Both"
+                visibility="Hover"
+                hideTrack
                 style={{
                   backgroundColor: color.Background.Container,
                   color: color.Background.OnContainer,

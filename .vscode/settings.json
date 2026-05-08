@@ -12,5 +12,7 @@
   },
   "[json]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
-  }
+  },
+  "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+  "nixEnvSelector.useFlakes": true
 }

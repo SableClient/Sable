@@ -763,10 +763,21 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // Require BOTH the explicit appIsVisible flag AND a visible client from
+  // matchAll() before suppressing.  appIsVisible resets to false every time the
+  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
+  // next push appIsVisible is always false — we never suppress on a cold SW
+  // restart, which prevents the "notifications stop after a while" bug where
+  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
+  // subsequent notifications to be silently dropped.
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
+  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,

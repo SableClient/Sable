@@ -101,6 +101,21 @@ export const UserHeroChipThemed = style({
     transform: 'translateY(-1px)',
   },
 });
+
+export const MiscDataToggleButton = style({
+  backgroundColor: 'transparent',
+  opacity: 0.75,
+  selectors: {
+    '&:hover': {
+      opacity: 1,
+      backgroundColor: 'transparent',
+      transform: 'none !important',
+    },
+    '&:active': {
+      transform: 'none !important',
+    },
+  },
+});
 export const UserHeroMenuItem = style({
   borderStyle: 'hidden',
   borderWidth: '1px',

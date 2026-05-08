@@ -226,9 +226,9 @@ function UserExtendedSection({
     () => (
       <Box justifyContent="Center" grow="Yes">
         <Button
-          variant="Secondary"
-          size="300"
           fill="None"
+          size="300"
+          className={css.MiscDataToggleButton}
           onClick={() => setShowMisc(!showMisc)}
           after={miscDataIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
           style={{
@@ -341,6 +341,7 @@ function UserExtendedSection({
                   <Button
                     size="300"
                     fill="None"
+                    className={css.MiscDataToggleButton}
                     onClick={() =>
                       setMiscDataIndex(
                         miscDataIndex === 0 ? unknownFields.length - 1 : miscDataIndex - 1
@@ -356,6 +357,7 @@ function UserExtendedSection({
                   <Button
                     size="300"
                     fill="None"
+                    className={css.MiscDataToggleButton}
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
                     style={{ color: textColor }}
                   >

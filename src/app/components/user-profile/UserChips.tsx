@@ -44,6 +44,7 @@ import { useNickname, useSetNickname } from '$hooks/useNickname';
 import { CutoutCard } from '$components/cutout-card';
 import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
 
 export function ServerChip({
@@ -52,13 +53,18 @@ export function ServerChip({
   cardColor,
   textColor,
   chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
   server: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const myServer = getMxIdServer(mx.getSafeUserId());
   const navigate = useNavigate();
@@ -108,10 +114,13 @@ export function ServerChip({
                   close();
                 }}
                 className={css.UserHeroMenuItem}
-                style={{
-                  backgroundColor: cardColor,
-                  color: textColor,
-                }}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
               >
                 <Text size="B300">Copy Server</Text>
               </MenuItem>
@@ -124,17 +133,20 @@ export function ServerChip({
                   closeProfile();
                 }}
                 className={css.UserHeroMenuItem}
-                style={{
-                  backgroundColor: cardColor,
-                  color: textColor,
-                }}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
               >
                 <Text size="B300">Explore Community</Text>
               </MenuItem>
             </div>
             <Line size="300" />
             <div
-              style={{ padding: config.space.S100, backgroundColor: cardColor, color: textColor }}
+              style={{ padding: config.space.S100, backgroundColor: innerColor, color: textColor }}
             >
               <MenuItem
                 fill="None"
@@ -145,10 +157,13 @@ export function ServerChip({
                   close();
                 }}
                 className={css.UserHeroMenuItem}
-                style={{
-                  backgroundColor: cardColor,
-                  color: textColor,
-                }}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
               >
                 <Text size="B300">Open in Browser</Text>
               </MenuItem>
@@ -169,8 +184,11 @@ export function ServerChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChipThemed : undefined}
-        style={cardColor ? chipSurfaceStyle : undefined}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" truncate>
           {server}
@@ -186,13 +204,18 @@ export function ShareChip({
   cardColor,
   textColor,
   chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
   userId: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const [cords, setCords] = useState<RectCords>();
 
   const [copied, setCopied] = useTimeoutToggle();
@@ -227,10 +250,13 @@ export function ShareChip({
                 size="300"
                 radii="300"
                 className={css.UserHeroMenuItem}
-                style={{
-                  backgroundColor: cardColor,
-                  color: textColor,
-                }}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
                 onClick={() => {
                   copyToClipboard(userId);
                   setCopied();
@@ -244,10 +270,13 @@ export function ShareChip({
                 size="300"
                 radii="300"
                 className={css.UserHeroMenuItem}
-                style={{
-                  backgroundColor: cardColor,
-                  color: textColor,
-                }}
+                style={heroMenuItemStyle(
+                  {
+                    backgroundColor: menuItemBg,
+                    color: textColor,
+                  },
+                  chipHoverBrightness
+                )}
                 onClick={() => {
                   copyToClipboard(getMatrixToUser(userId));
                   setCopied();
@@ -273,8 +302,11 @@ export function ShareChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChipThemed : undefined}
-        style={cardColor && !copied && chipSurfaceStyle ? chipSurfaceStyle : undefined}
+        className={!copied && cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && !copied && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" truncate>
           Share
@@ -296,13 +328,18 @@ export function MutualRoomsChip({
   cardColor,
   textColor,
   chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
   userId: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
   const mutualRoomsState = useMutualRooms(userId);
@@ -369,11 +406,14 @@ export function MutualRoomsChip({
         size="300"
         radii="300"
         className={css.UserHeroMenuItem}
-        style={{
-          paddingLeft: config.space.S100,
-          backgroundColor: cardColor,
-          color: textColor,
-        }}
+        style={heroMenuItemStyle(
+          {
+            paddingLeft: config.space.S100,
+            backgroundColor: menuItemBg,
+            color: textColor,
+          },
+          chipHoverBrightness
+        )}
         onClick={() => {
           if (room.isSpaceRoom()) {
             navigateSpace(roomId);
@@ -491,8 +531,11 @@ export function MutualRoomsChip({
         }
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChipThemed : undefined}
-        style={cardColor ? chipSurfaceStyle : undefined}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
@@ -527,13 +570,18 @@ export function OptionsChip({
   cardColor,
   textColor,
   chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
   userId: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
   chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const [cords, setCords] = useState<RectCords>();
   const [editingNick, setEditingNick] = useState(false);
@@ -630,10 +678,13 @@ export function OptionsChip({
                       fill="None"
                       onClick={handleSaveNick}
                       className={css.UserHeroMenuItem}
-                      style={{
-                        backgroundColor: cardColor,
-                        color: textColor,
-                      }}
+                      style={heroMenuItemStyle(
+                        {
+                          backgroundColor: menuItemBg,
+                          color: textColor,
+                        },
+                        chipHoverBrightness
+                      )}
                     >
                       <Text size="B300">Save</Text>
                     </MenuItem>
@@ -648,10 +699,13 @@ export function OptionsChip({
                           setNickname(userId, undefined);
                           close();
                         }}
-                        style={{
-                          backgroundColor: cardColor,
-                          color: textColor,
-                        }}
+                        style={heroMenuItemStyle(
+                          {
+                            backgroundColor: menuItemBg,
+                            color: textColor,
+                          },
+                          chipHoverBrightness
+                        )}
                       >
                         <Text size="B300">Clear</Text>
                       </MenuItem>
@@ -667,10 +721,13 @@ export function OptionsChip({
                   before={<Icon size="50" src={Icons.Pencil} />}
                   onClick={() => setEditingNick(true)}
                   className={css.UserHeroMenuItem}
-                  style={{
-                    backgroundColor: cardColor,
-                    color: textColor,
-                  }}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
                 >
                   <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
                 </MenuItem>
@@ -685,7 +742,7 @@ export function OptionsChip({
                   close();
                 }}
                 className={css.UserHeroMenuItem}
-                style={{ backgroundColor: cardColor }}
+                style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
                 before={
                   ignoring ? (
                     <Spinner variant="Critical" size="50" />
@@ -709,8 +766,11 @@ export function OptionsChip({
         radii="Pill"
         onClick={open}
         aria-pressed={!!cords}
-        className={cardColor ? css.UserHeroChipThemed : undefined}
-        style={cardColor ? chipSurfaceStyle : undefined}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />

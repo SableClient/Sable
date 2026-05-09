@@ -52,6 +52,8 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { TextViewerContent } from '$components/text-viewer';
 import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
+import { ThemeKind, useTheme } from '$hooks/useTheme';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
 import { CreatorChip } from './CreatorChip';
 import { UserInviteAlert, UserBanAlert, UserModeration, UserKickAlert } from './UserModeration';
 import { PowerChip } from './PowerChip';
@@ -404,6 +406,7 @@ type UserRoomProfileProps = {
   initialProfile?: Partial<UserProfile>;
 };
 export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomProfileProps>) {
+  const theme = useTheme();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const navigate = useNavigate();
@@ -519,8 +522,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
 
   const chipFillColor =
     shadeColor(innerColor, fetchedBrightness === 'light' ? -14 : 32) ?? cardColor;
-  // Dark heroes brighten on hover, light heroes darken.
-  const chipHoverBrightness = fetchedBrightness === 'light' ? 0.94 : 1.12;
+  const chipHoverBrightness =
+    fetchedBrightness === 'light'
+      ? 0.94
+      : fetchedBrightness === 'dark'
+        ? 1.12
+        : theme.kind === ThemeKind.Dark
+          ? 1.12
+          : 0.94;
   const chipSurfaceStyle: CSSProperties | undefined =
     showCustomHeroCard && chipFillColor
       ? ({
@@ -531,9 +540,22 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         } as CSSProperties)
       : undefined;
 
+  const chipMenuTextColor = textColor ?? color.Surface.OnContainer;
   const chipColors = showCustomHeroCard
-    ? { innerColor, cardColor, textColor, chipSurfaceStyle }
-    : {};
+    ? {
+        innerColor,
+        cardColor,
+        textColor: chipMenuTextColor,
+        chipSurfaceStyle,
+        chipFillColor,
+        chipHoverBrightness,
+      }
+    : {
+        innerColor: color.Surface.Container,
+        chipFillColor: color.SurfaceVariant.Container,
+        textColor: color.SurfaceVariant.OnContainer,
+        chipHoverBrightness,
+      };
 
   return (
     <Box direction="Column" style={{ color: textColor }}>
@@ -580,6 +602,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 style={{
                   marginLeft: 'auto',
                   ...(showCustomHeroCard && chipSurfaceStyle ? chipSurfaceStyle : {}),
+                  ...heroMenuItemStyle({}, chipHoverBrightness),
                 }}
               >
                 <Text size="B300">Message</Text>

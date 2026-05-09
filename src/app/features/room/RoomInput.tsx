@@ -89,7 +89,7 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, reactionOrEditEvent } from '$utils/room';
+import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -162,7 +162,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
-    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    (ev) =>
+      ev.getId() !== threadRootId &&
+      !reactionOrEditEvent(ev) &&
+      isThreadRelationEvent(ev, threadRootId)
   );
   if (filtered.length > 0) {
     return filtered[filtered.length - 1]!.getId() ?? threadRootId;
@@ -174,7 +177,9 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     .getEvents()
     .filter(
       (ev) =>
-        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
   if (liveEvents.length > 0) {
     return liveEvents.at(-1)!.getId() ?? threadRootId;
@@ -192,10 +197,11 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEve
     relatesTo.event_id = replyDraft.relation.event_id;
     relatesTo.rel_type = RelationType.Thread;
 
-    // Check if this is a reply to a specific message in the thread
+    // If the user explicitly clicked "reply" on a message (including the thread root),
+    // we must set is_falling_back=false and target that message directly.
     // (replyDraft.body being empty means it's just a seeded thread draft)
-    if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
-      // Explicit reply to a specific message — per spec, is_falling_back must be false
+    if (replyDraft.body) {
+      // Explicit reply — per spec, is_falling_back must be false
       relatesTo['m.in_reply_to'] = {
         event_id: replyDraft.eventId,
       };
@@ -305,7 +311,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
 
-    const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
+    const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
 
     const [inputKey, setInputKey] = useState(0);
     const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {

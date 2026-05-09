@@ -47,6 +47,7 @@ import {
   getEventReactions,
   getMemberDisplayName,
   isMembershipChanged,
+  isThreadRelationEvent,
   reactionOrEditEvent,
   getMemberAvatarMxc,
 } from '$utils/room';
@@ -130,7 +131,8 @@ function ThreadReplyChip({
     // Prefer thread.events when available so avatars and preview text are populated.
     if (thread) {
       const fromThread = thread.events.filter(
-        (ev) => ev.getId() !== mEventId && !reactionOrEditEvent(ev)
+        (ev) =>
+          ev.getId() !== mEventId && !reactionOrEditEvent(ev) && isThreadRelationEvent(ev, mEventId)
       );
       if (fromThread.length > 0) return fromThread;
     }
@@ -138,7 +140,8 @@ function ThreadReplyChip({
     return linkedTimelines
       .flatMap((tl) => tl.getEvents())
       .filter(
-        (ev) => ev.threadRootId === mEventId && ev.getId() !== mEventId && !reactionOrEditEvent(ev)
+        (ev) =>
+          ev.getId() !== mEventId && !reactionOrEditEvent(ev) && isThreadRelationEvent(ev, mEventId)
       );
   }, [room, mEventId, thread, counter]);
 
@@ -354,12 +357,18 @@ export function useTimelineEventRenderer({
     {
       [EventType.RoomMessage]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
+        const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
+        const actualThreadRootId = isThreadRel ? threadRootId : undefined;
+        const explicitInReplyTo = mEvent.getWireContent()?.['m.relates_to']?.['m.in_reply_to']
+          ?.event_id as unknown;
+        const threadReplyTargetId =
+          isThreadRel && typeof explicitInReplyTo === 'string' ? explicitInReplyTo : undefined;
         // In the thread drawer (hideThreadChip=true), suppress reply headers for events
         // that only have m.in_reply_to as a non-thread-client fallback (is_falling_back: true).
         const replyEventId =
           hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
             ? undefined
-            : rawReplyEventId;
+            : (threadReplyTargetId ?? rawReplyEventId);
 
         const reactionRelations = getEventReactions(timelineSet, mEventId);
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
@@ -446,7 +455,7 @@ export function useTimelineEventRenderer({
                   room={room}
                   timelineSet={timelineSet}
                   replyEventId={replyEventId}
-                  threadRootId={hideThreadChip ? undefined : threadRootId}
+                  threadRootId={hideThreadChip ? undefined : actualThreadRootId}
                   mentions={baseContent['m.mentions']}
                   onClick={handleOpenReply}
                 />
@@ -509,10 +518,16 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomMessageEncrypted]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
+        const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
+        const actualThreadRootId = isThreadRel ? threadRootId : undefined;
+        const explicitInReplyTo = mEvent.getWireContent()?.['m.relates_to']?.['m.in_reply_to']
+          ?.event_id as unknown;
+        const threadReplyTargetId =
+          isThreadRel && typeof explicitInReplyTo === 'string' ? explicitInReplyTo : undefined;
         const replyEventId =
           hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
             ? undefined
-            : rawReplyEventId;
+            : (threadReplyTargetId ?? rawReplyEventId);
 
         const reactionRelations = getEventReactions(timelineSet, mEventId);
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
@@ -563,7 +578,7 @@ export function useTimelineEventRenderer({
                   room={room}
                   timelineSet={timelineSet}
                   replyEventId={replyEventId}
-                  threadRootId={hideThreadChip ? undefined : threadRootId}
+                  threadRootId={hideThreadChip ? undefined : actualThreadRootId}
                   onClick={handleOpenReply}
                 />
               )
@@ -673,10 +688,16 @@ export function useTimelineEventRenderer({
       },
       [EventType.Sticker]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
+        const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
+        const actualThreadRootId = isThreadRel ? threadRootId : undefined;
+        const explicitInReplyTo = mEvent.getWireContent()?.['m.relates_to']?.['m.in_reply_to']
+          ?.event_id as unknown;
+        const threadReplyTargetId =
+          isThreadRel && typeof explicitInReplyTo === 'string' ? explicitInReplyTo : undefined;
         const replyEventId =
           hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
             ? undefined
-            : rawReplyEventId;
+            : (threadReplyTargetId ?? rawReplyEventId);
 
         const reactionRelations = getEventReactions(timelineSet, mEventId);
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
@@ -719,7 +740,7 @@ export function useTimelineEventRenderer({
                   room={room}
                   timelineSet={timelineSet}
                   replyEventId={replyEventId}
-                  threadRootId={hideThreadChip ? undefined : threadRootId}
+                  threadRootId={hideThreadChip ? undefined : actualThreadRootId}
                   mentions={content['m.mentions']}
                   onClick={handleOpenReply}
                 />

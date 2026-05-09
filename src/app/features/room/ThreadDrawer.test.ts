@@ -23,13 +23,16 @@ type EventInit = {
   threadRootId?: string;
   /** When set, the event is treated as a reaction/annotation */
   relType?: string;
+  /** Relation target event id */
+  relEventId?: string;
 };
 
-function makeEvent({ id, threadRootId, relType }: EventInit) {
+function makeEvent({ id, threadRootId, relType, relEventId }: EventInit) {
   return {
     getId: () => id,
     threadRootId,
-    getRelation: () => (relType ? { rel_type: relType } : null),
+    getRelation: () => (relType ? { rel_type: relType, event_id: relEventId } : null),
+    getWireContent: () => ({}),
     getContent: () => ({}),
   };
 }
@@ -61,7 +64,12 @@ const REACTION_ID = '$reaction-event-id';
 describe('getThreadReplyEvents', () => {
   it('returns thread events minus the root when the Thread object has replies', () => {
     const rootEvent = makeEvent({ id: ROOT_ID, threadRootId: ROOT_ID });
-    const replyEvent = makeEvent({ id: REPLY_ID, threadRootId: ROOT_ID });
+    const replyEvent = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
 
     const room = makeRoom({
       thread: { events: [rootEvent, replyEvent] as any },
@@ -76,11 +84,17 @@ describe('getThreadReplyEvents', () => {
 
   it('excludes reactions from thread events', () => {
     const rootEvent = makeEvent({ id: ROOT_ID, threadRootId: ROOT_ID });
-    const replyEvent = makeEvent({ id: REPLY_ID, threadRootId: ROOT_ID });
+    const replyEvent = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
     const reactionEvent = makeEvent({
       id: REACTION_ID,
       threadRootId: ROOT_ID,
       relType: RelationType.Annotation,
+      relEventId: REPLY_ID,
     });
 
     const room = makeRoom({
@@ -99,7 +113,12 @@ describe('getThreadReplyEvents', () => {
   it('falls back to the live timeline when thread.events contains only the root (classic-sync case)', () => {
     // classic sync: thread created with no initialEvents → events = [rootEvent]
     const rootEvent = makeEvent({ id: ROOT_ID, threadRootId: ROOT_ID });
-    const liveReply = makeEvent({ id: REPLY_ID, threadRootId: ROOT_ID });
+    const liveReply = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
 
     const room = makeRoom({
       thread: { events: [rootEvent] as any },
@@ -115,7 +134,12 @@ describe('getThreadReplyEvents', () => {
   });
 
   it('falls back to the live timeline when there is no Thread object at all', () => {
-    const liveReply = makeEvent({ id: REPLY_ID, threadRootId: ROOT_ID });
+    const liveReply = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
 
     const room = makeRoom({
       thread: null,
@@ -129,8 +153,18 @@ describe('getThreadReplyEvents', () => {
   });
 
   it('excludes events from the live timeline that belong to a different thread', () => {
-    const otherReply = makeEvent({ id: '$other-reply', threadRootId: '$other-root' });
-    const ourReply = makeEvent({ id: REPLY_ID, threadRootId: ROOT_ID });
+    const otherReply = makeEvent({
+      id: '$other-reply',
+      threadRootId: '$other-root',
+      relType: RelationType.Thread,
+      relEventId: '$other-root',
+    });
+    const ourReply = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
 
     const room = makeRoom({
       thread: null,
@@ -154,5 +188,26 @@ describe('getThreadReplyEvents', () => {
     const result = getThreadReplyEvents(room as any, ROOT_ID);
 
     expect(result).toHaveLength(0);
+  });
+
+  it('excludes non-thread replies even if the SDK has assigned the same threadRootId', () => {
+    const rootEvent = makeEvent({ id: ROOT_ID, threadRootId: ROOT_ID });
+    const plainReply = makeEvent({ id: '$plain-reply', threadRootId: ROOT_ID });
+    const threadReply = makeEvent({
+      id: REPLY_ID,
+      threadRootId: ROOT_ID,
+      relType: RelationType.Thread,
+      relEventId: ROOT_ID,
+    });
+
+    const room = makeRoom({
+      thread: { events: [rootEvent] as any },
+      liveEvents: [plainReply as any, threadReply as any],
+    });
+
+    const result = getThreadReplyEvents(room as any, ROOT_ID);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.getId()).toBe(REPLY_ID);
   });
 });

@@ -4,25 +4,24 @@ import type { TokenizerExtension, RendererExtension, Tokens } from 'marked';
 export const matrixSubscriptExtension = {
   name: 'subscript',
   level: 'block',
-  start(src: string) {
-    return src.indexOf('-#');
-  },
   tokenizer(
-    this: { lexer: { inlineTokens: (t: string, tokens: Tokens.Generic[]) => void } },
+    this: {
+      lexer: { inlineTokens: (t: string, tokens: Tokens.Generic[]) => void };
+    },
     src: string
   ) {
-    const match = /^-# +(.+)/.exec(src);
-    if (match) {
-      const token = {
-        type: 'subscript',
-        raw: match[0],
-        text: match[1],
-        tokens: [] as Tokens.Generic[],
-      };
-      this.lexer.inlineTokens(token.text!, token.tokens);
-      return token;
+    const match = /^-# +([^\n]+)/.exec(src);
+    if (!match) {
+      return undefined;
     }
-    return undefined;
+    const token = {
+      type: 'subscript',
+      raw: match[0],
+      text: match[1],
+      tokens: [] as Tokens.Generic[],
+    };
+    this.lexer.inlineTokens(token.text!, token.tokens);
+    return token;
   },
   renderer(
     this: { parser: { parseInline: (tokens: Tokens.Generic[]) => string } },

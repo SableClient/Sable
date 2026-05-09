@@ -7,6 +7,7 @@ import {
   maskDollarSignsInsideMarkdownCode,
   shieldDollarRunsForMarked,
   unmaskMathCodeDollarPlaceholders,
+  unmaskSubscriptCodeLinePlaceholders,
 } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
@@ -150,7 +151,7 @@ export function markdownToHtml(markdown: string): string {
 
   DOMPurify.removeHook('afterSanitizeAttributes');
 
-  const unmasked = unmaskMathCodeDollarPlaceholders(sanitized);
+  const unmasked = unmaskSubscriptCodeLinePlaceholders(unmaskMathCodeDollarPlaceholders(sanitized));
 
   // DOMPurify's Node/JSdom build can drop <img> size attributes even when allowlisted.
   // For Matrix custom emojis, always emit a stable height so outgoing messages have

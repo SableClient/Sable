@@ -48,6 +48,26 @@ describe('markdownToHtml', () => {
     expect(result).toContain('E = mc^2');
   });
 
+  it('does not mangle messages with dollar amounts', () => {
+    const result = markdownToHtml(
+      'I just bought something for $10 on sale, it was originally $20!'
+    );
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$10');
+    expect(result).toContain('$20');
+  });
+
+  it('does not treat empty or dollar-only block math as KaTeX', () => {
+    expect(markdownToHtml('$$   $$')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('$$ $ $$')).not.toContain('data-mx-maths');
+  });
+
+  it('does not parse five consecutive dollar signs in a sentence as math', () => {
+    const result = markdownToHtml('hey $$$$$ there');
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$$$$$');
+  });
+
   it('does not parse dollars inside fenced code as math', () => {
     expect(markdownToHtml('```\n$$test$$\n```')).not.toContain('data-mx-maths');
     expect(markdownToHtml('```\n$$test$$\n```')).toContain('$$test$$');

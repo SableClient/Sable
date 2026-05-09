@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { marked } from 'marked';
 import { matrixSpoilerExtension } from './matrix-spoiler';
-import { matrixMathExtension, matrixMathBlockExtension } from './matrix-math';
+import {
+  matrixMathBlockExtension,
+  matrixMathExtension,
+  shieldDollarRunsForMarked,
+} from './matrix-math';
 import { matrixSubscriptExtension } from './matrix-subscript';
 
 function parse(input: string): string {
@@ -13,7 +17,7 @@ function parse(input: string): string {
       matrixSubscriptExtension,
     ],
   });
-  return processor.parse(input) as string;
+  return processor.parse(shieldDollarRunsForMarked(input)) as string;
 }
 
 describe('matrixSpoilerExtension', () => {
@@ -47,6 +51,36 @@ describe('matrixMathExtension (inline)', () => {
 
   it('does not parse unmatched $', () => {
     expect(parse('No $ math here')).not.toContain('data-mx-maths');
+  });
+
+  it('does not parse dollar amounts in a sentence as inline math', () => {
+    const input = 'I just bought something for $10 on sale, it was originally $20!';
+    const result = parse(input);
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$10');
+    expect(result).toContain('$20');
+  });
+
+  it('does not treat $ as math when the opening is followed by whitespace', () => {
+    expect(parse('$ E = mc^2$')).not.toContain('data-mx-maths');
+  });
+
+  it('still parses valid inline math', () => {
+    expect(parse('$E = mc^2$')).toContain('data-mx-maths');
+    expect(parse('$2+2$')).toContain('data-mx-maths');
+  });
+
+  it('does not parse inline math when inner trims to empty (e.g. zero-width only)', () => {
+    expect(parse(`empty $\u200B$ here`)).not.toContain('data-mx-maths');
+  });
+
+  it('does not parse long runs of dollar signs as inline math', () => {
+    expect(parse('hey $$$$$$$ there')).not.toContain('data-mx-maths');
+  });
+
+  it('does not parse block math when inner is only whitespace or dollars', () => {
+    expect(parse('$$  $$')).not.toContain('data-mx-maths');
+    expect(parse('$$ $ $$')).not.toContain('data-mx-maths');
   });
 });
 

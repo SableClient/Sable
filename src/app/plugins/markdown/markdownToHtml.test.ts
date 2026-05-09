@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { htmlToMarkdown } from './htmlToMarkdown';
 import { markdownToHtml } from './markdownToHtml';
 
 describe('markdownToHtml', () => {
@@ -87,6 +88,41 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml('See `$$test$$` here.');
     expect(result).not.toContain('data-mx-maths');
     expect(result).toContain('$$test$$');
+  });
+
+  it('converts -# small/sub syntax outside code', () => {
+    const result = markdownToHtml('-# caption');
+    expect(result).toContain('<sub');
+    expect(result).toContain('data-md="-#"');
+    expect(result).toContain('caption');
+  });
+
+  it('does not parse -# inside fenced code as subscript', () => {
+    expect(markdownToHtml('```\n-# not sub\n```')).not.toContain('<sub');
+    expect(markdownToHtml('```\n-# not sub\n```')).toContain('-# not sub');
+  });
+
+  it('does not parse -# inside inline code as subscript', () => {
+    expect(markdownToHtml('`-# lit`')).not.toContain('<sub');
+    expect(markdownToHtml('`-# lit`')).toContain('-# lit');
+  });
+
+  it('parses -# as single-line only so fenced code below stays code', () => {
+    const html = markdownToHtml('-# caption\n```\nfenced\n```');
+    expect(html).toContain('caption');
+    expect(html).toContain('<pre>');
+    expect(html).toContain('fenced');
+  });
+
+  it('does not parse escaped \\-# as small/sub', () => {
+    const result = markdownToHtml('\\-# literal caption');
+    expect(result).not.toContain('<sub');
+    expect(result).not.toContain('data-md="-#"');
+    expect(result).toContain('literal caption');
+  });
+
+  it('escapes literal -# when converting paragraph HTML to markdown', () => {
+    expect(htmlToMarkdown('<p>-# plain words</p>')).toContain('\\-#');
   });
 
   it('converts block math syntax', () => {

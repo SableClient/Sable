@@ -107,6 +107,16 @@ describe('bidirectional round-trip', () => {
     expect(result).toContain('||hidden message||');
   });
 
+  it('round-trips literal line-start -# (escaped) in a paragraph', () => {
+    const markdown = '\\-# not small text';
+    const html = markdownToHtml(markdown);
+    expect(html).not.toContain('<sub');
+    const injected = injectDataMd(html);
+    const result = htmlToMarkdown(injected);
+    expect(result).toContain('\\-#');
+    expect(result).toContain('not small text');
+  });
+
   it('round-trips inline math', () => {
     const markdown = '$E = mc^2$';
     const html = markdownToHtml(markdown);

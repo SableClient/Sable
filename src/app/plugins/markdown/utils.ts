@@ -78,7 +78,12 @@ export const escapeMarkdownInlineSequences = (text: string): string => {
     (t) => t
   );
 
-  return parts.join('');
+  let out = parts.join('');
+  out = out.replace(
+    /(^|\n)-(# +)/gm,
+    (_, lineStart: string, hashSp: string) => `${lineStart}\\-${hashSp}`
+  );
+  return out;
 };
 
 /**

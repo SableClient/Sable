@@ -292,7 +292,7 @@ export const Reply = as<'div', ReplyProps>(
           onClick={replyEvent !== null && !isBlockedSender ? onClick : undefined}
         >
           {replyEvent !== undefined && !isPendingDecrypt ? (
-            <Text size="T300" truncate>
+            <Text size="T300" truncate style={{ unicodeBidi: 'plaintext' }}>
               {replyContent}
             </Text>
           ) : (

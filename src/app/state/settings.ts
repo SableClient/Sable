@@ -263,7 +263,7 @@ export const defaultSettings: Settings = {
   autoplayEmojis: true,
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
-  linkPreviewImageMaxHeight: 320,
+  linkPreviewImageMaxHeight: 640,
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,

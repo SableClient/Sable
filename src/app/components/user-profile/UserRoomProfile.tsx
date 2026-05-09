@@ -232,7 +232,9 @@ function UserExtendedSection({
           size="300"
           className={css.MiscDataToggleButton}
           onClick={() => setShowMisc(!showMisc)}
-          after={miscDataIndex === -1 && <Icon size="50" src={Icons.ChevronBottom} />}
+          after={
+            <Icon size="50" src={miscDataIndex === -1 ? Icons.ChevronBottom : Icons.ChevronTop} />
+          }
           style={{
             padding: '1rem',
             justifyContent: 'flex-start',
@@ -330,14 +332,7 @@ function UserExtendedSection({
                 overflow: 'hidden',
               }}
             >
-              <Box
-                direction="Row"
-                justifyContent="Center"
-                alignContent="Center"
-                style={{
-                  borderRadius: config.radii.R400,
-                }}
-              >
+              <Box direction="Row" justifyContent="Center" alignContent="Center">
                 {unknownFields.length > 1 && (
                   <Button
                     size="300"
@@ -371,12 +366,13 @@ function UserExtendedSection({
                 direction="Both"
                 visibility="Hover"
                 hideTrack
+                variant="SurfaceVariant"
                 style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                  color: textColor,
+                  backgroundColor: color.SurfaceVariant.Container,
+                  color: color.SurfaceVariant.OnContainer,
+                  fontFamily: 'monospace',
                   boxShadow:
                     'inset 0 2px 0 rgba(0, 0, 0, 0.65), inset 0 4px 6px -2px rgba(0, 0, 0, 0.35)',
-                  fontFamily: 'monospace',
                 }}
               >
                 <Box
@@ -384,7 +380,6 @@ function UserExtendedSection({
                   style={{
                     padding: config.space.S200,
                     maxHeight: toRem(100),
-                    opacity: 0.85,
                   }}
                 >
                   <TextViewerContent

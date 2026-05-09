@@ -10,6 +10,15 @@ export const RelativeBase = style([
   },
 ]);
 
+export const ContainedMediaRoot = style([
+  DefaultReset,
+  {
+    position: 'relative',
+    width: '100%',
+    minHeight: 0,
+  },
+]);
+
 export const AbsoluteContainer = style([
   DefaultReset,
   {

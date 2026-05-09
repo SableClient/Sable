@@ -99,74 +99,82 @@ export function ServerChip({
           <Menu>
             <div
               style={{
-                padding: config.space.S100,
+                padding: config.space.S200,
                 maxWidth: toRem(200),
                 backgroundColor: innerColor,
               }}
             >
-              <MenuItem
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  copyToClipboard(server);
-                  setCopied();
-                  close();
-                }}
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle(
-                  {
-                    backgroundColor: menuItemBg,
-                    color: textColor,
-                  },
-                  chipHoverBrightness
-                )}
-              >
-                <Text size="B300">Copy Server</Text>
-              </MenuItem>
-              <MenuItem
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  navigate(getExploreServerPath(server));
-                  closeProfile();
-                }}
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle(
-                  {
-                    backgroundColor: menuItemBg,
-                    color: textColor,
-                  },
-                  chipHoverBrightness
-                )}
-              >
-                <Text size="B300">Explore Community</Text>
-              </MenuItem>
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    copyToClipboard(server);
+                    setCopied();
+                    close();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Copy Server</Text>
+                </MenuItem>
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    navigate(getExploreServerPath(server));
+                    closeProfile();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Explore Community</Text>
+                </MenuItem>
+              </Box>
             </div>
             <Line size="300" />
             <div
-              style={{ padding: config.space.S100, backgroundColor: innerColor, color: textColor }}
+              style={{
+                padding: config.space.S200,
+                backgroundColor: innerColor,
+                color: textColor,
+              }}
             >
-              <MenuItem
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  window.open(`https://${server}`, '_blank');
-                  close();
-                }}
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle(
-                  {
-                    backgroundColor: menuItemBg,
-                    color: textColor,
-                  },
-                  chipHoverBrightness
-                )}
-              >
-                <Text size="B300">Open in Browser</Text>
-              </MenuItem>
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    window.open(`https://${server}`, '_blank');
+                    close();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Open in Browser</Text>
+                </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>
@@ -244,47 +252,49 @@ export function ShareChip({
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
-              <MenuItem
-                fill="None"
-                size="300"
-                radii="300"
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle(
-                  {
-                    backgroundColor: menuItemBg,
-                    color: textColor,
-                  },
-                  chipHoverBrightness
-                )}
-                onClick={() => {
-                  copyToClipboard(userId);
-                  setCopied();
-                  close();
-                }}
-              >
-                <Text size="B300">Copy User ID</Text>
-              </MenuItem>
-              <MenuItem
-                fill="None"
-                size="300"
-                radii="300"
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle(
-                  {
-                    backgroundColor: menuItemBg,
-                    color: textColor,
-                  },
-                  chipHoverBrightness
-                )}
-                onClick={() => {
-                  copyToClipboard(getMatrixToUser(userId));
-                  setCopied();
-                  close();
-                }}
-              >
-                <Text size="B300">Copy User Link</Text>
-              </MenuItem>
+            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                  onClick={() => {
+                    copyToClipboard(userId);
+                    setCopied();
+                    close();
+                  }}
+                >
+                  <Text size="B300">Copy User ID</Text>
+                </MenuItem>
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                  onClick={() => {
+                    copyToClipboard(getMatrixToUser(userId));
+                    setCopied();
+                    close();
+                  }}
+                >
+                  <Text size="B300">Copy User Link</Text>
+                </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>
@@ -646,59 +656,35 @@ export function OptionsChip({
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
-              {editingNick ? (
-                <Box
-                  direction="Column"
-                  gap="100"
-                  style={{ padding: `${config.space.S100} ${config.space.S200}`, color: textColor }}
-                >
-                  <Text size="L400">Nickname</Text>
-                  <input
-                    ref={nickInputRef}
-                    defaultValue={currentNick ?? ''}
-                    placeholder="Enter a nickname…"
-                    onKeyDown={handleNickKeyDown}
-                    style={{
-                      background: 'var(--mx-c-surface)',
-                      color: 'var(--mx-c-on-surface)',
-                      border: '1px solid var(--mx-c-outline)',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      fontSize: '14px',
-                      width: '100%',
-                      outline: 'none',
-                    }}
-                  />
-                  <Box gap="200">
-                    <MenuItem
-                      size="300"
-                      radii="300"
-                      variant="Success"
-                      fill="None"
-                      onClick={handleSaveNick}
-                      className={css.UserHeroMenuItem}
-                      style={heroMenuItemStyle(
-                        {
-                          backgroundColor: menuItemBg,
-                          color: textColor,
-                        },
-                        chipHoverBrightness
-                      )}
-                    >
-                      <Text size="B300">Save</Text>
-                    </MenuItem>
-                    {currentNick && (
+            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+              <Box direction="Column" gap="100">
+                {editingNick ? (
+                  <Box direction="Column" gap="100" style={{ color: textColor }}>
+                    <Text size="L400">Nickname</Text>
+                    <input
+                      ref={nickInputRef}
+                      defaultValue={currentNick ?? ''}
+                      placeholder="Enter a nickname…"
+                      onKeyDown={handleNickKeyDown}
+                      style={{
+                        background: 'var(--mx-c-surface)',
+                        color: 'var(--mx-c-on-surface)',
+                        border: '1px solid var(--mx-c-outline)',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                        width: '100%',
+                        outline: 'none',
+                      }}
+                    />
+                    <Box gap="200">
                       <MenuItem
                         size="300"
                         radii="300"
-                        variant="Critical"
+                        variant="Success"
                         fill="None"
+                        onClick={handleSaveNick}
                         className={css.UserHeroMenuItem}
-                        onClick={() => {
-                          setNickname(userId, undefined);
-                          close();
-                        }}
                         style={heroMenuItemStyle(
                           {
                             backgroundColor: menuItemBg,
@@ -707,55 +693,77 @@ export function OptionsChip({
                           chipHoverBrightness
                         )}
                       >
-                        <Text size="B300">Clear</Text>
+                        <Text size="B300">Save</Text>
                       </MenuItem>
-                    )}
+                      {currentNick && (
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          variant="Critical"
+                          fill="None"
+                          className={css.UserHeroMenuItem}
+                          onClick={() => {
+                            setNickname(userId, undefined);
+                            close();
+                          }}
+                          style={heroMenuItemStyle(
+                            {
+                              backgroundColor: menuItemBg,
+                              color: textColor,
+                            },
+                            chipHoverBrightness
+                          )}
+                        >
+                          <Text size="B300">Clear</Text>
+                        </MenuItem>
+                      )}
+                    </Box>
                   </Box>
-                </Box>
-              ) : (
+                ) : (
+                  <MenuItem
+                    variant="Surface"
+                    fill="None"
+                    size="300"
+                    radii="300"
+                    before={<Icon size="50" src={Icons.Pencil} />}
+                    onClick={() => setEditingNick(true)}
+                    className={css.UserHeroMenuItem}
+                    style={heroMenuItemStyle(
+                      {
+                        backgroundColor: menuItemBg,
+                        color: textColor,
+                      },
+                      chipHoverBrightness
+                    )}
+                  >
+                    <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
+                  </MenuItem>
+                )}
                 <MenuItem
-                  variant="Surface"
+                  variant="Critical"
                   fill="None"
                   size="300"
                   radii="300"
-                  before={<Icon size="50" src={Icons.Pencil} />}
-                  onClick={() => setEditingNick(true)}
+                  onClick={() => {
+                    toggleIgnore();
+                    close();
+                  }}
                   className={css.UserHeroMenuItem}
-                  style={heroMenuItemStyle(
-                    {
-                      backgroundColor: menuItemBg,
-                      color: textColor,
-                    },
-                    chipHoverBrightness
-                  )}
+                  style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
+                  before={
+                    ignoring ? (
+                      <Spinner variant="Critical" size="50" />
+                    ) : (
+                      <Icon size="50" src={Icons.Prohibited} />
+                    )
+                  }
+                  disabled={ignoring}
                 >
-                  <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
+                  <Text size="B300" style={{ color: textColor }}>
+                    {ignored ? 'Unblock User' : 'Block User'}
+                  </Text>
                 </MenuItem>
-              )}
-              <MenuItem
-                variant="Critical"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  toggleIgnore();
-                  close();
-                }}
-                className={css.UserHeroMenuItem}
-                style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
-                before={
-                  ignoring ? (
-                    <Spinner variant="Critical" size="50" />
-                  ) : (
-                    <Icon size="50" src={Icons.Prohibited} />
-                  )
-                }
-                disabled={ignoring}
-              >
-                <Text size="B300" style={{ color: textColor }}>
-                  {ignored ? 'Unblock User' : 'Block User'}
-                </Text>
-              </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>

@@ -1,5 +1,6 @@
 import type { RectCords } from 'folds';
 import { Chip, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
+import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -16,19 +17,25 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { SpaceSettingsPage } from '$state/spaceSettings';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { PowerColorBadge, PowerIcon } from '$components/power';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
 
 export function CreatorChip({
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
@@ -69,7 +76,10 @@ export function CreatorChip({
                 variant="Surface"
                 fill="None"
                 className={css.UserHeroMenuItem}
-                style={{ backgroundColor: cardColor, color: textColor }}
+                style={heroMenuItemStyle(
+                  { backgroundColor: menuItemBg, color: textColor },
+                  chipHoverBrightness
+                )}
                 size="300"
                 radii="300"
                 onClick={() => {
@@ -93,6 +103,8 @@ export function CreatorChip({
       }
     >
       <Chip
+        variant={cardColor ? undefined : 'Success'}
+        outlined={!cardColor}
         radii="Pill"
         before={
           cords ? (
@@ -104,12 +116,11 @@ export function CreatorChip({
         after={tagIconSrc ? <PowerIcon size="50" iconSrc={tagIconSrc} /> : undefined}
         onClick={open}
         aria-pressed={!!cords}
-        className={css.UserHeroChip}
-        style={{
-          backgroundColor: cardColor,
-          borderColor: backgroundColor,
-          color: textColor,
-        }}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" truncate>
           {tag.name}

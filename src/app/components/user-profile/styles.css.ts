@@ -57,9 +57,12 @@ export const UserHeroStatusContainer = style({
 export const UserHeroStatusTooltip = style({
   maxWidth: '98%',
   justifySelf: 'left',
+});
+
+export const UserHeroStatusTooltipInteractive = style({
   cursor: 'pointer',
   ':hover': {
-    filter: 'brightness(0.8)',
+    filter: 'brightness(var(--user-hero-status-hover-brightness, 0.94))',
     transform: 'translateY(-1px)',
   },
 });
@@ -78,19 +81,55 @@ export const UserHeroAvatarImg = style({
     },
   },
 });
-export const UserHeroChip = style({
-  borderStyle: 'solid',
-  borderWidth: '1px',
+export const UserHeroBrightnessHover = style({
   ':hover': {
-    filter: 'brightness(0.8)',
+    filter: 'brightness(var(--user-hero-chip-hover-brightness, 0.94))',
     transform: 'translateY(-1px)',
   },
 });
+
+export const UserHeroChip = style([
+  UserHeroBrightnessHover,
+  {
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+  },
+]);
+
+export const UserHeroChipThemed = style([
+  UserHeroBrightnessHover,
+  {
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderColor: 'transparent',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+  },
+]);
+
+export const MiscDataToggleButton = style({
+  backgroundColor: 'transparent',
+  opacity: 0.75,
+  selectors: {
+    '&:hover': {
+      opacity: 1,
+      backgroundColor: 'transparent',
+      transform: 'none !important',
+    },
+    '&:active': {
+      transform: 'none !important',
+    },
+  },
+});
+/** Same hover lift/filter as UserHeroBrightnessHover; pins bg so folds MenuItem hover can't mask brightness. */
 export const UserHeroMenuItem = style({
   borderStyle: 'hidden',
   borderWidth: '1px',
-  ':hover': {
-    filter: 'brightness(0.8)',
-    transform: 'translateY(-1px)',
+  selectors: {
+    '&:hover': {
+      filter: 'brightness(var(--user-hero-chip-hover-brightness, 0.94))',
+      transform: 'translateY(-1px)',
+      backgroundColor: 'var(--user-hero-menu-item-bg) !important',
+    },
   },
 });

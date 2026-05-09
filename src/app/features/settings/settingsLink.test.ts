@@ -69,6 +69,15 @@ describe('settingsLink', () => {
       section: 'appearance',
       focus: 'incoming-inline-images-max-height',
     });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=link-preview-image-max-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'link-preview-image-max-height',
+    });
   });
 
   it('parses cross-base settings links only when the explicit action marker is present', () => {

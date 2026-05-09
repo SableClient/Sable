@@ -122,6 +122,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'underline-links',
     'incoming-inline-images-default-height',
     'incoming-inline-images-max-height',
+    'link-preview-image-max-height',
   ],
   notifications: [
     'background-push-notifications',

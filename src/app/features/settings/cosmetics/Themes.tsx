@@ -203,11 +203,18 @@ function ThemeVisualPreferences() {
     settingsAtom,
     'incomingInlineImagesMaxHeight'
   );
+  const [linkPreviewImageMaxHeight, setLinkPreviewImageMaxHeight] = useSetting(
+    settingsAtom,
+    'linkPreviewImageMaxHeight'
+  );
   const [incomingDefaultHeightInput, setIncomingDefaultHeightInput] = useState(
     incomingInlineImagesDefaultHeight.toString()
   );
   const [incomingMaxHeightInput, setIncomingMaxHeightInput] = useState(
     incomingInlineImagesMaxHeight.toString()
+  );
+  const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
+    linkPreviewImageMaxHeight.toString()
   );
 
   const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
@@ -223,6 +230,12 @@ function ThemeVisualPreferences() {
     const parsed = Number.parseInt(val, 10);
     if (!Number.isNaN(parsed))
       setIncomingInlineImagesMaxHeight(clampIncomingInlineImageHeight(parsed));
+  };
+  const handleLinkPreviewMaxHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setLinkPreviewMaxHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
   };
 
   const onNumberInputKeyDown =
@@ -364,6 +377,36 @@ function ThemeVisualPreferences() {
               onChange={handleIncomingMaxHeightChange}
               onKeyDown={onNumberInputKeyDown(() =>
                 setIncomingMaxHeightInput(incomingInlineImagesMaxHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Link preview image max height"
+          focusId="link-preview-image-max-height"
+          description="Maximum height for URL / Open Graph preview media (image or playable og:video), including bundled previews."
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(linkPreviewMaxHeightInput, 10) === linkPreviewImageMaxHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={linkPreviewMaxHeightInput}
+              onChange={handleLinkPreviewMaxHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setLinkPreviewMaxHeightInput(linkPreviewImageMaxHeight.toString())
               )}
               after={<Text size="T300">px</Text>}
               outlined

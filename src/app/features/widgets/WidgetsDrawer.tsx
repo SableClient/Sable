@@ -268,6 +268,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
       )}
       <Box
         className={css.WidgetsDrawer}
+        shrink="No"
         direction="Column"
         style={{ width: !mobileOrTablet() ? toRem(curWidth) : 'inherit' }}
       >

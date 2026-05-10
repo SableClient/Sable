@@ -270,15 +270,10 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
 
   return (
     <>
-      <PageNavHeader
-        style={{
-          paddingLeft: hideText ? toRem(4) : toRem(16),
-          paddingRight: hideText ? toRem(2) : '0',
-        }}
-      >
-        <Box alignItems="Center" grow={hideText ? 'No' : 'Yes'} gap="300">
+      <PageNavHeader>
+        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
           {hideText ? (
-            <Avatar size={hideText ? undefined : '200'} radii="400">
+            <Avatar size={hideText ? undefined : '200'} radii="400" onClick={handleOpenMenu}>
               <RoomAvatar
                 roomId={space.roomId}
                 src={getRoomAvatarUrl(mx, space, 96, useAuthentication)}
@@ -763,6 +758,7 @@ export function Space() {
   return (
     <>
       <Box
+        shrink="No"
         style={{
           width: isMobile ? '100%' : toRem(curWidth),
         }}
@@ -941,7 +937,7 @@ export function Space() {
           instep={80}
           outstep={180}
           minValue={50}
-          maxValue={1200}
+          maxValue={500}
         />
       )}
     </>

@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { mobileOrTablet } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
-function InvitesNavItem() {
+function InvitesNavItem({ hideText }: { hideText?: boolean }) {
   const invitesSelected = useInboxInvitesSelected();
   const allInvites = useAtomValue(allInvitesAtom);
   const inviteCount = allInvites.length;
@@ -29,14 +29,20 @@ function InvitesNavItem() {
       <NavLink to={getInboxInvitesPath()}>
         <NavItemContent>
           <Box as="span" grow="Yes" alignItems="Center" gap="200">
-            <Avatar size="200" radii="400">
+            <Avatar
+              size="200"
+              radii="400"
+              style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+            >
               <Icon src={Icons.Mail} size="100" filled={invitesSelected} />
             </Avatar>
-            <Box as="span" grow="Yes">
-              <Text as="span" size="Inherit" truncate>
-                Invites
-              </Text>
-            </Box>
+            {!hideText && (
+              <Box as="span" grow="Yes">
+                <Text as="span" size="Inherit" truncate>
+                  Invites
+                </Text>
+              </Box>
+            )}
             {inviteCount > 0 && <UnreadBadge highlight count={inviteCount} />}
           </Box>
         </NavItemContent>
@@ -56,22 +62,29 @@ export function Inbox() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
   const screenSize = useScreenSizeContext();
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const hideText = curWidth <= 80 && !isMobile;
 
   return (
     <>
       <Box
+        shrink="No"
         style={{
-          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+          width: isMobile ? '100%' : toRem(curWidth),
         }}
       >
         <PageNav>
           <PageNavHeader>
-            <Box grow="Yes" gap="300">
-              <Box grow="Yes">
-                <Text size="H4" truncate>
-                  Inbox
-                </Text>
-              </Box>
+            <Box grow="Yes" gap="300" justifyContent="Center">
+              {!hideText ? (
+                <Box grow="Yes">
+                  <Text size="H4" truncate>
+                    Inbox
+                  </Text>
+                </Box>
+              ) : (
+                <Icon src={Icons.Inbox} size="200" filled />
+              )}
             </Box>
           </PageNavHeader>
 
@@ -82,23 +95,29 @@ export function Inbox() {
                   <NavLink to={getInboxNotificationsPath()}>
                     <NavItemContent>
                       <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                        <Avatar size="200" radii="400">
+                        <Avatar
+                          size="200"
+                          radii="400"
+                          style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                        >
                           <Icon
                             src={Icons.MessageUnread}
                             size="100"
                             filled={notificationsSelected}
                           />
                         </Avatar>
-                        <Box as="span" grow="Yes">
-                          <Text as="span" size="Inherit" truncate>
-                            Notifications
-                          </Text>
-                        </Box>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Notifications
+                            </Text>
+                          </Box>
+                        )}
                       </Box>
                     </NavItemContent>
                   </NavLink>
                 </NavItem>
-                <InvitesNavItem />
+                <InvitesNavItem hideText={hideText} />
               </NavCategory>
             </Box>
           </PageNavContent>
@@ -109,8 +128,10 @@ export function Inbox() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          instep={80}
+          outstep={180}
           minValue={50}
-          maxValue={1200}
+          maxValue={500}
         />
       )}
     </>

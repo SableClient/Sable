@@ -82,8 +82,10 @@ export function SidebarResizer({
         width: topSided ? '100%' : '4px',
         height: topSided ? '4px' : '100%',
       }}
+      shrink="No"
     >
       <Box
+        shrink="No"
         className={css.SideBarResizerAnimation}
         style={{ opacity: isPointerOver || isPointerDown ? '100%' : '0%' }}
       />

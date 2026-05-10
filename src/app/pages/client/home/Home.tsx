@@ -100,7 +100,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
   );
 });
 
-function HomeHeader() {
+function HomeHeader({ hideText }: { hideText?: boolean }) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -114,15 +114,21 @@ function HomeHeader() {
   return (
     <>
       <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes">
-            <Text size="H4" truncate>
-              Home
-            </Text>
-          </Box>
+        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
+          {!hideText && (
+            <Box grow="Yes">
+              <Text size="H4" truncate>
+                Home
+              </Text>
+            </Box>
+          )}
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
+              <Icon
+                src={hideText ? Icons.Home : Icons.VerticalDots}
+                size="200"
+                filled={!!menuAnchor}
+              />
             </IconButton>
           </Box>
         </Box>
@@ -250,16 +256,19 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const hideText = curWidth <= 80 && !isMobile;
 
   return (
     <>
       <Box
+        shrink="No"
         style={{
-          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+          width: isMobile ? '100%' : toRem(curWidth),
         }}
       >
         <PageNav>
-          <HomeHeader />
+          <HomeHeader hideText={hideText} />
           {noRoomToDisplay ? (
             <HomeEmpty />
           ) : (
@@ -270,14 +279,19 @@ export function Home() {
                     <NavButton onClick={() => navigate(getHomeCreatePath())}>
                       <NavItemContent>
                         <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar size="200" radii="400">
+                          <Avatar
+                            radii="400"
+                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                          >
                             <Icon src={Icons.Plus} size="100" />
                           </Avatar>
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Create Room
-                            </Text>
-                          </Box>
+                          {!hideText && (
+                            <Box as="span" grow="Yes">
+                              <Text as="span" size="Inherit" truncate>
+                                Create Room
+                              </Text>
+                            </Box>
+                          )}
                         </Box>
                       </NavItemContent>
                     </NavButton>
@@ -289,14 +303,21 @@ export function Home() {
                           <NavButton onClick={() => setOpen(true)}>
                             <NavItemContent>
                               <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                                <Avatar size="200" radii="400">
+                                <Avatar
+                                  radii="400"
+                                  style={
+                                    hideText ? { width: '100%', padding: '0' } : { height: '100%' }
+                                  }
+                                >
                                   <Icon src={Icons.Link} size="100" />
                                 </Avatar>
-                                <Box as="span" grow="Yes">
-                                  <Text as="span" size="Inherit" truncate>
-                                    Join with Address
-                                  </Text>
-                                </Box>
+                                {!hideText && (
+                                  <Box as="span" grow="Yes">
+                                    <Text as="span" size="Inherit" truncate>
+                                      Join with Address
+                                    </Text>
+                                  </Box>
+                                )}
                               </Box>
                             </NavItemContent>
                           </NavButton>
@@ -324,14 +345,19 @@ export function Home() {
                     <NavLink to={getHomeSearchPath()}>
                       <NavItemContent>
                         <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar size="200" radii="400">
+                          <Avatar
+                            radii="400"
+                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                          >
                             <Icon src={Icons.Search} size="100" filled={searchSelected} />
                           </Avatar>
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Message Search
-                            </Text>
-                          </Box>
+                          {!hideText && (
+                            <Box as="span" grow="Yes">
+                              <Text as="span" size="Inherit" truncate>
+                                Message Search
+                              </Text>
+                            </Box>
+                          )}
                         </Box>
                       </NavItemContent>
                     </NavLink>
@@ -344,13 +370,14 @@ export function Home() {
                       data-category-id={DEFAULT_CATEGORY_ID}
                       onClick={handleCategoryClick}
                     >
-                      Rooms
+                      {!hideText && 'Rooms'}
                     </RoomNavCategoryButton>
                   </NavCategoryHeader>
                   <div
                     style={{
                       position: 'relative',
                       height: virtualizer.getTotalSize(),
+                      overflow: 'clip',
                     }}
                   >
                     {virtualizer.getVirtualItems().map((vItem) => {
@@ -366,16 +393,30 @@ export function Home() {
                           key={vItem.index}
                           ref={virtualizer.measureElement}
                         >
-                          <RoomNavItem
-                            room={room}
-                            selected={selected}
-                            showAvatar={showIcons()}
-                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                            notificationMode={getRoomNotificationMode(
-                              notificationPreferences,
-                              room.roomId
-                            )}
-                          />
+                          <div
+                            style={
+                              hideText
+                                ? {
+                                    padding: '0',
+                                    width: '100%',
+                                    aspectRatio: 1,
+                                    display: 'flex,',
+                                  }
+                                : {}
+                            }
+                          >
+                            <RoomNavItem
+                              room={room}
+                              selected={selected}
+                              showAvatar={showIcons()}
+                              hideText={hideText}
+                              linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                              notificationMode={getRoomNotificationMode(
+                                notificationPreferences,
+                                room.roomId
+                              )}
+                            />
+                          </div>
                         </VirtualTile>
                       );
                     })}
@@ -391,8 +432,10 @@ export function Home() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          instep={80}
+          outstep={180}
           minValue={50}
-          maxValue={1200}
+          maxValue={500}
         />
       )}
     </>

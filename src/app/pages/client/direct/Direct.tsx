@@ -91,7 +91,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
   );
 });
 
-function DirectHeader() {
+function DirectHeader({ hideText }: { hideText?: boolean }) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -101,19 +101,24 @@ function DirectHeader() {
       return cords;
     });
   };
-
   return (
     <>
       <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300">
-          <Box grow="Yes">
-            <Text size="H4" truncate>
-              Direct Messages
-            </Text>
-          </Box>
+        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
+          {!hideText && (
+            <Box grow="Yes">
+              <Text size="H4" truncate>
+                Direct Messages
+              </Text>
+            </Box>
+          )}
           <Box>
             <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon src={Icons.VerticalDots} size="200" />
+              <Icon
+                src={hideText ? Icons.User : Icons.VerticalDots}
+                size="200"
+                filled={!!menuAnchor}
+              />
             </IconButton>
           </Box>
         </Box>
@@ -248,16 +253,18 @@ export function Direct() {
 
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const hideText = curWidth <= 80 && !isMobile;
 
   return (
     <>
       <Box
+        shrink="No"
         style={{
-          width: mobileOrTablet() || screenSize === ScreenSize.Mobile ? '100%' : toRem(curWidth),
+          width: isMobile ? '100%' : toRem(curWidth),
         }}
       >
         <PageNav>
-          <DirectHeader />
+          <DirectHeader hideText={hideText} />
           {noRoomToDisplay ? (
             <DirectEmpty />
           ) : (
@@ -267,15 +274,23 @@ export function Direct() {
                   <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
                     <NavButton onClick={() => navigate(getDirectCreatePath())}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Box
+                          as="span"
+                          grow="Yes"
+                          alignItems="Center"
+                          gap="200"
+                          justifyContent="Center"
+                        >
                           <Avatar size="200" radii="400">
                             <Icon src={Icons.Plus} size="100" />
                           </Avatar>
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Create Chat
-                            </Text>
-                          </Box>
+                          {!hideText && (
+                            <Box as="span" grow="Yes">
+                              <Text as="span" size="Inherit" truncate>
+                                Create Chat
+                              </Text>
+                            </Box>
+                          )}
                         </Box>
                       </NavItemContent>
                     </NavButton>
@@ -288,13 +303,14 @@ export function Direct() {
                       data-category-id={DEFAULT_CATEGORY_ID}
                       onClick={handleCategoryClick}
                     >
-                      Chats
+                      {!hideText && 'Chats'}
                     </RoomNavCategoryButton>
                   </NavCategoryHeader>
                   <div
                     style={{
                       position: 'relative',
                       height: virtualizer.getTotalSize(),
+                      overflow: 'clip',
                     }}
                   >
                     {virtualizer.getVirtualItems().map((vItem) => {
@@ -312,7 +328,7 @@ export function Direct() {
                         >
                           <div
                             style={
-                              curWidth < 96 && !isMobile
+                              hideText
                                 ? {
                                     padding: '0',
                                     width: '100%',
@@ -328,7 +344,7 @@ export function Direct() {
                               showAvatar
                               direct
                               customDMCards={customDMCards}
-                              hideText={curWidth < 96 && !isMobile}
+                              hideText={hideText}
                               linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                               notificationMode={getRoomNotificationMode(
                                 notificationPreferences,
@@ -351,8 +367,10 @@ export function Direct() {
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
+          instep={80}
+          outstep={180}
           minValue={50}
-          maxValue={1200}
+          maxValue={500}
         />
       )}
     </>

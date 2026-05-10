@@ -422,7 +422,7 @@ export function RoomNavItem({
                       presence.presence !== Presence.Offline && (
                         <PresenceBadge
                           presence={presence.presence}
-                          size={hideText ? undefined : '200'}
+                          size={hideText ? '300' : '200'}
                         />
                       )
                     }

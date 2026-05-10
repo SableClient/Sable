@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Outlet,
   Route,
@@ -10,25 +11,16 @@ import * as Sentry from '@sentry/react';
 
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
-import { SettingsRoute } from '$features/settings';
-import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
 import { AutoRestoreBackupOnVerification } from '$components/BackupRestore';
-import { RoomSettingsRenderer } from '$features/room-settings';
-import { SpaceSettingsRenderer } from '$features/space-settings';
-import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
-import { CreateRoomModalRenderer } from '$features/create-room';
-import { CreateSpaceModalRenderer } from '$features/create-space';
-import { BugReportModalRenderer } from '$features/bug-report';
 import type { Sessions } from '$state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
-import { SearchModalRenderer } from '$features/search';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
@@ -81,6 +73,43 @@ import { HomeCreateRoom } from './client/home/CreateRoom';
 import { Create } from './client/create';
 import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+
+const SearchModalRenderer = lazy(async () => {
+  const mod = await import('$features/search/Search');
+  return { default: mod.SearchModalRenderer };
+});
+const UserRoomProfileRenderer = lazy(async () => {
+  const mod = await import('$components/UserRoomProfileRenderer');
+  return { default: mod.UserRoomProfileRenderer };
+});
+const CreateRoomModalRenderer = lazy(async () => {
+  const mod = await import('$features/create-room/CreateRoomModal');
+  return { default: mod.CreateRoomModalRenderer };
+});
+const CreateSpaceModalRenderer = lazy(async () => {
+  const mod = await import('$features/create-space/CreateSpaceModal');
+  return { default: mod.CreateSpaceModalRenderer };
+});
+const BugReportModalRenderer = lazy(async () => {
+  const mod = await import('$features/bug-report/BugReportModal');
+  return { default: mod.BugReportModalRenderer };
+});
+const SettingsShallowRouteRenderer = lazy(async () => {
+  const mod = await import('$features/settings/SettingsShallowRouteRenderer');
+  return { default: mod.SettingsShallowRouteRenderer };
+});
+const RoomSettingsRenderer = lazy(async () => {
+  const mod = await import('$features/room-settings/RoomSettingsRenderer');
+  return { default: mod.RoomSettingsRenderer };
+});
+const SpaceSettingsRenderer = lazy(async () => {
+  const mod = await import('$features/space-settings/SpaceSettingsRenderer');
+  return { default: mod.SpaceSettingsRenderer };
+});
+const SettingsRoute = lazy(async () => {
+  const mod = await import('$features/settings/SettingsRoute');
+  return { default: mod.SettingsRoute };
+});
 
 /**
  * Returns true if there is at least one stored session.
@@ -190,14 +219,30 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
-                        <SearchModalRenderer />
-                        <UserRoomProfileRenderer />
-                        <CreateRoomModalRenderer />
-                        <CreateSpaceModalRenderer />
-                        <BugReportModalRenderer />
-                        <SettingsShallowRouteRenderer />
-                        <RoomSettingsRenderer />
-                        <SpaceSettingsRenderer />
+                        <Suspense fallback={null}>
+                          <SearchModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <UserRoomProfileRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <CreateRoomModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <CreateSpaceModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <BugReportModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <SettingsShallowRouteRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <RoomSettingsRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <SpaceSettingsRenderer />
+                        </Suspense>
                         <GlobalKeyboardShortcuts />
                         {/* Screen reader live region — populated by announce() in utils/announce.ts */}
                         <div
@@ -345,7 +390,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+        <Route
+          path={SETTINGS_PATH}
+          element={
+            <Suspense fallback={null}>
+              <SettingsRoute />
+            </Suspense>
+          }
+        />
         <Route
           path={INBOX_PATH}
           element={

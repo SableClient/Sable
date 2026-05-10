@@ -46,7 +46,7 @@ function DMItem({ room, selected }: DMItemProps) {
 
   // Get member info for group DMs using m.direct and profile API (doesn't require full room state)
   // Members are sorted by who last sent messages (most recent first)
-  const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS);
+  const groupMembers = useGroupDMMembers(mx, room, MAX_GROUP_MEMBERS, isGroupDM);
 
   // Get unread info for badge
   const unread = roomToUnread.get(room.roomId);

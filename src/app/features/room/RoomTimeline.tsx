@@ -251,6 +251,7 @@ export function RoomTimeline({
   }
 
   const processedEventsRef = useRef<ProcessedEvent[]>([]);
+  const processedIndexByRawIndexRef = useRef<Map<number, number>>(new Map());
   const timelineSyncRef = useRef<typeof timelineSync>(null as unknown as typeof timelineSync);
 
   const scrollToBottom = useCallback(() => {
@@ -291,10 +292,7 @@ export function RoomTimeline({
   forwardStatusRef.current = timelineSync.forwardStatus;
 
   const getRawIndexToProcessedIndex = useCallback((rawIndex: number): number | undefined => {
-    const events = processedEventsRef.current;
-    const match = events.find((e) => e.itemIndex === rawIndex);
-    if (!match) return undefined;
-    return events.indexOf(match);
+    return processedIndexByRawIndexRef.current.get(rawIndex);
   }, []);
 
   useLayoutEffect(() => {
@@ -797,6 +795,9 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+  processedIndexByRawIndexRef.current = new Map(
+    processedEvents.map((event, index) => [event.itemIndex, index])
+  );
 
   const vListData = useMemo<Array<ProcessedEvent | undefined>>(() => {
     if (showLoadingPlaceholders) return [undefined, undefined, undefined];

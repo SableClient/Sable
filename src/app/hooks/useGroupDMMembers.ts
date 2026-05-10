@@ -27,94 +27,80 @@ const isBridgeBot = (userId: string): boolean => {
 export const useGroupDMMembers = (
   mx: MatrixClient,
   room: Room,
-  maxMembers = 3
+  maxMembers = 3,
+  enabled = true
 ): GroupMemberInfo[] => {
   const [members, setMembers] = useState<GroupMemberInfo[]>([]);
 
   useEffect(() => {
+    if (!enabled) {
+      setMembers([]);
+      return () => {};
+    }
+
+    let disposed = false;
+
+    const collectMembers = () => {
+      const currentUserId = mx.getUserId();
+      const allMembers = room.getMembers();
+
+      const timeline = room.getLiveTimeline();
+      const events = timeline.getEvents();
+      const recentSenderOrder = new Map<string, number>();
+
+      for (let i = events.length - 1; i >= 0; i -= 1) {
+        const sender = events[i]?.getSender();
+        if (
+          sender &&
+          sender !== currentUserId &&
+          !isBridgeBot(sender) &&
+          !recentSenderOrder.has(sender)
+        ) {
+          recentSenderOrder.set(sender, recentSenderOrder.size);
+        }
+      }
+
+      return allMembers
+        .filter(
+          (m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId)
+        )
+        .toSorted((a, b) => {
+          const aIndex = recentSenderOrder.get(a.userId);
+          const bIndex = recentSenderOrder.get(b.userId);
+
+          if (aIndex !== undefined && bIndex !== undefined) return aIndex - bIndex;
+          if (aIndex !== undefined) return -1;
+          if (bIndex !== undefined) return 1;
+          return 0;
+        })
+        .slice(0, maxMembers)
+        .map((member) => ({
+          userId: member.userId,
+          displayName: member.name || member.userId,
+          avatarUrl: member.getMxcAvatarUrl() ?? undefined,
+        }));
+    };
+
     const fetchMembers = async () => {
       try {
-        const currentUserId = mx.getUserId();
+        setMembers(collectMembers());
 
-        // Load members from server if needed (handles lazy-loading)
+        // Load members from server if needed (handles lazy-loading), then refresh
+        // with fuller local room-state data without blocking the first paint.
         await room.loadMembersIfNeeded();
 
-        // Now get all members
-        const allMembers = room.getMembers();
-
-        const allUserIds = allMembers
-          .filter(
-            (m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId)
-          )
-          .map((m) => m.userId);
-
-        // Get last message senders from timeline for sorting
-        const timeline = room.getLiveTimeline();
-        const events = timeline.getEvents();
-
-        // Extract senders in reverse chronological order (most recent first)
-        const recentSenders: string[] = [];
-        for (let i = events.length - 1; i >= 0; i -= 1) {
-          const evt = events[i];
-          if (!evt) continue;
-          const sender = evt.getSender();
-          if (
-            sender &&
-            sender !== currentUserId &&
-            !isBridgeBot(sender) &&
-            !recentSenders.includes(sender)
-          ) {
-            recentSenders.push(sender);
-          }
-        }
-
-        // Sort allUserIds by who appears first in recentSenders
-        const sortedUserIds = allUserIds.toSorted((a, b) => {
-          const aIndex = recentSenders.indexOf(a);
-          const bIndex = recentSenders.indexOf(b);
-
-          // If both are in recent senders, sort by recency
-          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-          // If only a is in recent senders, it comes first
-          if (aIndex !== -1) return -1;
-          // If only b is in recent senders, it comes first
-          if (bIndex !== -1) return 1;
-          // Neither in recent senders, maintain original order
-          return 0;
-        });
-
-        // Slice to max members
-        const limitedUserIds = sortedUserIds.slice(0, maxMembers);
-
-        // Fetch profiles for each user
-        const memberPromises = limitedUserIds.map(async (userId) => {
-          try {
-            const profile = await mx.getProfileInfo(userId);
-            return {
-              userId,
-              displayName: profile.displayname || userId,
-              avatarUrl: profile.avatar_url,
-            };
-          } catch {
-            // If profile fetch fails, return basic info
-            return {
-              userId,
-              displayName: userId,
-              avatarUrl: undefined,
-            };
-          }
-        });
-
-        const fetchedMembers = await Promise.all(memberPromises);
-        setMembers(fetchedMembers);
+        if (!disposed) setMembers(collectMembers());
       } catch {
         // If fetching fails, set empty array
-        setMembers([]);
+        if (!disposed) setMembers([]);
       }
     };
 
     fetchMembers();
-  }, [mx, room, maxMembers]);
+    return () => {
+      disposed = true;
+    };
+  }, [mx, room, maxMembers, enabled]);
 
   return members;
 };

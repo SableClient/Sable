@@ -60,6 +60,11 @@ const log = createLogger('ClientRoot');
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
 
+export const isTelemetryContextReady = (
+  mx: MatrixClient | undefined,
+  loading: boolean
+): boolean => !loading && !!mx && isClientReady(mx.getSyncState());
+
 function ClientRootLoading() {
   return (
     <SplashScreen>
@@ -211,6 +216,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   );
 
   const mx = loadState.status === AsyncStatus.Success ? loadState.data : undefined;
+  const telemetryContextReady = isTelemetryContextReady(mx, loading);
 
   const [startState, startMatrix] = useAsyncCallback<void, Error, [MatrixClient]>(
     useCallback(
@@ -306,7 +312,7 @@ export function ClientRoot({ children }: ClientRootProps) {
 
   // Set matrix client context: homeserver and sync type (not PII)
   useEffect(() => {
-    if (!activeSession?.baseUrl) return undefined;
+    if (!telemetryContextReady || !activeSession?.baseUrl) return undefined;
     Sentry.setContext('client', {
       homeserver: activeSession.baseUrl,
       sliding_sync: clientConfig.slidingSync,
@@ -314,11 +320,11 @@ export function ClientRoot({ children }: ClientRootProps) {
     return () => {
       Sentry.setContext('client', null);
     };
-  }, [activeSession?.baseUrl, clientConfig.slidingSync]);
+  }, [activeSession?.baseUrl, clientConfig.slidingSync, telemetryContextReady]);
 
   // Set a pseudonymous hashed user ID for error grouping — never sends raw Matrix ID
   useEffect(() => {
-    if (!mx) return undefined;
+    if (!telemetryContextReady || !mx) return undefined;
     const matrixUserId = mx.getUserId();
     if (!matrixUserId) return undefined;
     (async () => {
@@ -338,7 +344,7 @@ export function ClientRoot({ children }: ClientRootProps) {
     return () => {
       Sentry.setUser(null);
     };
-  }, [mx]);
+  }, [mx, telemetryContextReady]);
 
   // Capture fatal client failures — useAsyncCallback swallows these into state so
   // they never reach the React ErrorBoundary; explicit capture is required.

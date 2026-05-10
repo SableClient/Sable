@@ -6,7 +6,7 @@ import { IsDirectRoomProvider, RoomProvider } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { JoinBeforeNavigate } from '$features/join-before-navigate';
 import { useSpace } from '$hooks/useSpace';
-import { getAllParents, getSpaceChildren } from '$utils/room';
+import { getSpaceChildren, hasRecursiveParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useSearchParamsViaServers } from '$hooks/router/useSearchParamsViaServers';
@@ -49,7 +49,7 @@ export function SpaceRouteRoomProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!getAllParents(roomToParents, room.roomId).has(space.roomId)) {
+  if (!hasRecursiveParent(roomToParents, room.roomId, space.roomId)) {
     if (getSpaceChildren(space).includes(room.roomId)) {
       // fill missing roomToParent mapping
       setRoomToParents({

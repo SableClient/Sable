@@ -4,7 +4,7 @@ import type { Room } from '$types/matrix-sdk';
 
 import type { RoomAbbreviationsContent } from '$utils/abbreviations';
 import { buildAbbreviationsMap } from '$utils/abbreviations';
-import { getAllParents, getStateEvent } from '$utils/room';
+import { getAllParents, getStateEvent, hasRecursiveParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from './useMatrixClient';
 import { useStateEvent } from './useStateEvent';
@@ -44,10 +44,7 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
         if (event.getType() !== (CustomStateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (!eventRoomId) return;
-        if (
-          eventRoomId === room.roomId ||
-          getAllParents(roomToParents, room.roomId).has(eventRoomId)
-        ) {
+        if (eventRoomId === room.roomId || hasRecursiveParent(roomToParents, room.roomId, eventRoomId)) {
           forceUpdate();
         }
       },

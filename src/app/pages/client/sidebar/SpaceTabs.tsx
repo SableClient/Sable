@@ -82,7 +82,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
-import { prefetchSpaceLobbyRoute } from '../../routePrefetch';
+import { prefetchSpaceLobbyRoute, prefetchSpaceSettingsModal } from '../../routePrefetch';
 
 type SpaceMenuProps = {
   room: Room;
@@ -134,6 +134,9 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const handleRoomSettings = () => {
       openSpaceSettings(room.roomId);
       requestClose();
+    };
+    const handleSettingsPrefetch = () => {
+      void prefetchSpaceSettingsModal();
     };
 
     return (
@@ -200,6 +203,8 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           </MenuItem>
           <MenuItem
             onClick={handleRoomSettings}
+            onMouseEnter={handleSettingsPrefetch}
+            onFocus={handleSettingsPrefetch}
             size="300"
             after={<Icon size="100" src={Icons.Setting} />}
             radii="300"

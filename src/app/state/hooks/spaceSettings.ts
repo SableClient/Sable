@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { SpaceSettingsPage, SpaceSettingsState } from '$state/spaceSettings';
 import { spaceSettingsAtom } from '$state/spaceSettings';
+import { prefetchSpaceSettingsModal } from '$pages/routePrefetch';
 
 export const useSpaceSettingsState = (): SpaceSettingsState | undefined => {
   const data = useAtomValue(spaceSettingsAtom);
@@ -26,6 +27,7 @@ export const useOpenSpaceSettings = (): OpenCallback => {
 
   const open: OpenCallback = useCallback(
     (roomId, spaceId, page) => {
+      void prefetchSpaceSettingsModal();
       setSettings({ roomId, spaceId, page });
     },
     [setSettings]

@@ -36,6 +36,20 @@ export const prefetchCreateRoute = (): Promise<void> =>
 export const prefetchSpaceLobbyRoute = (): Promise<void> =>
   prefetchRouteChunks('space-lobby', [() => import('$features/lobby/Lobby')]);
 
+export const prefetchSearchModal = (): Promise<void> =>
+  prefetchRouteChunks('search-modal', [() => import('$features/search/Search')]);
+
+export const prefetchUserProfileModal = (): Promise<void> =>
+  prefetchRouteChunks('user-profile-modal', [() => import('$components/user-profile')]);
+
+export const prefetchRoomSettingsModal = (): Promise<void> =>
+  prefetchRouteChunks('room-settings-modal', [() => import('$features/room-settings/RoomSettings')]);
+
+export const prefetchSpaceSettingsModal = (): Promise<void> =>
+  prefetchRouteChunks('space-settings-modal', [
+    () => import('$features/space-settings/SpaceSettings'),
+  ]);
+
 type IdleDeadline = { didTimeout: boolean; timeRemaining: () => number };
 type IdleRequestCallback = (deadline: IdleDeadline) => void;
 type IdleRequestWindow = Window &
@@ -52,6 +66,7 @@ export const runInitialRoutePrefetch = (): void => {
   void prefetchSpaceLobbyRoute();
   void prefetchSettingsRoute();
   void prefetchCreateRoute();
+  void prefetchSearchModal();
 };
 
 export const scheduleInitialRoutePrefetch = (

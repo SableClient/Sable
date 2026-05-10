@@ -80,6 +80,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
+import { prefetchSpaceSettingsModal } from '$pages/routePrefetch';
 
 const debugLog = createDebugLogger('Space');
 
@@ -129,6 +130,9 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
   const handleRoomSettings = () => {
     openSpaceSettings(room.roomId);
     requestClose();
+  };
+  const handleSettingsPrefetch = () => {
+    void prefetchSpaceSettingsModal();
   };
 
   const handleOpenTimeline = () => {
@@ -189,6 +193,8 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         </MenuItem>
         <MenuItem
           onClick={handleRoomSettings}
+          onMouseEnter={handleSettingsPrefetch}
+          onFocus={handleSettingsPrefetch}
           size="300"
           after={<Icon size="100" src={Icons.Setting} />}
           radii="300"
@@ -260,6 +266,9 @@ function SpaceHeader() {
       return cords;
     });
   };
+  const handleSettingsPrefetch = () => {
+    void prefetchSpaceSettingsModal();
+  };
 
   return (
     <>
@@ -272,7 +281,13 @@ function SpaceHeader() {
             {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
           </Box>
           <Box shrink="No">
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
+            <IconButton
+              aria-pressed={!!menuAnchor}
+              variant="Background"
+              onClick={handleOpenMenu}
+              onMouseEnter={handleSettingsPrefetch}
+              onFocus={handleSettingsPrefetch}
+            >
               <Icon src={Icons.VerticalDots} size="200" />
             </IconButton>
           </Box>

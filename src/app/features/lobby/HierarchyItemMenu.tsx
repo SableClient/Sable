@@ -37,6 +37,7 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useNavigate } from 'react-router-dom';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
+import { prefetchRoomSettingsModal, prefetchSpaceSettingsModal } from '$pages/routePrefetch';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -195,9 +196,23 @@ function SettingsMenuItem({
     }
     requestClose();
   };
+  const handleSettingsPrefetch = () => {
+    if ('space' in item) {
+      void prefetchSpaceSettingsModal();
+      return;
+    }
+    void prefetchRoomSettingsModal();
+  };
 
   return (
-    <MenuItem onClick={handleSettings} size="300" radii="300" disabled={disabled}>
+    <MenuItem
+      onClick={handleSettings}
+      onMouseEnter={handleSettingsPrefetch}
+      onFocus={handleSettingsPrefetch}
+      size="300"
+      radii="300"
+      disabled={disabled}
+    >
       <Text as="span" size="T300" truncate>
         Settings
       </Text>
@@ -237,6 +252,13 @@ export function HierarchyItemMenu({
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
+  const handleSettingsPrefetch = () => {
+    if ('space' in item) {
+      void prefetchSpaceSettingsModal();
+      return;
+    }
+    void prefetchRoomSettingsModal();
+  };
 
   const handleRequestClose = useCallback(() => setMenuAnchor(undefined), []);
   const navigate = useNavigate();
@@ -249,6 +271,8 @@ export function HierarchyItemMenu({
     <Box gap="200" alignItems="Center" shrink="No">
       <IconButton
         onClick={handleOpenMenu}
+        onMouseEnter={handleSettingsPrefetch}
+        onFocus={handleSettingsPrefetch}
         size="300"
         variant="SurfaceVariant"
         fill="None"

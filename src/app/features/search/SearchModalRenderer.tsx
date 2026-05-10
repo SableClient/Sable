@@ -3,6 +3,7 @@ import { isKeyHotkey } from 'is-hotkey';
 import { useAtom } from 'jotai';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { searchModalAtom } from '$state/searchModal';
+import { prefetchSearchModal } from '$pages/routePrefetch';
 
 const Search = lazy(async () => {
   const mod = await import('./Search');
@@ -18,6 +19,7 @@ export function SearchModalRenderer() {
       (event) => {
         if (isKeyHotkey('mod+k', event) || isKeyHotkey('mod+f', event)) {
           event.preventDefault();
+          void prefetchSearchModal();
           if (opened) {
             setOpen(false);
             return;

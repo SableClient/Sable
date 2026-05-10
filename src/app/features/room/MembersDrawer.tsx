@@ -55,6 +55,7 @@ import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMembe
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
+import { prefetchUserProfileModal } from '$pages/routePrefetch';
 import * as css from './MembersDrawer.css';
 
 type MemberDrawerHeaderProps = {
@@ -116,6 +117,10 @@ function MemberItem({
   pressed,
   typing,
 }: MemberItemProps) {
+  const handlePrefetch = () => {
+    void prefetchUserProfileModal();
+  };
+
   const nicknames = useAtomValue(nicknamesAtom);
   const name =
     getMemberDisplayName(room, member.userId, nicknames) ??
@@ -139,6 +144,8 @@ function MemberItem({
       variant="Background"
       radii="400"
       onClick={onClick}
+      onMouseEnter={handlePrefetch}
+      onFocus={handlePrefetch}
       before={
         <div
           style={{

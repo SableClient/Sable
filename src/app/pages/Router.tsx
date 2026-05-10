@@ -76,6 +76,7 @@ import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
 import { HomeCreateRoom } from './client/home/CreateRoom';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { ConfigConfigLoading } from './ConfigConfig';
 
 const SettingsRoute = lazy(async () => {
   const mod = await import('$features/settings/SettingsRoute');
@@ -117,6 +118,7 @@ const ToRoomEvent = lazy(async () => {
   const mod = await import('./client/ToRoomEvent');
   return { default: mod.ToRoomEvent };
 });
+const routeFallback = <ConfigConfigLoading />;
 
 /**
  * Returns true if there is at least one stored session.
@@ -361,14 +363,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route
-            path={LOBBY_PATH_SEGMENT}
-            element={
-              <Suspense fallback={null}>
-                <Lobby />
-              </Suspense>
-            }
-          />
+            <Route
+              path={LOBBY_PATH_SEGMENT}
+              element={
+                <Suspense fallback={routeFallback}>
+                  <Lobby />
+                </Suspense>
+              }
+            />
           <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
@@ -385,7 +387,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Suspense fallback={null}>
+                  <Suspense fallback={routeFallback}>
                     <Explore />
                   </Suspense>
                 </MobileFriendlyPageNav>
@@ -405,7 +407,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route
             path={FEATURED_PATH_SEGMENT}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={routeFallback}>
                 <FeaturedRooms />
               </Suspense>
             }
@@ -413,7 +415,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route
             path={SERVER_PATH_SEGMENT}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={routeFallback}>
                 <PublicRooms />
               </Suspense>
             }
@@ -422,7 +424,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           path={CREATE_PATH}
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={routeFallback}>
               <Create />
             </Suspense>
           }
@@ -430,7 +432,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           path={SETTINGS_PATH}
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={routeFallback}>
               <SettingsRoute />
             </Suspense>
           }
@@ -441,7 +443,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Suspense fallback={null}>
+                  <Suspense fallback={routeFallback}>
                     <Inbox />
                   </Suspense>
                 </MobileFriendlyPageNav>
@@ -461,7 +463,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route
             path={NOTIFICATIONS_PATH_SEGMENT}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={routeFallback}>
                 <Notifications />
               </Suspense>
             }
@@ -469,7 +471,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route
             path={INVITES_PATH_SEGMENT}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={routeFallback}>
                 <Invites />
               </Suspense>
             }
@@ -478,7 +480,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route
           path={TO_ROOM_EVENT_PATH}
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={routeFallback}>
               <ToRoomEvent />
             </Suspense>
           }

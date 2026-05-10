@@ -60,10 +60,8 @@ const log = createLogger('ClientRoot');
 const isClientReady = (syncState: string | null): boolean =>
   syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
 
-export const isTelemetryContextReady = (
-  mx: MatrixClient | undefined,
-  loading: boolean
-): boolean => !loading && !!mx && isClientReady(mx.getSyncState());
+export const isTelemetryContextReady = (mx: MatrixClient | undefined, loading: boolean): boolean =>
+  !loading && !!mx && isClientReady(mx.getSyncState());
 
 function ClientRootLoading() {
   return (

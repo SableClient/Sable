@@ -333,6 +333,21 @@ export function RoomTimeline({
     // It is cancelled on unmount by the dedicated effect below.
   }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
 
+  useLayoutEffect(() => {
+    if (eventId || isReady) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    if (timelineSync.eventsLength > 0) return;
+    if (timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading') return;
+    setIsReady(true);
+  }, [
+    eventId,
+    isReady,
+    timelineSync.liveTimelineLinked,
+    timelineSync.eventsLength,
+    timelineSync.canPaginateBack,
+    timelineSync.backwardStatus,
+  ]);
+
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
   useEffect(
@@ -693,9 +708,8 @@ export function RoomTimeline({
     [setAtBottom]
   );
 
-  const showLoadingPlaceholders =
-    timelineSync.eventsLength === 0 &&
-    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
+  const showLoadingPlaceholders = !isReady && timelineSync.eventsLength === 0;
+  const showPositioningPlaceholders = !isReady && !showLoadingPlaceholders;
 
   let backPaginationJSX: ReactNode | undefined;
   if (timelineSync.canPaginateBack || timelineSync.backwardStatus !== 'idle') {
@@ -761,11 +775,7 @@ export function RoomTimeline({
     }
   }
 
-  const vListItemCount =
-    timelineSync.eventsLength === 0 &&
-    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
-      ? 3
-      : timelineSync.eventsLength;
+  const vListItemCount = timelineSync.eventsLength;
   const vListIndices = useMemo(() => {
     // Keep the cache-busting timeline identity explicit for exhaustive-deps.
     void timelineSync.timeline;
@@ -787,6 +797,12 @@ export function RoomTimeline({
   });
 
   processedEventsRef.current = processedEvents;
+
+  const vListData = useMemo<Array<ProcessedEvent | undefined>>(() => {
+    if (showLoadingPlaceholders) return [undefined, undefined, undefined];
+    if (isReady && processedEvents.length === 0) return [undefined];
+    return processedEvents;
+  }, [isReady, processedEvents, showLoadingPlaceholders]);
 
   // Recovery: if the 80 ms initial-scroll timer fired while processedEvents was
   // empty (timeline was mid-reset), scroll to bottom and reveal the timeline once
@@ -898,9 +914,9 @@ export function RoomTimeline({
           opacity: isReady || showLoadingPlaceholders ? 1 : 0,
         }}
       >
-        <VList<ProcessedEvent>
+        <VList<ProcessedEvent | undefined>
           ref={vListRef}
-          data={processedEvents}
+          data={vListData}
           shift={shift}
           className={css.messageList}
           style={{
@@ -1006,6 +1022,29 @@ export function RoomTimeline({
           }}
         </VList>
       </div>
+
+      {showPositioningPlaceholders && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            overflow: 'hidden',
+            paddingTop: config.space.S600,
+            pointerEvents: 'none',
+          }}
+        >
+          {[0, 1, 2].map((index) => (
+            <MessageBase key={`positioning-placeholder-${index}`}>
+              {messageLayout === MessageLayout.Compact ? (
+                <CompactPlaceholder />
+              ) : (
+                <DefaultPlaceholder />
+              )}
+            </MessageBase>
+          ))}
+        </div>
+      )}
 
       {frontPaginationJSX}
 

@@ -50,6 +50,7 @@ import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { sortRoomsBySelectedSpace } from './searchUtils';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -166,14 +167,16 @@ export function Search({ requestClose }: SearchProps) {
 
   const roomsToRender = useMemo(() => {
     const items = result ? result.items : topActiveRooms;
-    if (!selectedSpaceId) return items;
-
-    return [...items].toSorted((a, b) => {
-      const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
-      const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
-      return bInSpace - aInSpace;
-    });
+    return sortRoomsBySelectedSpace(items, selectedSpaceId, roomToParents);
   }, [result, topActiveRooms, selectedSpaceId, roomToParents]);
+
+  const roomParentsCache = useMemo(() => {
+    const cache = new Map<string, Set<string>>();
+    roomsToRender.forEach((roomId) => {
+      cache.set(roomId, getAllParents(roomToParents, roomId));
+    });
+    return cache;
+  }, [roomsToRender, roomToParents]);
 
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
 
@@ -315,7 +318,7 @@ export function Search({ requestClose }: SearchProps) {
                       const dmUsername = dmUserId && getMxIdLocalPart(dmUserId);
                       const dmUserServer = dmUserId && getMxIdServer(dmUserId);
 
-                      const allParents = getAllParents(roomToParents, roomId);
+                      const allParents = roomParentsCache.get(roomId);
                       const orphanParents =
                         allParents && orphanSpaces.filter((o) => allParents.has(o));
                       const perfectOrphanParent =

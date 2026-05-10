@@ -12,9 +12,9 @@ describe('hasRecursiveParent', () => {
     expect(hasRecursiveParent(roomToParents, '!room:example.org', '!space-a:example.org')).toBe(
       true
     );
-    expect(
-      hasRecursiveParent(roomToParents, '!room:example.org', '!space-root:example.org')
-    ).toBe(true);
+    expect(hasRecursiveParent(roomToParents, '!room:example.org', '!space-root:example.org')).toBe(
+      true
+    );
     expect(hasRecursiveParent(roomToParents, '!room:example.org', '!unknown:example.org')).toBe(
       false
     );
@@ -45,8 +45,8 @@ describe('hasRecursiveParent', () => {
     Array.from(allParents).forEach((parentId) => {
       expect(hasRecursiveParent(roomToParents, '!room:example.org', parentId)).toBe(true);
     });
-    expect(hasRecursiveParent(roomToParents, '!room:example.org', '!not-a-parent:example.org')).toBe(
-      false
-    );
+    expect(
+      hasRecursiveParent(roomToParents, '!room:example.org', '!not-a-parent:example.org')
+    ).toBe(false);
   });
 });

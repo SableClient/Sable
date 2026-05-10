@@ -51,7 +51,7 @@ const childEventOrderThenTs: SortFunc<MatrixEvent> = (a, b) =>
   childEventByOrder(a, b) || childEventTs(a, b);
 const spaceHierarchyProfiler = createLogger('space-hierarchy-profiler');
 
-const profileHierarchyBuild = <T,>(label: string, build: () => T): T => {
+const profileHierarchyBuild = <T>(label: string, build: () => T): T => {
   if (!isDebug()) return build();
 
   const start = performance.now();

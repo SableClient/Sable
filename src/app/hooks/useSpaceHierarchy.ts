@@ -44,6 +44,10 @@ const hierarchyItemByOrder: SortFunc<HierarchyItem> = (a, b) =>
 const childEventTs: SortFunc<MatrixEvent> = (a, b) => byTsOldToNew(a.getTs(), b.getTs());
 const childEventByOrder: SortFunc<MatrixEvent> = (a, b) =>
   byOrderKey(a.getContent<MSpaceChildContent>().order, b.getContent<MSpaceChildContent>().order);
+const hierarchyItemOrderThenTs: SortFunc<HierarchyItem> = (a, b) =>
+  hierarchyItemByOrder(a, b) || hierarchyItemTs(a, b);
+const childEventOrderThenTs: SortFunc<MatrixEvent> = (a, b) =>
+  childEventByOrder(a, b) || childEventTs(a, b);
 
 const getHierarchySpaces = (
   rootSpaceId: string,
@@ -87,8 +91,7 @@ const getHierarchySpaces = (
         // cache which we maintain as we load summary in UI.
         return getRoom(childId)?.isSpaceRoom() || spaceRooms.has(childId);
       })
-      .toSorted(childEventTs)
-      .toSorted(childEventByOrder);
+      .toSorted(childEventOrderThenTs);
 
     childEvents.forEach((childEvent) => {
       const childId = childEvent.getStateKey();
@@ -155,7 +158,7 @@ const getSpaceHierarchy = (
 
     return {
       space: spaceItem,
-      rooms: childItems.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder),
+      rooms: childItems.toSorted(hierarchyItemOrderThenTs),
     };
   });
 
@@ -214,6 +217,7 @@ const getSpaceJoinedHierarchy = (
     excludeRoom,
     new Set()
   );
+  const containsRoomCache = new Map<string, boolean>();
 
   /**
    * Recursively checks if the given space or any of its descendants contain non-space rooms.
@@ -223,16 +227,22 @@ const getSpaceJoinedHierarchy = (
    * @returns True if the space or any descendant contains non-space rooms.
    */
   const getContainsRoom = (spaceId: string, visited: Set<string> = new Set()) => {
+    const cached = containsRoomCache.get(spaceId);
+    if (cached !== undefined) return cached;
+
     // Prevent infinite recursion
     if (visited.has(spaceId)) return false;
     visited.add(spaceId);
 
     const space = getRoom(spaceId);
-    if (!space) return false;
+    if (!space) {
+      containsRoomCache.set(spaceId, false);
+      return false;
+    }
 
     const childEvents = getStateEvents(space, EventType.SpaceChild);
 
-    return childEvents.some((childEvent): boolean => {
+    const contains = childEvents.some((childEvent): boolean => {
       if (!isValidChild(childEvent)) return false;
       const childId = childEvent.getStateKey();
       if (!childId || !isRoomId(childId)) return false;
@@ -242,6 +252,9 @@ const getSpaceJoinedHierarchy = (
       if (!room.isSpaceRoom()) return true;
       return getContainsRoom(childId, visited);
     });
+    visited.delete(spaceId);
+    containsRoomCache.set(spaceId, contains);
+    return contains;
   };
 
   const hierarchy: HierarchyItem[] = spaceItems.flatMap((spaceItem) => {
@@ -298,7 +311,7 @@ export const useSpaceJoinedHierarchy = (
         items.sort((a, b) => factoryRoomIdByActivity(mx)(a.roomId, b.roomId));
         return items;
       }
-      return items.toSorted(hierarchyItemTs).toSorted(hierarchyItemByOrder);
+      return items.toSorted(hierarchyItemOrderThenTs);
     },
     [mx, sortByActivity]
   );

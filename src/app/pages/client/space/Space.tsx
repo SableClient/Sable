@@ -385,7 +385,7 @@ export function Space() {
   const roomToParents = useAtomValue(roomToParentsAtom);
   const roomToChildren = useAtomValue(roomToChildrenAtom);
   const allRooms = useAtomValue(allRoomsAtom);
-  const [spaceRooms] = useAtom(spaceRoomsAtom);
+  const spaceRooms = useAtomValue(spaceRoomsAtom);
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
@@ -409,10 +409,15 @@ export function Space() {
 
   const closedCategoriesCache = useRef(new Map());
   const ancestorsCollapsedCache = useRef(new Map());
+  const containsShowRoomCache = useRef(new Map<string, boolean>());
   useEffect(() => {
     closedCategoriesCache.current.clear();
     ancestorsCollapsedCache.current.clear();
   }, [closedCategories, roomToParents, getRoom]);
+
+  useEffect(() => {
+    containsShowRoomCache.current.clear();
+  }, [roomToUnread, selectedRoomId, roomToChildren]);
 
   /**
    * Recursively checks if a given parentId (or all its ancestors) is in a closed category.
@@ -480,20 +485,31 @@ export function Space() {
    */
   const getContainsShowRoom = useCallback(
     (roomId: string, visited: Set<string> = new Set()): boolean => {
+      const cached = containsShowRoomCache.current.get(roomId);
+      if (cached !== undefined) return cached;
+
       if (roomToUnread.has(roomId) || roomId === selectedRoomId) {
+        containsShowRoomCache.current.set(roomId, true);
         return true;
       }
 
       // Prevent infinite recursion
-      if (visited.has(roomId)) return false;
+      if (visited.has(roomId)) {
+        containsShowRoomCache.current.set(roomId, false);
+        return false;
+      }
       visited.add(roomId);
 
       const childIds = roomToChildren.get(roomId);
       if (!childIds || childIds.size === 0) {
+        containsShowRoomCache.current.set(roomId, false);
         return false;
       }
 
-      return Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+      const contains = Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+      visited.delete(roomId);
+      containsShowRoomCache.current.set(roomId, contains);
+      return contains;
     },
     [roomToUnread, selectedRoomId, roomToChildren]
   );

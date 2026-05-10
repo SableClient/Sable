@@ -43,7 +43,9 @@ export const prefetchUserProfileModal = (): Promise<void> =>
   prefetchRouteChunks('user-profile-modal', [() => import('$components/user-profile')]);
 
 export const prefetchRoomSettingsModal = (): Promise<void> =>
-  prefetchRouteChunks('room-settings-modal', [() => import('$features/room-settings/RoomSettings')]);
+  prefetchRouteChunks('room-settings-modal', [
+    () => import('$features/room-settings/RoomSettings'),
+  ]);
 
 export const prefetchSpaceSettingsModal = (): Promise<void> =>
   prefetchRouteChunks('space-settings-modal', [

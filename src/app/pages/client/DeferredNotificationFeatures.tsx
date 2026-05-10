@@ -122,6 +122,7 @@ function InviteNotifications() {
   return (
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={InviteSound} type="audio/ogg" />
+      <track kind="captions" />
     </audio>
   );
 }
@@ -340,6 +341,7 @@ function MessageNotifications() {
   return (
     <audio ref={audioRef} style={{ display: 'none' }}>
       <source src={NotificationSound} type="audio/ogg" />
+      <track kind="captions" />
     </audio>
   );
 }

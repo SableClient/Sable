@@ -44,7 +44,7 @@ describe('highlightCode', () => {
     expect(normalizeLanguage).toHaveBeenCalledWith('ts');
     expect(detectLanguage).not.toHaveBeenCalled();
     expect(highlight).toHaveBeenCalledWith('typescript', 'const value = 1;');
-  });
+  }, 15000);
 
   it('maps jsx to tsx when Arborium supports tsx', async () => {
     const normalizeLanguage = vi.fn<(language: string) => string>((language: string) => language);

@@ -141,7 +141,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       }, [mx, url, useAuthentication, mimeType, encInfo, matrixThumbnailMaxEdge, info?.w, info?.h])
     );
 
-    useEffect(() => {
+    useEffect((): void | (() => void) => {
       if (!viewer) {
         setViewerFullSrc(null);
         return;
@@ -200,7 +200,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       : isContained
         ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
         : hasDimensions
-          ? { aspectRatio: `${info!.w} / ${info!.h}` }
+          ? { aspectRatio: `${info.w} / ${info.h}` }
           : { minHeight: '150px' };
 
     const fillPreviewSlotStyle = fillsSlot

@@ -10,15 +10,16 @@ type TimelineSyncController = ReturnType<typeof useTimelineSync>;
 
 const nativeRequestAnimationFrame = globalThis.requestAnimationFrame;
 const nativeCancelAnimationFrame = globalThis.cancelAnimationFrame;
+const noop = () => {};
 
 const createVList = (): VListHandle =>
   ({
     scrollOffset: 0,
     scrollSize: 3000,
     viewportSize: 800,
-    scrollTo: vi.fn(),
-    scrollBy: vi.fn(),
-    scrollToIndex: vi.fn(),
+    scrollTo: vi.fn<(offset: number) => void>(),
+    scrollBy: vi.fn<(offset: number) => void>(),
+    scrollToIndex: vi.fn<(index: number, options?: { align?: string }) => void>(),
   }) as unknown as VListHandle;
 
 const createProcessedEvent = (id: string, itemIndex: number): ProcessedEvent =>
@@ -38,16 +39,16 @@ const createTimelineSync = (
 ): TimelineSyncController =>
   ({
     timeline: { linkedTimelines: [] },
-    setTimeline: vi.fn(),
+    setTimeline: vi.fn<(next: unknown) => void>(),
     eventsLength: 2,
     liveTimelineLinked: true,
     canPaginateBack: true,
     backwardStatus: 'idle',
     forwardStatus: 'idle',
-    handleTimelinePagination: vi.fn(),
-    loadEventTimeline: vi.fn(() => Promise.resolve()),
+    handleTimelinePagination: vi.fn<(backward: boolean) => void>(),
+    loadEventTimeline: vi.fn<(eventId: string) => Promise<void>>(() => Promise.resolve()),
     focusItem: undefined,
-    setFocusItem: vi.fn(),
+    setFocusItem: vi.fn<(next: unknown) => void>(),
     ...overrides,
   }) as unknown as TimelineSyncController;
 
@@ -83,7 +84,7 @@ const renderController = ({
   eventId,
   timelineSync = createTimelineSync(),
   refs = createRefs(),
-  setAtBottom = vi.fn((val: boolean) => {
+  setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
     refs.atBottomRef.current = val;
   }),
 }: {
@@ -125,7 +126,9 @@ describe('useTimelineViewportController', () => {
       cb(0);
       return 1;
     }) as typeof globalThis.requestAnimationFrame;
-    globalThis.cancelAnimationFrame = vi.fn() as unknown as typeof globalThis.cancelAnimationFrame;
+    globalThis.cancelAnimationFrame = vi.fn<
+      (id: number) => void
+    >() as unknown as typeof globalThis.cancelAnimationFrame;
   });
 
   afterEach(() => {
@@ -238,7 +241,7 @@ describe('useTimelineViewportController', () => {
 
   it('keeps bottom anchor pinned during loading-driven offset shifts', () => {
     const refs = createRefs();
-    const setAtBottom = vi.fn((val: boolean) => {
+    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
       refs.atBottomRef.current = val;
     });
     const timelineSync = createTimelineSync();
@@ -275,7 +278,7 @@ describe('useTimelineViewportController', () => {
 
   it('releases bottom anchor on an intentional upward scroll when idle', () => {
     const refs = createRefs();
-    const setAtBottom = vi.fn((val: boolean) => {
+    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
       refs.atBottomRef.current = val;
     });
     const timelineSync = createTimelineSync();
@@ -307,7 +310,7 @@ describe('useTimelineViewportController', () => {
 
   it('does not release bottom anchor before any user scroll intent', () => {
     const refs = createRefs();
-    const setAtBottom = vi.fn((val: boolean) => {
+    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
       refs.atBottomRef.current = val;
     });
     const timelineSync = createTimelineSync();
@@ -336,9 +339,9 @@ describe('useTimelineViewportController', () => {
   });
 
   it('does not paginate while an event jump is still loading', () => {
-    let resolveLoad: () => void = () => {};
+    let resolveLoad: () => void = noop;
     const timelineSync = createTimelineSync({
-      loadEventTimeline: vi.fn(
+      loadEventTimeline: vi.fn<(eventId: string) => Promise<void>>(
         () =>
           new Promise<void>((resolve) => {
             resolveLoad = resolve;
@@ -360,7 +363,7 @@ describe('useTimelineViewportController', () => {
   });
 
   it('centers a loaded focus item and consumes the scroll intent', () => {
-    const setFocusItem = vi.fn();
+    const setFocusItem = vi.fn<(next: unknown) => void>();
     const timelineSync = createTimelineSync({
       focusItem: { index: 1, scrollTo: true, highlight: true },
       setFocusItem,

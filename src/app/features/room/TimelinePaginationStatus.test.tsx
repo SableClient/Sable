@@ -10,7 +10,7 @@ describe('TimelinePaginationStatusRow', () => {
         eventsLength={10}
         hasMore
         status="loading"
-        onRetry={vi.fn()}
+        onRetry={vi.fn<() => void>()}
         hidden
       />
     );
@@ -19,7 +19,7 @@ describe('TimelinePaginationStatusRow', () => {
   });
 
   it('renders retry UI on error', () => {
-    const onRetry = vi.fn();
+    const onRetry = vi.fn<() => void>();
     render(
       <TimelinePaginationStatusRow
         direction="backward"

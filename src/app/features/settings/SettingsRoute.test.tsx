@@ -655,6 +655,9 @@ describe('Settings shallow route shell', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Open focused general settings' }));
 
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
       expect(screen.getByRole('heading', { name: 'Home route' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'General section' })).toBeInTheDocument();
       expect(screen.getByTestId('location-probe')).toHaveTextContent('?focus=message-layout');

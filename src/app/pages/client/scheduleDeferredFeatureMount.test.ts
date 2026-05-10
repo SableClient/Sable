@@ -3,12 +3,12 @@ import { scheduleDeferredFeatureMount } from './scheduleDeferredFeatureMount';
 
 describe('scheduleDeferredFeatureMount', () => {
   it('uses requestIdleCallback when available', () => {
-    const mount = vi.fn();
-    const requestIdleCallback = vi.fn((cb: IdleRequestCallback) => {
+    const mount = vi.fn<() => void>();
+    const requestIdleCallback = vi.fn<(cb: IdleRequestCallback) => number>((cb) => {
       cb({ didTimeout: false, timeRemaining: () => 0 } as IdleDeadline);
       return 1;
     });
-    const cancelIdleCallback = vi.fn();
+    const cancelIdleCallback = vi.fn<(id: number) => void>();
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
 
     const win = window as unknown as {
@@ -38,7 +38,7 @@ describe('scheduleDeferredFeatureMount', () => {
 
   it('falls back to setTimeout when requestIdleCallback is unavailable', () => {
     vi.useFakeTimers();
-    const mount = vi.fn();
+    const mount = vi.fn<() => void>();
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
 

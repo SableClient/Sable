@@ -5,7 +5,7 @@ import { VList } from 'virtua';
 import classNames from 'classnames';
 import { as, Box, Chip, Icon, Icons, Text, config } from 'folds';
 import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
-import { MessageLayout, type MessageSpacing } from '$state/settings';
+import type { MessageLayout, MessageSpacing } from '$state/settings';
 import * as css from './RoomTimeline.css';
 import { TimelineEventRow } from './TimelineEventRow';
 import { TimelineLoadingPlaceholders } from './TimelineLoadingPlaceholders';

@@ -199,7 +199,7 @@ export function useTimelineViewportController({
     []
   );
 
-  useEffect(() => {
+  useEffect((): void | (() => void) => {
     if (isReady) return;
     if (pendingBootstrapRevealRef.current) return;
     if (readyFallbackTimerRef.current !== undefined) {
@@ -234,7 +234,6 @@ export function useTimelineViewportController({
         return;
       }
       vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
-      const contentHeight = Math.max(0, vListRef.current.scrollSize - topSpacerHeightRef.current);
       const shouldBootstrapBeforeReveal = timelineSync.canPaginateBack;
       pendingBootstrapRevealRef.current = shouldBootstrapBeforeReveal;
       settleTimelineAnchor({ kind: 'bottom' }, !shouldBootstrapBeforeReveal);
@@ -242,6 +241,7 @@ export function useTimelineViewportController({
     }
   }, [
     timelineSync.eventsLength,
+    timelineSync.canPaginateBack,
     eventId,
     roomId,
     processedEventsRef,
@@ -306,7 +306,7 @@ export function useTimelineViewportController({
     vListRef,
   ]);
 
-  useEffect(() => {
+  useEffect((): void | (() => void) => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (timelineSync.focusItem) {
       if (timelineSync.focusItem.scrollTo && vListRef.current) {
@@ -416,7 +416,6 @@ export function useTimelineViewportController({
     vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
     settleTimelineAnchor({ kind: 'bottom' }, true);
   }, [
-    roomId,
     timelineSync.eventsLength,
     processedEventsRef.current.length,
     settleTimelineAnchor,
@@ -533,15 +532,7 @@ export function useTimelineViewportController({
       if (paginateBackward) timelineSyncRef.current.handleTimelinePagination(true);
       if (paginateForward) timelineSyncRef.current.handleTimelinePagination(false);
     },
-    [
-      roomId,
-      atBottomRef,
-      jumpInFlight,
-      setAtBottom,
-      timelineSync.focusItem,
-      timelineSyncRef,
-      vListRef,
-    ]
+    [atBottomRef, jumpInFlight, setAtBottom, timelineSync.focusItem, timelineSyncRef, vListRef]
   );
 
   const markUserScrollIntent = useCallback(() => {

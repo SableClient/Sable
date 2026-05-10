@@ -363,14 +363,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-            <Route
-              path={LOBBY_PATH_SEGMENT}
-              element={
-                <Suspense fallback={routeFallback}>
-                  <Lobby />
-                </Suspense>
-              }
-            />
+          <Route
+            path={LOBBY_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <Lobby />
+              </Suspense>
+            }
+          />
           <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}

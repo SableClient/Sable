@@ -82,6 +82,7 @@ import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { prefetchSpaceLobbyRoute } from '../../routePrefetch';
 
 type SpaceMenuProps = {
   room: Room;
@@ -419,6 +420,9 @@ function SpaceTab({
       return cords;
     });
   };
+  const handlePrefetch = () => {
+    void prefetchSpaceLobbyRoute();
+  };
 
   return (
     <RoomUnreadProvider roomId={space.roomId}>
@@ -440,6 +444,8 @@ function SpaceTab({
                 ref={triggerRef}
                 size={folder ? '300' : '400'}
                 onClick={onClick}
+                onMouseEnter={handlePrefetch}
+                onFocus={handlePrefetch}
                 onContextMenu={handleContextMenu}
               >
                 <RoomAvatar

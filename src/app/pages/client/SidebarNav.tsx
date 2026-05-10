@@ -1,5 +1,5 @@
 import type { MouseEventHandler } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Checkbox, config, Line, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
@@ -18,6 +18,7 @@ import {
   AccountSwitcherTab,
 } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
+import { scheduleInitialRoutePrefetch } from '../routePrefetch';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -27,6 +28,10 @@ export function SidebarNav() {
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+
+  useEffect(() => {
+    scheduleInitialRoutePrefetch();
+  }, []);
 
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;

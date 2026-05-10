@@ -14,6 +14,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { prefetchExploreRoute } from '../../routePrefetch';
 
 export function ExploreTab() {
   const mx = useMatrixClient();
@@ -23,6 +24,9 @@ export function ExploreTab() {
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
 
   const exploreSelected = useExploreSelected();
+  const handlePrefetch = () => {
+    void prefetchExploreRoute();
+  };
 
   const handleExploreClick = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -53,7 +57,14 @@ export function ExploreTab() {
     <SidebarItem active={exploreSelected}>
       <SidebarItemTooltip tooltip="Explore Community">
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleExploreClick}>
+          <SidebarAvatar
+            as="button"
+            ref={triggerRef}
+            outlined
+            onClick={handleExploreClick}
+            onMouseEnter={handlePrefetch}
+            onFocus={handlePrefetch}
+          >
             <Icon src={Icons.Explore} filled={exploreSelected} />
           </SidebarAvatar>
         )}

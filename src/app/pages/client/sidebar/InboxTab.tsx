@@ -17,6 +17,7 @@ import {
 import { useInboxSelected } from '$hooks/router/useInbox';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
+import { prefetchInboxRoute } from '../../routePrefetch';
 
 export function InboxTab() {
   const screenSize = useScreenSizeContext();
@@ -25,6 +26,9 @@ export function InboxTab() {
   const inboxSelected = useInboxSelected();
   const allInvites = useAtomValue(allInvitesAtom);
   const inviteCount = allInvites.length;
+  const handlePrefetch = () => {
+    void prefetchInboxRoute();
+  };
 
   const handleInboxClick = () => {
     if (screenSize === ScreenSize.Mobile) {
@@ -45,7 +49,14 @@ export function InboxTab() {
     <SidebarItem active={inboxSelected}>
       <SidebarItemTooltip tooltip="Inbox">
         {(triggerRef) => (
-          <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleInboxClick}>
+          <SidebarAvatar
+            as="button"
+            ref={triggerRef}
+            outlined
+            onClick={handleInboxClick}
+            onMouseEnter={handlePrefetch}
+            onFocus={handlePrefetch}
+          >
             <Icon src={Icons.Inbox} filled={inboxSelected} />
           </SidebarAvatar>
         )}

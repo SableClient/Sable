@@ -44,7 +44,10 @@ export const useMergedAbbreviations = (room: Room): Map<string, string> => {
         if (event.getType() !== (CustomStateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
         if (!eventRoomId) return;
-        if (eventRoomId === room.roomId || hasRecursiveParent(roomToParents, room.roomId, eventRoomId)) {
+        if (
+          eventRoomId === room.roomId ||
+          hasRecursiveParent(roomToParents, room.roomId, eventRoomId)
+        ) {
           forceUpdate();
         }
       },

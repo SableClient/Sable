@@ -39,10 +39,7 @@ function BootstrappedAppShell({ clientConfig, screenSize }: BootstrappedAppShell
   }
   bootstrapSettingsStore(jotaiStoreRef.current, clientConfig.settingsDefaults);
   const reactQueryDevtoolsEnabled = isReactQueryDevtoolsEnabled();
-  const router = useMemo(
-    () => createRouter(clientConfig, screenSize),
-    [clientConfig, screenSize]
-  );
+  const router = useMemo(() => createRouter(clientConfig, screenSize), [clientConfig, screenSize]);
 
   return (
     <ClientConfigProvider value={clientConfig}>

@@ -139,6 +139,56 @@ export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set
   return allParents;
 };
 
+const roomParentsClosureCache = new WeakMap<RoomToParents, Map<string, Set<string>>>();
+
+const getOrCreateParentsClosure = (roomToParents: RoomToParents): Map<string, Set<string>> => {
+  const cached = roomParentsClosureCache.get(roomToParents);
+  if (cached) return cached;
+
+  const nextCache = new Map<string, Set<string>>();
+  roomParentsClosureCache.set(roomToParents, nextCache);
+  return nextCache;
+};
+
+const getAllParentsMemoized = (roomToParents: RoomToParents, roomId: string): Set<string> => {
+  const closureCache = getOrCreateParentsClosure(roomToParents);
+  const cached = closureCache.get(roomId);
+  if (cached) return cached;
+
+  const visited = new Set<string>();
+  const allParents = new Set<string>();
+
+  const visit = (rId: string) => {
+    if (visited.has(rId)) return;
+    visited.add(rId);
+
+    const parents = roomToParents.get(rId);
+    if (!parents) return;
+
+    parents.forEach((parentId) => {
+      allParents.add(parentId);
+
+      const parentCached = closureCache.get(parentId);
+      if (parentCached) {
+        parentCached.forEach((ancestorId) => allParents.add(ancestorId));
+        return;
+      }
+
+      visit(parentId);
+    });
+  };
+
+  visit(roomId);
+  closureCache.set(roomId, allParents);
+  return allParents;
+};
+
+export const hasRecursiveParent = (
+  roomToParents: RoomToParents,
+  roomId: string,
+  parentId: string
+): boolean => getAllParentsMemoized(roomToParents, roomId).has(parentId);
+
 export const getSpaceChildren = (room: Room) =>
   getStateEvents(room, EventType.SpaceChild).reduce<string[]>((filtered, mEvent) => {
     const stateKey = mEvent.getStateKey();

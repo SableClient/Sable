@@ -7,7 +7,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import type { MSpaceChildContent } from '$types/matrix/room';
 
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { getAllParents, getStateEvents, isValidChild } from '$utils/room';
+import { getStateEvents, hasRecursiveParent, isValidChild } from '$utils/room';
 import { isRoomId } from '$utils/matrix';
 import type { SortFunc } from '$utils/sort';
 import { byOrderKey, byTsOldToNew, factoryRoomIdByActivity } from '$utils/sort';
@@ -216,7 +216,7 @@ export const useSpaceHierarchy = (
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
-        if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
+        if (spaceId === eventRoomId || hasRecursiveParent(roomToParents, eventRoomId, spaceId)) {
           setHierarchy(
             profileHierarchyBuild('space-hierarchy:event', () =>
               getSpaceHierarchy(spaceId, spaceRooms, getRoom, excludeRoom, closedCategory)
@@ -367,7 +367,7 @@ export const useSpaceJoinedHierarchy = (
         const eventRoomId = mEvent.getRoomId();
         if (!eventRoomId) return;
 
-        if (spaceId === eventRoomId || getAllParents(roomToParents, eventRoomId).has(spaceId)) {
+        if (spaceId === eventRoomId || hasRecursiveParent(roomToParents, eventRoomId, spaceId)) {
           setHierarchy(
             profileHierarchyBuild('space-joined-hierarchy:event', () =>
               getSpaceJoinedHierarchy(spaceId, getRoom, excludeRoom, sortRoomItems)

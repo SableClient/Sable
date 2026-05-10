@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Box,
   config,
@@ -19,7 +20,11 @@ import { useCloseCreateRoomModal, useCreateRoomModalState } from '$state/hooks/c
 import type { CreateRoomModalState } from '$state/createRoomModal';
 import { stopPropagation } from '$utils/keyboard';
 import { CreateRoomType } from '$components/create-room/types';
-import { CreateRoomForm } from './CreateRoom';
+
+const CreateRoomForm = lazy(async () => {
+  const mod = await import('./CreateRoom');
+  return { default: mod.CreateRoomForm };
+});
 
 type CreateRoomModalProps = {
   state: CreateRoomModalState;
@@ -73,7 +78,9 @@ function CreateRoomModal({ state }: CreateRoomModalProps) {
                     direction="Column"
                     gap="500"
                   >
-                    <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
+                    <Suspense fallback={null}>
+                      <CreateRoomForm space={space} onCreate={closeDialog} defaultType={type} />
+                    </Suspense>
                   </Box>
                 </Scroll>
               </Box>

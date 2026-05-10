@@ -12,7 +12,6 @@ import * as Sentry from '@sentry/react';
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
 import { Room } from '$features/room';
-import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
@@ -23,6 +22,14 @@ import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
+import { SearchModalRenderer } from '$features/search/SearchModalRenderer';
+import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
+import { CreateRoomModalRenderer } from '$features/create-room/CreateRoomModal';
+import { CreateSpaceModalRenderer } from '$features/create-space/CreateSpaceModal';
+import { BugReportModalRenderer } from '$features/bug-report/BugReportModalRenderer';
+import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
+import { RoomSettingsRenderer } from '$features/room-settings/RoomSettingsRenderer';
+import { SpaceSettingsRenderer } from '$features/space-settings/SpaceSettingsRenderer';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
 import {
   DIRECT_PATH,
@@ -60,8 +67,6 @@ import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNon
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
-import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
-import { Notifications, Inbox, Invites } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
@@ -70,45 +75,47 @@ import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
 import { HomeCreateRoom } from './client/home/CreateRoom';
-import { Create } from './client/create';
-import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
 
-const SearchModalRenderer = lazy(async () => {
-  const mod = await import('$features/search/Search');
-  return { default: mod.SearchModalRenderer };
-});
-const UserRoomProfileRenderer = lazy(async () => {
-  const mod = await import('$components/UserRoomProfileRenderer');
-  return { default: mod.UserRoomProfileRenderer };
-});
-const CreateRoomModalRenderer = lazy(async () => {
-  const mod = await import('$features/create-room/CreateRoomModal');
-  return { default: mod.CreateRoomModalRenderer };
-});
-const CreateSpaceModalRenderer = lazy(async () => {
-  const mod = await import('$features/create-space/CreateSpaceModal');
-  return { default: mod.CreateSpaceModalRenderer };
-});
-const BugReportModalRenderer = lazy(async () => {
-  const mod = await import('$features/bug-report/BugReportModal');
-  return { default: mod.BugReportModalRenderer };
-});
-const SettingsShallowRouteRenderer = lazy(async () => {
-  const mod = await import('$features/settings/SettingsShallowRouteRenderer');
-  return { default: mod.SettingsShallowRouteRenderer };
-});
-const RoomSettingsRenderer = lazy(async () => {
-  const mod = await import('$features/room-settings/RoomSettingsRenderer');
-  return { default: mod.RoomSettingsRenderer };
-});
-const SpaceSettingsRenderer = lazy(async () => {
-  const mod = await import('$features/space-settings/SpaceSettingsRenderer');
-  return { default: mod.SpaceSettingsRenderer };
-});
 const SettingsRoute = lazy(async () => {
   const mod = await import('$features/settings/SettingsRoute');
   return { default: mod.SettingsRoute };
+});
+const Lobby = lazy(async () => {
+  const mod = await import('$features/lobby/Lobby');
+  return { default: mod.Lobby };
+});
+const Explore = lazy(async () => {
+  const mod = await import('./client/explore/Explore');
+  return { default: mod.Explore };
+});
+const FeaturedRooms = lazy(async () => {
+  const mod = await import('./client/explore/Featured');
+  return { default: mod.FeaturedRooms };
+});
+const PublicRooms = lazy(async () => {
+  const mod = await import('./client/explore/Server');
+  return { default: mod.PublicRooms };
+});
+const Inbox = lazy(async () => {
+  const mod = await import('./client/inbox/Inbox');
+  return { default: mod.Inbox };
+});
+const Notifications = lazy(async () => {
+  const mod = await import('./client/inbox/Notifications');
+  return { default: mod.Notifications };
+});
+const Invites = lazy(async () => {
+  const mod = await import('./client/inbox/Invites');
+  return { default: mod.Invites };
+});
+const Create = lazy(async () => {
+  const mod = await import('./client/create/Create');
+  return { default: mod.Create };
+});
+const ToRoomEvent = lazy(async () => {
+  const mod = await import('./client/ToRoomEvent');
+  return { default: mod.ToRoomEvent };
 });
 
 /**
@@ -354,7 +361,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
+          <Route
+            path={LOBBY_PATH_SEGMENT}
+            element={
+              <Suspense fallback={null}>
+                <Lobby />
+              </Suspense>
+            }
+          />
           <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
@@ -371,7 +385,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Explore />
+                  <Suspense fallback={null}>
+                    <Explore />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -386,10 +402,31 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
+          <Route
+            path={FEATURED_PATH_SEGMENT}
+            element={
+              <Suspense fallback={null}>
+                <FeaturedRooms />
+              </Suspense>
+            }
+          />
+          <Route
+            path={SERVER_PATH_SEGMENT}
+            element={
+              <Suspense fallback={null}>
+                <PublicRooms />
+              </Suspense>
+            }
+          />
         </Route>
-        <Route path={CREATE_PATH} element={<Create />} />
+        <Route
+          path={CREATE_PATH}
+          element={
+            <Suspense fallback={null}>
+              <Create />
+            </Suspense>
+          }
+        />
         <Route
           path={SETTINGS_PATH}
           element={
@@ -404,7 +441,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
+                  <Suspense fallback={null}>
+                    <Inbox />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -419,10 +458,31 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
-          <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          <Route
+            path={NOTIFICATIONS_PATH_SEGMENT}
+            element={
+              <Suspense fallback={null}>
+                <Notifications />
+              </Suspense>
+            }
+          />
+          <Route
+            path={INVITES_PATH_SEGMENT}
+            element={
+              <Suspense fallback={null}>
+                <Invites />
+              </Suspense>
+            }
+          />
         </Route>
-        <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
+        <Route
+          path={TO_ROOM_EVENT_PATH}
+          element={
+            <Suspense fallback={null}>
+              <ToRoomEvent />
+            </Suspense>
+          }
+        />
       </Route>
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>

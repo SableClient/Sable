@@ -85,7 +85,7 @@ export function buildGitHubUrl(
   return `https://github.com/${GITHUB_REPO}/issues/new?${new URLSearchParams(params)}`;
 }
 
-function BugReportModal() {
+export function BugReportModal() {
   const close = useCloseBugReportModal();
   const sentryEnabled = Sentry.isInitialized();
   const [type, setType] = useState<ReportType>('bug');

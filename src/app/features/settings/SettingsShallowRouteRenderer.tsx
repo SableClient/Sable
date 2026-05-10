@@ -1,10 +1,15 @@
+import { lazy, Suspense } from 'react';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
 import { Modal500 } from '$components/Modal500';
 import { isShallowSettingsRoute } from '$pages/client/ClientRouteOutlet';
 import { SETTINGS_PATH } from '$pages/paths';
 import { getSettingsCloseTarget, type SettingsRouteState } from './navigation';
-import { SettingsRoute } from './SettingsRoute';
+
+const SettingsRoute = lazy(async () => {
+  const mod = await import('./SettingsRoute');
+  return { default: mod.SettingsRoute };
+});
 
 export function SettingsShallowRouteRenderer() {
   const navigate = useNavigate();
@@ -24,7 +29,9 @@ export function SettingsShallowRouteRenderer() {
 
   return (
     <Modal500 requestClose={handleRequestClose}>
-      <SettingsRoute routeSection={routeMatch.params.section} />
+      <Suspense fallback={null}>
+        <SettingsRoute routeSection={routeMatch.params.section} />
+      </Suspense>
     </Modal500>
   );
 }

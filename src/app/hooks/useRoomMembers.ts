@@ -2,11 +2,7 @@ import type { MatrixClient, MatrixEvent, RoomMember } from '$types/matrix-sdk';
 import { EventType, RoomMemberEvent, RoomStateEvent } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';
 
-export const useRoomMembers = (
-  mx: MatrixClient,
-  roomId: string,
-  enabled = true
-): RoomMember[] => {
+export const useRoomMembers = (mx: MatrixClient, roomId: string, enabled = true): RoomMember[] => {
   const [members, setMembers] = useState<RoomMember[]>([]);
 
   useEffect(() => {

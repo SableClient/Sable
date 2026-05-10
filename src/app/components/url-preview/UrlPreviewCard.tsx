@@ -85,6 +85,25 @@ function isLikelyPlayableOgVideo(prev: IPreviewUrlResponse): boolean {
   return false;
 }
 
+function isLikelyPlayableOgAudio(prev: IPreviewUrlResponse): boolean {
+  const raw = prev['og:audio'];
+  if (typeof raw !== 'string') return false;
+  const url = raw.trim();
+  if (!url) return false;
+  const mime =
+    typeof prev['og:audio:type'] === 'string' ? prev['og:audio:type'].toLowerCase().trim() : '';
+  if (mime.startsWith('audio/')) return true;
+  if (/^mxc:\/\//i.test(url)) {
+    return (
+      mime.startsWith('audio/') || /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|webm)(\?|$)/i.test(url)
+    );
+  }
+  if (/^https?:\/\//i.test(url)) {
+    return /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)(\?|$)/i.test(url);
+  }
+  return false;
+}
+
 export const UrlPreviewCard = as<
   'div',
   {
@@ -320,10 +339,10 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-        {!showOgVideo && !prev['og:image'] && prev['og:audio'] && (
+        {!showOgVideo && !prev['og:image'] && isLikelyPlayableOgAudio(prev) && (
           <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
             <AudioContent
-              url={(prev['og:audio'] as string) ?? ''}
+              url={(prev['og:audio'] as string).trim()}
               mimeType={(prev['og:audio:type'] as string) ?? ''}
               info={{}}
               renderMediaControl={(p) => <MediaControl {...p} />}

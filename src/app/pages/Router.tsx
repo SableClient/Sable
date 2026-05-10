@@ -74,7 +74,6 @@ import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
-import { HomeCreateRoom } from './client/home/CreateRoom';
 import { CallStatusRenderer } from './CallStatusRenderer';
 import { ConfigConfigLoading } from './ConfigConfig';
 
@@ -117,6 +116,10 @@ const Create = lazy(async () => {
 const ToRoomEvent = lazy(async () => {
   const mod = await import('./client/ToRoomEvent');
   return { default: mod.ToRoomEvent };
+});
+const HomeCreateRoom = lazy(async () => {
+  const mod = await import('./client/home/CreateRoom');
+  return { default: mod.HomeCreateRoom };
 });
 const routeFallback = <ConfigConfigLoading />;
 
@@ -294,7 +297,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           }
         >
           {mobile ? null : <Route index element={<WelcomePage />} />}
-          <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
+          <Route
+            path={CREATE_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <HomeCreateRoom />
+              </Suspense>
+            }
+          />
           <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
           <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
           <Route

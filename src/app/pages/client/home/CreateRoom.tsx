@@ -9,7 +9,7 @@ import {
 } from '$components/page';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
-import { CreateRoomForm } from '$features/create-room';
+import { CreateRoomForm } from '$features/create-room/CreateRoom';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 
 export function HomeCreateRoom() {

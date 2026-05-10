@@ -13,7 +13,8 @@ import {
   type TimelineAnchor,
 } from './timelineViewportModel';
 
-const INITIAL_BACKFILL_PAGE_BUDGET = 2;
+const INITIAL_BACKFILL_PAGE_BUDGET = 6;
+const BOOTSTRAP_FILL_TARGET_SLACK_PX = 32;
 
 type TimelineSyncController = ReturnType<typeof useTimelineSync>;
 
@@ -46,6 +47,7 @@ export function useTimelineViewportController({
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [jumpInFlight, setJumpInFlight] = useState(false);
+  const [bootstrapViewportTick, setBootstrapViewportTick] = useState(0);
 
   const topSpacerHeightRef = useRef(0);
   const hasInitialScrolledRef = useRef(false);
@@ -56,6 +58,9 @@ export function useTimelineViewportController({
   const backwardEdgeArmedRef = useRef(true);
   const forwardEdgeArmedRef = useRef(true);
   const suppressNextCenterScrollRef = useRef(false);
+  const userScrollIntentRef = useRef(false);
+  const pendingBootstrapRevealRef = useRef(false);
+  const bootstrapViewportRetryFrameRef = useRef<number | undefined>(undefined);
   const settleAnchorFrameRef = useRef<number | undefined>(undefined);
   const readyFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const currentRoomIdRef = useRef(roomId);
@@ -82,6 +87,12 @@ export function useTimelineViewportController({
     backwardEdgeArmedRef.current = true;
     forwardEdgeArmedRef.current = true;
     suppressNextCenterScrollRef.current = false;
+    userScrollIntentRef.current = false;
+    pendingBootstrapRevealRef.current = false;
+    if (bootstrapViewportRetryFrameRef.current !== undefined) {
+      cancelAnimationFrame(bootstrapViewportRetryFrameRef.current);
+      bootstrapViewportRetryFrameRef.current = undefined;
+    }
     if (settleAnchorFrameRef.current !== undefined) {
       cancelAnimationFrame(settleAnchorFrameRef.current);
       settleAnchorFrameRef.current = undefined;
@@ -181,12 +192,16 @@ export function useTimelineViewportController({
       if (readyFallbackTimerRef.current !== undefined) {
         clearTimeout(readyFallbackTimerRef.current);
       }
+      if (bootstrapViewportRetryFrameRef.current !== undefined) {
+        cancelAnimationFrame(bootstrapViewportRetryFrameRef.current);
+      }
     },
     []
   );
 
   useEffect(() => {
     if (isReady) return;
+    if (pendingBootstrapRevealRef.current) return;
     if (readyFallbackTimerRef.current !== undefined) {
       clearTimeout(readyFallbackTimerRef.current);
     }
@@ -211,13 +226,18 @@ export function useTimelineViewportController({
     ) {
       const lastIndex = processedEventsRef.current.length - 1;
       if (lastIndex < 0) {
-        pendingReadyRef.current = false;
+        // Some rooms initially hydrate mostly state/hidden events. Keep a pending
+        // first-visible-row anchor so we re-land on latest once a renderable row appears.
+        pendingReadyRef.current = true;
         settleTimelineAnchor({ kind: 'bottom' }, true);
         hasInitialScrolledRef.current = true;
         return;
       }
       vListRef.current.scrollToIndex(lastIndex, { align: 'end' });
-      settleTimelineAnchor({ kind: 'bottom' }, true);
+      const contentHeight = Math.max(0, vListRef.current.scrollSize - topSpacerHeightRef.current);
+      const shouldBootstrapBeforeReveal = timelineSync.canPaginateBack;
+      pendingBootstrapRevealRef.current = shouldBootstrapBeforeReveal;
+      settleTimelineAnchor({ kind: 'bottom' }, !shouldBootstrapBeforeReveal);
       hasInitialScrolledRef.current = true;
     }
   }, [
@@ -257,8 +277,34 @@ export function useTimelineViewportController({
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
       if (wasAtBottomBeforePaginationRef.current) settleTimelineAnchor({ kind: 'bottom' });
+
+      if (pendingBootstrapRevealRef.current) {
+        const v = vListRef.current;
+        if (!v) return;
+        if (v.viewportSize <= 0) return;
+        const contentHeight = Math.max(0, v.scrollSize - topSpacerHeightRef.current);
+        const isFilled = contentHeight > v.viewportSize + BOOTSTRAP_FILL_TARGET_SLACK_PX;
+        const done =
+          isFilled ||
+          !timelineSync.canPaginateBack ||
+          remainingInitialBackfillPagesRef.current <= 0;
+        if (done) {
+          pendingBootstrapRevealRef.current = false;
+          setIsReady(true);
+        }
+      }
+    } else if (timelineSync.backwardStatus === 'error' && pendingBootstrapRevealRef.current) {
+      pendingBootstrapRevealRef.current = false;
+      setIsReady(true);
     }
-  }, [timelineSync.backwardStatus, atBottomRef, settleTimelineAnchor]);
+  }, [
+    roomId,
+    timelineSync.backwardStatus,
+    timelineSync.canPaginateBack,
+    atBottomRef,
+    settleTimelineAnchor,
+    vListRef,
+  ]);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -369,12 +415,19 @@ export function useTimelineViewportController({
     pendingReadyRef.current = false;
     vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
     settleTimelineAnchor({ kind: 'bottom' }, true);
-  }, [processedEventsRef.current.length, settleTimelineAnchor, vListRef, processedEventsRef]);
+  }, [
+    roomId,
+    timelineSync.eventsLength,
+    processedEventsRef.current.length,
+    settleTimelineAnchor,
+    vListRef,
+    processedEventsRef,
+  ]);
 
   useEffect(() => {
     const v = vListRef.current;
     if (!v) return;
-    if (!isReady) return;
+    if (!isReady && !pendingBootstrapRevealRef.current) return;
     if (jumpInFlight) return;
     if (timelineSync.focusItem) return;
     if (anchorRef.current.kind === 'message-center') return;
@@ -383,16 +436,33 @@ export function useTimelineViewportController({
     if (!canPaginateBackRef.current || backwardStatusRef.current !== 'idle') return;
 
     const contentHeight = Math.max(0, v.scrollSize - topSpacerHeightRef.current);
-    if (contentHeight > v.viewportSize + 32) return;
+    if (v.viewportSize <= 0) {
+      if (bootstrapViewportRetryFrameRef.current === undefined) {
+        bootstrapViewportRetryFrameRef.current = requestAnimationFrame(() => {
+          bootstrapViewportRetryFrameRef.current = undefined;
+          setBootstrapViewportTick((prev) => prev + 1);
+        });
+      }
+      return;
+    }
+    if (contentHeight > v.viewportSize + BOOTSTRAP_FILL_TARGET_SLACK_PX) {
+      if (pendingBootstrapRevealRef.current) {
+        pendingBootstrapRevealRef.current = false;
+        setIsReady(true);
+      }
+      return;
+    }
 
     remainingInitialBackfillPagesRef.current -= 1;
     timelineSyncRef.current.handleTimelinePagination(true);
   }, [
+    roomId,
     isReady,
     jumpInFlight,
     timelineSync.focusItem,
     timelineSync.eventsLength,
     timelineSync.backwardStatus,
+    bootstrapViewportTick,
     timelineSyncRef,
     vListRef,
   ]);
@@ -434,22 +504,49 @@ export function useTimelineViewportController({
         }
       );
 
+      const suppressBottomReleaseWhileLoading =
+        anchorRef.current.kind === 'bottom' &&
+        decision.anchorMode === 'free' &&
+        (backwardStatusRef.current === 'loading' || forwardStatusRef.current === 'loading');
+      const suppressBottomReleaseWithoutIntent =
+        anchorRef.current.kind === 'bottom' &&
+        decision.anchorMode === 'free' &&
+        !userScrollIntentRef.current;
+      const suppressBottomRelease =
+        suppressBottomReleaseWhileLoading || suppressBottomReleaseWithoutIntent;
+      const nextAnchorMode = suppressBottomRelease ? 'bottom' : decision.anchorMode;
+      const nextAtBottom = suppressBottomRelease ? true : decision.atBottom;
+      const paginateBackward = suppressBottomRelease ? false : decision.paginateBackward;
+      const paginateForward = suppressBottomRelease ? false : decision.paginateForward;
+
       backwardEdgeArmedRef.current = decision.nextBackwardArmed;
       forwardEdgeArmedRef.current = decision.nextForwardArmed;
 
-      if (decision.atBottom !== atBottomRef.current) setAtBottom(decision.atBottom);
+      if (nextAtBottom !== atBottomRef.current) setAtBottom(nextAtBottom);
 
-      if (decision.anchorMode === 'bottom') {
+      if (nextAnchorMode === 'bottom') {
         anchorRef.current = { kind: 'bottom' };
-      } else if (decision.anchorMode === 'free') {
+      } else if (nextAnchorMode === 'free') {
         anchorRef.current = { kind: 'none' };
       }
 
-      if (decision.paginateBackward) timelineSyncRef.current.handleTimelinePagination(true);
-      if (decision.paginateForward) timelineSyncRef.current.handleTimelinePagination(false);
+      if (paginateBackward) timelineSyncRef.current.handleTimelinePagination(true);
+      if (paginateForward) timelineSyncRef.current.handleTimelinePagination(false);
     },
-    [atBottomRef, jumpInFlight, setAtBottom, timelineSync.focusItem, timelineSyncRef, vListRef]
+    [
+      roomId,
+      atBottomRef,
+      jumpInFlight,
+      setAtBottom,
+      timelineSync.focusItem,
+      timelineSyncRef,
+      vListRef,
+    ]
   );
+
+  const markUserScrollIntent = useCallback(() => {
+    userScrollIntentRef.current = true;
+  }, []);
 
   return {
     shift,
@@ -458,5 +555,6 @@ export function useTimelineViewportController({
     beginJumpLoad,
     settleTimelineAnchor,
     handleVListScroll,
+    markUserScrollIntent,
   };
 }

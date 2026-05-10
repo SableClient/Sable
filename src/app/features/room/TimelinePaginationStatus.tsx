@@ -8,6 +8,7 @@ export type TimelinePaginationStatusRowProps = {
   hasMore: boolean;
   status: TimelinePaginationStatus;
   onRetry: () => void;
+  hidden?: boolean;
 };
 
 export function TimelinePaginationStatusRow({
@@ -16,7 +17,9 @@ export function TimelinePaginationStatusRow({
   hasMore,
   status,
   onRetry,
+  hidden,
 }: Readonly<TimelinePaginationStatusRowProps>) {
+  if (hidden) return null;
   if (!hasMore && status === 'idle') return null;
 
   if (status === 'error') {

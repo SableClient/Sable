@@ -40,6 +40,7 @@ export type TimelineViewportProps = {
   backPagination: ReactNode;
   frontPagination: ReactNode;
   onScroll: (offset: number) => void;
+  onUserScrollIntent: () => void;
   onJumpLatest: () => void;
   renderMatrixEvent: (
     eventType: string,
@@ -69,15 +70,36 @@ export function TimelineViewport({
   backPagination,
   frontPagination,
   onScroll,
+  onUserScrollIntent,
   onJumpLatest,
   renderMatrixEvent,
 }: Readonly<TimelineViewportProps>) {
   return (
     <Box grow="Yes" style={{ position: 'relative' }}>
       {unreadBanner}
+      {backPagination && (
+        <Box
+          justifyContent="Center"
+          alignItems="Center"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 5,
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ pointerEvents: 'auto' }}>{backPagination}</div>
+        </Box>
+      )}
 
       <div
         ref={messageListRef}
+        onWheelCapture={onUserScrollIntent}
+        onTouchStartCapture={onUserScrollIntent}
+        onPointerDownCapture={onUserScrollIntent}
+        onKeyDownCapture={onUserScrollIntent}
         style={{
           flex: 1,
           minHeight: 0,
@@ -113,7 +135,6 @@ export function TimelineViewport({
               messageLayout={messageLayout}
               messageSpacing={messageSpacing}
               canPaginateBack={canPaginateBack}
-              backPagination={backPagination}
               renderMatrixEvent={renderMatrixEvent}
             />
           )}

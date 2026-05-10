@@ -54,6 +54,28 @@ describe('timelineViewportModel', () => {
     ).toBe('bottom');
   });
 
+  it('keeps bottom anchor pinned for minor upward drift near latest', () => {
+    expect(
+      releaseAnchorOnScroll('bottom', {
+        offset: 2100,
+        previousOffset: 2110,
+        scrollSize: 3000,
+        viewportSize: 800,
+      })
+    ).toBe('bottom');
+  });
+
+  it('releases bottom anchor after a deliberate upward move away from latest', () => {
+    expect(
+      releaseAnchorOnScroll('bottom', {
+        offset: 1800,
+        previousOffset: 2200,
+        scrollSize: 3000,
+        viewportSize: 800,
+      })
+    ).toBe('free');
+  });
+
   it('releases a center anchor after manual downward scroll', () => {
     expect(
       releaseAnchorOnScroll('center', {

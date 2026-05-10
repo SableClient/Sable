@@ -65,6 +65,20 @@ const createRefs = (vList = createVList()) => {
   };
 };
 
+const createEmptyProcessedRefs = (vList = createVList()) => {
+  const processedEventsRef: MutableRefObject<ProcessedEvent[]> = {
+    current: [],
+  };
+
+  return {
+    vList,
+    vListRef: { current: vList } as RefObject<VListHandle>,
+    messageListRef: { current: document.createElement('div') } as RefObject<HTMLDivElement>,
+    processedEventsRef,
+    atBottomRef: { current: true },
+  };
+};
+
 const renderController = ({
   eventId,
   timelineSync = createTimelineSync(),
@@ -128,10 +142,90 @@ describe('useTimelineViewportController', () => {
     expect(result.current.isReady).toBe(true);
   });
 
+  it('re-anchors to latest when first renderable rows appear after an all-state initial slice', () => {
+    const refs = createEmptyProcessedRefs();
+    const timelineSync = createTimelineSync({ eventsLength: 20 });
+    const { rerender } = renderController({ timelineSync, refs });
+
+    expect(refs.vList.scrollToIndex).not.toHaveBeenCalled();
+    expect(refs.vList.scrollTo).toHaveBeenCalledWith(refs.vList.scrollSize);
+
+    refs.processedEventsRef.current = [
+      createProcessedEvent('$x', 10),
+      createProcessedEvent('$y', 11),
+    ];
+
+    rerender({ sync: timelineSync, roomEventId: undefined });
+
+    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'end' });
+  });
+
+  it('delays viewport reveal while bootstrap prefill is in progress for underfilled rooms', () => {
+    const vList = createVList() as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+      scrollTo: ReturnType<typeof vi.fn>;
+      scrollBy: ReturnType<typeof vi.fn>;
+      scrollToIndex: ReturnType<typeof vi.fn>;
+    };
+    vList.scrollSize = 800;
+    vList.viewportSize = 800;
+    const refs = createRefs(vList as unknown as VListHandle);
+    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
+
+    const { result } = renderController({ timelineSync, refs });
+
+    expect(result.current.isReady).toBe(false);
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('does not trigger ready fallback timeout while bootstrap reveal is gated', () => {
+    vi.useFakeTimers();
+    const vList = createVList() as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+    vList.scrollSize = 700;
+    vList.viewportSize = 700;
+    const refs = createRefs(vList as unknown as VListHandle);
+    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
+
+    const { result } = renderController({ timelineSync, refs });
+    expect(result.current.isReady).toBe(false);
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(result.current.isReady).toBe(false);
+  });
+
+  it('waits for a measured viewport before bootstrap reveal or backfill', () => {
+    const vList = createVList() as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+    vList.scrollSize = 120;
+    vList.viewportSize = 0;
+    const refs = createRefs(vList as unknown as VListHandle);
+    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
+
+    const { result } = renderController({ timelineSync, refs });
+
+    expect(result.current.isReady).toBe(false);
+    expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
+  });
+
   it('paginates older history at the top edge', () => {
     const timelineSync = createTimelineSync();
     const { result } = renderController({ timelineSync });
 
+    act(() => {
+      result.current.markUserScrollIntent();
+    });
     act(() => {
       result.current.handleVListScroll(300);
     });
@@ -140,6 +234,105 @@ describe('useTimelineViewportController', () => {
     });
 
     expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps bottom anchor pinned during loading-driven offset shifts', () => {
+    const refs = createRefs();
+    const setAtBottom = vi.fn((val: boolean) => {
+      refs.atBottomRef.current = val;
+    });
+    const timelineSync = createTimelineSync();
+    const { result, rerender } = renderController({ timelineSync, refs, setAtBottom });
+    const mutableVList = refs.vList as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+
+    mutableVList.scrollOffset = 2200;
+    mutableVList.scrollSize = 3000;
+    mutableVList.viewportSize = 800;
+
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    const loadingTimelineSync = createTimelineSync({
+      ...timelineSync,
+      backwardStatus: 'loading',
+    });
+    rerender({ sync: loadingTimelineSync, roomEventId: undefined });
+    setAtBottom.mockClear();
+
+    mutableVList.scrollOffset = 1900;
+    act(() => {
+      result.current.handleVListScroll(1900);
+    });
+
+    expect(setAtBottom).not.toHaveBeenCalledWith(false);
+    expect(loadingTimelineSync.handleTimelinePagination).not.toHaveBeenCalled();
+  });
+
+  it('releases bottom anchor on an intentional upward scroll when idle', () => {
+    const refs = createRefs();
+    const setAtBottom = vi.fn((val: boolean) => {
+      refs.atBottomRef.current = val;
+    });
+    const timelineSync = createTimelineSync();
+    const { result } = renderController({ timelineSync, refs, setAtBottom });
+    const mutableVList = refs.vList as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+
+    mutableVList.scrollOffset = 2200;
+    mutableVList.scrollSize = 3000;
+    mutableVList.viewportSize = 800;
+
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    act(() => {
+      result.current.markUserScrollIntent();
+    });
+    mutableVList.scrollOffset = 1900;
+    act(() => {
+      result.current.handleVListScroll(1900);
+    });
+
+    expect(setAtBottom).toHaveBeenCalledWith(false);
+  });
+
+  it('does not release bottom anchor before any user scroll intent', () => {
+    const refs = createRefs();
+    const setAtBottom = vi.fn((val: boolean) => {
+      refs.atBottomRef.current = val;
+    });
+    const timelineSync = createTimelineSync();
+    const { result } = renderController({ timelineSync, refs, setAtBottom });
+    const mutableVList = refs.vList as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+
+    mutableVList.scrollOffset = 2200;
+    mutableVList.scrollSize = 3000;
+    mutableVList.viewportSize = 800;
+
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    setAtBottom.mockClear();
+    mutableVList.scrollOffset = 1900;
+    act(() => {
+      result.current.handleVListScroll(1900);
+    });
+
+    expect(setAtBottom).not.toHaveBeenCalledWith(false);
   });
 
   it('does not paginate while an event jump is still loading', () => {

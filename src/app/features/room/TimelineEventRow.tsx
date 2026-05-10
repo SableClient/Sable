@@ -32,7 +32,6 @@ export type TimelineEventRowProps = {
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   canPaginateBack: boolean;
-  backPagination: ReactNode;
   renderMatrixEvent: (
     eventType: string,
     isStateEvent: boolean,
@@ -51,7 +50,6 @@ export function TimelineEventRow({
   messageLayout,
   messageSpacing,
   canPaginateBack,
-  backPagination,
   renderMatrixEvent,
 }: Readonly<TimelineEventRowProps>) {
   const introPadding = `${toRem(28)} ${toRem(16)} ${toRem(24)} ${
@@ -62,14 +60,13 @@ export function TimelineEventRow({
     if (index === 0 && !canPaginateBack) {
       return (
         <Fragment key="intro-and-first">
-          {backPagination}
           <div style={{ padding: introPadding }}>
             <RoomIntro room={room} />
           </div>
         </Fragment>
       );
     }
-    if (index === 0) return <Fragment key="first">{backPagination}</Fragment>;
+    if (index === 0) return <Fragment key="first" />;
     return <Fragment key={index} />;
   }
 
@@ -114,7 +111,6 @@ export function TimelineEventRow({
             <RoomIntro room={room} />
           </div>
         )}
-        {backPagination}
         {dividers}
         {renderedEvent}
       </Fragment>

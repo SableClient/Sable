@@ -237,6 +237,7 @@ export function RoomTimeline({
     beginJumpLoad,
     settleTimelineAnchor,
     handleVListScroll,
+    markUserScrollIntent,
   } = useTimelineViewportController({
     roomId: room.roomId,
     eventId,
@@ -251,6 +252,8 @@ export function RoomTimeline({
   });
 
   const showLoadingPlaceholders = !isReady && timelineSync.eventsLength === 0;
+  const hideInlineBackPagination =
+    topSpacerHeight > 0 && atBottomState && timelineSync.backwardStatus === 'loading';
 
   const vListData = useMemo<Array<ProcessedEvent | undefined>>(() => {
     if (showLoadingPlaceholders) return [];
@@ -457,6 +460,7 @@ export function RoomTimeline({
         hasMore={timelineSync.canPaginateBack}
         status={timelineSync.backwardStatus}
         onRetry={() => timelineSync.handleTimelinePagination(true)}
+        hidden={hideInlineBackPagination}
       />
     );
   }
@@ -533,6 +537,7 @@ export function RoomTimeline({
       backPagination={backPaginationJSX}
       frontPagination={frontPaginationJSX}
       onScroll={handleVListScroll}
+      onUserScrollIntent={markUserScrollIntent}
       onJumpLatest={() => {
         if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
         timelineSync.setTimeline(getInitialTimeline(room));

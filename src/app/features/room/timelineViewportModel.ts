@@ -37,6 +37,8 @@ export type TimelineScrollDecision = {
 export const TIMELINE_BOTTOM_THRESHOLD_PX = 100;
 export const TIMELINE_PAGINATION_THRESHOLD_PX = 500;
 export const TIMELINE_PAGINATION_REARM_THRESHOLD_PX = 700;
+export const TIMELINE_SCROLL_INTENT_DELTA_PX = 8;
+export const TIMELINE_BOTTOM_RELEASE_DISTANCE_PX = 200;
 
 export const getDistanceFromBottom = (
   scrollSize: number,
@@ -70,15 +72,32 @@ export const releaseAnchorOnScroll = (
   anchorMode: TimelineAnchorMode,
   snapshot: TimelineScrollSnapshot
 ): TimelineAnchorMode => {
+  const distanceFromBottom = getDistanceFromBottom(
+    snapshot.scrollSize,
+    snapshot.offset,
+    snapshot.viewportSize
+  );
+  const userScrollingUp =
+    snapshot.offset + TIMELINE_SCROLL_INTENT_DELTA_PX < snapshot.previousOffset;
+  const userScrollingDown =
+    snapshot.offset > snapshot.previousOffset + TIMELINE_SCROLL_INTENT_DELTA_PX;
+
   if (anchorMode === 'center') {
-    if (snapshot.offset + 2 < snapshot.previousOffset) return 'free';
-    if (snapshot.offset > snapshot.previousOffset + 2) return 'free';
+    if (userScrollingUp) return 'free';
+    if (userScrollingDown) return 'free';
     return 'center';
+  }
+
+  if (anchorMode === 'bottom') {
+    if (isTimelineAtBottom(snapshot.scrollSize, snapshot.offset, snapshot.viewportSize))
+      return 'bottom';
+    if (userScrollingUp && distanceFromBottom > TIMELINE_BOTTOM_RELEASE_DISTANCE_PX) return 'free';
+    return 'bottom';
   }
 
   if (isTimelineAtBottom(snapshot.scrollSize, snapshot.offset, snapshot.viewportSize))
     return 'bottom';
-  if (snapshot.offset + 2 < snapshot.previousOffset) return 'free';
+  if (userScrollingUp) return 'free';
   return anchorMode;
 };
 
@@ -89,8 +108,10 @@ export const getTimelineScrollDecision = (
 ): TimelineScrollDecision => {
   const nextAnchorMode = releaseAnchorOnScroll(anchorMode, snapshot);
   const atBottom = isTimelineAtBottom(snapshot.scrollSize, snapshot.offset, snapshot.viewportSize);
-  const userScrollingUp = snapshot.offset + 2 < snapshot.previousOffset;
-  const userScrollingDown = snapshot.offset > snapshot.previousOffset + 2;
+  const userScrollingUp =
+    snapshot.offset + TIMELINE_SCROLL_INTENT_DELTA_PX < snapshot.previousOffset;
+  const userScrollingDown =
+    snapshot.offset > snapshot.previousOffset + TIMELINE_SCROLL_INTENT_DELTA_PX;
   const distanceFromBottom = getDistanceFromBottom(
     snapshot.scrollSize,
     snapshot.offset,

@@ -1,5 +1,6 @@
 import { createVar, keyframes, style, styleVariants } from '@vanilla-extract/css';
-import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
+import type { RecipeVariants } from '@vanilla-extract/recipes';
+import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, color, config, toRem } from 'folds';
 
 export const StickySection = style({
@@ -58,20 +59,23 @@ const highlightAnime = keyframes({
     backgroundColor: color.Primary.Container,
   },
 });
+
+export const messageJumpHighlight = style({
+  animation: `${highlightAnime} 2000ms ease-in-out`,
+  animationIterationCount: 'infinite',
+});
+
 const HighlightVariant = styleVariants({
-  true: {
-    animation: `${highlightAnime} 2000ms ease-in-out`,
-    animationIterationCount: 'infinite',
-  },
+  true: [messageJumpHighlight],
 });
 
 const NotifyHighlightVariant = styleVariants({
   silent: {
-    backgroundColor: color.Secondary.Container,
+    backgroundColor: `color-mix(in srgb, ${color.Secondary.Container} 25%, transparent)`,
     boxShadow: `inset ${config.borderWidth.B700} 0 0 ${color.Secondary.ContainerLine}`,
   },
   loud: {
-    backgroundColor: color.Warning.Container,
+    backgroundColor: `color-mix(in srgb, ${color.Warning.Container} 25%, transparent)`,
     boxShadow: `inset ${config.borderWidth.B700} 0 0 ${color.Warning.ContainerLine}`,
   },
 });
@@ -225,6 +229,8 @@ export const PronounPill = style({
 
 export const MessageTextBody = recipe({
   base: {
+    unicodeBidi: 'plaintext',
+    alignSelf: 'start',
     wordBreak: 'break-word',
     fontSize: '1rem !important', // Override folds Text component to enable page zoom scaling
   },

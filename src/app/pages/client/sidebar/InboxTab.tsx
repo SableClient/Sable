@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons, toRem } from 'folds';
+import { Icon, Icons } from 'folds';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -15,7 +15,6 @@ import {
   joinPathComponent,
 } from '$pages/pathUtils';
 import { useInboxSelected } from '$hooks/router/useInbox';
-import { UnreadBadge } from '$components/unread-badge';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 
@@ -51,11 +50,7 @@ export function InboxTab() {
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
-      {inviteCount > 0 && (
-        <SidebarItemBadge hasCount style={{ left: toRem(-6), right: 'auto' }}>
-          <UnreadBadge highlight count={inviteCount} />
-        </SidebarItemBadge>
-      )}
+      {inviteCount > 0 && <SidebarUnreadBadge highlight count={inviteCount} />}
     </SidebarItem>
   );
 }

@@ -14,7 +14,7 @@ export function ContactInformation() {
   const threePIds =
     threePIdsState.status === AsyncStatus.Success ? threePIdsState.data.threepids : undefined;
 
-  const emailIds = threePIds?.filter((id) => id.medium === 'email');
+  const emailIds = threePIds?.filter((id) => (id.medium as string) === 'email');
 
   useEffect(() => {
     loadThreePIds();
@@ -29,7 +29,11 @@ export function ContactInformation() {
         direction="Column"
         gap="400"
       >
-        <SettingTile title="Email Address" description="Email address attached to your account.">
+        <SettingTile
+          title="Email Address"
+          focusId="email-address"
+          description="Email address attached to your account."
+        >
           <Box>
             {emailIds?.map((email) => (
               <Chip key={email.address} as="span" variant="Secondary" radii="Pill">

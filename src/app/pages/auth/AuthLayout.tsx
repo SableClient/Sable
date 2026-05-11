@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { Box, Header, Scroll, Spinner, Text, color } from 'folds';
+import { Box, Chip, Header, Scroll, Spinner, Text, color } from 'folds';
 import {
   Outlet,
   generatePath,
@@ -22,6 +22,7 @@ import { AuthFlowsLoader } from '$components/AuthFlowsLoader';
 import { AuthFlowsProvider } from '$hooks/useAuthFlows';
 import { AuthServerProvider } from '$hooks/useAuthServer';
 import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
+import { getHomePath } from '$pages/pathUtils';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
 import * as css from './styles.css';
@@ -139,9 +140,18 @@ export function AuthLayout() {
               <Text size="H3">Sable</Text>
             </Box>
             {isAddingAccount && (
-              <Text size="T200" priority="300" style={{ marginLeft: 'auto', marginRight: 4 }}>
-                Adding account
-              </Text>
+              <Box gap="200" alignItems="Center" style={{ marginLeft: 'auto' }}>
+                <Text size="T200" priority="300">
+                  Adding account
+                </Text>
+                <Chip
+                  variant="Surface"
+                  radii="300"
+                  onClick={() => window.location.assign(getHomePath())}
+                >
+                  <Text size="T200">Cancel</Text>
+                </Chip>
+              </Box>
             )}
           </Header>
           <Box className={css.AuthCardContent} direction="Column">

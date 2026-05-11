@@ -1,4 +1,4 @@
-import { ComponentProps, MutableRefObject, ReactNode } from 'react';
+import type { ComponentProps, MutableRefObject, ReactNode } from 'react';
 import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { ContainerColor } from '$styles/ContainerColor.css';

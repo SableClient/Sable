@@ -1,21 +1,26 @@
-import { ChangeEventHandler, FormEventHandler, useCallback, useMemo, useState } from 'react';
-import { IPushRule, IPushRules, PushRuleKind } from '$types/matrix-sdk';
+import type { ChangeEventHandler, FormEventHandler } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { IPushRule, IPushRules } from '$types/matrix-sdk';
+import { PushRuleKind, EventType } from '$types/matrix-sdk';
 import { Box, Text, Badge, Button, Input, config, IconButton, Icons, Icon, Spinner } from 'folds';
 import { useAccountData } from '$hooks/useAccountData';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
+import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
+import type { NotificationModeOptions } from '$hooks/useNotificationMode';
 import {
   getNotificationModeActions,
   NotificationMode,
-  NotificationModeOptions,
+  useNotificationActionsMode,
   useNotificationModeActions,
 } from '$hooks/useNotificationMode';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { NotificationModeSwitcher } from './NotificationModeSwitcher';
 import { NotificationLevelsHint } from './NotificationLevelsHint';
+import { notificationModeSelectorOptions } from './notificationModeOptions';
 
 const NOTIFY_MODE_OPS: NotificationModeOptions = {
   highlight: true,
@@ -23,7 +28,7 @@ const NOTIFY_MODE_OPS: NotificationModeOptions = {
 
 function KeywordInput() {
   const mx = useMatrixClient();
-  const [keyword, setKeyword] = useState<string>('');
+  const [keyword, setKeyword] = useState('');
 
   const [keywordState, addKeyword] = useAsyncCallback(
     useCallback(
@@ -129,25 +134,34 @@ function KeywordModeSwitcher({ pushRule }: PushRulesProps) {
   const mx = useMatrixClient();
 
   const getModeActions = useNotificationModeActions(NOTIFY_MODE_OPS);
-
-  const handleChange = useCallback(
-    async (mode: NotificationMode) => {
-      const actions = getModeActions(mode);
-      await mx.setPushRuleActions(
-        'global',
-        PushRuleKind.ContentSpecific,
-        pushRule.rule_id,
-        actions
-      );
-    },
-    [mx, getModeActions, pushRule]
+  const selectedMode = useNotificationActionsMode(pushRule.actions);
+  const [changeState, change] = useAsyncCallback(
+    useCallback(
+      async (mode: NotificationMode) => {
+        const actions = getModeActions(mode);
+        await mx.setPushRuleActions(
+          'global',
+          PushRuleKind.ContentSpecific,
+          pushRule.rule_id,
+          actions
+        );
+      },
+      [mx, getModeActions, pushRule]
+    )
   );
 
-  return <NotificationModeSwitcher pushRule={pushRule} onChange={handleChange} />;
+  return (
+    <SettingMenuSelector
+      value={selectedMode}
+      options={notificationModeSelectorOptions}
+      onSelect={change}
+      loading={changeState.status === AsyncStatus.Loading}
+    />
+  );
 }
 
 export function KeywordMessagesNotifications() {
-  const pushRulesEvt = useAccountData(AccountDataEvent.PushRules);
+  const pushRulesEvt = useAccountData(EventType.PushRules);
   const pushRules = useMemo(
     () => pushRulesEvt?.getContent<IPushRules>() ?? { global: {} },
     [pushRulesEvt]
@@ -155,9 +169,7 @@ export function KeywordMessagesNotifications() {
 
   const keywordPushRules = useMemo(() => {
     const content = pushRules.global.content ?? [];
-    return content.filter(
-      (pushRule) => pushRule.default === false && typeof pushRule.pattern === 'string'
-    );
+    return content.filter((pushRule) => !pushRule.default && typeof pushRule.pattern === 'string');
   }, [pushRules]);
 
   return (
@@ -183,6 +195,7 @@ export function KeywordMessagesNotifications() {
       >
         <SettingTile
           title="Select Keyword"
+          focusId="select-keyword"
           description="Set a notification preference for message containing given keyword."
         >
           <KeywordInput />
@@ -198,6 +211,10 @@ export function KeywordMessagesNotifications() {
         >
           <SettingTile
             title={`"${pushRule.pattern}"`}
+            focusId={`keyword-${toSettingsFocusIdPart(
+              pushRule.pattern ?? pushRule.rule_id ?? 'custom-keyword'
+            )}`}
+            showSettingLinkAction={false}
             before={<KeywordCross pushRule={pushRule} />}
             after={<KeywordModeSwitcher pushRule={pushRule} />}
           />

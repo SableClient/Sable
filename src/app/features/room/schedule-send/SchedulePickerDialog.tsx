@@ -1,7 +1,9 @@
-import { MouseEventHandler, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { serverMaxDelayMsAtom } from '$state/scheduledMessages';
 import FocusTrap from 'focus-trap-react';
+import type { RectCords } from 'folds';
 import {
   Dialog,
   Overlay,
@@ -18,7 +20,6 @@ import {
   Button,
   Chip,
   PopOut,
-  RectCords,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/time';

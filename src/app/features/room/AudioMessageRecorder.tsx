@@ -1,98 +1,205 @@
-import { VoiceRecorder } from '$plugins/voice-recorder-kit';
-import FocusTrap from 'focus-trap-react';
-import { Box, Icon, Icons, Text, color, config } from 'folds';
-import { useRef } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
+import { useVoiceRecorder } from '$plugins/voice-recorder-kit';
+import type { VoiceRecorderStopPayload } from '$plugins/voice-recorder-kit';
+import { Box, Text } from 'folds';
+import * as css from './AudioMessageRecorder.css';
+
+export type AudioRecordingCompletePayload = {
+  audioBlob: Blob;
+  waveform: number[];
+  audioLength: number;
+  audioCodec: string;
+};
+
+export type AudioMessageRecorderHandle = {
+  stop: () => void;
+  cancel: () => void;
+};
 
 type AudioMessageRecorderProps = {
-  onRecordingComplete: (audioBlob: Blob) => void;
+  onRecordingComplete: (payload: AudioRecordingCompletePayload) => void;
   onRequestClose: () => void;
   onWaveformUpdate: (waveform: number[]) => void;
   onAudioLengthUpdate: (length: number) => void;
-  onAudioCodecUpdate?: (codec: string) => void;
 };
 
-// We use a react voice recorder library to handle the recording of audio messages, as it provides a simple API and handles the complexities of recording audio in the browser.
-// The component is wrapped in a focus trap to ensure that keyboard users can easily navigate and interact with the recorder without accidentally losing focus or interacting with other parts of the UI.
-// The styling is kept simple and consistent with the rest of the app, using Folds' design tokens for colors, spacing, and typography.
-// we use a modified version of https://www.npmjs.com/package/react-voice-recorder-kit for the recording
-export function AudioMessageRecorder({
-  onRecordingComplete,
-  onRequestClose,
-  onWaveformUpdate,
-  onAudioLengthUpdate,
-  onAudioCodecUpdate,
-}: AudioMessageRecorderProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isDismissedRef = useRef(false);
-
-  // uses default styling, we use at other places
-  return (
-    <FocusTrap
-      focusTrapOptions={{
-        returnFocusOnDeactivate: false,
-        initialFocus: false,
-        onDeactivate: () => {
-          isDismissedRef.current = true;
-          onRequestClose();
-        },
-        clickOutsideDeactivates: true,
-        allowOutsideClick: true,
-        fallbackFocus: () => containerRef.current!,
-      }}
-    >
-      <div ref={containerRef} tabIndex={-1} style={{ outline: 'none' }}>
-        <Box
-          direction="Column"
-          gap="200"
-          alignItems="Center"
-          style={{
-            backgroundColor: color.Surface.Container,
-            color: color.Surface.OnContainer,
-            border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
-            borderRadius: config.radii.R400,
-            boxShadow: config.shadow.E200,
-            padding: config.space.S400,
-            width: 300,
-          }}
-        >
-          <Text size="H4">Audio Message Recorder</Text>
-          <VoiceRecorder
-            autoStart
-            onStop={({
-              audioFile,
-              waveform,
-              audioLength,
-              audioCodec,
-            }: {
-              audioFile: Blob;
-              waveform: number[];
-              audioLength: number;
-              audioCodec: string;
-            }) => {
-              if (isDismissedRef.current) return;
-              // closes the recorder and sends the audio file back to the parent component to be uploaded and sent as a message
-              onRecordingComplete(audioFile);
-              onWaveformUpdate(waveform);
-              onAudioLengthUpdate(audioLength);
-              // Pass the audio codec to the parent component
-              if (onAudioCodecUpdate) onAudioCodecUpdate(audioCodec);
-            }}
-            buttonBackgroundColor={color.SurfaceVariant.Container}
-            buttonHoverBackgroundColor={color.SurfaceVariant.ContainerHover}
-            iconColor={color.Primary.Main}
-            // icons for the recorder, we use Folds' icon library to keep the styling consistent with the rest of the app
-            customPauseIcon={<Icon src={Icons.Pause} size="200" color={color.Primary.Main} />}
-            customPlayIcon={<Icon src={Icons.Play} size="200" color={color.Primary.Main} />}
-            customDeleteIcon={<Icon src={Icons.Delete} size="200" color={color.Primary.Main} />}
-            customStopIcon={<Icon src={Icons.Send} size="200" color={color.Primary.Main} />}
-            customRepeatIcon={<Icon src={Icons.Reload} size="200" color={color.Primary.Main} />}
-            customResumeIcon={<Icon src={Icons.Mic} size="200" color={color.Primary.Main} />}
-            style={{
-              backgroundColor: color.Surface.ContainerActive,
-            }}
-          />
-        </Box>
-      </div>
-    </FocusTrap>
-  );
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
+
+const MAX_BAR_COUNT = 28;
+const MIN_BAR_COUNT = 8;
+const BAR_WIDTH_PX = 2;
+const BAR_GAP_PX = 4;
+const RECORDER_CHROME_PX = 72;
+
+export const AudioMessageRecorder = forwardRef<
+  AudioMessageRecorderHandle,
+  AudioMessageRecorderProps
+>(({ onRecordingComplete, onRequestClose, onWaveformUpdate, onAudioLengthUpdate }, ref) => {
+  const isDismissedRef = useRef(false);
+  const userRequestedStopRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [announcedTime, setAnnouncedTime] = useState(0);
+  const [barCount, setBarCount] = useState(MAX_BAR_COUNT);
+
+  const onRecordingCompleteRef = useRef(onRecordingComplete);
+  onRecordingCompleteRef.current = onRecordingComplete;
+  const onRequestCloseRef = useRef(onRequestClose);
+  onRequestCloseRef.current = onRequestClose;
+  const onWaveformUpdateRef = useRef(onWaveformUpdate);
+  onWaveformUpdateRef.current = onWaveformUpdate;
+  const onAudioLengthUpdateRef = useRef(onAudioLengthUpdate);
+  onAudioLengthUpdateRef.current = onAudioLengthUpdate;
+
+  const stableOnStop = useCallback((payload: VoiceRecorderStopPayload) => {
+    // useVoiceRecorder also stops during cancel/teardown paths, so only surface a completed
+    // recording after an explicit user stop.
+    if (!userRequestedStopRef.current) return;
+    if (isDismissedRef.current) return;
+    onRecordingCompleteRef.current({
+      audioBlob: payload.audioFile,
+      waveform: payload.waveform,
+      audioLength: payload.audioLength,
+      audioCodec: payload.audioCodec,
+    });
+    onWaveformUpdateRef.current(payload.waveform);
+    onAudioLengthUpdateRef.current(payload.audioLength);
+  }, []);
+
+  const stableOnDelete = useCallback(() => {
+    isDismissedRef.current = true;
+    onRequestCloseRef.current();
+  }, []);
+
+  const { levels, seconds, error, handleStop, handleDelete } = useVoiceRecorder({
+    autoStart: true,
+    onStop: stableOnStop,
+    onDelete: stableOnDelete,
+  });
+
+  const doStop = useCallback(() => {
+    if (isDismissedRef.current) return;
+    userRequestedStopRef.current = true;
+    handleStop();
+  }, [handleStop]);
+
+  const doCancel = useCallback(() => {
+    if (isDismissedRef.current) return;
+    setIsCanceling(true);
+    setTimeout(() => {
+      isDismissedRef.current = true;
+      handleDelete();
+    }, 180);
+  }, [handleDelete]);
+
+  useImperativeHandle(ref, () => ({ stop: doStop, cancel: doCancel }), [doStop, doCancel]);
+
+  useEffect(() => {
+    if (seconds > 0 && seconds % 30 === 0 && seconds !== announcedTime) {
+      setAnnouncedTime(seconds);
+    }
+  }, [seconds, announcedTime]);
+
+  useElementSizeObserver(
+    useCallback(() => containerRef.current, []),
+    useCallback((width) => {
+      const availableWaveformWidth = Math.max(0, width - RECORDER_CHROME_PX);
+      const nextBarCount = Math.max(
+        MIN_BAR_COUNT,
+        Math.min(
+          MAX_BAR_COUNT,
+          Math.floor((availableWaveformWidth + BAR_GAP_PX) / (BAR_WIDTH_PX + BAR_GAP_PX))
+        )
+      );
+      setBarCount((current) => (current === nextBarCount ? current : nextBarCount));
+    }, [])
+  );
+
+  const bars = useMemo(() => {
+    if (levels.length === 0) {
+      return Array(barCount).fill(0.15);
+    }
+    if (levels.length <= barCount) {
+      const step = (levels.length - 1) / (barCount - 1);
+      return Array.from({ length: barCount }, (_, i) => {
+        const position = i * step;
+        const lower = Math.floor(position);
+        const upper = Math.min(Math.ceil(position), levels.length - 1);
+        const fraction = position - lower;
+        if (lower === upper) {
+          return levels[lower] ?? 0.15;
+        }
+        return (levels[lower] ?? 0.15) * (1 - fraction) + (levels[upper] ?? 0.15) * fraction;
+      });
+    }
+    const step = levels.length / barCount;
+    return Array.from({ length: barCount }, (_, i) => {
+      const start = Math.floor(i * step);
+      const end = Math.floor((i + 1) * step);
+      const slice = levels.slice(start, end);
+      return slice.length > 0 ? Math.max(...slice) : 0.15;
+    });
+  }, [barCount, levels]);
+  const waveformBars = useMemo(
+    () =>
+      bars.map((level, index) => ({
+        id: `recording-waveform-bar-${index}`,
+        level,
+      })),
+    [bars]
+  );
+
+  const containerClassName = [css.Container, isCanceling ? css.ContainerCanceling : null]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <>
+      {error && (
+        <Text size="T200" style={{ color: 'var(--color-critical-main)' }}>
+          {error}
+        </Text>
+      )}
+      <Box ref={containerRef} alignItems="Center" gap="200" className={containerClassName}>
+        <div aria-hidden className={css.RecDot} />
+
+        <Box
+          grow="Yes"
+          alignItems="Center"
+          justifyContent="SpaceBetween"
+          className={css.WaveformContainer}
+        >
+          {waveformBars.map((bar) => (
+            <div
+              key={bar.id}
+              className={css.WaveformBar}
+              style={{ height: Math.max(3, Math.round(bar.level * 20)) }}
+            />
+          ))}
+        </Box>
+
+        <Text size="T200" className={css.Timer} aria-live="polite" aria-atomic="true">
+          {formatTime(seconds)}
+        </Text>
+        {announcedTime > 0 && announcedTime === seconds && (
+          <span className={css.SrOnly} aria-live="polite">
+            Recording duration: {formatTime(announcedTime)}
+          </span>
+        )}
+      </Box>
+    </>
+  );
+});

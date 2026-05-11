@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, UserEvent, UserEventHandlerMap } from '$types/matrix-sdk';
+import type { User, UserEventHandlerMap } from '$types/matrix-sdk';
+import { UserEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from './useMatrixClient';
 
 export enum Presence {
@@ -25,22 +26,27 @@ const getUserPresence = (user: User): UserPresence => ({
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();
   const user = mx.getUser(userId);
-
   const [presence, setPresence] = useState(() => (user ? getUserPresence(user) : undefined));
 
   useEffect(() => {
-    const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {
-      if (u.userId === user?.userId) {
+    if (!user) {
+      setPresence(undefined);
+      return undefined;
+    }
+    setPresence(getUserPresence(user));
+    const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (e, u) => {
+      if (u.userId === user.userId) {
         setPresence(getUserPresence(user));
       }
     };
-    user?.on(UserEvent.Presence, updatePresence);
-    user?.on(UserEvent.CurrentlyActive, updatePresence);
-    user?.on(UserEvent.LastPresenceTs, updatePresence);
+    user.on(UserEvent.Presence, updatePresence);
+    user.on(UserEvent.CurrentlyActive, updatePresence);
+    user.on(UserEvent.LastPresenceTs, updatePresence);
+
     return () => {
-      user?.removeListener(UserEvent.Presence, updatePresence);
-      user?.removeListener(UserEvent.CurrentlyActive, updatePresence);
-      user?.removeListener(UserEvent.LastPresenceTs, updatePresence);
+      user.removeListener(UserEvent.Presence, updatePresence);
+      user.removeListener(UserEvent.CurrentlyActive, updatePresence);
+      user.removeListener(UserEvent.LastPresenceTs, updatePresence);
     };
   }, [user]);
 

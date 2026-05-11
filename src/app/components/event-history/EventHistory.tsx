@@ -14,7 +14,7 @@ import {
   color,
   config,
 } from 'folds';
-import { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
+import type { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -30,16 +30,18 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useCallback, useMemo, useState } from 'react';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import { modalAtom, ModalType } from '$state/modal';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { MessageEvent } from '$types/matrix/room';
+
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as css from './EventHistory.css';
+import { EventType } from '$types/matrix-sdk';
 
 export type EventHistoryProps = {
   room: Room;
@@ -50,6 +52,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
   ({ className, room, mEvents, requestClose, ...props }, ref) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const openProfile = useOpenUserRoomProfile();
     const space = useSpaceOptionally();
     const nicknames = useAtomValue(nicknamesAtom);
@@ -57,7 +60,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const getName = (userId: string) =>
       getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId) ?? userId;
 
-    const readerId = mEvents[0].event.sender ?? '';
+    const readerId = mEvents[0]?.event.sender ?? '';
     const name = getName(readerId ?? '');
     const avatarMxcUrl = room.getMember(readerId ?? '')?.getMxcAvatarUrl();
     const avatarUrl = avatarMxcUrl
@@ -71,19 +74,20 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const spoilerClickHandler = useSpoilerClickHandler();
     const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
       () =>
-        getReactCustomHtmlParser(mx, mEvents[0].getRoomId(), {
+        getReactCustomHtmlParser(mx, mEvents[0]!.getRoomId(), {
+          settingsLinkBaseUrl,
           linkifyOpts,
           useAuthentication,
           handleSpoilerClick: spoilerClickHandler,
         }),
-      [linkifyOpts, mEvents, mx, spoilerClickHandler, useAuthentication]
+      [linkifyOpts, mEvents, mx, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
     );
     const powerLevels = usePowerLevelsContext();
     const creators = useRoomCreators(room);
     const permissions = useRoomPermissions(creators, powerLevels);
     const canRedact = permissions.action('redact', mx.getSafeUserId());
-    const canDeleteOwn = permissions.event(MessageEvent.RoomRedaction, mx.getSafeUserId());
-    const canDelete = canRedact || (canDeleteOwn && mEvents[0].getSender() === mx.getUserId());
+    const canDeleteOwn = permissions.event(EventType.RoomRedaction, mx.getSafeUserId());
+    const canDelete = canRedact || (canDeleteOwn && mEvents[0]?.getSender() === mx.getUserId());
 
     const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(room.roomId));
     const triggerReply = useCallback(
@@ -121,7 +125,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
       [room, setReplyDraft]
     );
 
-    function MenuOptions({ mEvent }: { mEvent: MatrixEvent }) {
+    function MenuOptions({ mEvent }: Readonly<{ mEvent: MatrixEvent }>) {
       const setModal = useSetAtom(modalAtom);
       return (
         <Menu className={css.MenuOptions}>
@@ -177,7 +181,10 @@ export const EventHistory = as<'div', EventHistoryProps>(
       );
     }
 
-    function EventItem({ mEvent, EventContent }: { mEvent: MatrixEvent; EventContent: IContent }) {
+    function EventItem({
+      mEvent,
+      EventContent,
+    }: Readonly<{ mEvent: MatrixEvent; EventContent: IContent }>) {
       const [isHovered, setIsHovered] = useState(false);
       return (
         <Box
@@ -263,11 +270,16 @@ export const EventHistory = as<'div', EventHistoryProps>(
           <Scroll visibility="Hover">
             <Box className={css.Content} direction="Column">
               {mEvents.map((mEvent) => {
-                if (!mEvent.event.sender) return <div />;
+                if (!mEvent.event.sender) return <div key={mEvent.event.event_id} />;
                 const EventContent = mEvent.getOriginalContent();
                 return (
                   <>
-                    <hr style={{ width: '100%', color: color.Surface.ContainerLine }} />
+                    <hr
+                      style={{
+                        width: '100%',
+                        color: color.Surface.ContainerLine,
+                      }}
+                    />
                     <EventItem mEvent={mEvent} EventContent={EventContent} />
                   </>
                 );

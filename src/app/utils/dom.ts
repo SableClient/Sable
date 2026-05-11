@@ -102,8 +102,8 @@ export const getVideoFileUrl = (fileOrBlob: File | Blob) => URL.createObjectURL(
 export const loadImageElement = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = document.createElement('img');
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', (err) => reject(err));
     img.src = url;
   });
 
@@ -114,13 +114,13 @@ export const loadVideoElement = (url: string): Promise<HTMLVideoElement> =>
     video.playsInline = true;
     video.muted = true;
 
-    video.onloadeddata = () => {
+    video.addEventListener('loadeddata', () => {
       resolve(video);
       video.pause();
-    };
-    video.onerror = (e) => {
+    });
+    video.addEventListener('error', (e) => {
       reject(e);
-    };
+    });
 
     video.src = url;
     video.load();
@@ -187,22 +187,35 @@ export const scrollToBottom = (scrollEl: HTMLElement, behavior?: 'auto' | 'insta
   });
 };
 
-export const copyToClipboard = (text: string) => {
+export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
-  } else {
-    const host = document.body;
-    const copyInput = document.createElement('input');
-    copyInput.style.position = 'fixed';
-    copyInput.style.opacity = '0';
-    copyInput.value = text;
-    host.append(copyInput);
-
-    copyInput.select();
-    copyInput.setSelectionRange(0, 99999);
-    document.execCommand('Copy');
-    copyInput.remove();
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
   }
+
+  const host = document.body;
+  const copyInput = document.createElement('input');
+  copyInput.style.position = 'fixed';
+  copyInput.style.opacity = '0';
+  copyInput.value = text;
+  host.append(copyInput);
+
+  copyInput.select();
+  copyInput.setSelectionRange(0, 99999);
+
+  let copied = false;
+  try {
+    copied = document.execCommand('Copy');
+  } catch {
+    copied = false;
+  }
+
+  copyInput.remove();
+  return copied;
 };
 
 export const setFavicon = (url: string): void => {
@@ -215,7 +228,7 @@ export const syntaxErrorPosition = (error: SyntaxError): number | undefined => {
   const match = error.message.match(/position\s(\d+)\s/);
   if (!match) return undefined;
 
-  const posStr = match[1];
+  const posStr = match[1]!;
   const position = parseInt(posStr, 10);
   if (Number.isNaN(position)) return undefined;
   return position;
@@ -234,3 +247,19 @@ export const getMouseEventCords = (event: MouseEvent) => ({
   width: 0,
   height: 0,
 });
+
+export const downloadTextFile = (
+  content: string,
+  filename: string,
+  mimeType = 'text/css'
+): void => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};

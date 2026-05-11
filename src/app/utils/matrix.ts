@@ -1,34 +1,28 @@
-import {
-  EncryptedAttachmentInfo,
-  decryptAttachment,
-  encryptAttachment,
-} from 'browser-encrypt-attachment';
-import {
-  EventTimeline,
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import { decryptAttachment, encryptAttachment } from 'browser-encrypt-attachment';
+import type {
+  AccountDataEvents,
   EventTimelineSet,
   MatrixClient,
-  MatrixError,
   MatrixEvent,
   Room,
   RoomMember,
+  TimelineEvents,
   UploadProgress,
   UploadResponse,
 } from '$types/matrix-sdk';
+import { EventTimeline, MatrixError, EventType, KnownMembership } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import { Membership, MessageEvent, StateEvent } from '$types/matrix/room';
-import { getEventReactions, getReactionContent, getStateEvent } from './room';
+import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/common';
+
+import * as Sentry from '@sentry/react';
+import { getEventReactions, getStateEvent } from './room';
+import { getReactionContent } from './messageReaction';
+import { matchMxId, validMxId } from './mxIdHelper';
 
 const DOMAIN_REGEX = /\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b/;
 
 export const isServerName = (serverName: string): boolean => DOMAIN_REGEX.test(serverName);
-
-const matchMxId = (id: string): RegExpMatchArray | null => id.match(/^([@$+#])([^\s:]+):(\S+)$/);
-
-const validMxId = (id: string): boolean => !!matchMxId(id);
-
-export const getMxIdServer = (userId: string): string | undefined => matchMxId(userId)?.[3];
 
 export const getMxIdLocalPart = (userId: string): string | undefined => matchMxId(userId)?.[2];
 
@@ -44,13 +38,13 @@ export const getCanonicalAliasRoomId = (mx: MatrixClient, alias: string): string
     ?.find(
       (room) =>
         room.getCanonicalAlias() === alias &&
-        getStateEvent(room, StateEvent.RoomTombstone) === undefined
+        getStateEvent(room, EventType.RoomTombstone) === undefined
     )?.roomId;
 
 export const getCanonicalAliasOrRoomId = (mx: MatrixClient, roomId: string): string => {
   const room = mx.getRoom(roomId);
   if (!room) return roomId;
-  if (getStateEvent(room, StateEvent.RoomTombstone) !== undefined) return roomId;
+  if (getStateEvent(room, EventType.RoomTombstone) !== undefined) return roomId;
   const alias = room.getCanonicalAlias();
   if (alias && getCanonicalAliasRoomId(mx, alias) === roomId) {
     return alias;
@@ -163,6 +157,7 @@ export const uploadContent = async (
 ) => {
   const { name, fileType, hideFilename, onProgress, onPromise, onSuccess, onError } = options;
 
+  const uploadStart = performance.now();
   const uploadPromise = mx.uploadContent(file, {
     name,
     type: fileType,
@@ -173,11 +168,32 @@ export const uploadContent = async (
   try {
     const data = await uploadPromise;
     const mxc = data.content_uri;
-    if (mxc) onSuccess(mxc);
-    else onError(new MatrixError(data));
-  } catch (e: any) {
-    const error = typeof e?.message === 'string' ? e.message : undefined;
-    const errcode = typeof e?.name === 'string' ? e.message : undefined;
+    if (mxc) {
+      const mediaType = file.type.split('/')[0] || 'unknown';
+      Sentry.metrics.distribution(
+        'sable.media.upload_latency_ms',
+        performance.now() - uploadStart,
+        {
+          attributes: { type: mediaType },
+        }
+      );
+      Sentry.metrics.distribution('sable.media.upload_bytes', file.size, {
+        attributes: { type: mediaType },
+      });
+      onSuccess(mxc);
+    } else {
+      Sentry.metrics.count('sable.media.upload_error', 1, {
+        attributes: { reason: 'no_uri' },
+      });
+      onError(new MatrixError(data));
+    }
+  } catch (e: unknown) {
+    Sentry.metrics.count('sable.media.upload_error', 1, {
+      attributes: { reason: 'exception' },
+    });
+    const err = e as { message?: string; name?: string };
+    const error = typeof err?.message === 'string' ? err.message : undefined;
+    const errcode = typeof err?.name === 'string' ? err.name : undefined;
     onError(new MatrixError({ error, errcode }));
   }
 };
@@ -195,7 +211,7 @@ export const getDMRoomFor = (mx: MatrixClient, userId: string): Room | undefined
     .getRooms()
     .filter(
       (room) =>
-        room.getMyMembership() === Membership.Join &&
+        room.getMyMembership() === (KnownMembership.Join as string) &&
         room.hasEncryptionStateEvent() &&
         room.getMembers().length <= 2
     );
@@ -241,7 +257,9 @@ export const addRoomIdToMDirect = async (
   roomId: string,
   userId: string
 ): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(
+    EventType.Direct as string as unknown as keyof AccountDataEvents
+  );
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
@@ -250,7 +268,7 @@ export const addRoomIdToMDirect = async (
   // remove it from the lists of any others users
   // (it can only be a DM room for one person)
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId];
+    const roomIds = userIdToRoomIds[targetUserId]!;
 
     if (targetUserId !== userId) {
       const indexOfRoomId = roomIds.indexOf(roomId);
@@ -266,25 +284,33 @@ export const addRoomIdToMDirect = async (
   }
   userIdToRoomIds[userId] = roomIds;
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(
+    EventType.Direct as string as unknown as keyof AccountDataEvents,
+    userIdToRoomIds
+  );
 };
 
 export const removeRoomIdFromMDirect = async (mx: MatrixClient, roomId: string): Promise<void> => {
-  const mDirectsEvent = mx.getAccountData(AccountDataEvent.Direct as any);
+  const mDirectsEvent = mx.getAccountData(
+    EventType.Direct as string as unknown as keyof AccountDataEvents
+  );
   let userIdToRoomIds: Record<string, string[]> = {};
 
   if (typeof mDirectsEvent !== 'undefined')
     userIdToRoomIds = structuredClone(mDirectsEvent.getContent());
 
   Object.keys(userIdToRoomIds).forEach((targetUserId) => {
-    const roomIds = userIdToRoomIds[targetUserId];
+    const roomIds = userIdToRoomIds[targetUserId]!;
     const indexOfRoomId = roomIds.indexOf(roomId);
     if (indexOfRoomId > -1) {
       roomIds.splice(indexOfRoomId, 1);
     }
   });
 
-  await mx.setAccountData(AccountDataEvent.Direct as any, userIdToRoomIds as any);
+  await mx.setAccountData(
+    EventType.Direct as string as unknown as keyof AccountDataEvents,
+    userIdToRoomIds
+  );
 };
 
 export const mxcUrlToHttp = (
@@ -323,6 +349,11 @@ export const downloadEncryptedMedia = async (
   return decryptedContent;
 };
 
+const sleepForMs = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 export const rateLimitedActions = async <T, R = void>(
   data: T[],
   callback: (item: T, index: number) => Promise<R>,
@@ -331,11 +362,6 @@ export const rateLimitedActions = async <T, R = void>(
   let retryCount = 0;
 
   let actionInterval = 0;
-
-  const sleepForMs = (ms: number) =>
-    new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    });
 
   const performAction = async (dataItem: T, index: number) => {
     const [err] = await to<R, MatrixError>(callback(dataItem, index));
@@ -355,32 +381,15 @@ export const rateLimitedActions = async <T, R = void>(
   };
 
   for (let i = 0; i < data.length; i += 1) {
-    const dataItem = data[i];
+    const dataItem = data[i]!;
     retryCount = 0;
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await performAction(dataItem, i);
     if (actionInterval > 0) {
-      // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await sleepForMs(actionInterval);
     }
   }
-};
-
-export const knockSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6'];
-  return !unsupportedVersion.includes(version);
-};
-export const restrictedSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7'];
-  return !unsupportedVersion.includes(version);
-};
-export const knockRestrictedSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-  return !unsupportedVersion.includes(version);
-};
-export const creatorsSupported = (version: string): boolean => {
-  const unsupportedVersion = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
-  return !unsupportedVersion.includes(version);
 };
 
 export const toggleReaction = (
@@ -396,19 +405,27 @@ export const toggleReaction = (
     targetEventId
   );
   const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
-  const [, reactionsSet] = allReactions.find(([k]: [string, any]) => k === key) ?? [];
+  const [, reactionsSet] = allReactions.find(([k]) => k === key) ?? [];
   const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
-  if (myReaction && !!(myReaction as any)?.isRelation()) {
-    mx.redactEvent(room.roomId, (myReaction as any).getId());
+  if (myReaction && myReaction.isRelation?.()) {
+    const eventId = myReaction.getId();
+    if (eventId) mx.redactEvent(room.roomId, eventId);
     return;
   }
   const rShortcode =
     shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
+  // send the reaction
   mx.sendEvent(
     room.roomId,
-    MessageEvent.Reaction as any,
-    getReactionContent(targetEventId, key, rShortcode)
+    EventType.Reaction as string as unknown as keyof TimelineEvents,
+    getReactionContent(
+      targetEventId,
+      key,
+      mx,
+      room,
+      rShortcode
+    ) as TimelineEvents[keyof TimelineEvents]
   );
 };

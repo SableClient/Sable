@@ -1,22 +1,26 @@
 import { useCallback, useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Switch, Button } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Scroll, Switch, Button } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { AccountDataEditor, AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
+import { AccountDataEditor } from '$components/AccountDataEditor';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
 import { DebugLogViewer } from './DebugLogViewer';
+import { SentrySettings } from './SentrySettings';
 
 type DeveloperToolsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
+export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProps) {
   const mx = useMatrixClient();
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
@@ -47,21 +51,11 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
   }
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Developer Tools
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title="Developer Tools"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -76,6 +70,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                 >
                   <SettingTile
                     title="Enable Developer Tools"
+                    focusId="enable-developer-tools"
                     after={
                       <Switch
                         variant="Primary"
@@ -94,6 +89,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                   >
                     <SettingTile
                       title="Access Token"
+                      focusId="access-token"
                       description="Copy access token to clipboard."
                       after={
                         <Button
@@ -126,10 +122,15 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                   <DebugLogViewer />
                 </Box>
               )}
+              {developerTools && (
+                <Box direction="Column" gap="100">
+                  <SentrySettings />
+                </Box>
+              )}
             </Box>
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

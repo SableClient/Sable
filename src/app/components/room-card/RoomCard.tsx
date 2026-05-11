@@ -1,5 +1,7 @@
-import { ReactNode, useCallback, useRef, useState } from 'react';
-import { MatrixError, Room } from '$types/matrix-sdk';
+import type { ReactNode } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { MatrixError, Room } from '$types/matrix-sdk';
+import { JoinRule, EventType, RoomType } from '$types/matrix-sdk';
 import {
   Avatar,
   Badge,
@@ -21,17 +23,18 @@ import classNames from 'classnames';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { nameInitials } from '$utils/common';
-import { millify } from '$plugins/millify';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
-import { RoomType, StateEvent } from '$types/matrix/room';
+
 import { useJoinedRoomId } from '$hooks/useJoinedRoomId';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { RoomAvatar } from '$components/room-avatar';
+import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './style.css';
 
 type GridColumnCount = '1' | '2' | '3';
@@ -143,6 +146,7 @@ type RoomCardProps = {
   topic?: string;
   memberCount?: number;
   roomType?: string;
+  joinRule?: JoinRule;
   viaServers?: string[];
   onView?: (roomId: string) => void;
   renderTopicViewer: (name: string, topic: string, requestClose: () => void) => ReactNode;
@@ -158,6 +162,7 @@ export const RoomCard = as<'div', RoomCardProps>(
       topic,
       memberCount,
       roomType,
+      joinRule,
       viaServers,
       onView,
       renderTopicViewer,
@@ -170,9 +175,9 @@ export const RoomCard = as<'div', RoomCardProps>(
     const joinedRoomId = useJoinedRoomId(allRooms, roomIdOrAlias);
     const joinedRoom = mx.getRoom(joinedRoomId);
     const [topicEvent, setTopicEvent] = useState(() =>
-      joinedRoom ? getStateEvent(joinedRoom, StateEvent.RoomTopic) : undefined
+      joinedRoom ? getStateEvent(joinedRoom, EventType.RoomTopic) : undefined
     );
-
+    const [knocking, setKnocking] = useState(false);
     const fallbackName = getMxIdLocalPart(roomIdOrAlias) ?? roomIdOrAlias;
     const fallbackTopic = roomIdOrAlias;
 
@@ -192,9 +197,9 @@ export const RoomCard = as<'div', RoomCardProps>(
           if (
             joinedRoom &&
             event.getRoomId() === joinedRoom.roomId &&
-            event.getType() === StateEvent.RoomTopic
+            event.getType() === (EventType.RoomTopic as string)
           ) {
-            setTopicEvent(getStateEvent(joinedRoom, StateEvent.RoomTopic));
+            setTopicEvent(getStateEvent(joinedRoom, EventType.RoomTopic));
           }
         },
         [joinedRoom]
@@ -256,7 +261,7 @@ export const RoomCard = as<'div', RoomCardProps>(
         {typeof joinedMemberCount === 'number' && (
           <Box gap="100">
             <Icon size="50" src={Icons.User} />
-            <Text size="T200">{`${millify(joinedMemberCount)} Members`}</Text>
+            <Text size="T200">{`${formatCompactNumber(joinedMemberCount)} Members`}</Text>
           </Box>
         )}
         {typeof joinedRoomId === 'string' && (
@@ -271,19 +276,38 @@ export const RoomCard = as<'div', RoomCardProps>(
             </Text>
           </Button>
         )}
-        {typeof joinedRoomId !== 'string' && joinState.status !== AsyncStatus.Error && (
-          <Button
-            onClick={join}
-            variant="Secondary"
-            size="300"
-            disabled={joining}
-            before={joining && <Spinner size="50" variant="Secondary" fill="Soft" />}
-          >
-            <Text size="B300" truncate>
-              {joining ? 'Joining' : 'Join'}
-            </Text>
-          </Button>
-        )}
+        {typeof joinedRoomId !== 'string' &&
+          joinState.status !== AsyncStatus.Error &&
+          (joinRule === JoinRule.Knock ? (
+            <>
+              <Button onClick={() => setKnocking(true)} variant="Secondary" size="300">
+                <Text size="B300" truncate>
+                  Knock
+                </Text>
+              </Button>
+
+              {knocking && (
+                <KnockRoomPrompt
+                  roomId={roomIdOrAlias}
+                  via={viaServers}
+                  onDone={() => setKnocking(false)}
+                  onCancel={() => setKnocking(false)}
+                />
+              )}
+            </>
+          ) : (
+            <Button
+              onClick={join}
+              variant="Secondary"
+              size="300"
+              disabled={joining}
+              before={joining && <Spinner size="50" variant="Secondary" fill="Soft" />}
+            >
+              <Text size="B300" truncate>
+                {joining ? 'Joining' : 'Join'}
+              </Text>
+            </Button>
+          ))}
         {typeof joinedRoomId !== 'string' && joinState.status === AsyncStatus.Error && (
           <Box gap="200">
             <Button

@@ -1,5 +1,6 @@
-import { FormEventHandler, MouseEvent, useCallback } from 'react';
-import { Room, MatrixEvent } from '$types/matrix-sdk';
+import type { FormEventHandler, MouseEvent } from 'react';
+import { useCallback, useEffect } from 'react';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import {
   Box,
@@ -20,6 +21,10 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import * as css from '$features/room/message/styles.css';
 import { modalAtom, ModalType } from '$state/modal';
+import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
+
+const debugLog = createDebugLogger('MessageReport');
 
 export function MessageReportItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
   const setModal = useSetAtom(modalAtom);
@@ -65,6 +70,17 @@ export function MessageReportInternal({ room, mEvent, onClose }: MessageReportIn
     )
   );
 
+  useEffect(() => {
+    if (reportState.status === AsyncStatus.Success) {
+      debugLog.info('ui', 'Message reported successfully', { roomId: room.roomId });
+      Sentry.metrics.count('sable.message.report.success', 1);
+    }
+    if (reportState.status === AsyncStatus.Error) {
+      debugLog.error('ui', 'Message report failed', { roomId: room.roomId });
+      Sentry.metrics.count('sable.message.report.error', 1);
+    }
+  }, [reportState.status, room.roomId]);
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
     const eventId = mEvent.getId();
@@ -79,6 +95,8 @@ export function MessageReportInternal({ room, mEvent, onClose }: MessageReportIn
     const reasonInput = target?.reasonInput as HTMLInputElement | undefined;
     const reason = reasonInput && reasonInput.value.trim();
 
+    debugLog.info('ui', 'Reporting message', { eventId, hasReason: !!reason });
+    Sentry.metrics.count('sable.message.report.attempt', 1);
     reportMessage(eventId, reason ? -100 : -50, reason || 'No reason provided');
   };
 

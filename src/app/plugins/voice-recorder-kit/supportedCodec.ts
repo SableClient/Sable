@@ -13,14 +13,17 @@ const safariPreferredCodecs = [
 ];
 
 const defaultPreferredCodecs = [
-  // Chromium / Firefox stable path.
+  // Firefox: ogg produces seekable blobs; webm passes isTypeSupported() but
+  // records without a cue index so currentTime assignment silently fails.
+  // Must come before webm so Firefox picks ogg.
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+  // Chromium: webm is seekable and preferred. Since Chromium doesn't support
+  // ogg recording, it will skip the above and land here.
   'audio/webm;codecs=opus',
   'audio/webm',
-  // Firefox
-  'audio/ogg;codecs=opus',
-  'audio/ogg;codecs=vorbis',
-  'audio/ogg',
   // Fallbacks
+  'audio/ogg;codecs=vorbis',
   'audio/wav;codecs=1',
   'audio/wav',
   'audio/mpeg',
@@ -46,7 +49,6 @@ export function getSupportedAudioCodec(): string | null {
   const userAgent = globalThis.navigator?.userAgent ?? '';
   const isIOS =
     /iPad|iPhone|iPod/.test(userAgent) ||
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
     (globalThis.navigator?.platform === 'MacIntel' && globalThis.navigator?.maxTouchPoints > 1);
   const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(userAgent) || isIOS;
 
@@ -60,7 +62,7 @@ export function getSupportedAudioCodec(): string | null {
  * This is used to ensure that the recorded audio file has the correct extension based on the codec used for recording.
  */
 export function getSupportedAudioExtension(codec: string): string {
-  const baseType = codec.split(';')[0].trim();
+  const baseType = codec.split(';')[0]?.trim() ?? codec;
   switch (baseType) {
     case 'audio/ogg':
       return 'ogg';

@@ -1,19 +1,25 @@
 import { useState } from 'react';
-import { Box, Text, IconButton, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import CinnySVG from '$public/res/svg/cinny.svg';
+import CinnySVG from '$public/res/svg/cinny-logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
 import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
+import { SettingsSectionPage } from '../SettingsSectionPage';
+
+type VersionResult =
+  | { error: { message: string } }
+  | { server: { name?: string; version?: string; compiler?: string } }
+  | undefined;
 
 export function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
-  const [version, setVersion] = useState<any>(undefined);
+  const [version, setVersion] = useState<VersionResult>(undefined);
 
   if (!version)
     mx.http
@@ -21,7 +27,11 @@ export function HomeserverInfo() {
         prefix: '/_matrix/federation/v1',
         baseUrl: federationUrl,
       })
-      .then((fetched_version) => setVersion(fetched_version))
+      .then((fetched_version) =>
+        setVersion({
+          server: fetched_version as { name?: string; version?: string; compiler?: string },
+        })
+      )
       .catch((error) => {
         if (federationUrl === mx.baseUrl) {
           mx.http
@@ -29,15 +39,16 @@ export function HomeserverInfo() {
               prefix: '/.well-known/matrix',
               baseUrl: `https://${mx.getSafeUserId().split(':')[1]}`,
             })
-            .then((well_known: any) => {
-              const newUrl = `https://${well_known['m.server'].split(':')[0]}`;
+            .then((well_known) => {
+              const mServer = (well_known as { 'm.server'?: string })['m.server'];
+              const newUrl = mServer ? `https://${mServer.split(':')[0]}` : federationUrl;
               if (newUrl !== federationUrl) {
                 setFederationUrl(newUrl);
               }
             })
-            .catch((error2) => setVersion({ error: error2 }));
+            .catch((error_) => setVersion({ error: { message: String(error_) } }));
         } else {
-          setVersion({ error });
+          setVersion({ error: { message: String(error) } });
         }
       });
 
@@ -50,7 +61,11 @@ export function HomeserverInfo() {
         direction="Column"
         gap="400"
       >
-        <SettingTile title="Domain" description={mx.getSafeUserId().split(':')[1]} />
+        <SettingTile
+          title="Domain"
+          focusId="domain"
+          description={mx.getSafeUserId().split(':')[1]}
+        />
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
@@ -60,6 +75,7 @@ export function HomeserverInfo() {
       >
         <SettingTile
           title="Base URL"
+          focusId="base-url"
           description={
             <a href={mx.baseUrl} target="_blank" rel="noopener noreferrer">
               {mx.baseUrl}
@@ -76,6 +92,7 @@ export function HomeserverInfo() {
         >
           <SettingTile
             title="Federation URL"
+            focusId="federation-url"
             description={
               <a href={federationUrl} target="_blank" rel="noopener noreferrer">
                 {federationUrl}
@@ -86,7 +103,7 @@ export function HomeserverInfo() {
       )}
       {version ? (
         <>
-          {version.error && (
+          {'error' in version && version.error && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
@@ -96,34 +113,46 @@ export function HomeserverInfo() {
               {version.error.message}
             </SequenceCard>
           )}
-          {version.server?.name && (
+          {'server' in version && version.server?.name && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Name" description={version.server?.name} />
+              <SettingTile
+                title="Name"
+                focusId="homeserver-name"
+                description={version.server?.name}
+              />
             </SequenceCard>
           )}
-          {version.server?.version && (
+          {'server' in version && version.server?.version && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Version" description={version.server?.version} />
+              <SettingTile
+                title="Version"
+                focusId="homeserver-version"
+                description={version.server?.version}
+              />
             </SequenceCard>
           )}
-          {version.server?.compiler && (
+          {'server' in version && version.server?.compiler && (
             <SequenceCard
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"
               gap="400"
             >
-              <SettingTile title="Compiler" description={version.server?.compiler} />
+              <SettingTile
+                title="Compiler"
+                focusId="homeserver-compiler"
+                description={version.server?.compiler}
+              />
             </SequenceCard>
           )}
         </>
@@ -142,30 +171,17 @@ export function HomeserverInfo() {
 }
 
 type AboutProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function About({ requestClose }: AboutProps) {
+export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
   const openBugReport = useOpenBugReportModal();
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              About
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="About" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -203,7 +219,7 @@ export function About({ requestClose }: AboutProps) {
                     </Button>
                     <Button
                       as="a"
-                      href="https://github.com/SableClient/Sable/pulls"
+                      href="https://opencollective.com/sable"
                       rel="noreferrer noopener"
                       target="_blank"
                       variant="Critical"
@@ -227,6 +243,7 @@ export function About({ requestClose }: AboutProps) {
                 >
                   <SettingTile
                     title="Clear Cache & Reload"
+                    focusId="clear-cache-and-reload"
                     description="Clear all your locally stored data and reload from server."
                     after={
                       <Button
@@ -250,6 +267,7 @@ export function About({ requestClose }: AboutProps) {
                 >
                   <SettingTile
                     title="Report an Issue"
+                    focusId="report-an-issue"
                     description="Report a bug or request a feature on GitHub."
                     after={
                       <Button
@@ -286,23 +304,22 @@ export function About({ requestClose }: AboutProps) {
                   >
                     <li>
                       <Text size="T300">
-                        {' '}
                         <a
                           href="https://github.com/cinnyapp/cinny"
                           rel="noreferrer noopener"
                           target="_blank"
                         >
                           Cinny
-                        </a>{' '}
-                        is ©{' '}
+                        </a>
+                        {', © '}
                         <a
                           href="https://github.com/ajbura"
                           rel="noreferrer noopener"
                           target="_blank"
                         >
                           Ajay Bura
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {', is used under the terms of '}
                         <a
                           href="https://github.com/cinnyapp/cinny/blob/dev/LICENSE"
                           rel="noreferrer noopener"
@@ -315,23 +332,23 @@ export function About({ requestClose }: AboutProps) {
                     </li>
                     <li>
                       <Text size="T300">
-                        The{' '}
+                        {'The '}
                         <a
                           href="https://github.com/matrix-org/matrix-js-sdk"
                           rel="noreferrer noopener"
                           target="_blank"
                         >
                           matrix-js-sdk
-                        </a>{' '}
-                        is ©{' '}
+                        </a>
+                        {', © '}
                         <a
                           href="https://matrix.org/foundation"
                           rel="noreferrer noopener"
                           target="_blank"
                         >
                           The Matrix.org Foundation C.I.C
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {', is used under the terms of '}
                         <a
                           href="http://www.apache.org/licenses/LICENSE-2.0"
                           rel="noreferrer noopener"
@@ -344,19 +361,19 @@ export function About({ requestClose }: AboutProps) {
                     </li>
                     <li>
                       <Text size="T300">
-                        The{' '}
+                        {'The '}
                         <a
                           href="https://github.com/mozilla/twemoji-colr"
                           target="_blank"
                           rel="noreferrer noopener"
                         >
                           twemoji-colr
-                        </a>{' '}
-                        font is ©{' '}
+                        </a>
+                        {' font, © '}
                         <a href="https://mozilla.org/" target="_blank" rel="noreferrer noopener">
                           Mozilla Foundation
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {', is used under the terms of '}
                         <a
                           href="http://www.apache.org/licenses/LICENSE-2.0"
                           target="_blank"
@@ -369,23 +386,23 @@ export function About({ requestClose }: AboutProps) {
                     </li>
                     <li>
                       <Text size="T300">
-                        The{' '}
+                        {'The '}
                         <a
-                          href="https://twemoji.twitter.com"
+                          href="https://github.com/twitter/twemoji"
                           target="_blank"
                           rel="noreferrer noopener"
                         >
                           Twemoji
-                        </a>{' '}
-                        emoji art is ©{' '}
+                        </a>
+                        {' emoji art, © '}
                         <a
-                          href="https://twemoji.twitter.com"
+                          href="https://github.com/twitter/twemoji"
                           target="_blank"
                           rel="noreferrer noopener"
                         >
                           Twitter, Inc and other contributors
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {', is used under the terms of '}
                         <a
                           href="https://creativecommons.org/licenses/by/4.0/"
                           target="_blank"
@@ -398,7 +415,7 @@ export function About({ requestClose }: AboutProps) {
                     </li>
                     <li>
                       <Text size="T300">
-                        The{' '}
+                        {'The '}
                         <a
                           href="https://material.io/design/sound/sound-resources.html"
                           target="_blank"
@@ -406,11 +423,11 @@ export function About({ requestClose }: AboutProps) {
                         >
                           Material sound resources
                         </a>{' '}
-                        are ©{' '}
+                        {', © '}
                         <a href="https://google.com" target="_blank" rel="noreferrer noopener">
                           Google
-                        </a>{' '}
-                        used under the terms of{' '}
+                        </a>
+                        {', are used under the terms of '}
                         <a
                           href="https://creativecommons.org/licenses/by/4.0/"
                           target="_blank"
@@ -428,6 +445,6 @@ export function About({ requestClose }: AboutProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

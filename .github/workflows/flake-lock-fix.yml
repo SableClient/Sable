@@ -1,0 +1,46 @@
+name: Fix flake hashes
+
+on:
+  push:
+    branches: [dev]
+    paths: ['pnpm-lock.yaml']
+
+jobs:
+  fix:
+    name: Fix flake hashes
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: dev
+          persist-credentials: true
+
+      - name: Install Determinate Nix
+        uses: DeterminateSystems/determinate-nix-action@bafaa638b9d5ec0e7e3ac1a7fc80453ef1fd265f # v3.20.0
+
+      - id: check
+        run: nix flake check -L
+        continue-on-error: true
+
+      - name: Fix hash mismatches
+        if: steps.check.outcome == 'failure'
+        run: determinate-nixd fix hashes --auto-apply
+
+      - name: Commit and push if changed
+        if: steps.check.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes after fix hashes; nothing to commit."
+            exit 0
+          fi
+          git config user.name "sable-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --update --ignore-removal .
+          git commit -m "chore(nix): auto-fix nix hashes"
+          git push origin HEAD:dev --force-with-lease

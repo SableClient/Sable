@@ -1,14 +1,12 @@
-import { ReactNode, useCallback, useEffect, useMemo } from 'react';
-import { MatrixError, createClient } from '$types/matrix-sdk';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import type { MatrixError } from '$types/matrix-sdk';
+import { createClient } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { promiseFulfilledResult, promiseRejectedResult } from '$utils/common';
-import {
-  AuthFlows,
-  RegisterFlowStatus,
-  RegisterFlowsResponse,
-  parseRegisterErrResp,
-} from '$hooks/useAuthFlows';
+import type { AuthFlows, RegisterFlowsResponse } from '$hooks/useAuthFlows';
+import { RegisterFlowStatus, parseRegisterErrResp } from '$hooks/useAuthFlows';
 
 type AuthFlowsLoaderProps = {
   fallback?: () => ReactNode;
@@ -26,7 +24,9 @@ export function AuthFlowsLoader({ fallback, error, children }: AuthFlowsLoaderPr
       const result = await Promise.allSettled([mx.loginFlows(), mx.registerRequest({})]);
       const loginFlows = promiseFulfilledResult(result[0]);
       const registerResp = promiseRejectedResult(result[1]) as MatrixError | undefined;
-      let registerFlows: RegisterFlowsResponse = { status: RegisterFlowStatus.InvalidRequest };
+      let registerFlows: RegisterFlowsResponse = {
+        status: RegisterFlowStatus.InvalidRequest,
+      };
 
       if (typeof registerResp === 'object' && registerResp.httpStatus) {
         registerFlows = parseRegisterErrResp(registerResp);

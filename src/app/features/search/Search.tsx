@@ -15,24 +15,17 @@ import {
   Text,
   toRem,
 } from 'folds';
-import {
-  ChangeEventHandler,
-  KeyboardEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useAtom, useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useDirects, useOrphanSpaces, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import {
@@ -46,7 +39,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useListFocusIndex } from '$hooks/useListFocusIndex';
-import { getMxIdLocalPart, getMxIdServer, guessDmRoomUserId } from '$utils/matrix';
+import { getMxIdLocalPart, guessDmRoomUserId } from '$utils/matrix';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
@@ -55,6 +48,8 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
+import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -82,12 +77,12 @@ const useTopActiveRooms = (
       return spaces;
     }
     if (searchRoomType === SearchRoomType.Directs) {
-      return [...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return [...directs].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
     if (searchRoomType === SearchRoomType.Rooms) {
-      return [...rooms].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+      return [...rooms].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
     }
-    return [...rooms, ...directs].sort(factoryRoomIdByActivity(mx)).slice(0, 20);
+    return [...rooms, ...directs].toSorted(factoryRoomIdByActivity(mx)).slice(0, 20);
   }, [mx, rooms, directs, spaces, searchRoomType]);
 };
 
@@ -167,7 +162,19 @@ export function Search({ requestClose }: SearchProps) {
   );
 
   const [result, search, resetSearch] = useAsyncSearch(targetRooms, getTargetStr, SEARCH_OPTIONS);
-  const roomsToRender = result ? result.items : topActiveRooms;
+  const selectedSpaceId = useSelectedSpace();
+
+  const roomsToRender = useMemo(() => {
+    const items = result ? result.items : topActiveRooms;
+    if (!selectedSpaceId) return items;
+
+    return [...items].toSorted((a, b) => {
+      const aInSpace = getAllParents(roomToParents, a)?.has(selectedSpaceId) ? 1 : 0;
+      const bInSpace = getAllParents(roomToParents, b)?.has(selectedSpaceId) ? 1 : 0;
+      return bInSpace - aInSpace;
+    });
+  }, [result, topActiveRooms, selectedSpaceId, roomToParents]);
+
   const listFocus = useListFocusIndex(roomsToRender.length, 0);
 
   const queryHighlighRegex = result?.query
@@ -293,7 +300,12 @@ export function Search({ requestClose }: SearchProps) {
               )}
               {roomsToRender.length > 0 && (
                 <Scroll ref={scrollRef} size="300" hideTrack>
-                  <div style={{ padding: config.space.S400, paddingRight: config.space.S200 }}>
+                  <div
+                    style={{
+                      padding: config.space.S400,
+                      paddingRight: config.space.S200,
+                    }}
+                  >
                     {roomsToRender.map((roomId, index) => {
                       const room = getRoom(roomId);
                       if (!room) return null;
@@ -407,6 +419,8 @@ export function Search({ requestClose }: SearchProps) {
               <Text size="T200" priority="300">
                 Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
                 <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+                {' / '}
+                <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
               </Text>
             </Box>
           </Modal>
@@ -423,7 +437,7 @@ export function SearchModalRenderer() {
     window,
     useCallback(
       (event) => {
-        if (isKeyHotkey('mod+k', event)) {
+        if (isKeyHotkey('mod+k', event) || isKeyHotkey('mod+f', event)) {
           event.preventDefault();
           if (opened) {
             setOpen(false);

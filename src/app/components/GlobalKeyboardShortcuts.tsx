@@ -5,10 +5,11 @@
  *   Alt+N              — jump to the highest-priority unread room
  *   Alt+Shift+Down     — cycle forward through unread rooms
  *   Alt+Shift+Up       — cycle backward through unread rooms
+ *   Ctrl+Down / Ctrl+Up: cycle through messages to reply to
  */
 import { useCallback, useRef } from 'react';
 import { useNavigate, useLocation, matchPath } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -19,6 +20,8 @@ import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '$pages/pat
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
+import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import type { Room } from '$types/matrix-sdk';
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -37,15 +40,17 @@ export function GlobalKeyboardShortcuts() {
   const roomIdOrAlias = roomMatch?.params.roomIdOrAlias
     ? decodeURIComponent(roomMatch.params.roomIdOrAlias)
     : undefined;
-  let currentRoomId: string | null = null;
+  let currentRoom: Room | null = null;
   if (roomIdOrAlias) {
     if (roomIdOrAlias.startsWith('!')) {
-      currentRoomId = roomIdOrAlias;
+      currentRoom = mx.getRoom(roomIdOrAlias);
     } else {
-      currentRoomId =
-        mx.getRooms().find((r) => r.getCanonicalAlias() === roomIdOrAlias)?.roomId ?? null;
+      currentRoom = mx.getRooms().find((r) => r.getCanonicalAlias() === roomIdOrAlias) ?? null;
     }
   }
+  const replyDraftAtomFamily = roomIdToReplyDraftAtomFamily(currentRoom?.roomId ?? '');
+  const replyDraft = useAtomValue(replyDraftAtomFamily);
+  const setReplyDraft = useSetAtom(replyDraftAtomFamily);
 
   /** Navigate to a room by ID and announce it to screen readers. */
   const navigateToRoom = useCallback(
@@ -58,6 +63,10 @@ export function GlobalKeyboardShortcuts() {
         const parents = roomToParents.get(roomId);
         if (parents && parents.size > 0) {
           const spaceId = Array.from(parents)[0];
+          if (!spaceId) {
+            navigate(getHomeRoomPath(roomIdOrAliasToNav));
+            return;
+          }
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, spaceId);
           navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAliasToNav));
         } else {
@@ -76,15 +85,15 @@ export function GlobalKeyboardShortcuts() {
     (evt: KeyboardEvent) => {
       if (!isKeyHotkey('alt+n', evt)) return;
       const unreadEntries = Array.from(roomToUnread.entries())
-        .filter(([id, u]) => u.total > 0 && id !== currentRoomId)
-        .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
+        .filter(([id, u]) => u.total > 0 && id !== currentRoom?.roomId)
+        .toSorted((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       unreadIndexRef.current = 0;
-      const [roomId] = unreadEntries[0];
+      const [roomId] = unreadEntries[0]!;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
-    [roomToUnread, currentRoomId, navigateToRoom]
+    [roomToUnread, currentRoom?.roomId, navigateToRoom]
   );
 
   /** Alt+Shift+Down / Alt+Shift+Up: cycle through unread rooms. */
@@ -95,7 +104,7 @@ export function GlobalKeyboardShortcuts() {
       if (!isDown && !isUp) return;
       const unreadEntries = Array.from(roomToUnread.entries())
         .filter(([, u]) => u.total > 0)
-        .sort((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
+        .toSorted((a, b) => b[1].highlight - a[1].highlight || b[1].total - a[1].total);
       if (unreadEntries.length === 0) return;
       evt.preventDefault();
       if (isDown) {
@@ -104,14 +113,47 @@ export function GlobalKeyboardShortcuts() {
         unreadIndexRef.current =
           (unreadIndexRef.current - 1 + unreadEntries.length) % unreadEntries.length;
       }
-      const [roomId] = unreadEntries[unreadIndexRef.current];
+      const currentEntry = unreadEntries[unreadIndexRef.current];
+      if (!currentEntry) return;
+      const [roomId] = currentEntry;
       navigateToRoom(roomId, unreadEntries.length - 1);
     },
     [roomToUnread, navigateToRoom]
   );
 
+  /** Ctrl+Down / Ctrl+Up: cycle through messages to reply to. */
+  const handleReplyKeyDown = useCallback(
+    (evt: KeyboardEvent) => {
+      const isDown = isKeyHotkey('mod+down', evt);
+      const isUp = isKeyHotkey('mod+up', evt);
+      if (currentRoom === null) return;
+      if (!isDown && !isUp) return;
+
+      const events = currentRoom.getUnfilteredTimelineSet().getLiveTimeline().getEvents();
+
+      // when no message is currently targeted, just target the first one
+      if (replyDraft?.eventId === undefined) {
+        const latestEvent = events.at(-1);
+        if (latestEvent === undefined) return;
+        const eventId = latestEvent.event.event_id;
+        if (eventId === undefined) return;
+        setReplyDraft({ userId: currentRoom.myUserId, eventId, body: '' });
+        return;
+      }
+      const currentReplyIndex = events.findIndex((e) => e.event.event_id === replyDraft.eventId);
+      if (currentReplyIndex === events.length - 1 && isDown) return; // you cant go further down than that idiot
+      const newTargetEvent = isUp ? events[currentReplyIndex - 1] : events[currentReplyIndex + 1];
+      if (!newTargetEvent) return;
+      const eventId = newTargetEvent.event.event_id;
+      if (eventId === undefined) return;
+      setReplyDraft({ userId: currentRoom.myUserId, eventId, body: '' });
+    },
+    [currentRoom, replyDraft, setReplyDraft]
+  );
+
   useKeyDown(window, handleNextUnreadKeyDown);
   useKeyDown(window, handleUnreadNavKeyDown);
+  useKeyDown(window, handleReplyKeyDown);
 
   return null;
 }

@@ -1,33 +1,22 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
-import { SequenceCardStyle } from '$features/settings/styles.css';
+import { Box, Scroll } from 'folds';
+import { PageContent } from '$components/page';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { SystemNotification } from './SystemNotification';
 import { AllMessagesNotifications } from './AllMessages';
 import { SpecialMessagesNotifications } from './SpecialMessages';
 import { KeywordMessagesNotifications } from './KeywordMessages';
 
 type NotificationsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Notifications({ requestClose }: NotificationsProps) {
+export function Notifications({ requestBack, requestClose }: NotificationsProps) {
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Notifications
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title="Notifications"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -36,21 +25,10 @@ export function Notifications({ requestClose }: NotificationsProps) {
               <AllMessagesNotifications />
               <SpecialMessagesNotifications />
               <KeywordMessagesNotifications />
-              <Box direction="Column" gap="100">
-                <Text size="L400">Block Messages</Text>
-                <SequenceCard
-                  className={SequenceCardStyle}
-                  variant="SurfaceVariant"
-                  direction="Column"
-                  gap="400"
-                >
-                  <SettingTile description='This option has been moved to "Account > Block Users" section.' />
-                </SequenceCard>
-              </Box>
             </Box>
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

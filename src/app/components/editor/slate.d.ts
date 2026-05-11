@@ -1,9 +1,7 @@
-import { BaseEditor } from 'slate';
-import { ReactEditor } from 'slate-react';
-import { HistoryEditor } from 'slate-history';
-import { BlockType } from './types';
-
-export type HeadingLevel = 1 | 2 | 3;
+import type { BaseEditor } from 'slate';
+import type { ReactEditor } from 'slate-react';
+import type { HistoryEditor } from 'slate-history';
+import type { BlockType } from './types';
 
 export type Editor = BaseEditor & HistoryEditor & ReactEditor;
 
@@ -11,14 +9,7 @@ export type Text = {
   text: string;
 };
 
-export type FormattedText = Text & {
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  strikeThrough?: boolean;
-  code?: boolean;
-  spoiler?: boolean;
-};
+export type FormattedText = Text;
 
 export type LinkElement = {
   type: BlockType.Link;
@@ -47,54 +38,16 @@ export type CommandElement = {
   children: Text[];
 };
 
-export type InlineElement = Text | LinkElement | MentionElement | EmoticonElement | CommandElement;
+export type InlineElement =
+  | FormattedText
+  | LinkElement
+  | MentionElement
+  | EmoticonElement
+  | CommandElement;
 
 export type ParagraphElement = {
   type: BlockType.Paragraph;
   children: InlineElement[];
-};
-export type HeadingElement = {
-  type: BlockType.Heading;
-  level: HeadingLevel;
-  children: InlineElement[];
-};
-export type CodeLineElement = {
-  type: BlockType.CodeLine;
-  children: Text[];
-};
-export type CodeBlockElement = {
-  type: BlockType.CodeBlock;
-  children: CodeLineElement[];
-};
-export type QuoteLineElement = {
-  type: BlockType.QuoteLine;
-  children: InlineElement[];
-};
-export type BlockQuoteElement = {
-  type: BlockType.BlockQuote;
-  children: QuoteLineElement[];
-};
-export type ListItemElement = {
-  type: BlockType.ListItem;
-  children: InlineElement[];
-};
-export type OrderedListElement = {
-  type: BlockType.OrderedList;
-  children: ListItemElement[];
-};
-export type UnorderedListElement = {
-  type: BlockType.UnorderedList;
-  children: ListItemElement[];
-};
-
-export type SmallElement = {
-  type: BlockType.Small;
-  children: InlineElement[];
-};
-
-export type HorizontalRuleElement = {
-  type: BlockType.HorizontalRule;
-  children: Text[];
 };
 
 export type CustomElement =
@@ -102,22 +55,12 @@ export type CustomElement =
   | MentionElement
   | EmoticonElement
   | CommandElement
-  | ParagraphElement
-  | HeadingElement
-  | CodeLineElement
-  | CodeBlockElement
-  | QuoteLineElement
-  | BlockQuoteElement
-  | ListItemElement
-  | OrderedListElement
-  | UnorderedListElement
-  | SmallElement
-  | HorizontalRuleElement;
+  | ParagraphElement;
 
 declare module 'slate' {
   interface CustomTypes {
     Editor: Editor;
     Element: CustomElement;
-    Text: FormattedText & Text;
+    Text: FormattedText;
   }
 }

@@ -1,5 +1,6 @@
-export const DEFAULT_NOTIFICATION_ICON = '/public/res/apple/apple-touch-icon-180x180.png';
-export const DEFAULT_NOTIFICATION_BADGE = '/public/res/apple/apple-touch-icon-72x72.png';
+export const DEFAULT_NOTIFICATION_ICON =
+  '/public/res/logo-maskable/cinny-logo-maskable-180x180.png';
+export const DEFAULT_NOTIFICATION_BADGE = '/public/res/logo-maskable/cinny-logo-maskable-72x72.png';
 export const DEFAULT_MESSAGE_PREVIEW = 'new message';
 export const ENCRYPTED_MESSAGE_PREVIEW = 'Encrypted message';
 

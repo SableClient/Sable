@@ -6,8 +6,12 @@ import {
   createRoutesFromElements,
   redirect,
 } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 
-import { ClientConfig } from '$hooks/useClientConfig';
+import type { ClientConfig } from '$hooks/useClientConfig';
+import { ErrorPage } from '$components/DefaultErrorPage';
+import { SettingsRoute } from '$features/settings';
+import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 import { Room } from '$features/room';
 import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
@@ -20,7 +24,8 @@ import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
 import { CreateRoomModalRenderer } from '$features/create-room';
 import { CreateSpaceModalRenderer } from '$features/create-space';
 import { BugReportModalRenderer } from '$features/bug-report';
-import { getFallbackSession, MATRIX_SESSIONS_KEY, Sessions } from '$state/sessions';
+import type { Sessions } from '$state/sessions';
+import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
 import { SearchModalRenderer } from '$features/search';
@@ -47,6 +52,7 @@ import {
   SERVER_PATH_SEGMENT,
   CREATE_PATH,
   TO_ROOM_EVENT_PATH,
+  SETTINGS_PATH,
 } from './paths';
 import {
   getAppPathFromHref,
@@ -57,7 +63,7 @@ import {
   getOriginBaseUrl,
   getSpaceLobbyPath,
 } from './pathUtils';
-import { ClientBindAtoms, ClientLayout, ClientRoot } from './client';
+import { ClientBindAtoms, ClientLayout, ClientRoot, ClientRouteOutlet } from './client';
 import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNonUIFeatures';
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
@@ -117,10 +123,20 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           return null;
         }}
         element={
-          <>
-            <AuthLayout />
-            <UnAuthRouteThemeManager />
-          </>
+          <Sentry.ErrorBoundary
+            fallback={({ error, eventId }) => (
+              <ErrorPage
+                error={error instanceof Error ? error : new Error(String(error))}
+                eventId={eventId || undefined}
+              />
+            )}
+            beforeCapture={(scope) => scope.setTag('section', 'auth')}
+          >
+            <>
+              <AuthLayout />
+              <UnAuthRouteThemeManager />
+            </>
+          </Sentry.ErrorBoundary>
         }
       >
         <Route path={LOGIN_PATH} element={<Login />} />
@@ -142,60 +158,71 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           return null;
         }}
         element={
-          <AuthRouteThemeManager>
-            {/* HandleNotificationClick must live outside ClientRoot's loading gate so
+          <Sentry.ErrorBoundary
+            fallback={({ error, eventId }) => (
+              <ErrorPage
+                error={error instanceof Error ? error : new Error(String(error))}
+                eventId={eventId || undefined}
+              />
+            )}
+            beforeCapture={(scope) => scope.setTag('section', 'client')}
+          >
+            <AuthRouteThemeManager>
+              {/* HandleNotificationClick must live outside ClientRoot's loading gate so
                 SW notification-click postMessages are never dropped during client
                 reloads (e.g., account switches). It only needs navigate + Jotai atoms. */}
-            <HandleNotificationClick />
-            <ClientRoot>
-              <ClientInitStorageAtom>
-                <ClientRoomsNotificationPreferences>
-                  <ClientBindAtoms>
-                    <ClientNonUIFeatures>
-                      <NotificationJumper />
-                      <CallEmbedProvider>
-                        <ClientLayout
-                          nav={
-                            <MobileFriendlyClientNav>
-                              <SidebarNav />
-                            </MobileFriendlyClientNav>
-                          }
-                        >
-                          <Outlet />
-                        </ClientLayout>
-                        <CallStatusRenderer />
-                      </CallEmbedProvider>
-                      <SearchModalRenderer />
-                      <UserRoomProfileRenderer />
-                      <CreateRoomModalRenderer />
-                      <CreateSpaceModalRenderer />
-                      <BugReportModalRenderer />
-                      <RoomSettingsRenderer />
-                      <SpaceSettingsRenderer />
-                      <GlobalKeyboardShortcuts />
-                      {/* Screen reader live region — populated by announce() in utils/announce.ts */}
-                      <div
-                        id="sable-announcements"
-                        role="status"
-                        aria-live="polite"
-                        aria-atomic="true"
-                        style={{
-                          position: 'absolute',
-                          width: '1px',
-                          height: '1px',
-                          overflow: 'hidden',
-                          clip: 'rect(0,0,0,0)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      />
-                      <ReceiveSelfDeviceVerification />
-                      <AutoRestoreBackupOnVerification />
-                    </ClientNonUIFeatures>
-                  </ClientBindAtoms>
-                </ClientRoomsNotificationPreferences>
-              </ClientInitStorageAtom>
-            </ClientRoot>
-          </AuthRouteThemeManager>
+              <HandleNotificationClick />
+              <ClientRoot>
+                <ClientInitStorageAtom>
+                  <ClientRoomsNotificationPreferences>
+                    <ClientBindAtoms>
+                      <ClientNonUIFeatures>
+                        <NotificationJumper />
+                        <CallEmbedProvider>
+                          <ClientLayout
+                            nav={
+                              <MobileFriendlyClientNav>
+                                <SidebarNav />
+                              </MobileFriendlyClientNav>
+                            }
+                          >
+                            <ClientRouteOutlet />
+                          </ClientLayout>
+                          <CallStatusRenderer />
+                        </CallEmbedProvider>
+                        <SearchModalRenderer />
+                        <UserRoomProfileRenderer />
+                        <CreateRoomModalRenderer />
+                        <CreateSpaceModalRenderer />
+                        <BugReportModalRenderer />
+                        <SettingsShallowRouteRenderer />
+                        <RoomSettingsRenderer />
+                        <SpaceSettingsRenderer />
+                        <GlobalKeyboardShortcuts />
+                        {/* Screen reader live region — populated by announce() in utils/announce.ts */}
+                        <div
+                          id="sable-announcements"
+                          role="status"
+                          aria-live="polite"
+                          aria-atomic="true"
+                          style={{
+                            position: 'absolute',
+                            width: '1px',
+                            height: '1px',
+                            overflow: 'hidden',
+                            clip: 'rect(0,0,0,0)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        />
+                        <ReceiveSelfDeviceVerification />
+                        <AutoRestoreBackupOnVerification />
+                      </ClientNonUIFeatures>
+                    </ClientBindAtoms>
+                  </ClientRoomsNotificationPreferences>
+                </ClientInitStorageAtom>
+              </ClientRoot>
+            </AuthRouteThemeManager>
+          </Sentry.ErrorBoundary>
         }
       >
         <Route
@@ -318,6 +345,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
         </Route>
         <Route path={CREATE_PATH} element={<Create />} />
+        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
         <Route
           path={INBOX_PATH}
           element={

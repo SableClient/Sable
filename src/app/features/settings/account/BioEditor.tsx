@@ -1,30 +1,21 @@
-import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import type { KeyboardEventHandler } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
-  Toolbar,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
   createEmoticonElement,
   getAutocompleteQuery,
   getPrevWorldRange,
-  htmlToEditorInput,
   plainToEditorInput,
   moveCursor,
   toMatrixCustomHTML,
@@ -32,6 +23,7 @@ import {
   trimCustomHtml,
   useEditor,
 } from '$components/editor';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -41,10 +33,10 @@ import { SettingTile } from '$components/setting-tile';
 import * as css from './BioEditor.css';
 
 type BioEditorProps = {
-  value?: string | any;
+  value?: string;
   isSaving?: boolean;
-  imagePackRooms?: any[];
-  onSave: (htmlContent: string) => void;
+  imagePackRooms?: Room[];
+  onSave: (htmlContent: string, plainText: string) => void;
 };
 
 const BIO_LIMIT = 1024;
@@ -52,9 +44,6 @@ const BIO_LIMIT = 1024;
 export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditorProps) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-  const [globalToolbar] = useSetting(settingsAtom, 'editorToolbar');
-  const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
-  const [toolbar, setToolbar] = useState(globalToolbar);
 
   const [autocompleteQuery, setAutocompleteQuery] =
     useState<AutocompleteQuery<AutocompletePrefix>>();
@@ -65,25 +54,19 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
   const initialized = useRef(false);
 
   const updateStats = useCallback(() => {
-    const plainText = toPlainText(editor.children, isMarkdown).trim();
+    const plainText = toPlainText(editor.children).trim();
     setCharCount(plainText.length);
-  }, [editor, isMarkdown]);
+  }, [editor]);
 
   const handleSave = useCallback(() => {
-    const plainText = toPlainText(editor.children, isMarkdown).trim();
+    const plainText = toPlainText(editor.children).trim();
     if (plainText.length > BIO_LIMIT) return;
 
-    const customHtml = trimCustomHtml(
-      toMatrixCustomHTML(editor.children, {
-        allowTextFormatting: true,
-        allowBlockMarkdown: isMarkdown,
-        allowInlineMarkdown: isMarkdown,
-      })
-    );
+    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
 
-    onSave(customHtml || plainText);
+    onSave(customHtml || plainText, plainText);
     setHasChanged(false);
-  }, [editor, isMarkdown, onSave]);
+  }, [editor, onSave]);
 
   useEffect(() => {
     const valueChanged = prevValue.current !== value;
@@ -92,29 +75,28 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
     if (valueChanged || isFirstValidLoad) {
       prevValue.current = value;
 
-      let normalizedValue = value;
+      let normalizedValue: string | undefined = value;
       if (
         typeof normalizedValue === 'object' &&
         normalizedValue !== null &&
         'formatted_body' in normalizedValue
       ) {
-        normalizedValue = normalizedValue.formatted_body;
+        normalizedValue = (normalizedValue as { formatted_body?: string }).formatted_body;
       }
 
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';
 
       const incomingPlainText = toPlainText(
-        htmlToEditorInput(safeValue, isMarkdown),
-        isMarkdown
+        plainToEditorInput(safeValue.includes('<') ? htmlToMarkdown(safeValue) : safeValue)
       ).trim();
-      const currentPlainText = toPlainText(editor.children, isMarkdown).trim();
+      const currentPlainText = toPlainText(editor.children).trim();
 
       if (currentPlainText === incomingPlainText && initialized.current) return;
 
       const isLikelyHtml = safeValue.includes('<') || safeValue.includes('>');
       const initialValue = isLikelyHtml
-        ? htmlToEditorInput(safeValue, isMarkdown)
-        : plainToEditorInput(safeValue, isMarkdown);
+        ? plainToEditorInput(htmlToMarkdown(safeValue))
+        : plainToEditorInput(safeValue);
 
       editor.children = initialValue;
       Editor.normalize(editor, { force: true });
@@ -124,7 +106,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
       setHasChanged(false);
       updateStats();
     }
-  }, [value, editor, isMarkdown, updateStats]);
+  }, [value, editor, updateStats]);
 
   const handleKeyDown: KeyboardEventHandler = useCallback(
     (evt) => {
@@ -167,7 +149,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
 
   return (
     <Box direction="Column" gap="100">
-      <SettingTile title="About You" description="Customize your bio." />
+      <SettingTile title="About You" focusId="about-you" description="Customize your bio." />
       <Box className={css.BioEditorContainer} direction="Column" style={{ position: 'relative' }}>
         {autocompleteQuery?.prefix === AutocompletePrefix.Emoticon && (
           <EmoticonAutocomplete
@@ -190,6 +172,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
           variant="Background"
           bottom={
             <Box direction="Column" style={{ backgroundColor: 'var(--sable-bg-container)' }}>
+              <MarkdownFormattingToolbarBottom />
               <Box
                 style={{ padding: config.space.S200, paddingTop: 0 }}
                 alignItems="End"
@@ -220,14 +203,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                   </Text>
                 </Box>
                 <Box gap="Inherit">
-                  <IconButton
-                    variant="Background"
-                    size="300"
-                    radii="300"
-                    onClick={() => setToolbar(!toolbar)}
-                  >
-                    <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-                  </IconButton>
+                  <MarkdownFormattingToolbarToggle variant="Background" />
                   <UseStateProvider initial={undefined}>
                     {(anchor: RectCords | undefined, setAnchor) => (
                       <PopOut
@@ -267,12 +243,6 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                   </UseStateProvider>
                 </Box>
               </Box>
-              {toolbar && (
-                <Box direction="Column">
-                  <Line variant="Surface" size="300" />
-                  <Toolbar />
-                </Box>
-              )}
             </Box>
           }
         />

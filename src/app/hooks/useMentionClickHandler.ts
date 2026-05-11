@@ -1,8 +1,11 @@
-import { ReactEventHandler, useCallback } from 'react';
+import type { ReactEventHandler } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isRoomId, isUserId } from '$utils/matrix';
 import { getHomeRoomPath, withSearchParam } from '$pages/pathUtils';
-import { RoomSearchParams } from '$pages/paths';
+import { isSettingsSectionId } from '$features/settings/routes';
+import { normalizeSettingsFocusId } from '$features/settings/settingsLink';
+import { useOpenSettings } from '$features/settings/useOpenSettings';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useMatrixClient } from './useMatrixClient';
 import { useRoomNavigate } from './useRoomNavigate';
@@ -14,12 +17,22 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
   const navigate = useNavigate();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
+  const openSettings = useOpenSettings();
 
   const handleClick: ReactEventHandler<HTMLElement> = useCallback(
     (evt) => {
       evt.stopPropagation();
       evt.preventDefault();
       const target = evt.currentTarget;
+      const settingsSection = target.getAttribute('data-settings-link-section') || undefined;
+      if (isSettingsSectionId(settingsSection)) {
+        const settingsFocus = normalizeSettingsFocusId(
+          target.getAttribute('data-settings-link-focus') || undefined
+        );
+        openSettings(settingsSection, settingsFocus);
+        return;
+      }
+
       const mentionId = target.getAttribute('data-mention-id');
       if (typeof mentionId !== 'string') return;
 
@@ -38,9 +51,9 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
       const viaServers = target.getAttribute('data-mention-via') || undefined;
       const path = getHomeRoomPath(mentionId, eventId);
 
-      navigate(viaServers ? withSearchParam<RoomSearchParams>(path, { viaServers }) : path);
+      navigate(viaServers ? withSearchParam(path, { viaServers }) : path);
     },
-    [mx, navigate, navigateRoom, navigateSpace, roomId, space, openProfile]
+    [mx, navigate, navigateRoom, navigateSpace, openProfile, openSettings, roomId, space]
   );
 
   return handleClick;

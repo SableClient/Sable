@@ -32,6 +32,7 @@ export const TextViewerPre = style([
   DefaultReset,
   {
     whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
     wordBreak: 'break-word',
   },
 ]);

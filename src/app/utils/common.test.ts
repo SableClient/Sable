@@ -48,16 +48,17 @@ describe('secondsToMinutesAndSeconds', () => {
   });
 });
 
+const matcherFor =
+  (target: number) =>
+  (n: number): -1 | 0 | 1 => {
+    if (n === target) return 0;
+    if (n > target) return 1;
+    return -1;
+  };
+
 // binarySearch: match fn returns 0=found, 1=go left (item too large), -1=go right (item too small)
 describe('binarySearch', () => {
   const nums = [1, 3, 5, 7, 9, 11, 13];
-  const matcherFor =
-    (target: number) =>
-    (n: number): -1 | 0 | 1 => {
-      if (n === target) return 0;
-      if (n > target) return 1;
-      return -1;
-    };
 
   it('finds a value in the middle', () => {
     expect(binarySearch(nums, matcherFor(7))).toBe(7);

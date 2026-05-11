@@ -1,4 +1,5 @@
-import { FormEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import type { FormEventHandler, ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Text,
@@ -15,7 +16,7 @@ import {
   OverlayBackdrop,
   OverlayCenter,
 } from 'folds';
-import { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
+import type { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -28,6 +29,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 
 export function DeviceTilePlaceholder() {
   return (
@@ -285,6 +287,8 @@ export function DeviceTile({
   return (
     <>
       <SettingTile
+        focusId={`device-${toSettingsFocusIdPart(device.device_id)}`}
+        showSettingLinkAction={false}
         before={
           <IconButton
             variant={deleted ? 'Critical' : 'Secondary'}

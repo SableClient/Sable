@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { NavigateOptions, useNavigate } from 'react-router-dom';
+import type { NavigateOptions } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import {
@@ -43,7 +44,7 @@ export const useRoomNavigate = () => {
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
           parentSpace = spaceSelectedId;
         } else {
-          parentSpace = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0];
+          parentSpace = guessPerfectParent(mx, roomId, orphanParents) ?? orphanParents[0] ?? roomId;
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);

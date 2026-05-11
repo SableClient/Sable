@@ -1,21 +1,21 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Text, Box, toRem } from 'folds';
+import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
-import { UnreadBadge } from '$components/unread-badge';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
-import { getDirectRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nameInitials } from '$utils/common';
 import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
@@ -53,12 +53,11 @@ function DMItem({ room, selected }: DMItemProps) {
 
   // Determine avatar src for single group DM member to avoid nested ternary
   const getSingleMemberAvatarSrc = () => {
-    if (groupMembers.length !== 1 || !groupMembers[0].avatarUrl) {
+    const member = groupMembers[0];
+    if (groupMembers.length !== 1 || !member?.avatarUrl) {
       return undefined;
     }
-    return (
-      mxcUrlToHttp(mx, groupMembers[0].avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined
-    );
+    return mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
   };
 
   // Render appropriate avatar based on DM type
@@ -69,7 +68,10 @@ function DMItem({ room, selected }: DMItemProps) {
         <Avatar size="400" radii="400">
           <RoomAvatar
             roomId={room.roomId}
-            src={getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)}
+            src={
+              getRoomAvatarUrl(mx, room, 96, useAuthentication) ||
+              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+            }
             alt={room.name}
             renderFallback={() => (
               <Text as="span" size="H6">
@@ -82,16 +84,17 @@ function DMItem({ room, selected }: DMItemProps) {
     }
 
     if (groupMembers.length === 1) {
-      // Single member in group DM - fill the space like a normal DM
+      const member = groupMembers[0];
+      if (!member) return null;
       return (
         <Avatar size="400" radii="400">
           <UserAvatar
-            userId={groupMembers[0].userId}
+            userId={member.userId}
             src={getSingleMemberAvatarSrc()}
-            alt={groupMembers[0].displayName || groupMembers[0].userId}
+            alt={member.displayName || member.userId}
             renderFallback={() => (
               <Text as="span" size="H6">
-                {nameInitials(groupMembers[0].displayName || groupMembers[0].userId)}
+                {nameInitials(member.displayName || member.userId)}
               </Text>
             )}
           />
@@ -138,19 +141,11 @@ function DMItem({ room, selected }: DMItemProps) {
         )}
       </SidebarItemTooltip>
       {unread && (unread.total > 0 || unread.highlight > 0) && (
-        <SidebarItemBadge
-          hasCount={unread.total > 0}
-          style={{
-            left: unread.total > 0 ? toRem(-6) : toRem(-2),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={unread.highlight > 0}
-            count={unread.highlight > 0 ? unread.highlight : unread.total}
-            dm
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={unread.highlight > 0}
+          count={unread.highlight > 0 ? unread.highlight : unread.total}
+          dm
+        />
       )}
     </SidebarItem>
   );
@@ -161,6 +156,9 @@ export function DirectDMsList() {
   const selectedRoomId = useSelectedRoom();
   const sidebarRoomIds = useSidebarDirectRoomIds();
 
+  const mountTimeRef = useRef(performance.now());
+  const firstReadyRef = useRef(false);
+
   const recentDMs = useMemo(
     () =>
       sidebarRoomIds
@@ -168,6 +166,16 @@ export function DirectDMsList() {
         .filter((room): room is Room => room !== null),
     [sidebarRoomIds, mx]
   );
+
+  useEffect(() => {
+    if (recentDMs.length > 0 && !firstReadyRef.current) {
+      firstReadyRef.current = true;
+      Sentry.metrics.distribution(
+        'sable.roomlist.time_to_ready_ms',
+        performance.now() - mountTimeRef.current
+      );
+    }
+  }, [recentDMs]);
 
   if (recentDMs.length === 0) {
     return null;

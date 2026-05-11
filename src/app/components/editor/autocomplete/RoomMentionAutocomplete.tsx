@@ -1,13 +1,17 @@
-import { KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect } from 'react';
-import { Editor } from 'slate';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import type { Editor } from 'slate';
+import { ReactEditor } from 'slate-react';
 import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
-import { JoinRule, MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { JoinRule } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 
 import { getDirectRoomAvatarUrl } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer, isRoomAlias } from '$utils/matrix';
-import { UseAsyncSearchOptions, useAsyncSearch } from '$hooks/useAsyncSearch';
+import { isRoomAlias } from '$utils/matrix';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
+import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { mDirectAtom } from '$state/mDirectList';
@@ -16,8 +20,9 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { getViaServers } from '$plugins/via-servers';
 import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import { AutocompleteQuery } from './autocompleteQuery';
+import type { AutocompleteQuery } from './autocompleteQuery';
 
 type MentionAutoCompleteHandler = (roomAliasOrId: string, name: string) => void;
 
@@ -79,7 +84,11 @@ export function RoomMentionAutocomplete({
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
 
-  const allRooms = useAtomValue(allRoomsAtom).sort(factoryRoomIdByActivity(mx));
+  const allRoomsFromAtom = useAtomValue(allRoomsAtom);
+  const allRooms = useMemo(
+    () => allRoomsFromAtom.toSorted(factoryRoomIdByActivity(mx)),
+    [allRoomsFromAtom, mx]
+  );
 
   const [result, search, resetSearch] = useAsyncSearch(
     allRooms,
@@ -115,6 +124,7 @@ export function RoomMentionAutocomplete({
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);
+    ReactEditor.focus(editor);
     requestClose();
   };
 
@@ -128,12 +138,16 @@ export function RoomMentionAutocomplete({
       const rId = autoCompleteRoomIds[0];
       const r = mx.getRoom(rId);
       const name = r?.name ?? rId;
-      handleAutocomplete(r?.getCanonicalAlias() ?? rId, name);
+      handleAutocomplete(r?.getCanonicalAlias() ?? rId ?? '', name as string);
     });
   });
 
   return (
-    <AutocompleteMenu headerContent={<Text size="L400">Rooms</Text>} requestClose={requestClose}>
+    <AutocompleteMenu
+      headerContent={<Text size="L400">Rooms</Text>}
+      requestClose={requestClose}
+      editor={editor}
+    >
       {autoCompleteRoomIds.length === 0 ? (
         <UnknownRoomMentionItem query={query} handleAutocomplete={handleAutocomplete} />
       ) : (

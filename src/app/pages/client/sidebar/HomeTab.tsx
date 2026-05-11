@@ -1,6 +1,8 @@
-import { MouseEventHandler, forwardRef, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';
@@ -14,11 +16,10 @@ import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
 import { useHomeSelected } from '$hooks/router/useHomeSelected';
-import { UnreadBadge } from '$components/unread-badge';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
@@ -109,18 +110,10 @@ export function HomeTab() {
         )}
       </SidebarItemTooltip>
       {homeUnread && (
-        <SidebarItemBadge
-          hasCount={homeUnread.total > 0}
-          style={{
-            left: homeUnread.total > 0 ? toRem(-6) : toRem(-2),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={homeUnread.highlight > 0}
-            count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={homeUnread.highlight > 0}
+          count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}
+        />
       )}
       {menuAnchor && (
         <PopOut

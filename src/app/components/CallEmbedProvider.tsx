@@ -1,4 +1,5 @@
-import { ReactNode, useCallback, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useAutoJoinCall } from '$hooks/useAutoJoinCall';
 import {
@@ -9,8 +10,9 @@ import {
   useCallThemeSync,
   useCallMemberSoundSync,
 } from '$hooks/useCallEmbed';
+import type { CallEmbed } from '$plugins/call';
+import { useClientWidgetApiEvent, ElementWidgetActions } from '$plugins/call';
 import { callChatAtom, callEmbedAtom } from '$state/callEmbed';
-import { CallEmbed } from '$plugins/call';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { IncomingCallModal } from './IncomingCallModal';
@@ -20,12 +22,13 @@ function CallUtils({ embed }: { embed: CallEmbed }) {
 
   useCallMemberSoundSync(embed);
   useCallThemeSync(embed);
-  useCallHangupEvent(
-    embed,
-    useCallback(() => {
-      setCallEmbed(undefined);
-    }, [setCallEmbed])
-  );
+
+  const handleCallEnd = useCallback(() => {
+    setCallEmbed(undefined);
+  }, [setCallEmbed]);
+
+  useCallHangupEvent(embed, handleCallEnd);
+  useClientWidgetApiEvent(embed.call, ElementWidgetActions.Close, handleCallEnd);
 
   return null;
 }

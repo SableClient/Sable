@@ -1,4 +1,5 @@
-import { FormEventHandler, forwardRef, useCallback, useState } from 'react';
+import type { FormEventHandler } from 'react';
+import { forwardRef, useCallback, useState } from 'react';
 import {
   Dialog,
   Header,
@@ -15,7 +16,8 @@ import {
 } from 'folds';
 import FileSaver from 'file-saver';
 import to from 'await-to-js';
-import { AuthDict, IAuthData, MatrixError, UIAuthCallback } from '$types/matrix-sdk';
+import type { AuthDict, IAuthData, UIAuthCallback } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { clearSecretStorageKeys } from '$client/secretStorageKeys';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { copyToClipboard } from '$utils/dom';
@@ -42,7 +44,7 @@ function makeUIAAction<T>(
   authData: IAuthData,
   performAction: PerformAction<T>,
   resolve: (data: T) => void,
-  reject: (error?: any) => void
+  reject: (error?: unknown) => void
 ): UIAAction<T> {
   const action: UIAAction<T> = {
     authData,
@@ -70,7 +72,7 @@ function makeUIAAction<T>(
 type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
 };
-function SetupVerification({ onComplete }: SetupVerificationProps) {
+function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -227,7 +229,7 @@ function SetupVerification({ onComplete }: SetupVerificationProps) {
 type RecoveryKeyDisplayProps = {
   recoveryKey: string;
 };
-function RecoveryKeyDisplay({ recoveryKey }: RecoveryKeyDisplayProps) {
+function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) {
   const [show, setShow] = useState(false);
 
   const handleCopy = () => {
@@ -241,7 +243,7 @@ function RecoveryKeyDisplay({ recoveryKey }: RecoveryKeyDisplayProps) {
     FileSaver.saveAs(blob, 'recovery-key.txt');
   };
 
-  const safeToDisplayKey = show ? recoveryKey : recoveryKey.replace(/[^\s]/g, '*');
+  const safeToDisplayKey = show ? recoveryKey : recoveryKey.replaceAll(/[^\s]/g, '*');
 
   return (
     <Box direction="Column" gap="400">

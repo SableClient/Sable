@@ -1,5 +1,5 @@
-/* eslint-disable react/destructuring-assignment */
-import { MouseEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -14,24 +14,18 @@ import {
   toRem,
 } from 'folds';
 import { useSearchParams } from 'react-router-dom';
-import {
-  INotification,
-  INotificationsResponse,
-  IRoomEvent,
-  JoinRule,
-  Method,
-  RelationType,
-  Room,
-} from '$types/matrix-sdk';
+import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
+import { JoinRule, Method, RelationType, EventType } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { InboxNotificationsPathSearchParams } from '$pages/paths';
+import type { InboxNotificationsPathSearchParams } from '$pages/paths';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -68,7 +62,8 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { Image } from '$components/media';
 import { ImageViewer } from '$components/image-viewer';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
+
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
 import * as customHtmlCss from '$styles/CustomHtml.css';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
@@ -81,6 +76,7 @@ import { UserAvatar } from '$components/user-avatar';
 import { EncryptedContent } from '$features/room/message';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -116,12 +112,12 @@ const groupNotifications = (
 ): RoomNotificationsGroup[] => {
   const groups: RoomNotificationsGroup[] = [];
   notifications.forEach((notification) => {
-    if (notification.event.type === StateEvent.RoomMember) return;
+    if (notification.event.type === (EventType.RoomMember as string)) return;
     if (!allowRooms.has(notification.room_id)) return;
 
     const groupIndex = groups.length - 1;
     const lastAddedGroup: RoomNotificationsGroup | undefined = groups[groupIndex];
-    if (lastAddedGroup && notification.room_id === lastAddedGroup.roomId) {
+    if (notification.room_id === lastAddedGroup?.roomId) {
       lastAddedGroup.notifications.push(notification);
       return;
     }
@@ -204,6 +200,7 @@ const useNotificationTimeline = (
 
 type RoomNotificationsGroupProps = {
   room: Room;
+  appBaseUrl: string;
   notifications: INotification[];
   mediaAutoLoad?: boolean;
   urlPreview?: boolean;
@@ -215,6 +212,7 @@ type RoomNotificationsGroupProps = {
 };
 function RoomNotificationsGroupComp({
   room,
+  appBaseUrl,
   notifications,
   mediaAutoLoad,
   urlPreview,
@@ -223,7 +221,7 @@ function RoomNotificationsGroupComp({
   legacyUsernameColor,
   hour24Clock,
   dateFormatString,
-}: RoomNotificationsGroupProps) {
+}: Readonly<RoomNotificationsGroupProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
@@ -245,33 +243,46 @@ function RoomNotificationsGroupComp({
   const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention((href) =>
-        renderMatrixMention(
-          mx,
-          room.roomId,
-          href,
-          makeMentionCustomProps(mentionClickHandler),
-          nicknames
-        )
+      render: factoryRenderLinkifyWithMention(
+        appBaseUrl,
+        (href) =>
+          renderMatrixMention(
+            mx,
+            room.roomId,
+            href,
+            makeMentionCustomProps(mentionClickHandler),
+            nicknames
+          ),
+        mentionClickHandler
       ),
     }),
-    [mx, room, mentionClickHandler, nicknames]
+    [appBaseUrl, mx, room, mentionClickHandler, nicknames]
   );
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
+        settingsLinkBaseUrl: appBaseUrl,
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
       }),
-    [mx, room, linkifyOpts, mentionClickHandler, spoilerClickHandler, useAuthentication, nicknames]
+    [
+      appBaseUrl,
+      mx,
+      room,
+      linkifyOpts,
+      mentionClickHandler,
+      spoilerClickHandler,
+      useAuthentication,
+      nicknames,
+    ]
   );
 
   const renderMatrixEvent = useMatrixEventRenderer<[IRoomEvent, string, GetContentCallback]>(
     {
-      [MessageEvent.RoomMessage]: (event, displayName, getContent) => {
+      [EventType.RoomMessage]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -290,10 +301,10 @@ function RoomNotificationsGroupComp({
           />
         );
       },
-      [MessageEvent.RoomMessageEncrypted]: (evt, displayName) => {
+      [EventType.RoomMessageEncrypted]: (evt, displayName) => {
         const evtTimeline = room.getTimelineForEvent(evt.event_id);
 
-        const mEvent = evtTimeline?.getEvents().find((e: any) => e.getId() === evt.event_id);
+        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
 
         if (!mEvent || !evtTimeline) {
           return (
@@ -310,7 +321,7 @@ function RoomNotificationsGroupComp({
           <EncryptedContent mEvent={mEvent}>
             {() => {
               if (mEvent.isRedacted()) return <RedactedContent />;
-              if (mEvent.getType() === MessageEvent.Sticker)
+              if (mEvent.getType() === (EventType.Sticker as string))
                 return (
                   <MSticker
                     content={mEvent.getContent()}
@@ -324,7 +335,7 @@ function RoomNotificationsGroupComp({
                     )}
                   />
                 );
-              if (mEvent.getType() === MessageEvent.RoomMessage) {
+              if (mEvent.getType() === (EventType.RoomMessage as string)) {
                 const editedEvent = getEditedEvent(
                   evt.event_id,
                   mEvent,
@@ -348,7 +359,7 @@ function RoomNotificationsGroupComp({
                   />
                 );
               }
-              if (mEvent.getType() === MessageEvent.RoomMessageEncrypted)
+              if (mEvent.getType() === (EventType.RoomMessageEncrypted as string))
                 return (
                   <Text>
                     <MessageNotDecryptedContent />
@@ -363,13 +374,13 @@ function RoomNotificationsGroupComp({
           </EncryptedContent>
         );
       },
-      [MessageEvent.Sticker]: (event, displayName, getContent) => {
+      [EventType.Sticker]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
         return (
           <MSticker
-            content={getContent()}
+            content={getContent() as IImageContent}
             renderImageContent={(props) => (
               <ImageContent
                 {...props}
@@ -381,7 +392,7 @@ function RoomNotificationsGroupComp({
           />
         );
       },
-      [StateEvent.RoomTombstone]: (event) => {
+      [EventType.RoomTombstone]: (event) => {
         const { content } = event;
         return (
           <Box grow="Yes" direction="Column">
@@ -468,6 +479,9 @@ function RoomNotificationsGroupComp({
           const replyEventId = relation?.['m.in_reply_to']?.event_id;
           const threadRootId =
             relation?.rel_type === RelationType.Thread ? relation.event_id : undefined;
+          // doesn't work for encrypted rooms
+          // not a big deal really, don't want to bother with finding the event by id and decrypting
+          const mentions = event.content['m.mentions'];
 
           const memberPowerTag = getMemberPowerTag(event.sender);
           const tagColor = memberPowerTag?.color
@@ -543,6 +557,7 @@ function RoomNotificationsGroupComp({
                     room={room}
                     replyEventId={replyEventId}
                     threadRootId={threadRootId}
+                    mentions={mentions}
                     onClick={handleOpenClick}
                   />
                 )}
@@ -578,6 +593,7 @@ export function Notifications() {
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const screenSize = useScreenSizeContext();
   const mDirects = useAtomValue(mDirectAtom);
+  const appBaseUrl = useSettingsLinkBaseUrl();
 
   const { navigateRoom } = useRoomNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -623,7 +639,7 @@ export function Notifications() {
     loadTimeline();
   }, [loadTimeline]);
 
-  const lastVItem = vItems[vItems.length - 1];
+  const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
   useEffect(() => {
     if (
@@ -671,7 +687,7 @@ export function Notifications() {
                   <Box gap="200">
                     <Chip
                       onClick={() => setOnlyHighlighted(false)}
-                      variant={!onlyHighlight ? 'Success' : 'Surface'}
+                      variant={onlyHighlight ? 'Surface' : 'Success'}
                       aria-pressed={!onlyHighlight}
                       before={!onlyHighlight && <Icon size="100" src={Icons.Check} />}
                       outlined
@@ -722,6 +738,7 @@ export function Notifications() {
                       >
                         <RoomNotificationsGroupComp
                           room={groupRoom}
+                          appBaseUrl={appBaseUrl}
                           notifications={group.notifications}
                           mediaAutoLoad={mediaAutoLoad}
                           urlPreview={urlPreview}
@@ -741,7 +758,9 @@ export function Notifications() {
                 {timelineState.status === AsyncStatus.Success &&
                   notificationTimeline.groups.length === 0 && (
                     <Box
-                      className={ContainerColor({ variant: 'SurfaceVariant' })}
+                      className={ContainerColor({
+                        variant: 'SurfaceVariant',
+                      })}
                       style={{
                         padding: config.space.S300,
                         borderRadius: config.radii.R400,
@@ -758,10 +777,10 @@ export function Notifications() {
 
                 {timelineState.status === AsyncStatus.Loading && (
                   <Box direction="Column" gap="100">
-                    {[...Array(8).keys()].map((key) => (
+                    {Array.from({ length: 8 }).map(() => (
                       <SequenceCard
                         variant="SurfaceVariant"
-                        key={key}
+                        key={crypto.randomUUID()}
                         style={{ minHeight: toRem(80) }}
                       />
                     ))}

@@ -1,3 +1,4 @@
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -9,13 +10,15 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Spinner,
   Text,
 } from 'folds';
-import { HttpApiEvent, HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import type { HttpApiEventHandlerMap, MatrixClient } from '$types/matrix-sdk';
+import { HttpApiEvent } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import { useRef, MouseEventHandler, ReactNode, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
@@ -150,6 +153,11 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
 const useLogoutListener = (mx?: MatrixClient) => {
   useEffect(() => {
     const handleLogout: HttpApiEventHandlerMap[HttpApiEvent.SessionLoggedOut] = async () => {
+      Sentry.addBreadcrumb({
+        category: 'auth',
+        message: 'Session forcibly logged out by server',
+        level: 'warning',
+      });
       if (mx) stopClient(mx);
       await mx?.clearStores();
       window.localStorage.clear();
@@ -180,6 +188,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   const { baseUrl, userId } = activeSession ?? {};
 
   const loadedUserIdRef = useRef<string | undefined>(undefined);
+  const syncStartTimeRef = useRef(performance.now());
+  const firstSyncReadyRef = useRef(false);
 
   const [loadState, loadMatrix, setLoadState] = useAsyncCallback<MatrixClient, Error, []>(
     useCallback(async () => {
@@ -239,8 +249,9 @@ export function ClientRoot({ children }: ClientRootProps) {
     if (!mx || !activeSession) return;
     await logoutClient(mx, activeSession);
     setSessions({ type: 'DELETE', session: activeSession } as SessionsAction);
-    const remaining = sessions.filter((s) => s.userId !== activeSession.userId);
-    setActiveSessionId(remaining[0]?.userId ?? undefined);
+    setActiveSessionId(
+      sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
+    );
     window.location.reload();
   }, [mx, activeSession, sessions, setSessions, setActiveSessionId]);
 
@@ -281,14 +292,71 @@ export function ClientRoot({ children }: ClientRootProps) {
     mx,
     useCallback((state: string) => {
       if (isClientReady(state)) {
+        if (!firstSyncReadyRef.current) {
+          firstSyncReadyRef.current = true;
+          Sentry.metrics.distribution(
+            'sable.sync.time_to_ready_ms',
+            performance.now() - syncStartTimeRef.current
+          );
+        }
         setLoading(false);
       }
     }, [])
   );
 
+  // Set matrix client context: homeserver and sync type (not PII)
+  useEffect(() => {
+    if (!activeSession?.baseUrl) return undefined;
+    Sentry.setContext('client', {
+      homeserver: activeSession.baseUrl,
+      sliding_sync: clientConfig.slidingSync,
+    });
+    return () => {
+      Sentry.setContext('client', null);
+    };
+  }, [activeSession?.baseUrl, clientConfig.slidingSync]);
+
+  // Set a pseudonymous hashed user ID for error grouping — never sends raw Matrix ID
+  useEffect(() => {
+    if (!mx) return undefined;
+    const matrixUserId = mx.getUserId();
+    if (!matrixUserId) return undefined;
+    (async () => {
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(matrixUserId)
+      );
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+        .slice(0, 16);
+      // Include the homeserver domain as a custom attribute — it is not PII (it is the
+      // server domain, not a personal identifier) and helps segment issues by deployment.
+      const serverDomain = matrixUserId.split(':')[1] ?? 'unknown';
+      Sentry.setUser({ id: hashHex, homeserver: serverDomain });
+    })();
+    return () => {
+      Sentry.setUser(null);
+    };
+  }, [mx]);
+
+  // Capture fatal client failures — useAsyncCallback swallows these into state so
+  // they never reach the React ErrorBoundary; explicit capture is required.
+  useEffect(() => {
+    if (loadState.status === AsyncStatus.Error) {
+      Sentry.captureException(loadState.error, { tags: { phase: 'load' } });
+    }
+  }, [loadState]);
+
+  useEffect(() => {
+    if (startState.status === AsyncStatus.Error) {
+      Sentry.captureException(startState.error, { tags: { phase: 'start' } });
+    }
+  }, [startState]);
+
   return (
-    <AutoDiscovery userId={userId} baseUrl={baseUrl}>
-      <SpecVersions baseUrl={baseUrl}>
+    <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
+      <SpecVersions baseUrl={baseUrl ?? ''}>
         {mx && <SyncStatus mx={mx} />}
         {loading && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {(loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error) && (

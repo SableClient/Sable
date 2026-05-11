@@ -1,6 +1,8 @@
-import { MouseEventHandler, forwardRef, useCallback, useEffect, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue } from 'jotai';
+import type { RectCords } from 'folds';
 import {
   Box,
   Avatar,
@@ -19,18 +21,18 @@ import {
   config,
   Line,
   PopOut,
-  RectCords,
   Badge,
   Spinner,
 } from 'folds';
 import { useNavigate } from 'react-router-dom';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import {
+  Direction,
   EventTimeline,
-  Room,
+  NotificationCountType,
   ThreadEvent,
   RoomEvent,
-  MatrixEvent,
-  NotificationCountType,
+  EventType,
 } from '$types/matrix-sdk';
 
 import { useStateEvent } from '$hooks/useStateEvent';
@@ -38,7 +40,7 @@ import { PageHeader } from '$components/page';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
-import { StateEvent } from '$types/matrix/room';
+
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useIsDirectRoom, useRoom } from '$hooks/useRoom';
 import { useSetting } from '$state/hooks/settings';
@@ -80,7 +82,8 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
+
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mDirectAtom } from '$state/mDirectList';
@@ -92,11 +95,12 @@ import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const log = createLogger('RoomViewHeader');
 
 async function getPinsHash(pinnedIds: string[]): Promise<string> {
-  const sorted = [...pinnedIds].sort().join(',');
+  const sorted = [...pinnedIds].toSorted().join(',');
   const encoder = new TextEncoder();
   const data = encoder.encode(sorted);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -340,7 +344,7 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
 });
 RoomMenu.displayName = 'RoomMenu';
 
-export function RoomViewHeader({ callView }: { callView?: boolean }) {
+export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const navigate = useNavigate();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -350,6 +354,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const direct = useIsDirectRoom();
+  const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
 
   const [chat, setChat] = useAtom(callChatAtom);
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -361,10 +366,12 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
     .getLiveTimeline()
     .getState(EventTimeline.FORWARDS)
     ?.maySendStateEvent('org.matrix.msc3401.call.member', mx.getUserId()!);
+  const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
+  const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
-  const encryptionEvent = useStateEvent(room, StateEvent.RoomEncryption);
+  const encryptionEvent = useStateEvent(room, EventType.RoomEncryption);
   const encryptedRoom = !!encryptionEvent;
-  const avatarMxc = useRoomAvatar(room, direct);
+  const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
   const avatarUrl = avatarMxc
@@ -377,13 +384,13 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   const pinnedIds = useRoomPinnedEvents(room);
   const pinMarker = room
-    .getAccountData(AccountDataEvent.SablePinStatus)
+    .getAccountData(CustomAccountDataEvent.SablePinStatus)
     ?.getContent() as PinReadMarker;
   const [unreadPinsCount, setUnreadPinsCount] = useState(0);
   const [unreadThreadsCount, setUnreadThreadsCount] = useState(0);
   const [hasThreadHighlights, setHasThreadHighlights] = useState(false);
 
-  const [currentHash, setCurrentHash] = useState<string>('');
+  const [currentHash, setCurrentHash] = useState('');
 
   useEffect(() => {
     getPinsHash(pinnedIds)
@@ -408,14 +415,14 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       }
 
       const lastSeenIndex = pinnedIds.indexOf(pinMarker?.last_seen_id);
-      if (lastSeenIndex !== -1) {
-        const newPins = pinnedIds.slice(lastSeenIndex + 1);
-        setUnreadPinsCount(newPins.length);
-      } else {
+      if (lastSeenIndex === -1) {
         const oldCount = pinMarker?.count ?? 0;
         const startIndex = Math.max(0, oldCount - 1);
         const newCount = pinnedIds.length > 0 ? pinnedIds.length - startIndex : 0;
         setUnreadPinsCount(Math.max(0, newCount));
+      } else {
+        const newPins = pinnedIds.slice(lastSeenIndex + 1);
+        setUnreadPinsCount(newPins.length);
       }
     };
     checkUnreads().catch((err) => {
@@ -425,7 +432,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   // Initialize Thread objects from room history on mount and create them for new timeline events
   useEffect(() => {
-    const scanTimelineForThreads = (timeline: any) => {
+    const scanTimelineForThreads = (timeline: EventTimeline) => {
       const events = timeline.getEvents();
       const threadRoots = new Set<string>();
 
@@ -433,8 +440,9 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       // 1. Events that ARE thread roots (have isThreadRoot = true or have replies)
       // 2. Events that are IN threads (have threadRootId)
       events.forEach((event: MatrixEvent) => {
-        // Check if this event is a thread root
-        if (event.isThreadRoot) {
+        // Check if this event is an actual thread root. `isThreadRoot` can be
+        // polluted by locally-created Thread shells, so require the server bundle.
+        if (hasThreadRootAggregation(event)) {
           const rootId = event.getId();
           if (rootId && !room.getThread(rootId)) {
             threadRoots.add(rootId);
@@ -443,7 +451,11 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
         // Check if this event is a reply in a thread
         const { threadRootId } = event;
-        if (threadRootId && !room.getThread(threadRootId)) {
+        if (
+          threadRootId &&
+          isThreadRelationEvent(event, threadRootId) &&
+          !room.getThread(threadRootId)
+        ) {
           threadRoots.add(threadRootId);
         }
       });
@@ -462,16 +474,17 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
     scanTimelineForThreads(liveTimeline);
 
     // Also scan backward timelines (historical messages already loaded)
-    let backwardTimeline = liveTimeline.getNeighbouringTimeline('b' as any);
+    let backwardTimeline = liveTimeline.getNeighbouringTimeline(Direction.Backward);
     while (backwardTimeline) {
       scanTimelineForThreads(backwardTimeline);
-      backwardTimeline = backwardTimeline.getNeighbouringTimeline('b' as any);
+      backwardTimeline = backwardTimeline.getNeighbouringTimeline(Direction.Backward);
     }
 
     // Listen for new timeline events (including pagination)
     const handleTimelineEvent = (mEvent: MatrixEvent) => {
-      // Check if this event is a thread root
-      if (mEvent.isThreadRoot) {
+      // Check if this event is an actual thread root. `isThreadRoot` can be
+      // polluted by locally-created Thread shells, so require the server bundle.
+      if (hasThreadRootAggregation(mEvent)) {
         const rootId = mEvent.getId();
         if (rootId && !room.getThread(rootId)) {
           const rootEvent = room.findEventById(rootId);
@@ -483,7 +496,11 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
       // Check if this is a reply in a thread
       const { threadRootId } = mEvent;
-      if (threadRootId && !room.getThread(threadRootId)) {
+      if (
+        threadRootId &&
+        isThreadRelationEvent(mEvent, threadRootId) &&
+        !room.getThread(threadRootId)
+      ) {
         const rootEvent = room.findEventById(threadRootId);
         if (rootEvent) {
           room.createThread(threadRootId, rootEvent, [], false);
@@ -491,9 +508,9 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       }
     };
 
-    mx.on(RoomEvent.Timeline as any, handleTimelineEvent);
+    mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {
-      mx.off(RoomEvent.Timeline as any, handleTimelineEvent);
+      mx.off(RoomEvent.Timeline, handleTimelineEvent);
     };
   }, [room, mx]);
 
@@ -522,14 +539,14 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
     // Listen for thread updates
     const onThreadUpdate = () => checkThreadUnreads();
-    room.on(ThreadEvent.New as any, onThreadUpdate);
-    room.on(ThreadEvent.Update as any, onThreadUpdate);
-    room.on(ThreadEvent.NewReply as any, onThreadUpdate);
+    room.on(ThreadEvent.New, onThreadUpdate);
+    room.on(ThreadEvent.Update, onThreadUpdate);
+    room.on(ThreadEvent.NewReply, onThreadUpdate);
 
     return () => {
-      room.off(ThreadEvent.New as any, onThreadUpdate);
-      room.off(ThreadEvent.Update as any, onThreadUpdate);
-      room.off(ThreadEvent.NewReply as any, onThreadUpdate);
+      room.off(ThreadEvent.New, onThreadUpdate);
+      room.off(ThreadEvent.Update, onThreadUpdate);
+      room.off(ThreadEvent.NewReply, onThreadUpdate);
     };
   }, [room, mx]);
 
@@ -554,10 +571,10 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
       if (pinnedIds.length === 0) return;
 
       const hash = await getPinsHash(pinnedIds);
-      await mx.setRoomAccountData(room.roomId, AccountDataEvent.SablePinStatus, {
+      await mx.setRoomAccountData(room.roomId, CustomAccountDataEvent.SablePinStatus, {
         hash,
         count: pinnedIds.length,
-        last_seen_id: pinnedIds[pinnedIds.length - 1],
+        last_seen_id: pinnedIds.at(-1),
       });
     };
 
@@ -708,7 +725,7 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
                   </IconButton>
                 )}
               </TooltipProvider>
-              {canUseCalls && <RoomCallButton room={room} />}
+              {canUseCalls && shouldShowCallButton && <RoomCallButton room={room} />}
               <PopOut
                 anchor={pinMenuAnchor}
                 position="Bottom"

@@ -1,51 +1,52 @@
-import { IconName, IconSrc } from 'folds';
+import type { IconName, IconSrc } from 'folds';
 
-import {
-  EventTimeline,
+import type {
+  AccountDataEvents,
   EventTimelineSet,
-  EventType,
   IMentions,
   IPowerLevelsContent,
   IPushRule,
   IPushRules,
-  JoinRule,
+  IThreadBundledRelationship,
   MatrixClient,
   MatrixEvent,
-  NotificationCountType,
-  PushProcessor,
-  RelationType,
   Room,
   RoomMember,
   CryptoBackend,
-  MsgType,
+  StateEvents,
 } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
 import {
-  IRoomCreateContent,
-  Membership,
-  NotificationType,
-  RoomToParents,
+  EventTimeline,
+  EventType,
+  JoinRule,
+  NotificationCountType,
+  PushProcessor,
+  PushRuleActionName,
+  RelationType,
+  MsgType,
+  KnownMembership,
   RoomType,
-  MessageEvent,
-  StateEvent,
-  UnreadInfo,
-} from '$types/matrix/room';
+} from '$types/matrix-sdk';
+
+import type { IRoomCreateContent, RoomToParents, UnreadInfo } from '$types/matrix/room';
+import { NotificationType } from '$types/matrix/room';
+import * as Sentry from '@sentry/react';
 
 export const getStateEvent = (
   room: Room,
-  eventType: StateEvent,
+  eventType: keyof StateEvents,
   stateKey = ''
 ): MatrixEvent | undefined =>
   room.getLiveTimeline().getState(EventTimeline.FORWARDS)?.getStateEvents(eventType, stateKey) ??
   undefined;
 
-export const getStateEvents = (room: Room, eventType: StateEvent): MatrixEvent[] =>
+export const getStateEvents = (room: Room, eventType: keyof StateEvents): MatrixEvent[] =>
   room.getLiveTimeline().getState(EventTimeline.FORWARDS)?.getStateEvents(eventType) ?? [];
 
 export const getAccountData = (
   mx: MatrixClient,
-  eventType: AccountDataEvent
-): MatrixEvent | undefined => mx.getAccountData(eventType as any);
+  eventType: keyof AccountDataEvents
+): MatrixEvent | undefined => mx.getAccountData(eventType);
 
 export const getMDirects = (mDirectEvent: MatrixEvent): Set<string> => {
   const roomIds = new Set<string>();
@@ -75,21 +76,21 @@ export const isDirectInvite = (room: Room | null, myUserId: string | null): bool
 
 export const isSpace = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return false;
   return event.getContent().type === RoomType.Space;
 };
 
 export const isRoom = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return true;
   return event.getContent().type !== RoomType.Space;
 };
 
 export const isUnsupportedRoom = (room: Room | null): boolean => {
   if (!room) return false;
-  const event = getStateEvent(room, StateEvent.RoomCreate);
+  const event = getStateEvent(room, EventType.RoomCreate);
   if (!event) return true; // Consider room unsupported if m.room.create event doesn't exist
   return event.getContent().type !== undefined && event.getContent().type !== RoomType.Space;
 };
@@ -118,7 +119,7 @@ export const isDMRoom = (room: Room, mDirects?: Set<string>): boolean => {
 
 export function isValidChild(mEvent: MatrixEvent): boolean {
   return (
-    mEvent.getType() === StateEvent.SpaceChild &&
+    mEvent.getType() === (EventType.SpaceChild as string) &&
     Array.isArray(mEvent.getContent<{ via: string[] }>().via)
   );
 }
@@ -139,7 +140,7 @@ export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set
 };
 
 export const getSpaceChildren = (room: Room) =>
-  getStateEvents(room, StateEvent.SpaceChild).reduce<string[]>((filtered, mEvent) => {
+  getStateEvents(room, EventType.SpaceChild).reduce<string[]>((filtered, mEvent) => {
     const stateKey = mEvent.getStateKey();
     if (isValidChild(mEvent) && stateKey) {
       filtered.push(stateKey);
@@ -167,7 +168,7 @@ export const mapParentWithChildren = (
 export const getRoomToParents = (mx: MatrixClient): RoomToParents => {
   const map: RoomToParents = new Map();
   mx.getRooms()
-    .filter((room) => isSpace(room) && room.getMyMembership() === Membership.Join)
+    .filter((room) => isSpace(room) && room.getMyMembership() === (KnownMembership.Join as string))
     .forEach((room) => mapParentWithChildren(map, room.roomId, getSpaceChildren(room)));
 
   return map;
@@ -178,15 +179,25 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
-export const isMutedRule = (rule: IPushRule) =>
-  // Check for empty actions (new spec) or dont_notify (deprecated)
-  (rule.actions.length === 0 || rule.actions[0] === 'dont_notify') &&
-  rule.conditions?.[0]?.kind === 'event_match';
+const hasNotifyPushAction = (actions: IPushRule['actions']): boolean =>
+  actions.some((a) => typeof a === 'string' && a === PushRuleActionName.Notify);
 
-export const findMutedRule = (overrideRules: IPushRule[], roomId: string) =>
-  overrideRules.find((rule) => rule.rule_id === roomId && isMutedRule(rule));
+const findRoomMuteOverrideRule = (
+  overrideRules: IPushRule[] | undefined,
+  roomId: string
+): IPushRule | undefined =>
+  overrideRules?.find(
+    (rule) =>
+      rule.rule_id === roomId && rule.rule_id.startsWith('!') && !hasNotifyPushAction(rule.actions)
+  );
 
 export const getNotificationType = (mx: MatrixClient, roomId: string): NotificationType => {
+  const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
+    ?.global?.override;
+  if (findRoomMuteOverrideRule(overrideRules, roomId)) {
+    return NotificationType.Mute;
+  }
+
   let roomPushRule: IPushRule | undefined;
   try {
     roomPushRule = mx.getRoomPushRule('global', roomId);
@@ -195,28 +206,24 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
   }
 
   if (!roomPushRule) {
-    const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
-      ?.global?.override;
-    if (!overrideRules) return NotificationType.Default;
-
-    return findMutedRule(overrideRules, roomId) ? NotificationType.Mute : NotificationType.Default;
+    return NotificationType.Default;
   }
 
-  if (roomPushRule.actions[0] === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
-const NOTIFICATION_EVENT_TYPES = [
+const NOTIFICATION_EVENT_TYPES = new Set([
   'm.room.create',
   'm.room.message',
   'm.room.encrypted',
   'm.room.member',
   'm.sticker',
   'm.reaction',
-];
+]);
 export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
-  if (!NOTIFICATION_EVENT_TYPES.includes(eType)) {
+  if (!NOTIFICATION_EVENT_TYPES.has(eType)) {
     return false;
   }
   if (eType === 'm.room.member') return false;
@@ -254,6 +261,7 @@ export const roomHaveNotification = (room: Room): boolean => {
 };
 
 export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
+  if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return false;
   const userId = mx.getUserId();
   if (!userId) return false;
   const readUpToId = room.getEventReadUpTo(userId);
@@ -287,11 +295,21 @@ type UnreadInfoOptions = {
   mDirects?: Set<string>;
 };
 
+const unreadInfoFixupInProgress = new WeakSet<Room>();
+
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
+  if (getNotificationType(room.client, room.roomId) === NotificationType.Mute) {
+    return { roomId: room.roomId, highlight: 0, total: 0 };
+  }
+
   const userId = room.client.getUserId();
-  if (userId && options?.applyFixup) {
-    // Reconcile known notification-count drift (notably with Sliding Sync / mixed receipts).
-    room.fixupNotifications(userId);
+  if (userId && options?.applyFixup && !unreadInfoFixupInProgress.has(room)) {
+    unreadInfoFixupInProgress.add(room);
+    try {
+      room.fixupNotifications(userId);
+    } finally {
+      unreadInfoFixupInProgress.delete(room);
+    }
   }
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
@@ -316,7 +334,7 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       // Exclude the user's own messages: own sent events are always "read" (hasUserReadEvent
       // returns true for them), which would cause the clamp to fire incorrectly.
       const latestNotification = [...liveEvents]
-        .reverse()
+        .toReversed()
         .find(
           (event) =>
             !event.isSending() &&
@@ -351,7 +369,11 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       }
     }
     if (fallbackTotal > 0) {
-      return { roomId: room.roomId, highlight: fallbackHighlight, total: fallbackTotal };
+      return {
+        roomId: room.roomId,
+        highlight: fallbackHighlight,
+        total: fallbackTotal,
+      };
     }
   }
 
@@ -434,7 +456,7 @@ export const getRoomIconSrc = (
     return icons.Space;
   }
 
-  if (roomType === RoomType.Call) {
+  if (roomType === RoomType.UnstableCall) {
     if (joinRule === JoinRule.Public) return icons.VolumeHighGlobe;
     if (
       joinRule === JoinRule.Invite ||
@@ -528,6 +550,14 @@ export const getMemberDisplayName = (
   const member = room.getMember(userId);
   const name = member?.rawDisplayName;
   if (name === userId) return undefined;
+  if (
+    name?.replace(
+      // oxlint-disable-next-line no-misleading-character-class -- Stripping invisible formatting characters from display names
+      /[\p{Cc}\p{Cf}\u180B-\u180F\uFE00-\uFE0F\u200B-\u200D\t\n ]/gu,
+      ''
+    ).length === 0
+  )
+    return undefined;
   return name;
 };
 
@@ -555,19 +585,25 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
   const decryptionPromises = timeline
     .getEvents()
     .filter((event) => event.isEncrypted())
-    .reverse()
+    .toReversed()
     .map((event) => event.attemptDecryption(crypto as CryptoBackend, { isRetry: true }));
-  await Promise.allSettled(decryptionPromises);
+  const decryptStart = performance.now();
+  await Sentry.startSpan(
+    {
+      name: 'decrypt.bulk',
+      op: 'matrix.crypto',
+      attributes: { event_count: decryptionPromises.length },
+    },
+    () => Promise.allSettled(decryptionPromises)
+  );
+  if (decryptionPromises.length > 0) {
+    Sentry.metrics.distribution(
+      'sable.decryption.bulk_latency_ms',
+      performance.now() - decryptStart,
+      { attributes: { event_count: String(decryptionPromises.length) } }
+    );
+  }
 };
-
-export const getReactionContent = (eventId: string, key: string, shortcode?: string) => ({
-  'm.relates_to': {
-    event_id: eventId,
-    key,
-    rel_type: 'm.annotation',
-  },
-  shortcode,
-});
 
 export const getEventReactions = (timelineSet: EventTimelineSet, eventId: string) =>
   timelineSet.relations.getChildEventsForEvent(
@@ -585,7 +621,7 @@ export const getLatestEdit = (
 ): MatrixEvent | undefined => {
   const eventByTargetSender = (rEvent: MatrixEvent) =>
     rEvent.getSender() === targetEvent.getSender();
-  return editEvents.sort((m1, m2) => m2.getTs() - m1.getTs()).find(eventByTargetSender);
+  return editEvents.toSorted((m1, m2) => m2.getTs() - m1.getTs()).find(eventByTargetSender);
 };
 
 export const getEditedEvent = (
@@ -602,8 +638,8 @@ export const canEditEvent = (mx: MatrixClient, mEvent: MatrixEvent) => {
   const relationType = content['m.relates_to']?.rel_type;
   return (
     mEvent.getSender() === mx.getUserId() &&
-    mEvent.getType() === MessageEvent.RoomMessage &&
-    (!relationType || relationType === RelationType.Thread) &&
+    mEvent.getType() === (EventType.RoomMessage as string) &&
+    (!relationType || relationType === (RelationType.Thread as string)) &&
     (content.msgtype === MsgType.Text ||
       content.msgtype === MsgType.Emote ||
       content.msgtype === MsgType.Notice ||
@@ -622,14 +658,18 @@ export const getLatestEditableEvt = (
 
   for (let i = events.length - 1; i >= 0; i -= 1) {
     const evt = events[i];
-    if (canEdit(evt)) return evt;
+    if (evt && canEdit(evt)) return evt;
   }
   return undefined;
 };
 
 export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   const relType = mEvent.getRelation()?.rel_type;
-  if (relType === RelationType.Annotation || relType === RelationType.Replace) return true;
+  if (
+    relType === (RelationType.Annotation as string) ||
+    relType === (RelationType.Replace as string)
+  )
+    return true;
 
   // Sliding sync proxies may omit m.relates_to on the initial delivery of timeline
   // events.  Detect edit events by the presence of m.new_content in the event
@@ -638,6 +678,48 @@ export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   if (mEvent.getContent()['m.new_content'] !== undefined) return true;
 
   return false;
+};
+
+export const isThreadRelationEvent = (mEvent: MatrixEvent, threadRootId?: string): boolean => {
+  const relation =
+    mEvent.getRelation?.() ??
+    (
+      mEvent.getWireContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'] ??
+    (
+      mEvent.getContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'];
+
+  return (
+    relation?.rel_type === (RelationType.Thread as string) &&
+    (threadRootId === undefined || relation.event_id === threadRootId)
+  );
+};
+
+export const hasThreadRootAggregation = (mEvent: MatrixEvent): boolean =>
+  (mEvent.getServerAggregatedRelation?.<IThreadBundledRelationship>(RelationType.Thread as string)
+    ?.count ?? 0) > 0;
+
+/**
+ * Timeline rows skip reactions, edits, and other relation-only events.  When jumping
+ * to a reply target, unwrap to the event that is actually rendered (root of an
+ * edit chain, message for a reaction annotation, etc.).
+ */
+export const unwrapRelationJumpTarget = (room: Room, eventId: string, maxHops = 24): string => {
+  let current = eventId;
+  for (let hop = 0; hop < maxHops; hop += 1) {
+    const ev = room.findEventById(current);
+    if (!ev) return current;
+    if (!reactionOrEditEvent(ev)) return current;
+    const related = ev.getRelation()?.event_id;
+    if (typeof related !== 'string' || related === current) return current;
+    current = related;
+  }
+  return current;
 };
 
 export const getMentionContent = (userIds: string[], room: boolean): IMentions => {
@@ -661,9 +743,9 @@ export const getCommonRooms = (
 
   rooms.forEach((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== Membership.Join) return;
+    if (!room || room.getMyMembership() !== (KnownMembership.Join as string)) return;
 
-    const common = room.hasMembershipState(otherUserId, Membership.Join);
+    const common = room.hasMembershipState(otherUserId, KnownMembership.Join);
     if (common) {
       commonRooms.push(roomId);
     }
@@ -675,15 +757,15 @@ export const getCommonRooms = (
 export const bannedInRooms = (mx: MatrixClient, rooms: string[], otherUserId: string): boolean =>
   rooms.some((roomId) => {
     const room = mx.getRoom(roomId);
-    if (!room || room.getMyMembership() !== Membership.Join) return false;
+    if (!room || room.getMyMembership() !== (KnownMembership.Join as string)) return false;
 
-    return room.hasMembershipState(otherUserId, Membership.Ban);
+    return room.hasMembershipState(otherUserId, KnownMembership.Ban);
   });
 
 export const getAllVersionsRoomCreator = (room: Room): Set<string> => {
   const creators = new Set<string>();
 
-  const createEvent = getStateEvent(room, StateEvent.RoomCreate);
+  const createEvent = getStateEvent(room, EventType.RoomCreate);
   const createContent = createEvent?.getContent<IRoomCreateContent>();
   const creator = createEvent?.getSender();
   if (typeof creator === 'string') creators.add(creator);
@@ -716,7 +798,7 @@ export const guessPerfectParent = (
 
     const powerLevels = getStateEvent(
       r,
-      StateEvent.RoomPowerLevels
+      EventType.RoomPowerLevels
     )?.getContent<IPowerLevelsContent>();
 
     const { users_default: usersDefault, users } = powerLevels ?? {};
@@ -724,7 +806,7 @@ export const guessPerfectParent = (
 
     if (typeof users === 'object')
       Object.keys(users).forEach((userId) => {
-        if (users[userId] > defaultPower) {
+        if (users[userId]! > defaultPower) {
           specialUsers.add(userId);
         }
       });

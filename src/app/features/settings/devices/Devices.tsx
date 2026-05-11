@@ -1,5 +1,5 @@
-import { Box, Text, IconButton, Icon, Icons, Scroll } from 'folds';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { Box, Text, Scroll } from 'folds';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useDeviceIds, useDeviceList, useSplitCurrentDevice } from '$hooks/useDeviceList';
@@ -13,6 +13,7 @@ import { useSecretStorageDefaultKeyId, useSecretStorageKeyContent } from '$hooks
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { BackupRestoreTile } from '$components/BackupRestore';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 import { LocalBackup } from './LocalBackup';
 import { DeviceLogoutBtn, DeviceKeyDetails, DeviceTile, DeviceTilePlaceholder } from './DeviceTile';
 import { OtherDevices } from './OtherDevices';
@@ -33,9 +34,10 @@ function DevicesPlaceholder() {
 }
 
 type DevicesProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Devices({ requestClose }: DevicesProps) {
+export function Devices({ requestBack, requestClose }: DevicesProps) {
   const mx = useMatrixClient();
   const crypto = mx.getCrypto();
   const crossSigningActive = useCrossSigningActive();
@@ -61,21 +63,7 @@ export function Devices({ requestClose }: DevicesProps) {
   );
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Devices
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage title="Devices" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -90,6 +78,7 @@ export function Devices({ requestClose }: DevicesProps) {
                 >
                   <SettingTile
                     title="Device Verification"
+                    focusId="device-verification"
                     description="To verify device identity and grant access to encrypted messages."
                     after={
                       <>
@@ -156,6 +145,6 @@ export function Devices({ requestClose }: DevicesProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

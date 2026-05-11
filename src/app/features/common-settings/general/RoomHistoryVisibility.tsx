@@ -1,33 +1,24 @@
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
-import {
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-} from 'folds';
-import {
-  HistoryVisibility,
+import type { MouseEventHandler } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { RectCords } from 'folds';
+import { Button, color, config, Icon, Icons, Menu, MenuItem, PopOut, Spinner, Text } from 'folds';
+import type {
   MatrixError,
   RoomHistoryVisibilityEventContent,
+  StateEvents,
 } from '$types/matrix-sdk';
+import { HistoryVisibility, EventType } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
-import { StateEvent } from '$types/matrix/room';
+
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { stopPropagation } from '$utils/keyboard';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 
 const useVisibilityStr = () =>
   useMemo(
@@ -58,9 +49,9 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
   const mx = useMatrixClient();
   const room = useRoom();
 
-  const canEdit = permissions.stateEvent(StateEvent.RoomHistoryVisibility, mx.getSafeUserId());
+  const canEdit = permissions.stateEvent(EventType.RoomHistoryVisibility, mx.getSafeUserId());
 
-  const visibilityEvent = useStateEvent(room, StateEvent.RoomHistoryVisibility);
+  const visibilityEvent = useStateEvent(room, EventType.RoomHistoryVisibility);
   const historyVisibility: HistoryVisibility =
     visibilityEvent?.getContent<RoomHistoryVisibilityEventContent>().history_visibility ??
     HistoryVisibility.Shared;
@@ -79,7 +70,11 @@ export function RoomHistoryVisibility({ permissions }: RoomHistoryVisibilityProp
         const content: RoomHistoryVisibilityEventContent = {
           history_visibility: visibility,
         };
-        await mx.sendStateEvent(room.roomId, StateEvent.RoomHistoryVisibility as any, content);
+        await mx.sendStateEvent(
+          room.roomId,
+          EventType.RoomHistoryVisibility as keyof StateEvents,
+          content
+        );
       },
       [mx, room.roomId]
     )

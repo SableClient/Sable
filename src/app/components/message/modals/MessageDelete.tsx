@@ -1,5 +1,6 @@
-import { FormEventHandler, MouseEvent, useCallback, useEffect } from 'react';
-import { Room, MatrixEvent } from '$types/matrix-sdk';
+import type { FormEventHandler, MouseEvent } from 'react';
+import { useCallback, useEffect } from 'react';
+import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import { useSetAtom } from 'jotai';
 import {
   Box,
@@ -20,6 +21,10 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
+import { createDebugLogger } from '$utils/debugLogger';
+import * as Sentry from '@sentry/react';
+
+const debugLog = createDebugLogger('MessageDelete');
 
 export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
   const setModal = useSetAtom(modalAtom);
@@ -67,9 +72,15 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
 
   useEffect(() => {
     if (deleteState.status === AsyncStatus.Success) {
+      debugLog.info('ui', 'Message deleted successfully', { roomId: room.roomId });
+      Sentry.metrics.count('sable.message.delete.success', 1);
       onClose();
     }
-  }, [deleteState.status, onClose]);
+    if (deleteState.status === AsyncStatus.Error) {
+      debugLog.error('ui', 'Message delete failed', { roomId: room.roomId });
+      Sentry.metrics.count('sable.message.delete.error', 1);
+    }
+  }, [deleteState.status, room.roomId, onClose]);
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
@@ -85,6 +96,8 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
     const reasonInput = target?.reasonInput as HTMLInputElement | undefined;
     const reason = reasonInput && reasonInput.value.trim();
 
+    debugLog.info('ui', 'Deleting message', { eventId, hasReason: !!reason });
+    Sentry.metrics.count('sable.message.delete.attempt', 1);
     deleteMessage(eventId, reason);
   };
 

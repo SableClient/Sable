@@ -57,17 +57,17 @@ export class ASCIILexicalTable {
   }
 
   private getWidthToSize(width: number): number {
-    return this.widthToSize[width - 1];
+    return this.widthToSize[width - 1] ?? 0;
   }
 
   first(): string {
-    return String.fromCharCode(this.startCode);
+    return String.fromCodePoint(this.startCode);
   }
 
   last(): string {
     let str = '';
     for (let i = 0; i < this.maxStrWidth; i += 1) {
-      str += String.fromCharCode(this.endCode);
+      str += String.fromCodePoint(this.endCode);
     }
     return str;
   }
@@ -164,7 +164,7 @@ export class ASCIILexicalTable {
 
     prev += String.fromCharCode(lastCode - 1);
     while (prev.length < this.maxStrWidth) {
-      prev += String.fromCharCode(this.endCode);
+      prev += String.fromCodePoint(this.endCode);
     }
     return prev;
   }

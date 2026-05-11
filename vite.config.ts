@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import { createRequire } from 'module';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import buildConfig from './build.config';
 
 const packageJson = JSON.parse(
@@ -63,7 +64,7 @@ const isReleaseTag = (() => {
 const copyFiles = {
   targets: [
     {
-      src: 'node_modules/@element-hq/element-call-embedded/dist/*',
+      src: 'node_modules/@sableclient/sable-call-embedded/dist/*',
       dest: 'public/element-call',
     },
     {
@@ -80,7 +81,15 @@ const copyFiles = {
       dest: '',
     },
     {
-      src: 'public/res/android',
+      src: 'public/res/logo-maskable',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/logo',
+      dest: 'public/',
+    },
+    {
+      src: 'public/res/svg',
       dest: 'public/',
     },
     {
@@ -114,7 +123,7 @@ function serverMatrixSdkCryptoWasm() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   appType: 'spa',
   publicDir: false,
   base: buildConfig.base,
@@ -136,11 +145,13 @@ export default defineConfig({
       $types: path.resolve(__dirname, 'src/types'),
       $public: path.resolve(__dirname, 'public'),
       $client: path.resolve(__dirname, 'src/client'),
+      $unstable: path.resolve(__dirname, 'src/unstable'),
     },
   },
   server: {
     port: 8080,
     host: true,
+    allowedHosts: command === 'serve' ? true : undefined,
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..'],
@@ -166,7 +177,11 @@ export default defineConfig({
       injectRegister: false,
       manifest: false,
       injectManifest: {
-        injectionPoint: undefined,
+        // element-call is a self-contained embedded app; exclude its large assets
+        // from the SW precache manifest (they are not part of the Sable shell).
+        globIgnores: ['public/element-call/**'],
+        // The app's own crypto WASM and main bundle exceed the 2 MiB default.
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
       },
       devOptions: {
         enabled: true,
@@ -184,11 +199,33 @@ export default defineConfig({
     compression({
       algorithms: [
         defineAlgorithm('brotliCompress', {
-          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY },
+          params: {
+            [zlibConstants.BROTLI_PARAM_QUALITY]: zlibConstants.BROTLI_MAX_QUALITY,
+          },
         }),
       ],
       include: /\.(html|xml|css|json|js|mjs|svg|yaml|yml|toml|wasm|txt|map)$/,
     }),
+    // Sentry source map upload — only active when credentials are provided at build time
+    ...(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            sourcemaps: {
+              filesToDeleteAfterUpload: ['dist/**/*.map'],
+            },
+            release: {
+              name: appVersion,
+            },
+            // Annotate React components with data-sentry-* attributes at build
+            // time so Sentry can show component names in breadcrumbs, spans,
+            // and replay search instead of raw CSS selectors.
+            reactComponentAnnotation: { enabled: true },
+          }),
+        ]
+      : []),
   ],
   optimizeDeps: {
     // Rebuild dep optimizer cache on each dev start to avoid stale API shapes.
@@ -222,4 +259,4 @@ export default defineConfig({
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] }) as PluginOption],
     },
   },
-});
+}));

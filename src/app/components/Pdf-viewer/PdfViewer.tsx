@@ -1,7 +1,7 @@
-/* eslint-disable no-param-reassign */
-
-import { FormEventHandler, MouseEventHandler, useEffect, useRef, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -13,7 +13,6 @@ import {
   Input,
   Menu,
   PopOut,
-  RectCords,
   Scroll,
   Spinner,
   Text,
@@ -39,7 +38,13 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { zoom, zoomIn, zoomOut, setZoom, onPointerDown } = useImageGestures(true, 0.2);
+    const {
+      transforms: { zoom },
+      zoomIn,
+      zoomOut,
+      setZoom,
+      onPointerDown,
+    } = useImageGestures(true, 0.2);
 
     const [pdfJSState, loadPdfJS] = usePdfJSLoader();
     const [docState, loadPdfDocument] = usePdfDocumentLoader(
@@ -85,7 +90,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
       if (docState.status !== AsyncStatus.Success) return;
       const jumpInput = evt.currentTarget.jumpInput as HTMLInputElement;
       if (!jumpInput) return;
-      const jumpTo = parseInt(jumpInput.value, 10);
+      const jumpTo = Number.parseInt(jumpInput.value, 10);
       setPageNo(Math.max(1, Math.min(docState.data.numPages, jumpTo)));
       setJumpAnchor(undefined);
     };

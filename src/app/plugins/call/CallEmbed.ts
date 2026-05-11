@@ -1,28 +1,17 @@
-import {
-  ClientEvent,
-  KnownMembership,
-  MatrixClient,
-  MatrixEvent,
-  MatrixEventEvent,
-  Room,
-  RoomStateEvent,
-} from 'matrix-js-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
+import { ClientEvent, KnownMembership, MatrixEventEvent, RoomStateEvent } from '$types/matrix-sdk';
+import type { IRoomEvent, IWidget, WidgetDriver } from 'matrix-widget-api';
 import {
   ClientWidgetApi,
-  IRoomEvent,
-  IWidget,
+  type IWidgetApiRequest,
   Widget,
+  WidgetApiFromWidgetAction,
   WidgetApiToWidgetAction,
-  WidgetDriver,
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
-import {
-  ElementCallIntent,
-  ElementCallThemeKind,
-  ElementMediaStateDetail,
-  ElementWidgetActions,
-} from './types';
+import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
+import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
 import { createDebugLogger } from '../../utils/debugLogger';
@@ -50,12 +39,16 @@ export class CallEmbed {
 
   private readonly disposables: Array<() => void> = [];
 
-  static getIntent(dm: boolean, ongoing: boolean): ElementCallIntent {
-    if (ongoing) {
-      return dm ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExisting;
+  static getIntent(dm: boolean, ongoing: boolean, video: boolean | undefined): ElementCallIntent {
+    if (!dm) {
+      return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingDMVoice;
     }
 
-    return dm ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCall;
+    if (ongoing) {
+      return video ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExistingDMVoice;
+    }
+
+    return video ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCallDMVoice;
   }
 
   static getWidget(
@@ -149,15 +142,32 @@ export class CallEmbed {
     const controlState = initialControlState ?? new CallControlState(true, false, true);
     this.control = new CallControl(controlState, call, iframe);
 
+    this.disposables.push(
+      this.listenAction(WidgetApiFromWidgetAction.UpdateAlwaysOnScreen, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {
+          success: true,
+        });
+      })
+    );
+    this.disposables.push(
+      this.listenAction(ElementWidgetActions.Close, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
+      })
+    );
+
     let initialMediaEvent = true;
     this.disposables.push(
-      this.listenAction<ElementMediaStateDetail>(ElementWidgetActions.DeviceMute, (evt) => {
+      this.listenAction(ElementWidgetActions.DeviceMute, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
         if (initialMediaEvent) {
           initialMediaEvent = false;
           this.control.applyState();
           return;
         }
-        this.control.onMediaState(evt);
+        this.control.onMediaState(evt as CustomEvent<ElementMediaStateDetail>);
       })
     );
 
@@ -187,7 +197,7 @@ export class CallEmbed {
     return this.listenEvent('preparing', callback);
   }
 
-  public onPreparingError(callback: (error: any) => void) {
+  public onPreparingError(callback: (error: unknown) => void) {
     return this.listenEvent('error:preparing', callback);
   }
 
@@ -258,7 +268,9 @@ export class CallEmbed {
     this.eventsToFeed = new WeakSet<MatrixEvent>();
   }
 
-  private onCallJoined(): void {
+  private onCallJoined(evt: CustomEvent): void {
+    evt.preventDefault();
+    this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
     debugLog.info('call', 'Call joined', { roomId: this.roomId });
     this.joined = true;
     this.applyStyles();
@@ -337,7 +349,7 @@ export class CallEmbed {
     // Timelines are most recent last, so reverse the order and limit ourselves to 100 events
     // to avoid overusing the CPU.
     const timeline = room.getLiveTimeline();
-    const events = [...timeline.getEvents()].reverse().slice(0, 100);
+    const events = [...timeline.getEvents()].toReversed().slice(0, 100);
     function isRelevantTimelineEvent(timelineEvent: MatrixEvent): boolean {
       return timelineEvent.getId() === upToEventId || timelineEvent.getId() === ev.getId();
     }
@@ -403,11 +415,11 @@ export class CallEmbed {
     }
   }
 
-  public listenAction<T>(type: string, callback: (event: CustomEvent<T>) => void) {
-    return this.listenEvent(`action:${type}`, callback);
+  public listenAction(type: string, callback: (event: CustomEvent<unknown>) => void) {
+    return this.listenEvent(`action:${type}`, callback as (event: unknown) => void);
   }
 
-  public listenEvent<T>(type: string, callback: (event: T) => void) {
+  public listenEvent(type: string, callback: (event: unknown) => void) {
     this.call.on(type, callback);
     return () => {
       this.call.off(type, callback);

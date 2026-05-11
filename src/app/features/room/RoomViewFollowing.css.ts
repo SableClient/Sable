@@ -19,6 +19,7 @@ export const RoomViewFollowing = recipe({
       backgroundColor: color.Surface.Container,
       color: color.Surface.OnContainer,
       outline: 'none',
+      userSelect: 'none',
     },
   ],
   variants: {

@@ -1,12 +1,13 @@
-import {
+import type {
   ChangeEventHandler,
   FormEventHandler,
   KeyboardEventHandler,
   MouseEventHandler,
-  useEffect,
-  useState,
 } from 'react';
+import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
+import { useAtomValue, useSetAtom } from 'jotai';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -19,25 +20,17 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Switch,
   Text,
   toRem,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
-import { useAtomValue, useSetAtom } from 'jotai';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import {
-  DateFormat,
-  MessageLayout,
-  MessageSpacing,
-  RightSwipeAction,
-  CaptionPosition,
-  settingsAtom,
-} from '$state/settings';
+import type { DateFormat, MessageSpacing, CaptionPosition } from '$state/settings';
+import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS, mobileOrTablet } from '$utils/user-agent';
@@ -51,12 +44,15 @@ import { sessionsAtom, activeSessionIdAtom } from '$state/sessions';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { resolveSlidingEnabled } from '$client/initMatrix';
 import { isKeyHotkey } from 'is-hotkey';
+import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSettingsSync';
+import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
+import { SettingsSectionPage } from '../SettingsSectionPage';
 
 type DateHintProps = {
   hasChanges: boolean;
   handleReset: () => void;
 };
-function DateHint({ hasChanges, handleReset }: DateHintProps) {
+function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
   const [anchor, setAnchor] = useState<RectCords>();
   const categoryPadding = { padding: config.space.S200, paddingTop: 0 };
 
@@ -223,7 +219,7 @@ type CustomDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
-function CustomDateFormat({ value, onChange }: CustomDateFormatProps) {
+function CustomDateFormat({ value, onChange }: Readonly<CustomDateFormatProps>) {
   const [dateFormatCustom, setDateFormatCustom] = useState(value);
 
   useEffect(() => {
@@ -252,7 +248,7 @@ function CustomDateFormat({ value, onChange }: CustomDateFormatProps) {
 
   const hasChanges = dateFormatCustom !== value;
   return (
-    <SettingTile>
+    <SettingTile focusId="custom-date-format">
       <Box as="form" onSubmit={handleSubmit} gap="200">
         <Box grow="Yes" direction="Column">
           <Input
@@ -288,12 +284,12 @@ type PresetDateFormatProps = {
   value: string;
   onChange: (format: string) => void;
 };
-function PresetDateFormat({ value, onChange }: PresetDateFormatProps) {
+function PresetDateFormat({ value, onChange }: Readonly<PresetDateFormatProps>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const dateFormatItems = useDateFormatItems();
 
   const getDisplayDate = (format: string): string =>
-    format !== '' ? dayjs().format(format) : 'Custom';
+    format === '' ? 'Custom' : dayjs().format(format);
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
@@ -375,6 +371,7 @@ function SelectDateFormat() {
     <>
       <SettingTile
         title="Date Format"
+        focusId="date-format"
         description={customDateFormat ? dayjs().format(dateFormatString) : ''}
         after={<PresetDateFormat value={selectedDateFormat} onChange={handlePresetChange} />}
       />
@@ -404,6 +401,7 @@ function DateAndTime() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="24-Hour Time Format"
+          focusId="twenty-four-hour-time-format"
           after={<Switch variant="Primary" value={hour24Clock} onChange={setHour24Clock} />}
         />
       </SequenceCard>
@@ -415,12 +413,13 @@ function DateAndTime() {
   );
 }
 
-function Editor({ isMobile }: { isMobile: boolean }) {
+function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-  const [isMarkdown, setIsMarkdown] = useSetting(settingsAtom, 'isMarkdown');
+  const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
 
   return (
     <Box direction="Column" gap="100">
@@ -433,6 +432,7 @@ function Editor({ isMobile }: { isMobile: boolean }) {
       >
         <SettingTile
           title="ENTER for Newline"
+          focusId="enter-for-newline"
           description={`Use ${isMacOS() ? KeySymbol.Command : 'Ctrl'} + ENTER to send message. ${isMobile ? '(Disabled on Mobile)' : ''}`}
           after={
             <Switch
@@ -446,13 +446,16 @@ function Editor({ isMobile }: { isMobile: boolean }) {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Markdown Formatting"
-          after={<Switch variant="Primary" value={isMarkdown} onChange={setIsMarkdown} />}
+          title="Message Formatting Toolbar"
+          focusId="composer-formatting-toolbar"
+          description="Enable the formatting toolbar in the message composer."
+          after={<Switch variant="Primary" value={editorToolbar} onChange={setEditorToolbar} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Typing Indicators"
+          focusId="hide-typing-indicators"
           description="Turn off typing status."
           after={<Switch variant="Primary" value={hideActivity} onChange={setHideActivity} />}
         />
@@ -460,6 +463,7 @@ function Editor({ isMobile }: { isMobile: boolean }) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Read Receipts"
+          focusId="hide-read-receipts"
           description="Turn off read receipts."
           after={<Switch variant="Primary" value={hideReads} onChange={setHideReads} />}
         />
@@ -467,8 +471,19 @@ function Editor({ isMobile }: { isMobile: boolean }) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Presence Status"
+          focusId="presence-status"
           description="Show and receive online status from other users."
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Send notifications for replies"
+          focusId="reply-notifications"
+          description="Disable to use silent replies by default. You can still toggle reply notifications for each reply."
+          after={
+            <Switch variant="Primary" value={mentionInReplies} onChange={setMentionInReplies} />
+          }
         />
       </SequenceCard>
     </Box>
@@ -681,7 +696,7 @@ function SelectMessageSpacing() {
   );
 }
 
-function SelectRightSwipeAction({ disabled }: { disabled?: boolean }) {
+function SelectRightSwipeAction({ disabled }: Readonly<{ disabled?: boolean }>) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [action, setAction] = useSetting(settingsAtom, 'rightSwipeAction');
 
@@ -749,7 +764,7 @@ function SelectRightSwipeAction({ disabled }: { disabled?: boolean }) {
   );
 }
 
-function Gestures({ isMobile }: { isMobile: boolean }) {
+function Gestures({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [mobileGestures, setMobileGestures] = useSetting(settingsAtom, 'mobileGestures');
 
   return (
@@ -758,6 +773,7 @@ function Gestures({ isMobile }: { isMobile: boolean }) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Enable Swiping"
+          focusId="enable-swiping"
           description="Swipe left for rooms, swipe right for actions."
           after={
             <Switch
@@ -772,6 +788,7 @@ function Gestures({ isMobile }: { isMobile: boolean }) {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Right Swipe Action"
+          focusId="right-swipe-action"
           description="What happens when you swipe right on a message."
           after={<SelectRightSwipeAction disabled={!isMobile || !mobileGestures} />}
         />
@@ -788,7 +805,7 @@ function EmojiSelectorThresholdInput() {
     const val = evt.target.value;
     setInputValue(val);
 
-    const parsed = parseInt(val, 10);
+    const parsed = Number.parseInt(val, 10);
     if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 10) {
       setEmojiThreshold(parsed);
     }
@@ -809,7 +826,7 @@ function EmojiSelectorThresholdInput() {
   return (
     <Input
       style={{ width: toRem(80) }}
-      variant={parseInt(inputValue, 10) === emojiThreshold ? 'Secondary' : 'Success'}
+      variant={Number.parseInt(inputValue, 10) === emojiThreshold ? 'Secondary' : 'Success'}
       size="300"
       radii="300"
       type="number"
@@ -823,6 +840,32 @@ function EmojiSelectorThresholdInput() {
   );
 }
 
+function Calls() {
+  const [alwaysShowCallButton, setAlwaysShowCallButton] = useSetting(
+    settingsAtom,
+    'alwaysShowCallButton'
+  );
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Calls</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Show Call Button for Large Rooms"
+          focusId="large-room-call-button"
+          after={
+            <Switch
+              variant="Primary"
+              value={alwaysShowCallButton}
+              onChange={setAlwaysShowCallButton}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
 function Messages() {
   const [hideMembershipEvents, setHideMembershipEvents] = useSetting(
     settingsAtom,
@@ -833,8 +876,6 @@ function Messages() {
     'hideNickAvatarEvents'
   );
   const [mediaAutoLoad, setMediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [showHiddenEvents, setShowHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
   const [showTombstoneEvents, setShowTombstoneEvents] = useSetting(
     settingsAtom,
@@ -851,17 +892,30 @@ function Messages() {
     <Box direction="Column" gap="100">
       <Text size="L400">Messages</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="Message Layout" after={<SelectMessageLayout />} />
+        <SettingTile
+          title="Message Layout"
+          focusId="message-layout"
+          after={<SelectMessageLayout />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="Message Spacing" after={<SelectMessageSpacing />} />
+        <SettingTile
+          title="Message Spacing"
+          focusId="message-spacing"
+          after={<SelectMessageSpacing />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile title="File description placement" after={<SelectCaptionPosition />} />
+        <SettingTile
+          title="File description placement"
+          focusId="file-description-placement"
+          after={<SelectCaptionPosition />}
+        />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Emoji Selector Character Threshold"
+          focusId="emoji-selector-threshold"
           after={<EmojiSelectorThresholdInput />}
         />
       </SequenceCard>
@@ -869,6 +923,7 @@ function Messages() {
         <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
           <SettingTile
             title="Right Aligned Bubbles"
+            focusId="right-aligned-bubbles"
             description="While using bubble layout, have your bubbles right aligned."
             after={<Switch variant="Primary" value={rightBubbles} onChange={setRightBubbles} />}
           />
@@ -876,7 +931,21 @@ function Messages() {
       )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          title="Disable Media Auto Load"
+          focusId="disable-media-auto-load"
+          after={
+            <Switch
+              variant="Primary"
+              value={!mediaAutoLoad}
+              onChange={(v) => setMediaAutoLoad(!v)}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
           title="Hide Membership Change"
+          focusId="hide-membership-change"
           after={
             <Switch
               variant="Primary"
@@ -889,6 +958,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Hide Profile Change"
+          focusId="hide-profile-change"
           after={
             <Switch
               variant="Primary"
@@ -900,31 +970,8 @@ function Messages() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Disable Media Auto Load"
-          after={
-            <Switch
-              variant="Primary"
-              value={!mediaAutoLoad}
-              onChange={(v) => setMediaAutoLoad(!v)}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Url Preview"
-          after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Url Preview in Encrypted Room"
-          after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
           title="Hide Member Events in Read-Only Rooms"
+          focusId="hide-member-events-read-only-rooms"
           after={
             <Switch
               variant="Primary"
@@ -937,6 +984,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Hidden Events"
+          focusId="show-hidden-events"
           after={
             <Switch
               variant="Primary"
@@ -954,6 +1002,7 @@ function Messages() {
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Show Tombstones for Redacted Messages"
+          focusId="show-redacted-message-tombstones"
           after={
             <Switch
               variant="Primary"
@@ -961,6 +1010,122 @@ function Messages() {
               onChange={setShowTombstoneEvents}
               disabled={showHiddenEvents}
               title={getTombstoneSettingToggleTitle(showHiddenEvents, showTombstoneEvents)}
+            />
+          }
+        />
+      </SequenceCard>
+    </Box>
+  );
+}
+
+function Embeds() {
+  const [multiplePreviews, setMultiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [bundledPreview, setBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
+  const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
+  const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [encClientUrlPreview, setEncClientUrlPreview] = useSetting(
+    settingsAtom,
+    'encClientUrlPreview'
+  );
+  const [clientPreviewYoutube, setClientPreviewYoutube] = useSetting(
+    settingsAtom,
+    'clientPreviewYoutube'
+  );
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Embeds</Text>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Multiple Embeds"
+          focusId="display-multiple-embeds"
+          description="Display the embeds of all the links. Turning it off makes it only show the embed of the 1st item"
+          after={
+            <Switch variant="Primary" value={multiplePreviews} onChange={setMultiplePreviews} />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Bundled Embeds"
+          focusId="display-bundled-embeds"
+          description="Show embeds when provided by the message itself. The embeds may be fabricated or incorrect."
+          after={<Switch variant="Primary" value={bundledPreview} onChange={setBundledPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Server-side Embeds"
+          focusId="url-preview"
+          description="Send the links from inside the messages to your homeserver to generate previews of the linked pages."
+          after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Server-side Embeds in Encrypted Room"
+          focusId="encrypted-room-url-preview"
+          description="Request server-side embeds in E2EE chats. This partially decreases secrecy by revealing sent links to your homeserver"
+          after={<Switch variant="Primary" value={encUrlPreview} onChange={setEncUrlPreview} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Client-side Embeds"
+          focusId="client-side-embeds"
+          description="Attempt to preview supported urls (e.g. YouTube) on the client, without involving the homeserver. This will expose your IP Address to third party services."
+          after={
+            <Switch
+              variant="Primary"
+              value={clientUrlPreview}
+              onChange={setClientUrlPreview}
+              title={clientUrlPreview ? 'Disable client-side embeds' : 'Enable client-side embeds'}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Client-side Embeds in Encrypted Rooms"
+          focusId="encrypted-room-embeds"
+          after={
+            <Switch
+              variant="Primary"
+              value={encClientUrlPreview}
+              onChange={setEncClientUrlPreview}
+              title={
+                encClientUrlPreview
+                  ? 'Disable client-side embeds in encrypted rooms'
+                  : 'Enable client-side embeds in encrypted rooms'
+              }
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        style={clientUrlPreview ? {} : { display: 'none' }}
+      >
+        <SettingTile
+          title="Embed YouTube Links"
+          focusId="embed-youtube-links"
+          after={
+            <Switch
+              variant="Primary"
+              value={clientPreviewYoutube}
+              onChange={setClientPreviewYoutube}
+              title={
+                clientPreviewYoutube
+                  ? 'Disable client-side Youtube video embeds'
+                  : 'Enable client-side Youtube video embeds'
+              }
             />
           }
         />
@@ -1004,6 +1169,7 @@ export function Sync() {
       >
         <SettingTile
           title="Use Sliding Sync"
+          focusId="use-sliding-sync"
           description={
             serverSlidingEnabled ? (
               <>
@@ -1017,7 +1183,11 @@ export function Sync() {
                   More info/Documentation
                 </a>
                 .{' '}
-                <a href="https://github.com/7w1/sable/issues/146" target="_blank" rel="noreferrer">
+                <a
+                  href="https://github.com/SableClient/Sable/issues/39"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Known issues (Sable GitHub)
                 </a>
                 .
@@ -1051,25 +1221,198 @@ export function Sync() {
 }
 
 type GeneralProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function General({ requestClose }: GeneralProps) {
+
+function SettingsSyncSection() {
+  const [syncEnabled, setSyncEnabled] = useSetting(settingsAtom, 'settingsSyncEnabled');
+  const lastSynced = useAtomValue(settingsSyncLastSyncedAtom);
+  const syncStatus = useAtomValue(settingsSyncStatusAtom);
+  const fullSettings = useAtomValue(settingsAtom);
+  const setSettings = useSetAtom(settingsAtom);
+
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    setImportError(null);
+    const merged = await importSettingsFromJson(fullSettings);
+    if (merged === null) {
+      setImportError('Could not import — file was invalid or you cancelled.');
+      return;
+    }
+    setSettings(merged);
+  };
+
+  const syncStatusLabel: Record<typeof syncStatus, string> = {
+    idle: lastSynced
+      ? `Last synced at ${dayjs(lastSynced).format('HH:mm:ss')}`
+      : 'Not yet synced this session',
+    syncing: 'Syncing…',
+    error: 'Sync failed — will retry on next change',
+  };
+
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              General
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
+    <Box direction="Column" gap="100">
+      <Text size="L400">Settings Sync & Backup</Text>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Sync across devices"
+          focusId="sync-across-devices"
+          description="Store your settings in your Matrix account so they follow you to any Sable instance. Notification and zoom preferences are kept per-device."
+          after={<Switch variant="Primary" value={syncEnabled} onChange={setSyncEnabled} />}
+        />
+        {syncEnabled && (
+          <SettingTile
+            focusId="sync-status"
+            title="Sync status"
+            description={syncStatusLabel[syncStatus]}
+          />
+        )}
+      </SequenceCard>
+      <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.Download} size="100" />}
+          onClick={() => exportSettingsAsJson(fullSettings)}
+        >
+          <Text size="B300">Export Settings</Text>
+        </Button>
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.ArrowTop} size="100" />}
+          onClick={handleImport}
+        >
+          <Text size="B300">Import Settings</Text>
+        </Button>
+      </Box>
+      {importError && (
+        <Text size="T200" style={{ color: 'var(--mx-color-critical-container-on)' }}>
+          {importError}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function DiagnosticsAndPrivacy() {
+  const [sentryEnabled, setSentryEnabled] = useState(
+    localStorage.getItem('sable_sentry_enabled') === 'true'
+  );
+  const [sessionReplayEnabled, setSessionReplayEnabled] = useState(
+    localStorage.getItem('sable_sentry_replay_enabled') === 'true'
+  );
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+
+  const isSentryConfigured = Boolean(import.meta.env.VITE_SENTRY_DSN);
+
+  const handleSentryToggle = (enabled: boolean) => {
+    setSentryEnabled(enabled);
+    if (enabled) {
+      localStorage.setItem('sable_sentry_enabled', 'true');
+    } else {
+      localStorage.setItem('sable_sentry_enabled', 'false');
+    }
+    setNeedsRefresh(true);
+  };
+
+  const handleReplayToggle = (enabled: boolean) => {
+    setSessionReplayEnabled(enabled);
+    if (enabled) {
+      localStorage.setItem('sable_sentry_replay_enabled', 'true');
+    } else {
+      localStorage.removeItem('sable_sentry_replay_enabled');
+    }
+    setNeedsRefresh(true);
+  };
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">Diagnostics & Privacy</Text>
+      {needsRefresh && (
+        <Box
+          style={{
+            padding: '12px',
+            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+            borderRadius: '8px',
+          }}
+        >
+          <Text size="T300" style={{ color: 'rgb(33, 150, 243)' }}>
+            Please refresh the page for these settings to take effect.
+          </Text>
         </Box>
-      </PageHeader>
+      )}
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <SettingTile
+          title="Error Reporting"
+          focusId="error-reporting"
+          description={
+            isSentryConfigured
+              ? 'Send anonymous crash reports to help improve Sable. No messages, room names, or personal data are included.'
+              : 'Error reporting is not configured for this build.'
+          }
+          after={
+            <Switch
+              variant="Primary"
+              value={sentryEnabled}
+              onChange={handleSentryToggle}
+              disabled={!isSentryConfigured}
+            />
+          }
+        />
+        {sentryEnabled && isSentryConfigured && (
+          <SettingTile
+            title="Session Replay"
+            focusId="session-replay"
+            description="Allow recording of UI interactions to help debug errors. All text, media, and inputs are fully masked before sending."
+            after={
+              <Switch
+                variant="Primary"
+                value={sessionReplayEnabled}
+                onChange={handleReplayToggle}
+              />
+            }
+          />
+        )}
+      </SequenceCard>
+      <Box gap="200" wrap="Wrap" style={{ paddingTop: '4px' }}>
+        <Button
+          as="a"
+          href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
+          rel="noreferrer noopener"
+          target="_blank"
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          before={<Icon src={Icons.Shield} size="100" filled />}
+        >
+          <Text size="B300">Privacy Policy</Text>
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
+  return (
+    <SettingsSectionPage title="General" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -1078,10 +1421,14 @@ export function General({ requestClose }: GeneralProps) {
               <Gestures isMobile={mobileOrTablet()} />
               <Editor isMobile={mobileOrTablet()} />
               <Messages />
+              <Embeds />
+              <Calls />
+              <SettingsSyncSection />
+              <DiagnosticsAndPrivacy />
             </Box>
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

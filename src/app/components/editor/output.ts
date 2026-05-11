@@ -1,66 +1,32 @@
-import { Descendant, Editor, Text } from 'slate';
-import { MatrixClient } from '$types/matrix-sdk';
+import type { Descendant, Editor } from 'slate';
+import { Text } from 'slate';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';
-import {
-  parseBlockMD,
-  parseInlineMD,
-  unescapeMarkdownBlockSequences,
-  unescapeMarkdownInlineSequences,
-} from '$plugins/markdown';
-import { findAndReplace } from '$utils/findAndReplace';
+import { markdownToHtml, injectDataMd } from '$plugins/markdown';
 import { sanitizeForRegex } from '$utils/regex';
 import { isUserId } from '$utils/matrix';
-import { CustomElement } from './slate';
+import type { CustomElement } from './slate';
 import { BlockType } from './types';
+import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from './utils';
+import { MATRIX_TO_BASE } from '$plugins/matrix-to';
 
 export type OutputOptions = {
-  allowTextFormatting?: boolean;
-  allowInlineMarkdown?: boolean;
-  allowBlockMarkdown?: boolean;
+  /**
+   * if true it will remove the nickname of the person from the message
+   */
+  stripNickname?: boolean;
+  /**
+   * a map of regex patterns to replace nicknames with, used when stripNickname is true
+   */
+  nickNameReplacement?: Map<RegExp, string>;
 };
 
-const textToCustomHtml = (node: Text, opts: OutputOptions): string => {
-  let string = sanitizeText(node.text);
-  if (opts.allowTextFormatting) {
-    if (node.bold) string = `<strong>${string}</strong>`;
-    if (node.italic) string = `<i>${string}</i>`;
-    if (node.underline) string = `<u>${string}</u>`;
-    if (node.strikeThrough) string = `<s>${string}</s>`;
-    if (node.code) string = `<code>${string}</code>`;
-    if (node.spoiler) string = `<span data-mx-spoiler>${string}</span>`;
-  }
-
-  if (opts.allowInlineMarkdown && string === sanitizeText(node.text)) {
-    string = parseInlineMD(string);
-  }
-
-  return string;
-};
+const textToCustomHtml = (node: Text): string => sanitizeText(node.text);
 
 const elementToCustomHtml = (node: CustomElement, children: string): string => {
   switch (node.type) {
     case BlockType.Paragraph:
       return `${children}<br/>`;
-    case BlockType.Heading:
-      return `<h${node.level}>${children}</h${node.level}>`;
-    case BlockType.CodeLine:
-      return `${children}\n`;
-    case BlockType.CodeBlock:
-      return `<pre><code>${children}</code></pre>`;
-    case BlockType.QuoteLine:
-      return `${children}<br/>`;
-    case BlockType.BlockQuote:
-      return `<blockquote>${children}</blockquote>`;
-    case BlockType.ListItem:
-      return `<li><p>${children}</p></li>`;
-    case BlockType.OrderedList:
-      return `<ol>${children}</ol>`;
-    case BlockType.UnorderedList:
-      return `<ul>${children}</ul>`;
-    case BlockType.Small:
-      return `<sub>${children}</sub>`;
-    case BlockType.HorizontalRule:
-      return `<hr/>`;
 
     case BlockType.Mention: {
       let fragment = node.id;
@@ -73,7 +39,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       }
 
       const matrixTo = `https://matrix.to/#/${fragment}`;
-      return `<a href="${encodeURI(matrixTo)}">${sanitizeText(node.name)}</a>`;
+      return `<a href="${encodeURI(matrixTo)}" target="_blank" rel="noreferrer noopener">${sanitizeText(node.name)}</a>`;
     }
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://')
@@ -82,7 +48,7 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}">${node.children}</a>`;
+      return `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:
@@ -90,48 +56,51 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
   }
 };
 
-const HTML_TAG_REG_G = /<([\w-]+)(?: [^>]*)?(?:(?:\/>)|(?:>.*?<\/\1>))/g;
-const ignoreHTMLParseInlineMD = (text: string): string =>
-  findAndReplace(
-    text,
-    HTML_TAG_REG_G,
-    (match) => match[0],
-    (txt) => parseInlineMD(txt)
-  ).join('');
-
+/**
+ * convert slate internal representation to a custom HTML string that can be sent to the server
+ * @param node slate node
+ * @param opts options for output
+ * @returns custom HTML string
+ */
 export const toMatrixCustomHTML = (
   node: Descendant | Descendant[],
   opts: OutputOptions
 ): string => {
   let markdownLines = '';
   const parseNode = (n: Descendant, index: number, targetNodes: Descendant[]) => {
-    if (opts.allowBlockMarkdown && 'type' in n && n.type === BlockType.Paragraph) {
-      const line = toMatrixCustomHTML(n, {
-        ...opts,
-        allowInlineMarkdown: false,
-        allowBlockMarkdown: false,
-      })
-        .replace(/<br\/>$/, '\n')
-        .replace(/^(\\*)&gt;/, '$1>');
+    if ('type' in n && n.type === BlockType.Paragraph) {
+      let line = toMatrixCustomHTML(n, opts);
 
+      // Use \n for all paragraphs to prevent extra blank lines from
+      // accumulating on each edit cycle.
+      line = line.replace(/<br\/>$/, '\n').replace(/^(\\*)&gt;/, '$1>');
+
+      // strip nicknames if needed
+      if (opts.stripNickname && opts.nickNameReplacement) {
+        opts.nickNameReplacement?.keys().forEach((key) => {
+          const replacement = opts.nickNameReplacement!.get(key) ?? '';
+          line = line.replaceAll(key, replacement);
+        });
+      }
       markdownLines += line;
       if (index === targetNodes.length - 1) {
-        return parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
+        const html = markdownToHtml(markdownLines);
+        return injectDataMd(html);
       }
       return '';
     }
 
-    const parsedMarkdown = parseBlockMD(markdownLines, ignoreHTMLParseInlineMD);
+    const parsedMarkdown = markdownToHtml(markdownLines);
     markdownLines = '';
-    const isCodeLine = 'type' in n && n.type === BlockType.CodeLine;
-    if (isCodeLine) return `${parsedMarkdown}${toMatrixCustomHTML(n, {})}`;
-
-    return `${parsedMarkdown}${toMatrixCustomHTML(n, { ...opts, allowBlockMarkdown: false })}`;
+    return `${parsedMarkdown}${toMatrixCustomHTML(n, opts)}`;
   };
-  if (Array.isArray(node)) return node.map(parseNode).join('');
-  if (Text.isText(node)) return textToCustomHtml(node, opts);
+  if (Array.isArray(node))
+    return node.map((element, index, array) => parseNode(element, index, array)).join('');
+  if (Text.isText(node)) return textToCustomHtml(node);
 
-  const children = node.children.map(parseNode).join('');
+  const children = node.children
+    .map((element, index, array) => parseNode(element, index, array))
+    .join('');
   return elementToCustomHtml(node, children);
 };
 
@@ -139,48 +108,84 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
   switch (node.type) {
     case BlockType.Paragraph:
       return `${children}\n`;
-    case BlockType.Heading:
-      return `${children}\n`;
-    case BlockType.CodeLine:
-      return `${children}\n`;
-    case BlockType.CodeBlock:
-      return `${children}\n`;
-    case BlockType.QuoteLine:
-      return `| ${children}\n`;
-    case BlockType.BlockQuote:
-      return `${children}\n`;
-    case BlockType.ListItem:
-      return `- ${children}\n`;
-    case BlockType.OrderedList:
-      return `${children}\n`;
-    case BlockType.UnorderedList:
-      return `${children}\n`;
     case BlockType.Mention:
       return node.id;
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
-      return `[${node.children}](${node.href})`;
+      return `[${children}](${node.href})`;
     case BlockType.Command:
       return `/${node.command}`;
-    case BlockType.Small:
-      return `-# ${children}\n`;
-    case BlockType.HorizontalRule:
-      return `\n---\n`;
     default:
       return children;
   }
 };
 
-export const toPlainText = (node: Descendant | Descendant[], isMarkdown: boolean): string => {
-  if (Array.isArray(node)) return node.map((n) => toPlainText(n, isMarkdown)).join('');
-  if (Text.isText(node))
-    return isMarkdown
-      ? unescapeMarkdownBlockSequences(node.text, unescapeMarkdownInlineSequences)
-      : node.text;
+const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
+const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
+const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, 'g');
 
-  const children = node.children.map((n) => toPlainText(n, isMarkdown)).join('');
+/**
+ * convert slate internal representation to a plain text string that can be sent to the server
+ * @param node the slate node
+ * @param isMarkdown set true if it's a markdown formatted text
+ * @param stripNickname whether to strip nicknames
+ * @param nickNameReplacement the nickname replacement
+ * @returns the plain text we want to send
+ */
+export const toPlainText = (
+  node: Descendant | Descendant[],
+  stripNickname = false,
+  nickNameReplacement?: Map<RegExp, string>
+): string => {
+  if (Array.isArray(node))
+    return node.map((n) => toPlainText(n, stripNickname, nickNameReplacement)).join('');
+  if (Text.isText(node)) {
+    let { text } = node;
+
+    text = text.replaceAll(SPOILERINPUTREGEX, '[Spoiler]');
+    text = text.replaceAll(SPOILEREDLINKINPUTREGEX, '$1');
+
+    if (stripNickname && nickNameReplacement) {
+      nickNameReplacement?.keys().forEach((key) => {
+        const replacement = nickNameReplacement.get(key) ?? '';
+        text = text.replaceAll(key, replacement);
+      });
+    }
+    return text;
+  }
+
+  const children = node.children
+    .map((n) => toPlainText(n, stripNickname, nickNameReplacement))
+    .join('');
   return elementToPlainText(node, children);
+};
+
+/**
+ * Convert slate internal representation to a raw plain text string without any replacements.
+ * This is used for link extraction to ensure we have the full context for markdown blocks.
+ */
+export const toRawText = (node: Descendant | Descendant[]): string => {
+  if (Array.isArray(node)) return node.map(toRawText).join('');
+  if (Text.isText(node)) return node.text;
+
+  const children = node.children.map(toRawText).join('');
+  switch (node.type) {
+    case BlockType.Paragraph:
+      return `${children}\n`;
+    case BlockType.Link:
+      return `[${children}](${node.href})`;
+    case BlockType.Emoticon:
+      return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
+    case BlockType.Mention:
+      return node.id;
+    case BlockType.Command:
+      return `/${node.command}`;
+    default:
+      return children;
+  }
 };
 
 /**
@@ -193,22 +198,41 @@ export const toPlainText = (node: Descendant | Descendant[], isMarkdown: boolean
  * @returns boolean
  */
 export const customHtmlEqualsPlainText = (customHtml: string, plain: string): boolean =>
-  customHtml.replace(/<br\/>/g, '\n') === sanitizeText(plain);
+  customHtml.replaceAll('<br/>', '\n') === sanitizeText(plain);
 
-export const trimCustomHtml = (customHtml: string) => customHtml.replace(/<br\/>$/g, '').trim();
+export const trimCustomHtml = (customHtml: string) => customHtml.replaceAll(/<br\/>$/g, '').trim();
 
 export const trimCommand = (cmdName: string, str: string) => {
-  const cmdRegX = new RegExp(`^(\\s+)?(\\/${sanitizeForRegex(cmdName)})([^\\S\n]+)?`);
+  const escapedCmd = sanitizeForRegex(cmdName);
+  // Allow optional leading whitespace and/or <p> tag for HTML strings
+  const cmdRegX = new RegExp(`^(?:\\s+)?(?:<p>)?(?:\\/${escapedCmd})(?:[^\\S\n]+)?`, 'i');
 
-  const match = str.match(cmdRegX);
+  const match = cmdRegX.exec(str);
   if (!match) return str;
   return str.slice(match[0].length);
 };
 
+/**
+ * Type representing Mentions
+ */
 export type MentionsData = {
+  /**
+   * a boolean to denote if it's a room mention
+   */
   room: boolean;
+  /**
+   * a set of user ids that are mentioned in the message
+   */
   users: Set<string>;
 };
+
+/**
+ * get the mentions in a message
+ * @param mx the matrix client
+ * @param roomId the room id we will send the message in
+ * @param editor the slate editor
+ * @returns the mentions in a message {@link MentionsData}
+ */
 export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): MentionsData => {
   const mentionData: MentionsData = {
     room: false,
@@ -217,7 +241,6 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
 
   const parseMentions = (node: Descendant): void => {
     if (Text.isText(node)) return;
-    if (node.type === BlockType.CodeBlock) return;
 
     if (node.type === BlockType.Mention) {
       if (node.name === '@room') {
@@ -237,4 +260,45 @@ export const getMentions = (mx: MatrixClient, roomId: string, editor: Editor): M
   editor.children.forEach(parseMentions);
 
   return mentionData;
+};
+
+export const getLinks = (serialized: Descendant | Descendant[]): string[] | undefined => {
+  const text = toRawText(serialized);
+  const finalList = new Set<string>();
+
+  // 1. Find all potential URLs
+  const urlsMatch = text.matchAll(LINKINPUTREGEX);
+  const spoileredUrlsMatch = [...text.matchAll(SPOILEREDLINKINPUTREGEX)].map((m) => m[1]);
+  const directSpoileredUrlsMatch = [...text.matchAll(SPOILEREDLINKDIRECTREGEX)].map((m) => m[1]);
+  const allSpoilered = new Set([...spoileredUrlsMatch, ...directSpoileredUrlsMatch]);
+
+  const codeSpanRanges = getMarkdownCodeSpanRanges(text);
+
+  for (const match of urlsMatch) {
+    let url = match[1]!;
+    const fullMatch = match[0];
+    const index = match.index;
+
+    // Clean up surrounding parens from markdown [label](url) or (url)
+    if (fullMatch.startsWith('(') && fullMatch.endsWith(')')) {
+      url = fullMatch.substring(1, fullMatch.length - 1);
+    } else if (fullMatch.startsWith('(')) {
+      url = fullMatch.substring(1);
+    } else if (fullMatch.endsWith('/)')) {
+      url = fullMatch.substring(0, fullMatch.length - 1);
+    }
+
+    if (allSpoilered.has(url)) continue;
+
+    // Check if it's inside a code span/block
+    if (isInsideMarkdownCodeSpan(index, index + fullMatch.length, codeSpanRanges)) {
+      continue;
+    }
+
+    if (url.startsWith(MATRIX_TO_BASE)) continue;
+
+    finalList.add(url);
+  }
+
+  return Array.from(finalList);
 };

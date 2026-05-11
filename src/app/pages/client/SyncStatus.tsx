@@ -1,6 +1,8 @@
-import { MatrixClient, SyncState } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { SyncState } from '$types/matrix-sdk';
 import { useCallback, useState } from 'react';
 import { Box, config, Line, Text } from 'folds';
+import * as Sentry from '@sentry/react';
 import { useSyncState } from '$hooks/useSyncState';
 import { ContainerColor } from '$styles/ContainerColor.css';
 
@@ -27,6 +29,18 @@ export function SyncStatus({ mx }: SyncStatusProps) {
         }
         return { current, previous };
       });
+
+      if (current === SyncState.Reconnecting || current === SyncState.Error) {
+        Sentry.addBreadcrumb({
+          category: 'sync',
+          message: `Sync state changed to ${current}`,
+          level: current === SyncState.Error ? 'error' : 'warning',
+          data: { previous },
+        });
+        Sentry.metrics.count('sable.sync.degraded', 1, {
+          attributes: { state: current },
+        });
+      }
     }, [])
   );
 

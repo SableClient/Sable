@@ -1,4 +1,5 @@
-import { RefObject, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   dropTargetForElements,
   draggable,
@@ -8,7 +9,7 @@ import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-sc
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import classNames from 'classnames';
 import { Box, Icon, Icons, as } from 'folds';
-import { HierarchyItem } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import * as css from './DnD.css';
 
 export type DropContainerData = {
@@ -29,9 +30,8 @@ export const useDraggableItem = (
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
 
-    return !target
-      ? undefined
-      : draggable({
+    return target
+      ? draggable({
           element: target,
           dragHandle,
           getInitialData: () => item,
@@ -43,7 +43,8 @@ export const useDraggableItem = (
             setDragging(false);
             onDragging(undefined);
           },
-        });
+        })
+      : undefined;
   }, [targetRef, dragHandleRef, item, onDragging]);
 
   return dragging;
@@ -72,14 +73,14 @@ export function AfterItemDropTarget({
   afterSpace,
   nextRoomId,
   canDrop,
-}: AfterItemDropTargetProps) {
+}: Readonly<AfterItemDropTargetProps>) {
   const targetRef = useRef<HTMLDivElement>(null);
   const [dropState, setDropState] = useState<'idle' | 'allow' | 'not-allow'>('idle');
 
   useEffect(() => {
     const target = targetRef.current;
     if (!target) {
-      throw Error('drop target ref is not set properly');
+      throw new Error('drop target ref is not set properly');
     }
 
     return dropTargetForElements({
@@ -126,7 +127,7 @@ export const useDnDMonitor = (
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) {
-      throw Error('Scroll element ref not configured');
+      throw new Error('Scroll element ref not configured');
     }
 
     return combine(
@@ -135,7 +136,7 @@ export const useDnDMonitor = (
           onDragging(undefined);
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) return;
-          onReorder(source.data as HierarchyItem, dropTargets[0].data as DropContainerData);
+          onReorder(source.data as HierarchyItem, dropTargets[0]!.data as DropContainerData);
         },
       }),
       autoScrollForElements({

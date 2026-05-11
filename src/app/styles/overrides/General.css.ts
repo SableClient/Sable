@@ -18,8 +18,7 @@ globalStyle(
     button:active, 
     [role="button"]:active, 
     [class*="Button"]:active, 
-    [class*="Chip"]:active, 
-    [class*="MenuItem"]:active
+    [class*="Chip"]:active
 `,
   {
     transform: 'scale(0.96) !important',
@@ -39,9 +38,8 @@ globalStyle(
 globalStyle(
   `
     button[class*="_1684mq51"]:has(img):hover,
-    [data-index] [class*="_1r9nvaso"]:hover,
-    [data-index] [class*="_1r9nvaso"] *:hover,
-    [data-index] button:has(p):hover
+    [data-index] button:hover,
+    [data-index] [role="button"]:hover
 `,
   {
     transform: 'none !important',

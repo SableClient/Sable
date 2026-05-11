@@ -22,6 +22,7 @@ export function BandwidthSavingEmojis() {
       >
         <SettingTile
           title="Enable bandwidth saving for stickers and emojis"
+          focusId="bandwidth-saving-emojis"
           description="If enabled, sticker and emoji images will be optimized to save bandwidth. This helps reduce data usage when viewing these images. But will increase server computation load."
           after={
             <Switch variant="Primary" value={useBandwidthSaving} onChange={setUseBandwidthSaving} />

@@ -1,6 +1,8 @@
-import { MouseEventHandler, forwardRef, useMemo, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
+import type { RectCords } from 'folds';
+import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
@@ -13,11 +15,10 @@ import { useRoomsUnread } from '$state/hooks/unread';
 import {
   SidebarAvatar,
   SidebarItem,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
   SidebarItemTooltip,
 } from '$components/sidebar';
 import { useDirectSelected } from '$hooks/router/useDirectSelected';
-import { UnreadBadge } from '$components/unread-badge';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { markAsRead } from '$utils/notifications';
@@ -83,7 +84,10 @@ export function DirectTab() {
 
   const handleDirectClick = () => {
     const activePath = navToActivePath.get('direct');
-    if (activePath && screenSize !== ScreenSize.Mobile) {
+    const activePathname = activePath?.pathname;
+    const isValidDirectPath =
+      typeof activePathname === 'string' && activePathname.startsWith('/direct/');
+    if (activePath && isValidDirectPath && screenSize !== ScreenSize.Mobile) {
       navigate(joinPathComponent(activePath));
       return;
     }
@@ -115,19 +119,11 @@ export function DirectTab() {
         )}
       </SidebarItemTooltip>
       {directUnread && (
-        <SidebarItemBadge
-          hasCount={directUnread.total > 0}
-          style={{
-            left: directUnread.total > 0 ? toRem(-6) : toRem(-2),
-            right: 'auto',
-          }}
-        >
-          <UnreadBadge
-            highlight={directUnread.highlight > 0}
-            count={directUnread.highlight > 0 ? directUnread.highlight : directUnread.total}
-            dm
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={directUnread.highlight > 0}
+          count={directUnread.highlight > 0 ? directUnread.highlight : directUnread.total}
+          dm
+        />
       )}
       {menuAnchor && (
         <PopOut

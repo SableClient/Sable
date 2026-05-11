@@ -11,11 +11,12 @@ import {
   config,
 } from 'folds';
 import { useCallback, useEffect } from 'react';
-import { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { deviceDisplayName } from '$utils/user-agent';
-import { CustomLoginResponse, LoginError, login, useLoginComplete } from './loginUtil';
+import type { CustomLoginResponse } from './loginUtil';
+import { LoginError, login, useLoginComplete } from './loginUtil';
 
 function LoginTokenError({ message }: { message: string }) {
   return (
@@ -81,7 +82,7 @@ export function TokenLogin({ token }: TokenLoginProps) {
             <LoginTokenError message="Failed to login. Your login request has been rate-limited by server, Please try after some time." />
           )}
           {loginState.error.errcode === LoginError.Unknown && (
-            <LoginTokenError message="Failed to login. Unknown reason." />
+            <LoginTokenError message={`Failed to login: ${loginState.error.data.error}`} />
           )}
         </>
       )}

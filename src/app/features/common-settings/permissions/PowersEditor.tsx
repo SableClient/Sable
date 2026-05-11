@@ -1,4 +1,6 @@
-import { FormEventHandler, MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Text,
@@ -9,7 +11,6 @@ import {
   Scroll,
   Button,
   Input,
-  RectCords,
   PopOut,
   Menu,
   config,
@@ -21,15 +22,11 @@ import {
 import { HexColorPicker } from 'react-colorful';
 import { useAtomValue } from 'jotai';
 import { Page, PageContent, PageHeader } from '$components/page';
-import { IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import {
-  getPowers,
-  getUsedPowers,
-  PowerLevelTags,
-  usePowerLevelTags,
-} from '$hooks/usePowerLevelTags';
+import type { PowerLevelTags } from '$hooks/usePowerLevelTags';
+import { getPowers, getUsedPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { useRoom } from '$hooks/useRoom';
 import { HexColorPickerPopOut } from '$components/HexColorPickerPopOut';
 import { PowerColorBadge, PowerIcon } from '$components/power';
@@ -41,14 +38,16 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { CompactUploadCardRenderer } from '$components/upload-card';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { MemberPowerTag, MemberPowerTagIcon, StateEvent } from '$types/matrix/room';
+import { CustomStateEvent, type MemberPowerTag, type MemberPowerTagIcon } from '$types/matrix/room';
+
 import { useAlive } from '$hooks/useAlive';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
-import { creatorsSupported } from '$utils/matrix';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { creatorsSupported } from '$utils/roomSupport';
 
 type EditPowerProps = {
   maxPower: number;
@@ -57,7 +56,7 @@ type EditPowerProps = {
   onSave: (power: number, tag: MemberPowerTag) => void;
   onClose: () => void;
 };
-function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
+function EditPower({ maxPower, power, tag, onSave, onClose }: Readonly<EditPowerProps>) {
   const mx = useMatrixClient();
   const room = useRoom();
   const roomToParents = useAtomValue(roomToParentsAtom);
@@ -103,7 +102,7 @@ function EditPower({ maxPower, power, tag, onSave, onClose }: EditPowerProps) {
     const nameInput = target?.nameInput as HTMLInputElement | undefined;
     if (!powerInput || !nameInput) return;
 
-    const tagPower = parseInt(powerInput.value, 10);
+    const tagPower = Number.parseInt(powerInput.value, 10);
     if (Number.isNaN(tagPower)) return;
 
     const tagName = nameInput.value.trim();
@@ -307,7 +306,7 @@ type PowersEditorProps = {
   powerLevels: IPowerLevels;
   requestClose: () => void;
 };
-export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
+export function PowersEditor({ powerLevels, requestClose }: Readonly<PowersEditorProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
@@ -352,7 +351,7 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
       deleted.forEach((power) => {
         delete content[power];
       });
-      await mx.sendStateEvent(room.roomId, StateEvent.PowerLevelTags as any, content);
+      await mx.sendStateEvent(room.roomId, CustomStateEvent.PowerLevelTags, content);
     }, [mx, room, powerLevelTags, editedPowerTags, deleted])
   );
 
@@ -437,7 +436,7 @@ export function PowersEditor({ powerLevels, requestClose }: PowersEditorProps) {
                   )}
                 </SequenceCard>
                 {getPowers(powerTags).map((power) => {
-                  const tag = powerTags[power];
+                  const tag = powerTags[power]!;
                   const tagIconSrc =
                     tag.icon && getPowerTagIconSrc(mx, useAuthentication, tag.icon);
 

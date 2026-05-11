@@ -1,4 +1,5 @@
-import { WritableAtom, atom } from 'jotai';
+import type { WritableAtom } from 'jotai';
+import { atom } from 'jotai';
 import { produce } from 'immer';
 import {
   atomWithLocalStorage,
@@ -66,3 +67,5 @@ export const makeClosedLobbyCategoriesAtom = (userId: string): ClosedLobbyCatego
 };
 
 export const makeLobbyCategoryId = (...args: string[]): string => args.join('|');
+
+export const getLobbyCategoryIdParts = (categoryId: string): string[] => categoryId.split('|');

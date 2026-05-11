@@ -1,4 +1,5 @@
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -16,15 +17,10 @@ import {
   IconButton,
   Menu,
 } from 'folds';
-import { MatrixError } from '$types/matrix-sdk';
+import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
-import {
-  ImagePack,
-  ImageUsage,
-  PackAddress,
-  packAddressEqual,
-  PackContent,
-} from '$plugins/custom-emoji';
+import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
+import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';
 import { LineClamp2 } from '$styles/Text.css';
@@ -33,19 +29,20 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { usePowerLevels } from '$hooks/usePowerLevels';
-import { StateEvent } from '$types/matrix/room';
+
 import { suffixRename } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { CustomStateEvent } from '$types/matrix/room';
 
 type CreatePackTileProps = {
   packs: ImagePack[];
   roomId: string;
 };
-function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
+function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -57,7 +54,7 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
             display_name: name,
           },
         };
-        await mx.sendStateEvent(roomId, StateEvent.PoniesRoomEmotes as any, content, stateKey);
+        await mx.sendStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, content, stateKey);
       },
       [mx, roomId]
     )
@@ -75,9 +72,9 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
     const name = nameInput?.value.trim();
     if (!name) return;
 
-    let packKey = name.replace(/\s/g, '-');
+    let packKey = name.replaceAll(/\s/g, '-');
 
-    const hasPack = (k: string): boolean => !!packs.find((pack) => pack.address?.stateKey === k);
+    const hasPack = (k: string): boolean => packs.some((pack) => pack.address?.stateKey === k);
     if (hasPack(packKey)) {
       packKey = suffixRename(packKey, hasPack);
     }
@@ -141,7 +138,7 @@ function CreatePackTile({ packs, roomId }: CreatePackTileProps) {
 type RoomPacksProps = {
   onViewPack: (imagePack: ImagePack) => void;
 };
-export function RoomPacks({ onViewPack }: RoomPacksProps) {
+export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
@@ -151,7 +148,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canEdit = permissions.stateEvent(StateEvent.PoniesRoomEmotes, mx.getSafeUserId());
+  const canEdit = permissions.stateEvent(CustomStateEvent.PoniesRoomEmotes, mx.getSafeUserId());
 
   const unfilteredPacks = useRoomImagePacks(room);
   const packs = useMemo(() => unfilteredPacks.filter((pack) => !pack.deleted), [unfilteredPacks]);
@@ -163,8 +160,9 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
     useCallback(async () => {
       for (let i = 0; i < removedPacks.length; i += 1) {
         const addr = removedPacks[i];
-        // eslint-disable-next-line no-await-in-loop
-        await mx.sendStateEvent(room.roomId, StateEvent.PoniesRoomEmotes as any, {}, addr.stateKey);
+        if (!addr) continue;
+        // oxlint-disable-next-line no-await-in-loop
+        await mx.sendStateEvent(room.roomId, CustomStateEvent.PoniesRoomEmotes, {}, addr.stateKey);
       }
     }, [mx, room, removedPacks])
   );
@@ -193,7 +191,7 @@ export function RoomPacks({ onViewPack }: RoomPacksProps) {
     const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
     const { address } = pack;
     if (!address) return null;
-    const removed = !!removedPacks.find((addr) => packAddressEqual(addr, address));
+    const removed = removedPacks.some((addr) => packAddressEqual(addr, address));
 
     return (
       <SequenceCard

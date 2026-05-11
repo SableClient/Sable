@@ -1,4 +1,5 @@
-import { ChangeEventHandler, FormEventHandler, useEffect, useState } from 'react';
+import type { ChangeEventHandler, FormEventHandler } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Text, Button, Input, IconButton, Icon, Icons, Spinner, config } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 
@@ -39,7 +40,7 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
   const hasChanges = value !== current;
 
   return (
-    <SettingTile title="Status">
+    <SettingTile title="Status" focusId="status">
       <Box direction="Column" grow="Yes" gap="100">
         <Box as="form" onSubmit={handleSubmit} gap="200" aria-disabled={saving} grow="Yes">
           <Box grow="Yes" direction="Column">

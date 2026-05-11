@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import * as css from './AutocompleteMenu.css';
 
 type BaseAutocompleteMenuProps = {
@@ -7,7 +7,9 @@ type BaseAutocompleteMenuProps = {
 export function BaseAutocompleteMenu({ children }: BaseAutocompleteMenuProps) {
   return (
     <div className={css.AutocompleteMenuBase}>
-      <div className={css.AutocompleteMenuContainer}>{children}</div>
+      <div className={css.AutocompleteMenuContainer} data-autocomplete-menu="true">
+        {children}
+      </div>
     </div>
   );
 }

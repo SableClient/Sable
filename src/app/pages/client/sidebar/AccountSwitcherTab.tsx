@@ -1,12 +1,16 @@
-import { MouseEvent, MouseEventHandler, useCallback, useState } from 'react';
+import type { MouseEvent, MouseEventHandler } from 'react';
+import { useCallback, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
+  Button,
+  Dialog,
+  Header,
   Icon,
   Icons,
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Text,
   config,
   toRem,
@@ -17,17 +21,13 @@ import {
 import FocusTrap from 'focus-trap-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import {
-  sessionsAtom,
-  activeSessionIdAtom,
-  Session,
-  backgroundUnreadCountsAtom,
-} from '$state/sessions';
+import type { Session } from '$state/sessions';
+import { sessionsAtom, activeSessionIdAtom, backgroundUnreadCountsAtom } from '$state/sessions';
 import {
   SidebarItem,
   SidebarItemTooltip,
   SidebarAvatar,
-  SidebarItemBadge,
+  SidebarUnreadBadge,
 } from '$components/sidebar';
 import { UserAvatar } from '$components/user-avatar';
 import { nameInitials } from '$utils/common';
@@ -39,7 +39,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useUserProfile } from '$hooks/useUserProfile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSessionProfiles } from '$hooks/useSessionProfiles';
-import { Settings } from '$features/settings';
+import { useOpenSettings } from '$features/settings';
 import { Modal500 } from '$components/Modal500';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -149,6 +149,7 @@ export function AccountSwitcherTab() {
   const useAuthentication = useMediaAuthentication();
   const backgroundUnreads = useAtomValue(backgroundUnreadCountsAtom);
   const setBackgroundUnreads = useSetAtom(backgroundUnreadCountsAtom);
+  const openSettings = useOpenSettings();
 
   // Total unread count across all background sessions (for the sidebar badge).
   const totalBackgroundUnread = Object.entries(backgroundUnreads)
@@ -160,8 +161,10 @@ export function AccountSwitcherTab() {
   const anyBackgroundHighlight = totalBackgroundHighlight > 0;
 
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [busyUserIds, setBusyUserIds] = useState<Set<string>>(new Set());
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [busyUserIds, setBusyUserIds] = useState(new Set());
+  const [confirmSignOutSession, setConfirmSignOutSession] = useState<Session | undefined>(
+    undefined
+  );
 
   const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
 
@@ -178,10 +181,9 @@ export function AccountSwitcherTab() {
 
   const handleToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
     if (disableAccountSwitcher) {
-      setSettingsOpen(true);
+      openSettings();
       return;
     }
-
     const cords = evt.currentTarget.getBoundingClientRect();
     setMenuAnchor((cur) => (cur ? undefined : cords));
   };
@@ -211,8 +213,9 @@ export function AccountSwitcherTab() {
         if (session.userId === mx.getUserId()) {
           await logoutClient(mx, session);
           setSessions({ type: 'DELETE', session });
-          const remaining = sessions.filter((s) => s.userId !== session.userId);
-          setActiveSessionId(remaining[0]?.userId ?? undefined);
+          setActiveSessionId(
+            sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined
+          );
           window.location.reload();
         } else {
           try {
@@ -223,8 +226,9 @@ export function AccountSwitcherTab() {
           }
           setSessions({ type: 'DELETE', session });
           if (activeSessionId === session.userId) {
-            const remaining = sessions.filter((s) => s.userId !== session.userId);
-            setActiveSessionId(remaining[0]?.userId ?? undefined);
+            setActiveSessionId(
+              sessions.find((s) => s.userId !== session.userId)?.userId ?? undefined
+            );
           }
         }
       } catch (err) {
@@ -252,7 +256,7 @@ export function AccountSwitcherTab() {
       userId: activeSession?.userId,
     });
     setMenuAnchor(undefined);
-    setSettingsOpen(true);
+    openSettings();
   };
 
   const activeLocalPart =
@@ -262,7 +266,7 @@ export function AccountSwitcherTab() {
   if (!activeSession) return null;
 
   return (
-    <SidebarItem active={!!menuAnchor || settingsOpen}>
+    <SidebarItem active={!!menuAnchor}>
       <SidebarItemTooltip tooltip={label}>
         {(triggerRef) => (
           <SidebarAvatar
@@ -281,12 +285,10 @@ export function AccountSwitcherTab() {
         )}
       </SidebarItemTooltip>
       {(totalBackgroundUnread > 0 || anyBackgroundHighlight) && (
-        <SidebarItemBadge hasCount style={{ left: toRem(-6), right: 'auto' }}>
-          <UnreadBadge
-            highlight={anyBackgroundHighlight}
-            count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}
-          />
-        </SidebarItemBadge>
+        <SidebarUnreadBadge
+          highlight={anyBackgroundHighlight}
+          count={anyBackgroundHighlight ? totalBackgroundHighlight : totalBackgroundUnread}
+        />
       )}
 
       <PopOut
@@ -333,7 +335,10 @@ export function AccountSwitcherTab() {
                       isBusy={busyUserIds.has(session.userId)}
                       unread={!isActive ? backgroundUnreads[session.userId] : undefined}
                       onSwitch={handleSwitch}
-                      onSignOut={handleSignOut}
+                      onSignOut={(pendingSession) => {
+                        setMenuAnchor(undefined);
+                        setConfirmSignOutSession(pendingSession);
+                      }}
                     />
                   );
                 })}
@@ -360,9 +365,41 @@ export function AccountSwitcherTab() {
         }
       />
 
-      {settingsOpen && (
-        <Modal500 requestClose={() => setSettingsOpen(false)}>
-          <Settings requestClose={() => setSettingsOpen(false)} />
+      {confirmSignOutSession && (
+        <Modal500 requestClose={() => setConfirmSignOutSession(undefined)}>
+          <Dialog variant="Surface">
+            <Header
+              style={{
+                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                borderBottomWidth: config.borderWidth.B300,
+              }}
+              variant="Surface"
+              size="500"
+            >
+              <Box grow="Yes">
+                <Text size="H4">Sign out</Text>
+              </Box>
+            </Header>
+            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+              <Text priority="400">
+                Are you sure you want to sign out of <b>{confirmSignOutSession.userId}</b>?
+              </Text>
+              <Box direction="Column" gap="200">
+                <Button
+                  variant="Critical"
+                  onClick={() => {
+                    handleSignOut(confirmSignOutSession);
+                    setConfirmSignOutSession(undefined);
+                  }}
+                >
+                  <Text size="B400">Sign out</Text>
+                </Button>
+                <Button variant="Secondary" onClick={() => setConfirmSignOutSession(undefined)}>
+                  <Text size="B400">Cancel</Text>
+                </Button>
+              </Box>
+            </Box>
+          </Dialog>
         </Modal500>
       )}
     </SidebarItem>

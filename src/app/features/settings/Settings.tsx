@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { IconSrc } from 'folds';
 import {
   Avatar,
   Box,
@@ -7,7 +8,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -26,20 +26,29 @@ import { nameInitials } from '$utils/common';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { stopPropagation } from '$utils/keyboard';
 import { LogoutDialog } from '$components/LogoutDialog';
-import { Notifications } from './notifications';
-import { Devices } from './devices';
-import { EmojisStickers } from './emojis-stickers';
-import { DeveloperTools } from './developer-tools';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { About } from './about';
 import { Account } from './account';
-import { General } from './general';
 import { Cosmetics } from './cosmetics/Cosmetics';
+import { DeveloperTools } from './developer-tools';
+import { Devices } from './devices';
+import { EmojisStickers } from './emojis-stickers';
 import { Experimental } from './experimental/Experimental';
+import { General } from './general';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
+import { Notifications } from './notifications';
+import { PerMessageProfilePage } from './Persona/ProfilesPage';
+import { settingsSections, type SettingsSectionId } from './routes';
+import { settingsHeader } from './styles.css';
+import { useSettingsFocus } from './useSettingsFocus';
+import { SettingsLinkProvider } from './SettingsLinkContext';
+import { useSettingsLinkBaseUrl } from './useSettingsLinkBaseUrl';
 
 export enum SettingsPages {
   GeneralPage,
   AccountPage,
+  PerMessageProfilesPage,
   NotificationPage,
   DevicesPage,
   EmojisStickersPage,
@@ -51,75 +60,103 @@ export enum SettingsPages {
 }
 
 type SettingsMenuItem = {
-  page: SettingsPages;
+  id: SettingsSectionId;
   name: string;
   icon: IconSrc;
   activeIcon?: IconSrc;
 };
 
-const useSettingsMenuItems = (): SettingsMenuItem[] =>
-  useMemo(
-    () => [
-      {
-        page: SettingsPages.GeneralPage,
-        name: 'General',
-        icon: Icons.Setting,
-      },
-      {
-        page: SettingsPages.AccountPage,
-        name: 'Account',
-        icon: Icons.User,
-      },
-      {
-        page: SettingsPages.CosmeticsPage,
-        name: 'Appearance',
-        icon: Icons.Alphabet,
-        activeIcon: Icons.AlphabetUnderline,
-      },
-      {
-        page: SettingsPages.NotificationPage,
-        name: 'Notifications',
-        icon: Icons.Bell,
-      },
-      {
-        page: SettingsPages.DevicesPage,
-        name: 'Devices',
-        icon: Icons.Monitor,
-      },
-      {
-        page: SettingsPages.EmojisStickersPage,
-        name: 'Emojis & Stickers',
-        icon: Icons.Smile,
-      },
-      {
-        page: SettingsPages.DeveloperToolsPage,
-        name: 'Developer Tools',
-        icon: Icons.Terminal,
-      },
-      {
-        page: SettingsPages.ExperimentalPage,
-        name: 'Experimental',
-        icon: Icons.Funnel,
-      },
-      {
-        page: SettingsPages.AboutPage,
-        name: 'About',
-        icon: Icons.Info,
-      },
-      {
-        page: SettingsPages.KeyboardShortcutsPage,
-        name: 'Keyboard Shortcuts',
-        icon: Icons.BlockCode,
-      },
-    ],
-    []
-  );
-
-type SettingsProps = {
-  initialPage?: SettingsPages;
-  requestClose: () => void;
+const settingsMenuIcons: Record<
+  SettingsSectionId,
+  Pick<SettingsMenuItem, 'icon' | 'activeIcon'>
+> = {
+  general: { icon: Icons.Setting },
+  account: { icon: Icons.User },
+  persona: { icon: Icons.User },
+  appearance: { icon: Icons.Alphabet, activeIcon: Icons.AlphabetUnderline },
+  notifications: { icon: Icons.Bell },
+  devices: { icon: Icons.Monitor },
+  emojis: { icon: Icons.Smile },
+  'developer-tools': { icon: Icons.Terminal },
+  experimental: { icon: Icons.Funnel },
+  about: { icon: Icons.Info },
+  'keyboard-shortcuts': { icon: Icons.BlockCode },
 };
-export function Settings({ initialPage, requestClose }: SettingsProps) {
+
+const settingsPageToSectionId: Record<SettingsPages, SettingsSectionId> = {
+  [SettingsPages.GeneralPage]: 'general',
+  [SettingsPages.AccountPage]: 'account',
+  [SettingsPages.PerMessageProfilesPage]: 'persona',
+  [SettingsPages.NotificationPage]: 'notifications',
+  [SettingsPages.DevicesPage]: 'devices',
+  [SettingsPages.EmojisStickersPage]: 'emojis',
+  [SettingsPages.CosmeticsPage]: 'appearance',
+  [SettingsPages.DeveloperToolsPage]: 'developer-tools',
+  [SettingsPages.ExperimentalPage]: 'experimental',
+  [SettingsPages.AboutPage]: 'about',
+  [SettingsPages.KeyboardShortcutsPage]: 'keyboard-shortcuts',
+};
+
+const settingsSectionIdToPage: Record<SettingsSectionId, SettingsPages> = {
+  general: SettingsPages.GeneralPage,
+  account: SettingsPages.AccountPage,
+  persona: SettingsPages.PerMessageProfilesPage,
+  appearance: SettingsPages.CosmeticsPage,
+  notifications: SettingsPages.NotificationPage,
+  devices: SettingsPages.DevicesPage,
+  emojis: SettingsPages.EmojisStickersPage,
+  'developer-tools': SettingsPages.DeveloperToolsPage,
+  experimental: SettingsPages.ExperimentalPage,
+  about: SettingsPages.AboutPage,
+  'keyboard-shortcuts': SettingsPages.KeyboardShortcutsPage,
+};
+
+const settingsSectionComponents: Record<
+  SettingsSectionId,
+  (props: { requestBack?: () => void; requestClose: () => void }) => JSX.Element
+> = {
+  general: General,
+  account: Account,
+  persona: PerMessageProfilePage,
+  appearance: Cosmetics,
+  notifications: Notifications,
+  devices: Devices,
+  emojis: EmojisStickers,
+  'developer-tools': DeveloperTools,
+  experimental: Experimental,
+  about: About,
+  'keyboard-shortcuts': KeyboardShortcuts,
+};
+
+type ControlledSettingsProps = {
+  activeSection?: SettingsSectionId | null;
+  onSelectSection?: (section: SettingsSectionId) => void;
+  onBack?: () => void;
+  requestClose: () => void;
+  initialPage?: SettingsPages;
+};
+
+function SettingsSectionViewport({
+  section,
+  requestBack,
+  requestClose,
+}: {
+  section: SettingsSectionId;
+  requestBack?: () => void;
+  requestClose: () => void;
+}) {
+  useSettingsFocus();
+  const Section = settingsSectionComponents[section];
+  return <Section requestBack={requestBack} requestClose={requestClose} />;
+}
+
+export function Settings({
+  activeSection,
+  onSelectSection,
+  onBack,
+  requestClose,
+  initialPage,
+}: ControlledSettingsProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const userId = mx.getUserId()!;
@@ -129,27 +166,90 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
     ? (mxcUrlToHttp(mx, profile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
+  const [showPersona] = useSetting(settingsAtom, 'showPersonaSetting');
+  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const screenSize = useScreenSizeContext();
-  const [activePage, setActivePage] = useState<SettingsPages | undefined>(() => {
+  const isControlled = activeSection !== undefined;
+
+  const [legacyActivePage, setLegacyActivePage] = useState<SettingsPages | undefined>(() => {
+    if (initialPage === SettingsPages.PerMessageProfilesPage && !showPersona) {
+      return SettingsPages.GeneralPage;
+    }
     if (initialPage) return initialPage;
     return screenSize === ScreenSize.Mobile ? undefined : SettingsPages.GeneralPage;
   });
-  const menuItems = useSettingsMenuItems();
 
-  const handlePageRequestClose = () => {
-    if (screenSize === ScreenSize.Mobile) {
-      setActivePage(undefined);
+  const visibleSection = useMemo<SettingsSectionId | null>(() => {
+    if (isControlled) return activeSection;
+
+    if (legacyActivePage === undefined) {
+      return null;
+    }
+
+    const section = settingsPageToSectionId[legacyActivePage];
+    if (section === 'persona' && !showPersona) {
+      return 'general';
+    }
+    return section;
+  }, [activeSection, isControlled, legacyActivePage, showPersona]);
+
+  const menuItems = useMemo<SettingsMenuItem[]>(
+    () =>
+      settingsSections
+        .filter((section) => showPersona || section.id !== 'persona')
+        .map((section) => {
+          const icon = settingsMenuIcons[section.id];
+          return { id: section.id, name: section.label, ...icon };
+        }),
+    [showPersona]
+  );
+
+  const handleSelectSection = (section: SettingsSectionId) => {
+    if (isControlled) {
+      onSelectSection?.(section);
       return;
     }
+
+    setLegacyActivePage(settingsSectionIdToPage[section]);
+  };
+
+  const handleRequestClose = () => {
+    if (isControlled) {
+      requestClose();
+      return;
+    }
+
+    if (screenSize === ScreenSize.Mobile) {
+      setLegacyActivePage(undefined);
+      return;
+    }
+
     requestClose();
   };
+
+  const handleRequestBack = () => {
+    if (isControlled) {
+      onBack?.();
+      return;
+    }
+
+    if (screenSize === ScreenSize.Mobile) {
+      setLegacyActivePage(undefined);
+      return;
+    }
+
+    setLegacyActivePage(SettingsPages.GeneralPage);
+  };
+
+  const shouldShowSectionBack = visibleSection !== null && screenSize === ScreenSize.Mobile;
+  const sectionRequestBack = shouldShowSectionBack ? handleRequestBack : undefined;
 
   return (
     <PageRoot
       nav={
-        screenSize === ScreenSize.Mobile && activePage !== undefined ? undefined : (
+        screenSize === ScreenSize.Mobile && visibleSection !== null ? undefined : (
           <PageNav size="300">
-            <PageNavHeader outlined={false}>
+            <PageNavHeader className={settingsHeader}>
               <Box grow="Yes" gap="200">
                 <Avatar size="200" radii="300">
                   <UserAvatar
@@ -163,8 +263,12 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
                 </Text>
               </Box>
               <Box shrink="No">
-                {screenSize === ScreenSize.Mobile && (
-                  <IconButton onClick={requestClose} variant="Background">
+                {visibleSection === null && (
+                  <IconButton
+                    aria-label="Close settings"
+                    onClick={handleRequestClose}
+                    variant="Background"
+                  >
                     <Icon src={Icons.Cross} />
                   </IconButton>
                 )}
@@ -175,25 +279,29 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
                 <div style={{ flexGrow: 1 }}>
                   {menuItems.map((item) => {
                     const currentIcon =
-                      activePage === item.page && item.activeIcon ? item.activeIcon : item.icon;
+                      visibleSection === item.id && item.activeIcon ? item.activeIcon : item.icon;
 
                     return (
                       <MenuItem
-                        key={item.name}
+                        key={item.id}
                         variant="Background"
                         radii="400"
-                        aria-pressed={activePage === item.page}
+                        aria-pressed={visibleSection === item.id}
                         before={
-                          <Icon src={currentIcon} size="100" filled={activePage === item.page} />
+                          <Icon
+                            src={currentIcon}
+                            size={screenSize === ScreenSize.Mobile ? '200' : '100'}
+                            filled={visibleSection === item.id}
+                          />
                         }
-                        onClick={() => setActivePage(item.page)}
+                        onClick={() => handleSelectSection(item.id)}
                       >
                         <Text
                           style={{
                             fontWeight:
-                              activePage === item.page ? config.fontWeight.W600 : undefined,
+                              visibleSection === item.id ? config.fontWeight.W600 : undefined,
                           }}
-                          size="T300"
+                          size={screenSize === ScreenSize.Mobile ? 'T400' : 'T300'}
                           truncate
                         >
                           {item.name}
@@ -241,33 +349,14 @@ export function Settings({ initialPage, requestClose }: SettingsProps) {
         )
       }
     >
-      {activePage === SettingsPages.GeneralPage && (
-        <General requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.AccountPage && (
-        <Account requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.CosmeticsPage && (
-        <Cosmetics requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.NotificationPage && (
-        <Notifications requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.DevicesPage && (
-        <Devices requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.EmojisStickersPage && (
-        <EmojisStickers requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.DeveloperToolsPage && (
-        <DeveloperTools requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.ExperimentalPage && (
-        <Experimental requestClose={handlePageRequestClose} />
-      )}
-      {activePage === SettingsPages.AboutPage && <About requestClose={handlePageRequestClose} />}
-      {activePage === SettingsPages.KeyboardShortcutsPage && (
-        <KeyboardShortcuts requestClose={handlePageRequestClose} />
+      {visibleSection && (
+        <SettingsLinkProvider value={{ section: visibleSection, baseUrl: settingsLinkBaseUrl }}>
+          <SettingsSectionViewport
+            section={visibleSection}
+            requestBack={sectionRequestBack}
+            requestClose={handleRequestClose}
+          />
+        </SettingsLinkProvider>
       )}
     </PageRoot>
   );

@@ -1,10 +1,7 @@
-import { IContent, MatrixClient, MsgType } from '$types/matrix-sdk';
+import type { IContent, MatrixClient } from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import {
-  IThumbnailContent,
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-  MATRIX_SPOILER_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { IThumbnailContent } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,
@@ -14,10 +11,14 @@ import {
   loadVideoElement,
 } from '$utils/dom';
 import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '$utils/matrix';
-import { TUploadItem } from '$state/room/roomInputDrafts';
+import type { TUploadItem } from '$state/room/roomInputDrafts';
 import { encodeBlurHash } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
+import {
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+  MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
+} from '../../../unstable/prefixes';
 
 const log = createLogger('msgContent');
 
@@ -59,16 +60,14 @@ export const getImageMsgContent = async (
     msgtype: MsgType.Image,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
-    [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
+    [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (imgEl) {
     const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
 
     content.info = {
       ...getImageInfo(imgEl, file),
-      [MATRIX_BLUR_HASH_PROPERTY_NAME]: blurHash,
+      [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: blurHash,
     };
   }
   if (encInfo) {
@@ -101,9 +100,7 @@ export const getVideoMsgContent = async (
     msgtype: MsgType.Video,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
-    [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
+    [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (videoEl) {
     const [thumbError, thumbContent] = await to(
@@ -115,7 +112,7 @@ export const getVideoMsgContent = async (
       )
     );
     if (thumbContent && thumbContent.thumbnail_info) {
-      thumbContent.thumbnail_info[MATRIX_BLUR_HASH_PROPERTY_NAME] = encodeBlurHash(
+      thumbContent.thumbnail_info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = encodeBlurHash(
         videoEl,
         512,
         scaleYDimension(videoEl.videoWidth, 512, videoEl.videoHeight)
@@ -148,33 +145,29 @@ export type AudioMsgContent = IContent & {
   audioLength?: number;
 };
 
-export const getAudioMsgContent = (
-  item: TUploadItem,
-  mxc: string,
-  waveform?: number[],
-  audioLength?: number
-): AudioMsgContent => {
-  const { file, encInfo } = item;
+export const getAudioMsgContent = (item: TUploadItem, mxc: string): AudioMsgContent => {
+  const { file, encInfo, metadata } = item;
+  const { waveform, audioDuration, markedAsSpoiler } = metadata;
+  const isVoice = waveform !== undefined && waveform.length > 0;
+  const fallbackBody = isVoice ? 'a voice message' : file.name;
   let content: IContent = {
     msgtype: MsgType.Audio,
     filename: file.name,
-    body: item.body && item.body.length > 0 ? item.body : 'a voice message',
-    format: 'org.matrix.custom.html',
-    formatted_body: item.body && item.body.length > 0 ? item.body : '<em>a voice message</em>',
+    body: item.body && item.body.length > 0 ? item.body : fallbackBody,
     info: {
       mimetype: file.type,
       size: file.size,
-      duration: item.metadata.markedAsSpoiler || !audioLength ? 0 : audioLength * 1000,
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
     },
 
     // Element-compatible unstable extensible-event keys
     'org.matrix.msc1767.audio': {
-      waveform: waveform?.map((v) => Math.round(v * 1024)), // scale waveform values to fit in 10 bits (0-1024) for more efficient storage, as per MSC1767 spec
-      duration: item.metadata.markedAsSpoiler || !audioLength ? 0 : audioLength * 1000, // if marked as spoiler, set duration to 0 to hide it in clients that support msc1767
+      waveform: waveform?.map((v) => Math.round(v * 1024)),
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration * 1000,
     },
-    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : 'a voice message',
+    'org.matrix.msc1767.text': item.body && item.body.length > 0 ? item.body : fallbackBody,
     'org.matrix.msc3245.voice.v2': {
-      duration: !audioLength ? 0 : audioLength,
+      duration: markedAsSpoiler || !audioDuration ? 0 : audioDuration,
       waveform: waveform?.map((v) => Math.round(v * 1024)),
     },
     // for element compat
@@ -224,8 +217,6 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
     msgtype: MsgType.File,
     filename: file.name,
     body: file.name,
-    format: 'org.matrix.custom.html',
-    formatted_body: file.name,
     info: {
       mimetype: file.type,
       size: file.size,

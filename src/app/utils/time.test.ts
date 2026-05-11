@@ -60,7 +60,7 @@ describe('minuteDifference', () => {
   it.each([
     [0, 60_000, 1], // 1 minute
     [0, 3_600_000, 60], // 1 hour = 60 minutes
-    [0, 90_000, 2], // 1.5 minutes rounds to 2
+    [0, 90_000, 1], // 1.5 minutes rounds to 1 - always rounds down now
     [5_000, 0, 0], // less than a minute → 0
     [0, 0, 0], // same timestamp
   ])('minuteDifference(%i, %i) → %i', (ts1, ts2, expected) => {

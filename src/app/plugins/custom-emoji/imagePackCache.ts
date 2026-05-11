@@ -15,7 +15,7 @@
 
 import { PackAddress } from './PackAddress';
 import { ImagePack } from './ImagePack';
-import { PackContent, PackImages } from './types';
+import type { PackContent, PackImages } from './types';
 
 // --------------------------------------------------------------------------
 // Types stored in localStorage

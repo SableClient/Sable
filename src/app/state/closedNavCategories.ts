@@ -1,4 +1,5 @@
-import { WritableAtom, atom } from 'jotai';
+import type { WritableAtom } from 'jotai';
+import { atom } from 'jotai';
 import { produce } from 'immer';
 import {
   atomWithLocalStorage,
@@ -66,3 +67,6 @@ export const makeClosedNavCategoriesAtom = (userId: string): ClosedNavCategories
 };
 
 export const makeNavCategoryId = (...args: string[]): string => args.join('|');
+
+export const getNavCategoryIdParts = (categoryId: string): [string, string] =>
+  categoryId.split('|') as [string, string];

@@ -1,6 +1,8 @@
-import { generatePath, Path } from 'react-router-dom';
+import type { Path } from 'react-router-dom';
+import { generatePath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
-import { HashRouterConfig } from '$hooks/useClientConfig';
+import type { HashRouterConfig } from '$hooks/useClientConfig';
+import type { SettingsPathSearchParams } from './paths';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
@@ -20,6 +22,7 @@ import {
   REGISTER_PATH,
   RESET_PASSWORD_PATH,
   ROOT_PATH,
+  SETTINGS_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
   SPACE_ROOM_PATH,
@@ -29,10 +32,7 @@ import {
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
 
-export const withSearchParam = <T extends Record<string, string>>(
-  path: string,
-  searchParam: T
-): string => {
+export const withSearchParam = (path: string, searchParam: Record<string, string>): string => {
   const params = new URLSearchParams(searchParam);
 
   return `${path}?${params}`;
@@ -158,3 +158,11 @@ export const getCreatePath = (): string => CREATE_PATH;
 export const getInboxPath = (): string => INBOX_PATH;
 export const getInboxNotificationsPath = (): string => INBOX_NOTIFICATIONS_PATH;
 export const getInboxInvitesPath = (): string => INBOX_INVITES_PATH;
+
+export const getSettingsPath = (section?: string, focus?: string): string => {
+  const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));
+  if (!focus) return path;
+
+  const params: SettingsPathSearchParams = { focus };
+  return `${path}?${new URLSearchParams(params).toString()}`;
+};

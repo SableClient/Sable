@@ -1,13 +1,6 @@
-import {
-  FormEventHandler,
-  MouseEventHandler,
-  RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { FormEventHandler, MouseEventHandler, RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -20,7 +13,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Spinner,
   Text,
@@ -31,19 +23,20 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
-import { MatrixClient, Method, RoomType } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
+import { Method, RoomType } from '$types/matrix-sdk';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { RoomCard, RoomCardBase, RoomCardGrid } from '$components/room-card';
-import { ExploreServerPathSearchParams } from '$pages/paths';
+import type { ExploreServerPathSearchParams } from '$pages/paths';
 import { getExploreServerPath, withSearchParam } from '$pages/pathUtils';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
-import { getMxIdServer } from '$utils/matrix';
 import { stopPropagation } from '$utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import * as css from './style.css';
 
 const useServerSearchParams = (searchParams: URLSearchParams): ExploreServerPathSearchParams =>
@@ -90,7 +83,7 @@ type SearchProps = {
   onSearch: (term: string) => void;
   onReset: () => void;
 };
-function Search({ active, loading, searchInputRef, onSearch, onReset }: SearchProps) {
+function Search({ active, loading, searchInputRef, onSearch, onReset }: Readonly<SearchProps>) {
   const handleSearchSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
     evt.preventDefault();
     const { searchInput } = evt.target as HTMLFormElement & {
@@ -149,10 +142,10 @@ const DEFAULT_INSTANCE_NAME = 'Matrix';
 function ThirdPartyProtocolsSelector({
   instanceId,
   onChange,
-}: {
+}: Readonly<{
   instanceId?: string;
   onChange: (instanceId?: string) => void;
-}) {
+}>) {
   const mx = useMatrixClient();
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
@@ -171,7 +164,8 @@ function ThirdPartyProtocolsSelector({
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
 
-  const instances = data && Object.keys(data).flatMap((protocol) => data[protocol].instances);
+  const instances =
+    data && Object.keys(data).flatMap((protocol) => data[protocol]?.instances ?? []);
   if (!instances || instances.length === 0) return null;
   const selectedInstance = instances.find((instance) => instanceId === instance.instance_id);
 
@@ -251,7 +245,7 @@ type LimitButtonProps = {
   limit: number;
   onLimitChange: (limit: string) => void;
 };
-function LimitButton({ limit, onLimitChange }: LimitButtonProps) {
+function LimitButton({ limit, onLimitChange }: Readonly<LimitButtonProps>) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleLimitSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
@@ -360,8 +354,12 @@ export function PublicRooms() {
   const currentLimit: number = useMemo(() => {
     const limitParam = serverSearchParams.limit;
     if (!limitParam) return FALLBACK_ROOMS_LIMIT;
-    return parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
+    return Number.parseInt(limitParam, 10) || FALLBACK_ROOMS_LIMIT;
   }, [serverSearchParams.limit]);
+  const placeholderRoomCardKeys = useMemo(
+    () => Array.from({ length: currentLimit }, (_, index) => `placeholder-${index}`),
+    [currentLimit]
+  );
 
   const resetScroll = useCallback(() => {
     const scroll = scrollRef.current;
@@ -371,7 +369,7 @@ export function PublicRooms() {
   const fetchPublicRooms = useCallback(() => {
     const limit =
       typeof serverSearchParams.limit === 'string'
-        ? parseInt(serverSearchParams.limit, 10)
+        ? Number.parseInt(serverSearchParams.limit, 10)
         : FALLBACK_ROOMS_LIMIT;
     const roomType: string | null | undefined =
       serverSearchParams.type === 'null' ? null : serverSearchParams.type;
@@ -387,7 +385,7 @@ export function PublicRooms() {
         since: serverSearchParams.since,
         filter: {
           generic_search_term: serverSearchParams.term,
-          room_types: roomType !== undefined ? [roomType] : undefined,
+          room_types: roomType === undefined ? undefined : [roomType],
         },
         third_party_instance_id: serverSearchParams.instance,
       }
@@ -574,8 +572,8 @@ export function PublicRooms() {
                   </Box>
                   {isLoading && (
                     <RoomCardGrid>
-                      {[...Array(currentLimit).keys()].map((item) => (
-                        <RoomCardBase key={item} style={{ minHeight: toRem(260) }} />
+                      {placeholderRoomCardKeys.map((key) => (
+                        <RoomCardBase key={key} style={{ minHeight: toRem(260) }} />
                       ))}
                     </RoomCardGrid>
                   )}
@@ -599,6 +597,7 @@ export function PublicRooms() {
                               topic={chunkRoom.topic}
                               memberCount={chunkRoom.num_joined_members}
                               roomType={chunkRoom.room_type}
+                              joinRule={chunkRoom.join_rule}
                               onView={
                                 chunkRoom.room_type === RoomType.Space
                                   ? navigateSpace

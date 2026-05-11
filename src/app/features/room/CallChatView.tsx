@@ -32,7 +32,7 @@ export function CallChatView() {
           setSidebarWidth={setVcmsgSidebarWidth}
           minValue={300}
           maxValue={1000}
-          rightSided
+          isReversed
         />
       )}
       <Page

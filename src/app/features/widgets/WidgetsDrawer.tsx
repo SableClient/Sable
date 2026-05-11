@@ -263,7 +263,7 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
           setSidebarWidth={setWidgetSidebarWidth}
           minValue={50}
           maxValue={1200}
-          rightSided
+          isReversed
         />
       )}
       <Box

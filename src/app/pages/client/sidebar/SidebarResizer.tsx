@@ -1,6 +1,6 @@
 // The disable is because the position should only update whenever the new one is updated
 // oxlint-disable eslint-plugin-react-hooks/exhaustive-deps
-import { Box } from 'folds';
+import { Box, toRem } from 'folds';
 import * as css from '$pages/client/sidebar/SidebarResizer.css';
 import type { Dispatch, SetStateAction } from 'react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ export function SidebarResizer({
   maxValue,
   instep,
   outstep,
-  rightSided,
+  isReversed,
   topSided,
 }: {
   sidebarWidth: number;
@@ -23,39 +23,39 @@ export function SidebarResizer({
   maxValue: number;
   instep?: number;
   outstep?: number;
-  rightSided?: boolean;
+  isReversed?: boolean;
   topSided?: boolean;
 }) {
   const [isPointerOver, setIsPointerOver] = useState(false);
   const [isPointerDown, setIsPointerDown] = useState(false);
-  const [oldX, setOldX] = useState(0);
-  const [interimX, setInterimX] = useState(0);
-  const [newX, setNewX] = useState(0);
+  const [oldPos, setOldPos] = useState(0);
+  const [interimPos, setInterimPos] = useState(0);
+  const [newPos, setNewPos] = useState(0);
 
   useEffect(() => {
-    const change = rightSided ? -(oldX - newX) : oldX - newX;
+    const change = isReversed ? -(oldPos - newPos) : oldPos - newPos;
     let newValue = Math.min(Math.max(sidebarWidth - change, minValue), maxValue);
     if (instep && outstep && newValue > instep && newValue < outstep)
       newValue = newValue > (instep + outstep) / 2 ? outstep : instep;
 
     if (change) setSidebarWidth(newValue);
-  }, [newX]);
+  }, [newPos]);
 
   useEffect(() => {
-    const change = rightSided ? -(oldX - interimX) : oldX - interimX;
+    const change = isReversed ? -(oldPos - interimPos) : oldPos - interimPos;
     let newValue = Math.min(Math.max(sidebarWidth - change, minValue), maxValue);
     if (instep && outstep && newValue > instep && newValue < outstep)
       newValue = newValue > (instep + outstep) / 2 ? outstep : instep;
     if (change && setCurWidth) setCurWidth(newValue);
-  }, [interimX]);
+  }, [interimPos]);
 
   const onPointerMove = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    setInterimX(topSided ? e.clientY : e.clientX);
+    setInterimPos(topSided ? e.clientY : e.clientX);
   }, []);
   const onPointerUp = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    setNewX(topSided ? e.clientY : e.clientX);
+    setNewPos(topSided ? e.clientY : e.clientX);
     setIsPointerDown(false);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointermove', onPointerMove);
@@ -64,7 +64,7 @@ export function SidebarResizer({
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-      setOldX(topSided ? e.clientY : e.clientX);
+      setOldPos(topSided ? e.clientY : e.clientX);
       setIsPointerDown(true);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointermove', onPointerMove);
@@ -79,8 +79,8 @@ export function SidebarResizer({
       onPointerLeave={() => setIsPointerOver(false)}
       onPointerDown={onPointerDown}
       style={{
-        width: topSided ? '100%' : '4px',
-        height: topSided ? '4px' : '100%',
+        width: topSided ? '100%' : toRem(4),
+        height: topSided ? toRem(4) : '100%',
       }}
       shrink="No"
     >

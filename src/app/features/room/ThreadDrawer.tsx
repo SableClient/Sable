@@ -762,8 +762,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
           minValue={150}
-          maxValue={500}
-          rightSided
+          maxValue={600}
+          isReversed
         />
       )}
       <Box
@@ -834,7 +834,11 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               topSided
             />
             <div
-              style={{ width: '100%', height: toRem(1), backgroundColor: color.Surface.ContainerLine }}
+              style={{
+                width: '100%',
+                height: toRem(1),
+                backgroundColor: color.Surface.ContainerLine,
+              }}
             />
           </>
         )}

@@ -319,7 +319,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
           outstep={176}
           minValue={64}
           maxValue={350}
-          rightSided
+          isReversed
         />
       )}
       <Box

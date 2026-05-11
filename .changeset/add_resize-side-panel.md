@@ -2,4 +2,4 @@
 default: minor
 ---
 
-Add Resize the room sidepanel using a hoverable tool
+Add Resize the sidepanels and the thread height of the original object using hoverable tools.

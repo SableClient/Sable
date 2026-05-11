@@ -1,8 +1,8 @@
 import { style } from '@vanilla-extract/css';
-import { color } from 'folds';
+import { color, toRem } from 'folds';
 
 export const SidebarResizer = style({
-  width: '4px',
+  width: toRem(4),
   backgroundColor: 'inherit',
   transition: '0.2s',
   ':hover': {},

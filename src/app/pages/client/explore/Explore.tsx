@@ -321,7 +321,7 @@ export function Explore() {
           sidebarWidth={roomSidebarWidth}
           setSidebarWidth={setRoomSidebarWidth}
           instep={80}
-          outstep={180}
+          outstep={190}
           minValue={50}
           maxValue={500}
         />

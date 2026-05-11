@@ -310,7 +310,7 @@ export function Direct() {
                     style={{
                       position: 'relative',
                       height: virtualizer.getTotalSize(),
-                      overflow: 'clip',
+                      overflow: 'visible',
                     }}
                   >
                     {virtualizer.getVirtualItems().map((vItem) => {

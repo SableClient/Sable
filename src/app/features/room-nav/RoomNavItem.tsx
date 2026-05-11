@@ -73,6 +73,7 @@ import { livekitSupport } from '$hooks/useLivekitSupport';
 import { Presence, useUserPresence } from '$hooks/useUserPresence';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { RoomNavUser } from './RoomNavUser';
+import { SidebarUnreadBadge } from '$components/sidebar';
 
 /**
  * Reactively checks whether a room has unread messages.
@@ -465,6 +466,13 @@ export function RoomNavItem({
                       )}
                     </Avatar>
                   </AvatarPresence>
+                  {unread && hideText && (
+                    <SidebarUnreadBadge
+                      highlight={unread.highlight > 0}
+                      count={unread.highlight > 0 ? unread.highlight : unread.total}
+                    />
+                  )}
+
                   {!hideText && (
                     <>
                       <Box as="span" grow="Yes" direction="Column">
@@ -530,9 +538,9 @@ export function RoomNavItem({
             </NavButton>
           )}
         </TooltipProvider>
-        {optionsVisible && (
+        {optionsVisible && !hideText && (
           <NavItemOptions>
-            {(room.isCallRoom() || (direct && callMembers.length > 0)) && !hideText && (
+            {(room.isCallRoom() || (direct && callMembers.length > 0)) && (
               <TooltipProvider
                 position="Bottom"
                 offset={4}

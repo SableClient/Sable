@@ -822,7 +822,7 @@ export function Space() {
                   style={{
                     height: virtualizer.getTotalSize(),
                     position: 'relative',
-                    overflow: 'clip',
+                    overflow: 'visible',
                   }}
                 >
                   {virtualizedItems.map((vItem) => {

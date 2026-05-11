@@ -5,7 +5,9 @@ import {
   matrixMathExtension,
   matrixMathBlockExtension,
   maskDollarSignsInsideMarkdownCode,
+  shieldDollarRunsForMarked,
   unmaskMathCodeDollarPlaceholders,
+  unmaskSubscriptCodeLinePlaceholders,
 } from './extensions/matrix-math';
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
@@ -48,6 +50,39 @@ const decodeHtmlEntities = (text: string): string => {
   return result;
 };
 
+const MATRIX_TO_PLACEHOLDER_PREFIX = 'MATRIXTORAWLINKTOKEN';
+
+const escapeHtml = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const shieldBareMatrixToLinks = (
+  input: string
+): { shielded: string; placeholders: Map<string, string> } => {
+  const placeholders = new Map<string, string>();
+  let index = 0;
+
+  const shielded = input.replace(/(?<!\]\()https?:\/\/matrix\.to\/[^\s<)]+/gi, (url) => {
+    const key = `${MATRIX_TO_PLACEHOLDER_PREFIX}${index++}X`;
+    placeholders.set(key, url);
+    return key;
+  });
+
+  return { shielded, placeholders };
+};
+
+const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, string>): string => {
+  let result = html;
+  for (const [key, url] of placeholders.entries()) {
+    result = result.split(key).join(escapeHtml(url));
+  }
+  return result;
+};
+
 /**
  * Converts markdown string to sanitized Matrix-compatible HTML.
  * Uses marked for parsing and DOMPurify for sanitization per Matrix spec.
@@ -65,7 +100,10 @@ export function markdownToHtml(markdown: string): string {
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
-  const mathInput = maskDollarSignsInsideMarkdownCode(preprocessed);
+  const { shielded: matrixToShielded, placeholders: matrixToPlaceholders } =
+    shieldBareMatrixToLinks(preprocessed);
+
+  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(matrixToShielded));
 
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(mathInput) as string;
@@ -139,8 +177,9 @@ export function markdownToHtml(markdown: string): string {
       'type',
       'open',
     ],
-    // Allow safe rel attributes for links
-    ADD_ATTR: ['target', 'rel'],
+    // Ensure these safe attrs survive sanitization even when the input HTML
+    // originates from markdown-embedded tags (e.g. custom emoji <img>).
+    ADD_ATTR: ['target', 'rel', 'height', 'width'],
     // Force all links to have safe rel attribute
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,
@@ -148,8 +187,23 @@ export function markdownToHtml(markdown: string): string {
 
   DOMPurify.removeHook('afterSanitizeAttributes');
 
-  return unmaskMathCodeDollarPlaceholders(sanitized).replace(
-    /<li>(<p><\/p>)?<\/li>/gi,
-    '<li><br></li>'
+  const unmasked = unmaskSubscriptCodeLinePlaceholders(unmaskMathCodeDollarPlaceholders(sanitized));
+
+  // DOMPurify's Node/JSdom build can drop <img> size attributes even when allowlisted.
+  // For Matrix custom emojis, always emit a stable height so outgoing messages have
+  // consistent layout across clients.
+  const restoredMxEmoticonHeight = unmasked.replace(
+    /<img\b([^>]*\bdata-mx-emoticon\b[^>]*)>/gi,
+    (full, attrs: string) => {
+      if (/\bheight\s*=/i.test(attrs)) return full;
+      return `<img${attrs} height="32">`;
+    }
   );
+
+  const unshieldedMatrixTo = unshieldBareMatrixToLinks(
+    restoredMxEmoticonHeight,
+    matrixToPlaceholders
+  );
+
+  return unshieldedMatrixTo.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
 }

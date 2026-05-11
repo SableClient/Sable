@@ -20,6 +20,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -45,6 +46,7 @@ import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { CutoutCard } from '$components/cutout-card';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { EventType } from '$types/matrix-sdk';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
 
 type SelfDemoteAlertProps = {
@@ -149,17 +151,22 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
 
 export function PowerChip({
   userId,
-  backgroundColor,
   innerColor,
   cardColor,
   textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
 }: {
   userId: string;
-  backgroundColor?: string;
   innerColor?: string;
   cardColor?: string;
   textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
 }) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const room = useRoom();
   const space = useSpaceOptionally();
@@ -288,7 +295,10 @@ export function PowerChip({
                       aria-disabled={changing || !canChangePowers || !canAssignPower}
                       aria-pressed={selected}
                       className={css.UserHeroMenuItem}
-                      style={{ backgroundColor: cardColor, color: textColor }}
+                      style={heroMenuItemStyle(
+                        { backgroundColor: menuItemBg, color: textColor },
+                        chipHoverBrightness
+                      )}
                       before={<PowerColorBadge color={powerTag.color} />}
                       after={
                         powerTagIconSrc ? (
@@ -314,7 +324,10 @@ export function PowerChip({
                   size="300"
                   radii="300"
                   className={css.UserHeroMenuItem}
-                  style={{ backgroundColor: cardColor, color: textColor }}
+                  style={heroMenuItemStyle(
+                    { backgroundColor: menuItemBg, color: textColor },
+                    chipHoverBrightness
+                  )}
                   onClick={() => {
                     if (room.isSpaceRoom()) {
                       openSpaceSettings(
@@ -340,14 +353,19 @@ export function PowerChip({
         }
       >
         <Chip
-          variant={error ? 'Critical' : undefined}
+          variant={error ? 'Critical' : cardColor ? undefined : 'SurfaceVariant'}
           radii="Pill"
-          className={css.UserHeroChip}
-          style={{
-            backgroundColor: (!error && cardColor) || undefined,
-            borderColor: backgroundColor,
-            color: textColor,
-          }}
+          className={
+            error ? undefined : cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover
+          }
+          style={
+            error
+              ? undefined
+              : heroMenuItemStyle(
+                  cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+                  chipHoverBrightness
+                )
+          }
           before={
             cords ? (
               <Icon size="50" src={Icons.ChevronBottom} />

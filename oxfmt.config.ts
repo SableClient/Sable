@@ -1,6 +1,6 @@
-import { defineConfig } from 'oxfmt';
+import type { OxfmtConfig } from 'oxfmt';
 
-export default defineConfig({
+export default {
   printWidth: 100,
   tabWidth: 2,
   singleQuote: true,
@@ -15,4 +15,4 @@ export default defineConfig({
     'CHANGELOG.md',
     './changeset',
   ],
-});
+} satisfies OxfmtConfig;

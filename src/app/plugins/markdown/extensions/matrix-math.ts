@@ -1,7 +1,23 @@
 import type { TokenizerExtension, RendererExtension } from 'marked';
 
-/** Private-use char so math extensions do not match `$` / `$$` inside code spans. Not U+E000–U+E002 (emoticon placeholders). */
+/** Private-use char so math extensions do not match `$` / `$$` inside code spans. Not U+E000–U+E002 (emoticon placeholders). {@link shieldDollarRunsForMarked} uses U+E021–U+E022. */
 export const MATH_CODE_DOLLAR_MASK = '\uE020';
+
+/**
+ * Replaces the `-` of line-start `-# …` inside markdown code so the Matrix subscript block
+ * extension does not match before marked's `fences` rule (custom block extensions run first).
+ * {@link unmaskSubscriptCodeLinePlaceholders} restores output HTML.
+ */
+export const SUBSCRIPT_CODE_LINE_MASK = '\uE023';
+
+function maskSubscriptLineStartsInCodeInner(inner: string): string {
+  return inner.replace(/(^|\n)-#( +)/g, `$1${SUBSCRIPT_CODE_LINE_MASK}#$2`);
+}
+
+/** Applies {@link MATH_CODE_DOLLAR_MASK} and subscript masking inside a fence or inline-code region. */
+function maskMathAndSubscriptInCodeInner(inner: string): string {
+  return maskSubscriptLineStartsInCodeInner(inner.replace(/\$/g, MATH_CODE_DOLLAR_MASK));
+}
 
 function findSameLineFenceClose(md: string, from: number, tick: string, minLen: number): number {
   let j = from;
@@ -62,11 +78,11 @@ function tryConsumeFence(md: string, i: number): { text: string; end: number } |
     const close = findMultilineFenceEnd(md, contentStart, tick, openLen);
     if (!close) {
       const inner = md.slice(contentStart, md.length);
-      const masked = inner.replace(/\$/g, MATH_CODE_DOLLAR_MASK);
+      const masked = maskMathAndSubscriptInCodeInner(inner);
       return { text: md.slice(i, contentStart) + masked, end: md.length };
     }
     const inner = md.slice(contentStart, close.contentEnd);
-    const maskedInner = inner.replace(/\$/g, MATH_CODE_DOLLAR_MASK);
+    const maskedInner = maskMathAndSubscriptInCodeInner(inner);
     return {
       text: md.slice(i, contentStart) + maskedInner + md.slice(close.contentEnd, close.blockEnd),
       end: close.blockEnd,
@@ -80,7 +96,7 @@ function tryConsumeFence(md: string, i: number): { text: string; end: number } |
   while (closeIdx + closeRun < md.length && md[closeIdx + closeRun] === tick) closeRun++;
 
   const inner = md.slice(afterOpen, closeIdx);
-  const maskedInner = inner.replace(/\$/g, MATH_CODE_DOLLAR_MASK);
+  const maskedInner = maskMathAndSubscriptInCodeInner(inner);
   return {
     text: md.slice(i, afterOpen) + maskedInner + md.slice(closeIdx, closeIdx + closeRun),
     end: closeIdx + closeRun,
@@ -99,7 +115,7 @@ function tryConsumeInlineCode(md: string, i: number): { text: string; end: numbe
       while (j + cr < md.length && md[j + cr] === '`') cr++;
       if (cr === run) {
         const inner = md.slice(contentStart, j);
-        const maskedInner = inner.replace(/\$/g, MATH_CODE_DOLLAR_MASK);
+        const maskedInner = maskMathAndSubscriptInCodeInner(inner);
         return {
           text: md.slice(i, contentStart) + maskedInner + md.slice(j, j + run),
           end: j + run,
@@ -155,12 +171,84 @@ export function unmaskMathCodeDollarPlaceholders(html: string): string {
   return html.replaceAll(MATH_CODE_DOLLAR_MASK, '$');
 }
 
+export function unmaskSubscriptCodeLinePlaceholders(html: string): string {
+  return html.replaceAll(`${SUBSCRIPT_CODE_LINE_MASK}#`, '-#');
+}
+
+const MARKED_MATH_BLOCK_SHIELD = '\uE021';
+const MARKED_MATH_BLOCK_SHIELD_END = '\uE022';
+
+export function shieldDollarRunsForMarked(markdown: string): string {
+  const blocks: string[] = [];
+  const blockRe = /\$\$([^$]+)\$\$\n?/g;
+  let m: RegExpExecArray | null;
+  let shielded = '';
+  let last = 0;
+  while ((m = blockRe.exec(markdown)) !== null) {
+    shielded += markdown.slice(last, m.index);
+    blocks.push(m[0]);
+    shielded += `${MARKED_MATH_BLOCK_SHIELD}${blocks.length - 1}${MARKED_MATH_BLOCK_SHIELD_END}`;
+    last = m.index + m[0].length;
+  }
+  shielded += markdown.slice(last);
+
+  shielded = shielded.replace(/\${2,}/g, (run) => run.replace(/\$/g, () => '\\$'));
+
+  return shielded.replace(
+    new RegExp(`${MARKED_MATH_BLOCK_SHIELD}(\\d+)${MARKED_MATH_BLOCK_SHIELD_END}`, 'g'),
+    (_, i) => blocks[parseInt(i, 10)] ?? ''
+  );
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function isIgnorableMathContent(latex: string): boolean {
+  const t = latex.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  if (t === '') return true;
+  return /^\$+$/.test(t);
+}
+
+/**
+ * Inline math delimiters use `$...$` but must not greedily pair across dollar amounts
+ * (e.g. "$10 ... $20"). We only treat a pair as math when:
+ * - the opening `$` is not followed by whitespace, and
+ * - the closing `$` is not preceded by whitespace, and
+ * - the closing `$` is not immediately followed by an ASCII digit.
+ */
+function tryTokenizeInlineMath(
+  src: string
+): { type: 'math'; raw: string; latex: string } | undefined {
+  if (!src.startsWith('$')) {
+    return undefined;
+  }
+  if (src.startsWith('$$') && (src.length < 3 || src.charAt(2) !== '$')) {
+    return undefined;
+  }
+  if (src.length < 3 || /\s/.test(src.charAt(1))) {
+    return undefined;
+  }
+  for (let j = 1; j < src.length; j++) {
+    if (src.charAt(j) !== '$') continue;
+    const before = src.charAt(j - 1);
+    if (/\s/.test(before)) continue;
+    const after = j + 1 < src.length ? src.charAt(j + 1) : '';
+    if (after !== '' && /[0-9]/.test(after)) continue;
+    const latex = src.slice(1, j);
+    if (isIgnorableMathContent(latex)) continue;
+    if (latex.trimStart().startsWith('$$')) continue;
+    return {
+      type: 'math',
+      raw: src.slice(0, j + 1),
+      latex,
+    };
+  }
+  return undefined;
 }
 
 // Inline math: $...$
@@ -171,15 +259,7 @@ export const matrixMathExtension = {
     return src.indexOf('$');
   },
   tokenizer(src: string) {
-    const match = /^\$([^$]+)\$/.exec(src);
-    if (match) {
-      return {
-        type: 'math',
-        raw: match[0],
-        latex: match[1],
-      };
-    }
-    return undefined;
+    return tryTokenizeInlineMath(src);
   },
   renderer(token) {
     return `<span data-mx-maths="${escapeHtml(token.latex)}">${token.latex}</span>`;
@@ -196,10 +276,12 @@ export const matrixMathBlockExtension = {
   tokenizer(src: string) {
     const match = /^\$\$([^$]+)\$\$\n?/.exec(src);
     if (match) {
+      const latex = match[1]?.trim() ?? '';
+      if (isIgnorableMathContent(latex)) return undefined;
       return {
         type: 'mathBlock',
         raw: match[0],
-        latex: match[1]?.trim() ?? '',
+        latex,
       };
     }
     return undefined;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getSettings } from '$state/settings';
+import { getSettings, resetRuntimeSettingsDefaults } from '$state/settings';
 import {
   NON_SYNCABLE_KEYS,
   SETTINGS_SYNC_VERSION,
@@ -15,6 +15,7 @@ let base: ReturnType<typeof getSettings>;
 
 beforeEach(() => {
   localStorage.clear();
+  resetRuntimeSettingsDefaults();
   base = getSettings();
 });
 
@@ -141,7 +142,12 @@ describe('deserializeFromSync', () => {
         developerTools: true,
       },
     };
-    const local = { ...base, pageZoom: 100, isPeopleDrawer: true, settingsSyncEnabled: false };
+    const local = {
+      ...base,
+      pageZoom: 100,
+      isPeopleDrawer: true,
+      settingsSyncEnabled: false,
+    };
     const result = deserializeFromSync(remote, local);
     expect(result).not.toBeNull();
     expect(result!.pageZoom).toBe(100);
@@ -280,12 +286,21 @@ describe('importSettingsFromJson', () => {
   });
 
   it('resolves merged settings when a valid JSON file is provided', async () => {
-    const payload = { v: SETTINGS_SYNC_VERSION, settings: { twitterEmoji: false } };
+    const payload = {
+      v: SETTINGS_SYNC_VERSION,
+      settings: { twitterEmoji: false },
+    };
     const fileContent = JSON.stringify(payload);
-    const file = new File([fileContent], 'settings.json', { type: 'application/json' });
+    const file = new File([fileContent], 'settings.json', {
+      type: 'application/json',
+    });
 
     // Build a minimal FileList-like object.
-    const fakeFileList = { 0: file, length: 1, item: () => file } as unknown as FileList;
+    const fakeFileList = {
+      0: file,
+      length: 1,
+      item: () => file,
+    } as unknown as FileList;
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson({ ...base, twitterEmoji: true });
@@ -299,8 +314,14 @@ describe('importSettingsFromJson', () => {
   });
 
   it('resolves null when the file contains invalid JSON', async () => {
-    const file = new File(['not json {{'], 'bad.json', { type: 'application/json' });
-    const fakeFileList = { 0: file, length: 1, item: () => file } as unknown as FileList;
+    const file = new File(['not json {{'], 'bad.json', {
+      type: 'application/json',
+    });
+    const fakeFileList = {
+      0: file,
+      length: 1,
+      item: () => file,
+    } as unknown as FileList;
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);
@@ -314,7 +335,11 @@ describe('importSettingsFromJson', () => {
     const file = new File([JSON.stringify(payload)], 'settings.json', {
       type: 'application/json',
     });
-    const fakeFileList = { 0: file, length: 1, item: () => file } as unknown as FileList;
+    const fakeFileList = {
+      0: file,
+      length: 1,
+      item: () => file,
+    } as unknown as FileList;
     mockInput.files = fakeFileList;
 
     const promise = importSettingsFromJson(base);

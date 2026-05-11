@@ -155,6 +155,11 @@ export function RoomTimeline({
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
@@ -567,6 +572,8 @@ export function RoomTimeline({
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
         replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
@@ -574,6 +581,8 @@ export function RoomTimeline({
       room.roomId,
       linkifyOpts,
       autoplayEmojis,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
       mentionClickHandler,
       nicknames,
       mediaAuthentication,

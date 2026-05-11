@@ -516,6 +516,8 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
+    incomingInlineImagesDefaultHeight?: number;
+    incomingInlineImagesMaxHeight?: number;
     replaceTextNode?: (
       text: string,
       renderText: (text: string, key?: string) => JSX.Element
@@ -523,6 +525,20 @@ export const getReactCustomHtmlParser = (
   }
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
+
+  const defaultIncomingImgHeight = params.incomingInlineImagesDefaultHeight ?? 32;
+  const maxIncomingImgHeight = params.incomingInlineImagesMaxHeight ?? 64;
+
+  const normalizeIncomingImgHeight = (raw: unknown): number => {
+    const parsed =
+      typeof raw === 'number' ? raw : typeof raw === 'string' ? Number.parseInt(raw, 10) : NaN;
+    const fallback = defaultIncomingImgHeight;
+    const safe = Number.isFinite(parsed) ? parsed : fallback;
+    // Clamp to sane bounds first, then apply the user max.
+    const bounded = Math.max(1, Math.min(4096, Math.round(safe)));
+    const max = Math.max(1, Math.min(4096, Math.round(maxIncomingImgHeight)));
+    return Math.min(bounded, max);
+  };
 
   const decorateText = (text: string) => {
     let jsx = scaleSystemEmoji(text);
@@ -807,6 +823,8 @@ export const getReactCustomHtmlParser = (
               );
             }
 
+            const height = normalizeIncomingImgHeight(props.height);
+
             const siblingCount = domNode.parent?.children.length ?? 0;
 
             // seperate style for bundled emojis
@@ -821,6 +839,7 @@ export const getReactCustomHtmlParser = (
                           {...props}
                           src={htmlSrc}
                           className={css.EmoticonImg}
+                          height={height}
                           style={{ verticalAlign: 'middle' }}
                           fallback={
                             <span className={css.EmoticonBase}>
@@ -834,6 +853,7 @@ export const getReactCustomHtmlParser = (
                         {...props}
                         src={htmlSrc}
                         className={css.EmoticonImg}
+                        height={height}
                         style={{ verticalAlign: 'middle' }}
                         fallback={
                           <span className={css.EmoticonBase}>
@@ -857,6 +877,7 @@ export const getReactCustomHtmlParser = (
                         {...props}
                         src={htmlSrc}
                         className={css.EmoticonImg}
+                        height={height}
                         fallback={
                           <span className={css.EmoticonBase}>
                             {props.alt || props.title || '?'}
@@ -869,6 +890,7 @@ export const getReactCustomHtmlParser = (
                       {...props}
                       src={htmlSrc}
                       className={css.EmoticonImg}
+                      height={height}
                       fallback={
                         <span className={css.EmoticonBase}>{props.alt || props.title || '?'}</span>
                       }
@@ -893,6 +915,7 @@ export const getReactCustomHtmlParser = (
                 {...props}
                 className={css.Img}
                 src={htmlSrc}
+                height={normalizeIncomingImgHeight(props.height)}
                 fallback={
                   <span title={`Failed to load media${props.alt ? `: ${props.alt}` : ''}`}>
                     {props.alt || '[media]'}

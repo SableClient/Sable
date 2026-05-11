@@ -1,6 +1,7 @@
 import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
 import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+
 import { isKeyHotkey } from 'is-hotkey';
 import type {
   IContent,
@@ -10,6 +11,7 @@ import type {
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -89,7 +91,7 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, reactionOrEditEvent } from '$utils/room';
+import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -108,6 +110,7 @@ import {
   delayedEventsSupportedAtom,
   roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
 import {
   sendDelayedMessage,
@@ -115,7 +118,7 @@ import {
   computeDelayMs,
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
-import { timeHourMinute, timeDayMonthYear } from '$utils/time';
+import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
@@ -128,6 +131,7 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
+import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
@@ -162,7 +166,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
-    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    (ev) =>
+      ev.getId() !== threadRootId &&
+      !reactionOrEditEvent(ev) &&
+      isThreadRelationEvent(ev, threadRootId)
   );
   if (filtered.length > 0) {
     return filtered[filtered.length - 1]!.getId() ?? threadRootId;
@@ -174,7 +181,9 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     .getEvents()
     .filter(
       (ev) =>
-        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
   if (liveEvents.length > 0) {
     return liveEvents.at(-1)!.getId() ?? threadRootId;
@@ -192,10 +201,11 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEve
     relatesTo.event_id = replyDraft.relation.event_id;
     relatesTo.rel_type = RelationType.Thread;
 
-    // Check if this is a reply to a specific message in the thread
+    // If the user explicitly clicked "reply" on a message (including the thread root),
+    // we must set is_falling_back=false and target that message directly.
     // (replyDraft.body being empty means it's just a seeded thread draft)
-    if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
-      // Explicit reply to a specific message — per spec, is_falling_back must be false
+    if (replyDraft.body) {
+      // Explicit reply — per spec, is_falling_back must be false
       relatesTo['m.in_reply_to'] = {
         event_id: replyDraft.eventId,
       };
@@ -305,7 +315,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
 
-    const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
+    const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
 
     const [inputKey, setInputKey] = useState(0);
     const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
@@ -375,6 +385,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+    const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
+    const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
     useElementSizeObserver(
@@ -953,12 +965,28 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
           }
+          setSendError(undefined);
           invalidate();
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
           resetInput();
-        } catch {
-          // Network/server error — leave editor and scheduled state intact for retry
+        } catch (e: unknown) {
+          if (
+            e instanceof MatrixError &&
+            (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
+              e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
+          ) {
+            const maxDelay =
+              (e.data as { max_delay?: number })?.max_delay ??
+              e.data?.['org.matrix.msc4140.max_delay'];
+            if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+            const maxDelayDays = maxDelay / daysToMs(1);
+            setSendError(
+              `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
+            );
+          } else {
+            setSendError('Failed to schedule message. Please try again.');
+          }
         }
       } else if (editingScheduledDelayId) {
         try {
@@ -1049,6 +1077,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      setServerMaxDelayMs,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1379,6 +1408,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       onClick={() => {
                         setScheduledTime(null);
                         setEditingScheduledDelayId(null);
+                        setSendError(undefined);
                       }}
                       variant="SurfaceVariant"
                       size="300"
@@ -1394,6 +1424,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
                     </Box>
+                  </Box>
+                </div>
+              )}
+              {sendError && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                  >
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      {sendError}
+                    </Text>
                   </Box>
                 </div>
               )}
@@ -1720,6 +1763,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             onSubmit={(date) => {
               setScheduledTime(date);
               setShowSchedulePicker(false);
+              setSendError(undefined);
             }}
           />
         )}

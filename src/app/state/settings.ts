@@ -1,4 +1,5 @@
 import { atom, type WritableAtom } from 'jotai';
+import type { Store } from 'jotai/vanilla/store';
 import { mobileOrTablet } from '$utils/user-agent';
 
 const STORAGE_KEY = 'settings';
@@ -145,6 +146,9 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  incomingInlineImagesDefaultHeight: number;
+  incomingInlineImagesMaxHeight: number;
+  linkPreviewImageMaxHeight: number;
   saveStickerEmojiBandwidth: boolean;
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
@@ -272,6 +276,9 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  incomingInlineImagesDefaultHeight: 32,
+  incomingInlineImagesMaxHeight: 64,
+  linkPreviewImageMaxHeight: 640,
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
@@ -311,13 +318,18 @@ export const defaultSettings: Settings = {
   themeRemoteEnabledTweakFullUrls: [],
 };
 
-export const getSettings = () => {
-  const settings = localStorage.getItem(STORAGE_KEY);
-  if (settings === null) return defaultSettings;
+function cloneDefaultSettings(): Settings {
+  return {
+    ...defaultSettings,
+    themeRemoteFavorites: defaultSettings.themeRemoteFavorites.map((x) => ({
+      ...x,
+    })),
+    themeRemoteTweakFavorites: defaultSettings.themeRemoteTweakFavorites.map((x) => ({ ...x })),
+    themeRemoteEnabledTweakFullUrls: [...defaultSettings.themeRemoteEnabledTweakFullUrls],
+  };
+}
 
-  // migration for old keys
-  // monochrome -> saturation
-  const parsed = JSON.parse(settings);
+function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
   } else if (parsed.monochromeMode === false && parsed.saturationLevel === undefined) {
@@ -336,27 +348,215 @@ export const getSettings = () => {
     parsed.renderUserCards = 'both';
   }
 
-  const parsedRecord = parsed as Record<string, unknown>;
   if (
-    typeof parsedRecord.themeChatAutoPreviewAnyUrl !== 'boolean' &&
-    typeof parsedRecord.themeChatPreviewAnyUrl === 'boolean'
+    typeof parsed.themeChatAutoPreviewAnyUrl !== 'boolean' &&
+    typeof parsed.themeChatPreviewAnyUrl === 'boolean'
   ) {
-    parsedRecord.themeChatAutoPreviewAnyUrl = parsedRecord.themeChatPreviewAnyUrl;
+    parsed.themeChatAutoPreviewAnyUrl = parsed.themeChatPreviewAnyUrl;
   }
-  delete parsedRecord.themeChatPreviewAnyUrl;
-  delete parsedRecord.themeChatPreviewApprovedCatalogOnly;
+  delete parsed.themeChatPreviewAnyUrl;
+  delete parsed.themeChatPreviewApprovedCatalogOnly;
+}
+
+export function mergePersistedSettings(
+  rawLocalStorage: string | null,
+  fileDefaults: Partial<Settings>
+): Settings {
+  const base = { ...defaultSettings, ...fileDefaults };
+  if (rawLocalStorage === null) return base;
+
+  const parsed = JSON.parse(rawLocalStorage) as Record<string, unknown>;
+  migrateParsedLocalStorage(parsed);
 
   return {
-    ...defaultSettings,
-    ...(parsed as Settings),
+    ...base,
+    ...(parsed as unknown as Settings),
   };
-};
+}
+
+const MESSAGE_SPACING_VALUES = new Set<MessageSpacing>(['0', '100', '200', '300', '400', '500']);
+const JUMBO_EMOJI_VALUES = new Set<JumboEmojiSize>([
+  'none',
+  'extraSmall',
+  'small',
+  'normal',
+  'large',
+  'extraLarge',
+]);
+
+function sanitizeStringArray(val: unknown): string[] | undefined {
+  if (!Array.isArray(val)) return undefined;
+  const out = val.filter((x): x is string => typeof x === 'string');
+  return out;
+}
+
+function sanitizeThemeRemoteFavorites(val: unknown): ThemeRemoteFavorite[] | undefined {
+  if (!Array.isArray(val)) return undefined;
+  const out: ThemeRemoteFavorite[] = [];
+  for (const item of val) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    if (
+      typeof o.fullUrl === 'string' &&
+      typeof o.displayName === 'string' &&
+      typeof o.basename === 'string' &&
+      (o.kind === 'light' || o.kind === 'dark')
+    ) {
+      out.push({
+        fullUrl: o.fullUrl,
+        displayName: o.displayName,
+        basename: o.basename,
+        kind: o.kind,
+        pinned: typeof o.pinned === 'boolean' ? o.pinned : undefined,
+        importedLocal: typeof o.importedLocal === 'boolean' ? o.importedLocal : undefined,
+      });
+    }
+  }
+  return out;
+}
+
+function sanitizeThemeRemoteTweakFavorites(val: unknown): ThemeRemoteTweakFavorite[] | undefined {
+  if (!Array.isArray(val)) return undefined;
+  const out: ThemeRemoteTweakFavorite[] = [];
+  for (const item of val) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    if (
+      typeof o.fullUrl === 'string' &&
+      typeof o.displayName === 'string' &&
+      typeof o.basename === 'string'
+    ) {
+      out.push({
+        fullUrl: o.fullUrl,
+        displayName: o.displayName,
+        basename: o.basename,
+        pinned: typeof o.pinned === 'boolean' ? o.pinned : undefined,
+        importedLocal: typeof o.importedLocal === 'boolean' ? o.importedLocal : undefined,
+      });
+    }
+  }
+  return out;
+}
+
+function isSanitizableSettingsKey(k: string): k is keyof Settings {
+  return (
+    k in defaultSettings || k === 'filterPronounsBasedOnLanguage' || k === 'filterPronounsLanguages'
+  );
+}
+
+function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
+  switch (key) {
+    case 'filterPronounsBasedOnLanguage':
+      return typeof val === 'boolean' ? val : undefined;
+    case 'filterPronounsLanguages':
+      return sanitizeStringArray(val);
+    case 'messageLayout':
+      return typeof val === 'number' && Number.isInteger(val) && val >= 0 && val <= 2
+        ? val
+        : undefined;
+    case 'messageSpacing':
+      return typeof val === 'string' && MESSAGE_SPACING_VALUES.has(val as MessageSpacing)
+        ? val
+        : undefined;
+    case 'captionPosition':
+      return val === CaptionPosition.Above ||
+        val === CaptionPosition.Inline ||
+        val === CaptionPosition.Hidden ||
+        val === CaptionPosition.Below
+        ? val
+        : undefined;
+    case 'rightSwipeAction':
+      return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
+    case 'renderUserCards':
+      return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
+        ? val
+        : undefined;
+    case 'jumboEmojiSize':
+      return typeof val === 'string' && JUMBO_EMOJI_VALUES.has(val as JumboEmojiSize)
+        ? val
+        : undefined;
+    case 'themeRemoteManualKind':
+    case 'themeRemoteLightKind':
+    case 'themeRemoteDarkKind':
+      return val === 'light' || val === 'dark' ? val : undefined;
+    case 'themeRemoteFavorites':
+      return sanitizeThemeRemoteFavorites(val);
+    case 'themeRemoteTweakFavorites':
+      return sanitizeThemeRemoteTweakFavorites(val);
+    case 'themeRemoteEnabledTweakFullUrls':
+      return sanitizeStringArray(val);
+    default: {
+      if (!(key in defaultSettings)) return undefined;
+      const sample = defaultSettings[key];
+      if (typeof sample === 'boolean') {
+        return typeof val === 'boolean' ? val : undefined;
+      }
+      if (typeof sample === 'number') {
+        return typeof val === 'number' && Number.isFinite(val) ? val : undefined;
+      }
+      if (typeof sample === 'string') {
+        return typeof val === 'string' ? val : undefined;
+      }
+      if (sample === undefined) {
+        return typeof val === 'string' ? val : undefined;
+      }
+      return undefined;
+    }
+  }
+}
+
+export function sanitizeSettingsDefaults(raw: unknown): Partial<Settings> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const src = raw as Record<string, unknown>;
+  const out: Partial<Settings> = {};
+  const warnings: string[] = [];
+
+  for (const k of Object.keys(src)) {
+    if (!isSanitizableSettingsKey(k)) {
+      warnings.push(k);
+      continue;
+    }
+    const sanitized = sanitizeSettingsKey(k, src[k]);
+    if (sanitized !== undefined) {
+      (out as Record<string, unknown>)[k] = sanitized;
+    } else if (src[k] !== undefined) {
+      warnings.push(k);
+    }
+  }
+
+  if (import.meta.env.DEV && warnings.length > 0) {
+    console.warn(
+      '[config.settingsDefaults] ignored unknown or invalid keys:',
+      [...new Set(warnings)].slice(0, 25).join(', ')
+    );
+  }
+
+  return out;
+}
+
+let runtimeSettingsDefaults: Partial<Settings> = {};
+
+/** @internal Resets deploy-time defaults, only used in tests. */
+export function resetRuntimeSettingsDefaults(): void {
+  runtimeSettingsDefaults = {};
+}
+
+export const baseSettings = atom<Settings>(cloneDefaultSettings());
+
+export function bootstrapSettingsStore(store: Store, rawSettingsDefaults: unknown): void {
+  const sanitized = sanitizeSettingsDefaults(rawSettingsDefaults);
+  runtimeSettingsDefaults = sanitized;
+  const merged = mergePersistedSettings(localStorage.getItem(STORAGE_KEY), sanitized);
+  store.set(baseSettings, merged);
+}
+
+export const getSettings = (): Settings =>
+  mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
 
 export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
 
-const baseSettings = atom(getSettings());
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (_get, set, update) => {

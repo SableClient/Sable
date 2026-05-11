@@ -39,6 +39,8 @@ import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
 import type { PanelSizetItem } from '$hooks/usePanelSizes';
 import { usePanelSizeItems } from '$hooks/usePanelSizes';
 
+const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
+
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
   const themes = kind
     ? getArboriumThemeOptions(kind)
@@ -214,6 +216,61 @@ function ThemeVisualPreferences() {
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight, setIncomingInlineImagesMaxHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesMaxHeight'
+  );
+  const [linkPreviewImageMaxHeight, setLinkPreviewImageMaxHeight] = useSetting(
+    settingsAtom,
+    'linkPreviewImageMaxHeight'
+  );
+  const [incomingDefaultHeightInput, setIncomingDefaultHeightInput] = useState(
+    incomingInlineImagesDefaultHeight.toString()
+  );
+  const [incomingMaxHeightInput, setIncomingMaxHeightInput] = useState(
+    incomingInlineImagesMaxHeight.toString()
+  );
+  const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
+    linkPreviewImageMaxHeight.toString()
+  );
+
+  const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setIncomingDefaultHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed))
+      setIncomingInlineImagesDefaultHeight(clampIncomingInlineImageHeight(parsed));
+  };
+  const handleIncomingMaxHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setIncomingMaxHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed))
+      setIncomingInlineImagesMaxHeight(clampIncomingInlineImageHeight(parsed));
+  };
+  const handleLinkPreviewMaxHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setLinkPreviewMaxHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
+  };
+
+  const onNumberInputKeyDown =
+    (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
+    (evt) => {
+      if (isKeyHotkey('escape', evt)) {
+        evt.stopPropagation();
+        reset();
+        (evt.target as HTMLInputElement).blur();
+      }
+      if (isKeyHotkey('enter', evt)) {
+        (evt.target as HTMLInputElement).blur();
+      }
+    };
 
   return (
     <Box direction="Column" gap="100">
@@ -285,6 +342,97 @@ function ThemeVisualPreferences() {
           focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Incoming inline images default height"
+          focusId="incoming-inline-images-default-height"
+          description={`Default height for incoming inline images that don't specify a height.`}
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(incomingDefaultHeightInput, 10) ===
+                incomingInlineImagesDefaultHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={incomingDefaultHeightInput}
+              onChange={handleIncomingDefaultHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setIncomingDefaultHeightInput(incomingInlineImagesDefaultHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Incoming inline images max height"
+          focusId="incoming-inline-images-max-height"
+          description={`Maximum height for incoming inline images. Any incoming height above this is clamped down.`}
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(incomingMaxHeightInput, 10) === incomingInlineImagesMaxHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={incomingMaxHeightInput}
+              onChange={handleIncomingMaxHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setIncomingMaxHeightInput(incomingInlineImagesMaxHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Link preview image max height"
+          focusId="link-preview-image-max-height"
+          description="Maximum height for URL / Open Graph preview media (image or playable og:video), including bundled previews."
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(linkPreviewMaxHeightInput, 10) === linkPreviewImageMaxHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={linkPreviewMaxHeightInput}
+              onChange={handleLinkPreviewMaxHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setLinkPreviewMaxHeightInput(linkPreviewImageMaxHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
         />
       </SequenceCard>
     </Box>

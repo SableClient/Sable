@@ -38,6 +38,7 @@ import {
 import {
   getEditedEvent,
   getMemberDisplayName,
+  isThreadRelationEvent,
   reactionOrEditEvent,
   unwrapRelationJumpTarget,
 } from '$utils/room';
@@ -93,7 +94,10 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
   const thread = room.getThread(threadRootId);
   const fromThread = thread?.events ?? [];
   const filteredFromThread = fromThread.filter(
-    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    (ev) =>
+      ev.getId() !== threadRootId &&
+      !reactionOrEditEvent(ev) &&
+      isThreadRelationEvent(ev, threadRootId)
   );
   if (filteredFromThread.length > 0) {
     return filteredFromThread;
@@ -104,7 +108,9 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
     .getEvents()
     .filter(
       (ev) =>
-        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
 }
 
@@ -323,7 +329,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     // thread.events is still empty (classic sync path; server-side was already
     // populated by paginateEventTimeline inside updateThreadMetadata).
     const hasRepliesInThread = currThread.events.some(
-      (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+      (ev) =>
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
     if (hasRepliesInThread) return;
 
@@ -333,9 +342,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       .getEvents()
       .filter(
         (ev) =>
-          ev.threadRootId === threadRootId &&
           ev.getId() !== threadRootId &&
-          !reactionOrEditEvent(ev)
+          !reactionOrEditEvent(ev) &&
+          isThreadRelationEvent(ev, threadRootId)
       );
     if (liveEvents.length > 0) {
       // thread.addEvents() is typed as void but is internally async; schedule
@@ -360,7 +369,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     const isEventInThread = (mEvent: MatrixEvent): boolean => {
       // Direct thread message or the root itself
-      if (mEvent.threadRootId === threadRootId || mEvent.getId() === threadRootId) {
+      if (mEvent.getId() === threadRootId || isThreadRelationEvent(mEvent, threadRootId)) {
         return true;
       }
 
@@ -372,7 +381,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           const targetEvent = room.findEventById(targetEventId);
           if (
             targetEvent &&
-            (targetEvent.threadRootId === threadRootId || targetEvent.getId() === threadRootId)
+            (targetEvent.getId() === threadRootId ||
+              isThreadRelationEvent(targetEvent, threadRootId))
           ) {
             return true;
           }

@@ -25,6 +25,13 @@ export const UrlPreviewImg = style([
   },
 ]);
 
+export const UrlPreviewMediaWell = style([
+  DefaultReset,
+  {
+    backgroundColor: color.Surface.Container,
+  },
+]);
+
 export const UrlPreviewContent = style([
   DefaultReset,
   {

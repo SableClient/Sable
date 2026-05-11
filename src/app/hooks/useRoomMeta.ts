@@ -1,7 +1,9 @@
+import { useAtomValue } from 'jotai';
 import { useEffect, useState } from 'react';
 import type { RoomJoinRulesEventContent, Room } from '$types/matrix-sdk';
 import { RoomEvent, RoomStateEvent, EventType } from '$types/matrix-sdk';
 
+import { mDirectAtom } from '$state/mDirectList';
 import { useStateEvent } from './useStateEvent';
 import { useNickname } from './useNickname';
 
@@ -20,6 +22,8 @@ export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
 export const useRoomName = (room: Room): string => {
   const dmUserId = room.guessDMUserId();
   const dmNickname = useNickname(dmUserId || '');
+  const mDirects = useAtomValue(mDirectAtom);
+  const isDmTagged = mDirects.has(room.roomId);
   const [name, setName] = useState(room.name);
 
   useEffect(() => {
@@ -28,11 +32,7 @@ export const useRoomName = (room: Room): string => {
         room.recalculate();
       }
 
-      // small room = dm i promise trust
-      const memberCount = room.getJoinedMemberCount();
-      const isSmallRoom = memberCount <= 2;
-
-      const nextName = isSmallRoom && dmNickname ? dmNickname : room.name;
+      const nextName = isDmTagged && dmNickname ? dmNickname : room.name;
       setName((prev) => (prev !== nextName ? nextName : prev));
     };
 
@@ -45,7 +45,7 @@ export const useRoomName = (room: Room): string => {
       room.removeListener(RoomEvent.Name, updateName);
       room.removeListener(RoomStateEvent.Members, updateName);
     };
-  }, [room, dmNickname]);
+  }, [room, dmNickname, isDmTagged]);
 
   return name;
 };

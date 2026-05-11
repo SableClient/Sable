@@ -26,6 +26,8 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { nicknamesAtom } from '$state/nicknames';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useTranslation } from 'react-i18next';
@@ -139,6 +141,14 @@ export const Reply = as<'div', ReplyProps>(
     const nicknames = useAtomValue(nicknamesAtom);
     const useAuthentication = useMediaAuthentication();
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
+    const [incomingInlineImagesDefaultHeight] = useSetting(
+      settingsAtom,
+      'incomingInlineImagesDefaultHeight'
+    );
+    const [incomingInlineImagesMaxHeight] = useSetting(
+      settingsAtom,
+      'incomingInlineImagesMaxHeight'
+    );
 
     const fallbackBody = isRedacted ? <MessageDeletedContent /> : <MessageFailedContent />;
 
@@ -190,6 +200,8 @@ export const Reply = as<'div', ReplyProps>(
         useAuthentication,
         nicknames,
         handleMentionClick: mentionClickHandler,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
       });
       bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
     } else if (hasPlainTextReply) {
@@ -280,7 +292,7 @@ export const Reply = as<'div', ReplyProps>(
           onClick={replyEvent !== null && !isBlockedSender ? onClick : undefined}
         >
           {replyEvent !== undefined && !isPendingDecrypt ? (
-            <Text size="T300" truncate>
+            <Text size="T300" truncate style={{ unicodeBidi: 'plaintext' }}>
               {replyContent}
             </Text>
           ) : (

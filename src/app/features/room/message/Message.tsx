@@ -33,7 +33,13 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
+import {
+  canEditEvent,
+  getEditedEvent,
+  getEventEdits,
+  getMemberAvatarMxc,
+  isThreadRelationEvent,
+} from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
@@ -447,11 +453,12 @@ function MessageInternal(
   // Avatars
   // Prefer the room-scoped member avatar (m.room.member) over the global profile
   // avatar so per-room avatar overrides are respected in the timeline.
+  const memberAvatarMxc = getMemberAvatarMxc(room, senderId);
   const avatarUrl = useMemo(() => {
     if (collapse) return undefined;
-    const mxc = pmp?.avatar_url || getMemberAvatarMxc(room, senderId) || profile.avatarUrl;
+    const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
-  }, [pmp, collapse, profile.avatarUrl, senderId, mx, room, useAuthentication]);
+  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
 
@@ -839,7 +846,7 @@ function MessageInternal(
     setMobileOptionsOpen(true);
   });
 
-  const isThreadedMessage = mEvent.threadRootId !== undefined;
+  const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
   const isStickerMessage = mEvent.getType() === 'm.sticker';
 
   const evtId = mEvent.getId()!;

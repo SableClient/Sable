@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 
+import type { Settings } from '$state/settings';
+
 export type HashRouterConfig = {
   enabled?: boolean;
   basename?: string;
@@ -46,6 +48,8 @@ export type ClientConfig = {
   themeCatalogBaseUrl?: string;
   themeCatalogManifestUrl?: string;
   themeCatalogApprovedHostPrefixes?: string[];
+
+  settingsDefaults?: Partial<Settings>;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { htmlToMarkdown } from './htmlToMarkdown';
 import { markdownToHtml } from './markdownToHtml';
 
 describe('markdownToHtml', () => {
@@ -48,6 +49,26 @@ describe('markdownToHtml', () => {
     expect(result).toContain('E = mc^2');
   });
 
+  it('does not mangle messages with dollar amounts', () => {
+    const result = markdownToHtml(
+      'I just bought something for $10 on sale, it was originally $20!'
+    );
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$10');
+    expect(result).toContain('$20');
+  });
+
+  it('does not treat empty or dollar-only block math as KaTeX', () => {
+    expect(markdownToHtml('$$   $$')).not.toContain('data-mx-maths');
+    expect(markdownToHtml('$$ $ $$')).not.toContain('data-mx-maths');
+  });
+
+  it('does not parse five consecutive dollar signs in a sentence as math', () => {
+    const result = markdownToHtml('hey $$$$$ there');
+    expect(result).not.toContain('data-mx-maths');
+    expect(result).toContain('$$$$$');
+  });
+
   it('does not parse dollars inside fenced code as math', () => {
     expect(markdownToHtml('```\n$$test$$\n```')).not.toContain('data-mx-maths');
     expect(markdownToHtml('```\n$$test$$\n```')).toContain('$$test$$');
@@ -67,6 +88,41 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml('See `$$test$$` here.');
     expect(result).not.toContain('data-mx-maths');
     expect(result).toContain('$$test$$');
+  });
+
+  it('converts -# small/sub syntax outside code', () => {
+    const result = markdownToHtml('-# caption');
+    expect(result).toContain('<sub');
+    expect(result).toContain('data-md="-#"');
+    expect(result).toContain('caption');
+  });
+
+  it('does not parse -# inside fenced code as subscript', () => {
+    expect(markdownToHtml('```\n-# not sub\n```')).not.toContain('<sub');
+    expect(markdownToHtml('```\n-# not sub\n```')).toContain('-# not sub');
+  });
+
+  it('does not parse -# inside inline code as subscript', () => {
+    expect(markdownToHtml('`-# lit`')).not.toContain('<sub');
+    expect(markdownToHtml('`-# lit`')).toContain('-# lit');
+  });
+
+  it('parses -# as single-line only so fenced code below stays code', () => {
+    const html = markdownToHtml('-# caption\n```\nfenced\n```');
+    expect(html).toContain('caption');
+    expect(html).toContain('<pre>');
+    expect(html).toContain('fenced');
+  });
+
+  it('does not parse escaped \\-# as small/sub', () => {
+    const result = markdownToHtml('\\-# literal caption');
+    expect(result).not.toContain('<sub');
+    expect(result).not.toContain('data-md="-#"');
+    expect(result).toContain('literal caption');
+  });
+
+  it('escapes literal -# when converting paragraph HTML to markdown', () => {
+    expect(htmlToMarkdown('<p>-# plain words</p>')).toContain('\\-#');
   });
 
   it('converts block math syntax', () => {
@@ -134,6 +190,7 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml(html);
     expect(result).toContain('mxc://example.org/emote');
     expect(result).toContain('data-mx-emoticon');
+    expect(result).toContain('height="32"');
   });
 
   it('rejects img tags with non-mxc protocols', () => {

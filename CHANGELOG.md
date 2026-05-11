@@ -1,5 +1,23 @@
 # Sable Client Changelog
 
+## 1.15.3 (2026-05-09)
+
+### Fixes
+
+* Self-hosted deployments can set optional `settingsDefaults` in `config.json` to override built-in client settings. See the README for details. ([#785](<https://github.com/SableClient/Sable/pull/785>) by @7w1)
+* Updated the math detection to avoid accidental detection when talking about math or spamming dollar signs. ([#779](<https://github.com/SableClient/Sable/pull/779>) by @7w1)
+* Added a couple new settings for max incoming inline image height and default height for unspecified. http://localhost:8080/settings/appearance?focus=incoming-inline-images-default-height&moe.sable.client.action=settings ([#772](<https://github.com/SableClient/Sable/pull/772>) by @7w1)
+* Fixed links with suppressed previews not having the arrow brackets readded when editing a message. ([#772](<https://github.com/SableClient/Sable/pull/772>) by @7w1)
+* Added the ability to cap preview embed size. http://localhost:8080/settings/appearance?focus=link-preview-image-max-height&moe.sable.client.action=settings ([#783](<https://github.com/SableClient/Sable/pull/783>) by @7w1)
+* Fix the inconsistent sizing for the read receipt dialog boxes. ([#772](<https://github.com/SableClient/Sable/pull/772>) by @7w1)
+* Fixed room avatars set in the settings cosmetics menu not applying. ([#772](<https://github.com/SableClient/Sable/pull/772>) by @7w1)
+* Fix room names being overriden when only 1 other person is in a room. ([#784](<https://github.com/SableClient/Sable/pull/784>) by @7w1)
+* Fix small text being parsed in code blocks and not being escapeable. ([#782](<https://github.com/SableClient/Sable/pull/782>) by @7w1)
+* Fixed the hang when a message that replies to a message has a reply, and you attempt to start a thread on that message. ([#778](<https://github.com/SableClient/Sable/pull/778>) by @7w1)
+* Fix RTL/LTR mixed text formatting and alignment in messages ([#743](<https://github.com/SableClient/Sable/pull/743>) by @sinasadeghi83)
+* Readded various missing settings from the settings sharing list. ([#765](<https://github.com/SableClient/Sable/pull/765>) by @7w1)
+* Various small adjustments to the themed profiles for better consistency. ([#777](<https://github.com/SableClient/Sable/pull/777>) by @7w1)
+
 ## 1.15.2 (2026-05-07)
 
 ### Fixes

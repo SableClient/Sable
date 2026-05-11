@@ -25,6 +25,9 @@ type SettingsShape = {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  incomingInlineImagesDefaultHeight: number;
+  incomingInlineImagesMaxHeight: number;
+  linkPreviewImageMaxHeight: number;
   twitterEmoji: boolean;
   showEasterEggs: boolean;
   subspaceHierarchyLimit: number;
@@ -90,6 +93,9 @@ beforeEach(() => {
     autoplayGifs: true,
     autoplayStickers: true,
     autoplayEmojis: true,
+    incomingInlineImagesDefaultHeight: 32,
+    incomingInlineImagesMaxHeight: 64,
+    linkPreviewImageMaxHeight: 320,
     twitterEmoji: true,
     showEasterEggs: true,
     subspaceHierarchyLimit: 3,

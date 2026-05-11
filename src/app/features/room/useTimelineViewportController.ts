@@ -620,14 +620,14 @@ export function useTimelineViewportController({
         if (intentTowardBackward && !edges.isAtBottom && !paginationLoading) {
           anchorRef.current = { kind: 'none' };
         }
-      } else if (edges.isAtBottom) {
+      } else if (edges.isAtBottom && liveTimelineLinkedRef.current) {
         anchorRef.current = { kind: 'bottom' };
       }
 
       const nextAtBottom =
         anchorRef.current.kind === 'bottom' && !hasScrollIntent && !edges.isAtBottom
           ? true
-          : edges.isAtBottom;
+          : edges.isAtBottom && liveTimelineLinkedRef.current;
       if (nextAtBottom !== atBottomRef.current) setAtBottom(nextAtBottom);
 
       if (intentTowardBackward) requestPaginationFromScroll('backward', activeIntent, offset);

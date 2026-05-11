@@ -300,6 +300,46 @@ describe('useTimelineViewportController', () => {
     expect(loadingTimelineSync.handleTimelinePagination).not.toHaveBeenCalled();
   });
 
+  it('enables virtual-list shift while backward pagination loads away from bottom', () => {
+    const timelineSync = createTimelineSync();
+    const { result, refs, rerender } = renderController({ timelineSync });
+    const mutableVList = refs.vList as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+    mutableVList.scrollOffset = 2200;
+    mutableVList.scrollSize = 3000;
+    mutableVList.viewportSize = 800;
+
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+    act(() => {
+      result.current.markUserScrollIntent('backward');
+    });
+    mutableVList.scrollOffset = 1900;
+    act(() => {
+      result.current.handleVListScroll(1900);
+    });
+
+    const loadingTimelineSync = createTimelineSync({
+      ...timelineSync,
+      backwardStatus: 'loading',
+    });
+    rerender({ sync: loadingTimelineSync, roomEventId: undefined });
+
+    expect(result.current.shift).toBe(true);
+
+    const idleTimelineSync = createTimelineSync({
+      ...timelineSync,
+      backwardStatus: 'idle',
+    });
+    rerender({ sync: idleTimelineSync, roomEventId: undefined });
+
+    expect(result.current.shift).toBe(false);
+  });
+
   it('releases bottom anchor on an intentional upward scroll when idle', () => {
     const refs = createRefs();
     const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
@@ -494,6 +534,48 @@ describe('useTimelineViewportController', () => {
     });
 
     expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(false);
+  });
+
+  it('does not bottom-anchor a detached jump window when forward pagination loads', () => {
+    const timelineSync = createTimelineSync({
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: true, highlight: true },
+    });
+    const { result, refs, rerender } = renderController({ timelineSync });
+    const landedTimelineSync = createTimelineSync({
+      ...timelineSync,
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: false, highlight: true },
+      forwardStatus: 'idle',
+    });
+
+    rerender({ sync: landedTimelineSync, roomEventId: undefined });
+
+    const mutableVList = refs.vList as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+      scrollTo: ReturnType<typeof vi.fn>;
+    };
+    mutableVList.scrollSize = 3000;
+    mutableVList.viewportSize = 800;
+    mutableVList.scrollOffset = 2200;
+    refs.vList.scrollTo = vi.fn<(offset: number) => void>();
+
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+    act(() => {
+      result.current.markUserScrollIntent('forward');
+    });
+
+    const forwardLoadingSync = createTimelineSync({
+      ...landedTimelineSync,
+      forwardStatus: 'loading',
+    });
+    rerender({ sync: forwardLoadingSync, roomEventId: undefined });
+
+    expect(refs.vList.scrollTo).not.toHaveBeenCalled();
   });
 
   it('does not repeat forward pagination from layout scrolls after a landed jump', () => {

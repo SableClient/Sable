@@ -128,22 +128,6 @@ export function TimelineViewport({
   return (
     <Box grow="Yes" style={{ position: 'relative' }}>
       {unreadBanner}
-      {backPagination && (
-        <Box
-          justifyContent="Center"
-          alignItems="Center"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 5,
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ pointerEvents: 'auto' }}>{backPagination}</div>
-        </Box>
-      )}
 
       <div
         ref={messageListRef}
@@ -186,6 +170,7 @@ export function TimelineViewport({
               messageLayout={messageLayout}
               messageSpacing={messageSpacing}
               canPaginateBack={canPaginateBack}
+              backPagination={index === 0 ? backPagination : undefined}
               renderMatrixEvent={renderMatrixEvent}
             />
           )}

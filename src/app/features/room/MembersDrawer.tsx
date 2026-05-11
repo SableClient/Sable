@@ -58,21 +58,25 @@ import { formatCompactNumber } from '$utils/formatCompactNumber';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type MemberDrawerHeaderProps = {
   room: Room;
+  hideText?: boolean;
 };
-function MemberDrawerHeader({ room }: MemberDrawerHeaderProps) {
+function MemberDrawerHeader({ room, hideText }: MemberDrawerHeaderProps) {
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
 
   return (
     <Header className={css.MembersDrawerHeader} variant="Background" size="600">
       <Box grow="Yes" alignItems="Center" gap="200">
-        <Box grow="Yes" alignItems="Center" gap="200">
-          <Text title={`${room.getJoinedMemberCount()} Members`} size="H5" truncate>
-            {`${formatCompactNumber(room.getJoinedMemberCount())} Members`}
-          </Text>
-        </Box>
+        {!hideText && (
+          <Box grow="Yes" alignItems="Center" gap="200">
+            <Text title={`${room.getJoinedMemberCount()} Members`} size="H5" truncate>
+              {`${formatCompactNumber(room.getJoinedMemberCount())} Members`}
+            </Text>
+          </Box>
+        )}
         <Box shrink="No" alignItems="Center">
           <TooltipProvider
             position="Bottom"
@@ -108,6 +112,7 @@ type MemberItemProps = {
   onClick: MouseEventHandler<HTMLButtonElement>;
   pressed?: boolean;
   typing?: boolean;
+  hideText?: boolean;
 };
 function MemberItem({
   mx,
@@ -117,6 +122,7 @@ function MemberItem({
   onClick,
   pressed,
   typing,
+  hideText,
 }: MemberItemProps) {
   const nicknames = useAtomValue(nicknamesAtom);
   const name =
@@ -132,7 +138,36 @@ function MemberItem({
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);
+  const MemberAvatar = (
+    <div
+      style={{
+        position: 'relative',
+        width: toRem(40),
+        height: toRem(40),
+        transform: 'scale(0.85)',
+        transformOrigin: 'center',
+      }}
+    >
+      <AvatarPresence
+        badge={
+          presence && presence.lastActiveTs !== 0 ? (
+            <PresenceBadge presence={presence.presence} size="200" />
+          ) : undefined
+        }
+      >
+        <Avatar size="300" radii="400">
+          <UserAvatar
+            userId={member.userId}
+            src={avatarUrl ?? undefined}
+            alt={name}
+            renderFallback={() => <Icon size="100" src={Icons.User} filled />}
+          />
+        </Avatar>
+      </AvatarPresence>
+    </div>
+  );
 
+  if (hideText) return MemberAvatar;
   return (
     <MenuItem
       style={{ padding: `0 ${config.space.S200}` }}
@@ -141,34 +176,7 @@ function MemberItem({
       variant="Background"
       radii="400"
       onClick={onClick}
-      before={
-        <div
-          style={{
-            position: 'relative',
-            width: toRem(40),
-            height: toRem(40),
-            transform: 'scale(0.85)',
-            transformOrigin: 'center',
-          }}
-        >
-          <AvatarPresence
-            badge={
-              presence && presence.lastActiveTs !== 0 ? (
-                <PresenceBadge presence={presence.presence} size="200" />
-              ) : undefined
-            }
-          >
-            <Avatar size="300" radii="400">
-              <UserAvatar
-                userId={member.userId}
-                src={avatarUrl ?? undefined}
-                alt={name}
-                renderFallback={() => <Icon size="100" src={Icons.User} filled />}
-              />
-            </Avatar>
-          </AvatarPresence>
-        </div>
-      }
+      before={MemberAvatar}
       after={
         typing && (
           <Badge size="300" variant="Secondary" fill="Soft" radii="Pill" outlined>
@@ -296,6 +304,10 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   useEffect(() => {
     setCurWidth(memberSidebarWidth);
   }, [memberSidebarWidth]);
+
+  const screenSize = useScreenSizeContext();
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const hideText = curWidth <= 80 && !isMobile;
   return (
     <>
       {!mobileOrTablet() && (
@@ -303,8 +315,10 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
           setCurWidth={setCurWidth}
           sidebarWidth={memberSidebarWidth}
           setSidebarWidth={setMemberSidebarWidth}
-          minValue={50}
-          maxValue={1200}
+          instep={64}
+          outstep={176}
+          minValue={64}
+          maxValue={350}
           rightSided
         />
       )}
@@ -314,137 +328,140 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
         direction="Column"
         style={{ width: !mobileOrTablet() ? toRem(curWidth) : '100%' }}
       >
-        <MemberDrawerHeader room={room} />
+        <MemberDrawerHeader room={room} hideText={hideText} />
         <Box className={css.MemberDrawerContentBase} grow="Yes">
           <Scroll ref={scrollRef} variant="Background" size="300" visibility="Hover" hideTrack>
             <Box className={css.MemberDrawerContent} direction="Column" gap="200">
-              <Box
-                ref={scrollTopAnchorRef}
-                className={css.DrawerGroup}
-                direction="Column"
-                gap="200"
-              >
-                <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
-                  <UseStateProvider initial={undefined}>
-                    {(anchor: RectCords | undefined, setAnchor) => (
-                      <PopOut
-                        anchor={anchor}
-                        position="Bottom"
-                        align="Start"
-                        offset={4}
-                        content={
-                          <MembershipFilterMenu
-                            selected={membershipFilterIndex}
-                            onSelect={setMembershipFilterIndex}
-                            requestClose={() => setAnchor(undefined)}
-                          />
-                        }
-                      >
-                        <Chip
-                          onClick={
-                            ((evt) =>
-                              setAnchor(
-                                evt.currentTarget.getBoundingClientRect()
-                              )) as MouseEventHandler<HTMLButtonElement>
-                          }
-                          variant="Background"
-                          size="400"
-                          radii="300"
-                          before={<Icon src={Icons.Filter} size="50" />}
-                        >
-                          <Text size="T200">{membershipFilter.name}</Text>
-                        </Chip>
-                      </PopOut>
-                    )}
-                  </UseStateProvider>
-                  <UseStateProvider initial={undefined}>
-                    {(anchor: RectCords | undefined, setAnchor) => (
-                      <PopOut
-                        anchor={anchor}
-                        position="Bottom"
-                        align="End"
-                        offset={4}
-                        content={
-                          <MemberSortMenu
-                            selected={sortFilterIndex}
-                            onSelect={setSortFilterIndex}
-                            requestClose={() => setAnchor(undefined)}
-                          />
-                        }
-                      >
-                        <Chip
-                          onClick={
-                            ((evt) =>
-                              setAnchor(
-                                evt.currentTarget.getBoundingClientRect()
-                              )) as MouseEventHandler<HTMLButtonElement>
-                          }
-                          variant="Background"
-                          size="400"
-                          radii="300"
-                          after={<Icon src={Icons.Sort} size="50" />}
-                        >
-                          <Text size="T200">{memberSort.name}</Text>
-                        </Chip>
-                      </PopOut>
-                    )}
-                  </UseStateProvider>
-                </Box>
-                <Box direction="Column" gap="100">
-                  <Input
-                    ref={searchInputRef}
-                    onChange={handleSearchChange}
-                    style={{ paddingRight: config.space.S200 }}
-                    placeholder="Type name..."
-                    variant="Surface"
-                    size="400"
-                    radii="400"
-                    before={<Icon size="50" src={Icons.Search} />}
-                    after={
-                      result && (
-                        <Chip
-                          variant={result.items.length > 0 ? 'Success' : 'Critical'}
-                          size="400"
-                          radii="Pill"
-                          aria-pressed
-                          onClick={() => {
-                            if (searchInputRef.current) {
-                              searchInputRef.current.value = '';
-                              searchInputRef.current.focus();
+              {!hideText && (
+                <>
+                  <Box
+                    ref={scrollTopAnchorRef}
+                    className={css.DrawerGroup}
+                    direction="Column"
+                    gap="200"
+                  >
+                    <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
+                      <UseStateProvider initial={undefined}>
+                        {(anchor: RectCords | undefined, setAnchor) => (
+                          <PopOut
+                            anchor={anchor}
+                            position="Bottom"
+                            align="Start"
+                            offset={4}
+                            content={
+                              <MembershipFilterMenu
+                                selected={membershipFilterIndex}
+                                onSelect={setMembershipFilterIndex}
+                                requestClose={() => setAnchor(undefined)}
+                              />
                             }
-                            resetSearch();
-                          }}
-                          after={<Icon size="50" src={Icons.Cross} />}
-                        >
-                          <Text size="B300">{`${result.items.length || 'No'} ${
-                            result.items.length === 1 ? 'Result' : 'Results'
-                          }`}</Text>
-                        </Chip>
-                      )
-                    }
-                  />
-                </Box>
-              </Box>
+                          >
+                            <Chip
+                              onClick={
+                                ((evt) =>
+                                  setAnchor(
+                                    evt.currentTarget.getBoundingClientRect()
+                                  )) as MouseEventHandler<HTMLButtonElement>
+                              }
+                              variant="Background"
+                              size="400"
+                              radii="300"
+                              before={<Icon src={Icons.Filter} size="50" />}
+                            >
+                              <Text size="T200">{membershipFilter.name}</Text>
+                            </Chip>
+                          </PopOut>
+                        )}
+                      </UseStateProvider>
+                      <UseStateProvider initial={undefined}>
+                        {(anchor: RectCords | undefined, setAnchor) => (
+                          <PopOut
+                            anchor={anchor}
+                            position="Bottom"
+                            align="End"
+                            offset={4}
+                            content={
+                              <MemberSortMenu
+                                selected={sortFilterIndex}
+                                onSelect={setSortFilterIndex}
+                                requestClose={() => setAnchor(undefined)}
+                              />
+                            }
+                          >
+                            <Chip
+                              onClick={
+                                ((evt) =>
+                                  setAnchor(
+                                    evt.currentTarget.getBoundingClientRect()
+                                  )) as MouseEventHandler<HTMLButtonElement>
+                              }
+                              variant="Background"
+                              size="400"
+                              radii="300"
+                              after={<Icon src={Icons.Sort} size="50" />}
+                            >
+                              <Text size="T200">{memberSort.name}</Text>
+                            </Chip>
+                          </PopOut>
+                        )}
+                      </UseStateProvider>
+                    </Box>
+                    <Box direction="Column" gap="100">
+                      <Input
+                        ref={searchInputRef}
+                        onChange={handleSearchChange}
+                        style={{ paddingRight: config.space.S200 }}
+                        placeholder="Type name..."
+                        variant="Surface"
+                        size="400"
+                        radii="400"
+                        before={<Icon size="50" src={Icons.Search} />}
+                        after={
+                          result && (
+                            <Chip
+                              variant={result.items.length > 0 ? 'Success' : 'Critical'}
+                              size="400"
+                              radii="Pill"
+                              aria-pressed
+                              onClick={() => {
+                                if (searchInputRef.current) {
+                                  searchInputRef.current.value = '';
+                                  searchInputRef.current.focus();
+                                }
+                                resetSearch();
+                              }}
+                              after={<Icon size="50" src={Icons.Cross} />}
+                            >
+                              <Text size="B300">{`${result.items.length || 'No'} ${
+                                result.items.length === 1 ? 'Result' : 'Results'
+                              }`}</Text>
+                            </Chip>
+                          )
+                        }
+                      />
+                    </Box>
+                  </Box>
 
-              <ScrollTopContainer scrollRef={scrollRef} anchorRef={scrollTopAnchorRef}>
-                <IconButton
-                  onClick={() => virtualizer.scrollToOffset(0)}
-                  variant="Surface"
-                  radii="Pill"
-                  outlined
-                  size="300"
-                  aria-label="Scroll to Top"
-                >
-                  <Icon src={Icons.ChevronTop} size="300" />
-                </IconButton>
-              </ScrollTopContainer>
+                  <ScrollTopContainer scrollRef={scrollRef} anchorRef={scrollTopAnchorRef}>
+                    <IconButton
+                      onClick={() => virtualizer.scrollToOffset(0)}
+                      variant="Surface"
+                      radii="Pill"
+                      outlined
+                      size="300"
+                      aria-label="Scroll to Top"
+                    >
+                      <Icon src={Icons.ChevronTop} size="300" />
+                    </IconButton>
+                  </ScrollTopContainer>
 
-              {!fetchingMembers && !result && processMembers.length === 0 && (
-                <Text style={{ padding: config.space.S300 }} align="Center">
-                  {`No "${membershipFilter.name}" Members`}
-                </Text>
+                  {!fetchingMembers && !result && processMembers.length === 0 && (
+                    <Text style={{ padding: config.space.S300 }} align="Center">
+                      {`No "${membershipFilter.name}" Members`}
+                    </Text>
+                  )}
+                </>
               )}
-
               <Box className={css.MembersGroup} direction="Column" gap="100">
                 <div
                   style={{
@@ -466,6 +483,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                           key={`${room.roomId}-${vItem.index}`}
                           className={classNames(css.MembersGroupLabel, css.DrawerVirtualItem)}
                           size="L400"
+                          truncate={hideText}
                         >
                           {tagOrMember.name}
                         </Text>
@@ -492,6 +510,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                           typing={typingMembers.some(
                             (receipt) => receipt.userId === tagOrMember.userId
                           )}
+                          hideText={hideText}
                         />
                       </div>
                     );

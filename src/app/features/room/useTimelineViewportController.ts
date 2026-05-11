@@ -21,7 +21,6 @@ import {
   type TimelineScrollDirection,
   type TimelineVisibleRange,
 } from './timelineViewportModel';
-import { pushTimelineJumpDebug } from './timelineJumpDebug';
 
 const INITIAL_BACKFILL_PAGE_BUDGET = 6;
 const READY_FALLBACK_MS = 1500;
@@ -297,13 +296,6 @@ export function useTimelineViewportController({
 
       if (anchorRef.current.kind === 'message-center') {
         anchorRef.current = { kind: 'none' };
-        pushTimelineJumpDebug('viewport', 'anchor_released_during_jump_context', {
-          roomId,
-          direction,
-          jumpInFlight: jumpInFlightRef.current,
-          hasFocusItem: Boolean(timelineSyncRef.current.focusItem),
-          focusScrollTo: timelineSyncRef.current.focusItem?.scrollTo,
-        });
       }
 
       if (anchorRef.current.kind === 'bottom' && direction === 'backward') {
@@ -311,7 +303,7 @@ export function useTimelineViewportController({
         if (atBottomRef.current) setAtBottom(false);
       }
     },
-    [atBottomRef, roomId, setAtBottom, timelineSyncRef]
+    [atBottomRef, setAtBottom]
   );
 
   const beginJumpLoad = useCallback(
@@ -320,19 +312,11 @@ export function useTimelineViewportController({
       pendingUserScrollRef.current = false;
       anchorRef.current = { kind: 'none' };
       setJumpInFlight(true);
-      pushTimelineJumpDebug('viewport', 'begin_jump_load', {
-        roomId,
-        targetEventId,
-      });
       void Promise.resolve(timelineSyncRef.current.loadEventTimeline(targetEventId)).finally(() => {
         setJumpInFlight(false);
-        pushTimelineJumpDebug('viewport', 'jump_load_settled', {
-          roomId,
-          targetEventId,
-        });
       });
     },
-    [roomId, timelineSyncRef]
+    [timelineSyncRef]
   );
 
   useEffect(
@@ -476,12 +460,6 @@ export function useTimelineViewportController({
           const focusEventId = processedEventsRef.current[processedIndex]?.id;
           if (focusEventId) {
             settleTimelineAnchor({ kind: 'message-center', eventId: focusEventId }, true);
-            pushTimelineJumpDebug('viewport', 'focus_center_anchor_set', {
-              roomId,
-              focusEventId,
-              processedIndex,
-              focusRawIndex,
-            });
           } else {
             setIsReady(true);
           }
@@ -504,7 +482,6 @@ export function useTimelineViewportController({
     atBottomRef,
     getRawIndexToProcessedIndex,
     processedEventsRef,
-    roomId,
     setAtBottom,
     settleTimelineAnchor,
     timelineSync,

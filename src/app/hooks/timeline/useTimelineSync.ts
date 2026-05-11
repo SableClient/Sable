@@ -26,7 +26,6 @@ import {
   getRoomUnreadInfo,
   PAGINATION_LIMIT,
 } from '$utils/timeline';
-import { pushTimelineJumpDebug } from '$features/room/timelineJumpDebug';
 
 export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
 
@@ -417,13 +416,6 @@ export function useTimelineSync({
     useCallback(
       (evtId, lTimelines, evtAbsIndex) => {
         if (!alive()) return;
-        pushTimelineJumpDebug('sync', 'jump_load_resolved', {
-          roomId: room.roomId,
-          eventId: evtId,
-          absIndex: evtAbsIndex,
-          linkedTimelines: lTimelines.length,
-        });
-
         setTimeline({ linkedTimelines: lTimelines });
 
         setFocusItem({
@@ -432,7 +424,7 @@ export function useTimelineSync({
           highlight: evtId !== readUptoEventIdRef.current,
         });
       },
-      [alive, readUptoEventIdRef, room.roomId]
+      [alive, readUptoEventIdRef]
     ),
     useCallback(() => {
       if (!alive()) return;
@@ -451,10 +443,6 @@ export function useTimelineSync({
     useCallback(
       (mEvt: MatrixEvent) => {
         if (focusItem?.scrollTo) {
-          pushTimelineJumpDebug('sync', 'live_event_ignored_while_jump_landing', {
-            roomId: room.roomId,
-            eventId: mEvt.getId() ?? undefined,
-          });
           return;
         }
         const { threadRootId } = mEvt;
@@ -473,11 +461,6 @@ export function useTimelineSync({
           }
 
           scrollToBottom(mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth');
-          pushTimelineJumpDebug('sync', 'live_event_autoscroll_bottom', {
-            roomId: room.roomId,
-            eventId: mEvt.getId() ?? undefined,
-            mode: mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth',
-          });
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));
@@ -545,9 +528,6 @@ export function useTimelineSync({
 
   useEffect(() => {
     if (focusItem?.scrollTo) {
-      pushTimelineJumpDebug('sync', 'auto_follow_blocked_jump_landing', {
-        roomId: room.roomId,
-      });
       return;
     }
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
@@ -568,13 +548,6 @@ export function useTimelineSync({
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom('instant');
-    pushTimelineJumpDebug('sync', 'auto_follow_scroll_bottom', {
-      roomId: room.roomId,
-      eventsLength,
-      resetAutoScrollPending,
-      isAtBottom,
-      liveTimelineLinked,
-    });
   }, [
     focusItem?.scrollTo,
     isAtBottom,

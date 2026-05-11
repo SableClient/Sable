@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect, ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Box, IconButton, Button, Icon, Icons, Input, Text } from 'folds';
 import { SettingTile } from '$components/setting-tile';
 
 interface IntlWithSupportedValues {
-  supportedValuesOf(key: 'timeZone' | string): string[];
+  supportedValuesOf(key: 'timeZone' | (string & {})): string[];
 }
 
 type TimezoneEditorProps = {

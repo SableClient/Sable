@@ -3,6 +3,7 @@ import {
   getMatrixToRoom,
   getMatrixToRoomEvent,
   getMatrixToUser,
+  isRedundantMatrixToAnchorText,
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
   parseMatrixToUser,
@@ -25,7 +26,7 @@ describe('getMatrixToUser', () => {
   });
 
   it('uses custom base when configured', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(getMatrixToUser('@alice:example.com')).toBe(
       'https://matrix.example.org/#/@alice:example.com'
     );
@@ -51,7 +52,7 @@ describe('getMatrixToRoom', () => {
   });
 
   it('uses custom base when configured', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(getMatrixToRoom('#general:example.com')).toBe(
       'https://matrix.example.org/#/#general:example.com'
     );
@@ -72,7 +73,7 @@ describe('getMatrixToRoomEvent', () => {
   });
 
   it('uses custom base when configured', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(getMatrixToRoomEvent('!room:example.com', '$event123')).toBe(
       'https://matrix.example.org/#/!room:example.com/$event123'
     );
@@ -97,12 +98,12 @@ describe('testMatrixTo', () => {
   });
 
   it('matches custom base URLs after setMatrixToBase', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(testMatrixTo('https://matrix.example.org/#/@alice:example.com')).toBe(true);
   });
 
   it('still matches standard matrix.to after setMatrixToBase (cross-client compat)', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(testMatrixTo('https://matrix.to/#/@alice:example.com')).toBe(true);
   });
 });
@@ -121,14 +122,14 @@ describe('parseMatrixToUser', () => {
   });
 
   it('parses user links from custom base', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(parseMatrixToUser('https://matrix.example.org/#/@alice:example.com')).toBe(
       '@alice:example.com'
     );
   });
 
   it('parses standard matrix.to user links even after custom base is set', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(parseMatrixToUser('https://matrix.to/#/@alice:example.com')).toBe('@alice:example.com');
   });
 });
@@ -166,7 +167,7 @@ describe('parseMatrixToRoom', () => {
   });
 
   it('parses room links from custom base', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(parseMatrixToRoom('https://matrix.example.org/#/!room:example.com')).toEqual({
       roomIdOrAlias: '!room:example.com',
       viaServers: undefined,
@@ -174,7 +175,7 @@ describe('parseMatrixToRoom', () => {
   });
 
   it('still parses standard matrix.to room links after custom base is set', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(parseMatrixToRoom('https://matrix.to/#/!room:example.com')).toEqual({
       roomIdOrAlias: '!room:example.com',
       viaServers: undefined,
@@ -210,7 +211,7 @@ describe('parseMatrixToRoomEvent', () => {
   });
 
   it('parses event links from custom base', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(
       parseMatrixToRoomEvent('https://matrix.example.org/#/!room:example.com/$event123')
     ).toEqual({
@@ -221,11 +222,51 @@ describe('parseMatrixToRoomEvent', () => {
   });
 
   it('still parses standard matrix.to event links after custom base is set', () => {
-    setMatrixToBase('https://matrix.example.org');
+    setMatrixToBase('https://matrix.example.org/');
     expect(parseMatrixToRoomEvent('https://matrix.to/#/!room:example.com/$event123')).toEqual({
       roomIdOrAlias: '!room:example.com',
       eventId: '$event123',
       viaServers: undefined,
     });
+  });
+});
+
+describe('isRedundantMatrixToAnchorText', () => {
+  it('treats empty anchor text as redundant', () => {
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', undefined)).toBe(
+      true
+    );
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', '')).toBe(true);
+    expect(isRedundantMatrixToAnchorText('https://matrix.to/#/!r:example.org', '   ')).toBe(true);
+  });
+
+  it('treats anchor text that repeats the same permalink as redundant', () => {
+    const url =
+      'https://matrix.to/#/!a6sXbRuOyyc7MKutmy:sable.moe/$6C-iT549tGKwcQy3Vmb-GgwVZPXiyQ4paJY8-IN2ohs?via=matrix.org&via=unredacted.org&via=4d2.org';
+    expect(isRedundantMatrixToAnchorText(url, url)).toBe(true);
+  });
+
+  it('treats http vs https with the same fragment as redundant', () => {
+    const httpsUrl = 'https://matrix.to/#/!room:example.com/$event123';
+    const httpUrl = 'http://matrix.to/#/!room:example.com/$event123';
+    expect(isRedundantMatrixToAnchorText(httpsUrl, httpUrl)).toBe(true);
+  });
+
+  it('does not treat different permalinks as redundant', () => {
+    expect(
+      isRedundantMatrixToAnchorText(
+        'https://matrix.to/#/!a:example.com/$e1',
+        'https://matrix.to/#/!b:example.com/$e2'
+      )
+    ).toBe(false);
+  });
+
+  it('does not treat plain-language anchor text as redundant', () => {
+    expect(
+      isRedundantMatrixToAnchorText(
+        'https://matrix.to/#/!room:example.com/$event123',
+        'read this post'
+      )
+    ).toBe(false);
   });
 });

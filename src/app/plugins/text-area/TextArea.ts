@@ -1,5 +1,5 @@
 import { Cursor } from './Cursor';
-import { GetTarget } from './type';
+import type { GetTarget } from './type';
 
 export class TextArea {
   private readonly getTarget: GetTarget;

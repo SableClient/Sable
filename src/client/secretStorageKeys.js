@@ -1,7 +1,7 @@
 const secretStorageKeys = new Map();
 
 export function storePrivateKey(keyId, privateKey) {
-  if (privateKey instanceof Uint8Array === false) {
+  if (!(privateKey instanceof Uint8Array)) {
     throw new Error('Unable to store, privateKey is invalid.');
   }
   secretStorageKeys.set(keyId, privateKey);

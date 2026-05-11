@@ -13,6 +13,11 @@ type NameColorEditorProps = {
   disabled?: boolean;
 };
 
+const stripQuotes = (str?: string) => {
+  if (!str) return '';
+  // to solve the silly tuwunel
+  return str.replaceAll(/^["']|["']$/g, '');
+};
 export function NameColorEditor({
   title,
   description,
@@ -21,12 +26,6 @@ export function NameColorEditor({
   onSave,
   disabled,
 }: Readonly<NameColorEditorProps>) {
-  const stripQuotes = (str?: string) => {
-    if (!str) return '';
-    // to solve the silly tuwunel
-    return str.replaceAll(/^["']|["']$/g, '');
-  };
-
   const [tempColor, setTempColor] = useState(stripQuotes(current) || '#FFFFFF');
   const [hasChanged, setHasChanged] = useState(false);
 

@@ -72,7 +72,7 @@ export function NotificationJumper() {
             guessPerfectParent(mx, pending.roomId, orphanParents) ?? orphanParents[0];
           navigate(
             getSpaceRoomPath(
-              getCanonicalAliasOrRoomId(mx, parentSpace),
+              getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId),
               roomIdOrAlias,
               pending.eventId
             )

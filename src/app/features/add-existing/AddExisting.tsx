@@ -19,17 +19,11 @@ import {
   Spinner,
   Text,
 } from 'folds';
-import {
-  ChangeEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Room } from '$types/matrix-sdk';
+import type { Room, StateEvents } from '$types/matrix-sdk';
 import { stopPropagation } from '$utils/keyboard';
 import { useDirects, useRooms, useSpaces } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -43,13 +37,15 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { SearchItemStrGetter, useAsyncSearch, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
+import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { StateEvent } from '$types/matrix/room';
+
 import { getViaServers } from '$plugins/via-servers';
 import { rateLimitedActions } from '$utils/matrix';
 import { useAlive } from '$hooks/useAlive';
+import { EventType } from '$types/matrix-sdk';
 
 const SEARCH_OPTS: UseAsyncSearchOptions = {
   limit: 500,
@@ -114,7 +110,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
     return rIds
       .filter((rId) => rId !== parentId && !isAncestor(rId, parentId))
-      .sort(factoryRoomIdByAtoZ(mx));
+      .toSorted(factoryRoomIdByAtoZ(mx));
   }, [space, spaces, rooms, directs, mx, parentId, isAncestor]);
 
   const getRoomNameStr: SearchItemStrGetter<string> = useCallback(
@@ -158,12 +154,12 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
 
           await mx.sendStateEvent(
             parentId,
-            StateEvent.SpaceChild as any,
+            EventType.SpaceChild,
             {
               auto_join: false,
               suggested: false,
               via,
-            },
+            } as StateEvents[typeof EventType.SpaceChild],
             room.roomId
           );
         });
@@ -237,7 +233,11 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                   >
                     <Box
                       direction="Column"
-                      style={{ position: 'sticky', top: config.space.S300, zIndex: 1 }}
+                      style={{
+                        position: 'sticky',
+                        top: config.space.S300,
+                        zIndex: 1,
+                      }}
                     >
                       <Input
                         onChange={handleSearchChange}
@@ -275,6 +275,7 @@ export function AddExistingModal({ parentId, space, requestClose }: AddExistingM
                     >
                       {vItems.map((vItem) => {
                         const roomId = items[vItem.index];
+                        if (!roomId) return null;
                         const room = getRoom(roomId);
                         if (!room) return null;
                         const selectedItem = selected?.includes(roomId);

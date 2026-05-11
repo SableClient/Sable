@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { IconSrc } from 'folds';
 import {
   Avatar,
   Box,
@@ -7,7 +8,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -197,11 +197,10 @@ export function Settings({
     () =>
       settingsSections
         .filter((section) => showPersona || section.id !== 'persona')
-        .map((section) => ({
-          id: section.id,
-          name: section.label,
-          ...settingsMenuIcons[section.id],
-        })),
+        .map((section) => {
+          const icon = settingsMenuIcons[section.id];
+          return { id: section.id, name: section.label, ...icon };
+        }),
     [showPersona]
   );
 

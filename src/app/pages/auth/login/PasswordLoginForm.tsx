@@ -1,4 +1,6 @@
-import { FormEventHandler, MouseEventHandler, useCallback, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -12,15 +14,14 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
-  RectCords,
   Spinner,
   Text,
   config,
 } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';
-import { MatrixError } from '$types/matrix-sdk';
-import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
+import { getMxIdLocalPart, isUserId } from '$utils/matrix';
+import type { MatrixError } from '$types/matrix-sdk';
 import { EMAIL_REGEX } from '$utils/regex';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -31,13 +32,9 @@ import { getResetPasswordPath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
 import { FieldError } from '$pages/auth/FiledError';
 import { deviceDisplayName } from '$utils/user-agent';
-import {
-  CustomLoginResponse,
-  LoginError,
-  factoryGetBaseUrl,
-  login,
-  useLoginComplete,
-} from './loginUtil';
+import { getMxIdServer } from '$utils/mxIdHelper';
+import type { CustomLoginResponse } from './loginUtil';
+import { LoginError, factoryGetBaseUrl, login, useLoginComplete } from './loginUtil';
 
 function UsernameHint({ server }: { server: string }) {
   const [anchor, setAnchor] = useState<RectCords>();

@@ -1,30 +1,21 @@
-import { KeyboardEventHandler, useCallback, useEffect, useState, useRef } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  PopOut,
-  RectCords,
-  Spinner,
-  Text,
-  config,
-} from 'folds';
+import type { KeyboardEventHandler } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
+import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
+import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  AutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
-  Toolbar,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
   createEmoticonElement,
   getAutocompleteQuery,
   getPrevWorldRange,
-  htmlToEditorInput,
   plainToEditorInput,
   moveCursor,
   toMatrixCustomHTML,
@@ -32,6 +23,7 @@ import {
   trimCustomHtml,
   useEditor,
 } from '$components/editor';
+import { htmlToMarkdown } from '$plugins/markdown';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
@@ -40,9 +32,9 @@ import { mobileOrTablet } from '$utils/user-agent';
 import * as css from './UploadDescriptionEditor.css';
 
 type DescriptionEditorProps = {
-  value?: string | any;
+  value?: string;
   isSaving?: boolean;
-  imagePackRooms?: any[];
+  imagePackRooms?: Room[];
   onSave: (plaintext: string, htmlContent: string) => void;
   onCancel: () => void;
 };
@@ -56,8 +48,6 @@ export function DescriptionEditor({
 }: Readonly<DescriptionEditorProps>) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-  const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
-  const [toolbar, setToolbar] = useState(false);
 
   const [autocompleteQuery, setAutocompleteQuery] =
     useState<AutocompleteQuery<AutocompletePrefix>>();
@@ -65,18 +55,12 @@ export function DescriptionEditor({
   const prevValue = useRef(value);
   const initialized = useRef(false);
   const handleSave = useCallback(() => {
-    const plainText = toPlainText(editor.children, isMarkdown).trim();
+    const plainText = toPlainText(editor.children).trim();
 
-    const customHtml = trimCustomHtml(
-      toMatrixCustomHTML(editor.children, {
-        allowTextFormatting: true,
-        allowBlockMarkdown: isMarkdown,
-        allowInlineMarkdown: isMarkdown,
-      })
-    );
+    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
 
     onSave(plainText, customHtml || plainText);
-  }, [editor, isMarkdown, onSave]);
+  }, [editor, onSave]);
 
   useEffect(() => {
     const valueChanged = prevValue.current !== value;
@@ -91,23 +75,22 @@ export function DescriptionEditor({
         normalizedValue !== null &&
         'formatted_body' in normalizedValue
       ) {
-        normalizedValue = normalizedValue.formatted_body;
+        normalizedValue = (normalizedValue as { formatted_body: string }).formatted_body;
       }
 
       const safeValue = typeof normalizedValue === 'string' ? normalizedValue : '';
 
       const incomingPlainText = toPlainText(
-        htmlToEditorInput(safeValue, isMarkdown),
-        isMarkdown
+        plainToEditorInput(safeValue.includes('<') ? htmlToMarkdown(safeValue) : safeValue)
       ).trim();
-      const currentPlainText = toPlainText(editor.children, isMarkdown).trim();
+      const currentPlainText = toPlainText(editor.children).trim();
 
       if (currentPlainText === incomingPlainText && initialized.current) return;
 
       const isLikelyHtml = safeValue.includes('<') || safeValue.includes('>');
       const initialValue = isLikelyHtml
-        ? htmlToEditorInput(safeValue, isMarkdown)
-        : plainToEditorInput(safeValue, isMarkdown);
+        ? plainToEditorInput(htmlToMarkdown(safeValue))
+        : plainToEditorInput(safeValue);
 
       editor.children = initialValue;
       Editor.normalize(editor, { force: true });
@@ -115,7 +98,7 @@ export function DescriptionEditor({
 
       initialized.current = true;
     }
-  }, [value, editor, isMarkdown]);
+  }, [value, editor]);
 
   const handleKeyDown: KeyboardEventHandler = useCallback(
     (evt) => {
@@ -177,6 +160,7 @@ export function DescriptionEditor({
           variant="Background"
           bottom={
             <Box direction="Column" style={{ backgroundColor: 'var(--sable-bg-container)' }}>
+              <MarkdownFormattingToolbarBottom />
               <Box
                 style={{ padding: config.space.S200, paddingTop: 0 }}
                 alignItems="End"
@@ -212,14 +196,7 @@ export function DescriptionEditor({
                   </Box>
                 </Box>
                 <Box gap="Inherit">
-                  <IconButton
-                    variant="Background"
-                    size="300"
-                    radii="300"
-                    onClick={() => setToolbar(!toolbar)}
-                  >
-                    <Icon size="400" src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-                  </IconButton>
+                  <MarkdownFormattingToolbarToggle variant="Background" />
                   <UseStateProvider initial={undefined}>
                     {(anchor: RectCords | undefined, setAnchor) => (
                       <PopOut
@@ -259,12 +236,6 @@ export function DescriptionEditor({
                   </UseStateProvider>
                 </Box>
               </Box>
-              {toolbar && (
-                <Box direction="Column">
-                  <Line variant="Surface" size="300" />
-                  <Toolbar />
-                </Box>
-              )}
             </Box>
           }
         />

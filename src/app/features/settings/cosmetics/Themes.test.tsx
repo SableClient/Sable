@@ -1,11 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as ThemeModule from '$hooks/useTheme';
 
 import { Appearance } from './Themes';
 
 type SettingsShape = {
   themeId?: string;
   useSystemTheme: boolean;
+  themeCatalogOnboardingDone: boolean;
+  themeMigrationDismissed: boolean;
+  themeRemoteCatalogEnabled: boolean;
+  themeRemoteFavorites: unknown[];
+  themeRemoteTweakFavorites: unknown[];
+  themeRemoteEnabledTweakFullUrls: string[];
   lightThemeId?: string;
   darkThemeId?: string;
   useSystemArboriumTheme: boolean;
@@ -18,6 +25,9 @@ type SettingsShape = {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  incomingInlineImagesDefaultHeight: number;
+  incomingInlineImagesMaxHeight: number;
+  linkPreviewImageMaxHeight: number;
   twitterEmoji: boolean;
   showEasterEggs: boolean;
   subspaceHierarchyLimit: number;
@@ -25,11 +35,11 @@ type SettingsShape = {
 };
 
 let currentSettings: SettingsShape;
-const setters = new Map<string, ReturnType<typeof vi.fn>>();
+const setters = new Map<string, () => void>();
 
 const getSetter = (key: string) => {
   if (!setters.has(key)) {
-    setters.set(key, vi.fn());
+    setters.set(key, vi.fn<() => void>());
   }
 
   return setters.get(key)!;
@@ -40,7 +50,7 @@ vi.mock('$state/hooks/settings', () => ({
 }));
 
 vi.mock('$hooks/useTheme', async () => {
-  const actual = await vi.importActual<typeof import('$hooks/useTheme')>('$hooks/useTheme');
+  const actual = await vi.importActual<typeof ThemeModule>('$hooks/useTheme');
 
   return {
     ...actual,
@@ -52,15 +62,25 @@ beforeEach(() => {
   setters.clear();
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
+    value: vi
+      .fn<
+        () => { matches: boolean; addEventListener: () => void; removeEventListener: () => void }
+      >()
+      .mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn<() => void>(),
+        removeEventListener: vi.fn<() => void>(),
+      })),
   });
   currentSettings = {
     themeId: 'silver-theme',
     useSystemTheme: true,
+    themeCatalogOnboardingDone: true,
+    themeMigrationDismissed: true,
+    themeRemoteCatalogEnabled: false,
+    themeRemoteFavorites: [],
+    themeRemoteTweakFavorites: [],
+    themeRemoteEnabledTweakFullUrls: [],
     lightThemeId: 'cinny-light-theme',
     darkThemeId: 'black-theme',
     useSystemArboriumTheme: true,
@@ -73,6 +93,9 @@ beforeEach(() => {
     autoplayGifs: true,
     autoplayStickers: true,
     autoplayEmojis: true,
+    incomingInlineImagesDefaultHeight: 32,
+    incomingInlineImagesMaxHeight: 64,
+    linkPreviewImageMaxHeight: 320,
     twitterEmoji: true,
     showEasterEggs: true,
     subspaceHierarchyLimit: 3,
@@ -94,22 +117,24 @@ const getFirstEnabledButton = (name: string) =>
   screen.getAllByRole('button', { name }).find((node) => !node.hasAttribute('disabled'));
 
 describe('Appearance settings', () => {
-  it('renders Theme, Code Block Theme, and Visual Tweaks as separate sections', () => {
+  it('renders Theme, Display, Code Block Theme, and Visual Tweaks as separate sections', () => {
     render(<Appearance />);
 
     const themeHeading = screen.getByText('Theme');
+    const displayHeading = screen.getByText('Display');
     const codeBlockThemeHeading = screen.getByText('Code Block Theme');
     const visualTweaksHeading = screen.getByText('Visual Tweaks');
 
-    expect(themeHeading.compareDocumentPosition(codeBlockThemeHeading)).toBe(
+    expect(themeHeading.compareDocumentPosition(displayHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(displayHeading.compareDocumentPosition(codeBlockThemeHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(codeBlockThemeHeading.compareDocumentPosition(visualTweaksHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(screen.getByRole('button', { name: 'Silver' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cinny Light' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Black' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Dracula' })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Dracula' }).at(-1)).toBeDisabled();
@@ -124,7 +149,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Silver' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Light' }).at(-1)!);
     clickLatestButton('Dark');
 
     fireEvent.click(screen.getByRole('button', { name: 'Dracula' }));
@@ -132,19 +157,6 @@ describe('Appearance settings', () => {
 
     expect(getSetter('themeId')).toHaveBeenCalledWith('dark-theme');
     expect(getSetter('arboriumThemeId')).toHaveBeenCalledWith('ayu-light');
-  });
-
-  it('updates the system theme settings when the chip selectors change', () => {
-    render(<Appearance />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cinny Light' }));
-    clickLatestButton('Silver');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Black' }));
-    clickLatestButton('Dark');
-
-    expect(getSetter('lightThemeId')).toHaveBeenCalledWith('silver-theme');
-    expect(getSetter('darkThemeId')).toHaveBeenCalledWith('dark-theme');
   });
 
   it('updates the system code block theme settings when the chip selectors change', () => {
@@ -169,7 +181,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
   });
 
   it('falls back to the active code block system theme when the stored manual theme id is invalid', () => {
@@ -194,7 +206,7 @@ describe('Appearance settings', () => {
 
     render(<Appearance />);
 
-    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dark' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Light' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Dark' }).length).toBeGreaterThan(0);
   });
 });

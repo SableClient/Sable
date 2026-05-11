@@ -4,15 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useMentionClickHandler } from './useMentionClickHandler';
 
 const { mockOpenSettings } = vi.hoisted(() => ({
-  mockOpenSettings: vi.fn(),
+  mockOpenSettings: vi.fn<(section: string, focus?: string) => void>(),
 }));
 
 vi.mock('$hooks/useMatrixClient', () => ({
-  useMatrixClient: () => ({ getRoom: vi.fn() }),
+  useMatrixClient: () => ({ getRoom: vi.fn<() => undefined>() }),
 }));
 
 vi.mock('$hooks/useRoomNavigate', () => ({
-  useRoomNavigate: () => ({ navigateRoom: vi.fn(), navigateSpace: vi.fn() }),
+  useRoomNavigate: () => ({
+    navigateRoom: vi.fn<() => void>(),
+    navigateSpace: vi.fn<() => void>(),
+  }),
 }));
 
 vi.mock('$hooks/useSpace', () => ({
@@ -20,7 +23,7 @@ vi.mock('$hooks/useSpace', () => ({
 }));
 
 vi.mock('$state/hooks/userRoomProfile', () => ({
-  useOpenUserRoomProfile: () => vi.fn(),
+  useOpenUserRoomProfile: () => vi.fn<() => void>(),
 }));
 
 vi.mock('$features/settings/useOpenSettings', () => ({
@@ -28,7 +31,7 @@ vi.mock('$features/settings/useOpenSettings', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => vi.fn<() => void>(),
 }));
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -59,5 +62,27 @@ describe('useMentionClickHandler', () => {
     fireEvent.click(getByRole('button', { name: 'Open settings link' }));
 
     expect(mockOpenSettings).toHaveBeenCalledWith('appearance', 'message-link-preview');
+  });
+
+  it('drops malformed settings focus ids before calling openSettings', () => {
+    const { result } = renderHook(() => useMentionClickHandler('!room:example.org'), {
+      wrapper: Wrapper,
+    });
+    const malformedFocus = 'display-name">Settings';
+
+    const { getByRole } = render(
+      <button
+        type="button"
+        data-settings-link-section="account"
+        data-settings-link-focus={malformedFocus}
+        onClick={result.current}
+      >
+        Open malformed settings link
+      </button>
+    );
+
+    fireEvent.click(getByRole('button', { name: 'Open malformed settings link' }));
+
+    expect(mockOpenSettings).toHaveBeenCalledWith('account', undefined);
   });
 });

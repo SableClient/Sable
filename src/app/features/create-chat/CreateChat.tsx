@@ -1,6 +1,8 @@
 import { Box, Button, color, config, Icon, Icons, Input, Spinner, Switch, Text } from 'folds';
-import { FormEventHandler, useCallback, useState } from 'react';
-import { ICreateRoomStateEvent, MatrixError, Preset, Visibility } from '$types/matrix-sdk';
+import type { FormEventHandler } from 'react';
+import { useCallback, useState } from 'react';
+import type { ICreateRoomStateEvent } from '$types/matrix-sdk';
+import { MatrixError, Preset, Visibility } from '$types/matrix-sdk';
 import { useNavigate } from 'react-router-dom';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
@@ -37,6 +39,9 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
           visibility: Visibility.Private,
           preset: Preset.TrustedPrivateChat,
           initial_state: initialState,
+          creation_content: {
+            additional_creators: [userId],
+          },
         });
 
         addRoomIdToMDirect(mx, result.room_id, userId);
@@ -124,7 +129,7 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
           <Icon src={Icons.Warning} filled size="100" />
           <Text size="T300" style={{ color: color.Critical.Main }}>
             <b>
-              {error instanceof MatrixError && error.name === ErrorCode.M_LIMIT_EXCEEDED
+              {error instanceof MatrixError && error.name === (ErrorCode.M_LIMIT_EXCEEDED as string)
                 ? `Server rate-limited your request for ${millisecondsToMinutes(
                     (error.data.retry_after_ms as number | undefined) ?? 0
                   )} minutes!`

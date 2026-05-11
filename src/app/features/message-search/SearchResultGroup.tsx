@@ -1,9 +1,11 @@
-/* eslint-disable react/destructuring-assignment */
-import { MouseEventHandler, useMemo } from 'react';
-import { IEventWithRoomId, JoinRule, RelationType, Room } from '$types/matrix-sdk';
-import { HTMLReactParserOptions } from 'html-react-parser';
+import type { MouseEventHandler } from 'react';
+import { useMemo } from 'react';
+import type { IEventWithRoomId, Room } from '$types/matrix-sdk';
+import { JoinRule, RelationType, EventType } from '$types/matrix-sdk';
+import type { IImageContent } from '$types/matrix/common';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Avatar, Box, Chip, Header, Icon, Icons, Text, config } from 'folds';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   factoryRenderLinkifyWithMention,
@@ -15,7 +17,8 @@ import {
 } from '$plugins/react-custom-html-parser';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import { GetContentCallback, MessageEvent, StateEvent } from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
+
 import {
   AvatarBase,
   ImageContent,
@@ -53,7 +56,9 @@ import {
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
-import { ResultItem } from './useMessageSearch';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import type { ResultItem } from './useMessageSearch';
 
 type SearchResultGroupProps = {
   room: Room;
@@ -92,6 +97,11 @@ export function SearchResultGroup({
   const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
   const nicknames = useAtomValue(nicknamesAtom);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
 
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
@@ -124,6 +134,8 @@ export function SearchResultGroup({
         handleSpoilerClick: spoilerClickHandler,
         handleMentionClick: mentionClickHandler,
         nicknames,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
       }),
     [
       mx,
@@ -135,12 +147,14 @@ export function SearchResultGroup({
       useAuthentication,
       nicknames,
       settingsLinkBaseUrl,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
     ]
   );
 
   const renderMatrixEvent = useMatrixEventRenderer<[IEventWithRoomId, string, GetContentCallback]>(
     {
-      [MessageEvent.RoomMessage]: (event, displayName, getContent) => {
+      [EventType.RoomMessage]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
@@ -160,13 +174,13 @@ export function SearchResultGroup({
           />
         );
       },
-      [MessageEvent.Reaction]: (event, displayName, getContent) => {
+      [EventType.Reaction]: (event, displayName, getContent) => {
         if (event.unsigned?.redacted_because) {
           return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
         }
         return (
           <MSticker
-            content={getContent()}
+            content={getContent() as IImageContent}
             renderImageContent={(props) => (
               <ImageContent
                 {...props}
@@ -178,7 +192,7 @@ export function SearchResultGroup({
           />
         );
       },
-      [StateEvent.RoomTombstone]: (event) => {
+      [EventType.RoomTombstone]: (event) => {
         const { content } = event;
         return (
           <Box grow="Yes" direction="Column">

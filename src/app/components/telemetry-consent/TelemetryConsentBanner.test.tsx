@@ -8,7 +8,7 @@ const TEST_DSN = 'https://examplePublicKey@o0.ingest.sentry.io/0';
 describe('TelemetryConsentBanner', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal('location', { reload: vi.fn() });
+    vi.stubGlobal('location', { reload: vi.fn<() => void>() });
   });
 
   afterEach(() => {

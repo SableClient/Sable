@@ -1,10 +1,7 @@
-import { IContent, MatrixClient, MsgType } from '$types/matrix-sdk';
+import type { IContent, MatrixClient } from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import to from 'await-to-js';
-import {
-  IThumbnailContent,
-  MATRIX_BLUR_HASH_PROPERTY_NAME,
-  MATRIX_SPOILER_PROPERTY_NAME,
-} from '$types/matrix/common';
+import type { IThumbnailContent } from '$types/matrix/common';
 import {
   getImageFileUrl,
   getThumbnail,
@@ -14,10 +11,14 @@ import {
   loadVideoElement,
 } from '$utils/dom';
 import { encryptFile, getImageInfo, getThumbnailContent, getVideoInfo } from '$utils/matrix';
-import { TUploadItem } from '$state/room/roomInputDrafts';
+import type { TUploadItem } from '$state/room/roomInputDrafts';
 import { encodeBlurHash } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
+import {
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+  MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
+} from '../../../unstable/prefixes';
 
 const log = createLogger('msgContent');
 
@@ -59,14 +60,14 @@ export const getImageMsgContent = async (
     msgtype: MsgType.Image,
     filename: file.name,
     body: file.name,
-    [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
+    [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (imgEl) {
     const blurHash = encodeBlurHash(imgEl, 512, scaleYDimension(imgEl.width, 512, imgEl.height));
 
     content.info = {
       ...getImageInfo(imgEl, file),
-      [MATRIX_BLUR_HASH_PROPERTY_NAME]: blurHash,
+      [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: blurHash,
     };
   }
   if (encInfo) {
@@ -99,7 +100,7 @@ export const getVideoMsgContent = async (
     msgtype: MsgType.Video,
     filename: file.name,
     body: file.name,
-    [MATRIX_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
+    [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: metadata.markedAsSpoiler,
   };
   if (videoEl) {
     const [thumbError, thumbContent] = await to(
@@ -111,7 +112,7 @@ export const getVideoMsgContent = async (
       )
     );
     if (thumbContent && thumbContent.thumbnail_info) {
-      thumbContent.thumbnail_info[MATRIX_BLUR_HASH_PROPERTY_NAME] = encodeBlurHash(
+      thumbContent.thumbnail_info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = encodeBlurHash(
         videoEl,
         512,
         scaleYDimension(videoEl.videoWidth, 512, videoEl.videoHeight)

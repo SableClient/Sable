@@ -1,5 +1,6 @@
-import { IImageInfo } from '$types/matrix/common';
-import { ImageUsage, PackImage } from './types';
+import type { IImageInfo } from '$types/matrix/common';
+import type { PackImage } from './types';
+import { ImageUsage } from './types';
 
 export class PackImageReader {
   public readonly shortcode: string;

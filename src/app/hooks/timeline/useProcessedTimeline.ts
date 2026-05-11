@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
+import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
 import {
   getTimelineAndBaseIndex,
   getTimelineRelativeIndex,
   getTimelineEvent,
 } from '$utils/timeline';
-import { reactionOrEditEvent, isMembershipChanged } from '$utils/room';
+import { isMembershipChanged, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
 
 export interface UseProcessedTimelineOptions {
@@ -39,15 +39,31 @@ export interface ProcessedEvent {
   willRenderDayDivider: boolean;
 }
 
-const MESSAGE_EVENT_TYPES = [
+/** Raw timeline indices for skipped events (reactions, edits, …) have no row; walk backward to a visible one. */
+export function getProcessedRowIndexForRawTimelineIndex(
+  processedEvents: ProcessedEvent[],
+  startRawIndex: number
+): { rowIndex: number; focusRawIndex: number } | undefined {
+  if (startRawIndex < 0) return undefined;
+  for (let i = startRawIndex; i >= 0; i -= 1) {
+    const rowIndex = processedEvents.findIndex((e) => e.itemIndex === i);
+    if (rowIndex >= 0) return { rowIndex, focusRawIndex: i };
+  }
+  return undefined;
+}
+
+const MESSAGE_EVENT_TYPES = new Set([
   'm.room.message',
   'm.room.message.encrypted',
   'm.sticker',
   'm.room.encrypted',
-];
+]);
 
 const normalizeMessageType = (t: string): string =>
   t === 'm.room.encrypted' || t === 'm.room.message.encrypted' ? 'm.room.message' : t;
+
+const getPmpId = (ev: MatrixEvent): string | null =>
+  ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
 export function useProcessedTimeline({
   items,
@@ -78,24 +94,17 @@ export function useProcessedTimeline({
 
       if (!mEvent) return acc;
 
-      const {
-        getId: getEvtId,
-        getSender: getEvtSender,
-        isRedacted: getEvtIsRedacted,
-        getTs: getEvtTs,
-        getType: getEvtType,
-        threadRootId,
-      } = mEvent;
+      const { threadRootId } = mEvent;
 
-      const mEventId = getEvtId.call(mEvent);
+      const mEventId = mEvent.getId();
       if (!mEventId) return acc;
 
-      const eventSender = getEvtSender.call(mEvent) ?? null;
+      const eventSender = mEvent.getSender() ?? null;
 
       if (eventSender && ignoredUsersSet.has(eventSender)) return acc;
-      if (getEvtIsRedacted.call(mEvent) && !(showHiddenEvents || showTombstoneEvents)) return acc;
+      if (mEvent.isRedacted() && !(showHiddenEvents || showTombstoneEvents)) return acc;
 
-      const type = getEvtType.call(mEvent);
+      const type = mEvent.getType();
 
       if (type === 'm.room.member') {
         const membershipChanged = isMembershipChanged(mEvent);
@@ -123,7 +132,13 @@ export function useProcessedTimeline({
         }
       }
 
-      if (!skipThreadFilter && threadRootId !== undefined && threadRootId !== mEventId) return acc;
+      if (
+        !skipThreadFilter &&
+        threadRootId !== undefined &&
+        threadRootId !== mEventId &&
+        isThreadRelationEvent(mEvent, threadRootId)
+      )
+        return acc;
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;
@@ -134,24 +149,19 @@ export function useProcessedTimeline({
       }
 
       if (!dayDivider) {
-        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), getEvtTs.call(mEvent)) : false;
+        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
       }
 
-      const isMessageEvent = MESSAGE_EVENT_TYPES.includes(type);
+      const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);
 
       let collapsed = false;
       if (isPrevRendered && !dayDivider && prevEvent !== undefined) {
-        const { getSender: getPrevSender, getType: getPrevType, getTs: getPrevTs } = prevEvent;
-
         if (isMessageEvent) {
-          const withinTimeThreshold =
-            minuteDifference(getPrevTs.call(prevEvent), getEvtTs.call(mEvent)) < 2;
-          const senderMatch = getPrevSender.call(prevEvent) === eventSender;
+          const withinTimeThreshold = minuteDifference(prevEvent.getTs(), mEvent.getTs()) < 2;
+          const senderMatch = prevEvent.getSender() === eventSender;
           const typeMatch =
-            normalizeMessageType(getPrevType.call(prevEvent)) === normalizeMessageType(type);
+            normalizeMessageType(prevEvent.getType()) === normalizeMessageType(type);
           const dividerOk = !newDivider || eventSender === mxUserId;
-          const getPmpId = (ev: MatrixEvent): string | null =>
-            ev.getContent()?.['com.beeper.per_message_profile']?.id ?? null;
 
           collapsed =
             dividerOk &&
@@ -160,7 +170,7 @@ export function useProcessedTimeline({
             withinTimeThreshold &&
             getPmpId(prevEvent) === getPmpId(mEvent);
         } else {
-          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.includes(getPrevType.call(prevEvent));
+          const prevIsMessageEvent = MESSAGE_EVENT_TYPES.has(prevEvent.getType());
           collapsed = !prevIsMessageEvent;
         }
       }

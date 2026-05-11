@@ -1,17 +1,25 @@
+import type {
+  IContextResponse,
+  MatrixClient,
+  Room,
+  RoomMember,
+  RoomMemberEventContent,
+  RoomMessageEventContent,
+  RoomServerAclEventContent,
+} from '$types/matrix-sdk';
 import {
   Direction,
   EventTimeline,
-  IContextResponse,
-  MatrixClient,
+  EventType,
   Method,
+  MatrixError,
   Preset,
-  Room,
-  RoomMember,
   Visibility,
-  RoomServerAclEventContent,
   MsgType,
+  KnownMembership,
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
+
 import { StateEvent } from '$types/matrix/room';
 import {
   addRoomIdToMDirect,
@@ -36,10 +44,12 @@ import { loadBuildInCommands } from '$plugins/commandHandling/builtin/builtInCom
 import { useRoomNavigate } from './useRoomNavigate';
 import { enrichWidgetUrl } from './useRoomWidgets';
 import { useUserProfile } from './useUserProfile';
+import type { PerMessageProfile } from './usePerMessageProfile';
+import { CustomStateEvent } from '$types/matrix/room';
+
 import {
   addOrUpdatePerMessageProfile,
   deletePerMessageProfile,
-  PerMessageProfile,
   setCurrentlyUsedPerMessageProfileIdForRoom,
 } from './usePerMessageProfile';
 
@@ -73,13 +83,16 @@ export const parseFlags = (flags: string | undefined): Record<string, string | u
   const matches: { key: string; index: number; match: string }[] = [];
 
   for (let match = FLAG_REG_G.exec(flags); match !== null; match = FLAG_REG_G.exec(flags)) {
+    if (!match[1] || !match[0]) continue;
     matches.push({ key: match[1], index: match.index, match: match[0] });
   }
 
   for (let i = 0; i < matches.length; i += 1) {
-    const { key, match } = matches[i];
-    const start = matches[i].index + match.length;
-    const end = i + 1 < matches.length ? matches[i + 1].index : flags.length;
+    const current = matches[i];
+    if (!current) continue;
+    const { key, match } = current;
+    const start = current.index + match.length;
+    const end = i + 1 < matches.length ? (matches[i + 1]?.index ?? flags.length) : flags.length;
     const value = flags.slice(start, end).trim();
     result[key] = value;
   }
@@ -126,7 +139,7 @@ export const parseTimestampFlag = (input: string): number | undefined => {
     return undefined;
   }
 
-  const value = Number.parseFloat(match[1]); // supports decimal values
+  const value = Number.parseFloat(match[1]!); // supports decimal values
   const unit = match[2];
 
   const now = Date.now(); // in milliseconds
@@ -328,7 +341,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const userIds = rawIds.filter((id) => isUserId(id) && id !== mx.getSafeUserId());
           if (userIds.length === 0) return;
           if (userIds.length === 1) {
-            const dmRoomId = getDMRoomFor(mx, userIds[0])?.roomId;
+            const dmRoomId = getDMRoomFor(mx, userIds[0]!)?.roomId;
             if (dmRoomId) {
               navigateRoom(dmRoomId);
               return;
@@ -341,7 +354,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             preset: Preset.TrustedPrivateChat,
             initial_state: [createRoomEncryptionState()],
           });
-          addRoomIdToMDirect(mx, result.room_id, userIds[0]);
+          addRoomIdToMDirect(mx, result.room_id, userIds[0]!);
           navigateRoom(result.room_id);
         },
       },
@@ -443,18 +456,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const mEvent = room
             .getLiveTimeline()
             .getState(EventTimeline.FORWARDS)
-            ?.getStateEvents(StateEvent.RoomMember, mx.getSafeUserId());
-          const content = mEvent?.getContent();
+            ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
+          const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
-          await mx.sendStateEvent(
-            room.roomId,
-            StateEvent.RoomMember as any,
-            {
-              ...content,
-              displayname: nick,
-            },
-            mx.getSafeUserId()
-          );
+          await mx.sendStateEvent(room.roomId, EventType.RoomMember, content, mx.getSafeUserId());
         },
       },
       [Command.AddPerMessageProfileToAccount]: {
@@ -509,7 +514,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             sendFeedback('Cannot delete reserved profile ID "index".', room, mx.getSafeUserId());
             return;
           }
-          await deletePerMessageProfile(mx, profileId)
+          await deletePerMessageProfile(mx, profileId ?? '')
             .then(() => {
               sendFeedback(
                 `Per message profile "${profileId}" deleted from account.`,
@@ -540,7 +545,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const globalFlag = args[2] !== undefined;
           const onceFlag = args[3] !== undefined;
           // const untilFlag = args[4] !== undefined;
-          const validUntil = Number.parseInt(args[5], 10);
+          const validUntil = Number.parseInt(args[5] ?? '', 10);
           if (onceFlag || globalFlag) {
             sendFeedback(
               'Currently not implemented, consider using shorthands, with /pmpproxy id ✨:text',
@@ -550,14 +555,14 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             return;
           }
 
-          if (profileId.normalize() === 'reset') {
+          if ((profileId ?? '').normalize() === 'reset') {
             setCurrentlyUsedPerMessageProfileIdForRoom(mx, room.roomId, undefined, undefined, true)
               .then(() => {
                 sendFeedback('Per message profile reset for this room.', room, mx.getSafeUserId());
               })
               .catch((e) => {
                 sendFeedback(
-                  `Failed to reset per message profile for this room. Failed with: "${e.message}"`,
+                  `Failed to reset per message profile for this room. Failed with: "${(e as Error).message}"`,
                   room,
                   mx.getSafeUserId()
                 );
@@ -576,7 +581,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             })
             .catch((e) => {
               sendFeedback(
-                `Failed to set per message profile for this room. Failed with: "${e.message}"`,
+                `Failed to set per message profile for this room. Failed with: "${(e as Error).message}"`,
                 room,
                 mx.getSafeUserId()
               );
@@ -587,36 +592,41 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         name: Command.AssociateProxyPerMessageProfile,
         description: 'Associate proxy with a profile. Example /pmpproxy id ✨:text',
         exe: async (payload) => {
-          const pid: string = splitWithSpace(payload)[0];
-          const proxy: string = splitWithSpace(payload)[1];
-          pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
+          const pid: string = splitWithSpace(payload)[0] ?? '';
+          const proxy: string = splitWithSpace(payload)[1] ?? '';
+          await pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
         },
       },
       [Command.MyRoomAvatar]: {
         name: Command.MyRoomAvatar,
         description: 'Change profile picture in current room. Example /myroomavatar mxc://xyzabc',
         exe: async (payload) => {
-          let newAvatar: string | undefined = payload.trim();
-          if (newAvatar.length === 0) {
-            // no avatar, reset to global
-            newAvatar = profile.avatarUrl;
-          } else if (!newAvatar.match(/^mxc:\/\/\S+$/)) {
-            // bad mxc
-            return;
-          }
+          const trimmed = payload.trim();
+          const isRemove = trimmed.length === 0;
           const mEvent = room
             .getLiveTimeline()
             .getState(EventTimeline.FORWARDS)
-            ?.getStateEvents(StateEvent.RoomMember, mx.getSafeUserId());
-          const content = mEvent?.getContent();
+            ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
+          const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
+          const updatedContent: RoomMemberEventContent = { ...content };
+          if (isRemove) {
+            // Reset to global avatar
+            const globalAvatar = mx.getUser(mx.getSafeUserId())?.avatarUrl ?? undefined;
+            (updatedContent as RoomMemberEventContent & { avatar_url?: string }).avatar_url =
+              globalAvatar;
+          } else {
+            if (!trimmed.match(/^mxc:\/\/\S+$/)) {
+              // bad mxc
+              return;
+            }
+            (updatedContent as RoomMemberEventContent & { avatar_url?: string }).avatar_url =
+              trimmed;
+          }
           await mx.sendStateEvent(
             room.roomId,
-            StateEvent.RoomMember as any,
-            {
-              ...content,
-              avatar_url: newAvatar,
-            },
+            EventType.RoomMember,
+            updatedContent,
             mx.getSafeUserId()
           );
         },
@@ -675,7 +685,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
           let token: string | undefined = eventContext.start;
           while (token) {
-            // eslint-disable-next-line no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const response = await mx.createMessagesRequest(
               room.roomId,
               token,
@@ -695,7 +705,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
             const eventIds = eventsToDelete.map((roomEvent) => roomEvent.event_id);
 
-            // eslint-disable-next-line no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             await rateLimitedActions(eventIds, (eventId) =>
               mx.redactEvent(room.roomId, eventId, undefined, { reason })
             );
@@ -722,7 +732,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
 
           const serverAcl = getStateEvent(
             room,
-            StateEvent.RoomServerAcl
+            EventType.RoomServerAcl
           )?.getContent<RoomServerAclEventContent>();
 
           const aclContent: RoomServerAclEventContent = {
@@ -750,7 +760,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           aclContent.allow?.sort();
           aclContent.deny?.sort();
 
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomServerAcl as any, aclContent);
+          await mx.sendStateEvent(room.roomId, EventType.RoomServerAcl, aclContent);
         },
       },
       // Sable commands
@@ -828,26 +838,30 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             await mx.sendStateEvent(
               room.roomId,
-              StateEvent.RoomWidget as any,
+              CustomStateEvent.RoomWidget,
               {
                 type: 'm.custom',
                 url: enrichWidgetUrl(parsedUrl.toString()),
                 name,
                 id: widgetId,
                 creatorUserId: userId,
-              } as any,
+              },
               widgetId
             );
             sendFeedback(`Widget "${name}" added.`, room, userId);
-          } catch (e: any) {
-            if (e.errcode === 'M_FORBIDDEN') {
+          } catch (e: unknown) {
+            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
               sendFeedback(
                 'Permission denied. You need permission to manage widgets in this room.',
                 room,
                 userId
               );
             } else {
-              sendFeedback(`Failed to add widget: ${e.message || 'Unknown error'}`, room, userId);
+              sendFeedback(
+                `Failed to add widget: ${(e as Error).message || 'Unknown error'}`,
+                room,
+                userId
+              );
             }
           }
         },
@@ -896,8 +910,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           try {
             const content = JSON.parse(payload);
             await mx.sendMessage(room.roomId, content);
-          } catch (e: any) {
-            sendFeedback(`Invalid JSON: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Invalid JSON: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -916,7 +930,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           const flagMap = parseFlags(flags);
           const stateKey = flagMap.s;
           const parts = mainPayload.trim().split(/\s+/);
-          const eventType = parts[0];
+          const eventType = parts[0] ?? '';
           const jsonString = mainPayload.trim().substring(eventType.length).trim();
 
           if (!eventType || !jsonString) {
@@ -928,18 +942,27 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             const content = JSON.parse(jsonString);
 
             if (typeof stateKey === 'string') {
-              await mx.sendStateEvent(room.roomId, eventType as any, content, stateKey);
+              await mx.sendStateEvent(
+                room.roomId,
+                eventType as Parameters<typeof mx.sendStateEvent>[1],
+                content,
+                stateKey
+              );
               sendFeedback(
                 `State event "${eventType}" sent with state key "${stateKey}".`,
                 room,
                 userId
               );
             } else {
-              await mx.sendEvent(room.roomId, eventType as any, content);
+              await mx.sendEvent(
+                room.roomId,
+                eventType as unknown as Parameters<typeof mx.sendEvent>[2],
+                content
+              );
               sendFeedback(`Event "${eventType}" sent.`, room, userId);
             }
-          } catch (e: any) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -967,15 +990,17 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           try {
             const newContent = JSON.parse(jsonString);
 
-            const existingEvent = mx.getAccountData(type as any);
+            const existingEvent = mx.getAccountData(
+              type as Parameters<typeof mx.getAccountData>[0]
+            );
             const existingContent = existingEvent ? existingEvent.getContent() : {};
 
             const mergedContent = { ...existingContent, ...newContent };
 
-            await mx.setAccountData(type as any, mergedContent);
+            await mx.setAccountData(type as Parameters<typeof mx.setAccountData>[0], mergedContent);
             sendFeedback(`Account data "${type}" merged successfully.`, room, userId);
-          } catch (e: any) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -991,21 +1016,30 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           }
           const [type, key] = parts;
           try {
-            const existingEvent = mx.getAccountData(type as any);
+            const existingEvent = mx.getAccountData(
+              type as Parameters<typeof mx.getAccountData>[0]
+            );
             if (!existingEvent) {
               sendFeedback(`No account data found for type "${type}".`, room, userId);
               return;
             }
-            const content = { ...existingEvent.getContent() };
+            if (!key) {
+              sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
+              return;
+            }
+            const content = { ...existingEvent?.getContent() };
             if (!(key in content)) {
               sendFeedback(`Key "${key}" not found in "${type}".`, room, userId);
               return;
             }
-            delete content[key];
-            await mx.setAccountData(type as any, content as any);
+            delete content[key as keyof typeof content];
+            await mx.setAccountData(
+              type as Parameters<typeof mx.setAccountData>[0],
+              content as Parameters<typeof mx.setAccountData>[1]
+            );
             sendFeedback(`Key "${key}" removed from "${type}".`, room, userId);
-          } catch (e: any) {
-            sendFeedback(`Error: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Error: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1025,13 +1059,13 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
           }
           const key = parts[0];
           const value = parts.slice(1).join(' ');
-          let finalValue: any = value;
+          let finalValue: string | number | boolean = value;
           if (value === 'true') finalValue = true;
           else if (value === 'false') finalValue = false;
           else if (!Number.isNaN(Number(value)) && value.trim() !== '') finalValue = Number(value);
           try {
             if (typeof mx.setExtendedProfileProperty === 'function') {
-              await mx.setExtendedProfileProperty(key, finalValue);
+              await mx.setExtendedProfileProperty(key ?? '', finalValue);
               sendFeedback(
                 `Extended profile property "${key}" set to: ${finalValue}`,
                 room,
@@ -1040,8 +1074,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             } else {
               sendFeedback('Error: setExtendedProfileProperty is not supported.', room, userId);
             }
-          } catch (e: any) {
-            sendFeedback(`Failed to set extended profile: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Failed to set extended profile: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1069,8 +1103,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             } else {
               sendFeedback('Error: setExtendedProfileProperty is not supported.', room, userId);
             }
-          } catch (e: any) {
-            sendFeedback(`Failed to remove property: ${e.message}`, room, userId);
+          } catch (e: unknown) {
+            sendFeedback(`Failed to remove property: ${(e as Error).message}`, room, userId);
           }
         },
       },
@@ -1125,7 +1159,11 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               );
             })
             .catch((e) => {
-              sendFeedback(`Failed to share E2EE history: ${e.message}`, room, mx.getSafeUserId());
+              sendFeedback(
+                `Failed to share E2EE history: ${(e as Error).message}`,
+                room,
+                mx.getSafeUserId()
+              );
             });
         },
       },
@@ -1142,7 +1180,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             },
             cute_type: 'hug',
             body: `🤗`,
-          } as any);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Cuddle]: {
@@ -1157,7 +1195,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `😊`,
-          } as any);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Wave]: {
@@ -1172,7 +1210,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `👋`,
-          } as any);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Poke]: {
@@ -1187,7 +1225,7 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
               user_ids: target ? [target] : [],
             },
             body: `🫵`,
-          } as any);
+          } as unknown as RoomMessageEventContent);
         },
       },
       [Command.Headpat]: {
@@ -1230,7 +1268,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       navigateRoom,
       room,
       profile.displayName,
-      profile.avatarUrl,
       pkitcmdHandler,
       developerTools,
       enableMSC4268CMD,

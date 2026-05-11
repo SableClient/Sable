@@ -53,7 +53,7 @@ jobs:
                 });
                 const pr = prs.data[0];
                 return pr
-                  ? `([#${pr.number}](${pr.html_url}) by @${pr.user.login})`
+                  ? `([#${pr.number}](<${pr.html_url}>) by @${pr.user.login})`
                   : `(\`${hash}\`)`;
               } catch {
                 return `(\`${hash}\`)`;

@@ -48,6 +48,7 @@ export const MessageTextBody = as<'div', css.MessageTextBodyVariants & { notice?
       className={classNames(css.MessageTextBody({ preWrap, jumboEmoji, emote }), className)}
       {...props}
       ref={ref}
+      dir="auto"
     >
       {children}
     </Text>

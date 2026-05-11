@@ -16,11 +16,9 @@ import {
   Preset,
   Visibility,
   MsgType,
-  KnownMembership,
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 
-import { StateEvent } from '$types/matrix/room';
 import {
   addRoomIdToMDirect,
   getDMRoomFor,

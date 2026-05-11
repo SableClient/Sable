@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  type KeyboardEvent,
-  type ReactNode,
-  type RefObject,
-  type TouchEvent,
-} from 'react';
+import { useRef, type KeyboardEvent, type ReactNode, type RefObject, type TouchEvent } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
@@ -54,7 +47,7 @@ export type TimelineViewportProps = {
   backPagination: ReactNode;
   frontPagination: ReactNode;
   onScroll: (offset: number) => void;
-  onUserScrollIntent: (direction?: TimelineScrollDirection, deltaPx?: number) => boolean;
+  onUserScrollIntent: (direction?: TimelineScrollDirection) => void;
   onJumpLatest: () => void;
   renderMatrixEvent: (
     eventType: string,
@@ -90,22 +83,6 @@ export function TimelineViewport({
 }: Readonly<TimelineViewportProps>) {
   const lastTouchYRef = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    const element = messageListRef.current;
-    if (!element) return undefined;
-
-    const handleNativeWheel = (event: WheelEvent) => {
-      const consumed = onUserScrollIntent(
-        getDirectionFromDelta(event.deltaY),
-        Math.abs(event.deltaY)
-      );
-      if (consumed && event.cancelable) event.preventDefault();
-    };
-
-    element.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => element.removeEventListener('wheel', handleNativeWheel);
-  }, [messageListRef, onUserScrollIntent]);
-
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     lastTouchYRef.current = event.touches[0]?.clientY;
   };
@@ -119,12 +96,12 @@ export function TimelineViewport({
       return;
     }
     const delta = prevY - nextY;
-    onUserScrollIntent(getDirectionFromDelta(delta), Math.abs(delta));
+    onUserScrollIntent(getDirectionFromDelta(delta));
   };
 
   const handleKeyboardScrollIntent = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home') {
-      onUserScrollIntent('backward', event.key === 'ArrowUp' ? 40 : 600);
+      onUserScrollIntent('backward');
       return;
     }
     if (
@@ -134,7 +111,7 @@ export function TimelineViewport({
       event.key === ' ' ||
       event.key === 'Spacebar'
     ) {
-      onUserScrollIntent('forward', event.key === 'ArrowDown' ? 40 : 600);
+      onUserScrollIntent('forward');
     }
   };
 
@@ -144,6 +121,7 @@ export function TimelineViewport({
 
       <div
         ref={messageListRef}
+        onWheelCapture={(event) => onUserScrollIntent(getDirectionFromDelta(event.deltaY))}
         onTouchStartCapture={handleTouchStart}
         onTouchMoveCapture={handleTouchMoveIntent}
         onKeyDownCapture={handleKeyboardScrollIntent}

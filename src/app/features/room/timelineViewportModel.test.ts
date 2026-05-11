@@ -2,16 +2,51 @@ import { describe, expect, it } from 'vitest';
 import {
   getBottomClampSpacer,
   getCenterAnchorAdjustment,
-  getDistanceFromBottom,
-  isTimelineAtBottom,
+  getTimelineVisibleRange,
+  type TimelineViewportGeometry,
 } from './timelineViewportModel';
 
+const createGeometry = (
+  offset: number,
+  viewportSize: number,
+  itemSize: number,
+  itemCount: number
+): TimelineViewportGeometry => ({
+  scrollOffset: offset,
+  scrollSize: itemSize * itemCount,
+  viewportSize,
+  findItemIndex: (itemOffset) =>
+    Math.max(0, Math.min(itemCount - 1, Math.floor(itemOffset / itemSize))),
+  getItemOffset: (index) => index * itemSize,
+});
+
 describe('timelineViewportModel', () => {
-  it('calculates bottom distance and bottom threshold', () => {
-    expect(getDistanceFromBottom(1200, 500, 600)).toBe(100);
-    expect(getDistanceFromBottom(600, 0, 800)).toBe(0);
-    expect(isTimelineAtBottom(1200, 520, 600, 100)).toBe(true);
-    expect(isTimelineAtBottom(1200, 499, 600, 100)).toBe(false);
+  it('derives visible virtual-list edges from item geometry', () => {
+    expect(getTimelineVisibleRange(createGeometry(0, 200, 100, 5), 5)).toEqual({
+      firstIndex: 0,
+      lastIndex: 1,
+      atStart: true,
+      atEnd: false,
+      atScrollEnd: false,
+    });
+
+    expect(getTimelineVisibleRange(createGeometry(300, 200, 100, 5), 5)).toEqual({
+      firstIndex: 3,
+      lastIndex: 4,
+      atStart: false,
+      atEnd: true,
+      atScrollEnd: true,
+    });
+  });
+
+  it('treats an empty list as both edges without inventing scroll distance', () => {
+    expect(getTimelineVisibleRange(createGeometry(0, 800, 100, 0), 0)).toEqual({
+      firstIndex: -1,
+      lastIndex: -1,
+      atStart: true,
+      atEnd: true,
+      atScrollEnd: true,
+    });
   });
 
   it('bottom-clamps short content while excluding the existing spacer', () => {

@@ -17,6 +17,10 @@ const createVList = (): VListHandle =>
     scrollOffset: 0,
     scrollSize: 3000,
     viewportSize: 800,
+    findItemIndex: vi.fn<(offset: number) => number>((offset) =>
+      Math.max(0, Math.min(29, Math.floor(offset / 100)))
+    ),
+    getItemOffset: vi.fn<(index: number) => number>((index) => index * 100),
     scrollTo: vi.fn<(offset: number) => void>(),
     scrollBy: vi.fn<(offset: number) => void>(),
     scrollToIndex: vi.fn<(index: number, options?: { align?: string }) => void>(),
@@ -34,13 +38,16 @@ const createProcessedEvent = (id: string, itemIndex: number): ProcessedEvent =>
     willRenderDayDivider: false,
   }) as unknown as ProcessedEvent;
 
+const createProcessedEvents = (count: number): ProcessedEvent[] =>
+  Array.from({ length: count }, (_, index) => createProcessedEvent(`$${index}`, index));
+
 const createTimelineSync = (
   overrides: Partial<TimelineSyncController> = {}
 ): TimelineSyncController =>
   ({
     timeline: { linkedTimelines: [] },
     setTimeline: vi.fn<(next: unknown) => void>(),
-    eventsLength: 2,
+    eventsLength: 3,
     liveTimelineLinked: true,
     canPaginateBack: true,
     backwardStatus: 'idle',
@@ -54,7 +61,11 @@ const createTimelineSync = (
 
 const createRefs = (vList = createVList()) => {
   const processedEventsRef: MutableRefObject<ProcessedEvent[]> = {
-    current: [createProcessedEvent('$a', 0), createProcessedEvent('$b', 1)],
+    current: [
+      createProcessedEvent('$a', 0),
+      createProcessedEvent('$b', 1),
+      createProcessedEvent('$c', 2),
+    ],
   };
 
   return {
@@ -67,17 +78,9 @@ const createRefs = (vList = createVList()) => {
 };
 
 const createEmptyProcessedRefs = (vList = createVList()) => {
-  const processedEventsRef: MutableRefObject<ProcessedEvent[]> = {
-    current: [],
-  };
-
-  return {
-    vList,
-    vListRef: { current: vList } as RefObject<VListHandle>,
-    messageListRef: { current: document.createElement('div') } as RefObject<HTMLDivElement>,
-    processedEventsRef,
-    atBottomRef: { current: true },
-  };
+  const refs = createRefs(vList);
+  refs.processedEventsRef.current = [];
+  return refs;
 };
 
 const renderController = ({
@@ -94,9 +97,6 @@ const renderController = ({
   setAtBottom?: (val: boolean) => void;
 } = {}) => {
   const timelineSyncRef: MutableRefObject<TimelineSyncController> = { current: timelineSync };
-  const indexByRaw = new Map(
-    refs.processedEventsRef.current.map((event, index) => [event.itemIndex, index])
-  );
 
   const hook = renderHook(
     ({ sync, roomEventId }: { sync: TimelineSyncController; roomEventId?: string }) => {
@@ -111,7 +111,12 @@ const renderController = ({
         processedEventsRef: refs.processedEventsRef,
         atBottomRef: refs.atBottomRef,
         setAtBottom,
-        getRawIndexToProcessedIndex: (rawIndex) => indexByRaw.get(rawIndex),
+        getRawIndexToProcessedIndex: (rawIndex) => {
+          const index = refs.processedEventsRef.current.findIndex(
+            (event) => event.itemIndex === rawIndex
+          );
+          return index < 0 ? undefined : index;
+        },
       });
     },
     { initialProps: { sync: timelineSync, roomEventId: eventId } }
@@ -140,18 +145,18 @@ describe('useTimelineViewportController', () => {
   it('lands the initial live timeline at the latest event and reveals the viewport', () => {
     const { result, refs } = renderController();
 
-    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'end' });
+    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(2, { align: 'end' });
     expect(refs.vList.scrollTo).toHaveBeenCalledWith(refs.vList.scrollSize);
     expect(result.current.isReady).toBe(true);
   });
 
-  it('re-anchors to latest when first renderable rows appear after an all-state initial slice', () => {
+  it('re-anchors to latest when renderable rows appear after an all-state initial slice', () => {
     const refs = createEmptyProcessedRefs();
     const timelineSync = createTimelineSync({ eventsLength: 20 });
-    const { rerender } = renderController({ timelineSync, refs });
+    const { rerender, refs: renderedRefs } = renderController({ timelineSync, refs });
 
-    expect(refs.vList.scrollToIndex).not.toHaveBeenCalled();
-    expect(refs.vList.scrollTo).toHaveBeenCalledWith(refs.vList.scrollSize);
+    expect(renderedRefs.vList.scrollToIndex).not.toHaveBeenCalled();
+    expect(renderedRefs.vList.scrollTo).toHaveBeenCalledWith(renderedRefs.vList.scrollSize);
 
     refs.processedEventsRef.current = [
       createProcessedEvent('$x', 10),
@@ -160,452 +165,281 @@ describe('useTimelineViewportController', () => {
 
     rerender({ sync: timelineSync, roomEventId: undefined });
 
-    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'end' });
+    expect(renderedRefs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'end' });
   });
 
-  it('delays viewport reveal while bootstrap prefill is in progress for underfilled rooms', () => {
+  it('prefills underfilled live rooms without hiding the revealed timeline', () => {
     const vList = createVList() as unknown as {
       scrollOffset: number;
       scrollSize: number;
       viewportSize: number;
-      scrollTo: ReturnType<typeof vi.fn>;
-      scrollBy: ReturnType<typeof vi.fn>;
-      scrollToIndex: ReturnType<typeof vi.fn>;
     };
-    vList.scrollSize = 800;
+    vList.scrollSize = 200;
     vList.viewportSize = 800;
     const refs = createRefs(vList as unknown as VListHandle);
     const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
 
     const { result } = renderController({ timelineSync, refs });
 
-    expect(result.current.isReady).toBe(false);
+    expect(result.current.isReady).toBe(true);
     expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
   });
 
-  it('does not trigger ready fallback timeout while bootstrap reveal is gated', () => {
-    vi.useFakeTimers();
-    const vList = createVList() as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    vList.scrollSize = 700;
-    vList.viewportSize = 700;
-    const refs = createRefs(vList as unknown as VListHandle);
-    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
-
+  it('does not paginate from layout-only scroll changes', () => {
+    const refs = createRefs();
+    const timelineSync = createTimelineSync();
     const { result } = renderController({ timelineSync, refs });
-    expect(result.current.isReady).toBe(false);
 
+    vi.mocked(timelineSync.handleTimelinePagination).mockClear();
     act(() => {
-      vi.advanceTimersByTime(2000);
+      result.current.handleVListScroll(0);
     });
 
-    expect(result.current.isReady).toBe(false);
-  });
-
-  it('waits for a measured viewport before bootstrap reveal or backfill', () => {
-    const vList = createVList() as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    vList.scrollSize = 120;
-    vList.viewportSize = 0;
-    const refs = createRefs(vList as unknown as VListHandle);
-    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
-
-    const { result } = renderController({ timelineSync, refs });
-
-    expect(result.current.isReady).toBe(false);
     expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
   });
 
-  it('paginates older history at the top edge', () => {
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync });
-
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    act(() => {
-      result.current.handleVListScroll(300);
-    });
-    act(() => {
-      result.current.handleVListScroll(120);
-    });
-
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true, expect.any(Number));
-  });
-
-  it('paginates older history from user input while already clamped at the top edge', () => {
+  it('treats the live timeline as bottom when the latest row is visible', () => {
     const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(0);
-    });
-    expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
-
-    act(() => {
-      result.current.markUserScrollIntent('backward');
-    });
-
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true, expect.any(Number));
-  });
-
-  it('applies top-edge recoil so upward scroll can continue while near offset 0', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-      scrollTo: ReturnType<typeof vi.fn>;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    refs.vList.scrollTo = vi.fn<(offset: number) => void>();
-
-    act(() => {
-      result.current.markUserScrollIntent('backward', 180);
-    });
-
-    expect(refs.vList.scrollTo).toHaveBeenCalled();
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true, expect.any(Number));
-  });
-
-  it('scales pagination limit with scroll intent strength', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(0);
-    });
-    act(() => {
-      result.current.markUserScrollIntent('backward', 20);
-    });
-    const paginationMock = timelineSync.handleTimelinePagination as unknown as ReturnType<
-      typeof vi.fn
-    >;
-    const firstLimit = paginationMock.mock.calls.at(-1)?.[1] as number | undefined;
-    expect(firstLimit).toBeDefined();
-    expect(firstLimit).toBeGreaterThanOrEqual(40);
-    expect(firstLimit).toBeLessThanOrEqual(100);
-
-    paginationMock.mockClear();
-    act(() => {
-      result.current.markUserScrollIntent('backward', 500);
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true, 160);
-  });
-
-  it('queues another backward page when user keeps scrolling at the top while loading', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result, rerender } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(0);
-    });
-    act(() => {
-      result.current.markUserScrollIntent('backward');
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    const loadingSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'loading',
-    });
-    rerender({ sync: loadingSync, roomEventId: undefined });
-    act(() => {
-      result.current.markUserScrollIntent('backward');
-    });
-    expect(loadingSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    const idleSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'idle',
-    });
-    rerender({ sync: idleSync, roomEventId: undefined });
-
-    expect(idleSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-    expect(idleSync.handleTimelinePagination).toHaveBeenLastCalledWith(true, expect.any(Number));
-  });
-
-  it('continues backward pagination after load settles when still near top without new input', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result, rerender } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.markUserScrollIntent('backward');
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    const loadingSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'loading',
-    });
-    rerender({ sync: loadingSync, roomEventId: undefined });
-
-    const idleSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'idle',
-    });
-    rerender({ sync: idleSync, roomEventId: undefined });
-
-    expect(idleSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-    expect(idleSync.handleTimelinePagination).toHaveBeenLastCalledWith(true, expect.any(Number));
-  });
-
-  it('continues backward pagination from preserved scroll pressure even after offset moves away from the edge', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result, rerender } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.markUserScrollIntent('backward', 500);
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true, 160);
-
-    const loadingSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'loading',
-    });
-    rerender({ sync: loadingSync, roomEventId: undefined });
-
-    mutableVList.scrollOffset = 1500;
-    const idleSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'idle',
-    });
-    rerender({ sync: idleSync, roomEventId: undefined });
-
-    expect(idleSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-    expect(idleSync.handleTimelinePagination).toHaveBeenLastCalledWith(true, 160);
-  });
-
-  it('bounds backward scroll pressure so pagination does not continue forever', () => {
-    const refs = createRefs();
-    const timelineSync = createTimelineSync();
-    const { result, rerender } = renderController({ timelineSync, refs });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 0;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.markUserScrollIntent('backward', 500);
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    for (let i = 0; i < 6; i += 1) {
-      const loadingSync = createTimelineSync({
-        ...timelineSync,
-        backwardStatus: 'loading',
-      });
-      rerender({ sync: loadingSync, roomEventId: undefined });
-
-      mutableVList.scrollOffset = 1500;
-      const idleSync = createTimelineSync({
-        ...timelineSync,
-        backwardStatus: 'idle',
-      });
-      rerender({ sync: idleSync, roomEventId: undefined });
-    }
-
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(3);
-  });
-
-  it('keeps bottom anchor pinned during loading-driven offset shifts', () => {
-    const refs = createRefs();
-    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
+    refs.atBottomRef.current = false;
+    refs.processedEventsRef.current = createProcessedEvents(30);
+    const setAtBottom = vi.fn<(val: boolean) => void>((val) => {
       refs.atBottomRef.current = val;
     });
-    const timelineSync = createTimelineSync();
-    const { result, rerender } = renderController({ timelineSync, refs, setAtBottom });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-
-    const loadingTimelineSync = createTimelineSync({
-      ...timelineSync,
-      backwardStatus: 'loading',
-    });
-    rerender({ sync: loadingTimelineSync, roomEventId: undefined });
+    const timelineSync = createTimelineSync({ eventsLength: 30, liveTimelineLinked: true });
+    const { result } = renderController({ timelineSync, refs, setAtBottom });
+    refs.atBottomRef.current = false;
     setAtBottom.mockClear();
 
-    mutableVList.scrollOffset = 1900;
     act(() => {
-      result.current.handleVListScroll(1900);
+      result.current.handleVListScroll(2101);
     });
 
-    expect(loadingTimelineSync.handleTimelinePagination).not.toHaveBeenCalled();
+    expect(setAtBottom).toHaveBeenCalledWith(true);
   });
 
-  it('enables virtual-list shift while backward pagination loads away from bottom', () => {
+  it('paginates older history when the user scrolls at the start edge', () => {
+    const refs = createRefs();
     const timelineSync = createTimelineSync();
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
+    const { result } = renderController({ timelineSync, refs });
 
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
     act(() => {
       result.current.markUserScrollIntent('backward');
     });
-    mutableVList.scrollOffset = 1900;
+
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('paginates newer history when a detached jump window reaches the end edge', () => {
+    const refs = createRefs();
+    const mutableVList = refs.vList as unknown as { scrollOffset: number };
+    mutableVList.scrollOffset = 2200;
+    const timelineSync = createTimelineSync({ liveTimelineLinked: false });
+    const { result } = renderController({ timelineSync, refs });
+
     act(() => {
-      result.current.handleVListScroll(1900);
+      result.current.markUserScrollIntent('forward');
     });
 
-    const loadingTimelineSync = createTimelineSync({
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(false);
+  });
+
+  it('requests one page per edge crossing from scroll events', () => {
+    const refs = createRefs();
+    const mutableVList = refs.vList as unknown as { scrollOffset: number };
+    mutableVList.scrollOffset = 1200;
+    const timelineSync = createTimelineSync({ liveTimelineLinked: false });
+    const { result } = renderController({ timelineSync, refs });
+
+    act(() => {
+      result.current.markUserScrollIntent('forward');
+    });
+    mutableVList.scrollOffset = 2200;
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(false);
+  });
+
+  it('paginates as soon as scrolling lands on the start edge', () => {
+    const refs = createRefs();
+    const mutableVList = refs.vList as unknown as { scrollOffset: number };
+    mutableVList.scrollOffset = 1200;
+    const timelineSync = createTimelineSync();
+    const { result } = renderController({ timelineSync, refs });
+
+    vi.mocked(timelineSync.handleTimelinePagination).mockClear();
+    act(() => {
+      result.current.handleVListScroll(1200);
+    });
+    mutableVList.scrollOffset = 0;
+    act(() => {
+      result.current.handleVListScroll(0);
+    });
+
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('does not treat a programmatic jump landing as edge pagination', () => {
+    const refs = createRefs();
+    const mutableVList = refs.vList as unknown as { scrollOffset: number };
+    mutableVList.scrollOffset = 1200;
+    const initialSync = createTimelineSync({
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: true, highlight: true },
+    });
+    const { result, rerender } = renderController({ timelineSync: initialSync, refs });
+    const landedSync = createTimelineSync({
+      ...initialSync,
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: false, highlight: true },
+    });
+    rerender({ sync: landedSync, roomEventId: undefined });
+
+    vi.mocked(landedSync.handleTimelinePagination).mockClear();
+    act(() => {
+      result.current.handleVListScroll(1200);
+    });
+    mutableVList.scrollOffset = 2200;
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    expect(landedSync.handleTimelinePagination).not.toHaveBeenCalled();
+  });
+
+  it('queues one additional page while loading if the user keeps scrolling at an edge', () => {
+    const refs = createRefs();
+    const loadingSync = createTimelineSync({ backwardStatus: 'loading' });
+    const { result, rerender } = renderController({ timelineSync: loadingSync, refs });
+
+    act(() => {
+      result.current.markUserScrollIntent('backward');
+    });
+    expect(loadingSync.handleTimelinePagination).not.toHaveBeenCalled();
+
+    const idleSync = createTimelineSync({ ...loadingSync, backwardStatus: 'idle' });
+    rerender({ sync: idleSync, roomEventId: undefined });
+
+    expect(idleSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
+    expect(idleSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('rearms edge pagination after a page settles at the same edge', () => {
+    const refs = createRefs();
+    const timelineSync = createTimelineSync({ backwardStatus: 'idle' });
+    const { result, rerender } = renderController({ timelineSync, refs });
+
+    act(() => {
+      result.current.markUserScrollIntent('backward');
+    });
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
+
+    const loadingSync = createTimelineSync({
       ...timelineSync,
       backwardStatus: 'loading',
     });
-    rerender({ sync: loadingTimelineSync, roomEventId: undefined });
+    rerender({ sync: loadingSync, roomEventId: undefined });
 
-    expect(result.current.shift).toBe(true);
-
-    const idleTimelineSync = createTimelineSync({
+    const settledSync = createTimelineSync({
       ...timelineSync,
       backwardStatus: 'idle',
     });
-    rerender({ sync: idleTimelineSync, roomEventId: undefined });
+    rerender({ sync: settledSync, roomEventId: undefined });
 
+    act(() => {
+      result.current.markUserScrollIntent('backward');
+    });
+
+    expect(settledSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
+    expect(settledSync.handleTimelinePagination).toHaveBeenLastCalledWith(true);
+  });
+
+  it('enables virtua shift only while backward pagination loads away from bottom', () => {
+    const refs = createRefs();
+    refs.atBottomRef.current = false;
+    const idleSync = createTimelineSync();
+    const { result, rerender } = renderController({ timelineSync: idleSync, refs });
+    refs.atBottomRef.current = false;
+
+    const loadingSync = createTimelineSync({ ...idleSync, backwardStatus: 'loading' });
+    rerender({ sync: loadingSync, roomEventId: undefined });
+    expect(result.current.shift).toBe(true);
+
+    const settledSync = createTimelineSync({ ...idleSync, backwardStatus: 'idle' });
+    rerender({ sync: settledSync, roomEventId: undefined });
     expect(result.current.shift).toBe(false);
   });
 
-  it('releases bottom anchor on an intentional upward scroll when idle', () => {
-    const refs = createRefs();
-    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
-      refs.atBottomRef.current = val;
+  it('centers a loaded focus item and releases bottom following', () => {
+    const setAtBottom = vi.fn<(val: boolean) => void>();
+    const setFocusItem = vi.fn<(next: unknown) => void>();
+    const timelineSync = createTimelineSync({
+      focusItem: { index: 1, scrollTo: true, highlight: true },
+      setFocusItem,
     });
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync, refs, setAtBottom });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
+    const { refs } = renderController({ timelineSync, setAtBottom });
 
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 1900;
-    act(() => {
-      result.current.handleVListScroll(1900);
-    });
-
+    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'center' });
     expect(setAtBottom).toHaveBeenCalledWith(false);
+    expect(setFocusItem).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it('does not trigger pagination before any user scroll intent', () => {
+  it('does not paginate from the programmatic landing scroll after a jump', () => {
     const refs = createRefs();
-    const setAtBottom = vi.fn<(val: boolean) => void>((val: boolean) => {
-      refs.atBottomRef.current = val;
+    const initialSync = createTimelineSync({
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: true, highlight: true },
     });
-    const timelineSync = createTimelineSync();
-    const { result } = renderController({ timelineSync, refs, setAtBottom });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
+    const { result, rerender } = renderController({ timelineSync: initialSync, refs });
+    const landedSync = createTimelineSync({
+      ...initialSync,
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: false, highlight: true },
+    });
+    rerender({ sync: landedSync, roomEventId: undefined });
 
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
+    vi.mocked(landedSync.handleTimelinePagination).mockClear();
     act(() => {
       result.current.handleVListScroll(2200);
     });
 
-    setAtBottom.mockClear();
-    mutableVList.scrollOffset = 1900;
-    act(() => {
-      result.current.handleVListScroll(1900);
-    });
-
-    expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
+    expect(landedSync.handleTimelinePagination).not.toHaveBeenCalled();
   });
 
-  it('does not paginate while an event jump is still loading', () => {
+  it('allows normal forward pagination after the user scrolls away from a landed jump', () => {
+    const refs = createRefs();
+    const mutableVList = refs.vList as unknown as { scrollOffset: number };
+    mutableVList.scrollOffset = 2200;
+    const initialSync = createTimelineSync({
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: true, highlight: true },
+    });
+    const { result, rerender } = renderController({ timelineSync: initialSync, refs });
+    const landedSync = createTimelineSync({
+      ...initialSync,
+      liveTimelineLinked: false,
+      focusItem: { index: 1, scrollTo: false, highlight: true },
+    });
+    rerender({ sync: landedSync, roomEventId: undefined });
+
+    act(() => {
+      result.current.markUserScrollIntent('forward');
+    });
+    act(() => {
+      result.current.handleVListScroll(2200);
+    });
+
+    expect(landedSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
+    expect(landedSync.handleTimelinePagination).toHaveBeenCalledWith(false);
+  });
+
+  it('loads a missing jump target and suppresses pagination until it resolves', () => {
     let resolveLoad: () => void = noop;
     const timelineSync = createTimelineSync({
       loadEventTimeline: vi.fn<(eventId: string) => Promise<void>>(
@@ -618,7 +452,7 @@ describe('useTimelineViewportController', () => {
     const { result } = renderController({ eventId: '$target', timelineSync });
 
     act(() => {
-      result.current.handleVListScroll(120);
+      result.current.markUserScrollIntent('backward');
     });
 
     expect(timelineSync.loadEventTimeline).toHaveBeenCalledWith('$target');
@@ -627,421 +461,5 @@ describe('useTimelineViewportController', () => {
     act(() => {
       resolveLoad();
     });
-  });
-
-  it('centers a loaded focus item and consumes the scroll intent', () => {
-    const setFocusItem = vi.fn<(next: unknown) => void>();
-    const timelineSync = createTimelineSync({
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-      setFocusItem,
-    });
-    const { refs } = renderController({ timelineSync });
-
-    expect(refs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'center' });
-    expect(setFocusItem).toHaveBeenCalledWith(expect.any(Function));
-
-    const updater = setFocusItem.mock.calls[0]?.[0] as (
-      prev: typeof timelineSync.focusItem
-    ) => typeof timelineSync.focusItem;
-    expect(updater(timelineSync.focusItem)).toEqual({ index: 1, scrollTo: false, highlight: true });
-  });
-
-  it('blocks the programmatic landing scroll after a jump focus item has landed', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-
-    expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
-  });
-
-  it('allows edge pagination after the user scrolls away from a landed jump', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollOffset = 2200;
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    act(() => {
-      result.current.handleVListScroll(2260);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledWith(
-      false,
-      expect.any(Number)
-    );
-  });
-
-  it('paginates forward from user input while already clamped at the bottom edge', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-    });
-    const { result, refs } = renderController({ timelineSync });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    mutableVList.scrollOffset = 2200;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
-
-    act(() => {
-      result.current.markUserScrollIntent('forward');
-    });
-
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(false, expect.any(Number));
-  });
-
-  it('queues another forward page when user keeps scrolling at detached bottom while loading', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    mutableVList.scrollOffset = 2200;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent('forward');
-    });
-    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(false, expect.any(Number));
-
-    const loadingSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      forwardStatus: 'loading',
-    });
-    rerender({ sync: loadingSync, roomEventId: undefined });
-    act(() => {
-      result.current.markUserScrollIntent('forward');
-    });
-    expect(loadingSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    const idleSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      forwardStatus: 'idle',
-    });
-    rerender({ sync: idleSync, roomEventId: undefined });
-
-    expect(idleSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-    expect(idleSync.handleTimelinePagination).toHaveBeenLastCalledWith(false, expect.any(Number));
-  });
-
-  it('does not bottom-anchor a detached jump window when forward pagination loads', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-      forwardStatus: 'idle',
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-      scrollTo: ReturnType<typeof vi.fn>;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    mutableVList.scrollOffset = 2200;
-    refs.vList.scrollTo = vi.fn<(offset: number) => void>();
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent('forward');
-    });
-
-    const forwardLoadingSync = createTimelineSync({
-      ...landedTimelineSync,
-      forwardStatus: 'loading',
-    });
-    rerender({ sync: forwardLoadingSync, roomEventId: undefined });
-
-    expect(refs.vList.scrollTo).not.toHaveBeenCalled();
-  });
-
-  it('does not repeat forward pagination from layout scrolls after a landed jump', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    mutableVList.scrollOffset = 2200;
-
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2260;
-    act(() => {
-      result.current.handleVListScroll(2260);
-    });
-    mutableVList.scrollOffset = 2280;
-    act(() => {
-      result.current.handleVListScroll(2280);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2290;
-    act(() => {
-      result.current.handleVListScroll(2290);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not repeat backward pagination from layout scrolls after a landed jump', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-    mutableVList.scrollOffset = 700;
-
-    act(() => {
-      result.current.handleVListScroll(700);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 120;
-    act(() => {
-      result.current.handleVListScroll(120);
-    });
-    mutableVList.scrollOffset = 80;
-    act(() => {
-      result.current.handleVListScroll(80);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledWith(
-      true,
-      expect.any(Number)
-    );
-
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 60;
-    act(() => {
-      result.current.handleVListScroll(60);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-  });
-
-  it('continues forward pagination after leaving and returning to the bottom edge', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    mutableVList.scrollOffset = 2200;
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2260;
-    act(() => {
-      result.current.handleVListScroll(2260);
-    });
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    mutableVList.scrollOffset = 1200;
-    act(() => {
-      result.current.handleVListScroll(1200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2260;
-    act(() => {
-      result.current.handleVListScroll(2260);
-    });
-
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(2);
-  });
-
-  it('rearms forward pagination after a forward page settles while staying near bottom', () => {
-    const timelineSync = createTimelineSync({
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: true, highlight: true },
-      forwardStatus: 'idle',
-    });
-    const { result, refs, rerender } = renderController({ timelineSync });
-    const landedTimelineSync = createTimelineSync({
-      ...timelineSync,
-      liveTimelineLinked: false,
-      focusItem: { index: 1, scrollTo: false, highlight: true },
-      forwardStatus: 'idle',
-    });
-
-    rerender({ sync: landedTimelineSync, roomEventId: undefined });
-
-    const mutableVList = refs.vList as unknown as {
-      scrollOffset: number;
-      scrollSize: number;
-      viewportSize: number;
-    };
-    mutableVList.scrollSize = 3000;
-    mutableVList.viewportSize = 800;
-
-    mutableVList.scrollOffset = 2200;
-    act(() => {
-      result.current.handleVListScroll(2200);
-    });
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2260;
-    act(() => {
-      result.current.handleVListScroll(2260);
-    });
-    expect(landedTimelineSync.handleTimelinePagination).toHaveBeenCalledTimes(1);
-
-    const forwardLoadingSync = createTimelineSync({
-      ...landedTimelineSync,
-      forwardStatus: 'loading',
-    });
-    rerender({ sync: forwardLoadingSync, roomEventId: undefined });
-    const forwardIdleSync = createTimelineSync({
-      ...landedTimelineSync,
-      forwardStatus: 'idle',
-    });
-    rerender({ sync: forwardIdleSync, roomEventId: undefined });
-
-    act(() => {
-      result.current.markUserScrollIntent();
-    });
-    mutableVList.scrollOffset = 2290;
-    act(() => {
-      result.current.handleVListScroll(2290);
-    });
-
-    expect(forwardIdleSync.handleTimelinePagination).toHaveBeenCalledWith(
-      false,
-      expect.any(Number)
-    );
   });
 });

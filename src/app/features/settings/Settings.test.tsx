@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
@@ -150,12 +150,10 @@ describe('Settings', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /copy settings link/i }));
-
-    await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(
-        'https://app.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
-      );
-    });
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith(
+      'https://app.example/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
+    );
   });
 
   it('preserves the configured hash-router basename in copied settings links', async () => {
@@ -170,11 +168,9 @@ describe('Settings', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /copy settings link/i }));
-
-    await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(
-        'https://app.example/#/app/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
-      );
-    });
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith(
+      'https://app.example/#/app/settings/appearance?focus=message-link-preview&moe.sable.client.action=settings'
+    );
   });
 });

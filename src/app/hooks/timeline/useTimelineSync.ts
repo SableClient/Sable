@@ -26,6 +26,7 @@ import {
   getRoomUnreadInfo,
   PAGINATION_LIMIT,
 } from '$utils/timeline';
+import { pushTimelineJumpDebug } from '$features/room/timelineJumpDebug';
 
 export const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
 
@@ -147,16 +148,7 @@ const useTimelinePagination = (
         (backwards ? setBackwardStatus : setForwardStatus)('loading');
       }
 
-      // `continuing` tracks whether we hand the fetchingRef lock to a recursive
-      // continuation call below.  The finally block must NOT reset the lock if
-      // the recursive call has already claimed it, otherwise there is a brief
-      // window where fetchingRef is false while the recursive paginate is in
-      // flight, allowing a third overlapping call to start on sparse pages.
-      let continuing = false;
-
       try {
-        const countBefore = getTimelinesEventsCount(lTimelines);
-
         const [err] = await to(mx.paginateEventTimeline(timelineToPaginate, { backwards, limit }));
 
         if (err) {
@@ -189,38 +181,9 @@ const useTimelinePagination = (
           if (!firstTimeline) return;
           recalibratePagination(freshLTimelines);
           (backwards ? setBackwardStatus : setForwardStatus)('idle');
-
-          const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
-          const fetched = countAfter - countBefore;
-
-          if (fetched > 0 && fetched < 5) {
-            const checkTimeline = backwards
-              ? freshLTimelines[0]
-              : freshLTimelines[freshLTimelines.length - 1];
-            if (!checkTimeline) return;
-            const checkDirection = backwards ? Direction.Backward : Direction.Forward;
-            const stillHasToken =
-              typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
-              'string';
-            if (stillHasToken) {
-              // Release lock so inner paginate can claim it, then mark continuing
-              // so the finally block below does NOT reset it after inner claims.
-              fetchingRef.current[directionKey] = false;
-              continuing = true;
-              paginate(backwards);
-              // At this point the inner paginate has synchronously set
-              // fetchingRef.current[directionKey] = true before hitting its own
-              // await.  The finally below will skip the reset.
-            }
-          }
         }
       } finally {
-        // Only release the lock if we did NOT hand it to a recursive continuation.
-        // If `continuing` is true the recursive call owns the lock and will release
-        // it in its own finally block.
-        if (!continuing) {
-          fetchingRef.current[directionKey] = false;
-        }
+        fetchingRef.current[directionKey] = false;
       }
     };
   }, [mx, alive, setTimeline, limit, setBackwardStatus, setForwardStatus]);
@@ -447,6 +410,12 @@ export function useTimelineSync({
     useCallback(
       (evtId, lTimelines, evtAbsIndex) => {
         if (!alive()) return;
+        pushTimelineJumpDebug('sync', 'jump_load_resolved', {
+          roomId: room.roomId,
+          eventId: evtId,
+          absIndex: evtAbsIndex,
+          linkedTimelines: lTimelines.length,
+        });
 
         setTimeline({ linkedTimelines: lTimelines });
 
@@ -456,7 +425,7 @@ export function useTimelineSync({
           highlight: evtId !== readUptoEventIdRef.current,
         });
       },
-      [alive, readUptoEventIdRef]
+      [alive, readUptoEventIdRef, room.roomId]
     ),
     useCallback(() => {
       if (!alive()) return;
@@ -474,6 +443,13 @@ export function useTimelineSync({
     room,
     useCallback(
       (mEvt: MatrixEvent) => {
+        if (focusItem?.scrollTo) {
+          pushTimelineJumpDebug('sync', 'live_event_ignored_while_jump_landing', {
+            roomId: room.roomId,
+            eventId: mEvt.getId() ?? undefined,
+          });
+          return;
+        }
         const { threadRootId } = mEvt;
         if (threadRootId !== undefined) return;
 
@@ -490,6 +466,11 @@ export function useTimelineSync({
           }
 
           scrollToBottom(mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth');
+          pushTimelineJumpDebug('sync', 'live_event_autoscroll_bottom', {
+            roomId: room.roomId,
+            eventId: mEvt.getId() ?? undefined,
+            mode: mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth',
+          });
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));
@@ -501,7 +482,16 @@ export function useTimelineSync({
           setUnreadInfo(getRoomUnreadInfo(room));
         }
       },
-      [mx, room, isAtBottomRef, unreadInfo, scrollToBottom, setUnreadInfo, hideReadsRef]
+      [
+        focusItem?.scrollTo,
+        mx,
+        room,
+        isAtBottomRef,
+        unreadInfo,
+        scrollToBottom,
+        setUnreadInfo,
+        hideReadsRef,
+      ]
     )
   );
 
@@ -547,6 +537,12 @@ export function useTimelineSync({
   );
 
   useEffect(() => {
+    if (focusItem?.scrollTo) {
+      pushTimelineJumpDebug('sync', 'auto_follow_blocked_jump_landing', {
+        roomId: room.roomId,
+      });
+      return;
+    }
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
     if (resetAutoScrollPending) resetAutoScrollPendingRef.current = false;
 
@@ -565,7 +561,21 @@ export function useTimelineSync({
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom('instant');
-  }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
+    pushTimelineJumpDebug('sync', 'auto_follow_scroll_bottom', {
+      roomId: room.roomId,
+      eventsLength,
+      resetAutoScrollPending,
+      isAtBottom,
+      liveTimelineLinked,
+    });
+  }, [
+    focusItem?.scrollTo,
+    isAtBottom,
+    liveTimelineLinked,
+    eventsLength,
+    scrollToBottom,
+    room.roomId,
+  ]);
 
   useEffect(() => {
     if (eventId) return;

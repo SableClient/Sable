@@ -691,12 +691,206 @@ export function useTimelineEventRenderer({
           </Message>
         );
       },
-      [M_POLL_START.name]: (_mEventId, mEvent) => (
-        <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
-      ),
-      [M_POLL_START.altName]: (_mEventId, mEvent) => (
-        <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
-      ),
+      [M_POLL_START.name]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
+        const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
+        const actualThreadRootId = isThreadRel ? threadRootId : undefined;
+        const explicitInReplyTo = mEvent.getWireContent()?.['m.relates_to']?.['m.in_reply_to']
+          ?.event_id as unknown;
+        const threadReplyTargetId =
+          isThreadRel && typeof explicitInReplyTo === 'string' ? explicitInReplyTo : undefined;
+        const replyEventId =
+          hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
+            ? undefined
+            : (threadReplyTargetId ?? rawReplyEventId);
+        const reactionRelations = getEventReactions(timelineSet, mEventId);
+        const reactions = reactionRelations?.getSortedAnnotationsByKey();
+        const hasReactions = reactions && reactions.length > 0;
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const senderId = mEvent.getSender() ?? '';
+        const senderDisplayName =
+          getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
+        const content = mEvent.getContent() ?? {};
+        return (
+          <Message
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            messageSpacing={messageSpacing}
+            messageLayout={messageLayout}
+            highlight={highlighted}
+            canDelete={canRedact || (canDeleteOwn && senderId === mx.getUserId())}
+            canSendReaction={canSendReaction}
+            canPinEvent={canPinEvent}
+            imagePackRooms={imagePackRooms}
+            relations={hasReactions ? reactionRelations : undefined}
+            onUserClick={onUserClick}
+            onUsernameClick={onUsernameClick}
+            onReplyClick={onReplyClick}
+            onReactionToggle={onReactionToggle}
+            senderId={senderId}
+            activeReplyId={activeReplyId}
+            senderDisplayName={senderDisplayName}
+            sendStatus={mEvent.getAssociatedStatus()}
+            onResend={onResend}
+            onDeleteFailedSend={onDeleteFailedSend}
+            collapse={collapse}
+            reply={
+              replyEventId && (
+                <Reply
+                  room={room}
+                  timelineSet={timelineSet}
+                  replyEventId={replyEventId}
+                  threadRootId={hideThreadChip ? undefined : actualThreadRootId}
+                  mentions={content['m.mentions']}
+                  onClick={handleOpenReply}
+                />
+              )
+            }
+            reactions={(() => {
+              const threadChip =
+                !hideThreadChip && (room.getThread(mEventId) || threadRootId) ? (
+                  <ThreadReplyChip
+                    room={room}
+                    mEventId={mEventId}
+                    openThreadId={openThreadId}
+                    onToggle={() => setOpenThread(openThreadId === mEventId ? undefined : mEventId)}
+                  />
+                ) : null;
+              if (!reactionRelations && !threadChip) return undefined;
+              return (
+                <>
+                  {reactionRelations && (
+                    <Reactions
+                      style={{ marginTop: config.space.S200 }}
+                      room={room}
+                      relations={reactionRelations}
+                      mEventId={mEventId}
+                      canSendReaction={canSendReaction}
+                      canDeleteOwn={canDeleteOwn}
+                      onReactionToggle={onReactionToggle}
+                    />
+                  )}
+                  {threadChip}
+                </>
+              );
+            })()}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            memberPowerTag={getMemberPowerTag(senderId)}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          >
+            {mEvent.isRedacted() ? (
+              <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
+            ) : (
+              <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+            )}
+          </Message>
+        );
+      },
+      [M_POLL_START.altName]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
+        const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);
+        const actualThreadRootId = isThreadRel ? threadRootId : undefined;
+        const explicitInReplyTo = mEvent.getWireContent()?.['m.relates_to']?.['m.in_reply_to']
+          ?.event_id as unknown;
+        const threadReplyTargetId =
+          isThreadRel && typeof explicitInReplyTo === 'string' ? explicitInReplyTo : undefined;
+        const replyEventId =
+          hideThreadChip && mEvent.getWireContent()?.['m.relates_to']?.is_falling_back
+            ? undefined
+            : (threadReplyTargetId ?? rawReplyEventId);
+        const reactionRelations = getEventReactions(timelineSet, mEventId);
+        const reactions = reactionRelations?.getSortedAnnotationsByKey();
+        const hasReactions = reactions && reactions.length > 0;
+        const highlighted = focusItem?.index === item && focusItem.highlight;
+        const senderId = mEvent.getSender() ?? '';
+        const senderDisplayName =
+          getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
+        const content = mEvent.getContent() ?? {};
+        return (
+          <Message
+            key={mEventId}
+            data-message-item={item}
+            data-message-id={mEventId}
+            room={room}
+            mEvent={mEvent}
+            messageSpacing={messageSpacing}
+            messageLayout={messageLayout}
+            highlight={highlighted}
+            canDelete={canRedact || (canDeleteOwn && senderId === mx.getUserId())}
+            canSendReaction={canSendReaction}
+            canPinEvent={canPinEvent}
+            imagePackRooms={imagePackRooms}
+            relations={hasReactions ? reactionRelations : undefined}
+            onUserClick={onUserClick}
+            onUsernameClick={onUsernameClick}
+            onReplyClick={onReplyClick}
+            onReactionToggle={onReactionToggle}
+            senderId={senderId}
+            activeReplyId={activeReplyId}
+            senderDisplayName={senderDisplayName}
+            sendStatus={mEvent.getAssociatedStatus()}
+            onResend={onResend}
+            onDeleteFailedSend={onDeleteFailedSend}
+            collapse={collapse}
+            reply={
+              replyEventId && (
+                <Reply
+                  room={room}
+                  timelineSet={timelineSet}
+                  replyEventId={replyEventId}
+                  threadRootId={hideThreadChip ? undefined : actualThreadRootId}
+                  mentions={content['m.mentions']}
+                  onClick={handleOpenReply}
+                />
+              )
+            }
+            reactions={(() => {
+              const threadChip =
+                !hideThreadChip && (room.getThread(mEventId) || threadRootId) ? (
+                  <ThreadReplyChip
+                    room={room}
+                    mEventId={mEventId}
+                    openThreadId={openThreadId}
+                    onToggle={() => setOpenThread(openThreadId === mEventId ? undefined : mEventId)}
+                  />
+                ) : null;
+              if (!reactionRelations && !threadChip) return undefined;
+              return (
+                <>
+                  {reactionRelations && (
+                    <Reactions
+                      style={{ marginTop: config.space.S200 }}
+                      room={room}
+                      relations={reactionRelations}
+                      mEventId={mEventId}
+                      canSendReaction={canSendReaction}
+                      canDeleteOwn={canDeleteOwn}
+                      onReactionToggle={onReactionToggle}
+                    />
+                  )}
+                  {threadChip}
+                </>
+              );
+            })()}
+            hideReadReceipts={hideReads}
+            showDeveloperTools={showDeveloperTools}
+            memberPowerTag={getMemberPowerTag(senderId)}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          >
+            {mEvent.isRedacted() ? (
+              <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
+            ) : (
+              <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+            )}
+          </Message>
+        );
+      },
       [EventType.Sticker]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const { replyEventId: rawReplyEventId, threadRootId } = mEvent;
         const isThreadRel = isThreadRelationEvent(mEvent, threadRootId);

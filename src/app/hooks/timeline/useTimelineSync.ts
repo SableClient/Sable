@@ -122,7 +122,7 @@ const useTimelinePagination = (
       setTimeline(() => ({ linkedTimelines: newLTimelines }));
     };
 
-    return async (backwards: boolean) => {
+    return async (backwards: boolean, limitOverride?: number) => {
       const directionKey = backwards ? 'backward' : 'forward';
       if (fetchingRef.current[directionKey]) return;
 
@@ -148,8 +148,15 @@ const useTimelinePagination = (
         (backwards ? setBackwardStatus : setForwardStatus)('loading');
       }
 
+      const requestLimit =
+        typeof limitOverride === 'number' && Number.isFinite(limitOverride)
+          ? Math.max(10, Math.min(300, Math.floor(limitOverride)))
+          : limit;
+
       try {
-        const [err] = await to(mx.paginateEventTimeline(timelineToPaginate, { backwards, limit }));
+        const [err] = await to(
+          mx.paginateEventTimeline(timelineToPaginate, { backwards, limit: requestLimit })
+        );
 
         if (err) {
           if (alive()) {

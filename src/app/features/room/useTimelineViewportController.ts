@@ -18,14 +18,33 @@ import { pushTimelineJumpDebug } from './timelineJumpDebug';
 const INITIAL_BACKFILL_PAGE_BUDGET = 6;
 const BOOTSTRAP_FILL_TARGET_SLACK_PX = 32;
 const TIMELINE_PAGINATION_THRESHOLD_PX = 500;
+const TIMELINE_PAGINATION_LEAD_THRESHOLD_PX = 1000;
 const TIMELINE_SCROLL_INTENT_DELTA_PX = 8;
-const TIMELINE_SCROLL_INTENT_TTL_MS = 250;
+const TIMELINE_SCROLL_INTENT_TTL_MS = 1200;
+const MIN_PAGINATION_LIMIT = 40;
+const MEDIUM_SCROLL_LIMIT = 100;
+const FAST_SCROLL_LIMIT = 160;
+const SCROLL_PRESSURE_TTL_MS = 1200;
+const MAX_SCROLL_PRESSURE_PAGES = 3;
+const TOP_EDGE_RECOIL_TRIGGER_PX = 28;
+const TOP_EDGE_RECOIL_STEP_MIN_PX = 90;
+const TOP_EDGE_RECOIL_STEP_MAX_PX = 260;
+const TOP_EDGE_RECOIL_COOLDOWN_MS = 60;
 
 type TimelineSyncController = ReturnType<typeof useTimelineSync>;
 
 type PendingScrollIntent = {
   id: number;
   direction?: TimelineScrollDirection;
+  limit?: number;
+  expiresAt: number;
+};
+
+type ScrollPressure = {
+  backward: number;
+  forward: number;
+  backwardLimit: number;
+  forwardLimit: number;
   expiresAt: number;
 };
 
@@ -69,10 +88,21 @@ export function useTimelineViewportController({
   const suppressNextCenterScrollRef = useRef(false);
   const scrollIntentCounterRef = useRef(0);
   const pendingScrollIntentRef = useRef<PendingScrollIntent | undefined>(undefined);
+  const queuedPaginationAfterLoadRef = useRef({ backward: false, forward: false });
+  const scrollPressureRef = useRef<ScrollPressure>({
+    backward: 0,
+    forward: 0,
+    backwardLimit: MIN_PAGINATION_LIMIT,
+    forwardLimit: MIN_PAGINATION_LIMIT,
+    expiresAt: 0,
+  });
+  const lastIntentSampleRef = useRef<{ at: number; deltaPx: number }>({ at: 0, deltaPx: 0 });
   const pendingBootstrapRevealRef = useRef(false);
   const bootstrapViewportRetryFrameRef = useRef<number | undefined>(undefined);
   const settleAnchorFrameRef = useRef<number | undefined>(undefined);
   const readyFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastTopEdgeRecoilAtRef = useRef(0);
+  const lastBackwardIntentAtRef = useRef(0);
   const currentRoomIdRef = useRef(roomId);
 
   const canPaginateBackRef = useRef(timelineSync.canPaginateBack);
@@ -90,6 +120,51 @@ export function useTimelineViewportController({
   const clearPendingScrollIntent = useCallback(() => {
     pendingScrollIntentRef.current = undefined;
   }, []);
+
+  const applyTopEdgeRecoil = useCallback(
+    (deltaPx?: number) => {
+      const v = vListRef.current;
+      if (!v) return false;
+      if (v.scrollOffset > TOP_EDGE_RECOIL_TRIGGER_PX) return false;
+      const now = Date.now();
+      if (now - lastTopEdgeRecoilAtRef.current < TOP_EDGE_RECOIL_COOLDOWN_MS) return false;
+      lastTopEdgeRecoilAtRef.current = now;
+      const recoilPx = Math.max(
+        TOP_EDGE_RECOIL_STEP_MIN_PX,
+        Math.min(TOP_EDGE_RECOIL_STEP_MAX_PX, Math.round((deltaPx ?? 120) * 1.2))
+      );
+      const maxOffset = Math.max(0, v.scrollSize - v.viewportSize);
+      v.scrollTo(Math.min(maxOffset, v.scrollOffset + recoilPx));
+      return true;
+    },
+    [vListRef]
+  );
+
+  const readScrollPressure = useCallback((): ScrollPressure => {
+    const pressure = scrollPressureRef.current;
+    if (Date.now() <= pressure.expiresAt) return pressure;
+    pressure.backward = 0;
+    pressure.forward = 0;
+    pressure.backwardLimit = MIN_PAGINATION_LIMIT;
+    pressure.forwardLimit = MIN_PAGINATION_LIMIT;
+    return pressure;
+  }, []);
+
+  const consumeScrollPressure = useCallback(
+    (direction: TimelineScrollDirection): number | undefined => {
+      const pressure = readScrollPressure();
+      if (direction === 'backward' && pressure.backward > 0) {
+        pressure.backward -= 1;
+        return pressure.backwardLimit;
+      }
+      if (direction === 'forward' && pressure.forward > 0) {
+        pressure.forward -= 1;
+        return pressure.forwardLimit;
+      }
+      return undefined;
+    },
+    [readScrollPressure]
+  );
 
   const getActiveScrollIntent = useCallback((): PendingScrollIntent | undefined => {
     const intent = pendingScrollIntentRef.current;
@@ -114,6 +189,32 @@ export function useTimelineViewportController({
     },
     [vListRef]
   );
+
+  const isNearBackwardEdge = useCallback(
+    (edges: ReturnType<typeof getScrollEdges>) =>
+      Boolean(edges && edges.offset < TIMELINE_PAGINATION_LEAD_THRESHOLD_PX),
+    []
+  );
+
+  const isNearForwardEdge = useCallback(
+    (edges: ReturnType<typeof getScrollEdges>) =>
+      Boolean(edges && edges.distanceFromBottom < TIMELINE_PAGINATION_LEAD_THRESHOLD_PX),
+    []
+  );
+
+  const getDynamicPaginationLimit = useCallback((deltaPx?: number): number => {
+    const now = Date.now();
+    const previous = lastIntentSampleRef.current;
+    const sampleDelta = typeof deltaPx === 'number' ? deltaPx : previous.deltaPx;
+    const elapsed = previous.at === 0 ? 16 : Math.max(16, now - previous.at);
+    const speedPxPerSec = (sampleDelta / elapsed) * 1000;
+
+    lastIntentSampleRef.current = { at: now, deltaPx: sampleDelta };
+
+    if (sampleDelta > 320 || speedPxPerSec > 2200) return FAST_SCROLL_LIMIT;
+    if (sampleDelta > 120 || speedPxPerSec > 900) return MEDIUM_SCROLL_LIMIT;
+    return MIN_PAGINATION_LIMIT;
+  }, []);
 
   const requestPaginationFromScroll = useCallback(
     (
@@ -142,9 +243,13 @@ export function useTimelineViewportController({
         return;
 
       pendingScrollIntentRef.current = undefined;
-      timelineSyncRef.current.handleTimelinePagination(direction === 'backward');
+      const pressureLimit = consumeScrollPressure(direction);
+      timelineSyncRef.current.handleTimelinePagination(
+        direction === 'backward',
+        Math.max(intent.limit ?? MIN_PAGINATION_LIMIT, pressureLimit ?? MIN_PAGINATION_LIMIT)
+      );
     },
-    [getScrollEdges, jumpInFlight, timelineSyncRef]
+    [consumeScrollPressure, getScrollEdges, jumpInFlight, timelineSyncRef]
   );
 
   if (currentRoomIdRef.current !== roomId) {
@@ -156,6 +261,15 @@ export function useTimelineViewportController({
     lastScrollOffsetRef.current = 0;
     suppressNextCenterScrollRef.current = false;
     pendingScrollIntentRef.current = undefined;
+    queuedPaginationAfterLoadRef.current = { backward: false, forward: false };
+    scrollPressureRef.current = {
+      backward: 0,
+      forward: 0,
+      backwardLimit: MIN_PAGINATION_LIMIT,
+      forwardLimit: MIN_PAGINATION_LIMIT,
+      expiresAt: 0,
+    };
+    lastIntentSampleRef.current = { at: 0, deltaPx: 0 };
     pendingBootstrapRevealRef.current = false;
     if (bootstrapViewportRetryFrameRef.current !== undefined) {
       cancelAnimationFrame(bootstrapViewportRetryFrameRef.current);
@@ -362,6 +476,29 @@ export function useTimelineViewportController({
     } else if (prev === 'loading' && timelineSync.backwardStatus === 'idle') {
       setShift(false);
       if (wasAtBottomBeforePaginationRef.current) settleTimelineAnchor({ kind: 'bottom' });
+      const edges = getScrollEdges();
+      const pressure = readScrollPressure();
+      const shouldContinueBackward =
+        isNearBackwardEdge(edges) &&
+        canPaginateBackRef.current &&
+        !jumpInFlight &&
+        !timelineSync.focusItem?.scrollTo;
+      const shouldContinueBackwardWithPressure =
+        pressure.backward > 0 &&
+        canPaginateBackRef.current &&
+        !jumpInFlight &&
+        !timelineSync.focusItem?.scrollTo;
+      if (
+        queuedPaginationAfterLoadRef.current.backward ||
+        shouldContinueBackward ||
+        shouldContinueBackwardWithPressure
+      ) {
+        queuedPaginationAfterLoadRef.current.backward = false;
+        if (shouldContinueBackward || shouldContinueBackwardWithPressure) {
+          const pressureLimit = consumeScrollPressure('backward') ?? MIN_PAGINATION_LIMIT;
+          timelineSyncRef.current.handleTimelinePagination(true, pressureLimit);
+        }
+      }
 
       if (pendingBootstrapRevealRef.current) {
         const v = vListRef.current;
@@ -388,6 +525,13 @@ export function useTimelineViewportController({
     timelineSync.canPaginateBack,
     atBottomRef,
     clearPendingScrollIntent,
+    consumeScrollPressure,
+    getScrollEdges,
+    isNearBackwardEdge,
+    jumpInFlight,
+    readScrollPressure,
+    timelineSync.focusItem?.scrollTo,
+    timelineSyncRef,
     settleTimelineAnchor,
     vListRef,
   ]);
@@ -401,7 +545,32 @@ export function useTimelineViewportController({
     ) {
       clearPendingScrollIntent();
     }
-  }, [clearPendingScrollIntent, timelineSync.forwardStatus]);
+    if (prev === 'loading' && timelineSync.forwardStatus === 'idle') {
+      if (queuedPaginationAfterLoadRef.current.forward) {
+        queuedPaginationAfterLoadRef.current.forward = false;
+        const edges = getScrollEdges();
+        const pressure = readScrollPressure();
+        const shouldContinueForwardWithPressure = pressure.forward > 0 && !jumpInFlight;
+        if (
+          (isNearForwardEdge(edges) || shouldContinueForwardWithPressure) &&
+          !liveTimelineLinkedRef.current &&
+          !jumpInFlight
+        ) {
+          const pressureLimit = consumeScrollPressure('forward') ?? MIN_PAGINATION_LIMIT;
+          timelineSyncRef.current.handleTimelinePagination(false, pressureLimit);
+        }
+      }
+    }
+  }, [
+    clearPendingScrollIntent,
+    consumeScrollPressure,
+    getScrollEdges,
+    isNearForwardEdge,
+    jumpInFlight,
+    readScrollPressure,
+    timelineSync.forwardStatus,
+    timelineSyncRef,
+  ]);
 
   useEffect((): void | (() => void) => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -597,6 +766,15 @@ export function useTimelineViewportController({
       const edges = getScrollEdges(offset);
       if (!edges) return;
 
+      if (
+        edges.offset < TOP_EDGE_RECOIL_TRIGGER_PX &&
+        canPaginateBackRef.current &&
+        backwardStatusRef.current === 'loading' &&
+        Date.now() - lastBackwardIntentAtRef.current < 1500
+      ) {
+        applyTopEdgeRecoil(120);
+      }
+
       if (anchorRef.current.kind === 'message-center' && suppressNextCenterScrollRef.current) {
         suppressNextCenterScrollRef.current = false;
         return;
@@ -624,8 +802,13 @@ export function useTimelineViewportController({
         anchorRef.current = { kind: 'bottom' };
       }
 
+      const paginationLoading =
+        backwardStatusRef.current === 'loading' || forwardStatusRef.current === 'loading';
       const nextAtBottom =
-        anchorRef.current.kind === 'bottom' && !hasScrollIntent && !edges.isAtBottom
+        anchorRef.current.kind === 'bottom' &&
+        paginationLoading &&
+        !hasScrollIntent &&
+        !edges.isAtBottom
           ? true
           : edges.isAtBottom && liveTimelineLinkedRef.current;
       if (nextAtBottom !== atBottomRef.current) setAtBottom(nextAtBottom);
@@ -634,6 +817,7 @@ export function useTimelineViewportController({
       if (intentTowardForward) requestPaginationFromScroll('forward', activeIntent, offset);
     },
     [
+      applyTopEdgeRecoil,
       atBottomRef,
       getActiveScrollIntent,
       getScrollEdges,
@@ -647,17 +831,103 @@ export function useTimelineViewportController({
   );
 
   const markUserScrollIntent = useCallback(
-    (direction?: TimelineScrollDirection) => {
+    (direction?: TimelineScrollDirection, deltaPx?: number): boolean => {
+      if (direction && pendingBootstrapRevealRef.current) {
+        pendingBootstrapRevealRef.current = false;
+        setIsReady(true);
+      }
+      let consumed = false;
       scrollIntentCounterRef.current += 1;
+      const dynamicLimit = getDynamicPaginationLimit(deltaPx);
+      const pressurePages = Math.max(
+        1,
+        Math.min(MAX_SCROLL_PRESSURE_PAGES, Math.ceil(dynamicLimit / MIN_PAGINATION_LIMIT))
+      );
+      if (direction) {
+        const pressure = readScrollPressure();
+        if (direction === 'backward') {
+          lastBackwardIntentAtRef.current = Date.now();
+          pressure.backward = Math.min(MAX_SCROLL_PRESSURE_PAGES, pressure.backward + pressurePages);
+          pressure.backwardLimit = Math.max(pressure.backwardLimit, dynamicLimit);
+        } else {
+          pressure.forward = Math.min(MAX_SCROLL_PRESSURE_PAGES, pressure.forward + pressurePages);
+          pressure.forwardLimit = Math.max(pressure.forwardLimit, dynamicLimit);
+        }
+        pressure.expiresAt = Date.now() + SCROLL_PRESSURE_TTL_MS;
+      }
       const intent = {
         id: scrollIntentCounterRef.current,
         direction,
+        limit: dynamicLimit,
         expiresAt: Date.now() + TIMELINE_SCROLL_INTENT_TTL_MS,
       };
       pendingScrollIntentRef.current = intent;
+      if (
+        direction === 'backward' &&
+        anchorRef.current.kind === 'bottom' &&
+        backwardStatusRef.current === 'idle'
+      ) {
+        anchorRef.current = { kind: 'none' };
+        if (atBottomRef.current) setAtBottom(false);
+      }
+      const edges = direction ? getScrollEdges() : undefined;
+      if (
+        direction === 'backward' &&
+        canPaginateBackRef.current &&
+        edges &&
+        edges.offset < TOP_EDGE_RECOIL_TRIGGER_PX
+      ) {
+        consumed = applyTopEdgeRecoil(deltaPx) || consumed;
+      }
+      if (
+        direction === 'backward' &&
+        backwardStatusRef.current === 'loading' &&
+        isNearBackwardEdge(edges)
+      ) {
+        queuedPaginationAfterLoadRef.current.backward = true;
+      }
+      if (
+        direction === 'forward' &&
+        forwardStatusRef.current === 'loading' &&
+        isNearForwardEdge(edges)
+      ) {
+        queuedPaginationAfterLoadRef.current.forward = true;
+      }
+      if (
+        direction === 'backward' &&
+        backwardStatusRef.current === 'idle' &&
+        canPaginateBackRef.current &&
+        isNearBackwardEdge(edges)
+      ) {
+        if (edges && edges.offset < TOP_EDGE_RECOIL_TRIGGER_PX) {
+          consumed = applyTopEdgeRecoil(deltaPx) || consumed;
+        }
+        requestPaginationFromScroll('backward', intent, edges?.offset);
+        return consumed;
+      }
+      if (
+        direction === 'forward' &&
+        forwardStatusRef.current === 'idle' &&
+        !liveTimelineLinkedRef.current &&
+        isNearForwardEdge(edges)
+      ) {
+        requestPaginationFromScroll('forward', intent, edges?.offset);
+        return consumed;
+      }
       if (direction) requestPaginationFromScroll(direction, intent);
+      return consumed;
     },
-    [requestPaginationFromScroll]
+    [
+      atBottomRef,
+      applyTopEdgeRecoil,
+      getDynamicPaginationLimit,
+      getScrollEdges,
+      isNearBackwardEdge,
+      isNearForwardEdge,
+      readScrollPressure,
+      requestPaginationFromScroll,
+      setAtBottom,
+    ]
   );
 
   return {

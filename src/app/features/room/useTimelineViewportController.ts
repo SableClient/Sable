@@ -67,6 +67,7 @@ export function useTimelineViewportController({
   const [topSpacerHeight, setTopSpacerHeight] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [jumpInFlight, setJumpInFlight] = useState(false);
+  const [bootstrapViewportTick, setBootstrapViewportTick] = useState(0);
 
   const topSpacerHeightRef = useRef(0);
   const hasInitialScrolledRef = useRef(false);
@@ -76,6 +77,7 @@ export function useTimelineViewportController({
   const queuedPaginationRef = useRef({ backward: false, forward: false });
   const pendingUserDirectionRef = useRef<TimelineScrollDirection | undefined>(undefined);
   const pendingUserScrollRef = useRef(false);
+  const pendingBootstrapRevealRef = useRef(false);
   const remainingInitialBackfillPagesRef = useRef(INITIAL_BACKFILL_PAGE_BUDGET);
   const lastScrollOffsetRef = useRef(0);
   const pendingBootstrapFrameRef = useRef<number | undefined>(undefined);
@@ -108,6 +110,7 @@ export function useTimelineViewportController({
     queuedPaginationRef.current = { backward: false, forward: false };
     pendingUserDirectionRef.current = undefined;
     pendingUserScrollRef.current = false;
+    pendingBootstrapRevealRef.current = false;
     remainingInitialBackfillPagesRef.current = INITIAL_BACKFILL_PAGE_BUDGET;
     lastScrollOffsetRef.current = 0;
     topSpacerHeightRef.current = 0;
@@ -168,6 +171,25 @@ export function useTimelineViewportController({
       topSpacerHeightRef.current = next;
       setTopSpacerHeight(next);
     }
+  }, [vListRef]);
+
+  const revealBootstrapIfReady = useCallback((): boolean => {
+    if (!pendingBootstrapRevealRef.current) return false;
+
+    const v = vListRef.current;
+    if (!v || v.viewportSize <= 0) return false;
+
+    const contentHeight = Math.max(0, v.scrollSize - topSpacerHeightRef.current);
+    const done =
+      contentHeight > v.viewportSize ||
+      !canPaginateBackRef.current ||
+      remainingInitialBackfillPagesRef.current <= 0;
+
+    if (!done) return false;
+
+    pendingBootstrapRevealRef.current = false;
+    setIsReady(true);
+    return true;
   }, [vListRef]);
 
   const findMessageElement = useCallback(
@@ -330,6 +352,7 @@ export function useTimelineViewportController({
 
   useEffect(() => {
     if (isReady) return undefined;
+    if (pendingBootstrapRevealRef.current) return undefined;
     if (eventId || jumpInFlight) return undefined;
     readyFallbackTimerRef.current = setTimeout(() => {
       setIsReady(true);
@@ -354,12 +377,15 @@ export function useTimelineViewportController({
       pendingReadyRef.current = true;
     }
 
-    settleTimelineAnchor({ kind: 'bottom' }, true);
+    const shouldBootstrapBeforeReveal = timelineSync.canPaginateBack;
+    pendingBootstrapRevealRef.current = shouldBootstrapBeforeReveal;
+    settleTimelineAnchor({ kind: 'bottom' }, !shouldBootstrapBeforeReveal);
     hasInitialScrolledRef.current = true;
   }, [
     eventId,
     timelineSync.eventsLength,
     timelineSync.liveTimelineLinked,
+    timelineSync.canPaginateBack,
     processedEventsRef,
     settleTimelineAnchor,
     vListRef,
@@ -399,13 +425,20 @@ export function useTimelineViewportController({
       setShift(false);
       edgeArmedRef.current.backward = true;
       if (wasAtBottomBeforePaginationRef.current) settleTimelineAnchor({ kind: 'bottom' });
+      revealBootstrapIfReady();
 
       if (queuedPaginationRef.current.backward) {
         queuedPaginationRef.current.backward = false;
         requestPagination('backward', true);
       }
     }
-  }, [atBottomRef, requestPagination, settleTimelineAnchor, timelineSync.backwardStatus]);
+  }, [
+    atBottomRef,
+    requestPagination,
+    revealBootstrapIfReady,
+    settleTimelineAnchor,
+    timelineSync.backwardStatus,
+  ]);
 
   useLayoutEffect(() => {
     const previous = prevForwardStatusRef.current;
@@ -527,11 +560,14 @@ export function useTimelineViewportController({
     if (processedEventsRef.current.length === 0) return;
     pendingReadyRef.current = false;
     vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-    settleTimelineAnchor({ kind: 'bottom' }, true);
+    const shouldBootstrapBeforeReveal = timelineSync.canPaginateBack;
+    pendingBootstrapRevealRef.current = shouldBootstrapBeforeReveal;
+    settleTimelineAnchor({ kind: 'bottom' }, !shouldBootstrapBeforeReveal);
   }, [
     processedEventsRef,
     processedEventsRef.current.length,
     settleTimelineAnchor,
+    timelineSync.canPaginateBack,
     timelineSync.eventsLength,
     vListRef,
   ]);
@@ -539,18 +575,21 @@ export function useTimelineViewportController({
   useEffect(() => {
     const v = vListRef.current;
     if (!v || eventId || jumpInFlight) return;
-    if (!isReady || anchorRef.current.kind !== 'bottom') return;
+    if (!isReady && !pendingBootstrapRevealRef.current) return;
+    if (anchorRef.current.kind !== 'bottom') return;
     if (remainingInitialBackfillPagesRef.current <= 0) return;
-    if (!canPaginateBackRef.current || backwardStatusRef.current !== 'idle') return;
     if (v.viewportSize <= 0) {
       if (pendingBootstrapFrameRef.current === undefined) {
         pendingBootstrapFrameRef.current = requestAnimationFrame(() => {
           pendingBootstrapFrameRef.current = undefined;
-          recalcTopSpacer();
+          setBootstrapViewportTick((prev) => prev + 1);
         });
       }
       return;
     }
+
+    if (revealBootstrapIfReady()) return;
+    if (!canPaginateBackRef.current || backwardStatusRef.current !== 'idle') return;
 
     const contentHeight = Math.max(0, v.scrollSize - topSpacerHeightRef.current);
     if (contentHeight > v.viewportSize) return;
@@ -561,10 +600,11 @@ export function useTimelineViewportController({
     eventId,
     isReady,
     jumpInFlight,
-    recalcTopSpacer,
+    revealBootstrapIfReady,
     requestPagination,
     timelineSync.backwardStatus,
     timelineSync.eventsLength,
+    bootstrapViewportTick,
     vListRef,
   ]);
 

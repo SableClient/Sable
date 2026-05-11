@@ -168,7 +168,7 @@ describe('useTimelineViewportController', () => {
     expect(renderedRefs.vList.scrollToIndex).toHaveBeenCalledWith(1, { align: 'end' });
   });
 
-  it('prefills underfilled live rooms without hiding the revealed timeline', () => {
+  it('keeps underfilled live rooms hidden while bootstrap prefill starts', () => {
     const vList = createVList() as unknown as {
       scrollOffset: number;
       scrollSize: number;
@@ -181,8 +181,39 @@ describe('useTimelineViewportController', () => {
 
     const { result } = renderController({ timelineSync, refs });
 
-    expect(result.current.isReady).toBe(true);
+    expect(result.current.isReady).toBe(false);
     expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('reveals an initially underfilled live room once bootstrap prefill fills the viewport', () => {
+    const vList = createVList() as unknown as {
+      scrollOffset: number;
+      scrollSize: number;
+      viewportSize: number;
+    };
+    vList.scrollSize = 200;
+    vList.viewportSize = 800;
+    const refs = createRefs(vList as unknown as VListHandle);
+    const timelineSync = createTimelineSync({ canPaginateBack: true, backwardStatus: 'idle' });
+
+    const { result, rerender } = renderController({ timelineSync, refs });
+    expect(result.current.isReady).toBe(false);
+
+    const loadingSync = createTimelineSync({
+      ...timelineSync,
+      backwardStatus: 'loading',
+    });
+    rerender({ sync: loadingSync, roomEventId: undefined });
+
+    vList.scrollSize = 1500;
+    const idleSync = createTimelineSync({
+      ...timelineSync,
+      backwardStatus: 'idle',
+      eventsLength: 10,
+    });
+    rerender({ sync: idleSync, roomEventId: undefined });
+
+    expect(result.current.isReady).toBe(true);
   });
 
   it('does not paginate from layout-only scroll changes', () => {

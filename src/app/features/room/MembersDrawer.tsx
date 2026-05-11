@@ -167,7 +167,18 @@ function MemberItem({
     </div>
   );
 
-  if (hideText) return MemberAvatar;
+  if (hideText)
+    return (
+      <IconButton
+        onClick={onClick}
+        size="300"
+        aria-pressed={pressed}
+        data-user-id={member.userId}
+        style={{ padding: '0' }}
+      >
+        {MemberAvatar}
+      </IconButton>
+    );
   return (
     <MenuItem
       style={{ padding: `0 ${config.space.S200}` }}
@@ -285,6 +296,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   );
 
   const handleMemberClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    // oxlint-disable-next-line no-console
+    console.log(evt);
     const btn = evt.currentTarget as HTMLButtonElement;
     const userId = btn.getAttribute('data-user-id');
     if (!userId) return;
@@ -317,7 +330,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
           setSidebarWidth={setMemberSidebarWidth}
           instep={64}
           outstep={176}
-          minValue={64}
+          minValue={50}
           maxValue={350}
           isReversed
         />

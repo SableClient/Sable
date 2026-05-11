@@ -430,6 +430,7 @@ export function Space() {
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+  const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);
   const selectedRoomId = useSelectedRoom();
@@ -917,6 +918,7 @@ export function Space() {
                               notificationPreferences,
                               room.roomId
                             )}
+                            joinCallOnSingleClick={joinCallOnSingleClick}
                           />
                         </div>
                       </VirtualTile>

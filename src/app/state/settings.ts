@@ -148,6 +148,7 @@ export interface Settings {
   saveStickerEmojiBandwidth: boolean;
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
+  joinCallOnSingleClick: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -274,6 +275,7 @@ export const defaultSettings: Settings = {
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
+  joinCallOnSingleClick: true,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,

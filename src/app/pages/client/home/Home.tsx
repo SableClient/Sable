@@ -221,6 +221,7 @@ export function Home() {
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+  const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const selectedRoomId = useSelectedRoom();
   const createRoomSelected = useHomeCreateSelected();
@@ -415,6 +416,7 @@ export function Home() {
                                 notificationPreferences,
                                 room.roomId
                               )}
+                              joinCallOnSingleClick={joinCallOnSingleClick}
                             />
                           </div>
                         </VirtualTile>

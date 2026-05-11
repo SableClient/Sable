@@ -265,6 +265,7 @@ type RoomNavItemProps = {
   direct?: boolean;
   customDMCards?: boolean;
   hideText?: boolean;
+  joinCallOnSingleClick?: boolean;
 };
 
 export function RoomNavItem({
@@ -276,6 +277,7 @@ export function RoomNavItem({
   notificationMode,
   linkPath,
   hideText,
+  joinCallOnSingleClick,
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -333,7 +335,7 @@ export function RoomNavItem({
       if (callEmbed && !isActiveCall) return;
 
       if (!isMobile && !hideText) {
-        if (!isActiveCall && !callEmbed) {
+        if (!isActiveCall && !callEmbed && joinCallOnSingleClick) {
           startCall(
             room,
             new CallControlState(callPref.microphone, callPref.video, callPref.sound)

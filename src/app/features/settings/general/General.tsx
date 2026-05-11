@@ -845,6 +845,10 @@ function Calls() {
     settingsAtom,
     'alwaysShowCallButton'
   );
+  const [joinCallOnSingleClick, setjoinCallOnSingleClick] = useSetting(
+    settingsAtom,
+    'joinCallOnSingleClick'
+  );
 
   return (
     <Box direction="Column" gap="100">
@@ -858,6 +862,19 @@ function Calls() {
               variant="Primary"
               value={alwaysShowCallButton}
               onChange={setAlwaysShowCallButton}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Join voice calls by just clicking the room's icon"
+          focusId="join-on-click-voicecalls"
+          after={
+            <Switch
+              variant="Primary"
+              value={joinCallOnSingleClick}
+              onChange={setjoinCallOnSingleClick}
             />
           }
         />

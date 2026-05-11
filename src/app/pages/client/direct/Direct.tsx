@@ -194,6 +194,8 @@ export function Direct() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
 
+  const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
+
   const createDirectSelected = useDirectCreateSelected();
 
   const selectedRoomId = useSelectedRoom();
@@ -350,6 +352,7 @@ export function Direct() {
                                 notificationPreferences,
                                 room.roomId
                               )}
+                              joinCallOnSingleClick={joinCallOnSingleClick}
                             />
                           </div>
                         </VirtualTile>

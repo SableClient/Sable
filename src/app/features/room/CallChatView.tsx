@@ -1,6 +1,6 @@
 import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
-import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton } from 'folds';
+import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton, toRem } from 'folds';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';
 import { RoomView } from './RoomView';
@@ -18,26 +18,26 @@ export function CallChatView() {
 
   const handleClose = () => setChat(false);
 
-  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
-  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  const [vcmsgSidebarWidth, setVcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [curWidth, setCurWidth] = useState(vcmsgSidebarWidth);
   useEffect(() => {
-    setCurWidth(threadSidebarWidth);
-  }, [threadSidebarWidth]);
+    setCurWidth(vcmsgSidebarWidth);
+  }, [vcmsgSidebarWidth]);
   return (
     <>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
-          sidebarWidth={threadSidebarWidth}
-          setSidebarWidth={setThreadSidebarWidth}
-          minValue={50}
-          maxValue={1200}
+          sidebarWidth={vcmsgSidebarWidth}
+          setSidebarWidth={setVcmsgSidebarWidth}
+          minValue={300}
+          maxValue={1000}
           rightSided
         />
       )}
       <Page
         style={{
-          width: screenSize === ScreenSize.Desktop ? curWidth : '100%',
+          width: screenSize === ScreenSize.Desktop ? toRem(curWidth) : '100%',
           flexShrink: 0,
           flexGrow: 0,
         }}

@@ -761,8 +761,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
-          minValue={50}
-          maxValue={1200}
+          minValue={150}
+          maxValue={500}
           rightSided
         />
       )}
@@ -829,12 +829,12 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               setCurWidth={setCurHeight}
               sidebarWidth={threadRootHeight}
               setSidebarWidth={setThreadRootHeight}
-              minValue={50}
-              maxValue={1200}
+              minValue={60}
+              maxValue={700}
               topSided
             />
             <div
-              style={{ width: '100%', height: '1px', backgroundColor: color.Surface.ContainerLine }}
+              style={{ width: '100%', height: toRem(1), backgroundColor: color.Surface.ContainerLine }}
             />
           </>
         )}

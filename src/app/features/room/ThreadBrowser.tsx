@@ -454,8 +454,8 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
           setSidebarWidth={setThreadSidebarWidth}
-          minValue={50}
-          maxValue={1200}
+          minValue={150}
+          maxValue={500}
           rightSided
         />
       )}

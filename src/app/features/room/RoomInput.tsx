@@ -3,15 +3,15 @@ import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'r
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { isKeyHotkey } from 'is-hotkey';
-import {
+import type {
   IContent,
-  MatrixError,
   MatrixEvent,
   Room,
   IEventRelation,
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -118,7 +118,7 @@ import {
   computeDelayMs,
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
-import { timeHourMinute, timeDayMonthYear } from '$utils/time';
+import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
@@ -971,11 +971,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           setScheduledTime(null);
           resetInput();
         } catch (e: unknown) {
-          if (e instanceof MatrixError && e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED) {
-            const maxDelay = (e.data as { max_delay?: number })?.max_delay;
+          if (
+            e instanceof MatrixError &&
+            (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
+              e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
+          ) {
+            const maxDelay =
+              (e.data as { max_delay?: number })?.max_delay ??
+              e.data?.['org.matrix.msc4140.max_delay'];
             if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+            const maxDelayDays = maxDelay / daysToMs(1);
             setSendError(
-              'Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time.'
+              `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
             );
           } else {
             setSendError('Failed to schedule message. Please try again.');
@@ -1070,6 +1077,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      setServerMaxDelayMs,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(

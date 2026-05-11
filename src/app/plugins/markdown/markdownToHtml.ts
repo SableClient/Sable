@@ -50,6 +50,39 @@ const decodeHtmlEntities = (text: string): string => {
   return result;
 };
 
+const MATRIX_TO_PLACEHOLDER_PREFIX = 'MATRIXTORAWLINKTOKEN';
+
+const escapeHtml = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const shieldBareMatrixToLinks = (
+  input: string
+): { shielded: string; placeholders: Map<string, string> } => {
+  const placeholders = new Map<string, string>();
+  let index = 0;
+
+  const shielded = input.replace(/(?<!\]\()https?:\/\/matrix\.to\/[^\s<)]+/gi, (url) => {
+    const key = `${MATRIX_TO_PLACEHOLDER_PREFIX}${index++}X`;
+    placeholders.set(key, url);
+    return key;
+  });
+
+  return { shielded, placeholders };
+};
+
+const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, string>): string => {
+  let result = html;
+  for (const [key, url] of placeholders.entries()) {
+    result = result.split(key).join(escapeHtml(url));
+  }
+  return result;
+};
+
 /**
  * Converts markdown string to sanitized Matrix-compatible HTML.
  * Uses marked for parsing and DOMPurify for sanitization per Matrix spec.
@@ -67,7 +100,10 @@ export function markdownToHtml(markdown: string): string {
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
-  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(preprocessed));
+  const { shielded: matrixToShielded, placeholders: matrixToPlaceholders } =
+    shieldBareMatrixToLinks(preprocessed);
+
+  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(matrixToShielded));
 
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(mathInput) as string;
@@ -164,5 +200,10 @@ export function markdownToHtml(markdown: string): string {
     }
   );
 
-  return restoredMxEmoticonHeight.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  const unshieldedMatrixTo = unshieldBareMatrixToLinks(
+    restoredMxEmoticonHeight,
+    matrixToPlaceholders
+  );
+
+  return unshieldedMatrixTo.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
 }

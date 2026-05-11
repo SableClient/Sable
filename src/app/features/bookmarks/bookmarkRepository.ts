@@ -173,7 +173,8 @@ export function listDeletedBookmarks(mx: MatrixClient): BookmarkItemContent[] {
     if (seen.has(id)) return;
     seen.add(id);
     const content = mx.getAccountData(bookmarkItemEventType(id) as any)?.getContent();
-    if (isValidBookmarkItem(content) && content.deleted === true) results.push(content);
+    if (isValidBookmarkItem(content) && content.deleted === true && !content.purged)
+      results.push(content);
   });
 
   // 2. Orphan tombstones (properly removed from index but item event persists)
@@ -184,10 +185,30 @@ export function listDeletedBookmarks(mx: MatrixClient): BookmarkItemContent[] {
     if (seen.has(bookmarkId)) return;
     seen.add(bookmarkId);
     const content = mx.getAccountData(key as any)?.getContent();
-    if (isValidBookmarkItem(content) && content.deleted === true) results.push(content);
+    if (isValidBookmarkItem(content) && content.deleted === true && !content.purged)
+      results.push(content);
   });
 
   return results;
+}
+
+/**
+ * Permanently dismiss a tombstoned bookmark from the archived list.
+ *
+ * Matrix account data events cannot be deleted from the server, so this
+ * writes `purged: true` onto the existing tombstoned item event.  On the
+ * next page load, `listDeletedBookmarks` will skip items with `purged: true`,
+ * so the bookmark is effectively gone from the UI on all devices.
+ */
+export async function purgeBookmark(mx: MatrixClient, bookmarkId: string): Promise<void> {
+  const evt = mx.getAccountData(bookmarkItemEventType(bookmarkId) as any);
+  const raw = evt?.getContent();
+  if (raw != null) {
+    await mx.setAccountData(
+      bookmarkItemEventType(bookmarkId) as any,
+      { ...(raw as object), deleted: true, purged: true } as any
+    );
+  }
 }
 
 /**

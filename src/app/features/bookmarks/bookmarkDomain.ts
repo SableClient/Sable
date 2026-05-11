@@ -36,6 +36,12 @@ export type BookmarkItemContent = {
   body_preview?: string;
   msgtype?: string;
   deleted?: boolean;
+  /**
+   * Sable extension: marks a tombstoned item as permanently dismissed from the
+   * archived list.  Matrix account data cannot be deleted from the server, so
+   * this flag is the only way to fully hide an archived bookmark from the UI.
+   */
+  purged?: boolean;
 };
 
 /**

@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from 'jotai';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   bookmarkDeletedListAtom,
@@ -13,9 +13,14 @@ import {
   addBookmark,
   listBookmarks,
   listDeletedBookmarks,
+  purgeBookmark,
   removeBookmark,
   isBookmarked,
 } from './bookmarkRepository';
+import { clearBookmarkReminder, listReminders, setBookmarkReminder } from './reminderRepository';
+import type { BookmarkReminder } from '$types/matrix/accountData';
+import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
+import { CustomAccountDataEvent as AccountDataEvent } from '$types/matrix/accountData';
 
 /** Returns the current ordered bookmark list. */
 export function useBookmarkList(): BookmarkItemContent[] {
@@ -109,11 +114,73 @@ export function useBookmarkActions() {
     [mx, setList, setDeletedList]
   );
 
+  const purge = useCallback(
+    async (bookmarkId: string) => {
+      // Optimistic update: remove from the archived list immediately
+      setDeletedList((prev) => prev.filter((b) => b.bookmark_id !== bookmarkId));
+      // Write purged:true to account data so the item is hidden on all devices
+      // after the next sync (Matrix account data cannot actually be deleted).
+      await purgeBookmark(mx, bookmarkId);
+    },
+    [mx, setDeletedList]
+  );
+
   const checkIsBookmarked = useCallback(
     (roomId: string, eventId: string): boolean =>
       isBookmarked(mx, computeBookmarkId(roomId, eventId)),
     [mx]
   );
 
-  return { refresh, add, remove, restore, checkIsBookmarked };
+  return { refresh, add, remove, restore, purge, checkIsBookmarked };
+}
+
+/**
+ * Returns the live list of bookmark reminders, re-read whenever the
+ * `moe.sable.bookmarks.reminders` account data event changes.
+ */
+export function useBookmarkReminders(): BookmarkReminder[] {
+  const mx = useMatrixClient();
+  const [reminders, setReminders] = useState<BookmarkReminder[]>(() => listReminders(mx));
+
+  useAccountDataCallback(
+    mx,
+    useCallback(
+      (mxEvent) => {
+        if (mxEvent.getType() === (AccountDataEvent.SableBookmarksReminders as string)) {
+          setReminders(listReminders(mx));
+        }
+      },
+      [mx]
+    )
+  );
+
+  // Re-read when mx changes (e.g. session switch)
+  useEffect(() => {
+    setReminders(listReminders(mx));
+  }, [mx]);
+
+  return reminders;
+}
+
+/**
+ * Returns callbacks to set and clear a reminder for a specific bookmark.
+ */
+export function useBookmarkReminderActions() {
+  const mx = useMatrixClient();
+
+  const setReminder = useCallback(
+    async (reminder: BookmarkReminder) => {
+      await setBookmarkReminder(mx, reminder);
+    },
+    [mx]
+  );
+
+  const clearReminder = useCallback(
+    async (bookmarkId: string) => {
+      await clearBookmarkReminder(mx, bookmarkId);
+    },
+    [mx]
+  );
+
+  return { setReminder, clearReminder };
 }

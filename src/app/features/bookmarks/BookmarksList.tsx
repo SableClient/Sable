@@ -1,12 +1,13 @@
-import { Avatar, Box, Chip, Icon, IconButton, Icons, Line, Text, config } from 'folds';
+import { Avatar, Box, Chip, Icon, IconButton, Icons, Input, Line, Text, config } from 'folds';
 import { useAtomValue } from 'jotai';
+import { useCallback, useState } from 'react';
 import {
-  useBookmarks,
-  useArchivedBookmarks,
-  toggleBookmark,
-  restoreBookmark,
-  permanentlyDeleteBookmark,
-} from '$hooks/useBookmarks';
+  useBookmarkList,
+  useBookmarkDeletedList,
+  useBookmarkActions,
+  useBookmarkReminders,
+  useBookmarkReminderActions,
+} from '$features/bookmarks/useBookmarks';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useGetRoom, useAllJoinedRoomsSet } from '$hooks/useGetRoom';
@@ -21,6 +22,7 @@ import { EncryptedContent } from '$features/room/message';
 import { nicknamesAtom } from '$state/nicknames';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import type { BookmarkItemContent } from '$features/bookmarks/bookmarkDomain';
 
 type BookmarksListProps = {
   onNavigate?: () => void;
@@ -28,8 +30,46 @@ type BookmarksListProps = {
 
 export function BookmarksList({ onNavigate }: BookmarksListProps) {
   const mx = useMatrixClient();
-  const bookmarks = useBookmarks();
-  const archived = useArchivedBookmarks();
+  const bookmarks = useBookmarkList();
+  const archived = useBookmarkDeletedList();
+  const { remove, restore, purge } = useBookmarkActions();
+  const reminders = useBookmarkReminders();
+  const { setReminder, clearReminder } = useBookmarkReminderActions();
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  // Track which bookmark has the reminder picker open, and the current input value
+  const [reminderOpenId, setReminderOpenId] = useState<string | null>(null);
+  const [reminderInputValue, setReminderInputValue] = useState('');
+
+  const getReminderForBookmark = useCallback(
+    (bookmarkId: string) => reminders.find((r) => r.bookmarkId === bookmarkId),
+    [reminders]
+  );
+
+  const handleOpenReminderPicker = (bookmark: BookmarkItemContent) => {
+    const existing = getReminderForBookmark(bookmark.bookmark_id);
+    const defaultValue = existing ? new Date(existing.remindAt).toISOString().slice(0, 16) : '';
+    setReminderInputValue(defaultValue);
+    setReminderOpenId((prev) => (prev === bookmark.bookmark_id ? null : bookmark.bookmark_id));
+  };
+
+  const handleSaveReminder = async (bookmark: BookmarkItemContent) => {
+    if (!reminderInputValue) return;
+    const remindAt = new Date(reminderInputValue).getTime();
+    if (Number.isNaN(remindAt)) return;
+    await setReminder({
+      bookmarkId: bookmark.bookmark_id,
+      eventId: bookmark.event_id,
+      roomId: bookmark.room_id,
+      remindAt,
+      userId: mx.getUserId() ?? '',
+    });
+    setReminderOpenId(null);
+  };
+
+  const handleClearReminder = async (bookmarkId: string) => {
+    await clearReminder(bookmarkId);
+    setReminderOpenId(null);
+  };
   const { navigateRoom } = useRoomNavigate();
   const useAuthentication = useMediaAuthentication();
   const allRoomsSet = useAllJoinedRoomsSet();
@@ -43,17 +83,16 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
     onNavigate?.();
   };
 
-  const handleRemove = (roomId: string, eventId: string) => {
-    toggleBookmark(mx, roomId, eventId, bookmarks).catch(console.warn);
+  const handleRemove = (bookmark: BookmarkItemContent) => {
+    remove(bookmark.bookmark_id).catch(console.warn);
   };
 
-  const handleRestore = (entry: (typeof archived)[number]) => {
-    restoreBookmark(mx, entry).catch(console.warn);
+  const handleRestore = (entry: BookmarkItemContent) => {
+    restore(entry).catch(console.warn);
   };
 
-  const handlePermanentDelete = (entry: (typeof archived)[number]) => {
-    const allIds = [...bookmarks.map((b) => b.id), ...archived.map((b) => b.id)];
-    permanentlyDeleteBookmark(mx, entry, allIds).catch(console.warn);
+  const handlePermanentDelete = (entry: BookmarkItemContent) => {
+    purge(entry.bookmark_id).catch(console.warn);
   };
 
   if (bookmarks.length === 0 && archived.length === 0) {
@@ -82,7 +121,8 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
           ?.getEvents()
           .find((e) => e.getId() === bookmark.event_id);
 
-        const senderId = event?.getSender() ?? '';
+        // Fall back to cached account-data fields when event isn't in the local timeline
+        const senderId = event?.getSender() ?? bookmark.sender ?? '';
         const displayName =
           (room && senderId ? getMemberDisplayName(room, senderId, nicknames) : undefined) ??
           getMxIdLocalPart(senderId) ??
@@ -91,6 +131,8 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
         const senderAvatarUrl = senderAvatarMxc
           ? (mxcUrlToHttp(mx, senderAvatarMxc, useAuthentication, 48, 48, 'crop') ?? undefined)
           : undefined;
+        const displayTs = event?.getTs() ?? bookmark.event_ts;
+        const roomName = room?.name ?? bookmark.room_name ?? bookmark.room_id;
 
         return (
           <SequenceCard
@@ -122,13 +164,11 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                       </Text>
                     </Username>
                   </Box>
-                  {event && (
-                    <Time
-                      ts={event.getTs()}
-                      hour24Clock={hour24Clock}
-                      dateFormatString={dateFormatString}
-                    />
-                  )}
+                  <Time
+                    ts={displayTs}
+                    hour24Clock={hour24Clock}
+                    dateFormatString={dateFormatString}
+                  />
                 </Box>
                 <Box shrink="No" gap="200" alignItems="Center">
                   <Chip
@@ -138,11 +178,38 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                   >
                     <Text size="T200">Open</Text>
                   </Chip>
+                  {enableBookmarkReminders && (
+                    <IconButton
+                      size="300"
+                      radii="300"
+                      variant={
+                        getReminderForBookmark(bookmark.bookmark_id) ? 'Primary' : 'SurfaceVariant'
+                      }
+                      onClick={() => handleOpenReminderPicker(bookmark)}
+                      aria-label={
+                        getReminderForBookmark(bookmark.bookmark_id)
+                          ? 'Edit reminder'
+                          : 'Set reminder'
+                      }
+                      title={
+                        getReminderForBookmark(bookmark.bookmark_id)
+                          ? 'Edit reminder'
+                          : 'Set reminder'
+                      }
+                    >
+                      <Icon
+                        src={
+                          getReminderForBookmark(bookmark.bookmark_id) ? Icons.BellRing : Icons.Bell
+                        }
+                        size="100"
+                      />
+                    </IconButton>
+                  )}
                   <IconButton
                     size="300"
                     radii="300"
                     variant="SurfaceVariant"
-                    onClick={() => handleRemove(bookmark.room_id, bookmark.event_id)}
+                    onClick={() => handleRemove(bookmark)}
                     aria-label="Remove bookmark"
                   >
                     <Icon src={Icons.Cross} size="100" />
@@ -150,7 +217,7 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                 </Box>
               </Box>
               <Text size="T200" priority="300" truncate>
-                in {room?.name ?? bookmark.room_id}
+                in {roomName}
               </Text>
               {event ? (
                 <EncryptedContent mEvent={event}>
@@ -158,17 +225,51 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                     const content = event.getContent<{ body?: string }>();
                     return (
                       <Text size="T200" priority="300">
-                        {content.body ?? 'Unknown content'}
+                        {content.body ?? bookmark.body_preview ?? 'Unknown content'}
                       </Text>
                     );
                   }}
                 </EncryptedContent>
               ) : (
                 <Text size="T200" priority="300">
-                  Event not in local timeline
+                  {bookmark.body_preview ?? 'Message not in local timeline'}
                 </Text>
               )}
             </ModernLayout>
+            {enableBookmarkReminders && reminderOpenId === bookmark.bookmark_id && (
+              <Box
+                direction="Row"
+                gap="200"
+                alignItems="Center"
+                style={{ paddingTop: config.space.S200 }}
+              >
+                <Input
+                  type="datetime-local"
+                  value={reminderInputValue}
+                  onChange={(e) => setReminderInputValue(e.currentTarget.value)}
+                  style={{ flex: 1 }}
+                  size="300"
+                />
+                <Chip
+                  onClick={() => handleSaveReminder(bookmark).catch(console.warn)}
+                  variant="Primary"
+                  radii="400"
+                  as="button"
+                >
+                  <Text size="T200">Set</Text>
+                </Chip>
+                {getReminderForBookmark(bookmark.bookmark_id) && (
+                  <Chip
+                    onClick={() => handleClearReminder(bookmark.bookmark_id).catch(console.warn)}
+                    variant="Critical"
+                    radii="400"
+                    as="button"
+                  >
+                    <Text size="T200">Clear</Text>
+                  </Chip>
+                )}
+              </Box>
+            )}
           </SequenceCard>
         );
       })}
@@ -195,7 +296,8 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
               ?.getEvents()
               .find((e) => e.getId() === entry.event_id);
 
-            const senderId = event?.getSender() ?? '';
+            // Fall back to cached account-data fields when event isn't in the local timeline
+            const senderId = event?.getSender() ?? entry.sender ?? '';
             const displayName =
               (room && senderId ? getMemberDisplayName(room, senderId, nicknames) : undefined) ??
               getMxIdLocalPart(senderId) ??
@@ -205,6 +307,8 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
             const senderAvatarUrl = senderAvatarMxc
               ? (mxcUrlToHttp(mx, senderAvatarMxc, useAuthentication, 48, 48, 'crop') ?? undefined)
               : undefined;
+            const displayTs = event?.getTs() ?? entry.event_ts;
+            const roomName = room?.name ?? entry.room_name ?? entry.room_id;
 
             return (
               <SequenceCard
@@ -236,13 +340,11 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                           </Text>
                         </Username>
                       </Box>
-                      {event && (
-                        <Time
-                          ts={event.getTs()}
-                          hour24Clock={hour24Clock}
-                          dateFormatString={dateFormatString}
-                        />
-                      )}
+                      <Time
+                        ts={displayTs}
+                        hour24Clock={hour24Clock}
+                        dateFormatString={dateFormatString}
+                      />
                     </Box>
                     <Box shrink="No" gap="200" alignItems="Center">
                       <Chip
@@ -275,7 +377,7 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                     </Box>
                   </Box>
                   <Text size="T200" priority="300" truncate>
-                    in {room?.name ?? entry.room_id}
+                    in {roomName}
                   </Text>
                   {event ? (
                     <EncryptedContent mEvent={event}>
@@ -283,14 +385,14 @@ export function BookmarksList({ onNavigate }: BookmarksListProps) {
                         const content = event.getContent<{ body?: string }>();
                         return (
                           <Text size="T200" priority="300">
-                            {content.body ?? 'Unknown content'}
+                            {content.body ?? entry.body_preview ?? 'Unknown content'}
                           </Text>
                         );
                       }}
                     </EncryptedContent>
                   ) : (
                     <Text size="T200" priority="300">
-                      Event not in local timeline
+                      {entry.body_preview ?? 'Message not in local timeline'}
                     </Text>
                   )}
                 </ModernLayout>

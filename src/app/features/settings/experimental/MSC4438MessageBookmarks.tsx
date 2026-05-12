@@ -10,6 +10,10 @@ export function MSC4438MessageBookmarks() {
     settingsAtom,
     'enableMessageBookmarks'
   );
+  const [enableBookmarkReminders, setEnableBookmarkReminders] = useSetting(
+    settingsAtom,
+    'enableBookmarkReminders'
+  );
 
   return (
     <Box direction="Column" gap="100">
@@ -51,6 +55,25 @@ export function MSC4438MessageBookmarks() {
             />
           }
         />
+        {enableMessageBookmarks && (
+          <SettingTile
+            focusId="experimental-bookmark-reminders"
+            title="Bookmark Reminders"
+            description="Set a date and time reminder on individual bookmarks. Reminders are delivered as local notifications."
+            after={
+              <Switch
+                variant="Primary"
+                value={enableBookmarkReminders}
+                onChange={setEnableBookmarkReminders}
+                title={
+                  enableBookmarkReminders
+                    ? 'Disable bookmark reminders'
+                    : 'Enable bookmark reminders'
+                }
+              />
+            }
+          />
+        )}
       </SequenceCard>
     </Box>
   );

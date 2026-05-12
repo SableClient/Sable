@@ -875,7 +875,8 @@ function ReminderSync() {
 
 function RemindersFeature() {
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
-  if (!enableMessageBookmarks) return null;
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
+  if (!enableMessageBookmarks || !enableBookmarkReminders) return null;
   return <ReminderSync />;
 }
 

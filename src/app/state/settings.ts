@@ -172,6 +172,7 @@ export interface Settings {
 
   // experimental
   enableMessageBookmarks: boolean;
+  enableBookmarkReminders: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -326,6 +327,7 @@ export const defaultSettings: Settings = {
 
   // experimental
   enableMessageBookmarks: false,
+  enableBookmarkReminders: false,
 };
 
 function cloneDefaultSettings(): Settings {

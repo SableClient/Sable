@@ -160,6 +160,7 @@ import type {
 import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
 
+
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
 const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
@@ -384,7 +385,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [pollCreatorOpen, setPollCreatorOpen] = useState(false);
-    const [attachMenuAnchor, setAttachMenuAnchor] = useState<RectCords>();
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
@@ -1525,61 +1525,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             </>
           }
           before={
-            <PopOut
-              anchor={attachMenuAnchor}
-              position="Top"
-              align="Start"
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    onDeactivate: () => setAttachMenuAnchor(undefined),
-                    clickOutsideDeactivates: true,
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <Menu variant="Surface">
-                    <div style={{ padding: config.space.S100 }}>
-                      <MenuItem
-                        size="300"
-                        radii="300"
-                        variant="Surface"
-                        before={<Icon size="100" src={Icons.Attachment} />}
-                        onClick={() => {
-                          setAttachMenuAnchor(undefined);
-                          pickFile('*');
-                        }}
-                      >
-                        <Text size="T300">Upload File</Text>
-                      </MenuItem>
-                      <MenuItem
-                        size="300"
-                        radii="300"
-                        variant="Surface"
-                        before={<Icon size="100" src={Icons.OrderList} />}
-                        onClick={() => {
-                          setAttachMenuAnchor(undefined);
-                          setPollCreatorOpen(true);
-                        }}
-                      >
-                        <Text size="T300">Create Poll</Text>
-                      </MenuItem>
-                    </div>
-                  </Menu>
-                </FocusTrap>
-              }
+            <IconButton
+              onClick={() => pickFile('*')}
+              variant="SurfaceVariant"
+              size="300"
+              radii="300"
+              title="Upload File"
+              aria-label="Upload and attach a File"
             >
-              <IconButton
-                onClick={(evt) => setAttachMenuAnchor(evt.currentTarget.getBoundingClientRect())}
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title="Attach"
-                aria-label="Attach or create poll"
-              >
-                <Icon src={Icons.PlusCircle} />
-              </IconButton>
-            </PopOut>
+              <Icon src={Icons.PlusCircle} />
+            </IconButton>
           }
           after={
             <>

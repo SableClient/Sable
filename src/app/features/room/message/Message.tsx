@@ -336,11 +336,18 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     cancel();
   }, [cancel]);
 
+  // Prevent the browser from selecting message text during a long-press gesture.
+  // Only applied on touch devices — desktop users can still select text normally.
+  const style = mobileOrTablet()
+    ? ({ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)
+    : undefined;
+
   return {
     onTouchStart,
     onTouchMove,
     onTouchEnd,
     onTouchCancel: onTouchEnd,
+    style,
   };
 }
 
@@ -1331,6 +1338,8 @@ function MessageInternal(
           canDelete={canDelete}
           canSendReaction={canSendReaction}
           isThreadedMessage={isThreadedMessage}
+          hideReadReceipts={hideReadReceipts}
+          showDeveloperTools={showDeveloperTools}
           onReplyClick={onReplyClick}
           onEditId={onEditId}
           onReactionToggle={onReactionToggle}
@@ -1570,6 +1579,8 @@ export const Event = as<'div', EventProps>(
             room={room}
             mEvent={mEvent}
             canDelete={canDelete}
+            hideReadReceipts={hideReadReceipts}
+            showDeveloperTools={showDeveloperTools}
             onReplyClick={onReplyClick}
             onReactionToggle={() => {}}
             onClose={() => setMobileOptionsOpen(false)}

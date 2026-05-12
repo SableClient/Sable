@@ -43,10 +43,6 @@
 
 html {
   height: 100%;
-  /* dvh (dynamic viewport height) shrinks when the on-screen keyboard opens on
-     iOS/Android, keeping the app layout anchored at the top rather than being
-     pushed off-screen. Falls back to 100% on older browsers. */
-  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -58,14 +54,25 @@ body {
   font-family: var(--font-secondary);
   font-size: 16px;
   font-weight: 400;
+  /* Prevent iOS Safari rubber-band overscroll from shifting the entire app off-screen. */
+  overscroll-behavior: none;
   /* eslint-disable-next-line css/no-invalid-properties */
   background-color: var(--sable-bg-container);
 }
 #root {
   width: 100%;
-  height: 100%;
+  /* On iOS PWA, --sable-visible-height is set (via RoomInput's useEffect)
+     when the keyboard is open, shrinking the root to the visual viewport
+     so the whole layout reflows correctly above the keyboard. Falls back
+     to 100% when no keyboard is present. */
+  height: var(--sable-visible-height, 100%);
   display: flex;
   flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  /* --sable-safe-bottom is set to 0px when the keyboard is open (home
+     indicator region is covered by the keyboard). Falls back to the
+     safe-area inset when the keyboard is closed. */
+  padding-bottom: var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 *,

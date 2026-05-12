@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Icon, Icons, Line, Text } from 'folds';
+import { Icon, Icons, Text } from 'folds';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useEffect, useCallback } from 'react';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
@@ -212,11 +212,11 @@ export function MobileMessageMenu({
                   : undefined
               }
             />
-            <Line size="300" />
           </>
         )}
 
-        <div className={css.ActionList}>
+        {/* Group 1: Message actions */}
+        <div className={css.ActionGroup}>
           <ActionItem
             icon={<Icon src={Icons.ReplyArrow} size="200" />}
             label="Reply"
@@ -236,6 +236,16 @@ export function MobileMessageMenu({
               onClick={handleEditClick}
             />
           )}
+          <MessageForwardItem
+            className={css.ActionItem}
+            room={room}
+            mEvent={mEvent}
+            onClose={onClose}
+          />
+        </div>
+
+        {/* Group 2: Utility actions */}
+        <div className={css.ActionGroup}>
           {(() => {
             const content = mEvent.getContent();
             const body: string | undefined = content['m.new_content']?.body ?? content.body;
@@ -263,21 +273,18 @@ export function MobileMessageMenu({
               }}
             />
           )}
-          <MessageForwardItem room={room} mEvent={mEvent} onClose={onClose} />
           <BookmarkActionItem room={room} mEvent={mEvent} onClose={onClose} />
-          {!mEvent.isRedacted() && canDelete && (
-            <>
-              <Line size="300" />
-              <MessageDeleteItem room={room} mEvent={mEvent} />
-            </>
-          )}
-          {mEvent.getSender() !== mx.getUserId() && (
-            <>
-              <Line size="300" />
-              <MessageReportItem room={room} mEvent={mEvent} />
-            </>
-          )}
         </div>
+
+        {/* Group 3: Destructive actions */}
+        {(!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId() ? (
+          <div className={css.ActionGroup}>
+            {!mEvent.isRedacted() && canDelete && <MessageDeleteItem room={room} mEvent={mEvent} />}
+            {mEvent.getSender() !== mx.getUserId() && (
+              <MessageReportItem room={room} mEvent={mEvent} />
+            )}
+          </div>
+        ) : null}
       </div>
     </>,
     portalContainer

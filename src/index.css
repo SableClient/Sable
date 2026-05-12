@@ -58,6 +58,8 @@ body {
   font-family: var(--font-secondary);
   font-size: 16px;
   font-weight: 400;
+  /* Prevent iOS Safari rubber-band overscroll from shifting the entire app off-screen. */
+  overscroll-behavior: none;
   /* eslint-disable-next-line css/no-invalid-properties */
   background-color: var(--sable-bg-container);
 }

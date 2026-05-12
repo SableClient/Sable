@@ -440,6 +440,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 onPaste={onPaste}
                 // Defer to OS capitalization setting (respects iOS sentence-case toggle).
                 autoCapitalize="sentences"
+                // Enables autocorrect on iOS, which also helps autocapitalization work.
+                autoCorrect="on"
                 // keeps focus after pressing send.
                 onBlur={() => {
                   if (mobileOrTablet()) ReactEditor.focus(editor);

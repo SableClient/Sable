@@ -158,6 +158,40 @@ export const MessageCopyLinkItem = as<
   );
 });
 
+export const MessageCopyTextItem = as<
+  'button',
+  {
+    mEvent: MatrixEvent;
+    onClose?: () => void;
+  }
+>(({ mEvent, onClose, ...props }, ref) => {
+  const content = mEvent.getContent();
+  // For edited messages, prefer the new content body
+  const body: string | undefined = content['m.new_content']?.body ?? content.body;
+
+  if (!body || mEvent.isRedacted()) return null;
+
+  const handleCopy = () => {
+    copyToClipboard(body);
+    onClose?.();
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={<Icon size="100" src={Icons.Alphabet} />}
+      radii="300"
+      onClick={handleCopy}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        Copy Text
+      </Text>
+    </MenuItem>
+  );
+});
+
 // message pinning
 export const MessagePinItem = as<
   'button',
@@ -254,22 +288,46 @@ export type MessageProps = {
   msc2723ForwardedMessageProps?: MSC2723ForwardedMessageProps;
 };
 
-function useMobileDoubleTap(callback: () => void, delay = 300) {
-  const lastTapRef = useRef(0);
+function useMobileLongPress(callback: () => void, delay = 500) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  return useCallback(() => {
-    if (!mobileOrTablet()) return;
-
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTapRef.current;
-
-    if (timeSinceLastTap < delay && timeSinceLastTap > 0) {
-      callback();
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
+  const cancel = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-  }, [callback, delay]);
+    startPosRef.current = null;
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      if (!mobileOrTablet()) return;
+      startPosRef.current = { x: e.clientX, y: e.clientY };
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        callback();
+      }, delay);
+    },
+    [callback, delay]
+  );
+
+  const onPointerMove = useCallback(
+    (e: { clientX: number; clientY: number }) => {
+      if (!startPosRef.current) return;
+      const dx = e.clientX - startPosRef.current.x;
+      const dy = e.clientY - startPosRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 10) cancel();
+    },
+    [cancel]
+  );
+
+  return {
+    onPointerDown,
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onPointerMove,
+  };
 }
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -851,7 +909,7 @@ function MessageInternal(
     onReplyClick(mockEvent);
   };
 
-  const onDoubleTap = useMobileDoubleTap(() => {
+  const longPress = useMobileLongPress(() => {
     setMobileOptionsOpen(true);
   });
 
@@ -1115,6 +1173,7 @@ function MessageInternal(
                           <MessageSourceCodeItem room={room} mEvent={mEvent} />
                         )}
                         <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                        <MessageCopyTextItem mEvent={mEvent} onClose={closeMenu} />
                         <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         {canPinEvent && (
                           <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />
@@ -1237,7 +1296,7 @@ function MessageInternal(
       {messageLayout === MessageLayout.Compact && (
         <SwipeableMessageWrapper onReply={handleSwipeReply}>
           <CompactLayout before={headerJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            <div {...longPress}>{msgContentJSX}</div>
           </CompactLayout>
         </SwipeableMessageWrapper>
       )}
@@ -1249,14 +1308,14 @@ function MessageInternal(
             onContextMenu={handleContextMenu}
             align={useRightBubbles && senderId === mx.getUserId() ? 'right' : 'left'}
           >
-            <div onPointerDown={onDoubleTap}>{msgContentJSX}</div>
+            <div {...longPress}>{msgContentJSX}</div>
           </BubbleLayout>
         </SwipeableMessageWrapper>
       )}
       {messageLayout !== MessageLayout.Compact && messageLayout !== MessageLayout.Bubble && (
         <SwipeableMessageWrapper onReply={handleSwipeReply}>
           <ModernLayout before={avatarJSX} onContextMenu={handleContextMenu}>
-            <div onPointerDown={onDoubleTap}>
+            <div {...longPress}>
               {headerJSX}
               {msgContentJSX}
             </div>
@@ -1368,7 +1427,7 @@ export const Event = as<'div', EventProps>(
       return () => document.removeEventListener('pointerdown', handleClick, { capture: true });
     }, [mobileOptionsOpen]);
 
-    const onDoubleTap = useMobileDoubleTap(() => {
+    const longPress = useMobileLongPress(() => {
       setMobileOptionsOpen(true);
     });
 
@@ -1453,6 +1512,7 @@ export const Event = as<'div', EventProps>(
                               <MessageSourceCodeItem room={room} mEvent={mEvent} />
                             )}
                             <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                            <MessageCopyTextItem mEvent={mEvent} onClose={closeMenu} />
                             <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
                           </Box>
                           {((!mEvent.isRedacted() && canDelete && !stateEvent) ||
@@ -1497,7 +1557,7 @@ export const Event = as<'div', EventProps>(
             </Menu>
           </div>
         )}
-        <div onContextMenu={handleContextMenu} onPointerDown={onDoubleTap}>
+        <div onContextMenu={handleContextMenu} {...longPress}>
           {children}
         </div>
       </MessageBase>

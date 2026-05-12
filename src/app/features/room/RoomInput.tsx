@@ -414,7 +414,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
-    const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
+    const { keyboardHeight, isKeyboardVisible, triggerPreLift } = useKeyboardHeight();
     useScrollLock(isKeyboardVisible && mobileOrTablet());
 
     // When the keyboard opens, shrink #root to the visual viewport height
@@ -444,6 +444,37 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       return undefined;
     }, [isKeyboardVisible, keyboardHeight]);
+
+    // Immediate-resize listener: set --sable-visible-height on the very first
+    // viewport resize that signals the keyboard is opening, bypassing the 80 ms
+    // stability gate so the layout shrinks before iOS can apply scroll prediction.
+    // Only fires on the closed→open transition; text↔emoji mode switches leave
+    // the existing CSS var intact (the stability-gated path handles those).
+    useEffect(() => {
+      if (!mobileOrTablet()) return undefined;
+      const viewport = window.visualViewport;
+      if (!viewport) return undefined;
+
+      const handleImmediateResize = () => {
+        const kbHeight = window.innerHeight - viewport.height;
+        if (
+          kbHeight > 30 &&
+          !document.documentElement.style.getPropertyValue('--sable-visible-height')
+        ) {
+          document.documentElement.style.setProperty(
+            '--sable-visible-height',
+            `${Math.round(viewport.height)}px`
+          );
+          document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
+          if (window.scrollY !== 0) {
+            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+          }
+        }
+      };
+
+      viewport.addEventListener('resize', handleImmediateResize);
+      return () => viewport.removeEventListener('resize', handleImmediateResize);
+    }, []);
 
     // Safety: remove CSS variables if RoomInput unmounts while keyboard open.
     useEffect(
@@ -1334,7 +1365,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div ref={ref}>
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+      <div ref={ref} onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={

@@ -108,6 +108,66 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
   }
 }
 
+async function persistReminders(reminders: BookmarkReminder[]): Promise<void> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    await cache.put(
+      SW_REMINDERS_URL,
+      new Response(JSON.stringify(reminders), { headers: { 'Content-Type': 'application/json' } })
+    );
+  } catch {
+    // best-effort
+  }
+}
+
+async function loadPersistedReminders(): Promise<BookmarkReminder[]> {
+  try {
+    const cache = await self.caches.open(SW_REMINDERS_CACHE);
+    const response = await cache.match(SW_REMINDERS_URL);
+    if (!response) return [];
+    const data = await response.json();
+    if (Array.isArray(data)) return data as BookmarkReminder[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function checkDueReminders(): Promise<void> {
+  const reminders = await loadPersistedReminders();
+  if (reminders.length === 0) return;
+
+  const now = Date.now();
+  const due = reminders.filter((r) => r.remindAt <= now);
+  const remaining = reminders.filter((r) => r.remindAt > now);
+
+  await Promise.all(
+    due.map((r) =>
+      self.registration.showNotification('Bookmark Reminder', {
+        body: r.note ?? 'You have a bookmark reminder.',
+        tag: `reminder-${r.bookmarkId}`,
+        data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
+        icon: '/res/ic_launcher-192.png',
+      })
+    )
+  );
+
+  if (due.length > 0) {
+    await persistReminders(remaining);
+    // Notify open app tabs so they can clear fired reminders from Matrix account data.
+    // Without this, useReminderSync would push all account-data reminders back to the SW
+    // cache on the next sync, causing the same reminders to fire again.
+    const firedIds = due.map((r) => r.bookmarkId);
+    const openClients = await self.clients.matchAll({ type: 'window' });
+    openClients.forEach((client) => {
+      client.postMessage({ type: 'remindersFired', bookmarkIds: firedIds });
+    });
+  }
+}
+
+// Check for due reminders every minute.
+setInterval(() => checkDueReminders().catch(() => undefined), 60_000);
+
 type SessionInfo = {
   accessToken: string;
   baseUrl: string;

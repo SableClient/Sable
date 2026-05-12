@@ -49,6 +49,14 @@ export function useKeyboardHeight() {
       // Wait for the value to settle. Each new resize within STABILITY_MS
       // restarts the timer, so transient mid-transition readings never
       // commit — only the value iOS finally lands on does.
+      //
+      // Immediately reset any document scroll iOS may have applied as
+      // scroll-prediction during the first focus. We do this on every
+      // resize event while the keyboard is opening so the snap happens
+      // as early as possible — before the user can see the jank.
+      if (window.scrollY !== 0) {
+        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      }
       pendingValue = calculatedHeight;
       if (stabilityTimer) clearTimeout(stabilityTimer);
       stabilityTimer = setTimeout(() => {

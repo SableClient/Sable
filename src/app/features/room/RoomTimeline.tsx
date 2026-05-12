@@ -15,6 +15,7 @@ import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
+import type { RoomScrollCache } from '$utils/roomScrollCache';
 import type { ContainerColor } from 'folds';
 import {
   as,
@@ -67,7 +68,10 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
   getRoomUnreadInfo,
@@ -115,6 +119,9 @@ const getDayDividerText = (ts: number) => {
   return timeDayMonthYear(ts);
 };
 
+const SCROLL_SETTLE_MS = 250;
+const MIN_INITIAL_SCROLL_ROOM_PX = 300;
+
 export type RoomTimelineProps = {
   room: Room;
   eventId?: string;
@@ -136,11 +143,25 @@ export function RoomTimeline({
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(room.roomId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
+
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [messageSpacing] = useSetting(settingsAtom, 'messageSpacing');
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
@@ -190,6 +211,7 @@ export function RoomTimeline({
   hideReadsRef.current = hideReads;
 
   const prevViewportHeightRef = useRef(0);
+  const prevScrollSizeRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -226,6 +248,11 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  const lastProgrammaticBottomPinAtRef = useRef(0);
+  // Short-lived guard set for ~350 ms after a jump scrollToIndex so that
+  // intermediate scroll events from the animation don't flip atBottom prematurely.
+  const jumpScrollBlockRef = useRef(false);
+  const jumpScrollBlockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -234,9 +261,18 @@ export function RoomTimeline({
   // A recovery useLayoutEffect watches for processedEvents becoming non-empty
   // and performs the final scroll + setIsReady when this flag is set.
   const pendingReadyRef = useRef(false);
+  // Set to true when the 80 ms timer fires but backward pagination hasn't yet
+  // filled the viewport. The pagination-settle effect below watches for this
+  // flag and performs the final scroll + setIsReady when pagination settles.
+  const readyBlockedByPaginationRef = useRef(false);
   const currentRoomIdRef = useRef(room.roomId);
+  const saveRoomScrollStateRef = useRef<
+    ((measurementCache: RoomScrollCache['measurementCache'], atBottom: boolean) => void) | undefined
+  >(undefined);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;
@@ -257,8 +293,30 @@ export function RoomTimeline({
     if (!vListRef.current) return;
     const lastIndex = processedEventsRef.current.length - 1;
     if (lastIndex < 0) return;
+    lastProgrammaticBottomPinAtRef.current = Date.now();
+    setAtBottom(true);
     vListRef.current.scrollTo(vListRef.current.scrollSize);
-  }, []);
+  }, [setAtBottom]);
+
+  // Start a short scroll-settle block after a programmatic jump scrollToIndex.
+  // After 350 ms the block lifts and atBottom is recomputed from the actual
+  // VList position so "Jump to Latest" appears correctly.
+  const startJumpScrollBlock = useCallback(() => {
+    jumpScrollBlockRef.current = true;
+    if (jumpScrollBlockTimerRef.current !== undefined)
+      clearTimeout(jumpScrollBlockTimerRef.current);
+    jumpScrollBlockTimerRef.current = setTimeout(() => {
+      jumpScrollBlockRef.current = false;
+      jumpScrollBlockTimerRef.current = undefined;
+      const v = vListRef.current;
+      if (v) {
+        const dist = v.scrollSize - v.scrollOffset - v.viewportSize;
+        setAtBottom(dist < 100);
+      }
+    }, 350);
+  }, [setAtBottom]);
+
+  const handleJumpError = useCallback(() => setIsReady(true), []);
 
   const timelineSync = useTimelineSync({
     room,
@@ -267,6 +325,7 @@ export function RoomTimeline({
     isAtBottom: atBottomState,
     isAtBottomRef: atBottomRef,
     scrollToBottom,
+    onJumpError: handleJumpError,
     unreadInfo,
     setUnreadInfo,
     hideReadsRef,
@@ -299,7 +358,6 @@ export function RoomTimeline({
 
   useLayoutEffect(() => {
     if (
-      !eventId &&
       !hasInitialScrolledRef.current &&
       timelineSync.eventsLength > 0 &&
       // Guard: only scroll once the timeline reflects the current room's live
@@ -307,6 +365,15 @@ export function RoomTimeline({
       // (before the room-change reset propagates) fires the scroll at the wrong
       // position and marks hasInitialScrolledRef = true, preventing the correct
       // scroll when the right data arrives.
+      //
+      // NOTE: intentionally no `!eventId` guard here. When a TimelineReset fires
+      // while a historical (eventId) slice is loading — e.g. on iOS background
+      // resume — `useLiveTimelineRefresh` resets to the live timeline and the
+      // blank-protection re-arms hasInitialScrolledRef. The live timeline
+      // (liveTimelineLinked=true) must then be able to trigger this scroll even
+      // with eventId still in the URL, or the room stays permanently blank.
+      // Historical slices returned by loadEventTimeline are never live-linked, so
+      // liveTimelineLinked already provides the necessary protection.
       timelineSync.liveTimelineLinked &&
       vListRef.current
     ) {
@@ -317,11 +384,22 @@ export function RoomTimeline({
       initialScrollTimerRef.current = setTimeout(() => {
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
-          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
-          // Only mark ready once we've successfully scrolled.  If processedEvents
-          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
-          // timeline within the 80 ms window), defer setIsReady until the recovery
-          // effect below fires once events repopulate.
+          vListRef.current?.scrollToIndex(processedEventsRef.current.length - 1, {
+            align: 'end',
+          });
+          const v = vListRef.current;
+          // If backward pagination can still fill the viewport, delay revealing
+          // until that pagination settles so the user never sees the 3→60 event jump.
+          const needsFill =
+            canPaginateBackRef.current &&
+            v &&
+            v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX &&
+            backwardStatusRef.current !== 'error';
+          if (needsFill) {
+            readyBlockedByPaginationRef.current = true;
+            return;
+          }
+          saveRoomScrollStateRef.current?.(v?.cache, true);
           setIsReady(true);
         } else {
           pendingReadyRef.current = true;
@@ -331,7 +409,7 @@ export function RoomTimeline({
     }
     // No cleanup return — the timer must survive eventsLength fluctuations.
     // It is cancelled on unmount by the dedicated effect below.
-  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, eventId, room.roomId]);
+  }, [timelineSync.eventsLength, timelineSync.liveTimelineLinked, room.roomId]);
 
   // Cancel the initial-scroll timer on unmount (the useLayoutEffect above
   // intentionally does not cancel it when deps change).
@@ -351,7 +429,24 @@ export function RoomTimeline({
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
     hasInitialScrolledRef.current = false;
-  }, [isReady, timelineSync.eventsLength]);
+  }, [isReady, timelineSync.eventsLength, room]);
+
+  // Reveal the timeline once backward pagination has settled and the viewport is
+  // filled. This handles the case where the 80 ms timer fired before sliding sync
+  // had delivered enough events to fill the screen.
+  useLayoutEffect(() => {
+    if (!readyBlockedByPaginationRef.current) return;
+    if (timelineSync.backwardStatus === 'loading') return;
+    const v = vListRef.current;
+    if (!v) return;
+    // Still not filled and can paginate more — keep waiting.
+    if (canPaginateBackRef.current && v.scrollSize <= v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX)
+      return;
+    readyBlockedByPaginationRef.current = false;
+    v.scrollToIndex(processedEventsRef.current.length - 1, { align: 'end' });
+    saveRoomScrollStateRef.current?.(v.cache, true);
+    setIsReady(true);
+  }, [timelineSync.backwardStatus, timelineSync.eventsLength, timelineSync.canPaginateBack]);
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -399,6 +494,7 @@ export function RoomTimeline({
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         }
       }
@@ -409,7 +505,13 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
     };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
+  }, [
+    timelineSync.focusItem,
+    timelineSync,
+    reducedMotion,
+    getRawIndexToProcessedIndex,
+    startJumpScrollBlock,
+  ]);
 
   useEffect(() => {
     if (timelineSync.focusItem) {
@@ -533,6 +635,7 @@ export function RoomTimeline({
         }
         if (vListRef.current && processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
@@ -616,7 +719,12 @@ export function RoomTimeline({
       hideNickAvatarEvents,
       showHiddenEvents,
     },
-    state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
+    state: {
+      focusItem: timelineSync.focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId,
+    },
     permissions: {
       canRedact: permissions.action('redact', mx.getSafeUserId()),
       canDeleteOwn: permissions.event('m.room.redaction', mx.getSafeUserId()),
@@ -628,7 +736,7 @@ export function RoomTimeline({
       onUsernameClick: actions.handleUsernameClick,
       onReplyClick: actions.handleReplyClick,
       onReactionToggle: actions.handleReactionToggle,
-      onEditId: actions.handleEdit,
+      onEditId: handleEditCallback,
       onResend: actions.handleResend,
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,
@@ -675,6 +783,42 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+      const withinSettleWindow =
+        Date.now() - lastProgrammaticBottomPinAtRef.current < SCROLL_SETTLE_MS;
+
+      // When the user is pinned to the bottom and content grows (images, embeds,
+      // video thumbnails loading), scrollSize increases while offset stays put,
+      // pushing distanceFromBottom above the threshold. Instead of flipping
+      // atBottom to false (which shows the "Jump to Latest" button), chase the
+      // bottom so the user stays pinned.
+      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      prevScrollSizeRef.current = v.scrollSize;
+
+      // Skip content-chase and cache saves during init: the timeline is hidden
+      // (opacity 0) while VList measures items and fires intermediate scroll
+      // events.  Chasing the bottom here causes cascading scrollTo calls that
+      // upstream doesn't have, producing visible layout churn after isReady.
+      if (!isReadyRef.current) return;
+
+      // While a jump scroll is settling (briefly after scrollToIndex), VList
+      // fires intermediate scroll events that can incorrectly flip atBottom.
+      // Use a short-lived block instead of the full focusItem lifetime so that
+      // normal scrolling resumes quickly and atBottom is recomputed correctly.
+      if (jumpScrollBlockRef.current) return;
+
+      if (atBottomRef.current && !isNowAtBottom && (contentGrew || withinSettleWindow)) {
+        // Defer the chase to the next animation frame so VList finishes its
+        // current layout pass. Synchronous scrollTo causes cascading scroll
+        // events that produce visible jumps when images/embeds load.
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (vl && atBottomRef.current) {
+            lastProgrammaticBottomPinAtRef.current = Date.now();
+            vl.scrollTo(vl.scrollSize);
+          }
+        });
+        return;
+      }
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }
@@ -782,6 +926,7 @@ export function RoomTimeline({
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,
     hideNickAvatarEvents,
+    messageGroupingThreshold,
     isReadOnly,
     hideMemberInReadOnly,
   });
@@ -813,9 +958,9 @@ export function RoomTimeline({
             e.mEvent.getEffectiveEvent()?.type === 'm.room.message' &&
             !e.mEvent.isRedacted()
         );
-      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
+      if (found?.mEvent.getId()) handleEditCallback(found.mEvent.getId());
     };
-  }, [onEditLastMessageRef, mx, actions]);
+  }, [onEditLastMessageRef, mx, handleEditCallback]);
 
   useEffect(() => {
     const v = vListRef.current;
@@ -852,7 +997,7 @@ export function RoomTimeline({
 
       const atTop = v.scrollOffset < 500;
       const noVisibleGrowth = processedEvents.length === processedLengthAtEffectStart;
-      const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
+      const hasRealScrollRoom = v.scrollSize > v.viewportSize + MIN_INITIAL_SCROLL_ROOM_PX;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
         timelineSyncRef.current.handleTimelinePagination(true);

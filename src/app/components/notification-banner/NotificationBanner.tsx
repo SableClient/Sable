@@ -177,44 +177,8 @@ export function NotificationBanner() {
   // We store an array locally so multiple rapid notifications stack briefly.
   const [banner, setBanner] = useAtom(inAppBannerAtom);
   const [queue, setQueue] = useState<InAppBannerNotification[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   log.log('[Banner] Component render, queue length:', queue.length, 'banner:', banner);
-
-  // Adjust banner position for iOS keyboard
-  useEffect(() => {
-    // Only apply on iOS/browsers that support visualViewport
-    if (!('visualViewport' in window)) return undefined;
-
-    const updatePosition = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const visualViewport = window.visualViewport!;
-      // Calculate how much of the screen is covered by the keyboard
-      // When keyboard opens, visualViewport.height shrinks
-      const keyboardHeight = window.innerHeight - visualViewport.height;
-
-      // Position the banner down by the keyboard height so it appears at the top of the visible area
-      // This puts it "halfway down the page" when keyboard covers half the screen
-      if (keyboardHeight > 0) {
-        container.style.top = `${keyboardHeight}px`;
-      } else {
-        // Reset to CSS default (env(safe-area-inset-top))
-        container.style.top = '';
-      }
-    };
-
-    const visualViewport = window.visualViewport!;
-    visualViewport.addEventListener('resize', updatePosition);
-    visualViewport.addEventListener('scroll', updatePosition);
-    updatePosition(); // Initial position
-
-    return () => {
-      visualViewport.removeEventListener('resize', updatePosition);
-      visualViewport.removeEventListener('scroll', updatePosition);
-    };
-  }, []);
 
   // Push new notifications into the local queue.
   useEffect(() => {
@@ -247,7 +211,7 @@ export function NotificationBanner() {
 
   log.log('[Banner] Rendering', queue.length, 'banners');
   return (
-    <div ref={containerRef} className={css.BannerContainer} aria-live="polite" aria-atomic="false">
+    <div className={css.BannerContainer} aria-live="polite" aria-atomic="false">
       {queue.map((n) => (
         <BannerItem key={n.id} notification={n} onDismiss={handleDismiss} />
       ))}

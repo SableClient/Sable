@@ -1329,6 +1329,8 @@ function MessageInternal(
           canDelete={canDelete}
           canSendReaction={canSendReaction}
           isThreadedMessage={isThreadedMessage}
+          hideReadReceipts={hideReadReceipts}
+          showDeveloperTools={showDeveloperTools}
           onReplyClick={onReplyClick}
           onEditId={onEditId}
           onReactionToggle={onReactionToggle}
@@ -1568,6 +1570,8 @@ export const Event = as<'div', EventProps>(
             room={room}
             mEvent={mEvent}
             canDelete={canDelete}
+            hideReadReceipts={hideReadReceipts}
+            showDeveloperTools={showDeveloperTools}
             onReplyClick={onReplyClick}
             onReactionToggle={() => {}}
             onClose={() => setMobileOptionsOpen(false)}

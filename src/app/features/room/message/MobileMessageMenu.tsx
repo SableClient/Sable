@@ -2,10 +2,12 @@ import { createPortal } from 'react-dom';
 import { Icon, Icons, Text } from 'folds';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useEffect, useCallback } from 'react';
+import { useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
-import { canEditEvent } from '$utils/room';
+import { canEditEvent, getEventEdits } from '$utils/room';
+import { modalAtom, ModalType } from '$state/modal';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { MessageForwardItem } from '$components/message/modals/MessageForward';
@@ -21,6 +23,8 @@ export type MobileMessageMenuProps = {
   canDelete?: boolean;
   canSendReaction?: boolean;
   isThreadedMessage?: boolean;
+  hideReadReceipts?: boolean;
+  showDeveloperTools?: boolean;
   onReplyClick: (
     ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
     startThread?: boolean
@@ -124,6 +128,8 @@ export function MobileMessageMenu({
   canDelete,
   canSendReaction,
   isThreadedMessage,
+  hideReadReceipts,
+  showDeveloperTools,
   onReplyClick,
   onEditId,
   onReactionToggle,
@@ -131,7 +137,13 @@ export function MobileMessageMenu({
   onClose,
 }: MobileMessageMenuProps) {
   const mx = useMatrixClient();
+  const setModal = useSetAtom(modalAtom);
   const evtId = mEvent.getId()!;
+  const evtTimeline = room.getTimelineForEvent(evtId);
+  const edits =
+    evtTimeline &&
+    getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
+  const isEdited = edits !== undefined;
 
   // Close on Escape
   useEffect(() => {
@@ -242,6 +254,36 @@ export function MobileMessageMenu({
             mEvent={mEvent}
             onClose={onClose}
           />
+          {!hideReadReceipts && (
+            <ActionItem
+              icon={<Icon src={Icons.CheckTwice} size="200" />}
+              label="Read Receipts"
+              onClick={() => {
+                setModal({ type: ModalType.ReadReceipts, room, eventId: evtId });
+                onClose();
+              }}
+            />
+          )}
+          {isEdited && (
+            <ActionItem
+              icon={<Icon src={Icons.Clock} size="200" />}
+              label="Version History"
+              onClick={() => {
+                setModal({ type: ModalType.EditHistory, room, mEvent });
+                onClose();
+              }}
+            />
+          )}
+          {showDeveloperTools && (
+            <ActionItem
+              icon={<Icon src={Icons.BlockCode} size="200" />}
+              label="View Source"
+              onClick={() => {
+                setModal({ type: ModalType.Source, room, mEvent });
+                onClose();
+              }}
+            />
+          )}
         </div>
 
         {/* Group 2: Utility actions */}

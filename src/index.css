@@ -62,14 +62,17 @@ body {
 #root {
   width: 100%;
   height: 100%;
+  /* When the on-screen keyboard opens, iOS Safari overlays it over the layout
+     viewport without resizing it. index.tsx installs a visualViewport resize
+     listener that sets --sable-app-height to the visible area height, causing
+     the root to shrink so content above the keyboard stays fully visible.
+     Falls back to 100% on browsers without the VisualViewport API. */
+  height: var(--sable-app-height, 100%);
   display: flex;
   flex-direction: column;
   /* When viewport-fit=cover is set (see index.html), the layout viewport
      extends into device safe areas. Push content away from the notch/status
-     bar at the top and the home-indicator / gesture bar at the bottom.
-     box-sizing: border-box (set by the * rule below) keeps height at 100%
-     so this never overflows. Do NOT use 100dvh here — dvh shrinks when the
-     soft keyboard opens, which would make the padding overflow the viewport. */
+     bar at the top and the home-indicator / gesture bar at the bottom. */
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

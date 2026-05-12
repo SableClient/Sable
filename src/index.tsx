@@ -30,6 +30,23 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
+// Resize the root element to the visual viewport height so that when the
+// on-screen keyboard opens on iOS Safari (which overlays instead of resizing
+// the layout viewport), the app shrinks to fit the visible area above the
+// keyboard rather than having content hidden behind it.
+function syncAppHeight() {
+  if (window.visualViewport) {
+    document.documentElement.style.setProperty(
+      '--sable-app-height',
+      `${window.visualViewport.height}px`
+    );
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncAppHeight);
+  syncAppHeight();
+}
+
 const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
   const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
   const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);

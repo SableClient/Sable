@@ -64,6 +64,16 @@ export const selectFile = <M extends boolean | undefined = undefined>(
     if (accept) input.accept = accept;
     if (multiple) input.multiple = true;
 
+    // iOS Safari requires the input to be in the DOM to reliably trigger the
+    // file picker dialog; remove it immediately after selection.
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(input);
+
+    const cleanup = () => {
+      input.removeEventListener('change', changeHandler);
+      if (input.parentNode) input.parentNode.removeChild(input);
+    };
+
     const changeHandler = () => {
       const fileList = input.files;
       if (!fileList) {
@@ -72,7 +82,7 @@ export const selectFile = <M extends boolean | undefined = undefined>(
         const files: File[] = getFilesFromFileList(fileList);
         resolve((multiple ? files : files[0]) as FilesOrFile<M>);
       }
-      input.removeEventListener('change', changeHandler);
+      cleanup();
     };
 
     input.addEventListener('change', changeHandler);

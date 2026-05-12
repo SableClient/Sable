@@ -40,8 +40,8 @@ export function SwipeableOverlayWrapper({
       if (active) {
         x.set(val);
       } else {
-        const swipeThreshold = 100;
-        const velocityThreshold = 0.5;
+        const swipeThreshold = 150;
+        const velocityThreshold = 1.2;
 
         const swipedLeft =
           direction === 'left' && (val < -swipeThreshold || (vx > velocityThreshold && dx < 0));

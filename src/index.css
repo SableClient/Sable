@@ -43,6 +43,10 @@
 
 html {
   height: 100%;
+  /* dvh (dynamic viewport height) shrinks when the on-screen keyboard opens on
+     iOS/Android, keeping the app layout anchored at the top rather than being
+     pushed off-screen. Falls back to 100% on older browsers. */
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }

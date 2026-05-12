@@ -64,6 +64,14 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* When viewport-fit=cover is set (see index.html), the layout viewport
+     extends into device safe areas. Push content away from the notch/status
+     bar at the top and the home-indicator / gesture bar at the bottom.
+     box-sizing: border-box (set by the * rule below) keeps height at 100%
+     so this never overflows. Do NOT use 100dvh here — dvh shrinks when the
+     soft keyboard opens, which would make the padding overflow the viewport. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 *,

@@ -1,4 +1,13 @@
 import { globalStyle } from '@vanilla-extract/css';
+import { color } from 'folds';
+
+// Ensure the safe-area padding areas on #root (top/bottom on iOS) show
+// the app's background container color instead of the white body fallback.
+// Without this, the 34px home-indicator gap at the bottom is visibly white
+// against the gray content, making it look like a UI gap on iOS PWA.
+globalStyle('#root', {
+  backgroundColor: color.Background.Container,
+});
 
 globalStyle(
   `

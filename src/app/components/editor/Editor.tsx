@@ -447,14 +447,18 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                   if (mobileOrTablet()) ReactEditor.focus(editor);
                 }}
                 // iOS Slate.js bug: an empty contenteditable doesn't signal
-                // "start of sentence" to autocapitalize. A no-op text
-                // round-trip primes the input context on focus.
+                // "start of sentence" to autocapitalize. A two-frame round-trip
+                // (insert space, then delete it one frame later) lets iOS process
+                // the intermediate "has text" state before seeing the empty field
+                // again — this is what triggers sentence-case on the next keystroke.
                 onFocus={() => {
                   if (!mobileOrTablet()) return;
                   requestAnimationFrame(() => {
                     if (!ReactEditor.isFocused(editor) || Node.string(editor).length > 0) return;
-                    Transforms.insertText(editor, '\u00a0');
-                    Transforms.delete(editor, { reverse: true });
+                    Transforms.insertText(editor, ' ');
+                    requestAnimationFrame(() => {
+                      Transforms.delete(editor, { reverse: true });
+                    });
                   });
                 }}
               />

@@ -1013,6 +1013,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
+            isReminder,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

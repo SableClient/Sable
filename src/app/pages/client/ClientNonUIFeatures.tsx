@@ -61,6 +61,7 @@ import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { bookmarksPanelAtom } from '$state/bookmarksPanelAtom';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
@@ -611,6 +612,7 @@ type ClientNonUIFeaturesProps = {
 export function HandleNotificationClick() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+  const setBookmarksPanelOpen = useSetAtom(bookmarksPanelAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -620,11 +622,12 @@ export function HandleNotificationClick() {
       const { data } = ev;
       if (!data || data.type !== 'notificationClick') return;
 
-      const { userId, roomId, eventId, isInvite } = data as {
+      const { userId, roomId, eventId, isInvite, isReminder } = data as {
         userId?: string;
         roomId?: string;
         eventId?: string;
         isInvite?: boolean;
+        isReminder?: boolean;
       };
 
       if (userId) setActiveSessionId(userId);
@@ -634,13 +637,18 @@ export function HandleNotificationClick() {
         return;
       }
 
+      if (isReminder) {
+        setBookmarksPanelOpen(true);
+        return;
+      }
+
       if (!roomId) return;
       setPending({ roomId, eventId, targetSessionId: userId });
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [setPending, setActiveSessionId, navigate]);
+  }, [setPending, setActiveSessionId, setBookmarksPanelOpen, navigate]);
 
   return null;
 }

@@ -34,6 +34,20 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
     [mx]
   );
 
+  const deleteAccountData = useCallback(
+    (type: string) => {
+      if (
+        !window.confirm(
+          `Delete account data '${type}'?\n\nNote: Matrix does not support deleting account data events. This will overwrite the content with an empty object {}. The event type key will remain.`
+        )
+      )
+        return;
+      // as never: developer tools delete arbitrary account data types beyond the typed enum.
+      mx.setAccountData(type as never, {} as never).then(() => setAccountDataType(undefined));
+    },
+    [mx]
+  );
+
   if (accountDataType !== undefined) {
     return (
       <AccountDataEditor
@@ -45,6 +59,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
             : undefined
         }
         submitChange={submitAccountData}
+        onDelete={accountDataType ? () => deleteAccountData(accountDataType) : undefined}
         requestClose={() => setAccountDataType(undefined)}
       />
     );

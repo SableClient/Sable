@@ -4,6 +4,7 @@ import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { CustomAccountDataEvent as AccountDataEvent } from '$types/matrix/accountData';
 import type { BookmarkReminder, BookmarksRemindersContent } from '$types/matrix/accountData';
 import type { MatrixEvent } from '$types/matrix-sdk';
+import { clearBookmarkReminder } from './reminderRepository';
 
 function postRemindersToSW(reminders: BookmarkReminder[]): void {
   if (!('serviceWorker' in navigator)) return;
@@ -57,6 +58,20 @@ export function useReminderSync(): void {
     syncReminders();
     tryRegisterPeriodicSync().catch(() => undefined);
   }, [syncReminders]);
+
+  // When the SW fires a reminder, it posts a 'remindersFired' message with the
+  // bookmark IDs. We clear them from account data here so that the next syncReminders
+  // call doesn't push them back to the SW cache (which would cause repeated firings).
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'remindersFired') return;
+      const firedIds: string[] = event.data.bookmarkIds ?? [];
+      firedIds.forEach((id) => clearBookmarkReminder(mx, id).catch(() => undefined));
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [mx]);
 
   // React to account data changes pushed by other devices mid-session.
   useAccountDataCallback(

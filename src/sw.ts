@@ -169,6 +169,14 @@ async function checkDueReminders(): Promise<void> {
 
   if (due.length > 0) {
     await persistReminders(remaining);
+    // Notify open app tabs so they can clear fired reminders from Matrix account data.
+    // Without this, useReminderSync would push all account-data reminders back to the SW
+    // cache on the next sync, causing the same reminders to fire again.
+    const firedIds = due.map((r) => r.bookmarkId);
+    const openClients = await self.clients.matchAll({ type: 'window' });
+    openClients.forEach((client) => {
+      client.postMessage({ type: 'remindersFired', bookmarkIds: firedIds });
+    });
   }
 }
 

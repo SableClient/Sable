@@ -123,6 +123,16 @@ export interface Settings {
   captionPosition: CaptionPosition;
   customDMCards: boolean;
 
+  // Neon Glass Builder
+  neonGlassEnabled: boolean;
+  neonGlassPrimaryColor?: string;
+  neonGlassBlur?: number;
+  neonGlassBgOpacity?: number;
+  neonGlassGlow?: number;
+  neonGlassApplySidebar: boolean;
+  neonGlassApplyChat: boolean;
+  neonGlassApplyModals: boolean;
+
   // Sable features!
   sendPresence: boolean;
   mobileGestures: boolean;
@@ -244,6 +254,16 @@ export const defaultSettings: Settings = {
   renderRoomFonts: true,
   captionPosition: CaptionPosition.Below,
   customDMCards: true,
+
+  // Neon Glass Builder - Optimized Defaults
+  neonGlassEnabled: false,
+  neonGlassPrimaryColor: '#00f0ff',
+  neonGlassBlur: 14,
+  neonGlassBgOpacity: 0.42,
+  neonGlassGlow: 12,
+  neonGlassApplySidebar: true,
+  neonGlassApplyChat: true,
+  neonGlassApplyModals: true,
 
   // Sable features!
   sendPresence: true,

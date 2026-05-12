@@ -15,6 +15,7 @@ import './app/i18n';
 
 import './index.css';
 import './app/styles/themes.css';
+import './app/styles/NeonGlass.css';
 import './app/styles/overrides/General.css';
 import './app/styles/overrides/Privacy.css';
 import { pushSessionToSW } from './sw-session';

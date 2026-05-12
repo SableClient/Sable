@@ -1,0 +1,144 @@
+/* 
+ * Neon Glass Theme — Professional Overlay for Sable 
+ * Fixed: Light Theme "Blackout" in Dialogs & Menus.
+ */
+
+:root {
+  /* Default variables (Dark Theme) */
+  --ng-glass-color: 15, 15, 25;
+  --ng-border-color: rgba(255, 255, 255, 0.1);
+  --ng-text-contrast: #ffffff;
+}
+
+/* --- Theme Awareness --- */
+
+/* Light Theme Settings */
+body.light-theme[data-neon-glass="true"] {
+  --ng-glass-color: 255, 255, 255;
+  --ng-border-color: rgba(0, 0, 0, 0.12);
+  --ng-text-contrast: #18181b;
+  background-color: #f0f0f5 !important;
+}
+
+/* Dark Theme Settings */
+body.dark-theme[data-neon-glass="true"] {
+  --ng-glass-color: 10, 10, 18;
+  --ng-border-color: rgba(255, 255, 255, 0.08);
+  --ng-text-contrast: #ffffff;
+  background-color: #0a0a12 !important;
+}
+
+/* Combined Glass Variable */
+body[data-neon-glass="true"] {
+  --ng-glass-bg: rgba(var(--ng-glass-color), var(--ng-opacity));
+  
+  background-image: 
+    radial-gradient(circle at 0% 0%, rgba(var(--sable-primary-main-rgb), 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(var(--sable-primary-main-rgb), 0.08) 0%, transparent 45%) !important;
+  background-attachment: fixed !important;
+}
+
+/* --- Global Transparency Fix --- 
+ * This ensures Sable's internal boxes don't block the glass effect.
+ */
+body[data-neon-glass="true"] [class*="ContainerColor_variant_Background"],
+body[data-neon-glass="true"] [class*="ContainerColor_variant_Surface"],
+body[data-neon-glass="true"] [class*="ContainerColor_variant_SurfaceVariant"],
+body[data-neon-glass="true"] [class*="Sidebar_Sidebar"],
+body[data-neon-glass="true"] [class*="RoomView_RoomView"],
+body[data-neon-glass="true"] [class*="Page_Page"] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* --- Sidebar Glass --- */
+body[data-ng-sidebar="true"] [class*="Sidebar_Sidebar"],
+body[data-ng-sidebar="true"] [class*="SidebarNav_SidebarNav"],
+body[data-ng-sidebar="true"] aside {
+  backdrop-filter: blur(var(--ng-blur)) saturate(160%) !important;
+  background-color: var(--ng-glass-bg) !important;
+  border-right: 1px solid var(--ng-border-color) !important;
+  overflow: hidden;
+}
+
+/* Aesthetic Polish: Fully rounded sidebar avatars (Profile, Search, etc.) */
+body[data-ng-sidebar="true"] [class*="SidebarAvatar_SidebarAvatar"],
+body[data-ng-sidebar="true"] [class*="SidebarFolder_SidebarFolder"] {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+body[data-ng-sidebar="true"] [class*="SidebarAvatar_SidebarAvatar"] *,
+body[data-ng-sidebar="true"] [class*="SidebarFolder_SidebarFolder"] * {
+  border-radius: 50% !important;
+}
+
+/* --- Chat & Main Content Area --- */
+body[data-ng-chat="true"] [class*="RoomView_RoomView"],
+body[data-ng-chat="true"] [class*="Page_Page"],
+body[data-ng-chat="true"] main {
+  backdrop-filter: blur(var(--ng-blur)) saturate(160%) !important;
+  background-color: var(--ng-glass-bg) !important;
+}
+
+/* Aesthetic Polish: Rounded Glassy Chat Bubbles */
+body[data-ng-chat="true"] [class*="layout_BubbleContent"] {
+  backdrop-filter: blur(calc(var(--ng-blur) * 0.8)) saturate(160%) !important;
+  background-color: var(--ng-glass-bg) !important;
+  border: 1px solid var(--ng-border-color) !important;
+  border-radius: 18px !important; /* Generous roundness */
+}
+/* Preserve bubble tails if present */
+body[data-ng-chat="true"] [class*="layout_BubbleContentArrowLeft"] {
+  border-top-left-radius: 4px !important;
+}
+body[data-ng-chat="true"] [class*="layout_BubbleContentArrowRight"] {
+  border-top-right-radius: 4px !important;
+}
+body[data-ng-chat="true"] [class*="layout_BubbleLeftArrow"] path,
+body[data-ng-chat="true"] [class*="layout_BubbleRightArrow"] path {
+  fill: var(--ng-border-color) !important; /* Hide solid tail color, make it match border */
+}
+
+/* --- Modals, Menus, Dialogs & Popouts --- 
+ * We target the Portal-rendered elements specifically.
+ */
+body[data-ng-modals="true"] [class*="Modal_Modal"],
+body[data-ng-modals="true"] [class*="Dialog_Dialog"],
+body[data-ng-modals="true"] [class*="PopOut_PopOut"],
+body[data-ng-modals="true"] [class*="Menu_Menu"],
+body[data-ng-modals="true"] [class*="Overlay"],
+body[data-ng-modals="true"] [role="dialog"],
+body[data-ng-modals="true"] [role="menu"] {
+  backdrop-filter: blur(var(--ng-blur)) saturate(180%) !important;
+  background-color: var(--ng-glass-bg) !important;
+  border: 1px solid var(--ng-border-color) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35) !important;
+  /* Preserve original border radius but ensure blur doesn't leak */
+  overflow: hidden !important; 
+}
+
+/* Glow effects for active elements */
+body[data-neon-glass="true"] [aria-selected="true"],
+body[data-neon-glass="true"] [data-active="true"],
+body[data-neon-glass="true"] [class*="active_true"],
+body[data-neon-glass="true"] [class*="variant_Primary"] {
+  box-shadow: var(--ng-glow) !important;
+}
+
+/* Fix for Light Theme Text Contrast */
+body.light-theme[data-neon-glass="true"] {
+  color: #18181b;
+}
+
+/* Scrollbar Integration */
+body[data-neon-glass="true"] ::-webkit-scrollbar-thumb {
+  background: rgba(var(--sable-primary-main-rgb), 0.2) !important;
+  border-radius: 10px !important;
+}
+
+/* Focused inputs ring */
+body[data-neon-glass="true"] input:focus,
+body[data-neon-glass="true"] textarea:focus {
+  border-color: var(--sable-primary-main) !important;
+  box-shadow: 0 0 0 2px rgba(var(--sable-primary-main-rgb), 0.2) !important;
+}

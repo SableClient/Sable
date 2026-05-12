@@ -12,6 +12,7 @@ import {
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { ThemeEngine } from '../services/ThemeEngine';
 import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
 import { isLocalImportBundledUrl } from '../theme/localImportUrls';
 
@@ -63,6 +64,15 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
 
+  const [neonGlassEnabled] = useSetting(settingsAtom, 'neonGlassEnabled');
+  const [neonGlassPrimaryColor] = useSetting(settingsAtom, 'neonGlassPrimaryColor');
+  const [neonGlassBlur] = useSetting(settingsAtom, 'neonGlassBlur');
+  const [neonGlassBgOpacity] = useSetting(settingsAtom, 'neonGlassBgOpacity');
+  const [neonGlassGlow] = useSetting(settingsAtom, 'neonGlassGlow');
+  const [neonGlassApplySidebar] = useSetting(settingsAtom, 'neonGlassApplySidebar');
+  const [neonGlassApplyChat] = useSetting(settingsAtom, 'neonGlassApplyChat');
+  const [neonGlassApplyModals] = useSetting(settingsAtom, 'neonGlassApplyModals');
+
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(configClass, varsClass);
@@ -88,6 +98,31 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       document.body.style.filter = '';
     }
   }, [activeTheme, saturation, underlineLinks, reducedMotion]);
+
+  useEffect(() => {
+    if (neonGlassEnabled) {
+      ThemeEngine.applyNeonGlass({
+        primaryColor: neonGlassPrimaryColor,
+        blurRadius: neonGlassBlur,
+        bgOpacity: neonGlassBgOpacity,
+        glowRadius: neonGlassGlow,
+        applySidebar: neonGlassApplySidebar,
+        applyChat: neonGlassApplyChat,
+        applyModals: neonGlassApplyModals,
+      });
+    } else {
+      ThemeEngine.resetNeonGlass();
+    }
+  }, [
+    neonGlassEnabled,
+    neonGlassPrimaryColor,
+    neonGlassBlur,
+    neonGlassBgOpacity,
+    neonGlassGlow,
+    neonGlassApplySidebar,
+    neonGlassApplyChat,
+    neonGlassApplyModals,
+  ]);
 
   useEffect(() => {
     const url = activeTheme.remoteFullUrl?.trim();

@@ -26,6 +26,7 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
+import { NeonGlassBuilder } from './NeonGlassBuilder';
 
 const emojiSizeItems = [
   { id: 'none', name: 'None (Same size as text)' },
@@ -378,6 +379,7 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
               {!themeBrowserOpen && (
                 <>
                   <IdentityCosmetics />
+                  <NeonGlassBuilder />
                   <JumboEmoji />
                   <Privacy />
                   <LanguageSpecificPronouns />

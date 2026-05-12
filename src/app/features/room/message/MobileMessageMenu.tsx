@@ -10,11 +10,11 @@ import { canEditEvent, getEventEdits } from '$utils/room';
 import { modalAtom, ModalType } from '$state/modal';
 import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
 import { MessageReportItem } from '$components/message/modals/MessageReport';
-import { MessageForwardItem } from '$components/message/modals/MessageForward';
 import { copyToClipboard } from '$utils/dom';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
-import { useBookmarks, isBookmarked, toggleBookmark } from '$hooks/useBookmarks';
+import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
+import { createBookmarkItem, computeBookmarkId } from '$features/bookmarks/bookmarkDomain';
 import * as css from './MobileMessageMenu.css';
 
 export type MobileMessageMenuProps = {
@@ -103,10 +103,9 @@ function BookmarkActionItem({
   mEvent: MatrixEvent;
   onClose: () => void;
 }) {
-  const mx = useMatrixClient();
-  const bookmarks = useBookmarks();
   const eventId = mEvent.getId() ?? '';
-  const bookmarked = isBookmarked(bookmarks, eventId);
+  const bookmarked = useIsBookmarked(room.roomId, eventId);
+  const { add, remove } = useBookmarkActions();
 
   if (mEvent.isRedacted()) return null;
 
@@ -115,7 +114,12 @@ function BookmarkActionItem({
       icon={<Icon src={Icons.Star} size="200" />}
       label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
       onClick={() => {
-        toggleBookmark(mx, room.roomId, eventId, bookmarks).catch(() => {});
+        if (bookmarked) {
+          remove(computeBookmarkId(room.roomId, eventId)).catch(() => {});
+        } else {
+          const item = createBookmarkItem(room, mEvent);
+          if (item) add(item).catch(() => {});
+        }
         onClose();
       }}
     />
@@ -248,11 +252,13 @@ export function MobileMessageMenu({
               onClick={handleEditClick}
             />
           )}
-          <MessageForwardItem
-            className={css.ActionItem}
-            room={room}
-            mEvent={mEvent}
-            onClose={onClose}
+          <ActionItem
+            icon={<Icon src={Icons.ArrowGoRight} size="200" />}
+            label="Forward"
+            onClick={() => {
+              setModal({ type: ModalType.Forward, room, mEvent });
+              onClose();
+            }}
           />
           {!hideReadReceipts && (
             <ActionItem

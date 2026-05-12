@@ -487,6 +487,14 @@ export function RoomTimeline({
         lastProgrammaticBottomPinAtRef.current = Date.now();
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
+      // When the viewport GROWS (e.g. keyboard dismissed), re-pin to the bottom
+      // so that VList doesn't momentarily report "not at bottom" and flash the
+      // jump-to-present button. Setting lastProgrammaticBottomPinAtRef ensures
+      // handleVListScroll's settle-window keeps atBottom=true during the reflow.
+      if (!shrank && newHeight > prev && atBottom) {
+        lastProgrammaticBottomPinAtRef.current = Date.now();
+        vListRef.current?.scrollTo(vListRef.current.scrollSize);
+      }
       prevViewportHeightRef.current = newHeight;
     });
 

@@ -90,7 +90,7 @@ function ClientRootOptions({ mx, onLogout }: ClientRootOptionsProps) {
     <IconButton
       style={{
         position: 'absolute',
-        top: config.space.S100,
+        top: `calc(env(safe-area-inset-top, 0px) + ${config.space.S100})`,
         right: config.space.S100,
       }}
       variant="Background"

@@ -60,6 +60,7 @@ body {
   background-color: var(--sable-bg-container);
 }
 #root {
+  position: relative;
   width: 100%;
   /* On iOS PWA, --sable-visible-height is set (via RoomInput's useEffect)
      when the keyboard is open, shrinking the root to the visual viewport

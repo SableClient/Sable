@@ -1615,8 +1615,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       zIndex: 999,
                       // Position above the emoji button (mirrors PopOut position="Top" offset=16).
                       bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
-                      // Right-align with the emoji button (mirrors PopOut align="End").
-                      right: window.innerWidth - emojiBoardAnchorRect.right,
+                      // Right-align with the emoji button, but clamp so the picker
+                      // never extends past the left edge of the screen.
+                      // The EmojiBoard is min(432px, 100vw-32px) wide; ensure
+                      // viewportWidth − right − boardWidth ≥ 0.
+                      right: (() => {
+                        const rawRight = window.innerWidth - emojiBoardAnchorRect.right;
+                        const boardWidth = Math.min(432, window.innerWidth - 32);
+                        return Math.max(0, Math.min(rawRight, window.innerWidth - boardWidth));
+                      })(),
                       display: emojiBoardTab !== undefined ? undefined : 'none',
                     }}
                   >

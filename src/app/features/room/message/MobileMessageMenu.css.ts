@@ -1,5 +1,5 @@
 import { keyframes, style } from '@vanilla-extract/css';
-import { DefaultReset, config, toRem } from 'folds';
+import { DefaultReset, color, config, toRem } from 'folds';
 
 const slideUp = keyframes({
   from: { transform: 'translateY(100%)' },
@@ -9,7 +9,8 @@ const slideUp = keyframes({
 export const Backdrop = style({
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.72)',
+  // Theme-scrim overlay dims the timeline behind the sheet, just like Discord does.
+  background: color.Other.Overlay,
   zIndex: 100,
 });
 
@@ -21,12 +22,12 @@ export const Sheet = style([
     left: 0,
     right: 0,
     zIndex: 101,
-    background: 'var(--mx-c-surface)',
+    background: color.Surface.Container,
     borderRadius: `${toRem(16)} ${toRem(16)} 0 0`,
     paddingBottom: `max(${config.space.S400}, env(safe-area-inset-bottom))`,
     boxShadow: '0 -4px 24px rgba(0,0,0,0.18)',
     animation: `${slideUp} 220ms cubic-bezier(0.4, 0, 0.2, 1)`,
-    maxHeight: '80dvh',
+    maxHeight: '80vh',
     overflowY: 'auto',
   },
 ]);
@@ -34,7 +35,7 @@ export const Sheet = style([
 export const Handle = style({
   width: toRem(36),
   height: toRem(4),
-  background: 'var(--mx-c-outline-variant)',
+  background: color.SurfaceVariant.ContainerLine,
   borderRadius: toRem(2),
   margin: `${config.space.S200} auto ${config.space.S100}`,
 });
@@ -42,7 +43,7 @@ export const Handle = style({
 export const ReactionsRow = style({
   display: 'flex',
   gap: config.space.S200,
-  padding: `${config.space.S200} ${config.space.S400}`,
+  padding: `${config.space.S300} ${config.space.S400}`,
   justifyContent: 'center',
   flexWrap: 'wrap',
 });
@@ -51,9 +52,9 @@ export const ReactionBtn = style({
   fontSize: toRem(28),
   lineHeight: 1,
   padding: config.space.S100,
-  background: 'none',
+  background: color.SurfaceVariant.Container,
   border: 'none',
-  borderRadius: toRem(8),
+  borderRadius: '50%',
   cursor: 'pointer',
   minWidth: toRem(48),
   minHeight: toRem(48),
@@ -62,36 +63,41 @@ export const ReactionBtn = style({
   justifyContent: 'center',
   selectors: {
     '&:active': {
-      background: 'var(--mx-c-surface-variant)',
+      background: color.SurfaceVariant.ContainerActive,
     },
   },
 });
 
-export const ActionList = style({
-  display: 'flex',
-  flexDirection: 'column',
-  padding: `0 ${config.space.S200} ${config.space.S200}`,
+// A rounded-card group for visually separating action sections, like Discord.
+export const ActionGroup = style({
+  margin: `0 ${config.space.S300} ${config.space.S300}`,
+  borderRadius: toRem(12),
+  background: color.SurfaceVariant.Container,
+  overflow: 'hidden',
 });
 
 export const ActionItem = style({
   display: 'flex',
   alignItems: 'center',
   gap: config.space.S300,
-  padding: `${config.space.S300} ${config.space.S300}`,
-  borderRadius: toRem(8),
+  padding: `${config.space.S300} ${config.space.S400}`,
   cursor: 'pointer',
-  background: 'none',
+  background: 'transparent',
   border: 'none',
   width: '100%',
   textAlign: 'left',
-  color: 'var(--mx-c-on-surface)',
+  color: color.Surface.OnContainer,
   selectors: {
+    // Separator between adjacent items inside a group
+    '& + &': {
+      borderTop: `1px solid ${color.SurfaceVariant.ContainerLine}`,
+    },
     '&:active': {
-      background: 'var(--mx-c-surface-variant)',
+      background: color.SurfaceVariant.ContainerActive,
     },
   },
 });
 
 export const ActionItemDanger = style({
-  color: 'var(--mx-c-error)',
+  color: color.Critical.Main,
 });

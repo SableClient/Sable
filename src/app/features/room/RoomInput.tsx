@@ -143,6 +143,7 @@ import {
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useKeyboardHeight, useScrollLock } from '$hooks/ios-keyboard-fix';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -412,6 +413,46 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+
+    const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
+    useScrollLock(isKeyboardVisible && mobileOrTablet());
+
+    // When the keyboard opens, shrink #root to the visual viewport height
+    // (the area above the keyboard). This is the layout-correct approach
+    // for Sable's in-flow flex layout: transform moves the input visually
+    // but leaves the message list sized to the full height, producing a
+    // gap. CSS variables let the whole layout reflow so messages fill the
+    // visible area and the input sits at the bottom above the keyboard.
+    // The 80 ms stability gate in useKeyboardHeight prevents this from
+    // firing at startup or during transient browser-chrome resize events.
+    useEffect(() => {
+      if (!mobileOrTablet()) return undefined;
+
+      if (isKeyboardVisible && keyboardHeight > 0) {
+        const visibleHeight = window.visualViewport?.height ?? window.innerHeight - keyboardHeight;
+        document.documentElement.style.setProperty('--sable-visible-height', `${visibleHeight}px`);
+        document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
+        // Reset any scroll iOS applied during the stability window before
+        // the lock became active.
+        if (window.scrollY !== 0) {
+          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        }
+      } else {
+        document.documentElement.style.removeProperty('--sable-visible-height');
+        document.documentElement.style.removeProperty('--sable-safe-bottom');
+      }
+
+      return undefined;
+    }, [isKeyboardVisible, keyboardHeight]);
+
+    // Safety: remove CSS variables if RoomInput unmounts while keyboard open.
+    useEffect(
+      () => () => {
+        document.documentElement.style.removeProperty('--sable-visible-height');
+        document.documentElement.style.removeProperty('--sable-safe-bottom');
+      },
+      []
+    );
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1619,8 +1660,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       zIndex: 999,
                       // Position above the emoji button (mirrors PopOut position="Top" offset=16).
                       bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
-                      // Right-align with the emoji button (mirrors PopOut align="End").
-                      right: window.innerWidth - emojiBoardAnchorRect.right,
+                      // Right-align with the emoji button, but clamp so the picker
+                      // never extends past the left edge of the screen.
+                      // The EmojiBoard is min(432px, 100vw-32px) wide; ensure
+                      // viewportWidth − right − boardWidth ≥ 0.
+                      right: (() => {
+                        const rawRight = window.innerWidth - emojiBoardAnchorRect.right;
+                        const boardWidth = Math.min(432, window.innerWidth - 32);
+                        return Math.max(0, Math.min(rawRight, window.innerWidth - boardWidth));
+                      })(),
                       display: emojiBoardTab !== undefined ? undefined : 'none',
                     }}
                   >

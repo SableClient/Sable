@@ -1,0 +1,285 @@
+import { createPortal } from 'react-dom';
+import { Icon, Icons, Line, Text } from 'folds';
+import type { MouseEventHandler, ReactNode } from 'react';
+import { useEffect, useCallback } from 'react';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useRecentEmoji } from '$hooks/useRecentEmoji';
+import { canEditEvent } from '$utils/room';
+import { MessageDeleteItem } from '$components/message/modals/MessageDelete';
+import { MessageReportItem } from '$components/message/modals/MessageReport';
+import { MessageForwardItem } from '$components/message/modals/MessageForward';
+import { copyToClipboard } from '$utils/dom';
+import { getMatrixToRoomEvent } from '$plugins/matrix-to';
+import { getViaServers } from '$plugins/via-servers';
+import { useBookmarks, isBookmarked, toggleBookmark } from '$hooks/useBookmarks';
+import * as css from './MobileMessageMenu.css';
+
+export type MobileMessageMenuProps = {
+  room: Room;
+  mEvent: MatrixEvent;
+  canDelete?: boolean;
+  canSendReaction?: boolean;
+  isThreadedMessage?: boolean;
+  onReplyClick: (
+    ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
+    startThread?: boolean
+  ) => void;
+  onEditId?: (eventId?: string) => void;
+  onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
+  onOpenEmojiBoard?: () => void;
+  onClose: () => void;
+};
+
+function QuickReactions({
+  onReaction,
+  onOpenEmojiBoard,
+}: {
+  onReaction: (key: string, shortcode: string) => void;
+  onOpenEmojiBoard?: () => void;
+}) {
+  const mx = useMatrixClient();
+  const recentEmojis = useRecentEmoji(mx, 5);
+
+  return (
+    <div className={css.ReactionsRow}>
+      {recentEmojis.map((emoji) => (
+        <button
+          key={emoji.unicode}
+          type="button"
+          className={css.ReactionBtn}
+          onClick={() => onReaction(emoji.unicode, emoji.shortcode)}
+          aria-label={emoji.shortcode}
+        >
+          {emoji.unicode}
+        </button>
+      ))}
+      {onOpenEmojiBoard && (
+        <button
+          type="button"
+          className={css.ReactionBtn}
+          onClick={onOpenEmojiBoard}
+          aria-label="More reactions"
+        >
+          <Icon src={Icons.SmilePlus} size="200" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+type ActionItemProps = {
+  icon: ReactNode;
+  label: string;
+  danger?: boolean;
+  onClick: () => void;
+};
+
+function ActionItem({ icon, label, danger, onClick }: ActionItemProps) {
+  return (
+    <button
+      type="button"
+      className={`${css.ActionItem}${danger ? ` ${css.ActionItemDanger}` : ''}`}
+      onClick={onClick}
+    >
+      {icon}
+      <Text size="T300" as="span">
+        {label}
+      </Text>
+    </button>
+  );
+}
+
+function BookmarkActionItem({
+  room,
+  mEvent,
+  onClose,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  onClose: () => void;
+}) {
+  const mx = useMatrixClient();
+  const bookmarks = useBookmarks();
+  const eventId = mEvent.getId() ?? '';
+  const bookmarked = isBookmarked(bookmarks, eventId);
+
+  if (mEvent.isRedacted()) return null;
+
+  return (
+    <ActionItem
+      icon={<Icon src={Icons.Star} size="200" />}
+      label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
+      onClick={() => {
+        toggleBookmark(mx, room.roomId, eventId, bookmarks).catch(() => {});
+        onClose();
+      }}
+    />
+  );
+}
+
+export function MobileMessageMenu({
+  room,
+  mEvent,
+  canDelete,
+  canSendReaction,
+  isThreadedMessage,
+  onReplyClick,
+  onEditId,
+  onReactionToggle,
+  onOpenEmojiBoard,
+  onClose,
+}: MobileMessageMenuProps) {
+  const mx = useMatrixClient();
+  const evtId = mEvent.getId()!;
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Prevent body scroll while open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const handleReplyClick = useCallback(() => {
+    const mockEvent = {
+      currentTarget: { getAttribute: (attr: string) => (attr === 'data-event-id' ? evtId : null) },
+    } as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0];
+    onReplyClick(mockEvent);
+    onClose();
+  }, [evtId, onReplyClick, onClose]);
+
+  const handleThreadReplyClick = useCallback(() => {
+    const mockEvent = {
+      currentTarget: { getAttribute: (attr: string) => (attr === 'data-event-id' ? evtId : null) },
+    } as unknown as Parameters<MouseEventHandler<HTMLButtonElement>>[0];
+    onReplyClick(mockEvent, true);
+    onClose();
+  }, [evtId, onReplyClick, onClose]);
+
+  const handleEditClick = useCallback(() => {
+    onEditId?.(evtId);
+    onClose();
+  }, [evtId, onEditId, onClose]);
+
+  const stopPropHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+
+  const portalContainer = document.getElementById('portalContainer') ?? document.body;
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div
+        role="presentation"
+        className={css.Backdrop}
+        onClick={onClose}
+        onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      />
+
+      {/* Sheet */}
+      <div
+        className={css.Sheet}
+        role="dialog"
+        aria-modal="true"
+        onClick={stopPropHandler}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <div className={css.Handle} />
+
+        {canSendReaction && (
+          <>
+            <QuickReactions
+              onReaction={(key, shortcode) => {
+                onReactionToggle(evtId, key, shortcode);
+                onClose();
+              }}
+              onOpenEmojiBoard={
+                onOpenEmojiBoard
+                  ? () => {
+                      onOpenEmojiBoard();
+                      onClose();
+                    }
+                  : undefined
+              }
+            />
+            <Line size="300" />
+          </>
+        )}
+
+        <div className={css.ActionList}>
+          <ActionItem
+            icon={<Icon src={Icons.ReplyArrow} size="200" />}
+            label="Reply"
+            onClick={handleReplyClick}
+          />
+          {!isThreadedMessage && (
+            <ActionItem
+              icon={<Icon src={Icons.ThreadPlus} size="200" />}
+              label="Reply in Thread"
+              onClick={handleThreadReplyClick}
+            />
+          )}
+          {canEditEvent(mx, mEvent) && onEditId && (
+            <ActionItem
+              icon={<Icon src={Icons.Pencil} size="200" />}
+              label="Edit Message"
+              onClick={handleEditClick}
+            />
+          )}
+          {(() => {
+            const content = mEvent.getContent();
+            const body: string | undefined = content['m.new_content']?.body ?? content.body;
+            if (!body || mEvent.isRedacted()) return null;
+            return (
+              <ActionItem
+                icon={<Icon src={Icons.Alphabet} size="200" />}
+                label="Copy Text"
+                onClick={() => {
+                  copyToClipboard(body);
+                  onClose();
+                }}
+              />
+            );
+          })()}
+          {mEvent.getId() && (
+            <ActionItem
+              icon={<Icon src={Icons.Link} size="200" />}
+              label="Copy Link"
+              onClick={() => {
+                copyToClipboard(
+                  getMatrixToRoomEvent(room.roomId, mEvent.getId()!, getViaServers(room))
+                );
+                onClose();
+              }}
+            />
+          )}
+          <MessageForwardItem room={room} mEvent={mEvent} onClose={onClose} />
+          <BookmarkActionItem room={room} mEvent={mEvent} onClose={onClose} />
+          {!mEvent.isRedacted() && canDelete && (
+            <>
+              <Line size="300" />
+              <MessageDeleteItem room={room} mEvent={mEvent} />
+            </>
+          )}
+          {mEvent.getSender() !== mx.getUserId() && (
+            <>
+              <Line size="300" />
+              <MessageReportItem room={room} mEvent={mEvent} />
+            </>
+          )}
+        </div>
+      </div>
+    </>,
+    portalContainer
+  );
+}

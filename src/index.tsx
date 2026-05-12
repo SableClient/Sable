@@ -30,21 +30,36 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
-// Resize the root element to the visual viewport height so that when the
-// on-screen keyboard opens on iOS Safari (which overlays instead of resizing
-// the layout viewport), the app shrinks to fit the visible area above the
-// keyboard rather than having content hidden behind it.
+// On iOS Safari the keyboard overlays the layout viewport without resizing it,
+// so window.innerHeight stays constant while window.visualViewport.height drops.
+// We detect this by checking whether the surplus is large (> 150 px, which is a
+// real keyboard) and only then shrink #root to keep content above the keyboard.
+// On Android, interactive-widget=resizes-content already shrinks the layout
+// viewport, so window.innerHeight drops with it and the surplus stays small
+// (just the IME navigation bar, ~40-80 px). We leave height: 100% in control
+// there to avoid the white gap caused by the IME nav bar discrepancy.
 function syncAppHeight() {
-  if (window.visualViewport) {
+  if (!window.visualViewport) return;
+  const surplus = window.innerHeight - window.visualViewport.height;
+  if (surplus > 150) {
+    // Keyboard is open. visualViewport.height is the area above the keyboard.
+    // On iOS the home-indicator swipe area sits within the keyboard region, not
+    // above it, so padding-bottom: env(safe-area-inset-bottom) would incorrectly
+    // eat into the visible space. Override it to 0 while the keyboard is open.
     document.documentElement.style.setProperty(
       '--sable-app-height',
       `${window.visualViewport.height}px`
     );
+    document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
+  } else {
+    document.documentElement.style.removeProperty('--sable-app-height');
+    document.documentElement.style.removeProperty('--sable-safe-bottom');
   }
 }
 if (window.visualViewport) {
+  // No call at startup — height: 100% handles the initial state correctly.
+  // The resize event fires when the keyboard opens or browser chrome changes.
   window.visualViewport.addEventListener('resize', syncAppHeight);
-  syncAppHeight();
 }
 
 const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {

@@ -61,20 +61,22 @@ body {
 }
 #root {
   width: 100%;
-  height: 100%;
-  /* When the on-screen keyboard opens, iOS Safari overlays it over the layout
-     viewport without resizing it. index.tsx installs a visualViewport resize
-     listener that sets --sable-app-height to the visible area height, causing
-     the root to shrink so content above the keyboard stays fully visible.
-     Falls back to 100% on browsers without the VisualViewport API. */
+  /* On iOS Safari, when the keyboard opens the layout viewport stays constant
+     but the visual viewport shrinks. index.tsx detects this large surplus and
+     sets --sable-app-height so #root fits the area above the keyboard.
+     On Android the layout viewport already resizes, so height: 100% (the
+     fallback) is always correct there. */
   height: var(--sable-app-height, 100%);
   display: flex;
   flex-direction: column;
   /* When viewport-fit=cover is set (see index.html), the layout viewport
      extends into device safe areas. Push content away from the notch/status
-     bar at the top and the home-indicator / gesture bar at the bottom. */
+     bar at the top and the home-indicator / gesture bar at the bottom.
+     --sable-safe-bottom is set to 0 by index.tsx while the keyboard is open,
+     because the home indicator sits inside the keyboard region on iOS and is
+     no longer in the visible area above the keyboard. */
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 *,

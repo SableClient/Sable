@@ -312,6 +312,8 @@ function useMobileLongPress(callback: () => void, delay = 500) {
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         firedRef.current = true;
+        // Clear any text selection the browser started during the long-press gesture.
+        window.getSelection()?.removeAllRanges();
         callback();
       }, delay);
     },

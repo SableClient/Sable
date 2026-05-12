@@ -9,7 +9,7 @@ const slideUp = keyframes({
 export const Backdrop = style({
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.5)',
+  background: 'rgba(0,0,0,0.72)',
   zIndex: 100,
 });
 

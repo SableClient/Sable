@@ -2,7 +2,7 @@ import type { ClipboardEventHandler, KeyboardEventHandler, ReactNode } from 'rea
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll, Text } from 'folds';
 import type { Descendant, Editor } from 'slate';
-import { Node, createEditor } from 'slate';
+import { Node, Transforms, createEditor } from 'slate';
 import type { RenderLeafProps, RenderElementProps, RenderPlaceholderProps } from 'slate-react';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
@@ -445,6 +445,17 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 // keeps focus after pressing send.
                 onBlur={() => {
                   if (mobileOrTablet()) ReactEditor.focus(editor);
+                }}
+                // iOS Slate.js bug: an empty contenteditable doesn't signal
+                // "start of sentence" to autocapitalize. A no-op text
+                // round-trip primes the input context on focus.
+                onFocus={() => {
+                  if (!mobileOrTablet()) return;
+                  requestAnimationFrame(() => {
+                    if (!ReactEditor.isFocused(editor) || Node.string(editor).length > 0) return;
+                    Transforms.insertText(editor, '\u00a0');
+                    Transforms.delete(editor, { reverse: true });
+                  });
                 }}
               />
             </Scroll>

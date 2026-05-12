@@ -143,6 +143,7 @@ import {
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useKeyboardHeight, useScrollLock } from '$hooks/ios-keyboard-fix';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -412,6 +413,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+
+    const { keyboardHeight, isKeyboardVisible, triggerPreLift } = useKeyboardHeight();
+    useScrollLock(isKeyboardVisible && mobileOrTablet());
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1293,7 +1297,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div ref={ref}>
+      <div
+        ref={ref}
+        onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}
+        style={
+          keyboardHeight > 0 && mobileOrTablet()
+            ? { transform: `translateY(-${keyboardHeight}px)` }
+            : undefined
+        }
+      >
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={

@@ -365,6 +365,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               },
             })
           );
+          // If all files failed to encrypt (e.g. iCloud file not yet downloaded
+          // on iOS), surface an error rather than silently producing no items.
+          if (fileItems.length === 0 && safeFiles.length > 0) {
+            setSendError('Could not read the file. Try downloading it first, then try again.');
+            return;
+          }
         } else {
           safeFiles.forEach((f) =>
             fileItems.push({

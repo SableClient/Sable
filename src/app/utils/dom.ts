@@ -69,23 +69,40 @@ export const selectFile = <M extends boolean | undefined = undefined>(
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
     document.body.appendChild(input);
 
+    let settled = false;
+
     const cleanup = () => {
       input.removeEventListener('change', changeHandler);
+      input.removeEventListener('cancel', cancelHandler);
       if (input.parentNode) input.parentNode.removeChild(input);
+    };
+
+    const settle = (value: FilesOrFile<M> | undefined) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
     };
 
     const changeHandler = () => {
       const fileList = input.files;
-      if (!fileList) {
-        resolve(undefined);
-      } else {
-        const files: File[] = getFilesFromFileList(fileList);
-        resolve((multiple ? files : files[0]) as FilesOrFile<M>);
+      // On iOS Safari, `change` can fire with an empty FileList (e.g. the
+      // picker was dismissed, or the file isn't available yet). Treat this
+      // the same as a cancellation so callers receive `undefined` rather than
+      // an empty array that silently produces no upload items.
+      if (!fileList || fileList.length === 0) {
+        settle(undefined);
+        return;
       }
-      cleanup();
+      const files: File[] = getFilesFromFileList(fileList);
+      settle(files.length === 0 ? undefined : ((multiple ? files : files[0]) as FilesOrFile<M>));
     };
 
+    // iOS 15+: fires when the picker is dismissed without a file selection.
+    const cancelHandler = () => settle(undefined);
+
     input.addEventListener('change', changeHandler);
+    input.addEventListener('cancel', cancelHandler);
     input.click();
   });
 

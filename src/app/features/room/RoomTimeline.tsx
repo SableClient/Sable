@@ -226,6 +226,10 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  // Short-lived guard set for ~350 ms after a jump scrollToIndex so that
+  // intermediate scroll events from the animation don't flip atBottom prematurely.
+  const jumpScrollBlockRef = useRef(false);
+  const jumpScrollBlockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -259,6 +263,23 @@ export function RoomTimeline({
     if (lastIndex < 0) return;
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, []);
+
+  // Start a short scroll-settle block after a programmatic jump scrollToIndex.
+  // After 350 ms the block lifts and atBottom is recomputed from the actual
+  // VList position so "Jump to Latest" appears correctly.
+  const startJumpScrollBlock = useCallback(() => {
+    jumpScrollBlockRef.current = true;
+    if (jumpScrollBlockTimerRef.current !== undefined) clearTimeout(jumpScrollBlockTimerRef.current);
+    jumpScrollBlockTimerRef.current = setTimeout(() => {
+      jumpScrollBlockRef.current = false;
+      jumpScrollBlockTimerRef.current = undefined;
+      const v = vListRef.current;
+      if (v) {
+        const dist = v.scrollSize - v.scrollOffset - v.viewportSize;
+        setAtBottom(dist < 100);
+      }
+    }, 350);
+  }, [setAtBottom]);
 
   const timelineSync = useTimelineSync({
     room,
@@ -399,6 +420,7 @@ export function RoomTimeline({
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         }
       }
@@ -409,7 +431,7 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
     };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
+  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex, startJumpScrollBlock]);
 
   useEffect(() => {
     if (timelineSync.focusItem) {
@@ -533,6 +555,7 @@ export function RoomTimeline({
         }
         if (vListRef.current && processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
@@ -675,6 +698,13 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+
+      // While a jump scroll is settling (briefly after scrollToIndex), VList
+      // fires intermediate scroll events that can incorrectly flip atBottom.
+      // Use a short-lived block instead of the full focusItem lifetime so that
+      // normal scrolling resumes quickly and atBottom is recomputed correctly.
+      if (jumpScrollBlockRef.current) return;
+
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }

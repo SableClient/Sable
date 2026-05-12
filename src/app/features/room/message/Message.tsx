@@ -82,6 +82,7 @@ import {
 import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile';
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
+import { MobileMessageMenu } from './MobileMessageMenu';
 import * as css from './styles.css';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
@@ -291,6 +292,7 @@ export type MessageProps = {
 function useMobileLongPress(callback: () => void, delay = 500) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const firedRef = useRef(false);
 
   const cancel = useCallback(() => {
     if (timerRef.current !== null) {
@@ -300,33 +302,43 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     startPosRef.current = null;
   }, []);
 
-  const onPointerDown = useCallback(
-    (e: { clientX: number; clientY: number }) => {
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
       if (!mobileOrTablet()) return;
-      startPosRef.current = { x: e.clientX, y: e.clientY };
+      const touch = e.touches[0];
+      if (!touch) return;
+      startPosRef.current = { x: touch.clientX, y: touch.clientY };
+      firedRef.current = false;
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
+        firedRef.current = true;
         callback();
       }, delay);
     },
     [callback, delay]
   );
 
-  const onPointerMove = useCallback(
-    (e: { clientX: number; clientY: number }) => {
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
       if (!startPosRef.current) return;
-      const dx = e.clientX - startPosRef.current.x;
-      const dy = e.clientY - startPosRef.current.y;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startPosRef.current.x;
+      const dy = touch.clientY - startPosRef.current.y;
       if (Math.sqrt(dx * dx + dy * dy) > 10) cancel();
     },
     [cancel]
   );
 
+  const onTouchEnd = useCallback(() => {
+    cancel();
+  }, [cancel]);
+
   return {
-    onPointerDown,
-    onPointerUp: cancel,
-    onPointerCancel: cancel,
-    onPointerMove,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    onTouchCancel: onTouchEnd,
   };
 }
 
@@ -546,8 +558,6 @@ function MessageInternal(
 
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
-
-  const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
   const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
 
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
@@ -573,17 +583,6 @@ function MessageInternal(
     return existing;
   }, [pronouns, inlinePronoun]);
 
-  useEffect(() => {
-    if (!mobileOptionsOpen) return undefined;
-    const handleClickOutside = (e: globalThis.Event) => {
-      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-        setMobileOptionsOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handleClickOutside, { capture: true });
-    return () => document.removeEventListener('pointerdown', handleClickOutside, { capture: true });
-  }, [mobileOptionsOpen]);
-
   const headerJSX = !collapse && (
     <Box
       gap="300"
@@ -607,7 +606,7 @@ function MessageInternal(
             <UsernameBold>{cleanedDisplayName}</UsernameBold>
           </Text>
         </Username>
-        {showPronouns && (
+        {mergedPronouns.length > 0 && (
           <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
         )}
         {showPmPInfo && (
@@ -845,6 +844,7 @@ function MessageInternal(
   const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (mobileOrTablet()) {
       evt.preventDefault();
+      setMobileOptionsOpen(true);
       return;
     }
 
@@ -930,7 +930,7 @@ function MessageInternal(
       {...focusWithinProps}
       ref={ref}
     >
-      {!edit && (isDesktopHover || !!menuAnchor || !!emojiBoardAnchor || mobileOptionsOpen) && (
+      {!edit && (isDesktopHover || !!menuAnchor || !!emojiBoardAnchor) && (
         <div className={css.MessageOptionsBase} ref={optionsRef}>
           <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
             <Box gap="100">
@@ -1313,6 +1313,19 @@ function MessageInternal(
           </ModernLayout>
         </SwipeableMessageWrapper>
       )}
+      {mobileOptionsOpen && (
+        <MobileMessageMenu
+          room={room}
+          mEvent={mEvent}
+          canDelete={canDelete}
+          canSendReaction={canSendReaction}
+          isThreadedMessage={isThreadedMessage}
+          onReplyClick={onReplyClick}
+          onEditId={onEditId}
+          onReactionToggle={onReactionToggle}
+          onClose={() => setMobileOptionsOpen(false)}
+        />
+      )}
     </MessageBase>
   );
 }
@@ -1364,6 +1377,7 @@ export const Event = as<'div', EventProps>(
     const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
       if (mobileOrTablet()) {
         evt.preventDefault();
+        setMobileOptionsOpen(true);
         return;
       }
 
@@ -1407,17 +1421,6 @@ export const Event = as<'div', EventProps>(
 
     const optionsRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-      if (!mobileOptionsOpen) return undefined;
-      const handleClick = (e: globalThis.Event) => {
-        if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) {
-          setMobileOptionsOpen(false);
-        }
-      };
-      document.addEventListener('pointerdown', handleClick, { capture: true });
-      return () => document.removeEventListener('pointerdown', handleClick, { capture: true });
-    }, [mobileOptionsOpen]);
-
     const longPress = useMobileLongPress(() => {
       setMobileOptionsOpen(true);
     });
@@ -1443,7 +1446,7 @@ export const Event = as<'div', EventProps>(
         {...focusWithinProps}
         ref={ref}
       >
-        {(isDesktopHover || !!menuAnchor || mobileOptionsOpen) && (
+        {(isDesktopHover || !!menuAnchor) && (
           <div className={css.MessageOptionsBase} ref={optionsRef}>
             <Menu className={css.MessageOptionsBar} variant="SurfaceVariant">
               <Box gap="100">
@@ -1551,6 +1554,16 @@ export const Event = as<'div', EventProps>(
         <div onContextMenu={handleContextMenu} {...longPress}>
           {children}
         </div>
+        {mobileOptionsOpen && (
+          <MobileMessageMenu
+            room={room}
+            mEvent={mEvent}
+            canDelete={canDelete}
+            onReplyClick={onReplyClick}
+            onReactionToggle={() => {}}
+            onClose={() => setMobileOptionsOpen(false)}
+          />
+        )}
       </MessageBase>
     );
   }

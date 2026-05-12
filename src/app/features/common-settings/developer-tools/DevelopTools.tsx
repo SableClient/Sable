@@ -150,12 +150,26 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
     [mx, room.roomId]
   );
 
+  const deleteRoomAccountData = useCallback(
+    (type: string) => {
+      if (
+        !window.confirm(
+          `Delete room account data '${type}'?\n\nNote: Matrix does not support deleting account data events. This will overwrite the content with an empty object {}. The event type key will remain.`
+        )
+      )
+        return;
+      mx.setRoomAccountData(room.roomId, type, {}).then(() => setAccountDataType(undefined));
+    },
+    [mx, room.roomId]
+  );
+
   if (accountDataType !== undefined) {
     return (
       <AccountDataEditor
         type={accountDataType ?? undefined}
         content={accountDataType ? accountData.get(accountDataType) : undefined}
         submitChange={submitAccountData}
+        onDelete={accountDataType ? () => deleteRoomAccountData(accountDataType) : undefined}
         requestClose={handleClose}
       />
     );

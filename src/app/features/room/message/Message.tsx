@@ -336,11 +336,18 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     cancel();
   }, [cancel]);
 
+  // Prevent the browser from selecting message text during a long-press gesture.
+  // Only applied on touch devices — desktop users can still select text normally.
+  const style = mobileOrTablet()
+    ? ({ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)
+    : undefined;
+
   return {
     onTouchStart,
     onTouchMove,
     onTouchEnd,
     onTouchCancel: onTouchEnd,
+    style,
   };
 }
 

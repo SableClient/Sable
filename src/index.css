@@ -68,6 +68,8 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* Push content below the iOS notch/Dynamic Island when viewport-fit=cover is set. */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 *,

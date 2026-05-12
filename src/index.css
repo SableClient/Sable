@@ -43,10 +43,6 @@
 
 html {
   height: 100%;
-  /* dvh (dynamic viewport height) shrinks when the on-screen keyboard opens on
-     iOS/Android, keeping the app layout anchored at the top rather than being
-     pushed off-screen. Falls back to 100% on older browsers. */
-  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -68,8 +64,6 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  /* Push content below the iOS notch/Dynamic Island when viewport-fit=cover is set. */
-  padding-top: env(safe-area-inset-top, 0px);
 }
 
 *,

@@ -9,8 +9,9 @@ const slideUp = keyframes({
 export const Backdrop = style({
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.88)',
   zIndex: 100,
+  // No background — the chat timeline stays fully visible above the sheet.
+  // The div still intercepts pointer events to dismiss the menu on tap-outside.
 });
 
 export const Sheet = style([

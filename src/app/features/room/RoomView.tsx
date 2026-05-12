@@ -160,7 +160,13 @@ export function RoomView({ eventId }: { eventId?: string }) {
               <RoomViewTyping room={room} />
               <GlobalModalManager />
             </Box>
-            <Box shrink="No" direction="Column">
+            <Box
+              shrink="No"
+              direction="Column"
+              style={{
+                paddingBottom: 'var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px))',
+              }}
+            >
               {canMessage && delayedEventsSupported && (
                 <ScheduledMessagesList room={room} onEditMessage={handleEditMessage} />
               )}

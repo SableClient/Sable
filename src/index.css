@@ -61,11 +61,18 @@ body {
 }
 #root {
   width: 100%;
-  height: 100%;
+  /* On iOS PWA, --sable-visible-height is set (via RoomInput's useEffect)
+     when the keyboard is open, shrinking the root to the visual viewport
+     so the whole layout reflows correctly above the keyboard. Falls back
+     to 100% when no keyboard is present. */
+  height: var(--sable-visible-height, 100%);
   display: flex;
   flex-direction: column;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* --sable-safe-bottom is set to 0px when the keyboard is open (home
+     indicator region is covered by the keyboard). Falls back to the
+     safe-area inset when the keyboard is closed. */
+  padding-bottom: var(--sable-safe-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 *,

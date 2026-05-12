@@ -414,8 +414,45 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
-    const { keyboardHeight, isKeyboardVisible, triggerPreLift } = useKeyboardHeight();
+    const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
     useScrollLock(isKeyboardVisible && mobileOrTablet());
+
+    // When the keyboard opens, shrink #root to the visual viewport height
+    // (the area above the keyboard). This is the layout-correct approach
+    // for Sable's in-flow flex layout: transform moves the input visually
+    // but leaves the message list sized to the full height, producing a
+    // gap. CSS variables let the whole layout reflow so messages fill the
+    // visible area and the input sits at the bottom above the keyboard.
+    // The 80 ms stability gate in useKeyboardHeight prevents this from
+    // firing at startup or during transient browser-chrome resize events.
+    useEffect(() => {
+      if (!mobileOrTablet()) return undefined;
+
+      if (isKeyboardVisible && keyboardHeight > 0) {
+        const visibleHeight = window.visualViewport?.height ?? window.innerHeight - keyboardHeight;
+        document.documentElement.style.setProperty('--sable-visible-height', `${visibleHeight}px`);
+        document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
+        // Reset any scroll iOS applied during the stability window before
+        // the lock became active.
+        if (window.scrollY !== 0) {
+          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        }
+      } else {
+        document.documentElement.style.removeProperty('--sable-visible-height');
+        document.documentElement.style.removeProperty('--sable-safe-bottom');
+      }
+
+      return undefined;
+    }, [isKeyboardVisible, keyboardHeight]);
+
+    // Safety: remove CSS variables if RoomInput unmounts while keyboard open.
+    useEffect(
+      () => () => {
+        document.documentElement.style.removeProperty('--sable-visible-height');
+        document.documentElement.style.removeProperty('--sable-safe-bottom');
+      },
+      []
+    );
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1297,15 +1334,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div
-        ref={ref}
-        onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}
-        style={
-          keyboardHeight > 0 && mobileOrTablet()
-            ? { transform: `translateY(-${keyboardHeight}px)` }
-            : undefined
-        }
-      >
+      <div ref={ref}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={

@@ -17,6 +17,12 @@ import { useEffect } from 'react';
 // this lock will fight legitimate page scroll while the keyboard is open.
 export function useScrollLock(active: boolean) {
   useEffect(() => {
+    // Snap back immediately in case iOS scroll prediction ran during the
+    // stability window, before this lock became active.
+    if (active && window.scrollY > 0) {
+      window.scrollTo(0, 0);
+    }
+
     const preventScroll = () => {
       if (active && window.scrollY > 0) {
         window.scrollTo(0, 0);

@@ -12,8 +12,7 @@ export const isStandalonePWA = (): boolean => {
   return iosStandalone || displayModeStandalone;
 };
 
-export const isTablet = (): boolean =>
-  typeof window !== 'undefined' && window.innerWidth >= 768;
+export const isTablet = (): boolean => typeof window !== 'undefined' && window.innerWidth >= 768;
 
 export const needsVirtualKeyboard = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {

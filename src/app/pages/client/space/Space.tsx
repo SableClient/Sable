@@ -79,7 +79,7 @@ import { ContainerColor } from '$styles/ContainerColor.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { BreakWord } from '$styles/Text.css';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTablet, mobileOrTabletLayout } from '$utils/user-agent';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
@@ -857,7 +857,7 @@ export function Space() {
   }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   return (
     <Box
@@ -1048,7 +1048,7 @@ export function Space() {
           </PageNavContent>
         </SwipeableOverlayWrapper>
       </PageNav>
-      {!isMobile && (
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

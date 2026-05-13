@@ -111,6 +111,10 @@ describe('htmlToMarkdown', () => {
     expect(result).toContain('\\*');
   });
 
+  it('inserts a blank line between adjacent paragraphs for editor round-trip', () => {
+    expect(htmlToMarkdown('<p>First</p><p>Second</p>')).toBe('First\n\nSecond');
+  });
+
   it('encodes mx emoticons as private-use placeholders instead of literal img snippets', () => {
     const src = 'mxc://matrix.org/emote';
     const html = `<p>hi<img data-mx-emoticon src="${src}" alt="blobcat" title="blobcat" height="32" />bye</p>`;

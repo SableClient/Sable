@@ -777,6 +777,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         toMatrixCustomHTML(serializedChildren, {
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
+          forEmote: commandName === Command.Me,
         })
       );
 
@@ -851,6 +852,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               toMatrixCustomHTML(serializedChildren, {
                 stripNickname: true,
                 nickNameReplacement: nicknameReplacement,
+                forEmote: commandName === Command.Me,
               })
             );
           }

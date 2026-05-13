@@ -83,14 +83,43 @@ const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, strin
   return result;
 };
 
+/** When the whole message is a single paragraph, drop the redundant wrapper. */
+const unwrapSingleOuterParagraph = (html: string): string => {
+  const trimmed = html.trim();
+  const m = trimmed.match(/^<p\b[^>]*>([\s\S]*)<\/p>$/i);
+  if (!m) return html;
+  const inner = m[1] ?? '';
+  if (/<\/p>/i.test(inner)) return html;
+  return inner;
+};
+
+/**
+ * For `m.emote`, the sender display name is added at render time. Strips the leading `<p>…</p>`
+ * block (when its inner HTML has no `</p>`) so we don't send `<p>` around the action.
+ */
+const stripLeadingEmoteParagraph = (html: string): string | null => {
+  const trimmed = html.trim();
+  const m = trimmed.match(/^<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  if (!m) return null;
+  const inner = m[1] ?? '';
+  if (/<\/p>/i.test(inner)) return null;
+  const rest = trimmed.slice(m[0].length).trimStart();
+  return rest.length > 0 ? `${inner}${rest}` : inner;
+};
+
+export type MarkdownToHtmlOptions = {
+  emote?: boolean;
+};
+
 /**
  * Converts markdown string to sanitized Matrix-compatible HTML.
  * Uses marked for parsing and DOMPurify for sanitization per Matrix spec.
  *
  * @param markdown - Input markdown string
+ * @param options - Optional; set `emote` for `/me` outgoing HTML
  * @returns Sanitized HTML string safe for Matrix client output
  */
-export function markdownToHtml(markdown: string): string {
+export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions): string {
   // Decode HTML entities so marked can properly parse markdown syntax
   // (e.g., &lt; becomes < for link URLs)
   const decoded = decodeHtmlEntities(markdown);
@@ -205,5 +234,9 @@ export function markdownToHtml(markdown: string): string {
     matrixToPlaceholders
   );
 
-  return unshieldedMatrixTo.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  const listFixed = unshieldedMatrixTo.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  if (options?.emote) {
+    return stripLeadingEmoteParagraph(listFixed) ?? unwrapSingleOuterParagraph(listFixed);
+  }
+  return unwrapSingleOuterParagraph(listFixed);
 }

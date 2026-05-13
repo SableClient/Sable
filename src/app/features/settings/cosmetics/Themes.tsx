@@ -237,7 +237,7 @@ function ThemeVisualPreferences() {
   const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
     linkPreviewImageMaxHeight.toString()
   );
-  const [showRoomBanners,setShowRoomBanners] = useSetting(settingsAtom, 'showRoomBanners');
+  const [showRoomBanners, setShowRoomBanners] = useSetting(settingsAtom, 'showRoomBanners');
 
   const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
@@ -627,10 +627,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     settingsAtom,
     'widgetSidebarWidth'
   );
-  const [roomBannerHeight, setRoomBannerHeight] = useSetting(
-    settingsAtom,
-    'roomBannerHeight'
-  );
+  const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
 
   // Yandere style code but it works  and is as straight forward as can be :shrug:
   const getCurValue = useMemo(() => {
@@ -650,7 +647,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     threadRootHeight,
     vcmsgSidebarWidth,
     widgetSidebarWidth,
-    roomBannerHeight
+    roomBannerHeight,
   ]);
   const [curValue, setCurValue] = useState(getCurValue);
   const setValue = (value: number) => {

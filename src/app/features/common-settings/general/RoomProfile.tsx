@@ -315,7 +315,7 @@ export type ProfileProps = {
 function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const [alertRemove, setAlertRemove] = useState(false);
-  
+
   const space = useRoom();
   const [stagedUrl, setStagedUrl] = useState<string>();
   const [isRemoving, setIsRemoving] = useState(false);
@@ -353,7 +353,7 @@ function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
       const { mxc } = upload;
 
       if (imageFileURL) setStagedUrl(imageFileURL);
-      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, {url: mxc}, '');
+      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: mxc }, '');
       setImageFile(undefined);
     },
     [mx, imageFileURL, space]
@@ -364,7 +364,7 @@ function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
     setStagedUrl(undefined);
     setImageFile(undefined);
 
-      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, {url: ''}, '');
+    mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: '' }, '');
 
     setAlertRemove(false);
   };
@@ -579,14 +579,16 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           </Box>
         )}
       </SequenceCard>
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <RoomBannerEdit bannerURI={bannerURI ?? undefined}/>
-      </SequenceCard>
+      {room.isSpaceRoom() && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <RoomBannerEdit bannerURI={bannerURI ?? undefined} />
+        </SequenceCard>
+      )}
     </Box>
   );
 }

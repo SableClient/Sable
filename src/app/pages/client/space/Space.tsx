@@ -281,7 +281,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
   const bannerState = useStateEvent(space, CustomStateEvent.RoomBanner);
   const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
   const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
-  const hasBanner = bannerURI && !hideText && showBanners;
+  const hasBanner = !!(bannerURI && !hideText && showBanners);
 
   return (
     <>

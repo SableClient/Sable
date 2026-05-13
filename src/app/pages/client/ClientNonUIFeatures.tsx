@@ -62,6 +62,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
+import { useSyncState } from '$hooks/useSyncState';
 
 const pushRelayLog = createDebugLogger('push-relay');
 
@@ -688,6 +689,36 @@ function SyncNotificationSettingsWithServiceWorker() {
   return null;
 }
 
+/**
+ * Tells the service worker whether the Matrix sync connection is healthy.
+ * When sync is in Reconnecting or Error state the in-app notification path is
+ * broken, so the SW must not suppress OS push notifications even while the app
+ * is visible.
+ */
+function SyncStateWithServiceWorker() {
+  const mx = useMatrixClient();
+
+  const postSyncHealth = useCallback((healthy: boolean) => {
+    if (!('serviceWorker' in navigator)) return;
+    const msg = { type: 'setSyncState', healthy };
+    navigator.serviceWorker.controller?.postMessage(msg);
+    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage(msg));
+  }, []);
+
+  useSyncState(
+    mx,
+    useCallback(
+      (current) => {
+        const healthy = current !== SyncState.Reconnecting && current !== SyncState.Error;
+        postSyncHealth(healthy);
+      },
+      [postSyncHealth]
+    )
+  );
+
+  return null;
+}
+
 function SlidingSyncActiveRoomSubscriber() {
   useSlidingSyncActiveRoom();
   return null;
@@ -874,6 +905,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <MessageNotifications />
       <BackgroundNotifications />
       <SyncNotificationSettingsWithServiceWorker />
+      <SyncStateWithServiceWorker />
       <HandleDecryptPushEvent />
       <NotificationBanner />
       <TelemetryConsentBanner />

@@ -223,4 +223,21 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml(html);
     expect(result).not.toContain('?');
   });
+
+  it('keeps normal markdown links valid when many bare matrix.to URLs are shielded', () => {
+    const matrixLines = Array.from(
+      { length: 12 },
+      (_, i) => `https://matrix.to/#/@u${i}:example.org`
+    ).join('\n');
+    const md = `${matrixLines}\n[docs](https://example.com/doc)`;
+    const result = markdownToHtml(md);
+    expect(result).toContain('<a href="https://example.com/doc"');
+    expect(result).not.toContain('&lt;a href=');
+  });
+
+  it('emits bare matrix.to text for unformatted URLs, not anchor tags', () => {
+    const result = markdownToHtml('join https://matrix.to/#/#room:example.org please');
+    expect(result).toContain('https://matrix.to/#/#room:example.org');
+    expect(result).not.toMatch(/<a[^>]*matrix\.to/);
+  });
 });

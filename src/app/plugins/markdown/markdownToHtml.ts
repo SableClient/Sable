@@ -77,8 +77,10 @@ const shieldBareMatrixToLinks = (
 
 const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, string>): string => {
   let result = html;
-  for (const [key, url] of placeholders.entries()) {
-    result = result.split(key).join(escapeHtml(url));
+  const keys = [...placeholders.keys()].sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const url = placeholders.get(key);
+    if (url) result = result.split(key).join(escapeHtml(url));
   }
   return result;
 };

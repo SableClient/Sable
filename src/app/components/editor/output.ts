@@ -8,7 +8,7 @@ import { isUserId } from '$utils/matrix';
 import type { CustomElement } from './slate';
 import { BlockType } from './types';
 import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from './utils';
-import { MATRIX_TO_BASE } from '$plugins/matrix-to';
+import { MATRIX_TO_BASE, testMatrixTo } from '$plugins/matrix-to';
 
 export type OutputOptions = {
   /**
@@ -38,8 +38,8 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
         fragment += `?${node.viaServers.map((server) => `via=${server}`).join('&')}`;
       }
 
-      const matrixTo = `https://matrix.to/#/${fragment}`;
-      return `<a href="${encodeURI(matrixTo)}" target="_blank" rel="noreferrer noopener">${sanitizeText(node.name)}</a>`;
+      const matrixTo = `${MATRIX_TO_BASE}#/${fragment}`;
+      return sanitizeText(matrixTo);
     }
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://')
@@ -48,7 +48,9 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
           )}" title="${sanitizeText(node.shortcode)}" height="32" />`
         : sanitizeText(node.key);
     case BlockType.Link:
-      return `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
+      return testMatrixTo(node.href)
+        ? sanitizeText(node.href)
+        : `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:

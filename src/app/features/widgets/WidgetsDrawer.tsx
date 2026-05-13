@@ -1,5 +1,5 @@
 import type { FormEventHandler, MouseEventHandler } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Header,
@@ -15,13 +15,14 @@ import {
   config,
   Button,
   Line,
+  toRem,
 } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { RoomWidget } from '$hooks/useRoomWidgets';
 import { useRoomWidgets, enrichWidgetUrl } from '$hooks/useRoomWidgets';
-import { useSetSetting } from '$state/hooks/settings';
+import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -32,6 +33,8 @@ import { WidgetIframe } from './WidgetIframe';
 import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
 import { CustomStateEvent } from '$types/matrix/room';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type WidgetsDrawerHeaderProps = {
   activeWidget: RoomWidget | null;
@@ -229,6 +232,15 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const permissions = useRoomPermissions(creators, powerLevels);
   const canManageWidgets = permissions.stateEvent(CustomStateEvent.RoomWidget, mx.getSafeUserId());
 
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(widgetSidebarWidth);
+  useEffect(() => {
+    setCurWidth(widgetSidebarWidth);
+  }, [widgetSidebarWidth]);
+
   const handleRemoveWidget = async (widget: RoomWidget) => {
     try {
       await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomWidget, {}, widget.id);
@@ -243,74 +255,96 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const handleBack = () => setActiveWidget(null);
 
   return (
-    <Box className={css.WidgetsDrawer} direction="Column">
-      <WidgetDrawerHeader activeWidget={activeWidget} onBack={handleBack} />
-      {activeWidget ? (
-        <Box className={css.WidgetIframeContainer} grow="Yes">
-          <WidgetIframe key={activeWidget.id} widget={activeWidget} roomId={room.roomId} mx={mx} />
-        </Box>
-      ) : (
-        <Scroll variant="Background" visibility="Hover">
-          <Box direction="Column" gap="100" style={{ padding: config.space.S200 }}>
-            {widgets.length === 0 && !showAddForm && (
-              <Box style={{ padding: config.space.S300 }}>
-                <Text size="T300" priority="300">
-                  No widgets in this room.
-                </Text>
-              </Box>
-            )}
-            {widgets.map((widget) => (
-              <WidgetListItemView
-                key={widget.id}
-                widget={widget}
-                onSelect={setActiveWidget}
-                onRemove={handleRemoveWidget}
-                canRemove={canManageWidgets}
-              />
-            ))}
-            {canManageWidgets && (
-              <>
-                <Line variant="Surface" size="300" />
-                {showAddForm ? (
-                  <AddWidgetForm room={room} onAdded={() => setShowAddForm(false)} />
-                ) : (
-                  <Box
-                    direction="Column"
-                    gap="100"
-                    style={{
-                      padding: `${config.space.S100} ${config.space.S300}`,
-                    }}
-                  >
-                    <Button
-                      size="300"
-                      variant="Primary"
-                      fill="Soft"
-                      onClick={() => setShowIntegrationManager(true)}
-                      before={<Icon size="100" src={Icons.Category} />}
-                    >
-                      <Text size="B300">Integration Manager</Text>
-                    </Button>
-                    <Button
-                      size="300"
-                      variant="Secondary"
-                      fill="Soft"
-                      onClick={() => setShowAddForm(true)}
-                      before={<Icon size="100" src={Icons.Plus} />}
-                    >
-                      <Text size="B300">Add Custom Widget</Text>
-                    </Button>
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        </Scroll>
+    <>
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={widgetSidebarWidth}
+          setSidebarWidth={setWidgetSidebarWidth}
+          minValue={50}
+          maxValue={1200}
+          isReversed
+        />
       )}
-      <IntegrationManager
-        room={room}
-        open={showIntegrationManager}
-        onClose={() => setShowIntegrationManager(false)}
-      />
-    </Box>
+      <Box
+        className={css.WidgetsDrawer}
+        shrink="No"
+        direction="Column"
+        style={{ width: !mobileOrTablet() ? toRem(curWidth) : 'inherit' }}
+      >
+        <WidgetDrawerHeader activeWidget={activeWidget} onBack={handleBack} />
+        {activeWidget ? (
+          <Box className={css.WidgetIframeContainer} grow="Yes">
+            <WidgetIframe
+              key={activeWidget.id}
+              widget={activeWidget}
+              roomId={room.roomId}
+              mx={mx}
+            />
+          </Box>
+        ) : (
+          <Scroll variant="Background" visibility="Hover">
+            <Box direction="Column" gap="100" style={{ padding: config.space.S200 }}>
+              {widgets.length === 0 && !showAddForm && (
+                <Box style={{ padding: config.space.S300 }}>
+                  <Text size="T300" priority="300">
+                    No widgets in this room.
+                  </Text>
+                </Box>
+              )}
+              {widgets.map((widget) => (
+                <WidgetListItemView
+                  key={widget.id}
+                  widget={widget}
+                  onSelect={setActiveWidget}
+                  onRemove={handleRemoveWidget}
+                  canRemove={canManageWidgets}
+                />
+              ))}
+              {canManageWidgets && (
+                <>
+                  <Line variant="Surface" size="300" />
+                  {showAddForm ? (
+                    <AddWidgetForm room={room} onAdded={() => setShowAddForm(false)} />
+                  ) : (
+                    <Box
+                      direction="Column"
+                      gap="100"
+                      style={{
+                        padding: `${config.space.S100} ${config.space.S300}`,
+                      }}
+                    >
+                      <Button
+                        size="300"
+                        variant="Primary"
+                        fill="Soft"
+                        onClick={() => setShowIntegrationManager(true)}
+                        before={<Icon size="100" src={Icons.Category} />}
+                      >
+                        <Text size="B300">Integration Manager</Text>
+                      </Button>
+                      <Button
+                        size="300"
+                        variant="Secondary"
+                        fill="Soft"
+                        onClick={() => setShowAddForm(true)}
+                        before={<Icon size="100" src={Icons.Plus} />}
+                      >
+                        <Text size="B300">Add Custom Widget</Text>
+                      </Button>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
+          </Scroll>
+        )}
+        <IntegrationManager
+          room={room}
+          open={showIntegrationManager}
+          onClose={() => setShowIntegrationManager(false)}
+        />
+      </Box>
+    </>
   );
 }

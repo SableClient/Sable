@@ -53,6 +53,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'twenty-four-hour-time-format',
     'url-preview',
     'use-sliding-sync',
+    'join-on-click-voicecalls',
   ],
   account: [
     'about-you',
@@ -120,6 +121,8 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'system-theme',
     'twitter-emoji',
     'underline-links',
+    'show-room-icons',
+    'sidebar-size',
     'incoming-inline-images-default-height',
     'incoming-inline-images-max-height',
     'link-preview-image-max-height',

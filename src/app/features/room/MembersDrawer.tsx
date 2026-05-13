@@ -331,20 +331,20 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
         width: !mobileOrTablet() ? toRem(curWidth) : '100%',
       }}
     >
-      {!mobileOrTablet() && (
-        <SidebarResizer
-          setCurWidth={setCurWidth}
-          sidebarWidth={memberSidebarWidth}
-          setSidebarWidth={setMemberSidebarWidth}
-          instep={64}
-          outstep={176}
-          minValue={50}
-          maxValue={350}
-          isReversed
-        />
-      )}
       <MemberDrawerHeader room={room} hideText={hideText} />
       <Box className={css.MemberDrawerContentBase} grow="Yes">
+        {!mobileOrTablet() && (
+          <SidebarResizer
+            setCurWidth={setCurWidth}
+            sidebarWidth={memberSidebarWidth}
+            setSidebarWidth={setMemberSidebarWidth}
+            instep={64}
+            outstep={176}
+            minValue={50}
+            maxValue={350}
+            isReversed
+          />
+        )}
         <Scroll ref={scrollRef} variant="Background" size="300" visibility="Hover" hideTrack>
           <Box className={css.MemberDrawerContent} direction="Column" gap="200">
             {!hideText && (

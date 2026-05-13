@@ -14,5 +14,22 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
-  "nixEnvSelector.useFlakes": true
+  "nixEnvSelector.useFlakes": true,
+  // i18n Ally configuration
+  "i18n-ally.localesPaths": ["public/locales"],
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.enabledFrameworks": ["react", "i18next"],
+  "i18n-ally.namespace": true,
+  "i18n-ally.pathMatcher": "{locale}.json",
+  // Error Lens configuration
+  "errorLens.enabled": true,
+  // Import Cost configuration
+  "importCost.bundleSizeDecoration": "both",
+  "importCost.showCalculatingDecoration": true,
+  // Todo Tree configuration
+  "todo-tree.general.tags": ["TODO", "FIXME", "HACK", "XXX", "NOTE", "BUG"],
+  "todo-tree.highlights.defaultHighlight": {
+    "icon": "alert",
+    "type": "text"
+  }
 }

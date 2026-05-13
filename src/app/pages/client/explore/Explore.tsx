@@ -32,7 +32,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
@@ -178,7 +178,7 @@ export function Explore() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -312,7 +312,7 @@ export function Explore() {
           </Box>
         </PageNavContent>
       </PageNav>
-      {!mobileOrTablet() && (
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

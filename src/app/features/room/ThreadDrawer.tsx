@@ -242,6 +242,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const setReplyDraft = useSetAtom(roomIdToReplyDraftAtomFamily(threadRootId));
   const replyDraft = useAtomValue(roomIdToReplyDraftAtomFamily(threadRootId));
   const activeReplyId = replyDraft?.eventId;
+  // Keep a ref so handleReplyClick can read the latest draft without being
+  // recreated on every keystroke (which would re-render all Message instances).
+  const replyDraftRef = useRef(replyDraft);
+  replyDraftRef.current = replyDraft;
 
   // User profile popup
   const openUserRoomProfile = useOpenUserRoomProfile();
@@ -593,7 +597,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         };
         // Only toggle off if we're actively replying to this event (non-empty body distinguishes
         // a real reply draft from the seeded base-thread draft, which has body: '').
-        if (activeReplyId === replyId && replyDraft?.body) {
+        if (activeReplyId === replyId && replyDraftRef.current?.body) {
           // Toggle off — reset to base thread draft
           setReplyDraft({
             userId: mx.getUserId() ?? '',
@@ -606,7 +610,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         }
       }
     },
-    [mx, room, setReplyDraft, activeReplyId, threadRootId, replyDraft]
+    [mx, room, setReplyDraft, activeReplyId, threadRootId]
   );
 
   const handleReactionToggle = useCallback(

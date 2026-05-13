@@ -271,6 +271,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       return cords;
     });
   };
+  const [showBanners] = useSetting(settingsAtom, 'showRoomBanners');
   const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
   const [curHeight, setCurHeight] = useState(roomBannerHeight);
   useEffect(() => {
@@ -280,7 +281,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
   const bannerState = useStateEvent(space, CustomStateEvent.RoomBanner);
   const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
   const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
-  const hasBanner = bannerURI && !hideText;
+  const hasBanner = bannerURI && !hideText && showBanners;
 
   return (
     <>
@@ -355,31 +356,30 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
           )}
         </div>
       </div>
-      {bannerURI && !hideText && (
+      {hasBanner && (
         <>
-        <div className={css.RoomCoverContainer} style={{height:toRem(curHeight)}}>
-          <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
-            <img
-              className={css.RoomCoverImage}
-              src={bannerURI}
-              alt={`${spaceName}'s banner`}
-              draggable="false"
-            />
-          </ClientSideHoverFreeze>
-        </div>
-        <SidebarResizer
-          setCurWidth={setCurHeight}
-          sidebarWidth={roomBannerHeight}
-          setSidebarWidth={setRoomBannerHeight}
-          instep={50}
-          outstep={60}
-          minValue={50}
-          maxValue={500}
-          topSided
-        />
+          <div className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
+            <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
+              <img
+                className={css.RoomCoverImage}
+                src={bannerURI}
+                alt={`${spaceName}'s banner`}
+                draggable="false"
+              />
+            </ClientSideHoverFreeze>
+          </div>
+          <SidebarResizer
+            setCurWidth={setCurHeight}
+            sidebarWidth={roomBannerHeight}
+            setSidebarWidth={setRoomBannerHeight}
+            instep={50}
+            outstep={60}
+            minValue={50}
+            maxValue={500}
+            topSided
+          />
         </>
       )}
-
     </>
   );
 }

@@ -93,6 +93,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'customize-dm-cards',
     'custom-profile-cards',
     'dark-theme',
+    'display-room-banners',
     'jumbo-emoji-size',
     'light-theme',
     'manual-theme',

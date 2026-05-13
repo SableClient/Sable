@@ -32,6 +32,10 @@ export const usePanelSizeItems = (): PanelSizetItem[] =>
         layout: 'widgetSidebarWidth',
         name: 'Widget Panel Width',
       },
+      {
+        layout: 'roomBannerHeight',
+        name: 'Room Banner Height',
+      },
     ],
     []
   );

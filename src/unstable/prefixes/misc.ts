@@ -15,3 +15,6 @@ export const MATRIX_CINNY_UNSTABLE_STATE_ROOM_POWER_LEVELS_LABEL_PROPERTY_NAME =
 export const MATRIX_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME =
   'io.element.recent_emoji';
 export const MATRIX_ELEMENT_UNSTABLE_STATE_ROOM_WIDGET_PROPERTY_NAME = 'im.vector.modular.widgets';
+
+export const MATRIX_UNSTABLE_STATE_ROOM_BANNER_PROPERTY_NAME =
+  'page.codeberg.everypizza.room.banner';

@@ -86,6 +86,8 @@ import { RoomAvatar } from '$components/room-avatar';
 import { getRoomAvatarUrl } from '$utils/room';
 import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { CustomStateEvent } from '$types/matrix/room';
+import type { RoomBannerContent } from '$types/matrix-sdk-events';
 
 const debugLog = createDebugLogger('Space');
 
@@ -268,6 +270,8 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
     });
   };
 
+  const bannerState = useStateEvent(space, CustomStateEvent.RoomBanner);
+  const bannerURI = bannerState?.getContent<RoomBannerContent>()?.url;
   return (
     <>
       <PageNavHeader>
@@ -303,6 +307,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                   <Icon src={Icons.VerticalDots} size="200" />
                 </IconButton>
               </Box>
+              <Text>{bannerURI}</Text>
             </>
           )}
         </Box>

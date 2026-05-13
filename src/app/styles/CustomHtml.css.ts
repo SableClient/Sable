@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
 import { color, config, DefaultReset, toRem } from 'folds';
 import { ContainerColor } from './ContainerColor.css';
@@ -60,20 +60,26 @@ export const Code = style([
   },
 ]);
 
-export const Spoiler = recipe({
-  base: [
-    DefaultReset,
-    {
-      padding: `0 ${config.space.S100}`,
-      backgroundColor: color.SurfaceVariant.ContainerLine,
-      borderRadius: config.radii.R300,
-      selectors: {
-        '&[aria-pressed=true]': {
-          color: 'transparent',
-        },
+const SpoilerBase = style([
+  DefaultReset,
+  {
+    padding: `0 ${config.space.S100}`,
+    backgroundColor: color.SurfaceVariant.ContainerLine,
+    borderRadius: config.radii.R300,
+    selectors: {
+      '&[aria-pressed=true]': {
+        color: 'transparent',
       },
     },
-  ],
+  },
+]);
+
+globalStyle(`${SpoilerBase}[aria-pressed="true"] *`, {
+  visibility: 'hidden',
+});
+
+export const Spoiler = recipe({
+  base: SpoilerBase,
   variants: {
     active: {
       true: {

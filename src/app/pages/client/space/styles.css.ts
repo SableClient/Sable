@@ -1,5 +1,6 @@
 import { style } from '@vanilla-extract/css';
-import { color, config, toRem } from 'folds';
+import { recipe } from '@vanilla-extract/recipes';
+import { color, config } from 'folds';
 
 export const RoomCoverHeaderContainer = style({ width: '100%', position: 'relative' });
 export const RoomCoverNavContainer = style({
@@ -9,16 +10,26 @@ export const RoomCoverNavContainer = style({
   top: '0',
   background: 'linear-gradient(0deg,#0000 0%, rgb(0, 0, 0) 120%)',
 });
-export const RoomCoverlessNavContainer = style({
-  flexShrink: 0,
-  padding: `${config.space.S100} ${config.space.S200} ${config.space.S200} ${config.space.S400}`,
-  borderBottom: `1px solid ${color.Background.ContainerLine}`,
-  minHeight: '100%',
-  paddingRight: 0,
+export const RoomCoverlessNavContainer = recipe({
+  base: {
+    flexShrink: 0,
+    borderBottom: `1px solid ${color.Background.ContainerLine}`,
+    minHeight: '100%',
+    paddingRight: 0,
+  },
+  variants: {
+    hideText: {
+      true: {
+        padding: `${config.space.S100} ${config.space.S200} ${config.space.S200}`,
+      },
+      false: {
+        padding: `${config.space.S100} ${config.space.S200} ${config.space.S200} ${config.space.S400}`,
+      },
+    },
+  },
 });
 
 export const RoomCoverContainer = style({
-  height: toRem(190),
   overflow: 'hidden',
 });
 

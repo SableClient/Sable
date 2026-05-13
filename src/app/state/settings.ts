@@ -162,6 +162,7 @@ export interface Settings {
   closeFoldersByDefault: boolean;
   showRoomIcon: ShowRoomIcon;
   roomSidebarWidth: number;
+  roomBannerHeight: number;
   memberSidebarWidth: number;
   threadSidebarWidth: number;
   threadRootHeight: number;
@@ -292,6 +293,7 @@ export const defaultSettings: Settings = {
   closeFoldersByDefault: false,
   showRoomIcon: ShowRoomIcon.Smart,
   roomSidebarWidth: 256,
+  roomBannerHeight: 190,
   memberSidebarWidth: 262,
   threadSidebarWidth: 440,
   threadRootHeight: 220,

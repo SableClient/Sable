@@ -271,15 +271,25 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       return cords;
     });
   };
+  const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
+  const [curHeight, setCurHeight] = useState(roomBannerHeight);
+  useEffect(() => {
+    setCurHeight(roomBannerHeight);
+  }, [roomBannerHeight]);
 
   const bannerState = useStateEvent(space, CustomStateEvent.RoomBanner);
   const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
   const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
   const hasBanner = bannerURI && !hideText;
+
   return (
     <>
       <div className={hasBanner ? css.RoomCoverHeaderContainer : ''}>
-        <div className={hasBanner ? css.RoomCoverNavContainer : css.RoomCoverlessNavContainer}>
+        <div
+          className={
+            hasBanner ? css.RoomCoverNavContainer : css.RoomCoverlessNavContainer({ hideText })
+          }
+        >
           <PageNavHeader outlined={false}>
             <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
               {hideText ? (
@@ -346,7 +356,8 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
         </div>
       </div>
       {bannerURI && !hideText && (
-        <div className={css.RoomCoverContainer}>
+        <>
+        <div className={css.RoomCoverContainer} style={{height:toRem(curHeight)}}>
           <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
             <img
               className={css.RoomCoverImage}
@@ -356,7 +367,19 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
             />
           </ClientSideHoverFreeze>
         </div>
+        <SidebarResizer
+          setCurWidth={setCurHeight}
+          sidebarWidth={roomBannerHeight}
+          setSidebarWidth={setRoomBannerHeight}
+          instep={50}
+          outstep={60}
+          minValue={50}
+          maxValue={500}
+          topSided
+        />
+        </>
       )}
+
     </>
   );
 }

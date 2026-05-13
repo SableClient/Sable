@@ -40,6 +40,9 @@ import { useAlive } from '$hooks/useAlive';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useStateEvent } from '$hooks/useStateEvent';
+import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import { CustomStateEvent } from '$types/matrix/room';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -325,6 +328,10 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
 
   const handleCloseEdit = useCallback(() => setEdit(false), []);
 
+  const bannerState = useStateEvent(room, CustomStateEvent.RoomBanner);
+  const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
+  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
+
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Profile</Text>
@@ -393,6 +400,18 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           </Box>
         )}
       </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400">
+
+            <img
+              src={bannerURI ?? ''}
+              alt={`${name}'s banner`}
+              draggable="false"
+            />
+        </SequenceCard>
     </Box>
   );
 }

@@ -66,14 +66,11 @@ const shieldBareMatrixToLinks = (
   const placeholders = new Map<string, string>();
   let index = 0;
 
-  const shielded = input.replace(
-    /(?<!\]\()https?:\/\/matrix\.to\/[^\s<)]+/gi,
-    (url) => {
-      const key = `${MATRIX_TO_PLACEHOLDER_PREFIX}${index++}X`;
-      placeholders.set(key, url);
-      return key;
-    }
-  );
+  const shielded = input.replace(/(?<!\]\()https?:\/\/matrix\.to\/[^\s<)]+/gi, (url) => {
+    const key = `${MATRIX_TO_PLACEHOLDER_PREFIX}${index++}X`;
+    placeholders.set(key, url);
+    return key;
+  });
 
   return { shielded, placeholders };
 };

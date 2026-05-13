@@ -59,6 +59,12 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  /* Same ICB workaround as html: on iOS PWA with viewport-fit=cover the
+     percentage-height chain (html→body→#root) can resolve against the
+     safe-area viewport rather than the full display on some WebKit versions.
+     100dvh as a progressive enhancement bypasses this; browsers without
+     dvh support ignore the declaration and keep height:100%. */
+  height: 100dvh;
   font-family: var(--font-secondary);
   font-size: 16px;
   font-weight: 400;

@@ -779,10 +779,11 @@ export function Space() {
                   <NavItem variant="Background" radii="400" aria-selected={lobbySelected}>
                     <NavLink to={getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
                           <Avatar
+                            size={hideText ? undefined : '200'}
                             radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                            style={hideText ? { width: '100%', padding: '0' } : undefined}
                           >
                             <Icon src={Icons.Flag} size="100" filled={lobbySelected} />
                           </Avatar>
@@ -800,10 +801,11 @@ export function Space() {
                   <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
                     <NavLink to={getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
                           <Avatar
+                            size={hideText ? undefined : '200'}
                             radii="400"
-                            style={hideText ? { width: '100%' } : { height: '100%' }}
+                            style={hideText ? { width: '100%' } : undefined}
                           >
                             <Icon src={Icons.Search} size="100" filled={searchSelected} />
                           </Avatar>

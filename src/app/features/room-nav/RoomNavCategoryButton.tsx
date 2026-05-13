@@ -10,7 +10,7 @@ export const RoomNavCategoryButton = as<'button', { closed?: boolean }>(
           className={classNames(css.CategoryButton, className)}
           variant="Background"
           radii="400"
-          before={
+          after={
             <Icon
               className={css.CategoryButtonIcon}
               size="50"

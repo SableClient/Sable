@@ -419,7 +419,14 @@ export function RoomNavItem({
                 style={hideTextStyling(hideText)}
               >
                 <NavItemContent style={hideTextStyling(hideText)}>
-                  <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
+                  <Box
+                    as="span"
+                    grow="Yes"
+                    alignItems="Center"
+                    justifyContent="Start"
+                    gap="200"
+                    style={hideTextStyling(hideText)}
+                  >
                     <AvatarPresence
                       badge={
                         presence &&

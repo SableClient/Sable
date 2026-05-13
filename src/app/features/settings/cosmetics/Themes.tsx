@@ -237,6 +237,7 @@ function ThemeVisualPreferences() {
   const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
     linkPreviewImageMaxHeight.toString()
   );
+  const [showRoomBanners, setShowRoomBanners] = useSetting(settingsAtom, 'showRoomBanners');
 
   const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
@@ -342,6 +343,14 @@ function ThemeVisualPreferences() {
           focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Room banners"
+          focusId="display-room-banners"
+          after={<Switch variant="Primary" value={showRoomBanners} onChange={setShowRoomBanners} />}
         />
       </SequenceCard>
 
@@ -618,6 +627,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     settingsAtom,
     'widgetSidebarWidth'
   );
+  const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
 
   // Yandere style code but it works  and is as straight forward as can be :shrug:
   const getCurValue = useMemo(() => {
@@ -627,6 +637,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     if (sidebarSelector === 'threadRootHeight') return threadRootHeight;
     if (sidebarSelector === 'vcmsgSidebarWidth') return vcmsgSidebarWidth;
     if (sidebarSelector === 'widgetSidebarWidth') return widgetSidebarWidth;
+    if (sidebarSelector === 'roomBannerHeight') return roomBannerHeight;
     return undefined;
   }, [
     sidebarSelector,
@@ -636,6 +647,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     threadRootHeight,
     vcmsgSidebarWidth,
     widgetSidebarWidth,
+    roomBannerHeight,
   ]);
   const [curValue, setCurValue] = useState(getCurValue);
   const setValue = (value: number) => {
@@ -645,6 +657,7 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
     if (sidebarSelector === 'threadRootHeight') setThreadRootHeight(value);
     if (sidebarSelector === 'vcmsgSidebarWidth') setvcmsgSidebarWidth(value);
     if (sidebarSelector === 'widgetSidebarWidth') setWidgetSidebarWidth(value);
+    if (sidebarSelector === 'roomBannerHeight') setRoomBannerHeight(value);
   };
 
   useEffect(() => {

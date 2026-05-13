@@ -161,7 +161,9 @@ export interface Settings {
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
   showRoomIcon: ShowRoomIcon;
+  showRoomBanners: boolean;
   roomSidebarWidth: number;
+  roomBannerHeight: number;
   memberSidebarWidth: number;
   threadSidebarWidth: number;
   threadRootHeight: number;
@@ -291,7 +293,9 @@ export const defaultSettings: Settings = {
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   showRoomIcon: ShowRoomIcon.Smart,
+  showRoomBanners: true,
   roomSidebarWidth: 256,
+  roomBannerHeight: 190,
   memberSidebarWidth: 262,
   threadSidebarWidth: 440,
   threadRootHeight: 220,

@@ -49,7 +49,6 @@ export const PageNavHeader = as<'header', css.PageNavHeaderVariants>(
     <Header
       className={classNames(css.PageNavHeader({ outlined }), className)}
       variant="Background"
-      size="600"
       {...props}
       ref={ref}
     />

@@ -29,7 +29,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
 import { NavCategory, NavCategoryHeader, NavItem, NavItemContent, NavLink } from '$components/nav';
 import { getSpaceLobbyPath, getSpaceRoomPath, getSpaceSearchPath } from '$pages/pathUtils';
-import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useSpaceLobbySelected, useSpaceSearchSelected } from '$hooks/router/useSelectedSpace';
 import { useSpace } from '$hooks/useSpace';
@@ -88,6 +88,8 @@ import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { CustomStateEvent } from '$types/matrix/room';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import * as css from './styles.css';
+import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
 const debugLog = createDebugLogger('Space');
 
@@ -271,69 +273,89 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
   };
 
   const bannerState = useStateEvent(space, CustomStateEvent.RoomBanner);
-  const bannerURI = bannerState?.getContent<RoomBannerContent>()?.url;
+  const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
+  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
+  const hasBanner = bannerURI && !hideText;
   return (
     <>
-      <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
-          {hideText ? (
-            <Avatar size={hideText ? undefined : '200'} radii="400" onClick={handleOpenMenu}>
-              <RoomAvatar
-                roomId={space.roomId}
-                src={getRoomAvatarUrl(mx, space, 96, useAuthentication)}
-                uniformIcons
-                alt={spaceName}
-                renderFallback={() => (
-                  <Text as="span" size="H6">
-                    {nameInitials(spaceName)}
-                  </Text>
-                )}
-              />
-            </Avatar>
-          ) : (
-            <>
-              <Box grow="Yes" alignItems="Center" gap="100">
-                <Text size="H4" truncate>
-                  {spaceName}
-                </Text>
-                {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
-              </Box>
-              <Box shrink="No">
-                <IconButton
-                  aria-pressed={!!menuAnchor}
-                  variant="Background"
-                  onClick={handleOpenMenu}
+      <div className={hasBanner ? css.RoomCoverHeaderContainer : ''}>
+        <div className={hasBanner ? css.RoomCoverNavContainer : css.RoomCoverlessNavContainer}>
+          <PageNavHeader outlined={false}>
+            <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
+              {hideText ? (
+                <Avatar size={hideText ? undefined : '200'} radii="400" onClick={handleOpenMenu}>
+                  <RoomAvatar
+                    roomId={space.roomId}
+                    src={getRoomAvatarUrl(mx, space, 96, useAuthentication)}
+                    uniformIcons
+                    alt={spaceName}
+                    renderFallback={() => (
+                      <Text as="span" size="H6">
+                        {nameInitials(spaceName)}
+                      </Text>
+                    )}
+                  />
+                </Avatar>
+              ) : (
+                <>
+                  <Box grow="Yes" alignItems="Center" gap="100">
+                    <Text size="H4" truncate>
+                      {spaceName}
+                    </Text>
+                    {joinRules?.join_rule !== JoinRule.Public && (
+                      <Icon src={Icons.Lock} size="50" />
+                    )}
+                  </Box>
+                  <Box shrink="No">
+                    <IconButton
+                      aria-pressed={!!menuAnchor}
+                      variant="Background"
+                      style={hasBanner ? { backgroundColor: '#0000' } : {}}
+                      onClick={handleOpenMenu}
+                    >
+                      <Icon src={Icons.VerticalDots} size="200" />
+                    </IconButton>
+                  </Box>
+                </>
+              )}
+            </Box>
+          </PageNavHeader>
+          {menuAnchor && (
+            <PopOut
+              anchor={menuAnchor}
+              position="Bottom"
+              align="End"
+              offset={6}
+              content={
+                <FocusTrap
+                  focusTrapOptions={{
+                    initialFocus: false,
+                    returnFocusOnDeactivate: false,
+                    onDeactivate: () => setMenuAnchor(undefined),
+                    clickOutsideDeactivates: true,
+                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
+                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
+                    escapeDeactivates: stopPropagation,
+                  }}
                 >
-                  <Icon src={Icons.VerticalDots} size="200" />
-                </IconButton>
-              </Box>
-              <Text>{bannerURI}</Text>
-            </>
+                  <SpaceMenu room={space} requestClose={() => setMenuAnchor(undefined)} />
+                </FocusTrap>
+              }
+            />
           )}
-        </Box>
-      </PageNavHeader>
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Bottom"
-          align="End"
-          offset={6}
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <SpaceMenu room={space} requestClose={() => setMenuAnchor(undefined)} />
-            </FocusTrap>
-          }
-        />
+        </div>
+      </div>
+      {bannerURI && !hideText && (
+        <div className={css.RoomCoverContainer}>
+          <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
+            <img
+              className={css.RoomCoverImage}
+              src={bannerURI}
+              alt={`${spaceName}'s banner`}
+              draggable="false"
+            />
+          </ClientSideHoverFreeze>
+        </div>
       )}
     </>
   );

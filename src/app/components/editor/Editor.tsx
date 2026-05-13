@@ -451,8 +451,16 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
                 // (insert space, then delete it one frame later) lets iOS process
                 // the intermediate "has text" state before seeing the empty field
                 // again — this is what triggers sentence-case on the next keystroke.
+                //
+                // Guard: skip the trick when triggerAutoCapitalize is returning focus
+                // to Slate (justRestoredFocusRef is set synchronously before the
+                // ReactEditor.focus call). Without this guard the space→delete fires
+                // again, handleChange sees non-empty→empty while focused, calls
+                // triggerAutoCapitalize again, and the placeholder flashes in a
+                // tight loop every time a reply is started.
                 onFocus={() => {
                   if (!mobileOrTablet()) return;
+                  if (justRestoredFocusRef.current) return;
                   requestAnimationFrame(() => {
                     if (!ReactEditor.isFocused(editor) || Node.string(editor).length > 0) return;
                     Transforms.insertText(editor, ' ');

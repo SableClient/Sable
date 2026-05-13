@@ -41,6 +41,7 @@ You may:
 - Use the Sable name, logo, or branding in your project’s name or identity (e.g., "Sable-Enterprise", "Sable for Android", "Sable-Lite").
 - Create derivative, similar, or completely wild new logos based on ours.
 - Distribute or package the software for platforms not officially supported by us using the Sable name.
+- Take this trademark document and derive your own version of it, provided it's for your branding, rather than Sable
 
 You must not:
 - Feel bad about forking our project. Forks are healthy for FOSS!

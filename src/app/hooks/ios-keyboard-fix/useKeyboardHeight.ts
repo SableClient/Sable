@@ -42,6 +42,20 @@ export function useKeyboardHeight() {
     // path only fires setCSSVars once (avoids double-setting on repeated
     // resize events while the keyboard is already open).
     let cssVarsSet = false;
+    // Timestamp of the last clearCSSVars call. Used to suppress re-setting CSS
+    // vars from post-close-animation iOS viewport bounces: after the keyboard
+    // fully closes, iOS sometimes emits one or two more viewport.resize events
+    // with a residual calculatedHeight (30–80px). Without suppression these
+    // events call setCSSVars() with a sub-full-screen viewport.height, leaving
+    // --sable-visible-height stuck and producing a persistent bottom gap.
+    let recentlyClearedAt = 0;
+    // How long to suppress small-calculatedHeight re-sets after a clear.
+    const POST_CLEAR_SUPPRESS_MS = 500;
+    // Minimum calculatedHeight that overrides the bounce-suppression window.
+    // Any value >= this is unambiguously a real keyboard (250 px is far below
+    // the smallest real iOS keyboard). Values below this within the suppress
+    // window are treated as animation noise and ignored.
+    const UNAMBIGUOUS_KEYBOARD_PX = 100;
 
     const setCSSVars = (viewportHeight: number) => {
       document.documentElement.style.setProperty(
@@ -56,6 +70,7 @@ export function useKeyboardHeight() {
       document.documentElement.style.removeProperty('--sable-visible-height');
       document.documentElement.style.removeProperty('--sable-safe-bottom');
       cssVarsSet = false;
+      recentlyClearedAt = Date.now();
     };
 
     const handleResize = () => {
@@ -81,8 +96,17 @@ export function useKeyboardHeight() {
       // On the very first resize that signals a keyboard, immediately shrink
       // the layout (before the stability gate) so the input bar rises before
       // iOS applies its own scroll-prediction pass.
+      //
+      // Bounce-suppression: within POST_CLEAR_SUPPRESS_MS of a clearCSSVars
+      // call, only set vars if the calculatedHeight is unambiguously a real
+      // keyboard (>= UNAMBIGUOUS_KEYBOARD_PX). This stops post-close-animation
+      // iOS viewport noise (typically 30–80 px residual) from re-setting
+      // --sable-visible-height to a sub-full-screen value and creating a gap.
       if (!cssVarsSet) {
-        setCSSVars(viewport.height);
+        const withinSuppressWindow = Date.now() - recentlyClearedAt < POST_CLEAR_SUPPRESS_MS;
+        if (!withinSuppressWindow || calculatedHeight >= UNAMBIGUOUS_KEYBOARD_PX) {
+          setCSSVars(viewport.height);
+        }
       }
 
       // Cancel any document scroll iOS may have applied as scroll-prediction.

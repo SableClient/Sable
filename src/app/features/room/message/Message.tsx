@@ -897,6 +897,12 @@ function MessageInternal(
     }, 100);
   };
 
+  const handleMobileOpenEmojiBoard = useCallback(() => {
+    setTimeout(() => {
+      setEmojiBoardAnchor({ x: 0, y: 0, width: window.innerWidth, height: 60 });
+    }, 100);
+  }, []);
+
   const handleSwipeReply = () => {
     const currentId = mEvent.getId();
     const targetId = activeReplyId === currentId ? null : currentId;
@@ -1334,6 +1340,7 @@ function MessageInternal(
           onReplyClick={onReplyClick}
           onEditId={onEditId}
           onReactionToggle={onReactionToggle}
+          onOpenEmojiBoard={canSendReaction ? handleMobileOpenEmojiBoard : undefined}
           onClose={() => setMobileOptionsOpen(false)}
         />
       )}

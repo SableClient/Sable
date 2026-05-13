@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Icon, Icons, Text } from 'folds';
-import type { MouseEventHandler, ReactNode } from 'react';
-import { useEffect, useCallback } from 'react';
+import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -149,6 +149,25 @@ export function MobileMessageMenu({
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = edits !== undefined;
 
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleSheetTouchStart = useCallback((e: ReactTouchEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop === 0) {
+      touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    }
+  }, []);
+
+  const handleSheetTouchEnd = useCallback(
+    (e: ReactTouchEvent<HTMLDivElement>) => {
+      if (touchStartYRef.current === null) return;
+      const startY = touchStartYRef.current;
+      touchStartYRef.current = null;
+      const endY = e.changedTouches[0]?.clientY ?? startY;
+      if (endY - startY > 60) onClose();
+    },
+    [onClose]
+  );
+
   // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -209,6 +228,8 @@ export function MobileMessageMenu({
         aria-modal="true"
         onClick={stopPropHandler}
         onKeyDown={(e) => e.stopPropagation()}
+        onTouchStart={handleSheetTouchStart}
+        onTouchEnd={handleSheetTouchEnd}
       >
         <div className={css.Handle} />
 

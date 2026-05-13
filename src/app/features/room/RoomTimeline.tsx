@@ -234,6 +234,10 @@ export function RoomTimeline({
   const topSpacerHeightRef = useRef(0);
   const mountScrollWindowRef = useRef<number>(Date.now() + 3000);
   const hasInitialScrolledRef = useRef(false);
+  // Short-lived guard set for ~350 ms after a jump scrollToIndex so that
+  // intermediate scroll events from the animation don't flip atBottom prematurely.
+  const jumpScrollBlockRef = useRef(false);
+  const jumpScrollBlockTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stored in a ref so eventsLength fluctuations (e.g. onLifecycle timeline reset
   // firing within the window) cannot cancel it via useLayoutEffect cleanup.
   const initialScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -267,6 +271,23 @@ export function RoomTimeline({
     if (lastIndex < 0) return;
     vListRef.current.scrollTo(vListRef.current.scrollSize);
   }, []);
+
+  // Start a short scroll-settle block after a programmatic jump scrollToIndex.
+  // After 350 ms the block lifts and atBottom is recomputed from the actual
+  // VList position so "Jump to Latest" appears correctly.
+  const startJumpScrollBlock = useCallback(() => {
+    jumpScrollBlockRef.current = true;
+    if (jumpScrollBlockTimerRef.current !== undefined) clearTimeout(jumpScrollBlockTimerRef.current);
+    jumpScrollBlockTimerRef.current = setTimeout(() => {
+      jumpScrollBlockRef.current = false;
+      jumpScrollBlockTimerRef.current = undefined;
+      const v = vListRef.current;
+      if (v) {
+        const dist = v.scrollSize - v.scrollOffset - v.viewportSize;
+        setAtBottom(dist < 100);
+      }
+    }, 350);
+  }, [setAtBottom]);
 
   const timelineSync = useTimelineSync({
     room,
@@ -407,6 +428,7 @@ export function RoomTimeline({
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
         }
       }
@@ -417,7 +439,7 @@ export function RoomTimeline({
     return () => {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
     };
-  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
+  }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex, startJumpScrollBlock]);
 
   useEffect(() => {
     if (timelineSync.focusItem) {
@@ -428,7 +450,11 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    void timelineSyncRef.current.loadEventTimeline(eventId);
+    // Re-arm the initial-scroll guard so that if the jump fails and
+    // useTimelineSync falls back to the live timeline, the useLayoutEffect
+    // can fire and call setIsReady(true) via the normal initial-scroll path.
+    hasInitialScrolledRef.current = false;
+    timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
   useEffect(() => {
@@ -484,14 +510,6 @@ export function RoomTimeline({
         // Record the programmatic pin so handleVListScroll sees withinSettleWindow=true
         // and doesn't flip atBottom to false while VList commits the new scroll position.
         // Without this, the "Jump to Present" button flashes every time the keyboard opens.
-        lastProgrammaticBottomPinAtRef.current = Date.now();
-        vListRef.current?.scrollTo(vListRef.current.scrollSize);
-      }
-      // When the viewport GROWS (e.g. keyboard dismissed), re-pin to the bottom
-      // so that VList doesn't momentarily report "not at bottom" and flash the
-      // jump-to-present button. Setting lastProgrammaticBottomPinAtRef ensures
-      // handleVListScroll's settle-window keeps atBottom=true during the reflow.
-      if (!shrank && newHeight > prev && atBottom) {
         lastProgrammaticBottomPinAtRef.current = Date.now();
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }
@@ -553,6 +571,7 @@ export function RoomTimeline({
         }
         if (vListRef.current && processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
+          startJumpScrollBlock();
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {

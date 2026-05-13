@@ -12,6 +12,10 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+// Tracks whether the Matrix sync connection is healthy.
+// Defaults to true; set false when the app reports Reconnecting/Error so that
+// OS push notifications are not suppressed while the in-app path is broken.
+let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -584,6 +588,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       appIsVisible = (data as { visible: boolean }).visible;
     }
   }
+  if (type === 'setSyncState') {
+    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
+      syncIsHealthy = (data as { healthy: boolean }).healthy;
+    }
+  }
   if (type === 'setNotificationSettings') {
     if (
       typeof (data as { notificationSoundEnabled?: unknown }).notificationSoundEnabled === 'boolean'
@@ -763,19 +772,36 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // Require BOTH the explicit appIsVisible flag AND a visible client from
+  // matchAll() before suppressing.  appIsVisible resets to false every time the
+  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
+  // next push appIsVisible is always false — we never suppress on a cold SW
+  // restart, which prevents the "notifications stop after a while" bug where
+  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
+  // subsequent notifications to be silently dropped.
+  //
+  // Also require syncIsHealthy: if the Matrix sync is in Reconnecting/Error
+  // state, the in-app notification path is broken, so we must show the OS
+  // notification even when the app is visible.
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
+  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| syncIsHealthy:',
+    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
     return;
   }
 

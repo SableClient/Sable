@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -24,7 +24,7 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -60,6 +60,10 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
+import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
+import { bookmarksPanelAtom } from '$state/bookmarksPanelAtom';
+import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -844,79 +848,39 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
   const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
   const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+
+  const timeoutMs = autoIdlePresence ? Math.max(1, presenceIdleTimeoutMins) * 60 * 1000 : 0;
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
+    // When auto-idled, broadcast as unavailable regardless of the configured mode.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const broadcasting = effectiveState !== 'offline';
+
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
+    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
+    // Sliding sync: keep the extension enabled so we always receive others' presence.
+    // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-    // Explicitly publish online so the server echoes back our presence event,
-    // which lets useUserPresence update the badge immediately.
-    if (sendPresence) {
-      mx.setPresence({ presence: 'online' }).catch(() => {});
-    }
-  }, [mx, sendPresence]);
-
-  // Auto-idle: set presence to unavailable after inactivity or
-  // when the tab is hidden, and restore online on activity.
-  useEffect(() => {
-    if (!sendPresence || !autoIdlePresence) return undefined;
-
-    const IDLE_TIMEOUT_MS = Math.max(1, presenceIdleTimeoutMins) * 60 * 1000;
-    let idleTimer: ReturnType<typeof setTimeout> | undefined;
-    let isIdle = false;
-
-    const goOnline = () => {
-      if (!isIdle) return;
-      isIdle = false;
-      mx.setPresence({ presence: 'online' }).catch(() => {});
-    };
-
-    const goIdle = () => {
-      if (isIdle) return;
-      isIdle = true;
-      mx.setPresence({ presence: 'unavailable' }).catch(() => {});
-    };
-
-    const resetTimer = () => {
-      goOnline();
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(goIdle, IDLE_TIMEOUT_MS);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        clearTimeout(idleTimer);
-        goIdle();
-      } else {
-        resetTimer();
-      }
-    };
-
-    const ACTIVITY_EVENTS: (keyof DocumentEventMap)[] = [
-      'mousemove',
-      'keydown',
-      'pointerdown',
-      'scroll',
-    ];
-
-    ACTIVITY_EVENTS.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    resetTimer();
-
-    return () => {
-      clearTimeout(idleTimer);
-      ACTIVITY_EVENTS.forEach((e) => document.removeEventListener(e, resetTimer));
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Restore online when feature is disabled
-      if (isIdle) {
-        mx.setPresence({ presence: 'online' }).catch(() => {});
-      }
-    };
-  }, [mx, sendPresence, autoIdlePresence, presenceIdleTimeoutMins]);
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
+    // - MSC4186 servers that have no presence extension see this immediately.
+    // - When 'offline' (Invisible mode), we appear offline to others but still receive
+    //   their presence events because the extension is still enabled above.
+    mx.setPresence({
+      presence: effectiveState,
+      status_msg: sendPresence && effectiveMode === 'dnd' ? 'dnd' : '',
+    }).catch(() => {
+      // Server doesn't support presence — ignore.
+    });
+  }, [mx, sendPresence, presenceMode, autoIdled]);
 
   return null;
 }

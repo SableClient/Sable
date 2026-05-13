@@ -26,9 +26,9 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
         `App visibility changed: ${isVisible ? 'visible (foreground)' : 'hidden (background)'}`,
         { visibilityState: document.visibilityState }
       );
-      appEvents.onVisibilityChange?.(isVisible);
+      appEvents.emitVisibilityChange(isVisible);
       if (!isVisible) {
-        appEvents.onVisibilityHidden?.();
+        appEvents.emitVisibilityHidden();
       }
     };
 
@@ -46,9 +46,7 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
     };
 
-    appEvents.onVisibilityChange = handleVisibilityForNotifications;
-    return () => {
-      appEvents.onVisibilityChange = null;
-    };
+    const unsub = appEvents.onVisibilityChange(handleVisibilityForNotifications);
+    return unsub;
   }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
 }

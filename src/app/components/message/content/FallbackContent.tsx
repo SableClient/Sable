@@ -20,7 +20,15 @@ export const MessageDeletedContent = as<'div', { children?: never; reason?: stri
 
 export const MessageUnsupportedContent = as<'div', { children?: never; body?: string }>(
   ({ body, ...props }, ref) => (
-    <Box as="span" alignItems="Center" direction="Row" gap="100" style={criticalStyle} {...props} ref={ref}>
+    <Box
+      as="span"
+      alignItems="Center"
+      direction="Row"
+      gap="100"
+      style={criticalStyle}
+      {...props}
+      ref={ref}
+    >
       <Icon size="50" src={Icons.Warning} />
       <span className={BreakWord} style={{ flex: '1 1 auto', minWidth: 0 }}>
         <i>Unsupported message</i>
@@ -55,7 +63,15 @@ export const MessageNotDecryptedContent = as<'div', { children?: never }>(({ ...
 // display body of the message if it is available, as it may give some clue about why the message is broken
 export const MessageBrokenContent = as<'div', { children?: never; body?: string }>(
   ({ body, ...props }, ref) => (
-    <Box as="span" alignItems="Center" direction="Row" gap="100" style={criticalStyle} {...props} ref={ref}>
+    <Box
+      as="span"
+      alignItems="Center"
+      direction="Row"
+      gap="100"
+      style={criticalStyle}
+      {...props}
+      ref={ref}
+    >
       <Icon size="50" src={Icons.Warning} />
       <span className={BreakWord} style={{ flex: '1 1 auto', minWidth: 0 }}>
         <i>Broken message</i>

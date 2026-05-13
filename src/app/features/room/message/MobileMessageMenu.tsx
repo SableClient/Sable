@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom';
 import { Icon, Icons, Text } from 'folds';
 import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
+import { EmojiBoard } from '$components/emoji-board';
 import { useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -30,8 +31,8 @@ export type MobileMessageMenuProps = {
     startThread?: boolean
   ) => void;
   onEditId?: (eventId?: string) => void;
+  imagePackRooms: Room[];
   onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
-  onOpenEmojiBoard?: () => void;
   onClose: () => void;
 };
 
@@ -137,7 +138,7 @@ export function MobileMessageMenu({
   onReplyClick,
   onEditId,
   onReactionToggle,
-  onOpenEmojiBoard,
+  imagePackRooms,
   onClose,
 }: MobileMessageMenuProps) {
   const mx = useMatrixClient();
@@ -149,21 +150,61 @@ export function MobileMessageMenu({
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = edits !== undefined;
 
-  const touchStartYRef = useRef<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Refs for direct DOM manipulation during drag (avoids React re-renders on every frame)
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const dragStartYRef = useRef<number | null>(null);
 
   const handleSheetTouchStart = useCallback((e: ReactTouchEvent<HTMLDivElement>) => {
     if (e.currentTarget.scrollTop === 0) {
-      touchStartYRef.current = e.touches[0]?.clientY ?? null;
+      dragStartYRef.current = e.touches[0]?.clientY ?? null;
+    }
+  }, []);
+
+  const handleSheetTouchMove = useCallback((e: ReactTouchEvent<HTMLDivElement>) => {
+    if (dragStartYRef.current === null) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const deltaY = Math.max(0, touch.clientY - dragStartYRef.current);
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${deltaY}px)`;
+      sheetRef.current.style.transition = 'none';
+    }
+    if (backdropRef.current) {
+      backdropRef.current.style.opacity = String(Math.max(0, 1 - deltaY / 200));
     }
   }, []);
 
   const handleSheetTouchEnd = useCallback(
     (e: ReactTouchEvent<HTMLDivElement>) => {
-      if (touchStartYRef.current === null) return;
-      const startY = touchStartYRef.current;
-      touchStartYRef.current = null;
-      const endY = e.changedTouches[0]?.clientY ?? startY;
-      if (endY - startY > 60) onClose();
+      if (dragStartYRef.current === null) return;
+      const startY = dragStartYRef.current;
+      dragStartYRef.current = null;
+      const deltaY = Math.max(0, (e.changedTouches[0]?.clientY ?? startY) - startY);
+      if (deltaY > 80) {
+        // Animate out then close
+        if (sheetRef.current) {
+          sheetRef.current.style.transform = 'translateY(100%)';
+          sheetRef.current.style.transition = 'transform 200ms ease';
+        }
+        if (backdropRef.current) {
+          backdropRef.current.style.opacity = '0';
+          backdropRef.current.style.transition = 'opacity 200ms ease';
+        }
+        setTimeout(onClose, 200);
+      } else {
+        // Spring back
+        if (sheetRef.current) {
+          sheetRef.current.style.transform = '';
+          sheetRef.current.style.transition = 'transform 220ms cubic-bezier(0.4, 0, 0.2, 1)';
+        }
+        if (backdropRef.current) {
+          backdropRef.current.style.opacity = '';
+          backdropRef.current.style.transition = '';
+        }
+      }
     },
     [onClose]
   );
@@ -215,6 +256,7 @@ export function MobileMessageMenu({
     <>
       {/* Backdrop */}
       <div
+        ref={backdropRef}
         role="presentation"
         className={css.Backdrop}
         onClick={onClose}
@@ -223,137 +265,168 @@ export function MobileMessageMenu({
 
       {/* Sheet */}
       <div
+        ref={sheetRef}
         className={css.Sheet}
         role="dialog"
         aria-modal="true"
+        style={showEmojiPicker ? { maxHeight: '90vh', overflowY: 'hidden' } : undefined}
         onClick={stopPropHandler}
         onKeyDown={(e) => e.stopPropagation()}
         onTouchStart={handleSheetTouchStart}
+        onTouchMove={handleSheetTouchMove}
         onTouchEnd={handleSheetTouchEnd}
       >
         <div className={css.Handle} />
 
-        {canSendReaction && (
+        {showEmojiPicker ? (
           <>
-            <QuickReactions
-              onReaction={(key, shortcode) => {
-                onReactionToggle(evtId, key, shortcode);
-                onClose();
-              }}
-              onOpenEmojiBoard={
-                onOpenEmojiBoard
-                  ? () => {
-                      onOpenEmojiBoard();
-                      onClose();
-                    }
-                  : undefined
-              }
-            />
+            <div className={css.EmojiPickerHeader}>
+              <button
+                type="button"
+                className={css.EmojiPickerBackBtn}
+                onClick={() => setShowEmojiPicker(false)}
+                aria-label="Back"
+              >
+                <Icon src={Icons.ArrowLeft} size="200" />
+              </button>
+              <Text size="T400" as="span" className={css.EmojiPickerTitle}>
+                Add Reaction
+              </Text>
+            </div>
+            <div className={css.EmojiPickerWrap}>
+              <EmojiBoard
+                imagePackRooms={imagePackRooms}
+                returnFocusOnDeactivate={false}
+                onEmojiSelect={(key, shortcode) => {
+                  onReactionToggle(evtId, key, shortcode);
+                  onClose();
+                }}
+                onCustomEmojiSelect={(mxc, shortcode) => {
+                  onReactionToggle(evtId, mxc, shortcode);
+                  onClose();
+                }}
+                requestClose={() => setShowEmojiPicker(false)}
+              />
+            </div>
           </>
-        )}
+        ) : (
+          <>
+            {canSendReaction && (
+              <QuickReactions
+                onReaction={(key, shortcode) => {
+                  onReactionToggle(evtId, key, shortcode);
+                  onClose();
+                }}
+                onOpenEmojiBoard={() => setShowEmojiPicker(true)}
+              />
+            )}
 
-        {/* Group 1: Message actions */}
-        <div className={css.ActionGroup}>
-          <ActionItem
-            icon={<Icon src={Icons.ReplyArrow} size="200" />}
-            label="Reply"
-            onClick={handleReplyClick}
-          />
-          {!isThreadedMessage && (
-            <ActionItem
-              icon={<Icon src={Icons.ThreadPlus} size="200" />}
-              label="Reply in Thread"
-              onClick={handleThreadReplyClick}
-            />
-          )}
-          {canEditEvent(mx, mEvent) && onEditId && (
-            <ActionItem
-              icon={<Icon src={Icons.Pencil} size="200" />}
-              label="Edit Message"
-              onClick={handleEditClick}
-            />
-          )}
-          <ActionItem
-            icon={<Icon src={Icons.ArrowGoRight} size="200" />}
-            label="Forward"
-            onClick={() => {
-              setModal({ type: ModalType.Forward, room, mEvent });
-              onClose();
-            }}
-          />
-          {!hideReadReceipts && (
-            <ActionItem
-              icon={<Icon src={Icons.CheckTwice} size="200" />}
-              label="Read Receipts"
-              onClick={() => {
-                setModal({ type: ModalType.ReadReceipts, room, eventId: evtId });
-                onClose();
-              }}
-            />
-          )}
-          {isEdited && (
-            <ActionItem
-              icon={<Icon src={Icons.Clock} size="200" />}
-              label="Version History"
-              onClick={() => {
-                setModal({ type: ModalType.EditHistory, room, mEvent });
-                onClose();
-              }}
-            />
-          )}
-          {showDeveloperTools && (
-            <ActionItem
-              icon={<Icon src={Icons.BlockCode} size="200" />}
-              label="View Source"
-              onClick={() => {
-                setModal({ type: ModalType.Source, room, mEvent });
-                onClose();
-              }}
-            />
-          )}
-        </div>
-
-        {/* Group 2: Utility actions */}
-        <div className={css.ActionGroup}>
-          {(() => {
-            const content = mEvent.getContent();
-            const body: string | undefined = content['m.new_content']?.body ?? content.body;
-            if (!body || mEvent.isRedacted()) return null;
-            return (
+            {/* Group 1: Message actions */}
+            <div className={css.ActionGroup}>
               <ActionItem
-                icon={<Icon src={Icons.Alphabet} size="200" />}
-                label="Copy Text"
+                icon={<Icon src={Icons.ReplyArrow} size="200" />}
+                label="Reply"
+                onClick={handleReplyClick}
+              />
+              {!isThreadedMessage && (
+                <ActionItem
+                  icon={<Icon src={Icons.ThreadPlus} size="200" />}
+                  label="Reply in Thread"
+                  onClick={handleThreadReplyClick}
+                />
+              )}
+              {canEditEvent(mx, mEvent) && onEditId && (
+                <ActionItem
+                  icon={<Icon src={Icons.Pencil} size="200" />}
+                  label="Edit Message"
+                  onClick={handleEditClick}
+                />
+              )}
+              <ActionItem
+                icon={<Icon src={Icons.ArrowGoRight} size="200" />}
+                label="Forward"
                 onClick={() => {
-                  copyToClipboard(body);
+                  setModal({ type: ModalType.Forward, room, mEvent });
                   onClose();
                 }}
               />
-            );
-          })()}
-          {mEvent.getId() && (
-            <ActionItem
-              icon={<Icon src={Icons.Link} size="200" />}
-              label="Copy Link"
-              onClick={() => {
-                copyToClipboard(
-                  getMatrixToRoomEvent(room.roomId, mEvent.getId()!, getViaServers(room))
-                );
-                onClose();
-              }}
-            />
-          )}
-          <BookmarkActionItem room={room} mEvent={mEvent} onClose={onClose} />
-        </div>
+              {!hideReadReceipts && (
+                <ActionItem
+                  icon={<Icon src={Icons.CheckTwice} size="200" />}
+                  label="Read Receipts"
+                  onClick={() => {
+                    setModal({ type: ModalType.ReadReceipts, room, eventId: evtId });
+                    onClose();
+                  }}
+                />
+              )}
+              {isEdited && (
+                <ActionItem
+                  icon={<Icon src={Icons.Clock} size="200" />}
+                  label="Version History"
+                  onClick={() => {
+                    setModal({ type: ModalType.EditHistory, room, mEvent });
+                    onClose();
+                  }}
+                />
+              )}
+              {showDeveloperTools && (
+                <ActionItem
+                  icon={<Icon src={Icons.BlockCode} size="200" />}
+                  label="View Source"
+                  onClick={() => {
+                    setModal({ type: ModalType.Source, room, mEvent });
+                    onClose();
+                  }}
+                />
+              )}
+            </div>
 
-        {/* Group 3: Destructive actions */}
-        {(!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId() ? (
-          <div className={css.ActionGroup}>
-            {!mEvent.isRedacted() && canDelete && <MessageDeleteItem room={room} mEvent={mEvent} />}
-            {mEvent.getSender() !== mx.getUserId() && (
-              <MessageReportItem room={room} mEvent={mEvent} />
-            )}
-          </div>
-        ) : null}
+            {/* Group 2: Utility actions */}
+            <div className={css.ActionGroup}>
+              {(() => {
+                const content = mEvent.getContent();
+                const body: string | undefined = content['m.new_content']?.body ?? content.body;
+                if (!body || mEvent.isRedacted()) return null;
+                return (
+                  <ActionItem
+                    icon={<Icon src={Icons.Alphabet} size="200" />}
+                    label="Copy Text"
+                    onClick={() => {
+                      copyToClipboard(body);
+                      onClose();
+                    }}
+                  />
+                );
+              })()}
+              {mEvent.getId() && (
+                <ActionItem
+                  icon={<Icon src={Icons.Link} size="200" />}
+                  label="Copy Link"
+                  onClick={() => {
+                    copyToClipboard(
+                      getMatrixToRoomEvent(room.roomId, mEvent.getId()!, getViaServers(room))
+                    );
+                    onClose();
+                  }}
+                />
+              )}
+              <BookmarkActionItem room={room} mEvent={mEvent} onClose={onClose} />
+            </div>
+
+            {/* Group 3: Destructive actions */}
+            {(!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId() ? (
+              <div className={css.ActionGroup}>
+                {!mEvent.isRedacted() && canDelete && (
+                  <MessageDeleteItem room={room} mEvent={mEvent} />
+                )}
+                {mEvent.getSender() !== mx.getUserId() && (
+                  <MessageReportItem room={room} mEvent={mEvent} />
+                )}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </>,
     portalContainer

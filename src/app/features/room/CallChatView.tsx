@@ -24,7 +24,15 @@ export function CallChatView() {
     setCurWidth(vcmsgSidebarWidth);
   }, [vcmsgSidebarWidth]);
   return (
-    <>
+    <Box
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: screenSize === ScreenSize.Desktop ? toRem(curWidth) : '100%',
+        flexShrink: 0,
+        flexGrow: 0,
+      }}
+    >
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -37,7 +45,7 @@ export function CallChatView() {
       )}
       <Page
         style={{
-          width: screenSize === ScreenSize.Desktop ? toRem(curWidth) : '100%',
+          width: '100%',
           flexShrink: 0,
           flexGrow: 0,
         }}
@@ -73,6 +81,6 @@ export function CallChatView() {
           <RoomView eventId={eventId} />
         </Box>
       </Page>
-    </>
+    </Box>
   );
 }

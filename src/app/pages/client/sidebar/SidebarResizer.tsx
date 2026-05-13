@@ -72,9 +72,15 @@ export function SidebarResizer({
     [onPointerUp, onPointerMove]
   );
 
+  const dockClass = topSided
+    ? css.SidebarResizerDockTop
+    : isReversed
+      ? css.SidebarResizerDockLeft
+      : css.SidebarResizerDockRight;
+
   return (
     <Box
-      className={`${css.SidebarResizer} ${isPointerOver || isPointerDown ? css.SidebarResizerHover : ''}`}
+      className={`${css.SidebarResizer} ${dockClass} ${isPointerOver || isPointerDown ? css.SidebarResizerHover : ''}`}
       onPointerEnter={() => setIsPointerOver(true)}
       onPointerLeave={() => setIsPointerOver(false)}
       onPointerDown={onPointerDown}

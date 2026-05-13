@@ -66,63 +66,58 @@ export function Inbox() {
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
-    <>
-      <Box
-        shrink="No"
-        style={{
-          width: isMobile ? '100%' : toRem(curWidth),
-        }}
-      >
-        <PageNav>
-          <PageNavHeader>
-            <Box grow="Yes" gap="300" justifyContent="Center">
-              {!hideText ? (
-                <Box grow="Yes">
-                  <Text size="H4" truncate>
-                    Inbox
-                  </Text>
-                </Box>
-              ) : (
-                <Icon src={Icons.Inbox} size="200" filled />
-              )}
-            </Box>
-          </PageNavHeader>
+    <Box
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: isMobile ? '100%' : toRem(curWidth),
+      }}
+    >
+      <PageNav>
+        <PageNavHeader>
+          <Box grow="Yes" gap="300" justifyContent="Center">
+            {!hideText ? (
+              <Box grow="Yes">
+                <Text size="H4" truncate>
+                  Inbox
+                </Text>
+              </Box>
+            ) : (
+              <Icon src={Icons.Inbox} size="200" filled />
+            )}
+          </Box>
+        </PageNavHeader>
 
-          <PageNavContent>
-            <Box direction="Column" gap="300">
-              <NavCategory>
-                <NavItem variant="Background" radii="400" aria-selected={notificationsSelected}>
-                  <NavLink to={getInboxNotificationsPath()}>
-                    <NavItemContent>
-                      <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                        <Avatar
-                          size="200"
-                          radii="400"
-                          style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
-                        >
-                          <Icon
-                            src={Icons.MessageUnread}
-                            size="100"
-                            filled={notificationsSelected}
-                          />
-                        </Avatar>
-                        {!hideText && (
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Notifications
-                            </Text>
-                          </Box>
-                        )}
-                      </Box>
-                    </NavItemContent>
-                  </NavLink>
-                </NavItem>
-                <InvitesNavItem hideText={hideText} />
-              </NavCategory>
-            </Box>
-          </PageNavContent>
-        </PageNav>
-      </Box>
+        <PageNavContent>
+          <Box direction="Column" gap="300">
+            <NavCategory>
+              <NavItem variant="Background" radii="400" aria-selected={notificationsSelected}>
+                <NavLink to={getInboxNotificationsPath()}>
+                  <NavItemContent>
+                    <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                      <Avatar
+                        size="200"
+                        radii="400"
+                        style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                      >
+                        <Icon src={Icons.MessageUnread} size="100" filled={notificationsSelected} />
+                      </Avatar>
+                      {!hideText && (
+                        <Box as="span" grow="Yes">
+                          <Text as="span" size="Inherit" truncate>
+                            Notifications
+                          </Text>
+                        </Box>
+                      )}
+                    </Box>
+                  </NavItemContent>
+                </NavLink>
+              </NavItem>
+              <InvitesNavItem hideText={hideText} />
+            </NavCategory>
+          </Box>
+        </PageNavContent>
+      </PageNav>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -134,6 +129,6 @@ export function Inbox() {
           maxValue={500}
         />
       )}
-    </>
+    </Box>
   );
 }

@@ -448,7 +448,15 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     setCurWidth(threadSidebarWidth);
   }, [threadSidebarWidth]);
   return (
-    <>
+    <Box
+      className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
+      direction="Column"
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
+    >
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -459,131 +467,124 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           isReversed
         />
       )}
-      <Box
-        className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
-        direction="Column"
-        shrink="No"
-        style={{ width: overlay ? '100%' : toRem(curWidth) }}
-      >
-        <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Icon size="200" src={Icons.Thread} />
-            <Text size="H4" truncate>
-              Threads
-            </Text>
-          </Box>
-          <Box alignItems="Center" gap="200" shrink="No">
-            <IconButton
-              onClick={onClose}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              aria-label="Close threads"
-            >
-              <Icon size="200" src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Header>
-
-        <Box
-          direction="Column"
-          gap="100"
-          style={{ padding: `${config.space.S200} ${config.space.S300}` }}
-          shrink="No"
-        >
-          <Input
-            ref={searchRef}
-            value={query}
-            onChange={handleSearchChange}
-            placeholder="Search threads..."
-            variant="Surface"
-            size="400"
-            radii="400"
-            before={<Icon size="50" src={Icons.Search} />}
-            after={
-              query ? (
-                <IconButton
-                  size="300"
-                  radii="300"
-                  variant="SurfaceVariant"
-                  onClick={() => {
-                    setQuery('');
-                    searchRef.current?.focus();
-                  }}
-                  aria-label="Clear search"
-                >
-                  <Icon size="50" src={Icons.Cross} />
-                </IconButton>
-              ) : undefined
-            }
-          />
+      <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
+        <Box grow="Yes" alignItems="Center" gap="200">
+          <Icon size="200" src={Icons.Thread} />
+          <Text size="H4" truncate>
+            Threads
+          </Text>
         </Box>
-
-        <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
-          <Scroll
-            variant="Background"
-            visibility="Hover"
-            direction="Vertical"
+        <Box alignItems="Center" gap="200" shrink="No">
+          <IconButton
+            onClick={onClose}
+            variant="SurfaceVariant"
             size="300"
-            onScroll={handleThreadsScroll}
-            style={{ flexGrow: 1 }}
+            radii="300"
+            aria-label="Close threads"
           >
-            {(() => {
-              if (threads.length === 0 && loadingMore)
-                return (
+            <Icon size="200" src={Icons.Cross} />
+          </IconButton>
+        </Box>
+      </Header>
+
+      <Box
+        direction="Column"
+        gap="100"
+        style={{ padding: `${config.space.S200} ${config.space.S300}` }}
+        shrink="No"
+      >
+        <Input
+          ref={searchRef}
+          value={query}
+          onChange={handleSearchChange}
+          placeholder="Search threads..."
+          variant="Surface"
+          size="400"
+          radii="400"
+          before={<Icon size="50" src={Icons.Search} />}
+          after={
+            query ? (
+              <IconButton
+                size="300"
+                radii="300"
+                variant="SurfaceVariant"
+                onClick={() => {
+                  setQuery('');
+                  searchRef.current?.focus();
+                }}
+                aria-label="Clear search"
+              >
+                <Icon size="50" src={Icons.Cross} />
+              </IconButton>
+            ) : undefined
+          }
+        />
+      </Box>
+
+      <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
+        <Scroll
+          variant="Background"
+          visibility="Hover"
+          direction="Vertical"
+          size="300"
+          onScroll={handleThreadsScroll}
+          style={{ flexGrow: 1 }}
+        >
+          {(() => {
+            if (threads.length === 0 && loadingMore)
+              return (
+                <Box
+                  direction="Column"
+                  alignItems="Center"
+                  justifyContent="Center"
+                  style={{ padding: config.space.S400, gap: config.space.S200 }}
+                >
+                  <Spinner variant="Secondary" size="400" />
+                </Box>
+              );
+            if (threads.length === 0)
+              return (
+                <Box
+                  direction="Column"
+                  alignItems="Center"
+                  justifyContent="Center"
+                  style={{ padding: config.space.S400, gap: config.space.S200 }}
+                >
+                  <Icon size="400" src={Icons.Thread} />
+                  <Text size="T300" align="Center">
+                    {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
+                  </Text>
+                </Box>
+              );
+            return (
+              <>
+                <Box
+                  direction="Column"
+                  style={{ padding: `${config.space.S100} ${config.space.S200}` }}
+                >
+                  {threads.map((thread: Thread) => (
+                    <ThreadPreview
+                      key={thread.id}
+                      room={room}
+                      thread={thread}
+                      onClick={onOpenThread}
+                      onJump={onClose}
+                    />
+                  ))}
+                </Box>
+                {loadingMore && (
                   <Box
-                    direction="Column"
-                    alignItems="Center"
                     justifyContent="Center"
-                    style={{ padding: config.space.S400, gap: config.space.S200 }}
+                    style={{ padding: config.space.S300, flexShrink: 0 }}
                   >
                     <Spinner variant="Secondary" size="400" />
                   </Box>
-                );
-              if (threads.length === 0)
-                return (
-                  <Box
-                    direction="Column"
-                    alignItems="Center"
-                    justifyContent="Center"
-                    style={{ padding: config.space.S400, gap: config.space.S200 }}
-                  >
-                    <Icon size="400" src={Icons.Thread} />
-                    <Text size="T300" align="Center">
-                      {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
-                    </Text>
-                  </Box>
-                );
-              return (
-                <>
-                  <Box
-                    direction="Column"
-                    style={{ padding: `${config.space.S100} ${config.space.S200}` }}
-                  >
-                    {threads.map((thread: Thread) => (
-                      <ThreadPreview
-                        key={thread.id}
-                        room={room}
-                        thread={thread}
-                        onClick={onOpenThread}
-                        onJump={onClose}
-                      />
-                    ))}
-                  </Box>
-                  {loadingMore && (
-                    <Box
-                      justifyContent="Center"
-                      style={{ padding: config.space.S300, flexShrink: 0 }}
-                    >
-                      <Spinner variant="Secondary" size="400" />
-                    </Box>
-                  )}
-                </>
-              );
-            })()}
-          </Scroll>
-        </Box>
+                )}
+              </>
+            );
+          })()}
+        </Scroll>
       </Box>
-    </>
+    </Box>
   );
 }

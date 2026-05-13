@@ -765,7 +765,15 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
   return (
-    <>
+    <Box
+      className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
+      direction="Column"
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
+    >
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -776,188 +784,180 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           isReversed
         />
       )}
-      <Box
-        className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
-        direction="Column"
-        shrink="No"
-        style={{ width: overlay ? '100%' : toRem(curWidth) }}
-      >
-        {/* Header */}
-        <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Icon size="200" src={Icons.Thread} />
-            <Text size="H4" truncate>
-              Thread
-            </Text>
-          </Box>
-          <Box alignItems="Center" gap="200" shrink="No">
-            <IconButton
-              onClick={onClose}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
-              aria-label="Close thread"
-            >
-              <Icon size="200" src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Header>
+      {/* Header */}
+      <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
+        <Box grow="Yes" alignItems="Center" gap="200">
+          <Icon size="200" src={Icons.Thread} />
+          <Text size="H4" truncate>
+            Thread
+          </Text>
+        </Box>
+        <Box alignItems="Center" gap="200" shrink="No">
+          <IconButton
+            onClick={onClose}
+            variant="SurfaceVariant"
+            size="300"
+            radii="300"
+            aria-label="Close thread"
+          >
+            <Icon size="200" src={Icons.Cross} />
+          </IconButton>
+        </Box>
+      </Header>
 
-        {/* Thread root message */}
-        {rootEvent && (
-          <>
-            <Scroll
-              variant="Background"
-              visibility="Hover"
-              direction="Vertical"
-              size="300"
-              hideTrack
-              style={{
-                height: toRem(curHeight),
-                flexShrink: 0,
-              }}
-            >
-              <Box
-                className={css.messageList}
-                direction="Column"
-                style={{
-                  padding: `${config.space.S200} 0 ${config.space.S100} 0`,
-                }}
-              >
-                {renderMatrixEvent(
-                  rootEvent.getType(),
-                  typeof rootEvent.getStateKey() === 'string',
-                  rootEvent.getId()!,
-                  rootEvent,
-                  processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
-                  thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
-                  false
-                )}
-              </Box>
-            </Scroll>
-            <SidebarResizer
-              setCurWidth={setCurHeight}
-              sidebarWidth={threadRootHeight}
-              setSidebarWidth={setThreadRootHeight}
-              minValue={60}
-              maxValue={700}
-              topSided
-            />
-            <div
-              style={{
-                width: '100%',
-                height: toRem(1),
-                backgroundColor: color.Surface.ContainerLine,
-              }}
-            />
-          </>
-        )}
-        {/* Replies */}
-        <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
+      {/* Thread root message */}
+      {rootEvent && (
+        <Box style={{ position: 'relative', flexShrink: 0 }}>
           <Scroll
-            ref={scrollRef}
             variant="Background"
             visibility="Hover"
             direction="Vertical"
             size="300"
-            onScroll={handleRepliesScroll}
-            style={{ flexGrow: 1 }}
+            hideTrack
+            style={{
+              height: toRem(curHeight),
+              flexShrink: 0,
+            }}
           >
-            {(() => {
-              if (isThreadLoading)
-                return (
-                  <Box
-                    direction="Column"
-                    alignItems="Center"
-                    justifyContent="Center"
-                    style={{ padding: config.space.S400 }}
-                  >
-                    <Spinner variant="Secondary" size="400" />
-                  </Box>
-                );
-              if (processedReplies.length === 0)
-                return (
-                  <Box
-                    direction="Column"
-                    alignItems="Center"
-                    justifyContent="Center"
-                    style={{ padding: config.space.S400, gap: config.space.S200 }}
-                  >
-                    <Icon size="400" src={Icons.Thread} />
-                    <Text size="T300" align="Center">
-                      No replies yet. Start the thread below!
-                    </Text>
-                  </Box>
-                );
-              return (
-                <>
-                  {loadingOlderReplies && (
-                    <Box
-                      justifyContent="Center"
-                      style={{ padding: config.space.S300, flexShrink: 0 }}
-                    >
-                      <Spinner variant="Secondary" size="200" />
-                    </Box>
-                  )}
-                  {/* Reply count label inside scroll area */}
-                  <Box
-                    style={{
-                      padding: `${config.space.S200} ${config.space.S400}`,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Text size="T300" priority="300">
-                      {processedReplies.length}{' '}
-                      {processedReplies.length === 1 ? 'reply' : 'replies'}
-                    </Text>
-                  </Box>
-                  <Box
-                    className={css.messageList}
-                    direction="Column"
-                    style={{ padding: `0 0 ${config.space.S600} 0` }}
-                  >
-                    {processedReplies.map((e) =>
-                      renderMatrixEvent(
-                        e.mEvent.getType(),
-                        typeof e.mEvent.getStateKey() === 'string',
-                        e.id,
-                        e.mEvent,
-                        e.itemIndex,
-                        e.timelineSet,
-                        e.collapsed
-                      )
-                    )}
-                  </Box>
-                </>
-              );
-            })()}
+            <Box
+              className={css.messageList}
+              direction="Column"
+              style={{
+                padding: `${config.space.S200} 0 ${config.space.S100} 0`,
+              }}
+            >
+              {renderMatrixEvent(
+                rootEvent.getType(),
+                typeof rootEvent.getStateKey() === 'string',
+                rootEvent.getId()!,
+                rootEvent,
+                processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
+                thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
+                false
+              )}
+            </Box>
           </Scroll>
+          <SidebarResizer
+            setCurWidth={setCurHeight}
+            sidebarWidth={threadRootHeight}
+            setSidebarWidth={setThreadRootHeight}
+            minValue={60}
+            maxValue={700}
+            topSided
+          />
+          <div
+            style={{
+              width: '100%',
+              height: toRem(1),
+              backgroundColor: color.Surface.ContainerLine,
+            }}
+          />
         </Box>
-
-        {/* Thread input */}
-        <Box className={css.ThreadDrawerInput} direction="Column" shrink="No">
-          <div style={{ padding: `0 ${config.space.S400}` }}>
-            <RoomInput
-              key={threadRootId}
-              room={room}
-              roomId={room.roomId}
-              threadRootId={threadRootId}
-              editor={editor}
-              fileDropContainerRef={drawerRef}
-              onEditLastMessage={handleEditLastMessage}
-            />
-          </div>
-          {hideReads ? (
-            <RoomViewFollowingPlaceholder />
-          ) : (
-            <RoomViewFollowing
-              room={room}
-              threadEventId={latestThreadEventId}
-              participantIds={threadParticipantIds}
-            />
-          )}
-        </Box>
+      )}
+      {/* Replies */}
+      <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
+        <Scroll
+          ref={scrollRef}
+          variant="Background"
+          visibility="Hover"
+          direction="Vertical"
+          size="300"
+          onScroll={handleRepliesScroll}
+          style={{ flexGrow: 1 }}
+        >
+          {(() => {
+            if (isThreadLoading)
+              return (
+                <Box
+                  direction="Column"
+                  alignItems="Center"
+                  justifyContent="Center"
+                  style={{ padding: config.space.S400 }}
+                >
+                  <Spinner variant="Secondary" size="400" />
+                </Box>
+              );
+            if (processedReplies.length === 0)
+              return (
+                <Box
+                  direction="Column"
+                  alignItems="Center"
+                  justifyContent="Center"
+                  style={{ padding: config.space.S400, gap: config.space.S200 }}
+                >
+                  <Icon size="400" src={Icons.Thread} />
+                  <Text size="T300" align="Center">
+                    No replies yet. Start the thread below!
+                  </Text>
+                </Box>
+              );
+            return (
+              <>
+                {loadingOlderReplies && (
+                  <Box
+                    justifyContent="Center"
+                    style={{ padding: config.space.S300, flexShrink: 0 }}
+                  >
+                    <Spinner variant="Secondary" size="200" />
+                  </Box>
+                )}
+                {/* Reply count label inside scroll area */}
+                <Box
+                  style={{
+                    padding: `${config.space.S200} ${config.space.S400}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Text size="T300" priority="300">
+                    {processedReplies.length} {processedReplies.length === 1 ? 'reply' : 'replies'}
+                  </Text>
+                </Box>
+                <Box
+                  className={css.messageList}
+                  direction="Column"
+                  style={{ padding: `0 0 ${config.space.S600} 0` }}
+                >
+                  {processedReplies.map((e) =>
+                    renderMatrixEvent(
+                      e.mEvent.getType(),
+                      typeof e.mEvent.getStateKey() === 'string',
+                      e.id,
+                      e.mEvent,
+                      e.itemIndex,
+                      e.timelineSet,
+                      e.collapsed
+                    )
+                  )}
+                </Box>
+              </>
+            );
+          })()}
+        </Scroll>
       </Box>
-    </>
+
+      {/* Thread input */}
+      <Box className={css.ThreadDrawerInput} direction="Column" shrink="No">
+        <div style={{ padding: `0 ${config.space.S400}` }}>
+          <RoomInput
+            key={threadRootId}
+            room={room}
+            roomId={room.roomId}
+            threadRootId={threadRootId}
+            editor={editor}
+            fileDropContainerRef={drawerRef}
+            onEditLastMessage={handleEditLastMessage}
+          />
+        </div>
+        {hideReads ? (
+          <RoomViewFollowingPlaceholder />
+        ) : (
+          <RoomViewFollowing
+            room={room}
+            threadEventId={latestThreadEventId}
+            participantIds={threadParticipantIds}
+          />
+        )}
+      </Box>
+    </Box>
   );
 }

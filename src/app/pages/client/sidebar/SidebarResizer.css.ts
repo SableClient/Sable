@@ -1,16 +1,41 @@
 import { style } from '@vanilla-extract/css';
-import { color, toRem } from 'folds';
+import { color } from 'folds';
+
+/** Out-of-flow so flex siblings (e.g. PageRoot vertical Line) stay flush with the panel edge. */
+export const SidebarResizerDockRight = style({
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 2,
+  cursor: 'col-resize',
+});
+
+export const SidebarResizerDockLeft = style({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  bottom: 0,
+  zIndex: 2,
+  cursor: 'col-resize',
+});
+
+export const SidebarResizerDockTop = style({
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 2,
+  cursor: 'ns-resize',
+});
 
 export const SidebarResizer = style({
-  width: toRem(4),
   backgroundColor: 'inherit',
   transition: '0.2s',
-  cursor: 'col-resize',
   ':hover': {},
 });
 export const SidebarResizerHover = style({
-  height: '100%',
-  zIndex: '100',
+  zIndex: 100,
 });
 export const SideBarResizerAnimation = style({
   width: '100%',

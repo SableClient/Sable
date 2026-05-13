@@ -114,7 +114,12 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
   return (
     <>
       <PageNavHeader>
-        <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
+        <Box
+          alignItems="Center"
+          grow="Yes"
+          gap="300"
+          justifyContent={hideText ? 'Center' : 'Start'}
+        >
           {!hideText && (
             <Box grow="Yes">
               <Text size="H4" truncate>
@@ -261,174 +266,192 @@ export function Home() {
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
-    <>
-      <Box
-        shrink="No"
-        style={{
-          width: isMobile ? '100%' : toRem(curWidth),
-        }}
-      >
-        <PageNav>
-          <HomeHeader hideText={hideText} />
-          {noRoomToDisplay ? (
-            <HomeEmpty />
-          ) : (
-            <PageNavContent scrollRef={scrollRef}>
-              <Box direction="Column" gap="300">
-                <NavCategory>
-                  <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
-                    <NavButton onClick={() => navigate(getHomeCreatePath())}>
-                      <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar
-                            radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
-                          >
-                            <Icon src={Icons.Plus} size="100" />
-                          </Avatar>
-                          {!hideText && (
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                Create Room
-                              </Text>
-                            </Box>
-                          )}
-                        </Box>
-                      </NavItemContent>
-                    </NavButton>
-                  </NavItem>
-                  <UseStateProvider initial={false}>
-                    {(open, setOpen) => (
-                      <>
-                        <NavItem variant="Background" radii="400">
-                          <NavButton onClick={() => setOpen(true)}>
-                            <NavItemContent>
-                              <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                                <Avatar
-                                  radii="400"
-                                  style={
-                                    hideText ? { width: '100%', padding: '0' } : { height: '100%' }
-                                  }
-                                >
-                                  <Icon src={Icons.Link} size="100" />
-                                </Avatar>
-                                {!hideText && (
-                                  <Box as="span" grow="Yes">
-                                    <Text as="span" size="Inherit" truncate>
-                                      Join with Address
-                                    </Text>
-                                  </Box>
-                                )}
-                              </Box>
-                            </NavItemContent>
-                          </NavButton>
-                        </NavItem>
-                        {open && (
-                          <JoinAddressPrompt
-                            onCancel={() => setOpen(false)}
-                            onOpen={(roomIdOrAlias, viaServers, eventId) => {
-                              setOpen(false);
-                              const path = getHomeRoomPath(roomIdOrAlias, eventId);
-                              navigate(
-                                viaServers
-                                  ? withSearchParam(path, {
-                                      viaServers: encodeSearchParamValueArray(viaServers),
-                                    })
-                                  : path
-                              );
-                            }}
-                          />
-                        )}
-                      </>
-                    )}
-                  </UseStateProvider>
-                  <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
-                    <NavLink to={getHomeSearchPath()}>
-                      <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
-                          <Avatar
-                            radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
-                          >
-                            <Icon src={Icons.Search} size="100" filled={searchSelected} />
-                          </Avatar>
-                          {!hideText && (
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                Message Search
-                              </Text>
-                            </Box>
-                          )}
-                        </Box>
-                      </NavItemContent>
-                    </NavLink>
-                  </NavItem>
-                </NavCategory>
-                <NavCategory>
-                  <NavCategoryHeader>
-                    <RoomNavCategoryButton
-                      closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                      data-category-id={DEFAULT_CATEGORY_ID}
-                      onClick={handleCategoryClick}
-                    >
-                      {!hideText && 'Rooms'}
-                    </RoomNavCategoryButton>
-                  </NavCategoryHeader>
-                  <div
-                    style={{
-                      position: 'relative',
-                      height: virtualizer.getTotalSize(),
-                      overflow: 'visible',
-                    }}
-                  >
-                    {virtualizer.getVirtualItems().map((vItem) => {
-                      const roomId = sortedRooms[vItem.index];
-                      if (!roomId) return null;
-                      const room = mx.getRoom(roomId);
-                      if (!room) return null;
-                      const selected = selectedRoomId === roomId;
-
-                      return (
-                        <VirtualTile
-                          virtualItem={vItem}
-                          key={vItem.index}
-                          ref={virtualizer.measureElement}
+    <Box
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: isMobile ? '100%' : toRem(curWidth),
+      }}
+    >
+      <PageNav>
+        <HomeHeader hideText={hideText} />
+        {noRoomToDisplay ? (
+          <HomeEmpty />
+        ) : (
+          <PageNavContent scrollRef={scrollRef}>
+            <Box direction="Column" gap="300">
+              <NavCategory>
+                <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
+                  <NavButton onClick={() => navigate(getHomeCreatePath())}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        justifyContent="Start"
+                        gap="200"
+                      >
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideText ? { width: '100%', padding: '0' } : undefined}
                         >
-                          <div
-                            style={
-                              hideText
-                                ? {
-                                    padding: '0',
-                                    width: '100%',
-                                    aspectRatio: 1,
-                                    display: 'flex',
-                                  }
-                                : {}
-                            }
-                          >
-                            <RoomNavItem
-                              room={room}
-                              selected={selected}
-                              showAvatar={showIcons()}
-                              hideText={hideText}
-                              linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                              notificationMode={getRoomNotificationMode(
-                                notificationPreferences,
-                                room.roomId
+                          <Icon src={Icons.Plus} size="100" />
+                        </Avatar>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Create Room
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </NavItemContent>
+                  </NavButton>
+                </NavItem>
+                <UseStateProvider initial={false}>
+                  {(open, setOpen) => (
+                    <>
+                      <NavItem variant="Background" radii="400">
+                        <NavButton onClick={() => setOpen(true)}>
+                          <NavItemContent>
+                            <Box
+                              as="span"
+                              grow="Yes"
+                              alignItems="Center"
+                              justifyContent="Start"
+                              gap="200"
+                            >
+                              <Avatar
+                                size={hideText ? undefined : '200'}
+                                radii="400"
+                                style={hideText ? { width: '100%', padding: '0' } : undefined}
+                              >
+                                <Icon src={Icons.Link} size="100" />
+                              </Avatar>
+                              {!hideText && (
+                                <Box as="span" grow="Yes">
+                                  <Text as="span" size="Inherit" truncate>
+                                    Join with Address
+                                  </Text>
+                                </Box>
                               )}
-                              joinCallOnSingleClick={joinCallOnSingleClick}
-                            />
-                          </div>
-                        </VirtualTile>
-                      );
-                    })}
-                  </div>
-                </NavCategory>
-              </Box>
-            </PageNavContent>
-          )}
-        </PageNav>
-      </Box>
+                            </Box>
+                          </NavItemContent>
+                        </NavButton>
+                      </NavItem>
+                      {open && (
+                        <JoinAddressPrompt
+                          onCancel={() => setOpen(false)}
+                          onOpen={(roomIdOrAlias, viaServers, eventId) => {
+                            setOpen(false);
+                            const path = getHomeRoomPath(roomIdOrAlias, eventId);
+                            navigate(
+                              viaServers
+                                ? withSearchParam(path, {
+                                    viaServers: encodeSearchParamValueArray(viaServers),
+                                  })
+                                : path
+                            );
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                </UseStateProvider>
+                <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
+                  <NavLink to={getHomeSearchPath()}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        justifyContent="Start"
+                        gap="200"
+                      >
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideText ? { width: '100%' } : undefined}
+                        >
+                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        </Avatar>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Message Search
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </NavItemContent>
+                  </NavLink>
+                </NavItem>
+              </NavCategory>
+              <NavCategory>
+                <NavCategoryHeader>
+                  <RoomNavCategoryButton
+                    closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                    data-category-id={DEFAULT_CATEGORY_ID}
+                    onClick={handleCategoryClick}
+                  >
+                    {!hideText && 'Rooms'}
+                  </RoomNavCategoryButton>
+                </NavCategoryHeader>
+                <div
+                  style={{
+                    position: 'relative',
+                    height: virtualizer.getTotalSize(),
+                    overflow: 'visible',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((vItem) => {
+                    const roomId = sortedRooms[vItem.index];
+                    if (!roomId) return null;
+                    const room = mx.getRoom(roomId);
+                    if (!room) return null;
+                    const selected = selectedRoomId === roomId;
+
+                    return (
+                      <VirtualTile
+                        virtualItem={vItem}
+                        key={vItem.index}
+                        ref={virtualizer.measureElement}
+                      >
+                        <div
+                          style={
+                            hideText
+                              ? {
+                                  padding: '0',
+                                  width: '100%',
+                                  aspectRatio: 1,
+                                  display: 'flex',
+                                }
+                              : {}
+                          }
+                        >
+                          <RoomNavItem
+                            room={room}
+                            selected={selected}
+                            showAvatar={showIcons()}
+                            hideText={hideText}
+                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            notificationMode={getRoomNotificationMode(
+                              notificationPreferences,
+                              room.roomId
+                            )}
+                            joinCallOnSingleClick={joinCallOnSingleClick}
+                          />
+                        </div>
+                      </VirtualTile>
+                    );
+                  })}
+                </div>
+              </NavCategory>
+            </Box>
+          </PageNavContent>
+        )}
+      </PageNav>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -440,6 +463,6 @@ export function Home() {
           maxValue={500}
         />
       )}
-    </>
+    </Box>
   );
 }

@@ -258,113 +258,112 @@ export function Direct() {
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
-    <>
-      <Box
-        shrink="No"
-        style={{
-          width: isMobile ? '100%' : toRem(curWidth),
-        }}
-      >
-        <PageNav>
-          <DirectHeader hideText={hideText} />
-          {noRoomToDisplay ? (
-            <DirectEmpty />
-          ) : (
-            <PageNavContent scrollRef={scrollRef}>
-              <Box direction="Column" gap="300">
-                <NavCategory>
-                  <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
-                    <NavButton onClick={() => navigate(getDirectCreatePath())}>
-                      <NavItemContent>
-                        <Box
-                          as="span"
-                          grow="Yes"
-                          alignItems="Center"
-                          gap="200"
-                          justifyContent="Center"
-                        >
-                          <Avatar size="200" radii="400">
-                            <Icon src={Icons.Plus} size="100" />
-                          </Avatar>
-                          {!hideText && (
-                            <Box as="span" grow="Yes">
-                              <Text as="span" size="Inherit" truncate>
-                                Create Chat
-                              </Text>
-                            </Box>
-                          )}
-                        </Box>
-                      </NavItemContent>
-                    </NavButton>
-                  </NavItem>
-                </NavCategory>
-                <NavCategory>
-                  <NavCategoryHeader>
-                    <RoomNavCategoryButton
-                      closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
-                      data-category-id={DEFAULT_CATEGORY_ID}
-                      onClick={handleCategoryClick}
-                    >
-                      {!hideText && 'Chats'}
-                    </RoomNavCategoryButton>
-                  </NavCategoryHeader>
-                  <div
-                    style={{
-                      position: 'relative',
-                      height: virtualizer.getTotalSize(),
-                      overflow: 'clip',
-                    }}
+    <Box
+      shrink="No"
+      style={{
+        position: 'relative',
+        width: isMobile ? '100%' : toRem(curWidth),
+      }}
+    >
+      <PageNav>
+        <DirectHeader hideText={hideText} />
+        {noRoomToDisplay ? (
+          <DirectEmpty />
+        ) : (
+          <PageNavContent scrollRef={scrollRef}>
+            <Box direction="Column" gap="300">
+              <NavCategory>
+                <NavItem variant="Background" radii="400" aria-selected={createDirectSelected}>
+                  <NavButton onClick={() => navigate(getDirectCreatePath())}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        gap="200"
+                        justifyContent="Center"
+                      >
+                        <Avatar size="200" radii="400">
+                          <Icon src={Icons.Plus} size="100" />
+                        </Avatar>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Create Chat
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </NavItemContent>
+                  </NavButton>
+                </NavItem>
+              </NavCategory>
+              <NavCategory>
+                <NavCategoryHeader>
+                  <RoomNavCategoryButton
+                    closed={closedCategories.has(DEFAULT_CATEGORY_ID)}
+                    data-category-id={DEFAULT_CATEGORY_ID}
+                    onClick={handleCategoryClick}
                   >
-                    {virtualizer.getVirtualItems().map((vItem) => {
-                      const roomId = sortedDirects[vItem.index];
-                      if (!roomId) return null;
-                      const room = mx.getRoom(roomId);
-                      if (!room) return null;
-                      const selected = selectedRoomId === roomId;
+                    {!hideText && 'Chats'}
+                  </RoomNavCategoryButton>
+                </NavCategoryHeader>
+                <div
+                  style={{
+                    position: 'relative',
+                    height: virtualizer.getTotalSize(),
+                    overflow: 'clip',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((vItem) => {
+                    const roomId = sortedDirects[vItem.index];
+                    if (!roomId) return null;
+                    const room = mx.getRoom(roomId);
+                    if (!room) return null;
+                    const selected = selectedRoomId === roomId;
 
-                      return (
-                        <VirtualTile
-                          virtualItem={vItem}
-                          key={vItem.index}
-                          ref={virtualizer.measureElement}
+                    return (
+                      <VirtualTile
+                        virtualItem={vItem}
+                        key={vItem.index}
+                        ref={virtualizer.measureElement}
+                      >
+                        <div
+                          style={
+                            hideText
+                              ? {
+                                  padding: '0',
+                                  width: '100%',
+                                  aspectRatio: 1,
+                                  display: 'flex',
+                                }
+                              : {}
+                          }
                         >
-                          <div
-                            style={
-                              hideText
-                                ? {
-                                    padding: '0',
-                                    width: '100%',
-                                    aspectRatio: 1,
-                                    display: 'flex',
-                                  }
-                                : {}
-                            }
-                          >
-                            <RoomNavItem
-                              room={room}
-                              selected={selected}
-                              showAvatar
-                              direct
-                              customDMCards={customDMCards}
-                              hideText={hideText}
-                              linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
-                              notificationMode={getRoomNotificationMode(
-                                notificationPreferences,
-                                room.roomId
-                              )}
-                              joinCallOnSingleClick={joinCallOnSingleClick}
-                            />
-                          </div>
-                        </VirtualTile>
-                      );
-                    })}
-                  </div>
-                </NavCategory>
-              </Box>
-            </PageNavContent>
-          )}
-        </PageNav>
-      </Box>
+                          <RoomNavItem
+                            room={room}
+                            selected={selected}
+                            showAvatar
+                            direct
+                            customDMCards={customDMCards}
+                            hideText={hideText}
+                            linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            notificationMode={getRoomNotificationMode(
+                              notificationPreferences,
+                              room.roomId
+                            )}
+                            joinCallOnSingleClick={joinCallOnSingleClick}
+                          />
+                        </div>
+                      </VirtualTile>
+                    );
+                  })}
+                </div>
+              </NavCategory>
+            </Box>
+          </PageNavContent>
+        )}
+      </PageNav>
       {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
@@ -376,6 +375,6 @@ export function Direct() {
           maxValue={500}
         />
       )}
-    </>
+    </Box>
   );
 }

@@ -5,6 +5,7 @@ export const SidebarResizer = style({
   width: toRem(4),
   backgroundColor: 'inherit',
   transition: '0.2s',
+  cursor: 'col-resize',
   ':hover': {},
 });
 export const SidebarResizerHover = style({

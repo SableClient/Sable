@@ -190,6 +190,13 @@ export function RoomTimeline({
   hideReadsRef.current = hideReads;
 
   const prevViewportHeightRef = useRef(0);
+  const prevScrollSizeRef = useRef(0);
+  // Tracks the VList-reported viewport size (as opposed to prevViewportHeightRef
+  // which tracks the DOM element height via ResizeObserver). Used in
+  // handleVListScroll to detect viewport shrink (keyboard opens) without a
+  // ResizeObserver race: when VList fires onScroll with a smaller viewportSize,
+  // we chase the bottom immediately instead of letting setAtBottom(false) fire.
+  const prevVListViewportRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -679,6 +686,51 @@ export function RoomTimeline({
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       const isNowAtBottom = distanceFromBottom < 100;
+      const withinSettleWindow =
+        Date.now() - lastProgrammaticBottomPinAtRef.current < SCROLL_SETTLE_MS;
+
+      // When the user is pinned to the bottom and content grows (images, embeds,
+      // video thumbnails loading), scrollSize increases while offset stays put,
+      // pushing distanceFromBottom above the threshold. Instead of flipping
+      // atBottom to false (which shows the "Jump to Latest" button), chase the
+      // bottom so the user stays pinned.
+      const contentGrew = v.scrollSize > prevScrollSizeRef.current;
+      prevScrollSizeRef.current = v.scrollSize;
+
+      // When the keyboard opens the VList viewport shrinks. The scrollOffset
+      // doesn't change, so distanceFromBottom jumps to ~keyboardHeight and
+      // isNowAtBottom becomes false — flashing the "Jump to Present" button.
+      // Detect the shrink here (inside onScroll, race-free) and chase the
+      // bottom before setAtBottom(false) is called.
+      const viewportShrank =
+        prevVListViewportRef.current > 0 && v.viewportSize < prevVListViewportRef.current;
+      prevVListViewportRef.current = v.viewportSize;
+
+      // Skip content-chase and cache saves during init: the timeline is hidden
+      // (opacity 0) while VList measures items and fires intermediate scroll
+      // events.  Chasing the bottom here causes cascading scrollTo calls that
+      // upstream doesn't have, producing visible layout churn after isReady.
+      if (!isReadyRef.current) return;
+
+      // While a jump scroll is settling (briefly after scrollToIndex), VList
+      // fires intermediate scroll events that can incorrectly flip atBottom.
+      // Use a short-lived block instead of the full focusItem lifetime so that
+      // normal scrolling resumes quickly and atBottom is recomputed correctly.
+      if (jumpScrollBlockRef.current) return;
+
+      if (atBottomRef.current && !isNowAtBottom && (contentGrew || viewportShrank || withinSettleWindow)) {
+        // Defer the chase to the next animation frame so VList finishes its
+        // current layout pass. Synchronous scrollTo causes cascading scroll
+        // events that produce visible jumps when images/embeds load.
+        requestAnimationFrame(() => {
+          const vl = vListRef.current;
+          if (vl && atBottomRef.current) {
+            lastProgrammaticBottomPinAtRef.current = Date.now();
+            vl.scrollTo(vl.scrollSize);
+          }
+        });
+        return;
+      }
       if (isNowAtBottom !== atBottomRef.current) {
         setAtBottom(isNowAtBottom);
       }

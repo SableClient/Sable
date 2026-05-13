@@ -118,6 +118,7 @@
     "buffer": "^6.0.3",
     "cloudflared": "^0.7.1",
     "jsdom": "^29.0.0",
+    "json-schema-to-typescript": "^15.0.4",
     "knip": "5.85.0",
     "oxfmt": "^0.45.0",
     "oxlint": "^1.60.0",

@@ -10,6 +10,8 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nicknamesAtom } from '$state/nicknames';
 import { BlockType } from './types';
 import { getBeginCommand } from './utils';
+import { SlateInputForCommand } from '$plugins/commandHandling/slateInput';
+import { getFromCommandRegistry } from '$plugins/commandHandling/commandRegistry';
 import type { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
 
 // Put this at the start and end of an inline component to work around this Chromium bug:
@@ -56,19 +58,15 @@ function RenderCommandElement({
   const selected = useSelected();
   const focused = useFocused();
   const editor = useSlate();
-
+  
   return (
-    <span
-      {...attributes}
-      className={css.Command({
+    <SlateInputForCommand
+      commandNameClassName={css.Command({
         focus: selected && focused,
         active: getBeginCommand(editor) === element.command,
       })}
-      contentEditable={false}
-    >
-      {`/${element.command}`}
-      {children}
-    </span>
+      command={getFromCommandRegistry(element.command)}
+    />
   );
 }
 

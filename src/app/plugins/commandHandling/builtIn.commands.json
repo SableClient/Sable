@@ -1,0 +1,810 @@
+{
+  "commands": [
+    {
+      "id": "kick",
+      "requiredPermission": "kick",
+      "builtIn": true,
+      "description": "kick a user from the room",
+      "attributes": [
+        {
+          "id": "user",
+          "type": "userMention",
+          "description": "which user to kick",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        },
+        {
+          "id": "reason",
+          "type": "string",
+          "description": "public reason for the kick",
+          "exampleValue": "they make me sad",
+          "required": false
+        }
+      ],
+      "category": "moderation"
+    },
+    {
+      "id": "ban",
+      "requiredPermission": "ban",
+      "description": "ban a user",
+      "attributes": [
+        {
+          "id": "user",
+          "type": "userMention",
+          "description": "which user to ban",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        },
+        {
+          "id": "reason",
+          "type": "string",
+          "description": "public reason for the ban",
+          "exampleValue": "they make me sad",
+          "required": false
+        }
+      ],
+      "builtIn": true,
+      "category": "moderation"
+    },
+    {
+      "id": "ban-list",
+      "requiredPermission": "ban",
+      "description": "ban a list of users",
+      "attributes": [
+        {
+          "id": "userList",
+          "type": "userMention",
+          "description": "which user to ban",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        },
+        {
+          "id": "reason",
+          "type": "string",
+          "description": "public reason for the ban",
+          "exampleValue": "they make me sad",
+          "required": false
+        }
+      ],
+      "builtIn": true,
+      "category": "moderation"
+    },
+    {
+      "id": "unban",
+      "requiredPermission": "ban",
+      "description": "unban a user",
+      "attributes": [
+        {
+          "id": "user",
+          "type": "userMention",
+          "description": "which user to unban",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        }
+      ],
+      "builtIn": true,
+      "category": "moderation"
+    },
+    {
+      "id": "unban-list",
+      "requiredPermission": "ban",
+      "description": "unban a list of user",
+      "attributes": [
+        {
+          "id": "userList",
+          "type": "userMention",
+          "description": "which users to unban",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        }
+      ],
+      "builtIn": true,
+      "category": "moderation"
+    },
+    {
+      "id": "invite",
+      "description": "invite a user",
+      "requiredPermission": "invite",
+      "attributes": [
+        {
+          "id": "user",
+          "type": "userMention",
+          "description": "which user to invite",
+          "exampleValue": "@alice:example.org",
+          "required": true
+        },
+        {
+          "id": "reason",
+          "type": "string",
+          "description": "public reason for the invite",
+          "required": false
+        }
+      ],
+      "builtIn": true,
+      "category": "core"
+    },
+    {
+      "id": "disinvite",
+      "requiredPermission": "kick",
+      "description": "revoke a invite",
+      "builtIn": true,
+      "attributes": [
+        {
+          "id": "user",
+          "required": true,
+          "type": "userMention",
+          "description": "the user you want to revoke the invite for"
+        },
+        {
+          "id": "reason",
+          "description": "the public reason for revoking the invite",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "category": "moderation"
+    },
+    {
+      "id": "disinvite-list",
+      "requiredPermission": "kick",
+      "description": "revoke a list of invite",
+      "builtIn": true,
+      "attributes": [
+        {
+          "id": "userList",
+          "required": true,
+          "type": "userMention",
+          "description": "list of users you want to revoke the invite for"
+        },
+        {
+          "id": "reason",
+          "description": "the public reason for revoking the invite",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "category": "moderation"
+    },
+    {
+      "id": "me",
+      "builtIn": true,
+      "description": "describe yourself",
+      "attributes": [
+        {
+          "id": "msg",
+          "type": "string",
+          "description": "the message you want to send",
+          "required": true
+        }
+      ],
+      "category": "misc"
+    },
+    {
+      "id": "notice",
+      "builtIn": true,
+      "description": "send a message as notice",
+      "attributes": [
+        {
+          "id": "msg",
+          "description": "the message you want to send",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "category": "misc"
+    },
+    {
+      "id": "shrug",
+      "builtIn": true,
+      "description": "shrug",
+      "category": "fun"
+    },
+    {
+      "id": "startdm",
+      "builtIn": true,
+      "description": "start a dm with someone",
+      "attributes": [
+        {
+          "id": "user",
+          "description": "who do you want to chat with",
+          "type": "userMention",
+          "required": true
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "join",
+      "description": "join a room",
+      "builtIn": true,
+      "attributes": [
+        {
+          "id": "room",
+          "description": "the id of the room you want to join",
+          "required": true,
+          "type": "roomMention"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "join-list",
+      "description": "join a list of rooms",
+      "builtIn": true,
+      "attributes": [
+        {
+          "id": "roomList",
+          "description": "the id of the room you want to join",
+          "required": true,
+          "type": "roomMention"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "leave",
+      "builtIn": true,
+      "description": "leave a room",
+      "category": "core"
+    },
+    {
+      "id": "ignore",
+      "builtIn": true,
+      "description": "add a user to your ignore list",
+      "attributes": [
+        {
+          "id": "user",
+          "required": true,
+          "type": "userMention"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "unignore",
+      "builtIn": true,
+      "description": "remove a user to your ignore list",
+      "attributes": [
+        {
+          "id": "user",
+          "required": true,
+          "type": "userMention"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "myroomnick",
+      "builtIn": true,
+      "description": "set your room local nickname",
+      "attributes": [
+        {
+          "id": "nick",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "myroomavatar",
+      "builtIn": true,
+      "description": "set your room local avatar",
+      "attributes": [
+        {
+          "id": "url",
+          "type": "matrixMediaUrl",
+          "required": true
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "convertToRoom",
+      "builtIn": true,
+      "description": "convert this room to a room (only for you)",
+      "category": "core"
+    },
+    {
+      "id": "convertToDm",
+      "builtIn": true,
+      "description": "convert this room to a dm (only for you)",
+      "attributes": [
+        {
+          "id": "user",
+          "description": "a dm with whom?",
+          "required": true,
+          "type": "userMention"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "tableflip",
+      "description": "flip a table",
+      "builtIn": true,
+      "category": "fun"
+    },
+    {
+      "id": "unflip",
+      "description": "unflip a table",
+      "builtIn": true,
+      "category": "fun"
+    },
+    {
+      "id": "delete",
+      "description": "delete a event",
+      "builtIn": true,
+      "executableInReply": true,
+      "requiredPermission": "redactSelf",
+      "attributes": [
+        {
+          "id": "event",
+          "type": "eventMention",
+          "required": false
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "acl",
+      "description": "modify the room's server acl",
+      "requiredPermission": "acl",
+      "builtIn": true,
+      "category": "moderation"
+    },
+    {
+      "id": "knock",
+      "description": "knock at a room",
+      "builtIn": true,
+      "attributes": [
+        {
+          "id": "room",
+          "required": true,
+          "type": "roomMention",
+          "description": "the room you want to knock at"
+        },
+        {
+          "id": "reason",
+          "required": false,
+          "description": "the reason why you want to join a room"
+        }
+      ],
+      "category": "core"
+    },
+    {
+      "id": "scolor",
+      "builtIn": true,
+      "description": "set your space color",
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "attributes": [
+        {
+          "id": "color",
+          "description": "the color you want to have",
+          "exampleValue": "#ff00ff",
+          "type": "color",
+          "required": false
+        },
+        {
+          "id": "reset",
+          "description": "whether to reset the color",
+          "required": false,
+          "type": "boolean",
+          "defaultValue": "false"
+        }
+      ],
+      "category": "cosmetics"
+    },
+    {
+      "id": "color",
+      "description": "what color do you want to have in this room",
+      "builtIn": true,
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "attributes": [
+        {
+          "id": "color",
+          "description": "the color you want to have",
+          "type": "color",
+          "exampleValue": "#ff00ff",
+          "required": false
+        },
+        {
+          "id": "reset",
+          "description": "whether to reset the color",
+          "required": false,
+          "type": "boolean",
+          "defaultValue": "false"
+        }
+      ],
+      "category": "cosmetics"
+    },
+    {
+      "id": "font",
+      "description": "what font do you want to have in this room",
+      "builtIn": true,
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "attributes": [
+        {
+          "id": "font",
+          "description": "the font you want to have",
+          "required": false
+        },
+        {
+          "id": "reset",
+          "description": "whether to reset the font",
+          "required": false,
+          "type": "boolean",
+          "defaultValue": "false"
+        }
+      ],
+      "category": "cosmetics"
+    },
+    {
+      "id": "sfont",
+      "builtIn": true,
+      "description": "set your space font",
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "attributes": [
+        {
+          "id": "font",
+          "description": "the font you want to have",
+          "required": true
+        },
+        {
+          "id": "reset",
+          "description": "whether to reset the font",
+          "required": false,
+          "type": "boolean",
+          "defaultValue": "false"
+        }
+      ],
+      "category": "cosmetics"
+    },
+    {
+      "id": "addWidget",
+      "description": "add a widget",
+      "builtIn": true,
+      "category": "core"
+    },
+    {
+      "id": "addpmp",
+      "description": "add a per-message-profile to your account",
+      "requiredPermission": "none",
+      "builtIn": true,
+      "category": "persona",
+      "attributes": [
+        {
+          "id": "pmpId",
+          "description": "the id of the pmp profile",
+          "required": true,
+          "type": "custom",
+          "format": "\\S+",
+          "exampleValue": "meow"
+        },
+        {
+          "id": "name",
+          "description": "the name you want to be displayed as",
+          "required": true,
+          "type": "custom",
+          "format": "[\\w\\s]*",
+          "exampleValue": "Yumi"
+        },
+        {
+          "id": "avatarUrl",
+          "description": "the url of the avatar",
+          "required": false,
+          "type": "matrixMediaUrl",
+          "exampleValue": "mxc://example.org/mynicepic"
+        }
+      ]
+    },
+    {
+      "id": "delpmp",
+      "description": "delete a per-message-profile from your account",
+      "requiredPermission": "none",
+      "builtIn": true,
+      "category": "persona",
+      "attributes": [
+        {
+          "id": "pmpId",
+          "description": "the id of the pmp profile",
+          "required": true,
+          "type": "custom",
+          "format": "\\S+",
+          "exampleValue": "meow"
+        }
+      ]
+    },
+    {
+      "id": "usepmp",
+      "description": "use a per-message-profile",
+      "requiredPermission": "none",
+      "builtIn": true,
+      "category": "persona",
+      "attributes": [
+        {
+          "id": "pmpId",
+          "description": "the id of the pmp profile",
+          "required": true,
+          "type": "custom",
+          "format": "\\S+",
+          "exampleValue": "meow"
+        },
+        {
+          "id": "global",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "id": "once",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "id": "until",
+          "required": false,
+          "type": "custom",
+          "format": "\\d+"
+        }
+      ]
+    },
+    {
+      "id": "pmpproxy",
+      "description": "add a per-message-profile proxy to your account",
+      "requiredPermission": "none",
+      "builtIn": true,
+      "category": "persona"
+    },
+    {
+      "id": "pronoun",
+      "description": "set your room-local-pronouns",
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "builtIn": true,
+      "category": "cosmetics",
+      "attributes": [
+        {
+          "id": "pronouns",
+          "required": false,
+          "type": "string",
+          "exampleValue": "en:they/them, de:sie/ihr"
+        },
+        {
+          "id": "reset",
+          "required": false,
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "id": "spronoun",
+      "description": "set your space-local-pronouns",
+      "requiredPermission": "custom",
+      "customPermission": "PLACEHOLDER",
+      "builtIn": true,
+      "category": "cosmetics",
+      "attributes": [
+        {
+          "id": "pronouns",
+          "required": false,
+          "type": "string",
+          "exampleValue": "en:they/them, de:sie/ihr"
+        },
+        {
+          "id": "reset",
+          "required": false,
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "id": "rainbow",
+      "description": "send a message rainbow-colored",
+      "builtIn": true,
+      "requiredPermission": "message",
+      "attributes": [
+        {
+          "id": "msg",
+          "description": "the message you want to send",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "category": "misc"
+    },
+    {
+      "id": "rawmsg",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "send a raw message",
+      "category": "developer"
+    },
+    {
+      "id": "raw",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "send a raw timeline event",
+      "category": "developer"
+    },
+    {
+      "id": "rawacc",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "",
+      "category": "developer"
+    },
+    {
+      "id": "delacc",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "",
+      "category": "developer"
+    },
+    {
+      "id": "setext",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "",
+      "category": "developer"
+    },
+    {
+      "id": "delext",
+      "builtIn": true,
+      "requiredCofigFlag": "developer",
+      "description": "",
+      "category": "developer"
+    },
+    {
+      "id": "discardSession",
+      "builtIn": true,
+      "description": "discard the outgoing encryption session",
+      "category": "core"
+    },
+    {
+      "id": "html",
+      "builtIn": true,
+      "description": "send a html encoded message",
+      "attributes": [
+        {
+          "id": "msg",
+          "description": "the html encoded message",
+          "required": true,
+          "type": "string",
+          "exampleValue": "<span data-mx-color=\"#ff0000\">Red</span>"
+        }
+      ],
+      "category": "misc"
+    },
+    {
+      "id": "hug",
+      "builtIn": true,
+      "description": "hug someone",
+      "category": "fun",
+      "attributes": [
+        {
+          "id": "user",
+          "required": false,
+          "type": "userMention"
+        }
+      ]
+    },
+    {
+      "id": "cuddle",
+      "builtIn": true,
+      "description": "cuddle someone",
+      "category": "fun",
+      "attributes": [
+        {
+          "id": "user",
+          "type": "userMention",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "wave",
+      "builtIn": true,
+      "description": "wave at someone",
+      "category": "fun",
+      "attributes": [
+        {
+          "id": "user",
+          "required": false,
+          "type": "userMention"
+        }
+      ]
+    },
+    {
+      "id": "poke",
+      "builtIn": true,
+      "description": "poke someone",
+      "category": "fun",
+      "attributes": [
+        {
+          "id": "user",
+          "required": false,
+          "type": "userMention"
+        }
+      ]
+    },
+    {
+      "id": "headpat",
+      "builtIn": true,
+      "description": "give headpats to someone",
+      "category": "fun",
+      "attributes": [
+        {
+          "id": "user",
+          "required": false,
+          "type": "userMention"
+        }
+      ]
+    },
+    {
+      "id": "bugreport",
+      "category": "misc",
+      "builtIn": true,
+      "description": "report a bug"
+    },
+    {
+      "id": "sharehistory",
+      "category": "core",
+      "builtIn": true,
+      "description": "share historic e2ee keys with someone",
+      "attributes": [
+        {
+          "id": "user",
+          "required": true,
+          "type": "userMention"
+        }
+      ]
+    },
+    {
+      "id": "location",
+      "builtIn": true,
+      "category": "misc",
+      "description": "share a specified location",
+      "attributes": [
+        {
+          "id": "latitude",
+          "type": "custom",
+          "format": "^[-+]?([1-8]?\\d(\\.\\d+)?|90(\\.0+)?)$",
+          "exampleValue": "43.959971",
+          "required": true
+        },
+        {
+          "id": "longitude",
+          "type": "custom",
+          "format": "^\\s*[-+]?(180(\\.0+)?|((1[0-7]\\d)|([1-9]?\\d))(\\.\\d+)?)$",
+          "exampleValue": "-59.790623",
+          "required": true
+        },
+        {
+          "id": "altitude",
+          "type": "string",
+          "exampleValue": "0",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "sharemylocation",
+      "builtIn": true,
+      "category": "misc",
+      "description": "Share current location. Requires your browser to have location permissions.",
+      "attributes": [
+        {
+          "id": "accurate",
+          "defaultValue": "false",
+          "description": "enabling the high accuracy option",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

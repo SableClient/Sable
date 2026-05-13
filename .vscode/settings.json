@@ -13,6 +13,12 @@
   "[json]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
+  "json.schemas": [
+    {
+      "fileMatch": ["*.commands.json"],
+      "url": "./src/types/schemas/commandList.schema.json"
+    }
+  ],
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true
 }

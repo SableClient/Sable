@@ -16,7 +16,6 @@ import {
   Preset,
   Visibility,
   MsgType,
-  KnownMembership,
 } from '$types/matrix-sdk';
 import { useMemo } from 'react';
 
@@ -35,12 +34,11 @@ import { getStateEvent } from '$utils/room';
 import { splitWithSpace } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
 import { createRoomEncryptionState } from '$components/create-room';
-import { parsePronounsInput } from '$utils/pronouns';
 import { sendFeedback } from '$utils/sendFeedbackToUser';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
-import { ErrorCode } from '../cs-errorcode';
+import { getFromCommandRegistry } from '$plugins/commandHandling/commandRegistry';
+import { loadBuildInCommands } from '$plugins/commandHandling/builtin/builtInCommands';
 import { useRoomNavigate } from './useRoomNavigate';
 import { enrichWidgetUrl } from './useRoomWidgets';
 import { useUserProfile } from './useUserProfile';
@@ -302,7 +300,8 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
   // helper for pkit commands
   const pkitcmdHandler = useMemo(() => new PKitCommandMessageHandler(mx, room), [mx, room]);
   const profile = useUserProfile(mx.getSafeUserId());
-  const openBugReport = useOpenBugReportModal();
+
+  loadBuildInCommands();
 
   const commands: CommandRecord = useMemo(
     () => ({
@@ -359,15 +358,10 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Join]: {
         name: Command.Join,
-        description: 'Join room with address. Example: /join address1 address2',
-        exe: async (payload) => {
-          const rawIds = splitWithSpace(payload);
-          const roomIdOrAliases = rawIds.filter(
-            (idOrAlias) => isRoomId(idOrAlias) || isRoomAlias(idOrAlias)
-          );
-          roomIdOrAliases.forEach(async (idOrAlias) => {
-            await mx.joinRoom(idOrAlias);
-          });
+        description: getFromCommandRegistry('join').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('join');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Leave]: {
@@ -396,68 +390,34 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.DisInvite]: {
         name: Command.DisInvite,
-        description: 'Disinvite user to room. Example: /disinvite userId1 userId2 [-r reason]',
-        exe: async (payload) => {
-          const [content, flags] = splitPayloadContentAndFlags(payload);
-          const users = parseUsers(content);
-          const flagToContent = parseFlags(flags);
-          const reason = flagToContent.r;
-          users.map((id) => mx.kick(room.roomId, id, reason));
+        description: getFromCommandRegistry('disinvite').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('disinvite');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Kick]: {
         name: Command.Kick,
-        description: 'Kick user from room. Example: /kick userId1 userId2 servername [-r reason]',
-        exe: async (payload) => {
-          const [content, flags] = splitPayloadContentAndFlags(payload);
-          const users = parseUsers(content);
-          const servers = parseServers(content);
-          const flagToContent = parseFlags(flags);
-          const reason = flagToContent.r;
-
-          const serverMembers = servers?.flatMap((server) => getServerMembers(room, server));
-          const serverUsers = serverMembers
-            ?.filter((m) => m.membership !== KnownMembership.Ban)
-            .map((m) => m.userId);
-
-          if (Array.isArray(serverUsers)) {
-            serverUsers.forEach((user) => {
-              if (!users.includes(user)) users.push(user);
-            });
-          }
-
-          rateLimitedActions(users, (id) => mx.kick(room.roomId, id, reason));
+        description: getFromCommandRegistry('kick').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('kick');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Ban]: {
         name: Command.Ban,
-        description: 'Ban user from room. Example: /ban userId1 userId2 servername [-r reason]',
-        exe: async (payload) => {
-          const [content, flags] = splitPayloadContentAndFlags(payload);
-          const users = parseUsers(content);
-          const servers = parseServers(content);
-          const flagToContent = parseFlags(flags);
-          const reason = flagToContent.r;
-
-          const serverMembers = servers?.flatMap((server) => getServerMembers(room, server));
-          const serverUsers = serverMembers?.map((m) => m.userId);
-
-          if (Array.isArray(serverUsers)) {
-            serverUsers.forEach((user) => {
-              if (!users.includes(user)) users.push(user);
-            });
-          }
-
-          rateLimitedActions(users, (id) => mx.ban(room.roomId, id, reason));
+        description: getFromCommandRegistry('ban').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('ban');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.UnBan]: {
         name: Command.UnBan,
-        description: 'Unban user from room. Example: /unban userId1 userId2',
-        exe: async (payload) => {
-          const rawIds = splitWithSpace(payload);
-          const users = rawIds.filter((id) => isUserId(id));
-          users.map((id) => mx.unban(room.roomId, id));
+        description: getFromCommandRegistry('unban').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('unban');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Ignore]: {
@@ -818,171 +778,35 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Color]: {
         name: Command.Color,
-        description: 'Set a room-specific color. Example: /color #ff00ff | /color reset',
-        exe: async (payload) => {
-          const input = payload.trim().toLowerCase();
-          const userId = mx.getSafeUserId();
-
-          try {
-            if (input === 'reset' || input === 'clear') {
-              await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomCosmeticsColor, {}, userId);
-              sendFeedback('Room color has been reset.', room, userId);
-              return;
-            }
-
-            if (/^#[0-9A-F]{6}$/i.test(input)) {
-              await mx.sendStateEvent(
-                room.roomId,
-                CustomStateEvent.RoomCosmeticsColor,
-                { color: input },
-                userId
-              );
-              sendFeedback(`Room color set to ${input}.`, room, userId);
-            } else {
-              sendFeedback('Invalid format. Use #RRGGBB.', room, userId);
-            }
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback(
-                'Permission Denied. An admin must enable "Room Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
-                room,
-                userId
-              );
-            }
-          }
+        description: getFromCommandRegistry('color').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('color');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.SColor]: {
         name: Command.SColor,
         description:
           'Set your color for the current Space. Example: /scolor #ff00ff | /scolor reset',
-        exe: async (payload) => {
-          const input = payload.trim().toLowerCase();
-          const userId = mx.getSafeUserId();
-
-          const parents = room
-            .getLiveTimeline()
-            .getState(EventTimeline.FORWARDS)
-            ?.getStateEvents(EventType.SpaceParent);
-
-          const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
-
-          try {
-            if (input === 'reset' || input === 'clear') {
-              await mx.sendStateEvent(
-                targetSpaceId as string,
-                CustomStateEvent.RoomCosmeticsColor,
-                {},
-                userId
-              );
-              sendFeedback('Global space color reset.', room, userId);
-              return;
-            }
-
-            if (/^#[0-9A-F]{6}$/i.test(input)) {
-              await mx.sendStateEvent(
-                targetSpaceId as string,
-                CustomStateEvent.RoomCosmeticsColor,
-                { color: input },
-                userId
-              );
-              sendFeedback(`Global space color set to ${input}.`, room, userId);
-            } else {
-              sendFeedback('Invalid format. Use #RRGGBB.', room, userId);
-            }
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback(
-                'Permission Denied. An admin must enable "Space-Wide Colors" in Settings > Cosmetics in app.sable.moe or another supported client.',
-                room,
-                userId
-              );
-            }
-          }
+        exe: async () => {
+          const cmd = getFromCommandRegistry('scolor');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Font]: {
         name: Command.Font,
-        description: 'Set a room-specific font. Example: /font Courier New | /font reset',
-        exe: async (payload) => {
-          const input = payload
-            .trim()
-            .replaceAll(/[;{}<>]/g, '')
-            .slice(0, 32);
-          const userId = mx.getSafeUserId();
-
-          try {
-            if (input.toLowerCase() === 'reset' || input === '') {
-              await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomCosmeticsFont, {}, userId);
-              sendFeedback('Room font reset.', room, userId);
-              return;
-            }
-
-            await mx.sendStateEvent(
-              room.roomId,
-              CustomStateEvent.RoomCosmeticsFont,
-              { font: input },
-              userId
-            );
-            sendFeedback(`Room font set to "${input}".`, room, userId);
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback(
-                'Permission Denied. An admin must enable "Room Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
-                room,
-                userId
-              );
-            }
-          }
+        description: getFromCommandRegistry('font').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('font');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.SFont]: {
         name: Command.SFont,
         description: 'Set a font for the current Space. Example: /sfont Courier New | /sfont reset',
-        exe: async (payload) => {
-          const input = payload
-            .trim()
-            .replaceAll(/[;{}<>]/g, '')
-            .slice(0, 32);
-          const userId = mx.getSafeUserId();
-
-          const parents = room
-            .getLiveTimeline()
-            .getState(EventTimeline.FORWARDS)
-            ?.getStateEvents(EventType.SpaceParent);
-
-          const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
-
-          try {
-            if (input.toLowerCase() === 'reset' || input === '') {
-              await mx.sendStateEvent(
-                targetSpaceId as string,
-                CustomStateEvent.RoomCosmeticsFont,
-                {},
-                userId
-              );
-              sendFeedback('Space font reset.', room, userId);
-              return;
-            }
-
-            await mx.sendStateEvent(
-              targetSpaceId as string,
-              CustomStateEvent.RoomCosmeticsFont,
-              { font: input },
-              userId
-            );
-            sendFeedback(`Space font set to "${input}".`, room, userId);
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback(
-                'Permission Denied. An admin must enable "Space-Wide Fonts" in Settings > Cosmetics in app.sable.moe or another supported client.',
-                room,
-                userId
-              );
-            }
-          }
+        exe: async () => {
+          const cmd = getFromCommandRegistry('sfont');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.AddWidget]: {
@@ -1042,94 +866,18 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Pronoun]: {
         name: Command.Pronoun,
-        description:
-          'Set your pronouns for this room. Example: /pronoun "en:they/them, de:sie/ihr" | /pronoun reset',
-        exe: async (payload) => {
-          const match = payload.trim().match(/^"(.*)"$/);
-          const rawInput = match ? (match[1] ?? '').trim() : payload.trim();
-          const userId = mx.getSafeUserId();
-
-          try {
-            if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {
-              await mx.sendStateEvent(
-                room.roomId,
-                CustomStateEvent.RoomCosmeticsPronouns,
-                {},
-                userId
-              );
-              sendFeedback('Room pronouns have been reset.', room, userId);
-              return;
-            }
-
-            const pronounsArray = parsePronounsInput(rawInput);
-
-            await mx.sendStateEvent(
-              room.roomId,
-              CustomStateEvent.RoomCosmeticsPronouns,
-              { pronouns: pronounsArray },
-              userId
-            );
-
-            const feedbackString = pronounsArray
-              .map((p) => (p.language ? `for ${p.language} "${p.summary}" was set` : p.summary))
-              .join(', ');
-
-            sendFeedback(`Room pronouns set: ${feedbackString}`, room, userId);
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback('Permission Denied. Could not update room pronouns.', room, userId);
-            }
-          }
+        description: getFromCommandRegistry('pronoun').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('pronoun');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.SPronoun]: {
         name: Command.SPronoun,
-        description:
-          'Set your pronouns for this space. Example: /spronoun "en:they/them, de:sie/ihr" | /spronoun reset',
-        exe: async (payload) => {
-          const match = payload.trim().match(/^"(.*)"$/);
-          const rawInput = match ? (match[1] ?? '').trim() : payload.trim();
-          const userId = mx.getSafeUserId();
-
-          const parents = room
-            .getLiveTimeline()
-            .getState(EventTimeline.FORWARDS)
-            ?.getStateEvents(EventType.SpaceParent);
-
-          const targetSpaceId =
-            parents && parents.length > 0 ? parents[0]!.getStateKey() : room.roomId;
-
-          try {
-            if (['reset', 'clear', ''].includes(rawInput.toLowerCase())) {
-              await mx.sendStateEvent(
-                targetSpaceId as string,
-                CustomStateEvent.RoomCosmeticsPronouns,
-                {},
-                userId
-              );
-              sendFeedback('Global space pronouns reset.', room, userId);
-              return;
-            }
-
-            const pronounsArray = parsePronounsInput(rawInput);
-
-            await mx.sendStateEvent(
-              targetSpaceId as string,
-              CustomStateEvent.RoomCosmeticsPronouns,
-              { pronouns: pronounsArray },
-              userId
-            );
-
-            const feedbackString = pronounsArray
-              .map((p) => (p.language ? `for ${p.language} "${p.summary}" was set` : p.summary))
-              .join(', ');
-
-            sendFeedback(`Global space pronouns set: ${feedbackString}`, room, userId);
-          } catch (e: unknown) {
-            if (e instanceof MatrixError && e.errcode === ErrorCode.M_FORBIDDEN) {
-              sendFeedback('Permission Denied. Could not update space pronouns.', room, userId);
-            }
-          }
+        description: getFromCommandRegistry('spronoun').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('pronoun');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Rainbow]: {
@@ -1360,41 +1108,18 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.DiscardSession]: {
         name: Command.DiscardSession,
-        description: 'Force discard the current outbound E2EE session in this room.',
+        description: getFromCommandRegistry('discardSession').getCommandDefinition().description,
         exe: async () => {
-          const userId = mx.getSafeUserId();
-
-          try {
-            const crypto = mx.getCrypto();
-            if (!crypto) {
-              sendFeedback('Encryption is not enabled on this client.', room, userId);
-              return;
-            }
-            await crypto.forceDiscardSession(room.roomId);
-            sendFeedback('Outbound encryption session discarded.', room, userId);
-          } catch (e: unknown) {
-            sendFeedback(`Failed to discard session: ${(e as Error).message}`, room, userId);
-          }
+          const cmd = getFromCommandRegistry('discardSession');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Html]: {
         name: Command.Html,
-        description:
-          'Send a message with HTML content. Example: /html <span data-mx-color="#ff0000">Red</span>',
-        exe: async (payload) => {
-          await mx.sendMessage(room.roomId, {
-            msgtype: MsgType.Text,
-            body: payload
-              .replaceAll('<br>', '\n')
-              .replaceAll('<li>', '\n- ')
-              .replaceAll(
-                /<a(.*?)href="(?<link>(.*?))"(.*?)>(?<text>(.*?))<\/a>/g,
-                '[$<text>]($<link>)'
-              )
-              .replaceAll(/<[^>]*>/g, ''),
-            format: 'org.matrix.custom.html',
-            formatted_body: payload,
-          });
+        description: getFromCommandRegistry('html').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('html');
+          await cmd.execute({ mx, room });
         },
       },
       // Sharing E2EE History of a room with a user
@@ -1503,103 +1228,36 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       },
       [Command.Headpat]: {
         name: Command.Headpat,
-        description: 'Send a headpat to someone. Example: /headpat [@user:example.org]',
+        description: getFromCommandRegistry('headpat').getCommandDefinition().description,
         // not really like any of the other cute events, but it was too good not to include
-        // using a custom msgtype to avoid confusion with the other existing cute events
-        exe: async (payload) => {
-          const target = payload.trim();
-          await mx.sendMessage(room.roomId, {
-            msgtype: 'm.emote',
-            'm.mentions': {
-              user_ids: target ? [target] : [],
-            },
-            body: `pats ${target || 'you'}`,
-            'fyi.cisnt.headpat': true,
-          } as unknown as RoomMessageEventContent);
+        exe: async () => {
+          const cmd = getFromCommandRegistry('headpat');
+          await cmd.execute({ mx, room });
         },
       },
       // Meta commands
       [Command.Report]: {
         name: Command.Report,
-        description: 'Report a bug or request a feature',
+        description: getFromCommandRegistry('bugreport').getCommandDefinition().description,
         exe: async () => {
-          openBugReport();
+          const cmd = getFromCommandRegistry('bugreport');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.Location]: {
         name: Command.Location,
-        description: 'Share a location as /location <latitude> <longitude>',
-        exe: async (payload) => {
-          const target = payload
-            .replace(',', ' ')
-            .replace('/', ' ')
-            .replace('  ', ' ')
-            .trim()
-            .split(' ');
-
-          const mlat = target[0];
-          const mlon = target[1];
-          const malt = target[2];
-          if (!mlat || !mlon) {
-            sendFeedback(
-              'You need to specify a latitude, a longitude parameter, and optionally an altitude, as for example: /location 43.959971 -59.790623 or use the /sharemylocation to share the current location',
-              room,
-              mx.getSafeUserId()
-            );
-            return;
-          }
-          await mx.sendMessage(room.roomId, {
-            msgtype: 'm.location',
-            geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=0`,
-            body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-          } as unknown as RoomMessageEventContent);
+        description: getFromCommandRegistry('location').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('location');
+          await cmd.execute({ mx, room });
         },
       },
       [Command.ShareMyLocation]: {
         name: Command.ShareMyLocation,
-        description:
-          'Share current location. Requires your browser to have location permissions. Add the flag --accurate or -a for enabling the high accuracy option',
-        exe: async (payload) => {
-          const target = payload.trim();
-          const options = {
-            enableHighAccuracy:
-              target === '--accurate' ||
-              target === '-a' ||
-              target === '--high-accuracy' ||
-              target === '-h',
-            timeout: 5000,
-            maximumAge: 0,
-          };
-          function success(pos: GeolocationPosition) {
-            const crd = pos.coords;
-
-            const mlat = crd.latitude;
-            const mlon = crd.longitude;
-            const malt = crd.altitude;
-            const macc = crd.accuracy;
-            if (!mlat || !mlon) {
-              sendFeedback(
-                'Unable to retrieve the location data for an unknown reason',
-                room,
-                mx.getSafeUserId()
-              );
-              return;
-            }
-            mx.sendMessage(room.roomId, {
-              msgtype: 'm.location',
-              geo_uri: `geo:${mlat},${mlon}${malt ? `,${malt}` : ''};u=${macc}`,
-              body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
-            } as unknown as RoomMessageEventContent);
-          }
-
-          function error(err: GeolocationPositionError) {
-            let response = `Unable to retrieve the location data, Error no. ${err.code}: ${err.message}`;
-            if (err.code === 1) response = 'You have denied Sable access to you location services.';
-            if (err.code === 2)
-              response = 'Your device does not have a gps module, or it may not be turned on.';
-            sendFeedback(response, room, mx.getSafeUserId());
-          }
-          navigator.geolocation.getCurrentPosition(success, error, options);
+        description: getFromCommandRegistry('sharemylocation').getCommandDefinition().description,
+        exe: async () => {
+          const cmd = getFromCommandRegistry('sharemylocation');
+          await cmd.execute({ mx, room });
         },
       },
     }),
@@ -1611,7 +1269,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       pkitcmdHandler,
       developerTools,
       enableMSC4268CMD,
-      openBugReport,
     ]
   );
 

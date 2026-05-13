@@ -101,3 +101,41 @@ export const ActionItem = style({
 export const ActionItemDanger = style({
   color: color.Critical.Main,
 });
+
+export const EmojiPickerHeader = style({
+  display: 'flex',
+  alignItems: 'center',
+  padding: `${config.space.S200} ${config.space.S300}`,
+  borderBottom: `1px solid ${color.SurfaceVariant.ContainerLine}`,
+});
+
+export const EmojiPickerBackBtn = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: toRem(36),
+  height: toRem(36),
+  background: 'transparent',
+  border: 'none',
+  borderRadius: '50%',
+  cursor: 'pointer',
+  color: color.Surface.OnContainer,
+  flexShrink: 0,
+  selectors: {
+    '&:active': {
+      background: color.SurfaceVariant.ContainerActive,
+    },
+  },
+});
+
+export const EmojiPickerTitle = style({
+  flexGrow: 1,
+  textAlign: 'center',
+  marginRight: toRem(36), // balance the back button width
+});
+
+export const EmojiPickerWrap = style({
+  display: 'flex',
+  justifyContent: 'center',
+  padding: config.space.S200,
+});

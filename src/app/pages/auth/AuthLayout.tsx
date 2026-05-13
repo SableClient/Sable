@@ -14,7 +14,7 @@ import classNames from 'classnames';
 import * as PatternsCss from '$styles/Patterns.css';
 import { clientAllowedServer, clientDefaultServer, useClientConfig } from '$hooks/useClientConfig';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import CinnySVG from '$public/favicon.png';
+import LogoSVG from '$public/res/svg/logo.svg';
 import { SpecVersionsLoader } from '$components/SpecVersionsLoader';
 import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
@@ -136,7 +136,7 @@ export function AuthLayout() {
         <Box direction="Column" className={css.AuthCard}>
           <Header className={css.AuthHeader} size="600" variant="Surface">
             <Box grow="Yes" direction="Row" gap="300" alignItems="Center">
-              <img className={css.AuthLogo} src={CinnySVG} alt="Cinny Logo" />
+              <img className={css.AuthLogo} src={LogoSVG} alt="Sable Logo" />
               <Text size="H3">Sable</Text>
             </Box>
             {isAddingAccount && (

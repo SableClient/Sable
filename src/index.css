@@ -43,14 +43,6 @@
 
 html {
   height: 100%;
-  /* On iOS standalone PWA with viewport-fit=cover the initial containing
-     block (ICB) may still resolve to the safe-area viewport rather than
-     the full display, making height:100% shorter than the screen and
-     leaving a blank strip at the bottom equal to safe-area-top.
-     100dvh always equals the full dynamic viewport (= full screen in PWA
-     mode where there is no browser chrome). Browsers that do not support
-     dvh units silently ignore this second declaration and keep height:100%. */
-  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -59,12 +51,6 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  /* Same ICB workaround as html: on iOS PWA with viewport-fit=cover the
-     percentage-height chain (html→body→#root) can resolve against the
-     safe-area viewport rather than the full display on some WebKit versions.
-     100dvh as a progressive enhancement bypasses this; browsers without
-     dvh support ignore the declaration and keep height:100%. */
-  height: 100dvh;
   font-family: var(--font-secondary);
   font-size: 16px;
   font-weight: 400;
@@ -83,12 +69,6 @@ body {
   height: var(--sable-visible-height, 100%);
   display: flex;
   flex-direction: column;
-  padding-top: env(safe-area-inset-top, 0px);
-  /* No padding-bottom here — content fills edge-to-edge and the home
-     indicator floats on top (standard iOS native-app pattern). Safe-area
-     bottom padding is applied only to the room input bar (via the
-     --sable-safe-bottom variable in RoomView) so nothing interactive
-     is hidden behind the indicator. */
 }
 
 *,

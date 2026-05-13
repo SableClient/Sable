@@ -20,10 +20,10 @@ const normalizeMacName = (os?: string) => {
   return os;
 };
 
-// True only for phone-form-factor devices for layout/nav decisions.
-// Tablets (native iPadOS UA or "Request Desktop Website") always get the desktop
-// two-panel layout; only phones collapse to the single-panel mobile layout.
-const isMobileOrTabletLayout = result.device.type === 'mobile';
+// True only for phone-form-factor devices for layout/nav decisions and settings
+// that should remain available on tablets with external keyboards.
+// Tablets (native iPadOS UA or "Request Desktop Website") return false.
+const isPhoneDevice = result.device.type === 'mobile';
 
 const isMac = result.os.name === 'Mac OS';
 
@@ -36,7 +36,9 @@ export const mobileOrTablet = () => isMobileOrTablet;
  * so they always get the full desktop two-panel layout.
  * Use `mobileOrTablet` for touch/keyboard/scroll-lock behaviour instead.
  */
-export const mobileOrTabletLayout = () => isMobileOrTabletLayout;
+export const mobileOrTabletLayout = () => isPhoneDevice;
+/** True only for phones; returns false for tablets (e.g. iPad with external keyboard). */
+export const isPhone = () => isPhoneDevice;
 
 export const deviceDisplayName = (): string => {
   const browser = result.browser.name;

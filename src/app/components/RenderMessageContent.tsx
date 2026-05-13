@@ -350,6 +350,7 @@ function RenderMessageContentInternal({
     return renderCaptionedAttachment(
       <MImage
         content={content as Record<string, never> & { msgtype: MsgType.Image }}
+        suppressInlineImageAlt={captionPosition !== CaptionPosition.Hidden}
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}

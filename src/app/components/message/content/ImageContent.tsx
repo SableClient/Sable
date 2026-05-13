@@ -71,6 +71,7 @@ type RenderImageProps = {
 };
 export type ImageContentProps = {
   body: string;
+  imageAlt?: string;
   mimeType?: string;
   url: string;
   info?: IImageInfo;
@@ -91,6 +92,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       className,
       style,
       body,
+      imageAlt,
       mimeType,
       url,
       info,
@@ -283,7 +285,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             style={{ width: '100%' }}
           >
             {renderImage({
-              alt: body,
+              alt: imageAlt !== undefined ? imageAlt : body,
               title: body,
               src: srcState.data,
               onLoad: handleLoad,

@@ -2,15 +2,23 @@
 // Replace this import path with 'ios-pwa-keyboard-fix' once published to npm.
 import { useEffect, useRef, useState } from 'react';
 
-// Measures iOS keyboard height via the Visual Viewport API.
-// Stability filter — only commits a height when iOS reports the same
-// value for STABILITY_MS. iOS emits chaotic transient values during
-// keyboard transitions (text ↔ emoji); waiting for the value to settle
-// filters those out without a hardcoded whitelist of device heights.
+// Measures iOS keyboard height via the Visual Viewport API and synchronously
+// manages the --sable-visible-height / --sable-safe-bottom CSS custom properties
+// that control #root layout height.
 //
-// triggerPreLift lifts the bar to the last known height in onMouseDown,
-// before focus, so Safari sees the textarea as already visible and
-// skips its document-scroll prediction.
+// CSS variables are set/cleared directly inside the event handler (no React
+// useEffect) so there is no frame gap between "keyboard closed" being detected
+// and the layout reverting to full height. This eliminates the race condition
+// where a follow-on viewport.resize event would re-set the variable after the
+// React async effect had already removed it, causing a persistent bottom gap.
+//
+// Stability filter — only commits React state (isKeyboardVisible, keyboardHeight)
+// once iOS reports the same viewport height for STABILITY_MS ms. iOS emits
+// chaotic transient values during keyboard transitions (text ↔ emoji), so the
+// filter prevents those from triggering unnecessary re-renders.
+//
+// triggerPreLift: called from onMouseDown so Safari sees the textarea as already
+// visible and skips its document-scroll prediction.
 const STABILITY_MS = 80;
 
 export function useKeyboardHeight() {
@@ -30,39 +38,68 @@ export function useKeyboardHeight() {
     let baselineHeight = window.innerHeight;
     let stabilityTimer: ReturnType<typeof setTimeout> | null = null;
     let pendingValue = 0;
+    // Tracks whether --sable-visible-height is currently set so the opening
+    // path only fires setCSSVars once (avoids double-setting on repeated
+    // resize events while the keyboard is already open).
+    let cssVarsSet = false;
+
+    const setCSSVars = (viewportHeight: number) => {
+      document.documentElement.style.setProperty(
+        '--sable-visible-height',
+        `${Math.round(viewportHeight)}px`
+      );
+      document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
+      cssVarsSet = true;
+    };
+
+    const clearCSSVars = () => {
+      document.documentElement.style.removeProperty('--sable-visible-height');
+      document.documentElement.style.removeProperty('--sable-safe-bottom');
+      cssVarsSet = false;
+    };
 
     const handleResize = () => {
       const calculatedHeight = baselineHeight - viewport.height;
 
-      // Closing the keyboard — react instantly, no stability check
+      // Keyboard closing — act immediately, no stability wait.
+      // clearCSSVars() runs synchronously here, before React schedules any
+      // re-render, so there is no window in which a follow-on resize event
+      // can observe the variable as missing and incorrectly re-set it.
       if (calculatedHeight < 30) {
         if (stabilityTimer) {
           clearTimeout(stabilityTimer);
           stabilityTimer = null;
         }
+        clearCSSVars();
         setKeyboardHeight(0);
         setIsKeyboardVisible(false);
         isVisibleRef.current = false;
         return;
       }
 
-      // Wait for the value to settle. Each new resize within STABILITY_MS
-      // restarts the timer, so transient mid-transition readings never
-      // commit — only the value iOS finally lands on does.
-      //
-      // Immediately reset any document scroll iOS may have applied as
-      // scroll-prediction during the first focus. We do this on every
-      // resize event while the keyboard is opening so the snap happens
-      // as early as possible — before the user can see the jank.
+      // Keyboard opening / open.
+      // On the very first resize that signals a keyboard, immediately shrink
+      // the layout (before the stability gate) so the input bar rises before
+      // iOS applies its own scroll-prediction pass.
+      if (!cssVarsSet) {
+        setCSSVars(viewport.height);
+      }
+
+      // Cancel any document scroll iOS may have applied as scroll-prediction.
       if (window.scrollY !== 0) {
         window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
       }
+
+      // Wait for the height to settle. Each resize within STABILITY_MS
+      // restarts the timer, so transient mid-transition readings never
+      // commit — only the final settled value does.
       pendingValue = calculatedHeight;
       if (stabilityTimer) clearTimeout(stabilityTimer);
       stabilityTimer = setTimeout(() => {
         savedHeight.current = pendingValue;
         hasOpenedOnce.current = true;
         isVisibleRef.current = true;
+        setCSSVars(viewport.height); // refine to final settled viewport height
         setKeyboardHeight(pendingValue);
         setIsKeyboardVisible(true);
       }, STABILITY_MS);
@@ -80,6 +117,7 @@ export function useKeyboardHeight() {
       savedHeight.current = 0;
       hasOpenedOnce.current = false;
       isVisibleRef.current = false;
+      clearCSSVars();
       setKeyboardHeight(0);
       setIsKeyboardVisible(false);
       // Re-baseline after iOS settles the new layout.
@@ -94,6 +132,7 @@ export function useKeyboardHeight() {
       if (stabilityTimer) clearTimeout(stabilityTimer);
       viewport.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
+      clearCSSVars();
     };
   }, []);
 

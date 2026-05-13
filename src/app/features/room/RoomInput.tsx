@@ -414,76 +414,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
-    const { keyboardHeight, isKeyboardVisible, triggerPreLift } = useKeyboardHeight();
-    useScrollLock(isKeyboardVisible && mobileOrTablet());
-
-    // When the keyboard opens, shrink #root to the visual viewport height
-    // (the area above the keyboard). This is the layout-correct approach
-    // for Sable's in-flow flex layout: transform moves the input visually
-    // but leaves the message list sized to the full height, producing a
-    // gap. CSS variables let the whole layout reflow so messages fill the
-    // visible area and the input sits at the bottom above the keyboard.
-    // The 80 ms stability gate in useKeyboardHeight prevents this from
-    // firing at startup or during transient browser-chrome resize events.
-    useEffect(() => {
-      if (!mobileOrTablet()) return undefined;
-
-      if (isKeyboardVisible && keyboardHeight > 0) {
-        const visibleHeight = window.visualViewport?.height ?? window.innerHeight - keyboardHeight;
-        document.documentElement.style.setProperty('--sable-visible-height', `${visibleHeight}px`);
-        document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
-        // Reset any scroll iOS applied during the stability window before
-        // the lock became active.
-        if (window.scrollY !== 0) {
-          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-        }
-      } else {
-        document.documentElement.style.removeProperty('--sable-visible-height');
-        document.documentElement.style.removeProperty('--sable-safe-bottom');
-      }
-
-      return undefined;
-    }, [isKeyboardVisible, keyboardHeight]);
-
-    // Immediate-resize listener: set --sable-visible-height on the very first
-    // viewport resize that signals the keyboard is opening, bypassing the 80 ms
-    // stability gate so the layout shrinks before iOS can apply scroll prediction.
-    // Only fires on the closed→open transition; text↔emoji mode switches leave
-    // the existing CSS var intact (the stability-gated path handles those).
-    useEffect(() => {
-      if (!mobileOrTablet()) return undefined;
-      const viewport = window.visualViewport;
-      if (!viewport) return undefined;
-
-      const handleImmediateResize = () => {
-        const kbHeight = window.innerHeight - viewport.height;
-        if (
-          kbHeight > 30 &&
-          !document.documentElement.style.getPropertyValue('--sable-visible-height')
-        ) {
-          document.documentElement.style.setProperty(
-            '--sable-visible-height',
-            `${Math.round(viewport.height)}px`
-          );
-          document.documentElement.style.setProperty('--sable-safe-bottom', '0px');
-          if (window.scrollY !== 0) {
-            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-          }
-        }
-      };
-
-      viewport.addEventListener('resize', handleImmediateResize);
-      return () => viewport.removeEventListener('resize', handleImmediateResize);
-    }, []);
-
-    // Safety: remove CSS variables if RoomInput unmounts while keyboard open.
-    useEffect(
-      () => () => {
-        document.documentElement.style.removeProperty('--sable-visible-height');
-        document.documentElement.style.removeProperty('--sable-safe-bottom');
-      },
-      []
-    );
+    const { triggerPreLift } = useKeyboardHeight();
+    // Always active on mobile: iOS can apply window.scrollY even with overflow:hidden
+    // on body (scroll-prediction bug). The lock snaps scrollY back to 0 immediately
+    // on any scroll event, preventing the "header scrolls up then snaps" jank.
+    // useKeyboardHeight now manages --sable-visible-height synchronously in its own
+    // event handler, so no useEffect here is needed for CSS variable management.
+    useScrollLock(mobileOrTablet());
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),

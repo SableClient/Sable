@@ -1343,6 +1343,7 @@ function MessageInternal(
           onReplyClick={onReplyClick}
           onEditId={onEditId}
           onReactionToggle={onReactionToggle}
+          imagePackRooms={imagePackRooms ?? []}
           onClose={() => setMobileOptionsOpen(false)}
         />
       )}
@@ -1583,6 +1584,7 @@ export const Event = as<'div', EventProps>(
             showDeveloperTools={showDeveloperTools}
             onReplyClick={onReplyClick}
             onReactionToggle={() => {}}
+            imagePackRooms={[]}
             onClose={() => setMobileOptionsOpen(false)}
           />
         )}

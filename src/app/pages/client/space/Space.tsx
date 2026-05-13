@@ -779,7 +779,13 @@ export function Space() {
                   <NavItem variant="Background" radii="400" aria-selected={lobbySelected}>
                     <NavLink to={getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
+                        <Box
+                          as="span"
+                          grow="Yes"
+                          alignItems="Center"
+                          justifyContent="Start"
+                          gap="200"
+                        >
                           <Avatar
                             size={hideText ? undefined : '200'}
                             radii="400"
@@ -801,7 +807,13 @@ export function Space() {
                   <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
                     <NavLink to={getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
+                        <Box
+                          as="span"
+                          grow="Yes"
+                          alignItems="Center"
+                          justifyContent="Start"
+                          gap="200"
+                        >
                           <Avatar
                             size={hideText ? undefined : '200'}
                             radii="400"

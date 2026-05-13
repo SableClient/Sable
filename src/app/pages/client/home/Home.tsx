@@ -279,10 +279,11 @@ export function Home() {
                   <NavItem variant="Background" radii="400" aria-selected={createRoomSelected}>
                     <NavButton onClick={() => navigate(getHomeCreatePath())}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
                           <Avatar
+                            size={hideText ? undefined : '200'}
                             radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                            style={hideText ? { width: '100%', padding: '0' } : undefined}
                           >
                             <Icon src={Icons.Plus} size="100" />
                           </Avatar>
@@ -303,12 +304,17 @@ export function Home() {
                         <NavItem variant="Background" radii="400">
                           <NavButton onClick={() => setOpen(true)}>
                             <NavItemContent>
-                              <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                              <Box
+                                as="span"
+                                grow="Yes"
+                                alignItems="Center"
+                                justifyContent="Start"
+                                gap="200"
+                              >
                                 <Avatar
+                                  size={hideText ? undefined : '200'}
                                   radii="400"
-                                  style={
-                                    hideText ? { width: '100%', padding: '0' } : { height: '100%' }
-                                  }
+                                  style={hideText ? { width: '100%', padding: '0' } : undefined}
                                 >
                                   <Icon src={Icons.Link} size="100" />
                                 </Avatar>
@@ -345,10 +351,11 @@ export function Home() {
                   <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
                     <NavLink to={getHomeSearchPath()}>
                       <NavItemContent>
-                        <Box as="span" grow="Yes" alignItems="Center" gap="200">
+                        <Box as="span" grow="Yes" alignItems="Center" justifyContent="Start" gap="200">
                           <Avatar
+                            size={hideText ? undefined : '200'}
                             radii="400"
-                            style={hideText ? { width: '100%', padding: '0' } : { height: '100%' }}
+                            style={hideText ? { width: '100%' } : undefined}
                           >
                             <Icon src={Icons.Search} size="100" filled={searchSelected} />
                           </Avatar>

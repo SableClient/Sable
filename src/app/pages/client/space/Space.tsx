@@ -902,7 +902,7 @@ export function Space() {
                                   padding: '0',
                                   width: '100%',
                                   aspectRatio: 1,
-                                  display: 'flex,',
+                                  display: 'flex',
                                 }
                               : { paddingLeft }
                           }

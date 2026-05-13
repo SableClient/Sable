@@ -43,6 +43,14 @@
 
 html {
   height: 100%;
+  /* On iOS standalone PWA with viewport-fit=cover the initial containing
+     block (ICB) may still resolve to the safe-area viewport rather than
+     the full display, making height:100% shorter than the screen and
+     leaving a blank strip at the bottom equal to safe-area-top.
+     100dvh always equals the full dynamic viewport (= full screen in PWA
+     mode where there is no browser chrome). Browsers that do not support
+     dvh units silently ignore this second declaration and keep height:100%. */
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }

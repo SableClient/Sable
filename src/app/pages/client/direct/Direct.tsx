@@ -209,13 +209,14 @@ export function Direct() {
   directsSetRef.current = directs;
 
   useEffect(() => {
+    const directRoomIds = Array.from(directs);
     const handleTimeline = () => {
       // Increment counter to trigger re-sort when any timeline event happens
       setActivityCounter((prev) => prev + 1);
     };
 
     // Listen to timeline events only for direct message rooms
-    directsSetRef.current.forEach((roomId) => {
+    directRoomIds.forEach((roomId) => {
       const room = mx.getRoom(roomId);
       room?.on(RoomEvent.Timeline, handleTimeline);
       // Also re-sort when a limited sync resets the room's timeline, as
@@ -230,7 +231,7 @@ export function Direct() {
     setActivityCounter((prev) => prev + 1);
 
     return () => {
-      directsSetRef.current.forEach((roomId) => {
+      directRoomIds.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
         room?.off(RoomEvent.TimelineReset, handleTimeline);

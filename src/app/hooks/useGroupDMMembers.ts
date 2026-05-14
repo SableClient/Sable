@@ -32,9 +32,10 @@ export const useGroupDMMembers = (
   const [members, setMembers] = useState<GroupMemberInfo[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     if (!room) {
       setMembers([]);
-      return;
+      return undefined;
     }
     const fetchMembers = async () => {
       try {
@@ -110,14 +111,20 @@ export const useGroupDMMembers = (
         });
 
         const fetchedMembers = await Promise.all(memberPromises);
+        if (cancelled) return;
         setMembers(fetchedMembers);
       } catch {
+        if (cancelled) return;
         // If fetching fails, set empty array
         setMembers([]);
       }
     };
 
     fetchMembers();
+
+    return () => {
+      cancelled = true;
+    };
   }, [mx, room, maxMembers]);
 
   return members;

@@ -28,6 +28,23 @@ export const ThreadDrawerHeader = style({
   borderBottomWidth: config.borderWidth.B300,
 });
 
+export const threadRootShell = style({
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  flexShrink: 0,
+});
+
+export const threadRootScrollShadow = style({
+  position: 'relative',
+  flexShrink: 0,
+  zIndex: 1,
+  boxShadow: config.shadow.E100,
+  borderBottomWidth: config.borderWidth.B300,
+  borderBottomStyle: 'solid',
+  borderBottomColor: color.Surface.ContainerLine,
+});
+
 export const ThreadDrawerContent = style({
   position: 'relative',
   overflow: 'hidden',

@@ -1,6 +1,6 @@
 import { style } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
-import { color, config } from 'folds';
+import { config } from 'folds';
 
 export const RoomCoverHeaderContainer = style({ width: '100%', position: 'relative' });
 export const RoomCoverNavContainer = style({
@@ -13,7 +13,6 @@ export const RoomCoverNavContainer = style({
 export const RoomCoverlessNavContainer = recipe({
   base: {
     flexShrink: 0,
-    borderBottom: `1px solid ${color.Background.ContainerLine}`,
     minHeight: '100%',
     paddingRight: 0,
   },
@@ -23,7 +22,7 @@ export const RoomCoverlessNavContainer = recipe({
         padding: `${config.space.S100} ${config.space.S200} ${config.space.S200}`,
       },
       false: {
-        padding: `${config.space.S100} ${config.space.S200} ${config.space.S200} ${config.space.S400}`,
+        padding: 0,
       },
     },
   },

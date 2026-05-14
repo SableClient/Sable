@@ -291,9 +291,9 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
             hasBanner ? css.RoomCoverNavContainer : css.RoomCoverlessNavContainer({ hideText })
           }
         >
-          <PageNavHeader outlined={false}>
-            <Box alignItems="Center" grow="Yes" gap="300" justifyContent="Center">
-              {hideText ? (
+          <PageNavHeader outlined={!hasBanner} size="600">
+            {hideText ? (
+              <Box alignItems="Center" grow="Yes" justifyContent="Center">
                 <Avatar size={hideText ? undefined : '200'} radii="400" onClick={handleOpenMenu}>
                   <RoomAvatar
                     roomId={space.roomId}
@@ -307,34 +307,28 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                     )}
                   />
                 </Avatar>
-              ) : (
-                <>
-                  <Box
-                    grow="Yes"
-                    alignItems="Center"
-                    gap="100"
-                    style={hasBanner ? { color: '#fff' } : {}}
-                  >
-                    <Text size="H4" truncate>
-                      {spaceName}
-                    </Text>
-                    {joinRules?.join_rule !== JoinRule.Public && (
-                      <Icon src={Icons.Lock} size="50" />
-                    )}
-                  </Box>
-                  <Box shrink="No">
-                    <IconButton
-                      aria-pressed={!!menuAnchor}
-                      variant="Background"
+              </Box>
+            ) : (
+              <Box grow="Yes" gap="300">
+                <Box grow="Yes" alignItems="Center" gap="100"
+                    style={hasBanner ? { color: '#fff' } : {}}>
+                  <Text size="H4" truncate>
+                    {spaceName}
+                  </Text>
+                  {joinRules?.join_rule !== JoinRule.Public && <Icon src={Icons.Lock} size="50" />}
+                </Box>
+                <Box shrink="No">
+                  <IconButton
+                    aria-pressed={!!menuAnchor}
+                    variant="Background"
                       style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
-                      onClick={handleOpenMenu}
-                    >
-                      <Icon src={Icons.VerticalDots} size="200" />
-                    </IconButton>
-                  </Box>
-                </>
-              )}
-            </Box>
+                    onClick={handleOpenMenu}
+                  >
+                    <Icon src={Icons.VerticalDots} size="200" />
+                  </IconButton>
+                </Box>
+              </Box>
+            )}
           </PageNavHeader>
           {menuAnchor && (
             <PopOut

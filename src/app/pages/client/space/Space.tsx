@@ -369,18 +369,18 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 alt={`${spaceName}'s banner`}
                 draggable="false"
               />
+              <SidebarResizer
+                setCurWidth={setCurHeight}
+                sidebarWidth={roomBannerHeight}
+                setSidebarWidth={setRoomBannerHeight}
+                instep={50}
+                outstep={60}
+                minValue={50}
+                maxValue={500}
+                topSided
+              />
             </ClientSideHoverFreeze>
           </div>
-          <SidebarResizer
-            setCurWidth={setCurHeight}
-            sidebarWidth={roomBannerHeight}
-            setSidebarWidth={setRoomBannerHeight}
-            instep={50}
-            outstep={60}
-            minValue={50}
-            maxValue={500}
-            topSided
-          />
         </>
       )}
     </>

@@ -624,6 +624,57 @@ const MEDIA_PATHS = [
   '/_matrix/media/r0/thumbnail',
 ];
 
+const ELEMENT_CALL_RINGTONE_PATH = '/public/element-call/assets/ringtone-';
+let silentWavBytesCache: Uint8Array | undefined;
+
+function createSilentWavBytes(durationMs = 250): Uint8Array {
+  if (silentWavBytesCache) return silentWavBytesCache;
+
+  const sampleRate = 8000;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const frameCount = Math.max(1, Math.floor((sampleRate * durationMs) / 1000));
+  const dataSize = frameCount * channels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // fmt chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true);
+
+  // PCM data is already zeroed => silence.
+  silentWavBytesCache = new Uint8Array(buffer);
+  return silentWavBytesCache;
+}
+
+function isElementCallRingtoneRequest(url: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    return (
+      pathname.startsWith(ELEMENT_CALL_RINGTONE_PATH) &&
+      (pathname.endsWith('.mp3') || pathname.endsWith('.ogg') || pathname.endsWith('.wav'))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function mediaPath(url: string): boolean {
   try {
     const { pathname } = new URL(url);
@@ -666,7 +717,24 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
-  if (method !== 'GET' || !mediaPath(url)) return;
+  if (method !== 'GET') return;
+
+  if (isElementCallRingtoneRequest(url)) {
+    event.respondWith(
+      Promise.resolve(
+        new Response(createSilentWavBytes(), {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        })
+      )
+    );
+    return;
+  }
+
+  if (!mediaPath(url)) return;
 
   const { clientId } = event;
 

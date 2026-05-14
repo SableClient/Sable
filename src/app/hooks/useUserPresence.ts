@@ -7,6 +7,8 @@ export enum Presence {
   Online = 'online',
   Unavailable = 'unavailable',
   Offline = 'offline',
+  // DND is not a native Matrix state; Sable encodes it as online + status_msg='dnd'.
+  Dnd = 'dnd',
 }
 
 export type UserPresence = {
@@ -16,12 +18,21 @@ export type UserPresence = {
   lastActiveTs?: number;
 };
 
-const getUserPresence = (user: User): UserPresence => ({
-  presence: user.presence as Presence,
-  status: user.presenceStatusMsg,
-  active: user.currentlyActive,
-  lastActiveTs: user.getLastActiveTs(),
-});
+const getUserPresence = (user: User): UserPresence => {
+  const rawPresence = user.presence as Presence;
+  // DND is encoded as online + status_msg 'dnd'. Decode it back so the badge
+  // renders red for any Sable client, not just the sender's own account switcher.
+  const presence =
+    rawPresence === Presence.Online && user.presenceStatusMsg === 'dnd'
+      ? Presence.Dnd
+      : rawPresence;
+  return {
+    presence,
+    status: user.presenceStatusMsg,
+    active: user.currentlyActive,
+    lastActiveTs: user.getLastActiveTs(),
+  };
+};
 
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();
@@ -73,6 +84,7 @@ export const usePresenceLabel = (): Record<Presence, string> =>
       [Presence.Online]: 'Active',
       [Presence.Unavailable]: 'Busy',
       [Presence.Offline]: 'Away',
+      [Presence.Dnd]: 'Do Not Disturb',
     }),
     []
   );

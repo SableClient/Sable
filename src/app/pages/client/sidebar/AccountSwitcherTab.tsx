@@ -191,13 +191,7 @@ export function AccountSwitcherTab() {
   const effectiveDisplayMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
   let myOwnPresenceBadge: ReactNode;
   if (sendPresence) {
-    myOwnPresenceBadge =
-      effectiveDisplayMode === 'dnd' ? (
-        // DND: solid red badge (broadcasts as online with status_msg 'dnd')
-        <Badge size="200" variant="Critical" fill="Solid" radii="Pill" />
-      ) : (
-        <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />
-      );
+    myOwnPresenceBadge = <PresenceBadge presence={effectiveDisplayMode as Presence} size="200" />;
   }
 
   const sessionProfiles = useSessionProfiles(sessions);

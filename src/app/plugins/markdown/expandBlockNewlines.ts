@@ -98,7 +98,7 @@ function looksLikeBlockStart(effective: string): boolean {
   if (/^[-*+]\s/.test(effective)) return true;
   if (/^\d{1,9}\.\s/.test(effective)) return true;
   if (/^(?:`{3,}|~{3,})/.test(effective)) return true;
-  if (/^\$\$/.test(effective)) return true;
+  if (effective.startsWith('$$')) return true;
   if (/^(?:-{3,}|\*{3,}|_{3,})\s*$/.test(effective)) return true;
 
   return false;

@@ -30,7 +30,10 @@ const textToCustomHtml = (node: Text): string => sanitizeText(node.text);
 const markdownInlineLinkLabel = (label: string, fallback: string): string => {
   const t = label.trim();
   if (!t) return fallback;
-  if (/[\]\n\r\u0000-\u001f]/.test(t)) return fallback;
+  if (t.includes(']')) return fallback;
+  for (let i = 0; i < t.length; i++) {
+    if (t.charCodeAt(i) <= 0x1f) return fallback;
+  }
   return t;
 };
 

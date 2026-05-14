@@ -7,7 +7,7 @@ const roomWithMember = (userId: string, rawDisplayName: string): Room =>
   ({
     getMember: (id: string) =>
       id === userId ? ({ userId: id, rawDisplayName } as never) : undefined,
-  }) as Room;
+  }) as unknown as Room;
 
 describe('toMatrixCustomHTML emoticons', () => {
   it('always serializes custom emoji images with height=32', () => {

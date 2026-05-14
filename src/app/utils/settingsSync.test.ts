@@ -31,6 +31,15 @@ describe('NON_SYNCABLE_KEYS', () => {
       'isPeopleDrawer',
       'isWidgetDrawer',
       'memberSortFilterIndex',
+      'incomingCallSoundEnabled',
+      'outgoingRingbackEnabled',
+      'callRingtoneVolume',
+      'callRingtoneId',
+      'callRingbackTone',
+      'callSoundOverrideGlobalNotifications',
+      'callCustomRingtoneName',
+      'callCustomRingtoneSizeBytes',
+      'callCustomRingtoneDurationMs',
       'developerTools',
       'settingsSyncEnabled',
     ] as const;
@@ -138,6 +147,7 @@ describe('deserializeFromSync', () => {
       settings: {
         pageZoom: 200,
         isPeopleDrawer: false,
+        callRingtoneVolume: 20,
         settingsSyncEnabled: true,
         developerTools: true,
       },
@@ -146,12 +156,14 @@ describe('deserializeFromSync', () => {
       ...base,
       pageZoom: 100,
       isPeopleDrawer: true,
+      callRingtoneVolume: 80,
       settingsSyncEnabled: false,
     };
     const result = deserializeFromSync(remote, local);
     expect(result).not.toBeNull();
     expect(result!.pageZoom).toBe(100);
     expect(result!.isPeopleDrawer).toBe(true);
+    expect(result!.callRingtoneVolume).toBe(80);
     expect(result!.settingsSyncEnabled).toBe(false);
     expect(result!.developerTools).toBe(false);
   });

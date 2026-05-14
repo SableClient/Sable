@@ -29,6 +29,13 @@ export enum ShowRoomIcon {
   Never = 'never',
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
+export type CallRingtoneId =
+  | 'sable-default'
+  | 'classic-soft'
+  | 'minimal-ping'
+  | 'silent'
+  | 'custom';
+export type CallRingbackTone = 'same-as-ringtone' | 'default-ringback' | 'silent';
 
 export type ThemeRemoteFavorite = {
   fullUrl: string;
@@ -153,6 +160,15 @@ export interface Settings {
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
   joinCallOnSingleClick: boolean;
+  incomingCallSoundEnabled: boolean;
+  outgoingRingbackEnabled: boolean;
+  callRingtoneVolume: number;
+  callRingtoneId: CallRingtoneId;
+  callRingbackTone: CallRingbackTone;
+  callSoundOverrideGlobalNotifications: boolean;
+  callCustomRingtoneName?: string;
+  callCustomRingtoneSizeBytes?: number;
+  callCustomRingtoneDurationMs?: number;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -285,6 +301,15 @@ export const defaultSettings: Settings = {
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
   joinCallOnSingleClick: true,
+  incomingCallSoundEnabled: true,
+  outgoingRingbackEnabled: true,
+  callRingtoneVolume: 80,
+  callRingtoneId: 'sable-default',
+  callRingbackTone: 'same-as-ringtone',
+  callSoundOverrideGlobalNotifications: false,
+  callCustomRingtoneName: undefined,
+  callCustomRingtoneSizeBytes: undefined,
+  callCustomRingtoneDurationMs: undefined,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -471,6 +496,24 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
+    case 'callRingtoneId':
+      return val === 'sable-default' ||
+        val === 'classic-soft' ||
+        val === 'minimal-ping' ||
+        val === 'silent' ||
+        val === 'custom'
+        ? val
+        : undefined;
+    case 'callRingbackTone':
+      return val === 'same-as-ringtone' || val === 'default-ringback' || val === 'silent'
+        ? val
+        : undefined;
+    case 'callRingtoneVolume':
+      if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
+      return Math.max(0, Math.min(100, Math.round(val)));
+    case 'callCustomRingtoneSizeBytes':
+    case 'callCustomRingtoneDurationMs':
+      return typeof val === 'number' && Number.isFinite(val) && val >= 0 ? Math.round(val) : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val

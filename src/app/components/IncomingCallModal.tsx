@@ -28,8 +28,14 @@ import { webRTCSupported } from '$utils/rtc';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import FocusTrap from 'focus-trap-react';
 import * as Sentry from '@sentry/react';
-import { useAtom, useSetAtom } from 'jotai';
-import { autoJoinCallIntentAtom, incomingCallAtom, mutedCallRoomIdAtom, type IncomingCall } from '$state/callEmbed';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import {
+  autoJoinCallIntentAtom,
+  callSoundBlockedAtom,
+  incomingCallAtom,
+  mutedCallRoomIdAtom,
+  type IncomingCall,
+} from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { RoomAvatar } from './room-avatar';
 import { UserAvatar } from './user-avatar';
@@ -59,6 +65,8 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const roomAvatarUrl = getRoomAvatarUrl(mx, room, 96);
   const setAutoJoinIntent = useSetAtom(autoJoinCallIntentAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
+  const setCallSoundBlocked = useSetAtom(callSoundBlockedAtom);
+  const callSoundBlocked = useAtomValue(callSoundBlockedAtom);
   const callerDisplayName =
     getMemberDisplayName(room, incomingCall.senderId) ??
     getMxIdLocalPart(incomingCall.senderId) ??
@@ -128,6 +136,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
 
   const handleAnswer = () => {
     if (!canAnswer) return;
+    setCallSoundBlocked(false);
 
     debugLog.info('call', 'Incoming call answered', {
       roomId: room.roomId,
@@ -158,6 +167,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   };
 
   const handleDeclineOrIgnore = async () => {
+    setCallSoundBlocked(false);
     const action = isDirectRing ? 'decline' : 'ignore';
     debugLog.info('call', 'Incoming call dismissed', {
       roomId: room.roomId,
@@ -325,6 +335,11 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
         {!canAnswer && primaryBlockedReason && (
           <Text size="T200" priority="300" align="Center">
             {primaryBlockedReason}
+          </Text>
+        )}
+        {callSoundBlocked && (
+          <Text size="T200" style={{ color: color.Warning.Main }} align="Center">
+            Call sound was blocked by your browser. Click any call action to re-enable sound.
           </Text>
         )}
       </Box>

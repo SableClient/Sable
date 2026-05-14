@@ -4,13 +4,25 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import type { RoomEventHandlerMap, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { CryptoBackend, MatrixRTCSession, MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
-import { incomingCallAtom, mutedCallRoomIdAtom, type IncomingCall } from '$state/callEmbed';
-import RingtoneSound from '$public/sound/ringtone.webm';
+import {
+  callSoundBlockedAtom,
+  incomingCallAtom,
+  mutedCallRoomIdAtom,
+  type IncomingCall,
+} from '$state/callEmbed';
+import { settingsAtom } from '$state/settings';
 import {
   parseIncomingRtcNotification,
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
 } from '$features/call/rtcNotificationParser';
+import {
+  callRingtoneVolumeToGain,
+  canPlayCallAudio,
+  resolveIncomingCallToneUrl,
+  resolveOutgoingRingbackToneUrl,
+} from '$features/call/callRingtone';
+import { getCustomCallRingtone } from '$features/call/callRingtoneStorage';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
@@ -101,10 +113,12 @@ const canSenderStartCalls = (room: Room, senderId: string): boolean =>
 export function useIncomingCallSignaling() {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
+  const settings = useAtomValue(settingsAtom);
   const incomingCall = useAtomValue(incomingCallAtom);
   const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
+  const setCallSoundBlocked = useSetAtom(callSoundBlockedAtom);
 
   const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
   const outgoingAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -118,11 +132,11 @@ export function useIncomingCallSignaling() {
   mutedRoomIdRef.current = mutedRoomId;
 
   useEffect(() => {
-    const incoming = new Audio(RingtoneSound);
+    const incoming = new Audio();
     incoming.loop = true;
     incomingAudioRef.current = incoming;
 
-    const outgoing = new Audio(RingtoneSound);
+    const outgoing = new Audio();
     outgoing.loop = true;
     outgoingAudioRef.current = outgoing;
 
@@ -132,10 +146,74 @@ export function useIncomingCallSignaling() {
     };
   }, []);
 
+  useEffect(() => {
+    let canceled = false;
+    let customToneUrl: string | undefined;
+
+    const incoming = incomingAudioRef.current;
+    const outgoing = outgoingAudioRef.current;
+    if (!incoming || !outgoing) return undefined;
+
+    const syncSources = async () => {
+      const needsCustomTone =
+        settings.callRingtoneId === 'custom' || settings.callRingbackTone === 'same-as-ringtone';
+      if (needsCustomTone) {
+        const custom = await getCustomCallRingtone().catch(() => undefined);
+        if (custom?.blob) {
+          customToneUrl = URL.createObjectURL(custom.blob);
+        }
+      }
+
+      if (canceled) return;
+
+      incoming.pause();
+      incoming.currentTime = 0;
+      outgoing.pause();
+      outgoing.currentTime = 0;
+
+      const incomingTone = resolveIncomingCallToneUrl(
+        {
+          callRingtoneId: settings.callRingtoneId,
+        },
+        customToneUrl
+      );
+      const outgoingTone = resolveOutgoingRingbackToneUrl(
+        {
+          callRingtoneId: settings.callRingtoneId,
+          callRingbackTone: settings.callRingbackTone,
+        },
+        customToneUrl
+      );
+      const gain = callRingtoneVolumeToGain(settings.callRingtoneVolume);
+
+      if (incomingTone) {
+        incoming.src = incomingTone;
+      } else {
+        incoming.removeAttribute('src');
+      }
+      if (outgoingTone) {
+        outgoing.src = outgoingTone;
+      } else {
+        outgoing.removeAttribute('src');
+      }
+
+      incoming.volume = gain;
+      outgoing.volume = gain;
+    };
+
+    syncSources();
+
+    return () => {
+      canceled = true;
+      if (customToneUrl) URL.revokeObjectURL(customToneUrl);
+    };
+  }, [settings.callRingtoneId, settings.callRingbackTone, settings.callRingtoneVolume]);
+
   const stopIncomingRing = useCallback(() => {
     incomingAudioRef.current?.pause();
     if (incomingAudioRef.current) incomingAudioRef.current.currentTime = 0;
-  }, []);
+    setCallSoundBlocked(false);
+  }, [setCallSoundBlocked]);
 
   const stopOutgoingRing = useCallback(() => {
     outgoingAudioRef.current?.pause();
@@ -148,6 +226,22 @@ export function useIncomingCallSignaling() {
     stopIncomingRing();
     setIncomingCall(null);
   }, [setIncomingCall, stopIncomingRing]);
+
+  const callAudioAllowed = canPlayCallAudio({
+    isNotificationSounds: settings.isNotificationSounds,
+    callSoundOverrideGlobalNotifications: settings.callSoundOverrideGlobalNotifications,
+  });
+  const incomingRingtoneAllowed = settings.incomingCallSoundEnabled && callAudioAllowed;
+  const outgoingRingbackAllowed = settings.outgoingRingbackEnabled && callAudioAllowed;
+
+  useEffect(() => {
+    if (!incomingRingtoneAllowed) {
+      stopIncomingRing();
+    }
+    if (!outgoingRingbackAllowed) {
+      stopOutgoingRing();
+    }
+  }, [incomingRingtoneAllowed, outgoingRingbackAllowed, stopIncomingRing, stopOutgoingRing]);
 
   const handleIncomingCall = useCallback(
     (nextIncomingCall: IncomingCall) => {
@@ -179,14 +273,25 @@ export function useIncomingCallSignaling() {
       });
 
       if (nextIncomingCall.notificationType === 'ring') {
-        incomingAudioRef.current?.play().catch(() => {
-          Sentry.metrics.count('sable.call.ringtone.blocked', 1);
-        });
+        if (!incomingRingtoneAllowed) {
+          stopIncomingRing();
+          return;
+        }
+
+        incomingAudioRef.current
+          ?.play()
+          .then(() => {
+            setCallSoundBlocked(false);
+          })
+          .catch(() => {
+            setCallSoundBlocked(true);
+            Sentry.metrics.count('sable.call.ringtone.blocked', 1);
+          });
       } else {
         stopIncomingRing();
       }
     },
-    [setIncomingCall, stopIncomingRing]
+    [incomingRingtoneAllowed, setCallSoundBlocked, setIncomingCall, stopIncomingRing]
   );
 
   useEffect(() => {
@@ -343,7 +448,11 @@ export function useIncomingCallSignaling() {
           if (!outgoingStartRef.current) outgoingStartRef.current = now;
           if (now - outgoingStartRef.current < OUTGOING_RING_TIMEOUT_MS) {
             if (outgoingRingRoomIdRef.current !== roomId) {
-              outgoingAudioRef.current?.play().catch(() => {});
+              if (outgoingRingbackAllowed) {
+                outgoingAudioRef.current?.play().catch(() => {
+                  Sentry.metrics.count('sable.call.ringback.blocked', 1);
+                });
+              }
               outgoingRingRoomIdRef.current = roomId;
               debugLog.info('call', 'Outgoing ringing fallback started', { roomId });
             }
@@ -380,6 +489,7 @@ export function useIncomingCallSignaling() {
   }, [
     mx,
     mDirects,
+    outgoingRingbackAllowed,
     handleIncomingCall,
     clearIncomingCall,
     stopIncomingRing,

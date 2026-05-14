@@ -14,6 +14,16 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'isPeopleDrawer',
   'isWidgetDrawer',
   'memberSortFilterIndex',
+  // Call audio is device-local (speaker setup + custom files in IndexedDB)
+  'incomingCallSoundEnabled',
+  'outgoingRingbackEnabled',
+  'callRingtoneVolume',
+  'callRingtoneId',
+  'callRingbackTone',
+  'callSoundOverrideGlobalNotifications',
+  'callCustomRingtoneName',
+  'callCustomRingtoneSizeBytes',
+  'callCustomRingtoneDurationMs',
   // Developer / diagnostic
   'developerTools',
   // Sync toggle itself must never be uploaded (it's device-local)

@@ -37,6 +37,7 @@ vi.mock('$hooks/useRoomMeta', () => ({
 
 vi.mock('$utils/room', () => ({
   getRoomAvatarUrl: () => null,
+  getMemberDisplayName: () => 'Alice',
 }));
 
 vi.mock('$hooks/useRoomNavigate', () => ({
@@ -106,7 +107,7 @@ describe('IncomingCallInternal', () => {
     const onClose = vi.fn<() => void>();
     render(<IncomingCallInternal room={room} incomingCall={incomingCall} onClose={onClose} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /decline/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Decline call' }));
 
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
@@ -131,5 +132,35 @@ describe('IncomingCallInternal', () => {
     render(<IncomingCallInternal room={room} incomingCall={incomingCall} onClose={onClose} />);
 
     expect(screen.getByRole('button', { name: /answer voice call/i })).toBeDisabled();
+  });
+
+  it('ignores room call notifications without sending RTC decline', async () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <IncomingCallInternal
+        room={room}
+        incomingCall={{ ...incomingCall, isDirect: false, notificationType: 'notification' }}
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ignore call notification' }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(sendRtcDeclineMock).not.toHaveBeenCalled();
+  });
+
+  it('shows homeserver capability issues and blocks answer when LiveKit is unavailable', () => {
+    livekitSupportedMock.mockReturnValue(false);
+    const onClose = vi.fn<() => void>();
+    render(<IncomingCallInternal room={room} incomingCall={incomingCall} onClose={onClose} />);
+
+    expect(
+      screen.getByText(/homeserver does not expose a livekit call focus/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /answer voice call/i })).toBeDisabled();
+    expect(screen.getByText(/homeserver call focus is unavailable/i)).toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@ import {
   readAudioDurationMs,
   resolveIncomingCallToneUrl,
   resolveOutgoingRingbackToneUrl,
+  validateCustomCallRingtone,
 } from '$features/call/callRingtone';
 import {
   clearCustomCallRingtone,
@@ -186,20 +187,25 @@ export function CallSoundSettings() {
       const file = input.files?.[0];
       if (!file) return;
 
-      if (!file.type.startsWith('audio/')) {
-        setCustomError('Only audio files are supported.');
-        return;
-      }
-      if (file.size > CUSTOM_CALL_RINGTONE_MAX_BYTES) {
-        setCustomError(
-          `File is too large. Max ${bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)} allowed.`
-        );
-        return;
-      }
-
       try {
         const durationMs = await readAudioDurationMs(file);
-        if (durationMs <= 0 || durationMs > CUSTOM_CALL_RINGTONE_MAX_DURATION_MS) {
+        const validation = validateCustomCallRingtone({
+          fileName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          durationMs,
+        });
+        if (!validation.valid) {
+          if (validation.reason === 'type') {
+            setCustomError('Only audio files are supported.');
+            return;
+          }
+          if (validation.reason === 'size') {
+            setCustomError(
+              `File is too large. Max ${bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)} allowed.`
+            );
+            return;
+          }
           setCustomError(
             `Ringtone must be between 1s and ${millisecondsToMinutesAndSeconds(
               CUSTOM_CALL_RINGTONE_MAX_DURATION_MS

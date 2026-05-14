@@ -112,3 +112,26 @@ export const readAudioDurationMs = async (file: Blob): Promise<number> =>
 
     audio.src = objectUrl;
   });
+
+type CustomRingtoneValidationInput = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  durationMs: number;
+};
+
+export const validateCustomCallRingtone = (
+  input: CustomRingtoneValidationInput
+): { valid: true } | { valid: false; reason: 'type' | 'size' | 'duration' } => {
+  if (!input.mimeType.startsWith('audio/')) {
+    return { valid: false, reason: 'type' };
+  }
+  if (input.sizeBytes > CUSTOM_CALL_RINGTONE_MAX_BYTES) {
+    return { valid: false, reason: 'size' };
+  }
+  if (input.durationMs <= 0 || input.durationMs > CUSTOM_CALL_RINGTONE_MAX_DURATION_MS) {
+    return { valid: false, reason: 'duration' };
+  }
+
+  return { valid: true };
+};

@@ -385,6 +385,42 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  if (typeof parsed.callRingtoneVolume === 'number' && Number.isFinite(parsed.callRingtoneVolume)) {
+    parsed.callRingtoneVolume = Math.max(0, Math.min(100, Math.round(parsed.callRingtoneVolume)));
+  }
+
+  if (
+    parsed.callRingtoneId !== 'sable-default' &&
+    parsed.callRingtoneId !== 'classic-soft' &&
+    parsed.callRingtoneId !== 'minimal-ping' &&
+    parsed.callRingtoneId !== 'silent' &&
+    parsed.callRingtoneId !== 'custom'
+  ) {
+    delete parsed.callRingtoneId;
+  }
+
+  if (
+    parsed.callRingbackTone !== 'same-as-ringtone' &&
+    parsed.callRingbackTone !== 'default-ringback' &&
+    parsed.callRingbackTone !== 'silent'
+  ) {
+    delete parsed.callRingbackTone;
+  }
+
+  if (
+    typeof parsed.callCustomRingtoneSizeBytes === 'number' &&
+    (!Number.isFinite(parsed.callCustomRingtoneSizeBytes) || parsed.callCustomRingtoneSizeBytes < 0)
+  ) {
+    delete parsed.callCustomRingtoneSizeBytes;
+  }
+
+  if (
+    typeof parsed.callCustomRingtoneDurationMs === 'number' &&
+    (!Number.isFinite(parsed.callCustomRingtoneDurationMs) || parsed.callCustomRingtoneDurationMs < 0)
+  ) {
+    delete parsed.callCustomRingtoneDurationMs;
+  }
 }
 
 export function mergePersistedSettings(

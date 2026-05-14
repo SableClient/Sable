@@ -5,6 +5,7 @@ import {
   clampCallRingtoneVolume,
   resolveIncomingCallToneUrl,
   resolveOutgoingRingbackToneUrl,
+  validateCustomCallRingtone,
 } from './callRingtone';
 
 describe('callRingtone', () => {
@@ -68,5 +69,43 @@ describe('callRingtone', () => {
         callSoundOverrideGlobalNotifications: true,
       })
     ).toBe(true);
+  });
+
+  it('validates custom ringtone type, size, and duration constraints', () => {
+    expect(
+      validateCustomCallRingtone({
+        fileName: 'ring.txt',
+        mimeType: 'text/plain',
+        sizeBytes: 10,
+        durationMs: 1_000,
+      })
+    ).toEqual({ valid: false, reason: 'type' });
+
+    expect(
+      validateCustomCallRingtone({
+        fileName: 'ring.ogg',
+        mimeType: 'audio/ogg',
+        sizeBytes: 9_999_999,
+        durationMs: 1_000,
+      })
+    ).toEqual({ valid: false, reason: 'size' });
+
+    expect(
+      validateCustomCallRingtone({
+        fileName: 'ring.ogg',
+        mimeType: 'audio/ogg',
+        sizeBytes: 10_000,
+        durationMs: 0,
+      })
+    ).toEqual({ valid: false, reason: 'duration' });
+
+    expect(
+      validateCustomCallRingtone({
+        fileName: 'ring.ogg',
+        mimeType: 'audio/ogg',
+        sizeBytes: 10_000,
+        durationMs: 4_000,
+      })
+    ).toEqual({ valid: true });
   });
 });

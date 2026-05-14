@@ -31,6 +31,36 @@ describe('mergePersistedSettings', () => {
     const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
     expect(merged.saturationLevel).toBe(0);
   });
+
+  it('migrates persisted ringtone preferences to valid values', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        callRingtoneVolume: 140.2,
+        callRingtoneId: 'invalid-tone',
+        callRingbackTone: 'nope',
+      })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.callRingtoneVolume).toBe(100);
+    expect(merged.callRingtoneId).toBe(defaultSettings.callRingtoneId);
+    expect(merged.callRingbackTone).toBe(defaultSettings.callRingbackTone);
+  });
+
+  it('drops invalid custom ringtone metadata during migration', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        callCustomRingtoneName: 'tone.ogg',
+        callCustomRingtoneSizeBytes: -5,
+        callCustomRingtoneDurationMs: Number.NaN,
+      })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.callCustomRingtoneName).toBe('tone.ogg');
+    expect(merged.callCustomRingtoneSizeBytes).toBeUndefined();
+    expect(merged.callCustomRingtoneDurationMs).toBeNull();
+  });
 });
 
 describe('sanitizeSettingsDefaults', () => {
@@ -63,5 +93,26 @@ describe('sanitizeSettingsDefaults', () => {
       rightSwipeAction: 'members',
     });
     expect(sanitizeSettingsDefaults({ rightSwipeAction: 'nope' })).toEqual({});
+  });
+
+  it('sanitizes ringtone settings defaults', () => {
+    expect(
+      sanitizeSettingsDefaults({
+        callRingtoneId: 'classic-soft',
+        callRingbackTone: 'default-ringback',
+        callRingtoneVolume: 73.7,
+      })
+    ).toEqual({
+      callRingtoneId: 'classic-soft',
+      callRingbackTone: 'default-ringback',
+      callRingtoneVolume: 74,
+    });
+    expect(
+      sanitizeSettingsDefaults({
+        callRingtoneId: 'bad',
+        callRingbackTone: 'bad',
+        callRingtoneVolume: Number.NaN,
+      })
+    ).toEqual({});
   });
 });

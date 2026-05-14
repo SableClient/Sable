@@ -10,6 +10,7 @@ import {
 } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import {
+  callEmbedAtom,
   callSoundBlockedAtom,
   incomingCallAtom,
   mutedCallRoomIdAtom,
@@ -76,6 +77,22 @@ const isCallActive = (
   return selfMember && remoteMembers.length > 0;
 };
 
+const isOutgoingCallPending = (
+  mxUserId: string,
+  room: Room,
+  sessionDescription: SessionDescription
+): boolean => {
+  const memberships = getRoomMemberships(room, sessionDescription);
+  const remoteMembers = memberships.filter(
+    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== mxUserId
+  );
+  const selfMember = memberships.some(
+    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === mxUserId
+  );
+
+  return selfMember && remoteMembers.length === 0;
+};
+
 const decryptWithTimeout = async (
   event: MatrixEvent,
   mx: MatrixClient
@@ -118,6 +135,7 @@ const canSenderStartCalls = (room: Room, senderId: string): boolean =>
 
 export function useIncomingCallSignaling() {
   const mx = useMatrixClient();
+  const callEmbed = useAtomValue(callEmbedAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const settings = useAtomValue(settingsAtom);
   const incomingCall = useAtomValue(incomingCallAtom);
@@ -224,9 +242,12 @@ export function useIncomingCallSignaling() {
   const stopOutgoingRing = useCallback(() => {
     outgoingAudioRef.current?.pause();
     if (outgoingAudioRef.current) outgoingAudioRef.current.currentTime = 0;
+    if (callEmbed) {
+      callEmbed.control.setOutputOverrideMuted(false);
+    }
     outgoingRingRoomIdRef.current = null;
     outgoingStartRef.current = null;
-  }, []);
+  }, [callEmbed]);
 
   const clearIncomingCall = useCallback(() => {
     const activeIncomingCall = incomingCallRef.current;
@@ -282,31 +303,20 @@ export function useIncomingCallSignaling() {
         },
       });
 
-      if (nextIncomingCall.notificationType === 'ring') {
-        const appVisible = document.visibilityState === 'visible';
-        if (!appVisible) {
-          stopIncomingRing();
-          setCallSoundBlocked(false);
-          return;
-        }
-
-        if (!incomingRingtoneAllowed) {
-          stopIncomingRing();
-          return;
-        }
-
-        incomingAudioRef.current
-          ?.play()
-          .then(() => {
-            setCallSoundBlocked(false);
-          })
-          .catch(() => {
-            setCallSoundBlocked(true);
-            Sentry.metrics.count('sable.call.ringtone.blocked', 1);
-          });
-      } else {
+      if (!incomingRingtoneAllowed) {
         stopIncomingRing();
+        return;
       }
+
+      incomingAudioRef.current
+        ?.play()
+        .then(() => {
+          setCallSoundBlocked(false);
+        })
+        .catch(() => {
+          setCallSoundBlocked(true);
+          Sentry.metrics.count('sable.call.ringtone.blocked', 1);
+        });
     },
     [incomingRingtoneAllowed, setCallSoundBlocked, setIncomingCall, stopIncomingRing]
   );
@@ -398,6 +408,8 @@ export function useIncomingCallSignaling() {
     };
 
     const evaluateFallbackState = () => {
+      const now = Date.now();
+
       const currentIncoming = incomingCallRef.current;
       if (currentIncoming) {
         if (Date.now() >= currentIncoming.expiresAt) {
@@ -418,6 +430,11 @@ export function useIncomingCallSignaling() {
 
         const session = mx.matrixRTC.getRoomSession(incomingRoom);
         if (!isIncomingCallActive(myUserId, incomingRoom, session.sessionDescription)) {
+          // Session membership can lag behind live RTC notification delivery.
+          // Keep ringing for a short grace window before treating the call as ended.
+          if (now - currentIncoming.senderTs < 15_000) {
+            return;
+          }
           debugLog.info('call', 'Incoming call cleared after membership drop', {
             roomId: currentIncoming.roomId,
           });
@@ -426,61 +443,42 @@ export function useIncomingCallSignaling() {
         }
       }
 
-      const outgoingRoomId = outgoingRingRoomIdRef.current;
-      if (outgoingRoomId) {
-        const outgoingRoom = mx.getRoom(outgoingRoomId);
-        if (!outgoingRoom) {
-          stopOutgoingRing();
-          return;
-        }
-        const session = mx.matrixRTC.getRoomSession(outgoingRoom);
-        if (isCallActive(myUserId, outgoingRoom, session.sessionDescription)) {
-          stopOutgoingRing();
-          return;
-        }
+      const activeCallRoomId = callEmbed?.roomId;
+      if (!activeCallRoomId || !outgoingRingbackAllowed) {
+        stopOutgoingRing();
+        return;
       }
 
-      if (outgoingRingRoomIdRef.current) return;
-
-      const now = Date.now();
-      const localUserId = mx.getUserId();
-      if (!localUserId) return;
-
-      for (const roomId of mDirects) {
-        if (mutedRoomIdRef.current === roomId) continue;
-
-        const room = mx.getRoom(roomId);
-        if (!room) continue;
-
-        const session = mx.matrixRTC.getRoomSession(room);
-        const memberships = getRoomMemberships(room, session.sessionDescription);
-        const remoteMembers = memberships.filter(
-          (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== localUserId
-        );
-        const selfMember = memberships.some(
-          (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === localUserId
-        );
-
-        if (selfMember && remoteMembers.length === 0) {
-          if (!outgoingStartRef.current) outgoingStartRef.current = now;
-          if (now - outgoingStartRef.current < OUTGOING_RING_TIMEOUT_MS) {
-            if (outgoingRingRoomIdRef.current !== roomId) {
-              if (outgoingRingbackAllowed) {
-                outgoingAudioRef.current?.play().catch(() => {
-                  Sentry.metrics.count('sable.call.ringback.blocked', 1);
-                });
-              }
-              outgoingRingRoomIdRef.current = roomId;
-              debugLog.info('call', 'Outgoing ringing fallback started', { roomId });
-            }
-          } else {
-            stopOutgoingRing();
-          }
-          return;
-        }
+      const outgoingRoom = mx.getRoom(activeCallRoomId);
+      if (!outgoingRoom) {
+        stopOutgoingRing();
+        return;
       }
 
-      stopOutgoingRing();
+      const session = mx.matrixRTC.getRoomSession(outgoingRoom);
+      const pendingOutgoing = isOutgoingCallPending(myUserId, outgoingRoom, session.sessionDescription);
+      const activeCall = isCallActive(myUserId, outgoingRoom, session.sessionDescription);
+
+      if (!pendingOutgoing || activeCall) {
+        stopOutgoingRing();
+        return;
+      }
+
+      if (outgoingRingRoomIdRef.current !== activeCallRoomId) {
+        outgoingRingRoomIdRef.current = activeCallRoomId;
+        outgoingStartRef.current = now;
+        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: activeCallRoomId });
+      }
+
+      if (outgoingStartRef.current && now - outgoingStartRef.current >= OUTGOING_RING_TIMEOUT_MS) {
+        stopOutgoingRing();
+        return;
+      }
+
+      callEmbed.control.setOutputOverrideMuted(true);
+      outgoingAudioRef.current?.play().catch(() => {
+        Sentry.metrics.count('sable.call.ringback.blocked', 1);
+      });
     };
 
     const handleSessionEnded = (roomId: string) => {
@@ -504,6 +502,7 @@ export function useIncomingCallSignaling() {
       stopOutgoingRing();
     };
   }, [
+    callEmbed,
     mx,
     mDirects,
     outgoingRingbackAllowed,

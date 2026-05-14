@@ -169,7 +169,8 @@ export class CallEmbed {
     room: Room,
     widget: Widget,
     container: HTMLElement,
-    initialControlState?: CallControlState
+    initialControlState?: CallControlState,
+    suppressOutgoingPickupSound = false
   ) {
     debugLog.info('call', 'Initializing call embed', { roomId: room.roomId });
 
@@ -189,6 +190,9 @@ export class CallEmbed {
 
     const controlState = initialControlState ?? new CallControlState(true, false, true);
     this.control = new CallControl(controlState, call, iframe);
+    if (suppressOutgoingPickupSound) {
+      this.control.setOutputOverrideMuted(true);
+    }
 
     this.disposables.push(
       this.listenAction(WidgetApiFromWidgetAction.UpdateAlwaysOnScreen, (evt) => {

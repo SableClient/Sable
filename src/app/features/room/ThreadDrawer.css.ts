@@ -76,6 +76,7 @@ export const ThreadBrowserItem = style({
   background: 'none',
   border: 'none',
   color: 'inherit',
+  overflow: 'hidden',
   ':hover': {
     backgroundColor: color.SurfaceVariant.Container,
     transform: 'none',

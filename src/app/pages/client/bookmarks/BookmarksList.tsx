@@ -52,6 +52,8 @@ import {
   useBookmarkDeletedList,
   useBookmarkList,
   useBookmarkLoading,
+  useBookmarkReminders,
+  useBookmarkReminderActions,
 } from '$features/bookmarks/useBookmarks';
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ type BookmarkItemRowProps = {
   onRemove: (item: BookmarkItemContent) => void;
   hour24Clock: boolean;
   dateFormatString: string;
+  enableReminders: boolean;
 };
 
 function BookmarkItemRow({
@@ -130,9 +133,40 @@ function BookmarkItemRow({
   onRemove,
   hour24Clock,
   dateFormatString,
+  enableReminders,
 }: BookmarkItemRowProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const reminders = useBookmarkReminders();
+  const { setReminder, clearReminder } = useBookmarkReminderActions();
+  const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
+  const [reminderInputValue, setReminderInputValue] = useState('');
+  const reminder = reminders.find((r) => r.bookmarkId === item.bookmark_id);
+
+  const handleOpenReminderPicker = () => {
+    const defaultValue = reminder ? new Date(reminder.remindAt).toISOString().slice(0, 16) : '';
+    setReminderInputValue(defaultValue);
+    setReminderPickerOpen((prev) => !prev);
+  };
+
+  const handleSaveReminder = async () => {
+    if (!reminderInputValue) return;
+    const remindAt = new Date(reminderInputValue).getTime();
+    if (Number.isNaN(remindAt)) return;
+    await setReminder({
+      bookmarkId: item.bookmark_id,
+      eventId: item.event_id,
+      roomId: item.room_id,
+      remindAt,
+      userId: mx.getUserId() ?? '',
+    });
+    setReminderPickerOpen(false);
+  };
+
+  const handleClearReminder = async () => {
+    await clearReminder(item.bookmark_id);
+    setReminderPickerOpen(false);
+  };
 
   // Try to resolve live room/member data; fall back to stored metadata
   const room = mx.getRoom(item.room_id) ?? undefined;
@@ -207,6 +241,18 @@ function BookmarkItemRow({
             >
               <Text size="T200">Jump</Text>
             </Chip>
+            {enableReminders && (
+              <IconButton
+                size="300"
+                radii="300"
+                variant={reminder ? 'Primary' : 'SurfaceVariant'}
+                onClick={handleOpenReminderPicker}
+                aria-label={reminder ? 'Edit reminder' : 'Set reminder'}
+                title={reminder ? 'Edit reminder' : 'Set reminder'}
+              >
+                <Icon src={reminder ? Icons.BellRing : Icons.Bell} size="100" />
+              </IconButton>
+            )}
             <IconButton
               size="300"
               variant="Background"
@@ -224,6 +270,40 @@ function BookmarkItemRow({
           </Text>
         )}
       </ModernLayout>
+      {enableReminders && reminderPickerOpen && (
+        <Box
+          direction="Row"
+          gap="200"
+          alignItems="Center"
+          style={{ paddingTop: config.space.S200 }}
+        >
+          <Input
+            type="datetime-local"
+            value={reminderInputValue}
+            onChange={(e) => setReminderInputValue(e.currentTarget.value)}
+            style={{ flex: 1 }}
+            size="300"
+          />
+          <Chip
+            onClick={() => handleSaveReminder().catch(console.warn)}
+            variant="Primary"
+            radii="400"
+            as="button"
+          >
+            <Text size="T200">Set</Text>
+          </Chip>
+          {reminder && (
+            <Chip
+              onClick={() => handleClearReminder().catch(console.warn)}
+              variant="Critical"
+              radii="400"
+              as="button"
+            >
+              <Text size="T200">Clear</Text>
+            </Chip>
+          )}
+        </Box>
+      )}
     </SequenceCard>
   );
 }
@@ -241,6 +321,7 @@ type BookmarkResultGroupProps = {
   onRemove: (item: BookmarkItemContent) => void;
   hour24Clock: boolean;
   dateFormatString: string;
+  enableReminders: boolean;
 };
 
 function BookmarkResultGroup({
@@ -252,6 +333,7 @@ function BookmarkResultGroup({
   onRemove,
   hour24Clock,
   dateFormatString,
+  enableReminders,
 }: BookmarkResultGroupProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -293,6 +375,7 @@ function BookmarkResultGroup({
             onRemove={onRemove}
             hour24Clock={hour24Clock}
             dateFormatString={dateFormatString}
+            enableReminders={enableReminders}
           />
         ))}
       </Box>
@@ -418,6 +501,7 @@ export function BookmarksList() {
 
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
+  const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
 
   const bookmarks = useBookmarkList();
   const deletedBookmarks = useBookmarkDeletedList();
@@ -573,6 +657,7 @@ export function BookmarksList() {
                         onRemove={setRemovingItem}
                         hour24Clock={hour24Clock}
                         dateFormatString={dateFormatString}
+                        enableReminders={enableBookmarkReminders}
                       />
                     </Fragment>
                   ))}

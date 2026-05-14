@@ -193,9 +193,10 @@ export function RoomTimeline({
   const prevScrollSizeRef = useRef(0);
   // Tracks the VList-reported viewport size (as opposed to prevViewportHeightRef
   // which tracks the DOM element height via ResizeObserver). Used in
-  // handleVListScroll to detect viewport shrink (keyboard opens) without a
-  // ResizeObserver race: when VList fires onScroll with a smaller viewportSize,
-  // we chase the bottom immediately instead of letting setAtBottom(false) fire.
+  // handleVListScroll to detect viewport size changes (keyboard opens OR closes)
+  // without a ResizeObserver race: when VList fires onScroll with a different
+  // viewportSize, we chase the bottom immediately instead of letting
+  // setAtBottom(false) fire.
   const prevVListViewportRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
@@ -697,13 +698,15 @@ export function RoomTimeline({
       const contentGrew = v.scrollSize > prevScrollSizeRef.current;
       prevScrollSizeRef.current = v.scrollSize;
 
-      // When the keyboard opens the VList viewport shrinks. The scrollOffset
-      // doesn't change, so distanceFromBottom jumps to ~keyboardHeight and
-      // isNowAtBottom becomes false — flashing the "Jump to Present" button.
-      // Detect the shrink here (inside onScroll, race-free) and chase the
+      // When the keyboard opens/closes the VList viewportSize changes. The
+      // scrollOffset doesn't immediately follow, so distanceFromBottom spikes
+      // and isNowAtBottom becomes false — flashing the "Jump to Present" button.
+      // This is especially common when the keyboard opens/closes quickly before
+      // the chase RAF from a previous event has had a chance to execute.
+      // Detect the change here (inside onScroll, race-free) and chase the
       // bottom before setAtBottom(false) is called.
-      const viewportShrank =
-        prevVListViewportRef.current > 0 && v.viewportSize < prevVListViewportRef.current;
+      const viewportChanged =
+        prevVListViewportRef.current > 0 && v.viewportSize !== prevVListViewportRef.current;
       prevVListViewportRef.current = v.viewportSize;
 
       // Skip content-chase and cache saves during init: the timeline is hidden
@@ -718,7 +721,11 @@ export function RoomTimeline({
       // normal scrolling resumes quickly and atBottom is recomputed correctly.
       if (jumpScrollBlockRef.current) return;
 
-      if (atBottomRef.current && !isNowAtBottom && (contentGrew || viewportShrank || withinSettleWindow)) {
+      if (
+        atBottomRef.current &&
+        !isNowAtBottom &&
+        (contentGrew || viewportChanged || withinSettleWindow)
+      ) {
         // Defer the chase to the next animation frame so VList finishes its
         // current layout pass. Synchronous scrollTo causes cascading scroll
         // events that produce visible jumps when images/embeds load.

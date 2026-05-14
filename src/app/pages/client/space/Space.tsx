@@ -310,8 +310,12 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
               </Box>
             ) : (
               <Box grow="Yes" gap="300">
-                <Box grow="Yes" alignItems="Center" gap="100"
-                    style={hasBanner ? { color: '#fff' } : {}}>
+                <Box
+                  grow="Yes"
+                  alignItems="Center"
+                  gap="100"
+                  style={hasBanner ? { color: '#fff' } : {}}
+                >
                   <Text size="H4" truncate>
                     {spaceName}
                   </Text>
@@ -321,7 +325,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                   <IconButton
                     aria-pressed={!!menuAnchor}
                     variant="Background"
-                      style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
+                    style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
                     onClick={handleOpenMenu}
                   >
                     <Icon src={Icons.VerticalDots} size="200" />

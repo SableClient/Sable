@@ -633,12 +633,18 @@ function MessageInternal(
   const mentionClickHandler = useMentionClickHandler(room.roomId);
 
   const forwardedNotice = useMemo(() => {
+    const isSameRoomForward = (originalRoomId: string | undefined) =>
+      originalRoomId !== undefined && originalRoomId === room.roomId;
+
     if (messageForwardedProps?.isForwarded) {
+      const originalRoomId = messageForwardedProps.originalRoomId;
       return {
         label: messageForwardedProps.originalEventPrivate
           ? 'Forwarded private message'
-          : 'Forwarded from another room',
-        roomId: messageForwardedProps.originalRoomId,
+          : isSameRoomForward(originalRoomId)
+            ? 'Forwarded from earlier in this room'
+            : 'Forwarded from another room',
+        roomId: originalRoomId,
         eventId: messageForwardedProps.originalEventId,
         ts: messageForwardedProps.originalTimestamp ?? 0,
         showLink: !messageForwardedProps.originalEventPrivate,
@@ -646,9 +652,12 @@ function MessageInternal(
     }
 
     if (msc2723ForwardedMessageProps) {
+      const originalRoomId = msc2723ForwardedMessageProps.room_id;
       return {
-        label: 'Forwarded from another room',
-        roomId: msc2723ForwardedMessageProps.room_id,
+        label: isSameRoomForward(originalRoomId)
+          ? 'Forwarded from earlier in this room'
+          : 'Forwarded from another room',
+        roomId: originalRoomId,
         eventId: msc2723ForwardedMessageProps.event_id,
         ts: msc2723ForwardedMessageProps.origin_server_ts ?? 0,
         showLink: true,
@@ -656,7 +665,7 @@ function MessageInternal(
     }
 
     return null;
-  }, [messageForwardedProps, msc2723ForwardedMessageProps]);
+  }, [messageForwardedProps, msc2723ForwardedMessageProps, room.roomId]);
 
   const handleResendClick: MouseEventHandler<HTMLButtonElement> = useCallback(
     (evt) => {

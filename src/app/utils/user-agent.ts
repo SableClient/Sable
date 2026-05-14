@@ -20,15 +20,10 @@ const normalizeMacName = (os?: string) => {
   return os;
 };
 
-// True for layout purposes: phones and tablets with native touch UA.
-// Intentionally excludes iPads in "Request Desktop Website" mode (macOS UA +
-// maxTouchPoints > 1) because those users explicitly want the desktop layout.
-const isMobileOrTabletLayout = (() => {
-  const { os, device } = result;
-  if (device.type === 'mobile' || device.type === 'tablet') return true;
-  if (os.name === 'Android' || os.name === 'iOS') return true;
-  return false;
-})();
+// True only for phone-form-factor devices for layout/nav decisions.
+// Tablets (native iPadOS UA or "Request Desktop Website") always get the desktop
+// two-panel layout; only phones collapse to the single-panel mobile layout.
+const isMobileOrTabletLayout = result.device.type === 'mobile';
 
 const isMac = result.os.name === 'Mac OS';
 
@@ -36,8 +31,10 @@ export const ua = () => result;
 export const isMacOS = () => isMac;
 export const mobileOrTablet = () => isMobileOrTablet;
 /**
- * Like `mobileOrTablet` but excludes iPads using "Request Desktop Website".
- * Use this for layout/nav decisions; use `mobileOrTablet` for touch/keyboard behaviour.
+ * True only for phones. Use this for layout/nav decisions (sidebars, route registration).
+ * Tablets — whether using native iPadOS UA or iPad "Request Desktop Website" — return false,
+ * so they always get the full desktop two-panel layout.
+ * Use `mobileOrTablet` for touch/keyboard/scroll-lock behaviour instead.
  */
 export const mobileOrTabletLayout = () => isMobileOrTabletLayout;
 

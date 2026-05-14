@@ -26,12 +26,16 @@ const isBridgeBot = (userId: string): boolean => {
  */
 export const useGroupDMMembers = (
   mx: MatrixClient,
-  room: Room,
+  room: Room | undefined,
   maxMembers = 3
 ): GroupMemberInfo[] => {
   const [members, setMembers] = useState<GroupMemberInfo[]>([]);
 
   useEffect(() => {
+    if (!room) {
+      setMembers([]);
+      return;
+    }
     const fetchMembers = async () => {
       try {
         const currentUserId = mx.getUserId();

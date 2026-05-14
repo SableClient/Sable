@@ -92,6 +92,7 @@ import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import { useCallPreferences } from '$state/hooks/callPreferences';
+import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
@@ -364,10 +365,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   );
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
 
-  const canUseCalls = room
-    .getLiveTimeline()
-    .getState(EventTimeline.FORWARDS)
-    ?.maySendStateEvent('org.matrix.msc3401.call.member', mx.getUserId()!);
+  const callStartCapabilities = useCallStartCapabilities(room);
   const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
   const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
@@ -727,7 +725,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                   </IconButton>
                 )}
               </TooltipProvider>
-              {canUseCalls && shouldShowCallButton && (
+              {!room.isCallRoom() &&
+                callStartCapabilities.canRenderCallButton &&
+                shouldShowCallButton && (
                 <RoomCallButton
                   room={room}
                   direct={direct}

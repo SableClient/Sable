@@ -1,12 +1,8 @@
-import { useCallback, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
 import { ContainerColor } from '$styles/ContainerColor.css';
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
-import { useLivekitSupport } from '$hooks/useLivekitSupport';
+import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
 
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useCallEmbed, useCallEmbedPlacementSync, useCallJoined } from '$hooks/useCallEmbed';
@@ -15,12 +11,19 @@ import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { CallControls } from './CallControls';
-import { EventType } from '$types/matrix-sdk';
 
 function LivekitServerMissingMessage() {
   return (
     <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
-      Your homeserver does not support calling. But you can still join call started by others.
+      Your homeserver does not support calling.
+    </Text>
+  );
+}
+
+function WebRTCMissingError() {
+  return (
+    <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
+      Your browser does not support WebRTC, which is required for calling.
     </Text>
   );
 }
@@ -28,19 +31,25 @@ function LivekitServerMissingMessage() {
 function JoinMessage({
   hasParticipant,
   livekitSupported,
+  rtcSupported,
 }: {
   hasParticipant?: boolean;
   livekitSupported?: boolean;
+  rtcSupported?: boolean;
 }) {
-  if (hasParticipant) return null;
+  if (rtcSupported === false) {
+    return <WebRTCMissingError />;
+  }
 
   if (livekitSupported === false) {
     return <LivekitServerMissingMessage />;
   }
 
+  if (hasParticipant) return null;
+
   return (
     <Text style={{ margin: 'auto' }} size="L400" align="Center">
-      Voice chat&apos;s empty — Be the first to hop in!
+      Voice chat&apos;s empty - be the first to hop in!
     </Text>
   );
 }
@@ -56,30 +65,20 @@ function NoPermissionMessage() {
 function AlreadyInCallMessage() {
   return (
     <Text style={{ margin: 'auto', color: color.Warning.Main }} size="L400" align="Center">
-      Already in another call — End the current call to join!
+      Already in another call - end the current call to join.
     </Text>
   );
 }
 
 function CallPrescreen() {
-  const mx = useMatrixClient();
   const room = useRoom();
-  const livekitSupported = useLivekitSupport();
-
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-
-  const permissions = useRoomPermissions(creators, powerLevels);
-  const hasPermission = permissions.event(EventType.GroupCallMemberPrefix, mx.getSafeUserId());
+  const callStartCapabilities = useCallStartCapabilities(room);
 
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const hasParticipant = callMembers.length > 0;
 
-  const callEmbed = useCallEmbed();
-  const inOtherCall = callEmbed && callEmbed.roomId !== room.roomId;
-
-  const canJoin = hasPermission && (livekitSupported || hasParticipant);
+  const canJoin = callStartCapabilities.canStart;
 
   return (
     <Scroll variant="Surface" hideTrack>
@@ -100,13 +99,17 @@ function CallPrescreen() {
           <CallMemberRenderer members={callMembers} />
           <PrescreenControls canJoin={canJoin} />
           <Box className={css.PrescreenMessage} alignItems="Center">
-            {!inOtherCall &&
-              (hasPermission ? (
-                <JoinMessage hasParticipant={hasParticipant} livekitSupported={livekitSupported} />
+            {!callStartCapabilities.inAnotherCall &&
+              (callStartCapabilities.hasCallMemberPermission ? (
+                <JoinMessage
+                  hasParticipant={hasParticipant}
+                  livekitSupported={callStartCapabilities.livekitSupported}
+                  rtcSupported={callStartCapabilities.webRTCSupported}
+                />
               ) : (
                 <NoPermissionMessage />
               ))}
-            {inOtherCall && <AlreadyInCallMessage />}
+            {callStartCapabilities.inAnotherCall && <AlreadyInCallMessage />}
           </Box>
         </Box>
       </Box>
@@ -169,6 +172,7 @@ export function CallView({ resizable }: CallViewProps) {
   const [height, setHeight] = useState(isMobile ? 240 : 380);
   const [isDragging, setIsDragging] = useState(false);
   const isResizing = useRef(false);
+  const previousBodyUserSelect = useRef<string | null>(null);
 
   const handleMove = useCallback(
     (clientY: number) => {
@@ -195,18 +199,35 @@ export function CallView({ resizable }: CallViewProps) {
     document.removeEventListener('mouseup', stopResizing);
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', stopResizing);
-    document.body.style.userSelect = 'auto';
+    document.body.style.userSelect = previousBodyUserSelect.current ?? '';
+    previousBodyUserSelect.current = null;
   }, [handleMouseMove, handleTouchMove]);
 
   const startResizing = useCallback(() => {
     isResizing.current = true;
     setIsDragging(true);
+    if (previousBodyUserSelect.current === null) {
+      previousBodyUserSelect.current = document.body.style.userSelect;
+    }
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', stopResizing);
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', stopResizing);
     document.body.style.userSelect = 'none';
   }, [handleMouseMove, handleTouchMove, stopResizing]);
+
+  useEffect(
+    () => () => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', stopResizing);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', stopResizing);
+      document.body.style.userSelect = previousBodyUserSelect.current ?? '';
+      previousBodyUserSelect.current = null;
+    },
+    [handleMouseMove, handleTouchMove, stopResizing]
+  );
 
   return (
     <Box
@@ -220,7 +241,6 @@ export function CallView({ resizable }: CallViewProps) {
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
         backgroundColor: currentJoined ? 'transparent' : undefined,
-        pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >
       {isDragging && (

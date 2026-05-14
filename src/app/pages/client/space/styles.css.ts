@@ -6,7 +6,7 @@ export const RoomCoverHeaderContainer = style({ width: '100%', position: 'relati
 export const RoomCoverNavContainer = style({
   position: 'absolute',
   width: '100%',
-  zIndex: '10000',
+  zIndex: '100',
   top: '0',
   background: 'linear-gradient(180deg, #000 0%, #0000 100%)',
 });

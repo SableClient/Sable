@@ -394,9 +394,9 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 setCurWidth={setCurHeight}
                 sidebarWidth={roomBannerHeight}
                 setSidebarWidth={setRoomBannerHeight}
-                instep={50}
-                outstep={60}
-                minValue={50}
+                instep={56}
+                outstep={66}
+                minValue={56}
                 maxValue={500}
                 topSided
               />

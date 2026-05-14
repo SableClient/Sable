@@ -18,7 +18,7 @@ import {
   config,
 } from 'folds';
 import { PollStartEvent } from 'matrix-js-sdk/lib/extensible_events_v1/PollStartEvent';
-import { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED } from 'matrix-js-sdk/lib/@types/polls';
+import { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED, M_POLL_START } from 'matrix-js-sdk/lib/@types/polls';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 
@@ -30,6 +30,18 @@ function newId(): string {
   answerIdSeed += 1;
   return `a${answerIdSeed}`;
 }
+
+const DURATION_PRESETS = [
+  { label: 'No end', ms: 0 },
+  { label: '2h', ms: 2 * 60 * 60 * 1000 },
+  { label: '6h', ms: 6 * 60 * 60 * 1000 },
+  { label: '12h', ms: 12 * 60 * 60 * 1000 },
+  { label: '1 day', ms: 24 * 60 * 60 * 1000 },
+  { label: '3 days', ms: 3 * 24 * 60 * 60 * 1000 },
+  { label: '7 days', ms: 7 * 24 * 60 * 60 * 1000 },
+  { label: '14 days', ms: 14 * 24 * 60 * 60 * 1000 },
+];
+const CUSTOM_PRESET = -1;
 
 type AnswerDraft = { id: string; text: string };
 
@@ -49,7 +61,8 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
   const [multiSelect, setMultiSelect] = useState(false);
   const [maxSelections, setMaxSelections] = useState(2);
   const [disclosed, setDisclosed] = useState(true);
-  const [durationDays, setDurationDays] = useState(0);
+  const [durationPresetMs, setDurationPresetMs] = useState(0);
+  const [customEndInput, setCustomEndInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -95,8 +108,14 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
     const pollEvent = PollStartEvent.from(q, validAnswers, kind, maxSel);
     const serialized = pollEvent.serialize();
 
-    if (durationDays > 0) {
-      const closesAt = Date.now() + durationDays * 24 * 60 * 60 * 1000;
+    let closesAt: number | undefined;
+    if (durationPresetMs > 0) {
+      closesAt = Date.now() + durationPresetMs;
+    } else if (durationPresetMs === CUSTOM_PRESET && customEndInput) {
+      const t = new Date(customEndInput).getTime();
+      if (!Number.isNaN(t) && t > Date.now()) closesAt = t;
+    }
+    if (closesAt !== undefined) {
       const content = serialized.content as Record<string, Record<string, unknown>>;
       const pollSubtype = content[M_POLL_START.name];
       if (pollSubtype) pollSubtype.closes_at = closesAt;
@@ -126,7 +145,7 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
       setError(err instanceof Error ? err.message : 'Failed to send poll.');
       setSending(false);
     }
-  }, [question, answers, multiSelect, maxSelections, disclosed, durationDays, mx, room.roomId, onClose]);
+  }, [question, answers, multiSelect, maxSelections, disclosed, durationPresetMs, customEndInput, mx, room.roomId, onClose]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
@@ -272,21 +291,37 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
                   <Box direction="Column" gap="100">
                     <Text size="L400">Poll ends after</Text>
                     <Box gap="200" wrap="Wrap">
-                      {([0, 1, 3, 7, 14] as const).map((days) => (
+                      {DURATION_PRESETS.map(({ label, ms }) => (
                         <Button
-                          key={days}
+                          key={ms}
                           size="300"
                           radii="300"
-                          variant={durationDays === days ? 'Primary' : 'Secondary'}
-                          fill={durationDays === days ? 'Solid' : 'Soft'}
-                          onClick={() => setDurationDays(days)}
+                          variant={durationPresetMs === ms ? 'Primary' : 'Secondary'}
+                          fill={durationPresetMs === ms ? 'Solid' : 'Soft'}
+                          onClick={() => setDurationPresetMs(ms)}
                         >
-                          <Text size="B300">
-                            {days === 0 ? 'No end' : days === 1 ? '1 day' : `${days} days`}
-                          </Text>
+                          <Text size="B300">{label}</Text>
                         </Button>
                       ))}
+                      <Button
+                        size="300"
+                        radii="300"
+                        variant={durationPresetMs === CUSTOM_PRESET ? 'Primary' : 'Secondary'}
+                        fill={durationPresetMs === CUSTOM_PRESET ? 'Solid' : 'Soft'}
+                        onClick={() => setDurationPresetMs(CUSTOM_PRESET)}
+                      >
+                        <Text size="B300">Custom</Text>
+                      </Button>
                     </Box>
+                    {durationPresetMs === CUSTOM_PRESET && (
+                      <Input
+                        type="datetime-local"
+                        value={customEndInput}
+                        onChange={(e) => setCustomEndInput(e.currentTarget.value)}
+                        size="300"
+                        style={{ width: '100%' }}
+                      />
+                    )}
                   </Box>
 
                   {error && (

@@ -35,6 +35,28 @@ export const callEmbedAtom = atom<CallEmbed | undefined, [CallEmbed | undefined]
 
 export const callChatAtom = atom(false);
 
-export const incomingCallRoomIdAtom = atom<string | null>(null);
-export const autoJoinCallIntentAtom = atom<string | null>(null);
+export type IncomingCallNotificationType = 'ring' | 'notification';
+export type IncomingCallIntentKind = 'audio' | 'video';
+
+export type IncomingCall = {
+  roomId: string;
+  notificationEventId: string;
+  refEventId: string;
+  senderId: string;
+  senderTs: number;
+  expiresAt: number;
+  notificationType: IncomingCallNotificationType;
+  intentKind: IncomingCallIntentKind;
+  intentRaw?: string;
+  isDirect: boolean;
+};
+
+export type AutoJoinCallIntent = {
+  roomId: string;
+  video: boolean;
+};
+
+export const incomingCallAtom = atom<IncomingCall | null>(null);
+export const incomingCallRoomIdAtom = atom((get) => get(incomingCallAtom)?.roomId ?? null);
+export const autoJoinCallIntentAtom = atom<AutoJoinCallIntent | null>(null);
 export const mutedCallRoomIdAtom = atom<string | null>(null);

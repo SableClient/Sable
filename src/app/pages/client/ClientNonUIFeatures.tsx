@@ -56,7 +56,7 @@ import { getSlidingSyncManager } from '$client/initMatrix';
 import { NotificationBanner } from '$components/notification-banner';
 import { ThemeMigrationBanner } from '$components/theme/ThemeMigrationBanner';
 import { TelemetryConsentBanner } from '$components/telemetry-consent';
-import { useCallSignaling } from '$hooks/useCallSignaling';
+import { useIncomingCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
@@ -862,7 +862,7 @@ function SettingsSyncFeature() {
 }
 
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
-  useCallSignaling();
+  useIncomingCallSignaling();
   return (
     <>
       <SettingsSyncFeature />

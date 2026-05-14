@@ -1,17 +1,17 @@
 import {
+  Avatar,
   Box,
+  Button,
   Dialog,
   Header,
-  IconButton,
   Icon,
+  IconButton,
   Icons,
-  Text,
-  Button,
-  Avatar,
-  config,
   Overlay,
-  OverlayCenter,
   OverlayBackdrop,
+  OverlayCenter,
+  Text,
+  config,
 } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -22,11 +22,7 @@ import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import * as Sentry from '@sentry/react';
 import { useAtom, useSetAtom } from 'jotai';
-import {
-  autoJoinCallIntentAtom,
-  incomingCallRoomIdAtom,
-  mutedCallRoomIdAtom,
-} from '$state/callEmbed';
+import { autoJoinCallIntentAtom, incomingCallAtom, mutedCallRoomIdAtom, type IncomingCall } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { RoomAvatar } from './room-avatar';
 
@@ -34,10 +30,11 @@ const debugLog = createDebugLogger('IncomingCall');
 
 type IncomingCallInternalProps = {
   room: Room;
+  incomingCall: IncomingCall;
   onClose: () => void;
 };
 
-export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProps) {
+export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCallInternalProps) {
   const mx = useMatrixClient();
   const roomName = useRoomName(room);
   const { navigateRoom } = useRoomNavigate();
@@ -45,28 +42,74 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
   const setAutoJoinIntent = useSetAtom(autoJoinCallIntentAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
 
+  const isDirectRing = incomingCall.isDirect && incomingCall.notificationType === 'ring';
+  const isVideoIntent = incomingCall.intentKind === 'video';
+
   const handleAnswer = () => {
-    debugLog.info('call', 'Incoming call answered', { roomId: room.roomId });
+    debugLog.info('call', 'Incoming call answered', {
+      roomId: room.roomId,
+      notificationEventId: incomingCall.notificationEventId,
+      notificationType: incomingCall.notificationType,
+      intent: incomingCall.intentRaw,
+    });
     Sentry.addBreadcrumb({
       category: 'call.signal',
       message: 'Incoming call answered',
-      data: { roomId: room.roomId },
+      data: {
+        roomId: room.roomId,
+        notificationEventId: incomingCall.notificationEventId,
+      },
     });
-    Sentry.metrics.count('sable.call.answered', 1);
+    Sentry.metrics.count('sable.call.answered', 1, {
+      attributes: {
+        type: incomingCall.notificationType,
+        dm: String(incomingCall.isDirect),
+        intent: incomingCall.intentKind,
+      },
+    });
+
     setMutedRoomId(room.roomId);
-    setAutoJoinIntent(room.roomId);
+    setAutoJoinIntent({ roomId: room.roomId, video: isVideoIntent });
     onClose();
     navigateRoom(room.roomId);
   };
 
-  const handleDecline = async () => {
-    debugLog.info('call', 'Incoming call declined', { roomId: room.roomId });
+  const handleDeclineOrIgnore = async () => {
+    const action = isDirectRing ? 'decline' : 'ignore';
+    debugLog.info('call', 'Incoming call dismissed', {
+      roomId: room.roomId,
+      action,
+      notificationEventId: incomingCall.notificationEventId,
+      notificationType: incomingCall.notificationType,
+    });
     Sentry.addBreadcrumb({
       category: 'call.signal',
-      message: 'Incoming call declined',
-      data: { roomId: room.roomId },
+      message: `Incoming call ${action}`,
+      data: {
+        roomId: room.roomId,
+        notificationEventId: incomingCall.notificationEventId,
+      },
     });
-    Sentry.metrics.count('sable.call.declined', 1);
+    Sentry.metrics.count(`sable.call.${action}d`, 1, {
+      attributes: {
+        type: incomingCall.notificationType,
+        dm: String(incomingCall.isDirect),
+      },
+    });
+
+    if (isDirectRing) {
+      try {
+        await mx.sendRtcDecline(room.roomId, incomingCall.notificationEventId);
+      } catch (error) {
+        debugLog.warn('call', 'Failed to send RTC decline event', {
+          roomId: room.roomId,
+          notificationEventId: incomingCall.notificationEventId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        Sentry.metrics.count('sable.call.decline.error', 1);
+      }
+    }
+
     setMutedRoomId(room.roomId);
     onClose();
   };
@@ -84,7 +127,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
         <Box grow="Yes">
           <Text size="H4">Incoming Call</Text>
         </Box>
-        <IconButton size="300" onClick={onClose} radii="300">
+        <IconButton size="300" onClick={handleDeclineOrIgnore} radii="300">
           <Icon src={Icons.Cross} />
         </IconButton>
       </Header>
@@ -104,7 +147,7 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             {roomName}
           </Text>
           <Text priority="400" size="T300" align="Center">
-            Incoming voice chat request
+            {isVideoIntent ? 'Incoming video chat request' : 'Incoming voice chat request'}
           </Text>
         </Box>
 
@@ -113,16 +156,16 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
             variant="Critical"
             fill="Soft"
             style={{ minWidth: '110px' }}
-            onClick={handleDecline}
+            onClick={handleDeclineOrIgnore}
           >
-            <Text size="B400">Decline</Text>
+            <Text size="B400">{isDirectRing ? 'Decline' : 'Ignore'}</Text>
           </Button>
           <Button
             fill="Solid"
             variant="Primary"
             style={{ minWidth: '110px' }}
             onClick={handleAnswer}
-            before={<Icon size="100" src={Icons.Phone} />}
+            before={<Icon size="100" src={isVideoIntent ? Icons.VideoCamera : Icons.Phone} />}
           >
             <Text size="B400">Answer</Text>
           </Button>
@@ -133,13 +176,13 @@ export function IncomingCallInternal({ room, onClose }: IncomingCallInternalProp
 }
 
 export function IncomingCallModal() {
-  const [ringingRoomId, setRingingRoomId] = useAtom(incomingCallRoomIdAtom);
+  const [incomingCall, setIncomingCall] = useAtom(incomingCallAtom);
   const mx = useMatrixClient();
-  const room = ringingRoomId ? mx.getRoom(ringingRoomId) : null;
+  const room = incomingCall ? mx.getRoom(incomingCall.roomId) : null;
 
-  if (!ringingRoomId || !room) return null;
+  if (!incomingCall || !room) return null;
 
-  const close = () => setRingingRoomId(null);
+  const close = () => setIncomingCall(null);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
@@ -147,13 +190,12 @@ export function IncomingCallModal() {
         <FocusTrap
           focusTrapOptions={{
             initialFocus: false,
-            onDeactivate: close,
-            clickOutsideDeactivates: true,
+            clickOutsideDeactivates: false,
             escapeDeactivates: stopPropagation,
           }}
         >
           <div>
-            <IncomingCallInternal room={room} onClose={close} />
+            <IncomingCallInternal room={room} incomingCall={incomingCall} onClose={close} />
           </div>
         </FocusTrap>
       </OverlayCenter>

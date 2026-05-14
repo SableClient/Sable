@@ -208,11 +208,10 @@ export function Direct() {
   // Track timeline activity to trigger re-sorting when messages arrive.
   // Debounced to prevent excessive re-renders on rapid events (reactions, edits, etc.).
   const [activityCounter, setActivityCounter] = useState(0);
-  const directsSetRef = useRef(directs);
   const activityTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  directsSetRef.current = directs;
 
   useEffect(() => {
+    const directRoomIds = Array.from(directs);
     const handleTimeline = () => {
       clearTimeout(activityTimerRef.current);
       activityTimerRef.current = setTimeout(() => {
@@ -221,14 +220,14 @@ export function Direct() {
     };
 
     // Listen to timeline events only for direct message rooms
-    directsSetRef.current.forEach((roomId) => {
+    directRoomIds.forEach((roomId) => {
       const room = mx.getRoom(roomId);
       room?.on(RoomEvent.Timeline, handleTimeline);
     });
 
     return () => {
       clearTimeout(activityTimerRef.current);
-      directsSetRef.current.forEach((roomId) => {
+      directRoomIds.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
       });

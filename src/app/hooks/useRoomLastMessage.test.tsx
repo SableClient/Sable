@@ -236,8 +236,8 @@ describe('getLastMessageText', () => {
 describe('useRoomLastMessage', () => {
   const makeMx = (userId = '@alice:test') => ({
     getUserId: () => userId,
-    on: vi.fn(),
-    off: vi.fn(),
+    on: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
+    off: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
   });
 
   const roomListeners = new Map<string, ((...args: unknown[]) => void)[]>();
@@ -246,12 +246,14 @@ describe('useRoomLastMessage', () => {
     roomId: '!room:test',
     getLiveTimeline: () => ({ getEvents: () => events }),
     getMember: () => null,
-    on: vi.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
-      const list = roomListeners.get(event) ?? [];
-      list.push(handler);
-      roomListeners.set(event, list);
-    }),
-    off: vi.fn(),
+    on: vi
+      .fn<(event: string, handler: (...args: unknown[]) => void) => void>()
+      .mockImplementation((event, handler) => {
+        const list = roomListeners.get(event) ?? [];
+        list.push(handler);
+        roomListeners.set(event, list);
+      }),
+    off: vi.fn<(event: string, handler: (...args: unknown[]) => void) => void>(),
   });
 
   beforeEach(() => {

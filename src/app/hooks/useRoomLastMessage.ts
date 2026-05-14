@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   EventType,
-  MatrixClient,
-  MatrixEvent,
   MatrixEventEvent,
   MsgType,
-  Room,
   RoomEvent as RoomEventEnum,
 } from '$types/matrix-sdk';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 
 const REACTION_EVENT_TYPE: string = EventType.Reaction;

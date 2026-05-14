@@ -489,7 +489,7 @@ export function useTimelineSync({
             setUnreadInfo(getRoomUnreadInfo(room));
           }
 
-          scrollToBottom();
+          scrollToBottom(mEvt.getSender() === mx.getUserId() ? 'instant' : 'smooth');
           lastScrolledAtEventsLengthRef.current = eventsLengthRef.current + 1;
 
           setTimeline((ct) => ({ ...ct }));

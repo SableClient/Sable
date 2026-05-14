@@ -24,6 +24,9 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'callCustomRingtoneName',
   'callCustomRingtoneSizeBytes',
   'callCustomRingtoneDurationMs',
+  'callCustomRingbackName',
+  'callCustomRingbackSizeBytes',
+  'callCustomRingbackDurationMs',
   // Developer / diagnostic
   'developerTools',
   // Sync toggle itself must never be uploaded (it's device-local)

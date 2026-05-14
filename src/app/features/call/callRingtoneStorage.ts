@@ -2,6 +2,7 @@ const DB_NAME = 'sable-call-audio';
 const DB_VERSION = 1;
 const STORE = 'ringtones';
 const CUSTOM_RINGTONE_KEY = 'custom-ringtone';
+const CUSTOM_RINGBACK_KEY = 'custom-ringback';
 
 export type StoredCallRingtone = {
   id: string;
@@ -24,13 +25,14 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function putCustomCallRingtone(
+async function putCustomCallAudio(
+  key: string,
   file: File,
   durationMs: number
 ): Promise<StoredCallRingtone> {
   const db = await openDb();
   const entry: StoredCallRingtone = {
-    id: CUSTOM_RINGTONE_KEY,
+    id: key,
     fileName: file.name,
     mimeType: file.type,
     sizeBytes: file.size,
@@ -49,11 +51,11 @@ export async function putCustomCallRingtone(
   return entry;
 }
 
-export async function getCustomCallRingtone(): Promise<StoredCallRingtone | undefined> {
+async function getCustomCallAudio(key: string): Promise<StoredCallRingtone | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(CUSTOM_RINGTONE_KEY);
+    const req = tx.objectStore(STORE).get(key);
     req.addEventListener('error', () => reject(req.error));
     req.addEventListener('success', () => {
       resolve(req.result as StoredCallRingtone | undefined);
@@ -61,12 +63,30 @@ export async function getCustomCallRingtone(): Promise<StoredCallRingtone | unde
   });
 }
 
-export async function clearCustomCallRingtone(): Promise<void> {
+async function clearCustomCallAudio(key: string): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(CUSTOM_RINGTONE_KEY);
+    tx.objectStore(STORE).delete(key);
     tx.addEventListener('complete', () => resolve());
     tx.addEventListener('error', () => reject(tx.error));
   });
 }
+
+export const putCustomCallRingtone = (file: File, durationMs: number): Promise<StoredCallRingtone> =>
+  putCustomCallAudio(CUSTOM_RINGTONE_KEY, file, durationMs);
+
+export const getCustomCallRingtone = (): Promise<StoredCallRingtone | undefined> =>
+  getCustomCallAudio(CUSTOM_RINGTONE_KEY);
+
+export const clearCustomCallRingtone = (): Promise<void> =>
+  clearCustomCallAudio(CUSTOM_RINGTONE_KEY);
+
+export const putCustomCallRingback = (file: File, durationMs: number): Promise<StoredCallRingtone> =>
+  putCustomCallAudio(CUSTOM_RINGBACK_KEY, file, durationMs);
+
+export const getCustomCallRingback = (): Promise<StoredCallRingtone | undefined> =>
+  getCustomCallAudio(CUSTOM_RINGBACK_KEY);
+
+export const clearCustomCallRingback = (): Promise<void> =>
+  clearCustomCallAudio(CUSTOM_RINGBACK_KEY);

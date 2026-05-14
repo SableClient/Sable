@@ -29,7 +29,10 @@ import {
   resolveOutgoingRingbackToneUrl,
 } from '$features/call/callRingtone';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
-import { getCustomCallRingtone } from '$features/call/callRingtoneStorage';
+import {
+  getCustomCallRingback,
+  getCustomCallRingtone,
+} from '$features/call/callRingtoneStorage';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
@@ -172,19 +175,25 @@ export function useIncomingCallSignaling() {
 
   useEffect(() => {
     let canceled = false;
-    let customToneUrl: string | undefined;
+    let customRingtoneUrl: string | undefined;
+    let customRingbackUrl: string | undefined;
 
     const incoming = incomingAudioRef.current;
     const outgoing = outgoingAudioRef.current;
     if (!incoming || !outgoing) return undefined;
 
     const syncSources = async () => {
-      const needsCustomTone =
-        settings.callRingtoneId === 'custom' || settings.callRingbackTone === 'same-as-ringtone';
-      if (needsCustomTone) {
-        const custom = await getCustomCallRingtone().catch(() => undefined);
-        if (custom?.blob) {
-          customToneUrl = URL.createObjectURL(custom.blob);
+      if (settings.callRingtoneId === 'custom') {
+        const customRingtone = await getCustomCallRingtone().catch(() => undefined);
+        if (customRingtone?.blob) {
+          customRingtoneUrl = URL.createObjectURL(customRingtone.blob);
+        }
+      }
+
+      if (settings.callRingbackTone === 'custom') {
+        const customRingback = await getCustomCallRingback().catch(() => undefined);
+        if (customRingback?.blob) {
+          customRingbackUrl = URL.createObjectURL(customRingback.blob);
         }
       }
 
@@ -199,14 +208,15 @@ export function useIncomingCallSignaling() {
         {
           callRingtoneId: settings.callRingtoneId,
         },
-        customToneUrl
+        customRingtoneUrl
       );
       const outgoingTone = resolveOutgoingRingbackToneUrl(
         {
           callRingtoneId: settings.callRingtoneId,
           callRingbackTone: settings.callRingbackTone,
         },
-        customToneUrl
+        customRingtoneUrl,
+        customRingbackUrl
       );
       const gain = callRingtoneVolumeToGain(settings.callRingtoneVolume);
 
@@ -229,7 +239,8 @@ export function useIncomingCallSignaling() {
 
     return () => {
       canceled = true;
-      if (customToneUrl) URL.revokeObjectURL(customToneUrl);
+      if (customRingtoneUrl) URL.revokeObjectURL(customRingtoneUrl);
+      if (customRingbackUrl) URL.revokeObjectURL(customRingbackUrl);
     };
   }, [settings.callRingtoneId, settings.callRingbackTone, settings.callRingtoneVolume]);
 

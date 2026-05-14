@@ -47,6 +47,22 @@ describe('mergePersistedSettings', () => {
     expect(merged.callRingbackTone).toBe(defaultSettings.callRingbackTone);
   });
 
+  it('migrates legacy ringback presets to new ringback ids', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        callRingtoneId: 'minimal-ping',
+        callRingbackTone: 'same-as-ringtone',
+      })
+    );
+    const mergedSame = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(mergedSame.callRingbackTone).toBe('minimal-ping');
+
+    localStorage.setItem('settings', JSON.stringify({ callRingbackTone: 'default-ringback' }));
+    const mergedDefault = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(mergedDefault.callRingbackTone).toBe('classic-soft');
+  });
+
   it('drops invalid custom ringtone metadata during migration', () => {
     localStorage.setItem(
       'settings',
@@ -54,12 +70,18 @@ describe('mergePersistedSettings', () => {
         callCustomRingtoneName: 'tone.ogg',
         callCustomRingtoneSizeBytes: -5,
         callCustomRingtoneDurationMs: Number.NaN,
+        callCustomRingbackName: 'ringback.ogg',
+        callCustomRingbackSizeBytes: -7,
+        callCustomRingbackDurationMs: Number.NaN,
       })
     );
     const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
     expect(merged.callCustomRingtoneName).toBe('tone.ogg');
     expect(merged.callCustomRingtoneSizeBytes).toBeUndefined();
     expect(merged.callCustomRingtoneDurationMs).toBeNull();
+    expect(merged.callCustomRingbackName).toBe('ringback.ogg');
+    expect(merged.callCustomRingbackSizeBytes).toBeUndefined();
+    expect(merged.callCustomRingbackDurationMs).toBeNull();
   });
 });
 
@@ -99,12 +121,12 @@ describe('sanitizeSettingsDefaults', () => {
     expect(
       sanitizeSettingsDefaults({
         callRingtoneId: 'classic-soft',
-        callRingbackTone: 'default-ringback',
+        callRingbackTone: 'minimal-ping',
         callRingtoneVolume: 73.7,
       })
     ).toEqual({
       callRingtoneId: 'classic-soft',
-      callRingbackTone: 'default-ringback',
+      callRingbackTone: 'minimal-ping',
       callRingtoneVolume: 74,
     });
     expect(

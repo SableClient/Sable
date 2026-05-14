@@ -12,12 +12,15 @@ vi.mock('$state/hooks/settings', () => ({
       incomingCallSoundEnabled: true,
       outgoingRingbackEnabled: true,
       callRingtoneId: 'sable-default',
-      callRingbackTone: 'same-as-ringtone',
+      callRingbackTone: 'sable-default',
       callRingtoneVolume: 80,
       callSoundOverrideGlobalNotifications: false,
       callCustomRingtoneName: undefined,
       callCustomRingtoneSizeBytes: undefined,
       callCustomRingtoneDurationMs: undefined,
+      callCustomRingbackName: undefined,
+      callCustomRingbackSizeBytes: undefined,
+      callCustomRingbackDurationMs: undefined,
     };
     return [values[key], vi.fn<(value: unknown) => void>()] as const;
   },
@@ -25,8 +28,11 @@ vi.mock('$state/hooks/settings', () => ({
 
 vi.mock('$features/call/callRingtoneStorage', () => ({
   getCustomCallRingtone: vi.fn<() => Promise<undefined>>(async () => undefined),
+  getCustomCallRingback: vi.fn<() => Promise<undefined>>(async () => undefined),
   putCustomCallRingtone: vi.fn<() => Promise<void>>(),
+  putCustomCallRingback: vi.fn<() => Promise<void>>(),
   clearCustomCallRingtone: vi.fn<() => Promise<void>>(),
+  clearCustomCallRingback: vi.fn<() => Promise<void>>(),
 }));
 
 describe('CallSoundSettings', () => {
@@ -40,9 +46,11 @@ describe('CallSoundSettings', () => {
     expect(screen.getByText('Ringtone Volume')).toBeInTheDocument();
     expect(screen.getByText('Always Play Call Sound')).toBeInTheDocument();
     expect(screen.getByText('Custom Ringtone')).toBeInTheDocument();
+    expect(screen.getByText('Custom Ringback')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('No custom ringtone imported.')).toBeInTheDocument();
+      expect(screen.getByText('No custom ringback imported.')).toBeInTheDocument();
     });
   });
 });

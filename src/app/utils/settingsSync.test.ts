@@ -40,6 +40,9 @@ describe('NON_SYNCABLE_KEYS', () => {
       'callCustomRingtoneName',
       'callCustomRingtoneSizeBytes',
       'callCustomRingtoneDurationMs',
+      'callCustomRingbackName',
+      'callCustomRingbackSizeBytes',
+      'callCustomRingbackDurationMs',
       'developerTools',
       'settingsSyncEnabled',
     ] as const;

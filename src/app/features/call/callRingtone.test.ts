@@ -36,13 +36,20 @@ describe('callRingtone', () => {
   it('resolves outgoing ringback modes', () => {
     expect(
       resolveOutgoingRingbackToneUrl(
-        { callRingbackTone: 'same-as-ringtone', callRingtoneId: 'minimal-ping' },
+        { callRingbackTone: 'minimal-ping', callRingtoneId: 'minimal-ping' },
         'blob:https://example.test/custom'
       )
     ).toContain('/public/sound/notification.ogg');
     expect(
       resolveOutgoingRingbackToneUrl(
-        { callRingbackTone: 'same-as-ringtone', callRingtoneId: 'custom' },
+        { callRingbackTone: 'custom', callRingtoneId: 'custom' },
+        'blob:https://example.test/custom',
+        'blob:https://example.test/ringback-custom'
+      )
+    ).toBe('blob:https://example.test/ringback-custom');
+    expect(
+      resolveOutgoingRingbackToneUrl(
+        { callRingbackTone: 'custom', callRingtoneId: 'custom' },
         'blob:https://example.test/custom'
       )
     ).toBe('blob:https://example.test/custom');

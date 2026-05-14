@@ -22,9 +22,11 @@ export const CALL_RINGTONE_OPTIONS: CallToneOption<CallRingtoneId>[] = [
 ];
 
 export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingbackTone>[] = [
-  { value: 'same-as-ringtone', label: 'Same As Ringtone' },
-  { value: 'default-ringback', label: 'Default Ringback' },
-  { value: 'silent', label: 'Silent' },
+  { value: 'sable-default', label: 'Sable Default' },
+  { value: 'classic-soft', label: 'Classic Soft Ring' },
+  { value: 'minimal-ping', label: 'Minimal Ping Loop' },
+  { value: 'silent', label: 'Silent (Visual Only)' },
+  { value: 'custom', label: 'Custom File' },
 ];
 
 type ToneSettings = Pick<Settings, 'isNotificationSounds' | 'callSoundOverrideGlobalNotifications'>;
@@ -66,15 +68,17 @@ export const resolveIncomingCallToneUrl = (
 
 export const resolveOutgoingRingbackToneUrl = (
   settings: Pick<Settings, 'callRingbackTone' | 'callRingtoneId'>,
-  customRingtoneUrl?: string
+  customRingtoneUrl?: string,
+  customRingbackUrl?: string
 ): string | null => {
-  if (settings.callRingbackTone === 'silent') return null;
-
-  if (settings.callRingbackTone === 'default-ringback') {
-    return InviteSound;
+  if (settings.callRingbackTone === 'custom') {
+    return customRingbackUrl ?? resolveIncomingCallToneUrl(settings, customRingtoneUrl);
   }
-
-  return resolveIncomingCallToneUrl(settings, customRingtoneUrl);
+  if (settings.callRingbackTone === 'silent') return null;
+  if (settings.callRingbackTone === settings.callRingtoneId) {
+    return resolveIncomingCallToneUrl(settings, customRingtoneUrl);
+  }
+  return resolveBuiltInTone(settings.callRingbackTone);
 };
 
 export const readAudioDurationMs = async (file: Blob): Promise<number> =>

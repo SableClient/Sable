@@ -35,7 +35,7 @@ export type CallRingtoneId =
   | 'minimal-ping'
   | 'silent'
   | 'custom';
-export type CallRingbackTone = 'same-as-ringtone' | 'default-ringback' | 'silent';
+export type CallRingbackTone = CallRingtoneId;
 
 export type ThemeRemoteFavorite = {
   fullUrl: string;
@@ -169,6 +169,9 @@ export interface Settings {
   callCustomRingtoneName?: string;
   callCustomRingtoneSizeBytes?: number;
   callCustomRingtoneDurationMs?: number;
+  callCustomRingbackName?: string;
+  callCustomRingbackSizeBytes?: number;
+  callCustomRingbackDurationMs?: number;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -305,11 +308,14 @@ export const defaultSettings: Settings = {
   outgoingRingbackEnabled: true,
   callRingtoneVolume: 80,
   callRingtoneId: 'sable-default',
-  callRingbackTone: 'same-as-ringtone',
+  callRingbackTone: 'sable-default',
   callSoundOverrideGlobalNotifications: false,
   callCustomRingtoneName: undefined,
   callCustomRingtoneSizeBytes: undefined,
   callCustomRingtoneDurationMs: undefined,
+  callCustomRingbackName: undefined,
+  callCustomRingbackSizeBytes: undefined,
+  callCustomRingbackDurationMs: undefined,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -400,10 +406,18 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     delete parsed.callRingtoneId;
   }
 
+  if (parsed.callRingbackTone === 'same-as-ringtone') {
+    parsed.callRingbackTone = parsed.callRingtoneId ?? defaultSettings.callRingtoneId;
+  } else if (parsed.callRingbackTone === 'default-ringback') {
+    parsed.callRingbackTone = 'classic-soft';
+  }
+
   if (
-    parsed.callRingbackTone !== 'same-as-ringtone' &&
-    parsed.callRingbackTone !== 'default-ringback' &&
-    parsed.callRingbackTone !== 'silent'
+    parsed.callRingbackTone !== 'sable-default' &&
+    parsed.callRingbackTone !== 'classic-soft' &&
+    parsed.callRingbackTone !== 'minimal-ping' &&
+    parsed.callRingbackTone !== 'silent' &&
+    parsed.callRingbackTone !== 'custom'
   ) {
     delete parsed.callRingbackTone;
   }
@@ -421,6 +435,21 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
       parsed.callCustomRingtoneDurationMs < 0)
   ) {
     delete parsed.callCustomRingtoneDurationMs;
+  }
+
+  if (
+    typeof parsed.callCustomRingbackSizeBytes === 'number' &&
+    (!Number.isFinite(parsed.callCustomRingbackSizeBytes) || parsed.callCustomRingbackSizeBytes < 0)
+  ) {
+    delete parsed.callCustomRingbackSizeBytes;
+  }
+
+  if (
+    typeof parsed.callCustomRingbackDurationMs === 'number' &&
+    (!Number.isFinite(parsed.callCustomRingbackDurationMs) ||
+      parsed.callCustomRingbackDurationMs < 0)
+  ) {
+    delete parsed.callCustomRingbackDurationMs;
   }
 }
 
@@ -542,7 +571,11 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         ? val
         : undefined;
     case 'callRingbackTone':
-      return val === 'same-as-ringtone' || val === 'default-ringback' || val === 'silent'
+      return val === 'sable-default' ||
+        val === 'classic-soft' ||
+        val === 'minimal-ping' ||
+        val === 'silent' ||
+        val === 'custom'
         ? val
         : undefined;
     case 'callRingtoneVolume':
@@ -550,6 +583,8 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return Math.max(0, Math.min(100, Math.round(val)));
     case 'callCustomRingtoneSizeBytes':
     case 'callCustomRingtoneDurationMs':
+    case 'callCustomRingbackSizeBytes':
+    case 'callCustomRingbackDurationMs':
       return typeof val === 'number' && Number.isFinite(val) && val >= 0
         ? Math.round(val)
         : undefined;

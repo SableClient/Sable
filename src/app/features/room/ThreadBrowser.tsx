@@ -226,7 +226,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
             onClick={handleJumpClick}
           />
         )}
-        <Box style={{ maxHeight: '200px', overflow: 'auto' }}>
+        <Box direction="Column" style={{ maxHeight: '200px', overflow: 'auto', minHeight: 0 }}>
           <EncryptedContent mEvent={rootEvent}>
             {() => {
               if (rootEvent.isRedacted()) {

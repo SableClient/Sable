@@ -1,5 +1,5 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Header,
@@ -18,11 +18,8 @@ import {
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { nicknamesAtom } from '$state/nicknames';
 import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
@@ -37,21 +34,9 @@ import {
   UsernameBold,
   Reply,
 } from '$components/message';
-import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import type { GetContentCallback } from '$types/matrix/room';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
@@ -68,54 +53,8 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const useAuthentication = useMediaAuthentication();
   const { navigateRoom } = useRoomNavigate();
   const nicknames = useAtomValue(nicknamesAtom);
-  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const spoilerClickHandler = useSpoilerClickHandler();
-
-  const linkifyOpts = useMemo<LinkifyOpts>(
-    () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        settingsLinkBaseUrl,
-        (href: string) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
-    }),
-    [mx, room.roomId, nicknames, mentionClickHandler, settingsLinkBaseUrl]
-  );
-
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl,
-        linkifyOpts,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        useAuthentication,
-        nicknames,
-      }),
-    [
-      mx,
-      room,
-      linkifyOpts,
-      mentionClickHandler,
-      spoilerClickHandler,
-      useAuthentication,
-      nicknames,
-      settingsLinkBaseUrl,
-    ]
-  );
 
   const handleJumpClick: MouseEventHandler = useCallback(
     (evt) => {
@@ -149,8 +88,6 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const displayName =
     getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
   const senderAvatarMxc = getMemberAvatarMxc(room, senderId);
-  const getContent = (() => rootEvent.getContent()) as GetContentCallback;
-
   const localReplyCount = thread.events.filter(
     (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
   ).length;
@@ -228,30 +165,26 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
             onClick={handleJumpClick}
           />
         )}
-        <Box style={{ maxHeight: '200px', overflow: 'auto', flexShrink: 0 }}>
-          <EncryptedContent mEvent={rootEvent}>
-            {() => {
-              if (rootEvent.isRedacted()) {
-                return <RedactedContent />;
-              }
-
-              return (
-                <RenderMessageContent
-                  displayName={displayName}
-                  msgType={rootEvent.getContent().msgtype ?? ''}
-                  ts={rootEvent.getTs()}
-                  getContent={getContent}
-                  edited={!!rootEvent.replacingEvent()}
-                  mediaAutoLoad={mediaAutoLoad}
-                  urlPreview={urlPreview}
-                  htmlReactParserOptions={htmlReactParserOptions}
-                  linkifyOpts={linkifyOpts}
-                  outlineAttachment
-                />
-              );
-            }}
-          </EncryptedContent>
-        </Box>
+        {(() => {
+          if (rootEvent.isRedacted()) return <RedactedContent />;
+          const content = rootEvent.getContent();
+          const body = typeof content?.body === 'string' ? content.body : '';
+          if (!body) return null;
+          return (
+            <Text
+              size="T300"
+              priority="400"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {body}
+            </Text>
+          );
+        })()}
         {replyCount > 0 && (
           <Box gap="100" alignItems="Center" style={{ marginTop: config.space.S200 }}>
             <Text size="T200" priority="300" style={{ flexShrink: 0 }}>

@@ -55,16 +55,8 @@ export const createCallEmbed = (
   const intent = CallEmbed.getIntent(dm, ongoing, pref?.video);
   const widget = CallEmbed.getWidget(mx, room, intent, themeKind, elementCallUrl);
   const controlState = pref && new CallControlState(pref.microphone, pref.video, pref.sound);
-  const suppressOutgoingPickupSound = CallEmbed.startingCall(intent);
 
-  const embed = new CallEmbed(
-    mx,
-    room,
-    widget,
-    container,
-    controlState,
-    suppressOutgoingPickupSound
-  );
+  const embed = new CallEmbed(mx, room, widget, container, controlState);
 
   return embed;
 };

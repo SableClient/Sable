@@ -5,7 +5,7 @@ import {
   getTimelineRelativeIndex,
   getTimelineEvent,
 } from '$utils/timeline';
-import { reactionOrEditEvent, isMembershipChanged } from '$utils/room';
+import { isMembershipChanged, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { inSameDay, minuteDifference } from '$utils/time';
 
 export interface UseProcessedTimelineOptions {
@@ -37,6 +37,19 @@ export interface ProcessedEvent {
   collapsed: boolean;
   willRenderNewDivider: boolean;
   willRenderDayDivider: boolean;
+}
+
+/** Raw timeline indices for skipped events (reactions, edits, …) have no row; walk backward to a visible one. */
+export function getProcessedRowIndexForRawTimelineIndex(
+  processedEvents: ProcessedEvent[],
+  startRawIndex: number
+): { rowIndex: number; focusRawIndex: number } | undefined {
+  if (startRawIndex < 0) return undefined;
+  for (let i = startRawIndex; i >= 0; i -= 1) {
+    const rowIndex = processedEvents.findIndex((e) => e.itemIndex === i);
+    if (rowIndex >= 0) return { rowIndex, focusRawIndex: i };
+  }
+  return undefined;
 }
 
 const MESSAGE_EVENT_TYPES = new Set([
@@ -119,7 +132,13 @@ export function useProcessedTimeline({
         }
       }
 
-      if (!skipThreadFilter && threadRootId !== undefined && threadRootId !== mEventId) return acc;
+      if (
+        !skipThreadFilter &&
+        threadRootId !== undefined &&
+        threadRootId !== mEventId &&
+        isThreadRelationEvent(mEvent, threadRootId)
+      )
+        return acc;
 
       const isReactionOrEdit = reactionOrEditEvent(mEvent);
       if (isReactionOrEdit) return acc;

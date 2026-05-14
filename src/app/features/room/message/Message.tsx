@@ -33,7 +33,13 @@ import {
   Username,
   UsernameBold,
 } from '$components/message';
-import { canEditEvent, getEditedEvent, getEventEdits, getMemberAvatarMxc } from '$utils/room';
+import {
+  canEditEvent,
+  getEditedEvent,
+  getEventEdits,
+  getMemberAvatarMxc,
+  isThreadRelationEvent,
+} from '$utils/room';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
@@ -284,7 +290,7 @@ const Pronouns = as<
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   // if no language is given use english
   const selectedLanguages = (getSettings().filterPronounsLanguages ?? ['en'])
-    .map((lang) => lang.trim().toLowerCase())
+    .map((lang: string) => lang.trim().toLowerCase())
     .filter(Boolean);
 
   /**
@@ -447,11 +453,12 @@ function MessageInternal(
   // Avatars
   // Prefer the room-scoped member avatar (m.room.member) over the global profile
   // avatar so per-room avatar overrides are respected in the timeline.
+  const memberAvatarMxc = getMemberAvatarMxc(room, senderId);
   const avatarUrl = useMemo(() => {
     if (collapse) return undefined;
-    const mxc = pmp?.avatar_url || getMemberAvatarMxc(room, senderId) || profile.avatarUrl;
+    const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
     return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
-  }, [pmp, collapse, profile.avatarUrl, senderId, mx, room, useAuthentication]);
+  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
 
@@ -626,12 +633,18 @@ function MessageInternal(
   const mentionClickHandler = useMentionClickHandler(room.roomId);
 
   const forwardedNotice = useMemo(() => {
+    const isSameRoomForward = (originalRoomId: string | undefined) =>
+      originalRoomId !== undefined && originalRoomId === room.roomId;
+
     if (messageForwardedProps?.isForwarded) {
+      const originalRoomId = messageForwardedProps.originalRoomId;
       return {
         label: messageForwardedProps.originalEventPrivate
           ? 'Forwarded private message'
-          : 'Forwarded from another room',
-        roomId: messageForwardedProps.originalRoomId,
+          : isSameRoomForward(originalRoomId)
+            ? 'Forwarded from earlier in this room'
+            : 'Forwarded from another room',
+        roomId: originalRoomId,
         eventId: messageForwardedProps.originalEventId,
         ts: messageForwardedProps.originalTimestamp ?? 0,
         showLink: !messageForwardedProps.originalEventPrivate,
@@ -639,9 +652,12 @@ function MessageInternal(
     }
 
     if (msc2723ForwardedMessageProps) {
+      const originalRoomId = msc2723ForwardedMessageProps.room_id;
       return {
-        label: 'Forwarded from another room',
-        roomId: msc2723ForwardedMessageProps.room_id,
+        label: isSameRoomForward(originalRoomId)
+          ? 'Forwarded from earlier in this room'
+          : 'Forwarded from another room',
+        roomId: originalRoomId,
         eventId: msc2723ForwardedMessageProps.event_id,
         ts: msc2723ForwardedMessageProps.origin_server_ts ?? 0,
         showLink: true,
@@ -649,7 +665,7 @@ function MessageInternal(
     }
 
     return null;
-  }, [messageForwardedProps, msc2723ForwardedMessageProps]);
+  }, [messageForwardedProps, msc2723ForwardedMessageProps, room.roomId]);
 
   const handleResendClick: MouseEventHandler<HTMLButtonElement> = useCallback(
     (evt) => {
@@ -839,7 +855,7 @@ function MessageInternal(
     setMobileOptionsOpen(true);
   });
 
-  const isThreadedMessage = mEvent.threadRootId !== undefined;
+  const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
   const isStickerMessage = mEvent.getType() === 'm.sticker';
 
   const evtId = mEvent.getId()!;

@@ -25,7 +25,7 @@ import { useGetMemberPowerLevel, usePowerLevels } from '$hooks/usePowerLevels';
 import { VirtualTile } from '$components/virtualizer';
 import { MemberTile } from '$components/member-tile';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { getMxIdLocalPart, getMxIdServer } from '$utils/matrix';
+import { getMxIdLocalPart } from '$utils/matrix';
 import { ServerBadge } from '$components/server-badge';
 import { useDebounce } from '$hooks/useDebounce';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
@@ -44,6 +44,7 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { getMouseEventCords } from '$utils/dom';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,

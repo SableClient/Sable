@@ -4,6 +4,7 @@ import {
   Box,
   config,
   Icon,
+  IconButton,
   Icons,
   Input,
   Line,
@@ -39,7 +40,7 @@ import { factoryRoomIdByActivity } from '$utils/sort';
 import { nameInitials } from '$utils/common';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useListFocusIndex } from '$hooks/useListFocusIndex';
-import { getMxIdLocalPart, getMxIdServer, guessDmRoomUserId } from '$utils/matrix';
+import { getMxIdLocalPart, guessDmRoomUserId } from '$utils/matrix';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
@@ -49,6 +50,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { KeySymbol } from '$utils/key-symbol';
 import { isMacOS } from '$utils/user-agent';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
+import { getMxIdServer } from '$utils/mxIdHelper';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -121,10 +123,20 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   },
 };
 
-type SearchProps = {
-  requestClose: () => void;
+export type RoomSearchPickRoomConfig = {
+  title: string;
+  eligibleRoomIds: readonly string[];
+  onPickRoom: (roomId: string) => void;
+  errorMessage?: string | null;
+  busy?: boolean;
 };
-export function Search({ requestClose }: SearchProps) {
+
+export type RoomSearchModalProps = {
+  requestClose: () => void;
+  pickRoom?: RoomSearchPickRoomConfig;
+};
+
+export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -144,8 +156,23 @@ export function Search({ requestClose }: SearchProps) {
   const spaces = useSpaces(mx, allRoomsAtom);
   const directs = useDirects(mx, allRoomsAtom, mDirects);
 
-  const topActiveRooms = useTopActiveRooms(searchRoomType, rooms, directs, spaces);
-  const targetRooms = useSearchTargetRooms(searchRoomType, rooms, directs, spaces);
+  const eligibleSet = useMemo(
+    () => (pickRoom ? new Set(pickRoom.eligibleRoomIds) : null),
+    [pickRoom]
+  );
+
+  const rawTopActiveRooms = useTopActiveRooms(searchRoomType, rooms, directs, spaces);
+  const rawTargetRooms = useSearchTargetRooms(searchRoomType, rooms, directs, spaces);
+
+  const topActiveRooms = useMemo(() => {
+    if (!eligibleSet) return rawTopActiveRooms;
+    return rawTopActiveRooms.filter((id) => eligibleSet.has(id));
+  }, [eligibleSet, rawTopActiveRooms]);
+
+  const targetRooms = useMemo(() => {
+    if (!eligibleSet) return rawTargetRooms;
+    return rawTargetRooms.filter((id) => eligibleSet.has(id));
+  }, [eligibleSet, rawTargetRooms]);
 
   const getTargetStr: SearchItemStrGetter<string> = useCallback(
     (roomId: string) => {
@@ -180,7 +207,12 @@ export function Search({ requestClose }: SearchProps) {
     ? makeHighlightRegex(result.query.split(' '))
     : undefined;
 
-  const openRoomId = (roomId: string, isSpace: boolean) => {
+  const handleActivateRoom = (roomId: string, isSpace: boolean) => {
+    if (pickRoom) {
+      if (pickRoom.busy) return;
+      pickRoom.onPickRoom(roomId);
+      return;
+    }
     if (isSpace) navigateSpace(roomId);
     else navigateRoom(roomId);
     requestClose();
@@ -210,7 +242,7 @@ export function Search({ requestClose }: SearchProps) {
   const handleInputKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
     const roomId = roomsToRender[listFocus.index];
     if (isKeyHotkey('enter', evt) && roomId) {
-      openRoomId(roomId, spaces.includes(roomId));
+      handleActivateRoom(roomId, spaces.includes(roomId));
       return;
     }
     if (isKeyHotkey('arrowdown', evt)) {
@@ -229,7 +261,7 @@ export function Search({ requestClose }: SearchProps) {
     const roomId = target.getAttribute('data-room-id');
     const isSpace = target.getAttribute('data-space') === 'true';
     if (!roomId) return;
-    openRoomId(roomId, isSpace);
+    handleActivateRoom(roomId, isSpace);
   };
 
   useEffect(() => {
@@ -260,6 +292,35 @@ export function Search({ requestClose }: SearchProps) {
           }}
         >
           <Modal size="400" style={{ maxHeight: toRem(400), borderRadius: config.radii.R500 }}>
+            {pickRoom && (
+              <Box
+                shrink="No"
+                direction="Row"
+                alignItems="Center"
+                justifyContent="SpaceBetween"
+                style={{
+                  padding: `${config.space.S400} ${config.space.S400} ${config.space.S200}`,
+                }}
+              >
+                <Text size="H4">{pickRoom.title}</Text>
+                <IconButton
+                  size="300"
+                  onClick={requestClose}
+                  radii="300"
+                  aria-label="Close"
+                  disabled={pickRoom.busy}
+                >
+                  <Icon src={Icons.Cross} />
+                </IconButton>
+              </Box>
+            )}
+            {pickRoom?.errorMessage ? (
+              <Box shrink="No" style={{ padding: `0 ${config.space.S400} ${config.space.S200}` }}>
+                <Text size="T200" color="Critical600">
+                  {pickRoom.errorMessage}
+                </Text>
+              </Box>
+            ) : null}
             <Box
               shrink="No"
               style={{ padding: config.space.S400, paddingBottom: 0 }}
@@ -271,10 +332,11 @@ export function Search({ requestClose }: SearchProps) {
                 variant="Background"
                 radii="400"
                 outlined
-                placeholder="Search"
+                placeholder={pickRoom ? 'Search rooms' : 'Search'}
                 before={<Icon size="200" src={Icons.Search} />}
                 onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
+                disabled={pickRoom?.busy}
               />
             </Box>
             <Box grow="Yes">
@@ -288,12 +350,26 @@ export function Search({ requestClose }: SearchProps) {
                   gap="100"
                 >
                   <Text size="H6" align="Center">
-                    {result ? 'No Match Found' : `No Rooms'}`}
+                    {pickRoom
+                      ? result
+                        ? 'No Match Found'
+                        : pickRoom.eligibleRoomIds.length === 0
+                          ? 'No rooms to forward to'
+                          : 'No rooms match this filter'
+                      : result
+                        ? 'No Match Found'
+                        : 'No Rooms'}
                   </Text>
                   <Text size="T200" align="Center">
-                    {result
-                      ? `No match found for "${result.query}".`
-                      : `You do not have any Rooms to display yet.`}
+                    {pickRoom
+                      ? result
+                        ? `No match found for "${result.query}".`
+                        : pickRoom.eligibleRoomIds.length === 0
+                          ? 'You cannot send messages in any joined room yet.'
+                          : 'Try another search, or use # for group rooms and @ for direct messages.'
+                      : result
+                        ? `No match found for "${result.query}".`
+                        : 'You do not have any Rooms to display yet.'}
                   </Text>
                 </Box>
               )}
@@ -334,6 +410,7 @@ export function Search({ requestClose }: SearchProps) {
                           data-room-id={roomId}
                           data-space={room.isSpaceRoom()}
                           onClick={handleRoomClick}
+                          disabled={pickRoom?.busy}
                           variant={listFocus.index === index ? 'Primary' : 'Surface'}
                           aria-pressed={listFocus.index === index}
                           radii="400"
@@ -416,10 +493,19 @@ export function Search({ requestClose }: SearchProps) {
             <Line size="300" />
             <Box shrink="No" justifyContent="Center" style={{ padding: config.space.S200 }}>
               <Text size="T200" priority="300">
-                Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
-                <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
-                {' / '}
-                <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
+                {pickRoom ? (
+                  <>
+                    Type <b>#</b> for rooms and <b>@</b> for direct messages. Choose a room to
+                    forward this message.
+                  </>
+                ) : (
+                  <>
+                    Type <b>#</b> for rooms, <b>@</b> for DMs and <b>*</b> for spaces. Hotkey:{' '}
+                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + k</b>
+                    {' / '}
+                    <b>{isMacOS() ? KeySymbol.Command : 'Ctrl'} + f</b>
+                  </>
+                )}
               </Text>
             </Box>
           </Modal>
@@ -454,5 +540,9 @@ export function SearchModalRenderer() {
     )
   );
 
-  return opened && <Search requestClose={() => setOpen(false)} />;
+  return opened && <RoomSearchModal requestClose={() => setOpen(false)} />;
+}
+
+export function Search(props: { requestClose: () => void }) {
+  return <RoomSearchModal requestClose={props.requestClose} />;
 }

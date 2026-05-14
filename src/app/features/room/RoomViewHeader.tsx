@@ -82,6 +82,7 @@ import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
+import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
 
 import { DirectInvitePrompt } from '$components/direct-invite-prompt';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -439,8 +440,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
       // 1. Events that ARE thread roots (have isThreadRoot = true or have replies)
       // 2. Events that are IN threads (have threadRootId)
       events.forEach((event: MatrixEvent) => {
-        // Check if this event is a thread root
-        if (event.isThreadRoot) {
+        // Check if this event is an actual thread root. `isThreadRoot` can be
+        // polluted by locally-created Thread shells, so require the server bundle.
+        if (hasThreadRootAggregation(event)) {
           const rootId = event.getId();
           if (rootId && !room.getThread(rootId)) {
             threadRoots.add(rootId);
@@ -449,7 +451,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
         // Check if this event is a reply in a thread
         const { threadRootId } = event;
-        if (threadRootId && !room.getThread(threadRootId)) {
+        if (
+          threadRootId &&
+          isThreadRelationEvent(event, threadRootId) &&
+          !room.getThread(threadRootId)
+        ) {
           threadRoots.add(threadRootId);
         }
       });
@@ -476,8 +482,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
     // Listen for new timeline events (including pagination)
     const handleTimelineEvent = (mEvent: MatrixEvent) => {
-      // Check if this event is a thread root
-      if (mEvent.isThreadRoot) {
+      // Check if this event is an actual thread root. `isThreadRoot` can be
+      // polluted by locally-created Thread shells, so require the server bundle.
+      if (hasThreadRootAggregation(mEvent)) {
         const rootId = mEvent.getId();
         if (rootId && !room.getThread(rootId)) {
           const rootEvent = room.findEventById(rootId);
@@ -489,7 +496,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
       // Check if this is a reply in a thread
       const { threadRootId } = mEvent;
-      if (threadRootId && !room.getThread(threadRootId)) {
+      if (
+        threadRootId &&
+        isThreadRelationEvent(mEvent, threadRootId) &&
+        !room.getThread(threadRootId)
+      ) {
         const rootEvent = room.findEventById(threadRootId);
         if (rootEvent) {
           room.createThread(threadRootId, rootEvent, [], false);

@@ -20,6 +20,7 @@ import {
   Text,
   toRem,
 } from 'folds';
+import type { CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
@@ -45,6 +46,8 @@ import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import { CutoutCard } from '$components/cutout-card';
 import { PowerColorBadge, PowerIcon } from '$components/power';
 import { EventType } from '$types/matrix-sdk';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
+import * as css from './styles.css';
 
 type SelfDemoteAlertProps = {
   power: number;
@@ -146,7 +149,24 @@ function SharedPowerAlert({ power, onCancel, onChange }: SharedPowerAlertProps) 
   );
 }
 
-export function PowerChip({ userId }: { userId: string }) {
+export function PowerChip({
+  userId,
+  innerColor,
+  cardColor,
+  textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
+}: {
+  userId: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
+}) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const room = useRoom();
   const space = useSpaceOptionally();
@@ -241,7 +261,11 @@ export function PowerChip({ userId }: { userId: string }) {
               <Box
                 direction="Column"
                 gap="100"
-                style={{ padding: config.space.S100, maxWidth: toRem(200) }}
+                style={{
+                  padding: config.space.S100,
+                  maxWidth: toRem(200),
+                  backgroundColor: innerColor,
+                }}
               >
                 {error && (
                   <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
@@ -270,6 +294,11 @@ export function PowerChip({ userId }: { userId: string }) {
                       radii="300"
                       aria-disabled={changing || !canChangePowers || !canAssignPower}
                       aria-pressed={selected}
+                      className={css.UserHeroMenuItem}
+                      style={heroMenuItemStyle(
+                        { backgroundColor: menuItemBg, color: textColor },
+                        chipHoverBrightness
+                      )}
                       before={<PowerColorBadge color={powerTag.color} />}
                       after={
                         powerTagIconSrc ? (
@@ -287,13 +316,18 @@ export function PowerChip({ userId }: { userId: string }) {
                   );
                 })}
               </Box>
-              <Line size="300" />
-              <div style={{ padding: config.space.S100 }}>
+              <Line size="300" color={textColor} />
+              <div style={{ padding: config.space.S100, backgroundColor: innerColor }}>
                 <MenuItem
                   variant="Surface"
                   fill="None"
                   size="300"
                   radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    { backgroundColor: menuItemBg, color: textColor },
+                    chipHoverBrightness
+                  )}
                   onClick={() => {
                     if (room.isSpaceRoom()) {
                       openSpaceSettings(
@@ -319,8 +353,19 @@ export function PowerChip({ userId }: { userId: string }) {
         }
       >
         <Chip
-          variant={error ? 'Critical' : 'SurfaceVariant'}
+          variant={error ? 'Critical' : cardColor ? undefined : 'SurfaceVariant'}
           radii="Pill"
+          className={
+            error ? undefined : cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover
+          }
+          style={
+            error
+              ? undefined
+              : heroMenuItemStyle(
+                  cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+                  chipHoverBrightness
+                )
+          }
           before={
             cords ? (
               <Icon size="50" src={Icons.ChevronBottom} />

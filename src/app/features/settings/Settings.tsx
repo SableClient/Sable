@@ -249,29 +249,31 @@ export function Settings({
       nav={
         screenSize === ScreenSize.Mobile && visibleSection !== null ? undefined : (
           <PageNav size="300">
-            <PageNavHeader className={settingsHeader}>
+            <PageNavHeader className={settingsHeader} size="600">
               <Box grow="Yes" gap="200">
-                <Avatar size="200" radii="300">
-                  <UserAvatar
-                    userId={userId}
-                    src={avatarUrl}
-                    renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
-                  />
-                </Avatar>
-                <Text size="H4" truncate>
-                  Settings
-                </Text>
-              </Box>
-              <Box shrink="No">
-                {visibleSection === null && (
-                  <IconButton
-                    aria-label="Close settings"
-                    onClick={handleRequestClose}
-                    variant="Background"
-                  >
-                    <Icon src={Icons.Cross} />
-                  </IconButton>
-                )}
+                <Box grow="Yes" alignItems="Center" gap="200">
+                  <Avatar size="200" radii="300">
+                    <UserAvatar
+                      userId={userId}
+                      src={avatarUrl}
+                      renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
+                    />
+                  </Avatar>
+                  <Text size="H4" truncate>
+                    Settings
+                  </Text>
+                </Box>
+                <Box shrink="No">
+                  {visibleSection === null && (
+                    <IconButton
+                      aria-label="Close settings"
+                      onClick={handleRequestClose}
+                      variant="Background"
+                    >
+                      <Icon src={Icons.Cross} />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
             </PageNavHeader>
             <Box grow="Yes" direction="Column">

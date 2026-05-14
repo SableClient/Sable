@@ -5,6 +5,7 @@ export const EventReaders = style([
   DefaultReset,
   {
     height: '100%',
+    width: '280px',
   },
 ]);
 
@@ -18,4 +19,6 @@ export const Header = style({
 export const Content = style({
   paddingLeft: config.space.S200,
   paddingBottom: config.space.S400,
+  width: '100%',
+  minWidth: 0,
 });

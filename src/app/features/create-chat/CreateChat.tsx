@@ -39,6 +39,9 @@ export function CreateChat({ defaultUserId }: CreateChatProps) {
           visibility: Visibility.Private,
           preset: Preset.TrustedPrivateChat,
           initial_state: initialState,
+          creation_content: {
+            additional_creators: [userId],
+          },
         });
 
         addRoomIdToMDirect(mx, result.room_id, userId);

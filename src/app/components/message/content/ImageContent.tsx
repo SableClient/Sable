@@ -19,13 +19,13 @@ import {
   TooltipProvider,
   as,
   config,
+  toRem,
 } from 'folds';
 import classNames from 'classnames';
 import { BlurhashCanvas } from 'react-blurhash';
 import FocusTrap from 'focus-trap-react';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IImageInfo } from '$types/matrix/common';
-import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { bytesToSize } from '$utils/common';
@@ -36,6 +36,24 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ModalWide } from '$styles/Modal.css';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
+import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+
+function thumbnailDimsForMaxEdge(
+  maxEdge: number,
+  w?: number,
+  h?: number
+): { tw: number; th: number } {
+  const safeEdge = Math.max(1, Math.round(maxEdge));
+  const iw = typeof w === 'number' && Number.isFinite(w) && w > 0 ? w : safeEdge;
+  const ih = typeof h === 'number' && Number.isFinite(h) && h > 0 ? h : safeEdge;
+  const longest = Math.max(iw, ih);
+  if (longest <= safeEdge) return { tw: Math.round(iw), th: Math.round(ih) };
+  const scale = safeEdge / longest;
+  return {
+    tw: Math.max(1, Math.round(iw * scale)),
+    th: Math.max(1, Math.round(ih * scale)),
+  };
+}
 
 type RenderViewerProps = {
   src: string;
@@ -62,6 +80,10 @@ export type ImageContentProps = {
   spoilerReason?: string;
   renderViewer: (props: RenderViewerProps) => ReactNode;
   renderImage: (props: RenderImageProps) => ReactNode;
+  matrixThumbnailMaxEdge?: number;
+  mediaLayout?: 'default' | 'contained';
+  containedStripMinPx?: number;
+  fillsPreviewSlot?: boolean;
 };
 export const ImageContent = as<'div', ImageContentProps>(
   (
@@ -78,23 +100,34 @@ export const ImageContent = as<'div', ImageContentProps>(
       spoilerReason,
       renderViewer,
       renderImage,
+      matrixThumbnailMaxEdge,
+      mediaLayout = 'default',
+      containedStripMinPx,
+      fillsPreviewSlot,
       ...props
     },
     ref
   ) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
-    const blurHash = validBlurHash(info?.[MATRIX_BLUR_HASH_PROPERTY_NAME]);
+    const blurHash = validBlurHash(info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]);
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);
     const [viewer, setViewer] = useState(false);
+    const [viewerFullSrc, setViewerFullSrc] = useState<string | null>(null);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
     const [isHovered, setIsHovered] = useState(false);
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
         if (url.startsWith('http')) return url;
+
+        if (typeof matrixThumbnailMaxEdge === 'number' && matrixThumbnailMaxEdge > 0 && !encInfo) {
+          const { tw, th } = thumbnailDimsForMaxEdge(matrixThumbnailMaxEdge, info?.w, info?.h);
+          const thumbUrl = mxcUrlToHttp(mx, url, useAuthentication, tw, th, 'scale', false);
+          if (thumbUrl) return thumbUrl;
+        }
 
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
@@ -105,8 +138,32 @@ export const ImageContent = as<'div', ImageContentProps>(
           return URL.createObjectURL(fileContent);
         }
         return mediaUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+      }, [mx, url, useAuthentication, mimeType, encInfo, matrixThumbnailMaxEdge, info?.w, info?.h])
     );
+
+    useEffect(() => {
+      if (!viewer) {
+        setViewerFullSrc(null);
+        return;
+      }
+      if (
+        typeof matrixThumbnailMaxEdge !== 'number' ||
+        matrixThumbnailMaxEdge <= 0 ||
+        encInfo ||
+        url.startsWith('http')
+      ) {
+        return;
+      }
+      let cancelled = false;
+      void (async () => {
+        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        if (!mediaUrl || cancelled) return;
+        setViewerFullSrc(mediaUrl);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [viewer, matrixThumbnailMaxEdge, encInfo, url, mx, useAuthentication]);
 
     const handleLoad = () => {
       setLoad(true);
@@ -126,12 +183,36 @@ export const ImageContent = as<'div', ImageContentProps>(
     }, [autoPlay, loadSrc]);
 
     const hasDimensions = typeof info?.w === 'number' && typeof info?.h === 'number';
+    const isContained = mediaLayout === 'contained';
+    const fillsSlot = Boolean(fillsPreviewSlot && isContained);
+    const containedReserveStrip =
+      !fillsSlot &&
+      isContained &&
+      (srcState.status === AsyncStatus.Loading ||
+        srcState.status === AsyncStatus.Error ||
+        error ||
+        (srcState.status === AsyncStatus.Success && !load));
+
+    const rootClass = isContained ? css.ContainedMediaRoot : css.RelativeBase;
+    const stripMin = containedStripMinPx ?? 56;
+    const intrinsicSizingStyle = fillsSlot
+      ? {}
+      : isContained
+        ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
+        : hasDimensions
+          ? { aspectRatio: `${info!.w} / ${info!.h}` }
+          : { minHeight: '150px' };
+
+    const fillPreviewSlotStyle = fillsSlot
+      ? ({ width: '100%', height: '100%' } as const)
+      : undefined;
 
     return (
       <Box
-        className={classNames(css.RelativeBase, className)}
+        className={classNames(rootClass, className)}
         style={{
-          ...(hasDimensions ? { aspectRatio: `${info.w} / ${info.h}` } : { minHeight: '150px' }),
+          ...fillPreviewSlotStyle,
+          ...intrinsicSizingStyle,
           ...style,
         }}
         {...props}
@@ -156,7 +237,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                   onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
                 >
                   {renderViewer({
-                    src: srcState.data,
+                    src: viewerFullSrc ?? srcState.data,
                     alt: body,
                     requestClose: () => setViewer(false),
                   })}
@@ -196,7 +277,7 @@ export const ImageContent = as<'div', ImageContentProps>(
         {srcState.status === AsyncStatus.Success && (
           <Box
             className={classNames(
-              hasDimensions ? css.AbsoluteContainer : undefined,
+              hasDimensions && !isContained ? css.AbsoluteContainer : undefined,
               blurred && css.Blur
             )}
             style={{ width: '100%' }}

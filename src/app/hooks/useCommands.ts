@@ -497,7 +497,19 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
           const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
-          await mx.sendStateEvent(room.roomId, EventType.RoomMember, content, mx.getSafeUserId());
+          const updatedContent: RoomMemberEventContent = { ...content };
+          const withDisplay = updatedContent as RoomMemberEventContent & { displayname?: string };
+          if (nick == null || nick === '') {
+            delete withDisplay.displayname;
+          } else {
+            withDisplay.displayname = nick;
+          }
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomMember,
+            updatedContent,
+            mx.getSafeUserId()
+          );
         },
       },
       [Command.AddPerMessageProfileToAccount]: {
@@ -632,28 +644,41 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
         exe: async (payload) => {
           const pid: string = splitWithSpace(payload)[0] ?? '';
           const proxy: string = splitWithSpace(payload)[1] ?? '';
-          pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
+          await pkitcmdHandler.handleMessage(`pk;member "${pid}" proxy ${proxy}`, true);
         },
       },
       [Command.MyRoomAvatar]: {
         name: Command.MyRoomAvatar,
         description: 'Change profile picture in current room. Example /myroomavatar mxc://xyzabc',
         exe: async (payload) => {
-          let newAvatar: string | undefined = payload.trim();
-          if (newAvatar.length === 0) {
-            // no avatar, reset to global
-            newAvatar = profile.avatarUrl;
-          } else if (!newAvatar.match(/^mxc:\/\/\S+$/)) {
-            // bad mxc
-            return;
-          }
+          const trimmed = payload.trim();
+          const isRemove = trimmed.length === 0;
           const mEvent = room
             .getLiveTimeline()
             .getState(EventTimeline.FORWARDS)
             ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
           const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
-          await mx.sendStateEvent(room.roomId, EventType.RoomMember, content, mx.getSafeUserId());
+          const updatedContent: RoomMemberEventContent = { ...content };
+          if (isRemove) {
+            // Reset to global avatar
+            const globalAvatar = mx.getUser(mx.getSafeUserId())?.avatarUrl ?? undefined;
+            (updatedContent as RoomMemberEventContent & { avatar_url?: string }).avatar_url =
+              globalAvatar;
+          } else {
+            if (!trimmed.match(/^mxc:\/\/\S+$/)) {
+              // bad mxc
+              return;
+            }
+            (updatedContent as RoomMemberEventContent & { avatar_url?: string }).avatar_url =
+              trimmed;
+          }
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomMember,
+            updatedContent,
+            mx.getSafeUserId()
+          );
         },
       },
       [Command.ConvertToDm]: {
@@ -1595,7 +1620,6 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
       navigateRoom,
       room,
       profile.displayName,
-      profile.avatarUrl,
       pkitcmdHandler,
       developerTools,
       enableMSC4268CMD,

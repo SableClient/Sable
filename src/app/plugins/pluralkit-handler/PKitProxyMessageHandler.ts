@@ -54,7 +54,9 @@ export class PKitProxyMessageHandler {
       this.succInit = true;
     } catch (err) {
       this.succInit = false;
-      throw new Error(`failed to init pmp proxy handler: ${String(err)}`, { cause: err });
+      throw new Error(`failed to init pmp proxy handler: ${String(err)}`, {
+        cause: err,
+      });
     }
   }
 
@@ -63,7 +65,7 @@ export class PKitProxyMessageHandler {
    * @param message the message to check
    */
   public isAProxiedMessage(message: string): boolean {
-    if (!this.succInit) throw new Error('PK proxy message handler is not initialized');
+    if (!this.succInit) return false;
     return this.proxiesAssocs.some((assoc) => assoc.regex.test(message));
   }
 
@@ -73,7 +75,8 @@ export class PKitProxyMessageHandler {
    * @returns the matching Per-Message-Profile, if any
    */
   public async getPmpBasedOnMessage(message: string): Promise<PerMessageProfile | undefined> {
-    if (!this.succInit) await this.init();
+    // Always refresh so newly-added proxies apply immediately.
+    await this.init();
     // check if the message matches our formats
     // maybe a bit unsafe, as we are evaluating regex that aren't necessarily by us, could be _maybe_ manipulated
     const profileId = this.proxiesAssocs.find((assoc) => assoc.regex.test(message))?.profileId;
@@ -89,7 +92,7 @@ export class PKitProxyMessageHandler {
    * @memberof PKitProxyMessageHandler
    */
   public stripProxyFromMessage(message: string): string | undefined {
-    if (!this.succInit) throw new Error('PK proxy message handler is not initialized');
+    if (!this.succInit) return undefined;
     let m;
     this.proxiesAssocs.forEach((assoc) => {
       const match = assoc.regex.exec(message);

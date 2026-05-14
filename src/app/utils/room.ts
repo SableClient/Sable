@@ -7,6 +7,7 @@ import type {
   IPowerLevelsContent,
   IPushRule,
   IPushRules,
+  IThreadBundledRelationship,
   MatrixClient,
   MatrixEvent,
   Room,
@@ -15,12 +16,12 @@ import type {
   StateEvents,
 } from '$types/matrix-sdk';
 import {
-  ConditionKind,
   EventTimeline,
   EventType,
   JoinRule,
   NotificationCountType,
   PushProcessor,
+  PushRuleActionName,
   RelationType,
   MsgType,
   KnownMembership,
@@ -178,15 +179,25 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
-export const isMutedRule = (rule: IPushRule) =>
-  // Check for empty actions (new spec) or dont_notify (deprecated)
-  (rule.actions.length === 0 || (rule.actions[0] as unknown as string) === 'dont_notify') &&
-  rule.conditions?.[0]?.kind === ConditionKind.EventMatch;
+const hasNotifyPushAction = (actions: IPushRule['actions']): boolean =>
+  actions.some((a) => typeof a === 'string' && a === PushRuleActionName.Notify);
 
-export const findMutedRule = (overrideRules: IPushRule[], roomId: string) =>
-  overrideRules.find((rule) => rule.rule_id === roomId && isMutedRule(rule));
+const findRoomMuteOverrideRule = (
+  overrideRules: IPushRule[] | undefined,
+  roomId: string
+): IPushRule | undefined =>
+  overrideRules?.find(
+    (rule) =>
+      rule.rule_id === roomId && rule.rule_id.startsWith('!') && !hasNotifyPushAction(rule.actions)
+  );
 
 export const getNotificationType = (mx: MatrixClient, roomId: string): NotificationType => {
+  const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
+    ?.global?.override;
+  if (findRoomMuteOverrideRule(overrideRules, roomId)) {
+    return NotificationType.Mute;
+  }
+
   let roomPushRule: IPushRule | undefined;
   try {
     roomPushRule = mx.getRoomPushRule('global', roomId);
@@ -195,11 +206,7 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
   }
 
   if (!roomPushRule) {
-    const overrideRules = mx.getAccountData(EventType.PushRules)?.getContent<IPushRules>()
-      ?.global?.override;
-    if (!overrideRules) return NotificationType.Default;
-
-    return findMutedRule(overrideRules, roomId) ? NotificationType.Mute : NotificationType.Default;
+    return NotificationType.Default;
   }
 
   if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
@@ -254,6 +261,7 @@ export const roomHaveNotification = (room: Room): boolean => {
 };
 
 export const roomHaveUnread = (mx: MatrixClient, room: Room) => {
+  if (getNotificationType(mx, room.roomId) === NotificationType.Mute) return false;
   const userId = mx.getUserId();
   if (!userId) return false;
   const readUpToId = room.getEventReadUpTo(userId);
@@ -287,11 +295,21 @@ type UnreadInfoOptions = {
   mDirects?: Set<string>;
 };
 
+const unreadInfoFixupInProgress = new WeakSet<Room>();
+
 export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadInfo => {
+  if (getNotificationType(room.client, room.roomId) === NotificationType.Mute) {
+    return { roomId: room.roomId, highlight: 0, total: 0 };
+  }
+
   const userId = room.client.getUserId();
-  if (userId && options?.applyFixup) {
-    // Reconcile known notification-count drift (notably with Sliding Sync / mixed receipts).
-    room.fixupNotifications(userId);
+  if (userId && options?.applyFixup && !unreadInfoFixupInProgress.has(room)) {
+    unreadInfoFixupInProgress.add(room);
+    try {
+      room.fixupNotifications(userId);
+    } finally {
+      unreadInfoFixupInProgress.delete(room);
+    }
   }
 
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
@@ -587,15 +605,6 @@ export const decryptAllTimelineEvent = async (mx: MatrixClient, timeline: EventT
   }
 };
 
-export const getReactionContent = (eventId: string, key: string, shortcode?: string) => ({
-  'm.relates_to': {
-    event_id: eventId,
-    key,
-    rel_type: 'm.annotation',
-  },
-  shortcode,
-});
-
 export const getEventReactions = (timelineSet: EventTimelineSet, eventId: string) =>
   timelineSet.relations.getChildEventsForEvent(
     eventId,
@@ -669,6 +678,48 @@ export const reactionOrEditEvent = (mEvent: MatrixEvent): boolean => {
   if (mEvent.getContent()['m.new_content'] !== undefined) return true;
 
   return false;
+};
+
+export const isThreadRelationEvent = (mEvent: MatrixEvent, threadRootId?: string): boolean => {
+  const relation =
+    mEvent.getRelation?.() ??
+    (
+      mEvent.getWireContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'] ??
+    (
+      mEvent.getContent?.() as {
+        'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+      }
+    )?.['m.relates_to'];
+
+  return (
+    relation?.rel_type === (RelationType.Thread as string) &&
+    (threadRootId === undefined || relation.event_id === threadRootId)
+  );
+};
+
+export const hasThreadRootAggregation = (mEvent: MatrixEvent): boolean =>
+  (mEvent.getServerAggregatedRelation?.<IThreadBundledRelationship>(RelationType.Thread as string)
+    ?.count ?? 0) > 0;
+
+/**
+ * Timeline rows skip reactions, edits, and other relation-only events.  When jumping
+ * to a reply target, unwrap to the event that is actually rendered (root of an
+ * edit chain, message for a reaction annotation, etc.).
+ */
+export const unwrapRelationJumpTarget = (room: Room, eventId: string, maxHops = 24): string => {
+  let current = eventId;
+  for (let hop = 0; hop < maxHops; hop += 1) {
+    const ev = room.findEventById(current);
+    if (!ev) return current;
+    if (!reactionOrEditEvent(ev)) return current;
+    const related = ev.getRelation()?.event_id;
+    if (typeof related !== 'string' || related === current) return current;
+    current = related;
+  }
+  return current;
 };
 
 export const getMentionContent = (userIds: string[], room: boolean): IMentions => {

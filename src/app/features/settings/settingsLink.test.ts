@@ -37,11 +37,47 @@ describe('settingsLink', () => {
     expect(
       parseSettingsLink(
         'https://app.example',
+        `https://app.example/settings/general?focus=composer-formatting-toolbar&${SETTINGS_LINK_ACTION_PARAM}=${SETTINGS_LINK_ACTION_SETTINGS}`
+      )
+    ).toEqual({ section: 'general', focus: 'composer-formatting-toolbar' });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
         'https://app.example/settings/account?focus=display-name&moe.sable.client.action=settings&hello=world'
       )
     ).toEqual({ section: 'account', focus: 'display-name' });
 
     expect(parseSettingsLink('https://app.example', 'https://app.example/home/')).toBeUndefined();
+  });
+
+  it('accepts the incoming inline image height focus ids', () => {
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=incoming-inline-images-default-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'incoming-inline-images-default-height',
+    });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=incoming-inline-images-max-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'incoming-inline-images-max-height',
+    });
+    expect(
+      parseSettingsLink(
+        'https://app.example',
+        'https://app.example/settings/appearance?focus=link-preview-image-max-height'
+      )
+    ).toEqual({
+      section: 'appearance',
+      focus: 'link-preview-image-max-height',
+    });
   });
 
   it('parses cross-base settings links only when the explicit action marker is present', () => {

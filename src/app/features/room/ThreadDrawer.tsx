@@ -1,6 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config } from 'folds';
+import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config, toRem } from 'folds';
 import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
@@ -23,7 +23,13 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from '$plugins/react-custom-html-parser';
-import { getEditedEvent, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
+import {
+  getEditedEvent,
+  getMemberDisplayName,
+  isThreadRelationEvent,
+  reactionOrEditEvent,
+  unwrapRelationJumpTarget,
+} from '$utils/room';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -49,12 +55,17 @@ import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { useMessageEdit } from '$hooks/useMessageEdit';
-import type { ProcessedEvent } from '$hooks/timeline/useProcessedTimeline';
-import { useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import {
+  useProcessedTimeline,
+  getProcessedRowIndexForRawTimelineIndex,
+  type ProcessedEvent,
+} from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import * as css from './ThreadDrawer.css';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -71,7 +82,10 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
   const thread = room.getThread(threadRootId);
   const fromThread = thread?.events ?? [];
   const filteredFromThread = fromThread.filter(
-    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    (ev) =>
+      ev.getId() !== threadRootId &&
+      !reactionOrEditEvent(ev) &&
+      isThreadRelationEvent(ev, threadRootId)
   );
   if (filteredFromThread.length > 0) {
     return filteredFromThread;
@@ -82,7 +96,9 @@ export function getThreadReplyEvents(room: Room, threadRootId: string): MatrixEv
     .getEvents()
     .filter(
       (ev) =>
-        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
 }
 
@@ -301,7 +317,10 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     // thread.events is still empty (classic sync path; server-side was already
     // populated by paginateEventTimeline inside updateThreadMetadata).
     const hasRepliesInThread = currThread.events.some(
-      (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+      (ev) =>
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
     if (hasRepliesInThread) return;
 
@@ -311,9 +330,9 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       .getEvents()
       .filter(
         (ev) =>
-          ev.threadRootId === threadRootId &&
           ev.getId() !== threadRootId &&
-          !reactionOrEditEvent(ev)
+          !reactionOrEditEvent(ev) &&
+          isThreadRelationEvent(ev, threadRootId)
       );
     if (liveEvents.length > 0) {
       // thread.addEvents() is typed as void but is internally async; schedule
@@ -338,7 +357,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     const isEventInThread = (mEvent: MatrixEvent): boolean => {
       // Direct thread message or the root itself
-      if (mEvent.threadRootId === threadRootId || mEvent.getId() === threadRootId) {
+      if (mEvent.getId() === threadRootId || isThreadRelationEvent(mEvent, threadRootId)) {
         return true;
       }
 
@@ -350,7 +369,8 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
           const targetEvent = room.findEventById(targetEventId);
           if (
             targetEvent &&
-            (targetEvent.threadRootId === threadRootId || targetEvent.getId() === threadRootId)
+            (targetEvent.getId() === threadRootId ||
+              isThreadRelationEvent(targetEvent, threadRootId))
           ) {
             return true;
           }
@@ -627,18 +647,32 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     (evt) => {
       const targetId = evt.currentTarget.getAttribute('data-event-id');
       if (!targetId) return;
-      const isRoot = targetId === threadRootId;
-      const isInReplies = processedEventsRef.current.some((e) => e.id === targetId);
+      let anchorId = unwrapRelationJumpTarget(room, targetId);
+      const threadLive = thread?.timelineSet.getLiveTimeline();
+      const threadEvents = threadLive?.getEvents();
+      const rawIndex = threadEvents?.findIndex((e) => e.getId() === anchorId) ?? -1;
+      if (rawIndex >= 0) {
+        const nearest = getProcessedRowIndexForRawTimelineIndex(
+          processedEventsRef.current,
+          rawIndex
+        );
+        if (nearest) {
+          const rowEv = processedEventsRef.current[nearest.rowIndex];
+          if (rowEv) anchorId = rowEv.id;
+        }
+      }
+      const isRoot = anchorId === threadRootId;
+      const isInReplies = processedEventsRef.current.some((e) => e.id === anchorId);
       if (!isRoot && !isInReplies) return;
-      setJumpToEventId(targetId);
+      setJumpToEventId(anchorId);
       setTimeout(() => setJumpToEventId(undefined), 2500);
       const el = drawerRef.current;
       if (el) {
-        const target = el.querySelector(`[data-message-id="${targetId}"]`);
+        const target = el.querySelector(`[data-message-id="${anchorId}"]`);
         target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     },
-    [threadRootId]
+    [threadRootId, room, thread]
   );
 
   // Map jumpToEventId to a focusItem index for useTimelineEventRenderer highlighting
@@ -704,13 +738,40 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   );
   const latestThreadEventId = processedEvents.at(-1)?.id ?? rootEvent?.getId();
 
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  useEffect(() => {
+    setCurWidth(threadSidebarWidth);
+  }, [threadSidebarWidth]);
+
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [curHeight, setCurHeight] = useState(threadRootHeight);
+  useEffect(() => {
+    setCurHeight(threadRootHeight);
+  }, [threadRootHeight]);
   return (
     <Box
-      ref={drawerRef}
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
       direction="Column"
       shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
     >
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={threadSidebarWidth}
+          setSidebarWidth={setThreadSidebarWidth}
+          minValue={150}
+          maxValue={600}
+          isReversed
+        />
+      )}
       {/* Header */}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
@@ -734,38 +795,48 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
       {/* Thread root message */}
       {rootEvent && (
-        <Scroll
-          variant="Background"
-          visibility="Hover"
-          direction="Vertical"
-          size="300"
-          hideTrack
-          style={{
-            maxHeight: '200px',
-            height: 'fit-content',
-            flexShrink: 0,
-          }}
-        >
-          <Box
-            className={css.messageList}
-            direction="Column"
-            style={{
-              padding: `${config.space.S200} 0 ${config.space.S100} 0`,
-            }}
-          >
-            {renderMatrixEvent(
-              rootEvent.getType(),
-              typeof rootEvent.getStateKey() === 'string',
-              rootEvent.getId()!,
-              rootEvent,
-              processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
-              thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
-              false
-            )}
+        <Box className={css.threadRootShell}>
+          <Box className={css.threadRootScrollShadow}>
+            <Scroll
+              variant="Background"
+              visibility="Hover"
+              direction="Vertical"
+              size="300"
+              hideTrack
+              style={{
+                height: toRem(curHeight),
+                flexShrink: 0,
+              }}
+            >
+              <Box
+                className={css.messageList}
+                direction="Column"
+                style={{
+                  padding: `${config.space.S200} 0 ${config.space.S100} 0`,
+                }}
+              >
+                {renderMatrixEvent(
+                  rootEvent.getType(),
+                  typeof rootEvent.getStateKey() === 'string',
+                  rootEvent.getId()!,
+                  rootEvent,
+                  processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
+                  thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
+                  false
+                )}
+              </Box>
+            </Scroll>
           </Box>
-        </Scroll>
+          <SidebarResizer
+            setCurWidth={setCurHeight}
+            sidebarWidth={threadRootHeight}
+            setSidebarWidth={setThreadRootHeight}
+            minValue={60}
+            maxValue={700}
+            topSided
+          />
+        </Box>
       )}
-
       {/* Replies */}
       <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
         <Scroll

@@ -31,6 +31,8 @@ import { roomUploadAtomFamily } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
 import { useMediaConfig } from '$hooks/useMediaConfig';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
@@ -397,6 +399,11 @@ export function UploadCardRenderer({
   const spoilerClickHandler = useSpoilerClickHandler();
   const useAuthentication = useMediaAuthentication();
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, roomId, {
@@ -404,8 +411,19 @@ export function UploadCardRenderer({
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
       }),
-    [linkifyOpts, mx, roomId, settingsLinkBaseUrl, spoilerClickHandler, useAuthentication]
+    [
+      linkifyOpts,
+      mx,
+      roomId,
+      settingsLinkBaseUrl,
+      spoilerClickHandler,
+      useAuthentication,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
+    ]
   );
   return (
     <UploadCard

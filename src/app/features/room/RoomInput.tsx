@@ -1,6 +1,7 @@
 import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
 import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+
 import { isKeyHotkey } from 'is-hotkey';
 import type {
   IContent,
@@ -10,6 +11,7 @@ import type {
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -22,7 +24,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  Line,
   Menu,
   MenuItem,
   Overlay,
@@ -46,7 +47,6 @@ import {
   resetEditor,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
-  Toolbar,
   toPlainText,
   trimCustomHtml,
   UserMentionAutocomplete,
@@ -59,7 +59,13 @@ import {
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
+  getLinks,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
+  replaceWithElement,
+  BlockType,
 } from '$components/editor';
+import { plainToEditorInput } from '$components/editor/input';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
@@ -85,7 +91,7 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, reactionOrEditEvent } from '$utils/room';
+import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent } from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
@@ -104,6 +110,7 @@ import {
   delayedEventsSupportedAtom,
   roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
 import {
   sendDelayedMessage,
@@ -111,7 +118,7 @@ import {
   computeDelayMs,
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
-import { timeHourMinute, timeDayMonthYear } from '$utils/time';
+import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
@@ -124,9 +131,17 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
+import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
+import {
+  getImagePackReferencesForMxc,
+  getImagePackReferencesForMxcWrappedInMap,
+} from '$utils/msc4459helper';
+import { ImageUsage } from '$plugins/custom-emoji';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
@@ -143,6 +158,7 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
+import * as prefix from '$unstable/prefixes';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
@@ -150,7 +166,10 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
   const thread = room.getThread(threadRootId);
   const threadEvents: MatrixEvent[] = thread?.events ?? [];
   const filtered = threadEvents.filter(
-    (ev) => ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+    (ev) =>
+      ev.getId() !== threadRootId &&
+      !reactionOrEditEvent(ev) &&
+      isThreadRelationEvent(ev, threadRootId)
   );
   if (filtered.length > 0) {
     return filtered[filtered.length - 1]!.getId() ?? threadRootId;
@@ -162,10 +181,12 @@ const getLatestThreadEventId = (room: Room, threadRootId: string): string => {
     .getEvents()
     .filter(
       (ev) =>
-        ev.threadRootId === threadRootId && ev.getId() !== threadRootId && !reactionOrEditEvent(ev)
+        ev.getId() !== threadRootId &&
+        !reactionOrEditEvent(ev) &&
+        isThreadRelationEvent(ev, threadRootId)
     );
   if (liveEvents.length > 0) {
-    return liveEvents[liveEvents.length - 1]!.getId() ?? threadRootId;
+    return liveEvents.at(-1)!.getId() ?? threadRootId;
   }
   return threadRootId;
 };
@@ -180,10 +201,11 @@ const getReplyContent = (replyDraft: IReplyDraft | undefined, room?: Room): IEve
     relatesTo.event_id = replyDraft.relation.event_id;
     relatesTo.rel_type = RelationType.Thread;
 
-    // Check if this is a reply to a specific message in the thread
+    // If the user explicitly clicked "reply" on a message (including the thread root),
+    // we must set is_falling_back=false and target that message directly.
     // (replyDraft.body being empty means it's just a seeded thread draft)
-    if (replyDraft.body && replyDraft.eventId !== replyDraft.relation.event_id) {
-      // Explicit reply to a specific message — per spec, is_falling_back must be false
+    if (replyDraft.body) {
+      // Explicit reply — per spec, is_falling_back must be false
       relatesTo['m.in_reply_to'] = {
         event_id: replyDraft.eventId,
       };
@@ -233,11 +255,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
-    const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
+
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const commands = useCommands(mx, room);
+    const imagePacksUsedRef = useRef(new SerializableMap<string, MSC4459ImagePackReference>());
     /**
      * handle pluralkit-style messages
      */
@@ -284,7 +307,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const imagePackRooms: Room[] = useImagePackRooms(roomId, roomToParents);
 
-    const [toolbar, setToolbar] = useSetting(settingsAtom, 'editorToolbar');
     const [showAudioRecorder, setShowAudioRecorder] = useState(false);
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef(0);
@@ -293,7 +315,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       useState<AutocompleteQuery<AutocompletePrefix>>();
     const [isQuickTextReact, setQuickTextReact] = useState(false);
 
-    const sendTypingStatus = useTypingStatusUpdater(mx, roomId);
+    const sendTypingStatus = useTypingStatusUpdater(mx, roomId, { disabled: !!threadRootId });
 
     const [inputKey, setInputKey] = useState(0);
     const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
@@ -363,6 +385,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+    const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
+    const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
     useElementSizeObserver(
@@ -505,7 +529,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     const handleSendUpload = async (uploads: UploadSuccess[]) => {
-      const plainText = toPlainText(editor.children, isMarkdown).trim();
+      const plainText = toPlainText(editor.children).trim();
 
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
@@ -537,10 +561,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // We intentionally mutate the objects here to avoid unnecessary copying
           // mutating should be unproblematic here, since contents isn't a react component,
           // or used for rendering
-          c['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-            perMessageProfile,
-            false
-          );
+          c[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+            convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
         });
       }
 
@@ -718,8 +740,26 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * the plain text we will send
        */
       let serializedChildren = editor.children;
+      if (commandName) {
+        // Strip the empty text node and command node from the beginning of the first paragraph
+        const firstPara = serializedChildren[0];
+        if (
+          firstPara &&
+          'type' in firstPara &&
+          firstPara.type === BlockType.Paragraph &&
+          firstPara.children.length >= 2
+        ) {
+          serializedChildren = [
+            {
+              ...firstPara,
+              children: firstPara.children.slice(2),
+            },
+            ...serializedChildren.slice(1),
+          ];
+        }
+      }
       const outgoingTransformContext = {
-        isMarkdown,
+        isMarkdown: true,
         settingsLinkBaseUrl,
       };
 
@@ -728,19 +768,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
       });
 
-      let plainText = toPlainText(serializedChildren, isMarkdown, true, nicknameReplacement).trim();
+      let plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
+
       /**
        * the html we will send
        */
       let customHtml = trimCustomHtml(
         toMatrixCustomHTML(serializedChildren, {
-          allowTextFormatting: true,
-          allowBlockMarkdown: isMarkdown,
-          allowInlineMarkdown: isMarkdown,
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
+          forEmote: commandName === Command.Me,
         })
       );
+
       let msgType = MsgType.Text;
 
       // quick text react
@@ -751,7 +791,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       // check if its a pk command
       if (pkCompatEnable && PKitCommandMessageHandler.isPKCommand(plainText)) {
-        pluralkitCmdMessageHandler.handleMessage(plainText);
+        await pluralkitCmdMessageHandler.handleMessage(plainText);
         resetEditor(editor); // clear the editor
         return; // don't do anything besides handling the command
       }
@@ -787,6 +827,38 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       if (plainText === '') return;
 
+      // PluralKit-style proxy wrappers (per-message profile proxies) must be stripped
+      // *before* building `content`, otherwise we end up sending the wrapper verbatim.
+      let proxiedPerMessageProfile:
+        | Awaited<ReturnType<(typeof pluralkitProxyMessageHandler)['getPmpBasedOnMessage']>>
+        | undefined;
+      if (pmpProxyingEnable) {
+        proxiedPerMessageProfile =
+          await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText);
+        if (proxiedPerMessageProfile) {
+          const stripped = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText);
+          if (stripped !== undefined) {
+            // Re-run the normal outgoing pipeline on the stripped content so the message
+            // goes through the same transforms/parsers as any other message.
+            serializedChildren = plainToEditorInput(stripped);
+
+            outgoingMessageTransforms.forEach((transform) => {
+              if (!transform.shouldApply(serializedChildren, outgoingTransformContext)) return;
+              serializedChildren = transform.apply(serializedChildren, outgoingTransformContext);
+            });
+
+            plainText = toPlainText(serializedChildren, true, nicknameReplacement).trim();
+            customHtml = trimCustomHtml(
+              toMatrixCustomHTML(serializedChildren, {
+                stripNickname: true,
+                nickNameReplacement: nicknameReplacement,
+                forEmote: commandName === Command.Me,
+              })
+            );
+          }
+        }
+      }
+
       const body = plainText;
       const formattedBody = customHtml;
       const mentionData = getMentions(mx, roomId, editor);
@@ -801,6 +873,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
 
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        imagePacksUsedRef.current.toJSON();
+
+      const links = getLinks(serializedChildren);
+      content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
+      links?.forEach((link) =>
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+          matched_url: link,
+        })
+      );
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -812,26 +894,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
        * This allows the server to apply the correct profile-based transformations (e.g. font size adjustments) when processing the message,
        * and also allows clients to display an accurate preview of how the message will look with the profile applied while it's being composed.
        */
-      const perMessageProfile =
-        pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText)
-          ? await pluralkitProxyMessageHandler.getPmpBasedOnMessage(plainText)
-          : await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
-
-      if (pmpProxyingEnable && pluralkitProxyMessageHandler.isAProxiedMessage(plainText))
-        plainText = pluralkitProxyMessageHandler.stripProxyFromMessage(plainText) ?? plainText;
+      let perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
+      if (pmpProxyingEnable) {
+        if (proxiedPerMessageProfile) perMessageProfile = proxiedPerMessageProfile;
+      }
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-          perMessageProfile,
-          perMessageProfile.name.trim() !== ''
-        );
+        content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+          convertPerMessageProfileToBeeperFormat(
+            perMessageProfile,
+            perMessageProfile.name.trim() !== ''
+          );
 
         if (perMessageProfile.name.trim() !== '') {
           // if a per-message profile is used, it must per spec include a fallback
-          const prefix = `${perMessageProfile.name}: `;
+          const pmpPrefix = `${perMessageProfile.name}: `;
 
-          if (!content.body.startsWith(prefix)) {
+          if (!content.body.startsWith(pmpPrefix)) {
             // to prevent double-prefixing when the fallback is already present
-            content.body = prefix + content.body;
+            content.body = pmpPrefix + content.body;
           }
 
           /**
@@ -846,7 +926,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             // we don't have a formatted body, but we need one
             content.format = 'org.matrix.custom.html';
-            content.formatted_body = `${htmlPrefix}${plainText}`;
+            const escapedBody = sanitizeText(plainText).replaceAll('\n', '<br/>');
+            content.formatted_body = `${htmlPrefix}${escapedBody}`;
           }
         }
       }
@@ -861,6 +942,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditor(editor);
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
+        imagePacksUsedRef.current.clear();
         if (threadRootId) {
           // Re-seed the thread reply draft so the next message also goes to the thread.
           setReplyDraft({
@@ -885,12 +967,28 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
           }
+          setSendError(undefined);
           invalidate();
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
           resetInput();
-        } catch {
-          // Network/server error — leave editor and scheduled state intact for retry
+        } catch (e: unknown) {
+          if (
+            e instanceof MatrixError &&
+            (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
+              e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
+          ) {
+            const maxDelay =
+              (e.data as { max_delay?: number })?.max_delay ??
+              e.data?.['org.matrix.msc4140.max_delay'];
+            if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+            const maxDelayDays = maxDelay / daysToMs(1);
+            setSendError(
+              `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
+            );
+          } else {
+            setSendError('Failed to schedule message. Please try again.');
+          }
         }
       } else if (editingScheduledDelayId) {
         try {
@@ -960,7 +1058,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       replyEvent,
       mx,
       roomId,
-      isMarkdown,
       canSendReaction,
       pkCompatEnable,
       replyDraft,
@@ -982,6 +1079,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      setServerMaxDelayMs,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1109,8 +1207,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
-      editor.insertNode(createEmoticonElement(key, shortcode));
+      const emoticonEl = createEmoticonElement(key, shortcode);
+      if (autocompleteQuery) {
+        replaceWithElement(editor, autocompleteQuery.range, emoticonEl);
+      } else {
+        editor.insertNode(emoticonEl);
+      }
+      if (!imagePacksUsedRef.current.has(key)) {
+        const imgPkRef = getImagePackReferencesForMxc(key, mx, ImageUsage.Emoticon, room);
+        if (imgPkRef?.room_id && imgPkRef?.shortcode) imagePacksUsedRef.current.set(key, imgPkRef);
+      }
       moveCursor(editor);
+      handleCloseAutocomplete();
     };
 
     const handleStickerSelect = async (mxc: string, shortcode: string, label: string) => {
@@ -1122,11 +1230,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         await getImageUrlBlob(stickerUrl)
       );
 
-      const content: StickerEventContent & ReplyEventContent & IContent = {
+      const content: StickerEventContent & ReplyEventContent & IContent & IGenericMSC4459 = {
         body: label,
         url: mxc,
         info,
       };
+
+      // add the image pack reference
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       /**
        * the currently with the room associated per-message profile, if any, so that it can be included in the message content when sending.
@@ -1136,11 +1248,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const perMessageProfile = await getCurrentlyUsedPerMessageProfileForRoom(mx, roomId);
 
       if (perMessageProfile) {
-        content['com.beeper.per_message_profile'] = convertPerMessageProfileToBeeperFormat(
-          perMessageProfile,
-          false
-        );
+        content[prefix.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] =
+          convertPerMessageProfileToBeeperFormat(perMessageProfile, false);
       }
+      content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
+        getImagePackReferencesForMxcWrappedInMap(mxc, mx, ImageUsage.Sticker, room);
 
       if (replyDraft) {
         content['m.relates_to'] = getReplyContent(replyDraft, room);
@@ -1239,6 +1351,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             editor={editor}
             query={autocompleteQuery}
             requestClose={handleCloseAutocomplete}
+            onEmoticonSelected={handleEmoticonSelect}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.Reaction &&
@@ -1297,6 +1410,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       onClick={() => {
                         setScheduledTime(null);
                         setEditingScheduledDelayId(null);
+                        setSendError(undefined);
                       }}
                       variant="SurfaceVariant"
                       size="300"
@@ -1312,6 +1426,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
                     </Box>
+                  </Box>
+                </div>
+              )}
+              {sendError && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                  >
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      {sendError}
+                    </Text>
                   </Box>
                 </div>
               )}
@@ -1454,17 +1581,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 )}
               </IconButton>
 
-              <IconButton
-                variant="SurfaceVariant"
-                size="300"
-                radii="300"
-                title={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                aria-pressed={toolbar}
-                aria-label={toolbar ? 'Hide Toolbar' : 'Show Toolbar'}
-                onClick={() => setToolbar(!toolbar)}
-              >
-                <Icon src={toolbar ? Icons.AlphabetUnderline : Icons.Alphabet} />
-              </IconButton>
+              <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
+
               <UseStateProvider initial={undefined}>
                 {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
                   <PopOut
@@ -1637,14 +1755,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               </Box>
             </>
           }
-          bottom={
-            toolbar && (
-              <div>
-                <Line variant="SurfaceVariant" size="300" />
-                <Toolbar />
-              </div>
-            )
-          }
+          bottom={<MarkdownFormattingToolbarBottom />}
         />
         {showSchedulePicker && (
           <SchedulePickerDialog
@@ -1654,6 +1765,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             onSubmit={(date) => {
               setScheduledTime(date);
               setShowSchedulePicker(false);
+              setSendError(undefined);
             }}
           />
         )}

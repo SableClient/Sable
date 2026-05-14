@@ -30,7 +30,15 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
+import {
+  UrlPreviewCard,
+  UrlPreviewHolder,
+  ClientPreview,
+  ThemePreviewUrlCard,
+  TweakPreviewUrlCard,
+  youtubeUrl,
+} from './url-preview';
+import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -63,6 +71,10 @@ const getMediaType = (url: string) => {
   return null;
 };
 
+const isSableChatEmbedCandidate = (url: string): boolean =>
+  /^https:\/\//i.test(url) &&
+  (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
+
 const CAPTION_STYLE = { marginTop: config.space.S200 };
 
 function RenderMessageContentInternal({
@@ -85,6 +97,7 @@ function RenderMessageContentInternal({
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
   const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
@@ -115,6 +128,17 @@ function RenderMessageContentInternal({
       );
       if (filteredUrls.length === 0) return undefined;
 
+      const themePreviewUrls = themeChatSableWidgets
+        ? filteredUrls.filter(
+            (u) => /^https:\/\//i.test(u) && /\.preview\.sable\.css(\?|#|$)/i.test(u)
+          )
+        : [];
+      const themeToRender = themePreviewUrls.filter((u) => /^https:\/\//i.test(u));
+
+      const tweakCandidateUrls = themeChatSableWidgets
+        ? filteredUrls.filter((u) => isHttpsFullSableCssUrl(u))
+        : [];
+
       const analyzed = filteredUrls.map((url) => ({
         url,
         type: getMediaType(url),
@@ -124,11 +148,20 @@ function RenderMessageContentInternal({
       const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
         <UrlPreviewHolder>
+          {themeToRender.map((url) => (
+            <ThemePreviewUrlCard key={`theme:${url}`} url={url} />
+          ))}
+          {tweakCandidateUrls.map((url) => (
+            <TweakPreviewUrlCard key={`tweak:${url}`} url={url} />
+          ))}
           {toRender.map((item) => {
             const { url, type } = item;
+            if (themeToRender.includes(url)) return null;
+            if (tweakCandidateUrls.includes(url)) return null;
             if (type) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
+            if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
             if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview key={url} url={url} />;
             }
@@ -140,7 +173,7 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [multiplePreviews, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
+    [multiplePreviews, themeChatSableWidgets, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
   );
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (
@@ -157,7 +190,7 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
+  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
@@ -304,11 +337,15 @@ function RenderMessageContentInternal({
     const info = (content as { info?: { mimetype?: string } }).info;
     const isGif =
       info?.mimetype === 'image/gif' ||
+      info?.mimetype === 'image/apng' ||
       info?.mimetype === 'image/webp' ||
       (content.body as string)?.toLowerCase().endsWith('.gif') ||
+      (content.body as string)?.toLowerCase().endsWith('.apng') ||
       (content.body as string)?.toLowerCase().endsWith('.webp') ||
       (typeof (content as { url?: string }).url === 'string' &&
-        (content as { url?: string }).url?.toLowerCase().includes('gif'));
+        ((content as { url?: string }).url?.toLowerCase().endsWith('.gif') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.apng') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.webp')));
 
     return renderCaptionedAttachment(
       <MImage

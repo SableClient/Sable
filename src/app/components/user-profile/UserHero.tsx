@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   Avatar,
   Box,
+  color as standardColors,
   Icon,
   Icons,
   Modal,
@@ -28,6 +30,8 @@ import { ImageViewer } from '$components/image-viewer';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { UserAvatar } from '$components/user-avatar';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
+import { useUserProfile } from '$hooks/useUserProfile';
+import { shadeColor, areColorsTooSimilar } from '$utils/shadeColor';
 import * as css from './styles.css';
 
 type UserHeroProps = {
@@ -69,8 +73,23 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
   const status = presence?.status;
   const isExpandable = (status?.length ?? 0) > 70;
 
+  const fetchedProfile = useUserProfile(userId);
+  const backgroundColor = fetchedProfile.heroColor ?? standardColors.Surface.Container;
+  const fetchedBrightness = fetchedProfile?.heroBrightness;
+  const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
+  const cardColor =
+    shadeColor(backgroundColor, isBackgroundDark ? -80 : 80) ?? standardColors.Background.Container;
+  const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -50 : 50) ?? backgroundColor;
+  const statusSurfaceColor =
+    shadeColor(innerColor, fetchedBrightness === 'light' ? -14 : 32) ?? cardColor;
+  const textColor =
+    ((fetchedBrightness === 'dark' || areColorsTooSimilar('#000000', cardColor)) && '#FFFFFF') ||
+    ((fetchedBrightness === 'light' || areColorsTooSimilar('#FFFFFF', cardColor)) && '#000000') ||
+    undefined;
+  const statusHoverBrightness = fetchedBrightness === 'light' ? 0.94 : 1.08;
+
   return (
-    <Box direction="Column" className={css.UserHero}>
+    <Box direction="Column" className={css.UserHero} style={{ backgroundColor: backgroundColor }}>
       <div
         className={css.UserHeroCoverContainer}
         style={{
@@ -139,14 +158,29 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
         {status && status.length > 0 && (
           <div className={css.UserHeroStatusContainer}>
             <Tooltip
+              radii="400"
+              variant="Surface"
               onClick={isExpandable ? () => setIsFullStatus(!isFullStatus) : undefined}
-              className={css.UserHeroStatusTooltip}
+              className={classNames(
+                css.UserHeroStatusTooltip,
+                isExpandable && css.UserHeroStatusTooltipInteractive
+              )}
               style={{
                 maxHeight: isFullStatus ? toRem(105) : toRem(48),
                 cursor: isExpandable ? 'pointer' : 'default',
                 transform: 'none',
                 transition: 'none',
                 display: 'flex',
+                padding: `${toRem(8)} ${toRem(12)}`,
+                backgroundColor: statusSurfaceColor,
+                color: textColor,
+                borderStyle: 'none',
+                borderWidth: 0,
+                outline: 'none',
+                boxShadow: 'inset 0 1px 1px rgba(0, 0, 0, 0.05)',
+                ...({
+                  '--user-hero-status-hover-brightness': String(statusHoverBrightness),
+                } as CSSProperties),
               }}
             >
               <Box direction="Row" gap="100" style={{ height: '100%', width: '100%' }}>
@@ -195,14 +229,14 @@ export function UserHero({ userId, avatarUrl, bannerUrl, presence, autoplayGifs 
 type UserHeroNameProps = {
   displayName?: string;
   userId: string;
+  customHeroCards?: boolean;
 };
-export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
+export function UserHeroName({ displayName, userId, customHeroCards }: UserHeroNameProps) {
   const username = getMxIdLocalPart(userId);
   const nick = useNickname(userId);
 
   // Sable username color and fonts
-  const { color, font } = useSableCosmetics(userId, useRoom());
-
+  const { color, font } = useSableCosmetics(userId, useRoom(), customHeroCards);
   const shownName = nick ?? displayName ?? username ?? userId;
 
   return (

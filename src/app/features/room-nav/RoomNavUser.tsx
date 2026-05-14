@@ -16,9 +16,10 @@ import { useCallEmbed } from '$hooks/useCallEmbed';
 type RoomNavUserProps = {
   room: Room;
   callMembership: CallMembership;
+  hideText?: boolean;
 };
 
-export function RoomNavUser({ room, callMembership }: RoomNavUserProps) {
+export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
@@ -45,9 +46,9 @@ export function RoomNavUser({ room, callMembership }: RoomNavUserProps) {
   return (
     <NavItem variant="Background" radii="400">
       <NavButton onClick={handleNavUserClick} aria-label={ariaLabel}>
-        <NavItemContent as="div">
+        <NavItemContent as="div" style={hideText ? { padding: '0' } : {}}>
           <Box direction="Column" grow="Yes" gap="200" justifyContent="Stretch">
-            <Box alignItems="Center" gap="200">
+            <Box alignItems="Center" gap="200" justifyContent={hideText ? 'Center' : 'Start'}>
               <Avatar size="200">
                 <UserAvatar
                   userId={userId}
@@ -56,9 +57,11 @@ export function RoomNavUser({ room, callMembership }: RoomNavUserProps) {
                   renderFallback={() => <Icon size="50" src={Icons.User} filled />}
                 />
               </Avatar>
-              <Text as="span" size="B400" priority="300" truncate>
-                {name}
-              </Text>
+              {!hideText && (
+                <Text as="span" size="B400" priority="300" truncate>
+                  {name}
+                </Text>
+              )}
             </Box>
           </Box>
         </NavItemContent>

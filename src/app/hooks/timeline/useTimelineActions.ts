@@ -9,6 +9,7 @@ import { ReactEditor } from 'slate-react';
 import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
 import { getMemberDisplayName, getEditedEvent } from '$utils/room';
 import { createMentionElement, moveCursor } from '$components/editor';
+import * as prefix from '$unstable/prefixes';
 
 export interface UseTimelineActionsOptions {
   room: Room;
@@ -68,18 +69,20 @@ export function useTimelineActions({
       const cleanExtended = cachedData?.extended ? { ...cachedData.extended } : undefined;
 
       if (cleanExtended) {
-        delete cleanExtended['io.fsky.nyx.pronouns'];
-        delete cleanExtended['moe.sable.app.bio'];
-        delete cleanExtended['chat.commet.profile_bio'];
-        delete cleanExtended['chat.commet.profile_status'];
-        delete cleanExtended['us.cloke.msc4175.tz'];
-        delete cleanExtended['m.tz'];
-        delete cleanExtended['chat.commet.profile_banner'];
-        delete cleanExtended['moe.sable.app.name_color'];
+        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME];
         delete cleanExtended.avatar_url;
         delete cleanExtended.displayname;
-        delete cleanExtended['kitty.meow.has_cats'];
-        delete cleanExtended['kitty.meow.is_cat'];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME];
+        delete cleanExtended[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME];
       }
 
       openUserRoomProfile(

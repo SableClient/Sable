@@ -17,9 +17,10 @@ import {
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useMemo, useState } from 'react';
-import { getMxIdLocalPart, getMxIdServer, isUserId } from '$utils/matrix';
+import { getMxIdLocalPart, isUserId } from '$utils/matrix';
 import { useDirectUsers } from '$hooks/useDirectUsers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { stopPropagation } from '$utils/keyboard';

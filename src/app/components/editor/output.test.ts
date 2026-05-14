@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toMatrixCustomHTML, trimCustomHtml } from '$components/editor/output';
+import { toMatrixCustomHTML, toPlainText, trimCustomHtml } from '$components/editor/output';
 import { BlockType } from '$components/editor/types';
 
 describe('toMatrixCustomHTML emoticons', () => {
@@ -30,7 +30,31 @@ describe('toMatrixCustomHTML emoticons', () => {
 });
 
 describe('toMatrixCustomHTML matrix.to', () => {
-  it('serializes room mentions as raw matrix.to URL text, not an anchor', () => {
+  it('serializes @room pings as a markdown link so the label is @room, not a bare permalink', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [
+              {
+                type: BlockType.Mention,
+                id: '!room:example.org',
+                name: '@room',
+                children: [{ text: '' }],
+              } as never,
+            ],
+          } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toMatch(/<a\b[^>]*href="https:\/\/matrix\.to\/#\/!room:example\.org"/i);
+    expect(html).toContain('@room');
+  });
+
+  it('serializes non–@room mentions as bare matrix.to URL text', () => {
     const html = trimCustomHtml(
       toMatrixCustomHTML(
         [
@@ -52,6 +76,29 @@ describe('toMatrixCustomHTML matrix.to', () => {
 
     expect(html).toContain('https://matrix.to/#/!room:example.org');
     expect(html).not.toMatch(/<a\b[^>]*matrix\.to/i);
+  });
+
+  it('uses @room in plain body for room pings, not the room id', () => {
+    const plain = toPlainText(
+      [
+        {
+          type: BlockType.Paragraph,
+          children: [
+            {
+              type: BlockType.Mention,
+              id: '!room:example.org',
+              name: '@room',
+              highlight: true,
+              children: [{ text: '' }],
+            } as never,
+          ],
+        } as never,
+      ],
+      false,
+      undefined
+    ).trim();
+
+    expect(plain).toBe('@room');
   });
 
   it('serializes matrix.to links as raw URL text, not an anchor', () => {

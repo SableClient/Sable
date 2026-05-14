@@ -41,6 +41,9 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       }
 
       const matrixTo = `${MATRIX_TO_BASE}#/${fragment}`;
+      if (node.name === '@room') {
+        return `[@room](${encodeURI(matrixTo)})`;
+      }
       return sanitizeText(matrixTo);
     }
     case BlockType.Emoticon:
@@ -113,7 +116,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
     case BlockType.Paragraph:
       return `${children}\n`;
     case BlockType.Mention:
-      return node.id;
+      return node.name === '@room' ? node.name : node.id;
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Link:
@@ -184,7 +187,7 @@ export const toRawText = (node: Descendant | Descendant[]): string => {
     case BlockType.Emoticon:
       return node.key.startsWith('mxc://') ? `:${node.shortcode}:` : node.key;
     case BlockType.Mention:
-      return node.id;
+      return node.name === '@room' ? node.name : node.id;
     case BlockType.Command:
       return `/${node.command}`;
     default:

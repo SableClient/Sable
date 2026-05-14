@@ -35,7 +35,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       containerRef,
       handleImageLoad,
       enableResizeWithWindow,
-    } = useImageGestures(true, 0.2, 0.1, 5);
+    } = useImageGestures(true, 0.2, 0.1);
     useEffect(() => {
       setIsImageReady(false);
       enableResizeWithWindow();
@@ -213,7 +213,8 @@ export const ImageViewer = as<'div', ImageViewerProps>(
           data-gestures="ignore"
           justifyContent="Center"
           alignItems="Center"
-          style={{ overflow: 'hidden', touchAction: 'none' }}
+          style={{ overflow: 'hidden', touchAction: 'none', cursor }}
+          onPointerDown={onPointerDown}
         >
           <img
             className={css.ImageViewerImg}

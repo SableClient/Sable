@@ -21,7 +21,7 @@ function getCursorOffsetFromImageCenter(
   };
 }
 
-export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5) => {
+export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 500) => {
   const [transforms, setTransforms] = useState({
     zoom: 1,
     pan: { x: 0, y: 0 },

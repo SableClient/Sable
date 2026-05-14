@@ -5,7 +5,7 @@ import { modalAtom, ModalType } from '$state/modal';
 import { Icon, Icons, MenuItem, Text, as } from 'folds';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import { factoryRoomIdByActivity } from '$utils/sort';
@@ -93,7 +93,6 @@ export function MessageForwardInternal({
 }: Readonly<MessageForwardInternalProps>) {
   const mx = useMatrixClient();
 
-  const [isForwardSuccess, setIsForwardSuccess] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const allRooms = useAtomValue(allRoomsAtom);
@@ -110,15 +109,6 @@ export function MessageForwardInternal({
         .sort(factoryRoomIdByActivity(mx)),
     [allRooms, getRoom, mx]
   );
-
-  useEffect(() => {
-    if (isForwardSuccess) {
-      setTimeout(() => {
-        // close the modal if the message was forwarded successfully
-        onClose();
-      }, 2000);
-    }
-  }, [isForwardSuccess, onClose]);
 
   const forwardToRoom = useCallback(
     (targetRoomId: string) => {
@@ -238,7 +228,8 @@ export function MessageForwardInternal({
             targetRoomId: targetRoom.roomId,
           });
           Sentry.metrics.count('sable.message.forward.success', 1);
-          setIsForwardSuccess(true);
+          setIsForwarding(false);
+          onClose();
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
@@ -249,11 +240,10 @@ export function MessageForwardInternal({
           });
           Sentry.metrics.count('sable.message.forward.error', 1);
           setIsForwarding(false);
-          setIsForwardSuccess(false);
           setForwardError(message);
         });
     },
-    [getRoom, mEvent, mx, room]
+    [getRoom, mEvent, mx, onClose, room]
   );
 
   const pickRoom = useMemo(
@@ -264,9 +254,9 @@ export function MessageForwardInternal({
         forwardToRoom(roomId);
       },
       errorMessage: forwardError ? `Failed to forward: ${forwardError}` : null,
-      busy: isForwarding || isForwardSuccess,
+      busy: isForwarding,
     }),
-    [forwardError, forwardTargets, forwardToRoom, isForwarding, isForwardSuccess]
+    [forwardError, forwardTargets, forwardToRoom, isForwarding]
   );
 
   return <RoomSearchModal requestClose={onClose} pickRoom={pickRoom} />;

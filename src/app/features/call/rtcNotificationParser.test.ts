@@ -104,10 +104,13 @@ describe('parseIncomingRtcNotification', () => {
   });
 
   it('ignores self-sent notifications', async () => {
-    const parsed = await parseIncomingRtcNotification(createEvent({ sender: '@self:example.org' }), {
-      myUserId: '@self:example.org',
-      now: NOW,
-    });
+    const parsed = await parseIncomingRtcNotification(
+      createEvent({ sender: '@self:example.org' }),
+      {
+        myUserId: '@self:example.org',
+        now: NOW,
+      }
+    );
 
     expect(parsed).toBeUndefined();
   });

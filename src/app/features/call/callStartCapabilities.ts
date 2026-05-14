@@ -44,11 +44,7 @@ export const evaluateCallStartCapabilities = ({
   if (inAnotherCall) blockers.push('already_in_another_call');
 
   const canRenderCallButton = !blockers.some((blocker) =>
-    [
-      'missing_webrtc',
-      'missing_livekit',
-      'missing_call_member_permission',
-    ].includes(blocker)
+    ['missing_webrtc', 'missing_livekit', 'missing_call_member_permission'].includes(blocker)
   );
 
   return {

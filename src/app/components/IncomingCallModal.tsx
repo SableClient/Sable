@@ -107,7 +107,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
       issues.push({
         id: 'permission',
         message: "You don't have permission to join this room's call.",
-        shortReason: "Missing permission to join this call.",
+        shortReason: 'Missing permission to join this call.',
       });
     }
     if (inAnotherCall) {

@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Room, MatrixEvent } from '$types/matrix-sdk';
 import {
   Direction,
-  EventTimeline,
+  type EventTimeline,
   NotificationCountType,
   ThreadEvent,
   RoomEvent,
@@ -728,13 +728,13 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               {!room.isCallRoom() &&
                 callStartCapabilities.canRenderCallButton &&
                 shouldShowCallButton && (
-                <RoomCallButton
-                  room={room}
-                  direct={direct}
-                  defaultPreferences={{ microphone, video, sound }}
-                  allowVideoStart
-                />
-              )}
+                  <RoomCallButton
+                    room={room}
+                    direct={direct}
+                    defaultPreferences={{ microphone, video, sound }}
+                    allowVideoStart
+                  />
+                )}
               <PopOut
                 anchor={pinMenuAnchor}
                 position="Bottom"

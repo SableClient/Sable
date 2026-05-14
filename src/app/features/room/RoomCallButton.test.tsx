@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type * as JotaiModule from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { RoomCallButton } from './RoomCallButton';
 
 const { startCallMock, useCallJoinedMock } = vi.hoisted(() => ({
-  startCallMock: vi.fn(),
-  useCallJoinedMock: vi.fn(),
+  startCallMock: vi.fn<(...args: unknown[]) => void>(),
+  useCallJoinedMock: vi.fn<() => boolean>(),
 }));
 
 vi.mock('$hooks/useCallEmbed', () => ({
@@ -13,8 +14,8 @@ vi.mock('$hooks/useCallEmbed', () => ({
   useCallJoined: () => useCallJoinedMock(),
 }));
 
-vi.mock('jotai', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('jotai')>();
+vi.mock('jotai', async (importOriginal: () => Promise<typeof JotaiModule>) => {
+  const actual = await importOriginal();
   return {
     ...actual,
     useAtomValue: () => undefined,
@@ -82,4 +83,3 @@ describe('RoomCallButton', () => {
     });
   });
 });
-

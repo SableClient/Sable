@@ -27,11 +27,7 @@ export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingbackTone>[] = [
   { value: 'silent', label: 'Silent' },
 ];
 
-type ToneSettings = Pick<
-  Settings,
-  | 'isNotificationSounds'
-  | 'callSoundOverrideGlobalNotifications'
->;
+type ToneSettings = Pick<Settings, 'isNotificationSounds' | 'callSoundOverrideGlobalNotifications'>;
 
 export const clampCallRingtoneVolume = (volume: number): number =>
   Math.max(0, Math.min(100, Math.round(volume)));

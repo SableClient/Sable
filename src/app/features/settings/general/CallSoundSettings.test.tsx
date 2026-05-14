@@ -19,14 +19,14 @@ vi.mock('$state/hooks/settings', () => ({
       callCustomRingtoneSizeBytes: undefined,
       callCustomRingtoneDurationMs: undefined,
     };
-    return [values[key], vi.fn()] as const;
+    return [values[key], vi.fn<(value: unknown) => void>()] as const;
   },
 }));
 
 vi.mock('$features/call/callRingtoneStorage', () => ({
-  getCustomCallRingtone: vi.fn(async () => undefined),
-  putCustomCallRingtone: vi.fn(),
-  clearCustomCallRingtone: vi.fn(),
+  getCustomCallRingtone: vi.fn<() => Promise<undefined>>(async () => undefined),
+  putCustomCallRingtone: vi.fn<() => Promise<void>>(),
+  clearCustomCallRingtone: vi.fn<() => Promise<void>>(),
 }));
 
 describe('CallSoundSettings', () => {
@@ -46,4 +46,3 @@ describe('CallSoundSettings', () => {
     });
   });
 });
-

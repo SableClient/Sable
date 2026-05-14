@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../utils/debugLogger', () => ({
   createDebugLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
+    info: vi.fn<(...args: unknown[]) => void>(),
+    warn: vi.fn<(...args: unknown[]) => void>(),
+    error: vi.fn<(...args: unknown[]) => void>(),
+    debug: vi.fn<(...args: unknown[]) => void>(),
   }),
 }));
 import {
@@ -33,7 +33,7 @@ const createFakeElement = (
 describe('elementCallDomAdapter', () => {
   it('finds call controls container from leave button ancestry', () => {
     const container = createFakeElement();
-    const row = createFakeElement({ }, { parentElement: container });
+    const row = createFakeElement({}, { parentElement: container });
     const leave = createFakeElement({}, { parentElement: row });
     const doc = {
       querySelector: (selector: string) =>

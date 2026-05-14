@@ -3,12 +3,13 @@ import type { Room } from '$types/matrix-sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IncomingCallInternal } from './IncomingCallModal';
 
-const { navigateRoomMock, sendRtcDeclineMock, webRtcSupportedMock, livekitSupportedMock } = vi.hoisted(() => ({
-  navigateRoomMock: vi.fn<(roomId: string) => void>(),
-  sendRtcDeclineMock: vi.fn<(roomId: string, eventId: string) => Promise<void>>(),
-  webRtcSupportedMock: vi.fn<() => boolean>(),
-  livekitSupportedMock: vi.fn<() => boolean>(),
-}));
+const { navigateRoomMock, sendRtcDeclineMock, webRtcSupportedMock, livekitSupportedMock } =
+  vi.hoisted(() => ({
+    navigateRoomMock: vi.fn<(roomId: string) => void>(),
+    sendRtcDeclineMock: vi.fn<(roomId: string, eventId: string) => Promise<void>>(),
+    webRtcSupportedMock: vi.fn<() => boolean>(),
+    livekitSupportedMock: vi.fn<() => boolean>(),
+  }));
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
@@ -59,17 +60,17 @@ vi.mock('./user-avatar', () => ({
 }));
 
 vi.mock('@sentry/react', () => ({
-  addBreadcrumb: vi.fn(),
+  addBreadcrumb: vi.fn<(...args: unknown[]) => void>(),
   metrics: {
-    count: vi.fn(),
+    count: vi.fn<(...args: unknown[]) => void>(),
   },
 }));
 
 vi.mock('$utils/debugLogger', () => ({
   createDebugLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: vi.fn<(...args: unknown[]) => void>(),
+    warn: vi.fn<(...args: unknown[]) => void>(),
+    error: vi.fn<(...args: unknown[]) => void>(),
   }),
 }));
 

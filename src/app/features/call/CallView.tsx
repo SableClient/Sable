@@ -130,7 +130,9 @@ function CallPrescreen() {
               ))}
             {callStartCapabilities.inAnotherCall && <AlreadyInCallMessage />}
             {showEmbedError && (
-              <WidgetPreparationErrorMessage message={callEmbedStartError.message || embedErrorMessage} />
+              <WidgetPreparationErrorMessage
+                message={callEmbedStartError.message || embedErrorMessage}
+              />
             )}
           </Box>
         </Box>

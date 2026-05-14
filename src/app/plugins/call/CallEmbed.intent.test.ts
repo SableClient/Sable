@@ -3,10 +3,10 @@ import { vi } from 'vitest';
 
 vi.mock('../../utils/debugLogger', () => ({
   createDebugLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
+    info: vi.fn<(...args: unknown[]) => void>(),
+    warn: vi.fn<(...args: unknown[]) => void>(),
+    error: vi.fn<(...args: unknown[]) => void>(),
+    debug: vi.fn<(...args: unknown[]) => void>(),
   }),
 }));
 
@@ -19,6 +19,14 @@ type IntentCase = {
   video: boolean;
   expected: string;
 };
+
+function createRoom(isCallRoom: boolean) {
+  return {
+    roomId: '!room:example.com',
+    hasEncryptionStateEvent: () => false,
+    isCallRoom: () => isCallRoom,
+  } as never;
+}
 
 const intentCases: IntentCase[] = [
   { dm: true, ongoing: false, video: true, expected: ElementCallIntent.StartCallDM },
@@ -88,13 +96,6 @@ describe('CallEmbed.getWidget', () => {
     getSafeUserId: () => '@alice:example.com',
     getDeviceId: () => 'ALICEDEVICE',
   } as never;
-
-  const createRoom = (isCallRoom: boolean) =>
-    ({
-      roomId: '!room:example.com',
-      hasEncryptionStateEvent: () => false,
-      isCallRoom: () => isCallRoom,
-    }) as never;
 
   it('adds ring notification delegation for starting DM calls in non-call rooms', () => {
     const room = createRoom(false);

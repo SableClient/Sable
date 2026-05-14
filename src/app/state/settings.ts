@@ -417,7 +417,8 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
 
   if (
     typeof parsed.callCustomRingtoneDurationMs === 'number' &&
-    (!Number.isFinite(parsed.callCustomRingtoneDurationMs) || parsed.callCustomRingtoneDurationMs < 0)
+    (!Number.isFinite(parsed.callCustomRingtoneDurationMs) ||
+      parsed.callCustomRingtoneDurationMs < 0)
   ) {
     delete parsed.callCustomRingtoneDurationMs;
   }
@@ -549,7 +550,9 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return Math.max(0, Math.min(100, Math.round(val)));
     case 'callCustomRingtoneSizeBytes':
     case 'callCustomRingtoneDurationMs':
-      return typeof val === 'number' && Number.isFinite(val) && val >= 0 ? Math.round(val) : undefined;
+      return typeof val === 'number' && Number.isFinite(val) && val >= 0
+        ? Math.round(val)
+        : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val

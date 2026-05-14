@@ -112,10 +112,14 @@ export class CallEmbed {
       try {
         widgetUrl = new URL(elementCallUrl, window.location.origin);
       } catch (error) {
-        debugLog.warn('call', 'Invalid elementCallUrl in client config, falling back to bundled call app', {
-          elementCallUrl,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        debugLog.warn(
+          'call',
+          'Invalid elementCallUrl in client config, falling back to bundled call app',
+          {
+            elementCallUrl,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
         widgetUrl = new URL(
           `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
           window.location.origin

@@ -62,7 +62,10 @@ export function CallSoundSettings() {
   );
   const [callRingtoneId, setCallRingtoneId] = useSetting(settingsAtom, 'callRingtoneId');
   const [callRingbackTone, setCallRingbackTone] = useSetting(settingsAtom, 'callRingbackTone');
-  const [callRingtoneVolume, setCallRingtoneVolume] = useSetting(settingsAtom, 'callRingtoneVolume');
+  const [callRingtoneVolume, setCallRingtoneVolume] = useSetting(
+    settingsAtom,
+    'callRingtoneVolume'
+  );
   const [callSoundOverrideGlobalNotifications, setCallSoundOverrideGlobalNotifications] =
     useSetting(settingsAtom, 'callSoundOverrideGlobalNotifications');
   const [callCustomRingtoneName, setCallCustomRingtoneName] = useSetting(
@@ -116,7 +119,7 @@ export function CallSoundSettings() {
           ? {
               ...option,
               label: callCustomRingtoneName ? 'Custom File (Imported)' : 'Custom File',
-              disabled: loadingCustomState ? true : false,
+              disabled: loadingCustomState,
             }
           : option
       ),

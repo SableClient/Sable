@@ -35,8 +35,10 @@ describe('getCallCapabilities', () => {
     ).toBe(true);
     expect(
       capabilities.has(
-        WidgetEventCapability.forStateEvent(EventDirection.Receive, 'org.matrix.msc3401.call.member')
-          .raw
+        WidgetEventCapability.forStateEvent(
+          EventDirection.Receive,
+          'org.matrix.msc3401.call.member'
+        ).raw
       )
     ).toBe(true);
   });
@@ -46,24 +48,30 @@ describe('getCallCapabilities', () => {
 
     expect(
       capabilities.has(
-        WidgetEventCapability.forRoomEvent(EventDirection.Send, 'org.matrix.msc4075.rtc.notification')
+        WidgetEventCapability.forRoomEvent(
+          EventDirection.Send,
+          'org.matrix.msc4075.rtc.notification'
+        ).raw
+      )
+    ).toBe(true);
+    expect(
+      capabilities.has(
+        WidgetEventCapability.forRoomEvent(
+          EventDirection.Receive,
+          'org.matrix.msc4075.rtc.notification'
+        ).raw
+      )
+    ).toBe(true);
+    expect(
+      capabilities.has(
+        WidgetEventCapability.forRoomEvent(EventDirection.Send, 'org.matrix.msc4310.rtc.decline')
           .raw
       )
     ).toBe(true);
     expect(
       capabilities.has(
-        WidgetEventCapability.forRoomEvent(EventDirection.Receive, 'org.matrix.msc4075.rtc.notification')
+        WidgetEventCapability.forRoomEvent(EventDirection.Receive, 'org.matrix.msc4310.rtc.decline')
           .raw
-      )
-    ).toBe(true);
-    expect(
-      capabilities.has(
-        WidgetEventCapability.forRoomEvent(EventDirection.Send, 'org.matrix.msc4310.rtc.decline').raw
-      )
-    ).toBe(true);
-    expect(
-      capabilities.has(
-        WidgetEventCapability.forRoomEvent(EventDirection.Receive, 'org.matrix.msc4310.rtc.decline').raw
       )
     ).toBe(true);
   });

@@ -2,7 +2,7 @@ import { createStore } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { callEmbedAtom, callEmbedStartErrorAtom } from './callEmbed';
 
-const distributionMock = vi.fn();
+const distributionMock = vi.fn<(...args: unknown[]) => void>();
 
 vi.mock('@sentry/react', () => ({
   metrics: {
@@ -17,8 +17,8 @@ describe('callEmbedAtom', () => {
 
   it('disposes previous embed when replaced', () => {
     const store = createStore();
-    const disposeA = vi.fn();
-    const disposeB = vi.fn();
+    const disposeA = vi.fn<() => void>();
+    const disposeB = vi.fn<() => void>();
     const embedA = { dispose: disposeA } as unknown;
     const embedB = { dispose: disposeB } as unknown;
 
@@ -32,7 +32,7 @@ describe('callEmbedAtom', () => {
 
   it('clears start error when embed is removed', () => {
     const store = createStore();
-    const dispose = vi.fn();
+    const dispose = vi.fn<() => void>();
     const embed = { dispose } as unknown;
 
     store.set(callEmbedStartErrorAtom, { code: 'prepare_failed', message: 'boom' } as never);
@@ -43,4 +43,3 @@ describe('callEmbedAtom', () => {
     expect(store.get(callEmbedStartErrorAtom)).toBeNull();
   });
 });
-

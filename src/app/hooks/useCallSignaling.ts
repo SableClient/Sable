@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { RoomEventHandlerMap, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { CryptoBackend, MatrixRTCSession, MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
+import {
+  type CryptoBackend,
+  MatrixRTCSession,
+  MatrixRTCSessionManagerEvents,
+  RoomEvent,
+} from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import {
   callSoundBlockedAtom,

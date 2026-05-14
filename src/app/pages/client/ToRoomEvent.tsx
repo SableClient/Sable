@@ -45,7 +45,16 @@ export function ToRoomEvent() {
 
     // Replace /to/… in history so the back button doesn't return to this route.
     window.history.replaceState({}, '', '/');
-  }, [eventId, mDirects, roomId, searchParams, setActiveSessionId, setIncomingCall, setPending, userId]);
+  }, [
+    eventId,
+    mDirects,
+    roomId,
+    searchParams,
+    setActiveSessionId,
+    setIncomingCall,
+    setPending,
+    userId,
+  ]);
 
   return null;
 }

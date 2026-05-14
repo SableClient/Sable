@@ -1,4 +1,8 @@
-import type { IncomingCall, IncomingCallIntentKind, IncomingCallNotificationType } from '$state/callEmbed';
+import type {
+  IncomingCall,
+  IncomingCallIntentKind,
+  IncomingCallNotificationType,
+} from '$state/callEmbed';
 
 const MAX_CALL_NOTIFICATION_LIFETIME_MS = 120_000;
 
@@ -68,7 +72,8 @@ export const resolveIncomingCallFromNotificationData = (
 ): IncomingCall | undefined => {
   const roomId = typeof data.roomId === 'string' ? data.roomId : undefined;
   const eventId = typeof data.eventId === 'string' ? data.eventId : undefined;
-  const callType = typeof data.callNotificationType === 'string' ? data.callNotificationType : undefined;
+  const callType =
+    typeof data.callNotificationType === 'string' ? data.callNotificationType : undefined;
 
   if (!roomId || !eventId) return undefined;
   if (data.isCall !== true && !callType) return undefined;
@@ -128,7 +133,11 @@ export const dismissSystemCallNotifications = async (roomId?: string): Promise<v
       ? await registration.getNotifications({ tag: `call-${roomId}` })
       : await registration.getNotifications();
     notifications.forEach((notification) => {
-      if (!roomId || notification?.data?.room_id === roomId || notification?.data?.roomId === roomId) {
+      if (
+        !roomId ||
+        notification?.data?.room_id === roomId ||
+        notification?.data?.roomId === roomId
+      ) {
         notification.close();
       }
     });

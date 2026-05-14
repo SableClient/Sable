@@ -63,8 +63,8 @@ export class CallWidgetDriver extends WidgetDriver {
       });
     }
 
-    const requestedSableCapabilities = ['moe.sable.thumbnails', 'moe.sable.media_proxy'].filter((cap) =>
-      requested.has(cap)
+    const requestedSableCapabilities = ['moe.sable.thumbnails', 'moe.sable.media_proxy'].filter(
+      (cap) => requested.has(cap)
     );
     debugLog.info('call', 'Sable-only capability request status', {
       roomId: this.inRoomId,

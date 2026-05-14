@@ -89,7 +89,8 @@ export const parseIncomingRtcNotification = async (
   const notificationType = toNotificationType(content.notification_type);
 
   if (typeof senderTsCandidate !== 'number') return undefined;
-  if (typeof lifetimeCandidate !== 'number' || !Number.isFinite(lifetimeCandidate)) return undefined;
+  if (typeof lifetimeCandidate !== 'number' || !Number.isFinite(lifetimeCandidate))
+    return undefined;
   if (!notificationType) return undefined;
 
   const senderTs = getSenderTimestamp(senderTsCandidate, event.originServerTs);
@@ -97,7 +98,8 @@ export const parseIncomingRtcNotification = async (
   const expiresAt = senderTs + lifetime;
   if (options.now >= expiresAt) return undefined;
 
-  const intentRaw = typeof content['m.call.intent'] === 'string' ? content['m.call.intent'] : undefined;
+  const intentRaw =
+    typeof content['m.call.intent'] === 'string' ? content['m.call.intent'] : undefined;
 
   return {
     roomId: event.roomId,

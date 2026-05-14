@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Badge, Box, color, Header, Scroll, Text, toRem } from 'folds';
+import { useAtomValue } from 'jotai';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoom } from '$hooks/useRoom';
 import { useCallStartCapabilities } from '$hooks/useCallStartCapabilities';
@@ -11,6 +12,7 @@ import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { CallControls } from './CallControls';
+import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 
 function LivekitServerMissingMessage() {
   return (
@@ -70,13 +72,30 @@ function AlreadyInCallMessage() {
   );
 }
 
+function WidgetPreparationErrorMessage({ message }: { message: string }) {
+  return (
+    <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
+      {message}
+    </Text>
+  );
+}
+
 function CallPrescreen() {
   const room = useRoom();
+  const callEmbed = useAtomValue(callEmbedAtom);
+  const callEmbedStartError = useAtomValue(callEmbedStartErrorAtom);
+  const callJoined = useCallJoined(callEmbed);
   const callStartCapabilities = useCallStartCapabilities(room);
 
   const callSession = useCallSession(room);
   const callMembers = useCallMembers(room, callSession);
   const hasParticipant = callMembers.length > 0;
+  const showEmbedError =
+    callEmbed?.roomId === room.roomId && !callJoined && callEmbedStartError !== null;
+  const embedErrorMessage =
+    callEmbedStartError?.kind === 'capability'
+      ? 'Call setup failed because required call capabilities were rejected.'
+      : 'Call setup failed while preparing the embedded call app.';
 
   const canJoin = callStartCapabilities.canStart;
 
@@ -110,6 +129,9 @@ function CallPrescreen() {
                 <NoPermissionMessage />
               ))}
             {callStartCapabilities.inAnotherCall && <AlreadyInCallMessage />}
+            {showEmbedError && (
+              <WidgetPreparationErrorMessage message={callEmbedStartError.message || embedErrorMessage} />
+            )}
           </Box>
         </Box>
       </Box>

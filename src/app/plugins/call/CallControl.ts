@@ -3,6 +3,14 @@ import EventEmitter from 'eventemitter3';
 import { CallControlState } from './CallControlState';
 import type { ElementMediaStateDetail, ElementMediaStatePayload } from './types';
 import { ElementWidgetActions } from './types';
+import {
+  getGridControl,
+  getReactionsButton,
+  getScreenshareButton,
+  getSettingsButton,
+  getSpotlightControl,
+  isElementToggledOn,
+} from './elementCallDomAdapter';
 
 export enum CallControlEvent {
   StateUpdate = 'state_update',
@@ -22,41 +30,23 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   private get screenshareButton(): HTMLElement | undefined {
-    const screenshareBtn = this.document?.querySelector(
-      '[data-testid="incall_screenshare"]'
-    ) as HTMLElement | null;
-
-    return screenshareBtn ?? undefined;
+    return getScreenshareButton(this.document);
   }
 
   private get settingsButton(): HTMLElement | undefined {
-    const leaveBtn = this.document?.querySelector('[data-testid="incall_leave"]');
-
-    const settingsButton = leaveBtn?.previousElementSibling as HTMLElement | null;
-
-    return settingsButton ?? undefined;
+    return getSettingsButton(this.document);
   }
 
   private get reactionsButton(): HTMLElement | undefined {
-    const reactionsButton = this.settingsButton?.previousElementSibling as HTMLElement | null;
-
-    return reactionsButton ?? undefined;
+    return getReactionsButton(this.document);
   }
 
-  private get spotlightButton(): HTMLInputElement | undefined {
-    const spotlightButton = this.document?.querySelector(
-      'input[value="spotlight"]'
-    ) as HTMLInputElement | null;
-
-    return spotlightButton ?? undefined;
+  private get spotlightControl(): HTMLElement | undefined {
+    return getSpotlightControl(this.document);
   }
 
-  private get gridButton(): HTMLInputElement | undefined {
-    const gridButton = this.document?.querySelector(
-      'input[value="grid"]'
-    ) as HTMLInputElement | null;
-
-    return gridButton ?? undefined;
+  private get gridControl(): HTMLElement | undefined {
+    return getGridControl(this.document);
   }
 
   constructor(state: CallControlState, call: ClientWidgetApi, iframe: HTMLIFrameElement) {
@@ -109,13 +99,14 @@ export class CallControl extends EventEmitter implements CallControlState {
     if (screenshareBtn) {
       this.controlMutationObserver.observe(screenshareBtn, {
         attributes: true,
-        attributeFilter: ['data-kind'],
+        attributeFilter: ['data-kind', 'aria-pressed', 'aria-checked', 'class'],
       });
     }
-    const spotlightBtn = this.spotlightButton;
-    if (spotlightBtn) {
-      this.controlMutationObserver.observe(spotlightBtn, {
+    const spotlightControl = this.spotlightControl;
+    if (spotlightControl) {
+      this.controlMutationObserver.observe(spotlightControl, {
         attributes: true,
+        attributeFilter: ['checked', 'aria-pressed', 'aria-checked', 'data-kind', 'class'],
       });
     }
 
@@ -160,8 +151,8 @@ export class CallControl extends EventEmitter implements CallControlState {
   }
 
   public onControlMutation() {
-    const screenshare: boolean = this.screenshareButton?.getAttribute('data-kind') === 'primary';
-    const spotlight: boolean = this.spotlightButton?.checked ?? false;
+    const screenshare: boolean = isElementToggledOn(this.screenshareButton);
+    const spotlight: boolean = isElementToggledOn(this.spotlightControl);
 
     this.state = new CallControlState(
       this.microphone,
@@ -215,10 +206,10 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   public toggleSpotlight() {
     if (this.spotlight) {
-      this.gridButton?.click();
+      this.gridControl?.click();
       return;
     }
-    this.spotlightButton?.click();
+    this.spotlightControl?.click();
   }
 
   public toggleReactions() {

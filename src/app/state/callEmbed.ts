@@ -1,8 +1,10 @@
 import { atom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { CallEmbed } from '../plugins/call';
+import type { CallEmbedStartError } from '$plugins/call/callEmbedError';
 
 const baseCallEmbedAtom = atom<CallEmbed | undefined>(undefined);
+const baseCallEmbedStartErrorAtom = atom<CallEmbedStartError | null>(null);
 
 // Tracks when the active call embed was created, for lifetime measurement.
 let embedCreatedAt: number | null = null;
@@ -29,7 +31,22 @@ export const callEmbedAtom = atom<CallEmbed | undefined, [CallEmbed | undefined]
       embedCreatedAt = performance.now();
     }
 
+    if (callEmbed === undefined) {
+      set(baseCallEmbedStartErrorAtom, null);
+    }
+
     set(baseCallEmbedAtom, callEmbed);
+  }
+);
+
+export const callEmbedStartErrorAtom = atom<
+  CallEmbedStartError | null,
+  [CallEmbedStartError | null],
+  void
+>(
+  (get) => get(baseCallEmbedStartErrorAtom),
+  (_get, set, nextError) => {
+    set(baseCallEmbedStartErrorAtom, nextError);
   }
 );
 

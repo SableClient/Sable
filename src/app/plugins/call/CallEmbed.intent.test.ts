@@ -127,4 +127,33 @@ describe('CallEmbed.getWidget', () => {
 
     expect(url.searchParams.get('sendNotificationType')).toBeNull();
   });
+
+  it('uses elementCallUrl from config when provided', () => {
+    const room = createRoom(false);
+    const widget = CallEmbed.getWidget(
+      mx,
+      room,
+      ElementCallIntent.StartCallDM,
+      'dark',
+      'https://calls.example.com/embed/index.html'
+    );
+    const url = new URL(widget.getCompleteUrl({ currentUserId: '@alice:example.com' }));
+
+    expect(url.origin).toBe('https://calls.example.com');
+    expect(url.pathname).toBe('/embed/index.html');
+  });
+
+  it('falls back to bundled element call app when elementCallUrl is invalid', () => {
+    const room = createRoom(false);
+    const widget = CallEmbed.getWidget(
+      mx,
+      room,
+      ElementCallIntent.StartCallDM,
+      'dark',
+      'http://[::1'
+    );
+    const url = new URL(widget.getCompleteUrl({ currentUserId: '@alice:example.com' }));
+
+    expect(url.pathname).toContain('/public/element-call/index.html');
+  });
 });

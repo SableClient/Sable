@@ -15,6 +15,7 @@ import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
 import { createDebugLogger } from '../../utils/debugLogger';
+import { getInCallControlsContainer } from './elementCallDomAdapter';
 
 const debugLog = createDebugLogger('CallEmbed');
 
@@ -76,7 +77,8 @@ export class CallEmbed {
     mx: MatrixClient,
     room: Room,
     intent: ElementCallIntent,
-    themeKind: ElementCallThemeKind
+    themeKind: ElementCallThemeKind,
+    elementCallUrl?: string
   ): Widget {
     const userId = mx.getSafeUserId();
     const deviceId = mx.getDeviceId() ?? '';
@@ -105,10 +107,26 @@ export class CallEmbed {
       params.append('sendNotificationType', CallEmbed.dmCall(intent) ? 'ring' : 'notification');
     }
 
-    const widgetUrl = new URL(
-      `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
-      window.location.origin
-    );
+    let widgetUrl: URL;
+    if (elementCallUrl && elementCallUrl.trim()) {
+      try {
+        widgetUrl = new URL(elementCallUrl, window.location.origin);
+      } catch (error) {
+        debugLog.warn('call', 'Invalid elementCallUrl in client config, falling back to bundled call app', {
+          elementCallUrl,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        widgetUrl = new URL(
+          `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
+          window.location.origin
+        );
+      }
+    } else {
+      widgetUrl = new URL(
+        `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
+        window.location.origin
+      );
+    }
     widgetUrl.search = params.toString();
 
     const options: IWidget = {
@@ -308,8 +326,7 @@ export class CallEmbed {
     if (!doc) return;
 
     doc.body.style.setProperty('background', 'none', 'important');
-    const controls = doc.body.querySelector('[data-testid="incall_leave"]')?.parentElement
-      ?.parentElement;
+    const controls = getInCallControlsContainer(doc);
     if (controls) {
       controls.style.setProperty('position', 'absolute');
       controls.style.setProperty('visibility', 'hidden');

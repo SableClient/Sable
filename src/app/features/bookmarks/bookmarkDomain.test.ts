@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import { CustomAccountDataEvent as AccountDataEvent } from '$types/matrix/accountData';
 import {
   bookmarkItemEventType,
   buildMatrixURI,

@@ -61,9 +61,8 @@ import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
-import { bookmarksPanelAtom } from '$state/bookmarksPanelAtom';
 import { useReminderSync } from '$features/bookmarks/useReminderSync';
-import { getInboxInvitesPath } from '../pathUtils';
+import { getInboxBookmarksPath, getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
 const pushRelayLog = createDebugLogger('push-relay');
@@ -612,7 +611,6 @@ type ClientNonUIFeaturesProps = {
 export function HandleNotificationClick() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
-  const setBookmarksPanelOpen = useSetAtom(bookmarksPanelAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -638,7 +636,7 @@ export function HandleNotificationClick() {
       }
 
       if (isReminder) {
-        setBookmarksPanelOpen(true);
+        navigate(getInboxBookmarksPath());
         return;
       }
 
@@ -648,7 +646,7 @@ export function HandleNotificationClick() {
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [setPending, setActiveSessionId, setBookmarksPanelOpen, navigate]);
+  }, [setPending, setActiveSessionId, navigate]);
 
   return null;
 }

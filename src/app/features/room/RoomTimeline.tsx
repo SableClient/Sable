@@ -420,7 +420,7 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    timelineSyncRef.current.loadEventTimeline(eventId);
+    void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
   useEffect(() => {
@@ -536,7 +536,7 @@ export function RoomTimeline({
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
-        timelineSync.loadEventTimeline(anchorId);
+        void timelineSync.loadEventTimeline(anchorId);
       }
     },
   });
@@ -680,14 +680,14 @@ export function RoomTimeline({
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
       if (
         distanceFromBottom < 500 &&
         !liveTimelineLinkedRef.current &&
         forwardStatusRef.current === 'idle'
       ) {
-        timelineSyncRef.current.handleTimelinePagination(false);
+        void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
     [setAtBottom]
@@ -825,7 +825,7 @@ export function RoomTimeline({
       backwardStatusRef.current === 'idle' &&
       v.scrollSize <= v.viewportSize
     ) {
-      timelineSyncRef.current.handleTimelinePagination(true);
+      void timelineSyncRef.current.handleTimelinePagination(true);
     }
   }, [timelineSync.eventsLength, timelineSync.backwardStatus]);
 
@@ -855,7 +855,7 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
     };
 
@@ -955,7 +955,9 @@ export function RoomTimeline({
               eventData.collapsed
             );
 
-            const dividers = (
+            const showDividers = renderedEvent !== null;
+
+            const dividers = showDividers ? (
               <>
                 {eventData.willRenderDayDivider && (
                   <MessageBase space={messageSpacing}>
@@ -976,7 +978,7 @@ export function RoomTimeline({
                   </MessageBase>
                 )}
               </>
-            );
+            ) : null;
 
             if (index === 0) {
               return (

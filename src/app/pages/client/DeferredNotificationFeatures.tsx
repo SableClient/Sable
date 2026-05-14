@@ -16,7 +16,7 @@ import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-ht
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
-import LogoSVG from '$public/res/svg/cinny-logo.svg';
+import LogoSVG from '$public/res/svg/logo.svg';
 import { notificationPermission } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';

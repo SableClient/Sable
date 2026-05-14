@@ -3,15 +3,32 @@ import type { Room } from '$types/matrix-sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IncomingCallInternal } from './IncomingCallModal';
 
-const { navigateRoomMock, sendRtcDeclineMock } = vi.hoisted(() => ({
+const { navigateRoomMock, sendRtcDeclineMock, webRtcSupportedMock, livekitSupportedMock } = vi.hoisted(() => ({
   navigateRoomMock: vi.fn<(roomId: string) => void>(),
   sendRtcDeclineMock: vi.fn<(roomId: string, eventId: string) => Promise<void>>(),
+  webRtcSupportedMock: vi.fn<() => boolean>(),
+  livekitSupportedMock: vi.fn<() => boolean>(),
 }));
 
 vi.mock('$hooks/useMatrixClient', () => ({
   useMatrixClient: () => ({
     sendRtcDecline: sendRtcDeclineMock,
+    getSafeUserId: () => '@me:example.org',
+    mxcUrlToHttp: () => undefined,
   }),
+}));
+
+vi.mock('$hooks/useLivekitSupport', () => ({
+  useLivekitSupport: () => livekitSupportedMock(),
+}));
+
+vi.mock('$hooks/useCallEmbed', () => ({
+  useCallEmbed: () => undefined,
+}));
+
+vi.mock('$hooks/useScreenSize', () => ({
+  ScreenSize: { Desktop: 'Desktop', Tablet: 'Tablet', Mobile: 'Mobile' },
+  useScreenSizeContext: () => 'Desktop',
 }));
 
 vi.mock('$hooks/useRoomMeta', () => ({
@@ -28,8 +45,16 @@ vi.mock('$hooks/useRoomNavigate', () => ({
   }),
 }));
 
+vi.mock('$utils/rtc', () => ({
+  webRTCSupported: () => webRtcSupportedMock(),
+}));
+
 vi.mock('./room-avatar', () => ({
   RoomAvatar: ({ alt }: { alt: string }) => <div>{alt}</div>,
+}));
+
+vi.mock('./user-avatar', () => ({
+  UserAvatar: ({ alt }: { alt?: string }) => <div>{alt}</div>,
 }));
 
 vi.mock('@sentry/react', () => ({
@@ -48,7 +73,16 @@ vi.mock('$utils/debugLogger', () => ({
 }));
 
 describe('IncomingCallInternal', () => {
-  const room = { roomId: '!room:example.org' } as Room;
+  const room = {
+    roomId: '!room:example.org',
+    getMember: () => ({
+      getMxcAvatarUrl: () => undefined,
+      rawDisplayName: 'Alice',
+    }),
+    currentState: {
+      maySendStateEvent: () => true,
+    },
+  } as unknown as Room;
   const incomingCall = {
     roomId: room.roomId,
     notificationEventId: '$notif',
@@ -64,6 +98,8 @@ describe('IncomingCallInternal', () => {
   beforeEach(() => {
     navigateRoomMock.mockReset();
     sendRtcDeclineMock.mockReset().mockResolvedValue(undefined);
+    webRtcSupportedMock.mockReset().mockReturnValue(true);
+    livekitSupportedMock.mockReset().mockReturnValue(true);
   });
 
   it('closes the modal when decline is pressed', async () => {
@@ -87,5 +123,13 @@ describe('IncomingCallInternal', () => {
 
     expect(navigateRoomMock).toHaveBeenCalledWith('!room:example.org');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables answer when WebRTC is unavailable', () => {
+    webRtcSupportedMock.mockReturnValue(false);
+    const onClose = vi.fn<() => void>();
+    render(<IncomingCallInternal room={room} incomingCall={incomingCall} onClose={onClose} />);
+
+    expect(screen.getByRole('button', { name: /answer voice call/i })).toBeDisabled();
   });
 });

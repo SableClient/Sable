@@ -1,11 +1,5 @@
-import {
-  ChangeEventHandler,
-  FormEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, FormEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Text,
@@ -29,7 +23,8 @@ import { useSetAtom } from 'jotai';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UserProfile, useUserProfile, MSC4440Bio } from '$hooks/useUserProfile';
+import type { UserProfile, MSC4440Bio } from '$hooks/useUserProfile';
+import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -41,19 +36,21 @@ import { stopPropagation } from '$utils/keyboard';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import { ImageEditor } from '$components/image-editor';
 import { ModalWide } from '$styles/Modal.css';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
-import { MSC1767Text } from '$types/matrix/common';
+import type { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
 import { BioEditor } from './BioEditor';
 import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
+import * as prefix from '$unstable/prefixes';
 
 type PronounSet = {
   summary: string;
@@ -218,8 +215,7 @@ function ProfileAvatar({ profile, userId }: Readonly<ProfileProps>) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
+function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const [alertRemove, setAlertRemove] = useState(false);
@@ -263,7 +259,7 @@ function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
 
       if (imageFileURL) setStagedUrl(imageFileURL);
 
-      mx.setExtendedProfileProperty?.('chat.commet.profile_banner', mxc);
+      mx.setExtendedProfileProperty?.(prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME, mxc);
       setImageFile(undefined);
     },
     [mx, imageFileURL]
@@ -274,7 +270,10 @@ function ProfileBanner({ profile, userId }: Readonly<ProfileProps>) {
     setStagedUrl(undefined);
     setImageFile(undefined);
 
-    await mx.setExtendedProfileProperty?.('chat.commet.profile_banner', null);
+    await mx.setExtendedProfileProperty?.(
+      prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
+      null
+    );
 
     setAlertRemove(false);
   };
@@ -394,7 +393,7 @@ function ProfileDisplayName({ profile, userId }: Readonly<ProfileProps>) {
   const disableSetDisplayname = capabilities['m.set_displayname']?.enabled === false;
 
   const defaultDisplayName = profile.displayName ?? getMxIdLocalPart(userId) ?? userId;
-  const [displayName, setDisplayName] = useState<string>(defaultDisplayName);
+  const [displayName, setDisplayName] = useState(defaultDisplayName);
 
   const [changeState, changeDisplayName] = useAsyncCallback(
     useCallback((name: string) => mx.setDisplayName(name), [mx])
@@ -489,7 +488,10 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
   const currentStatus = presence?.status || '';
 
   // Keys we don't render here nor handle seperately but still need to exclude
-  const EXCLUDED_KEYS = new Set(['kitty.meow.is_cat', 'kitty.meow.has_cats']);
+  const EXCLUDED_KEYS = new Set([
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
+  ]);
 
   // Unknown fields / unimplemented non-matrix-spec fields
   // Only renders them, can't edit or set
@@ -498,7 +500,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
   );
 
   const handleSaveField = useCallback(
-    async (key: string, value: any) => {
+    async (key: string, value: unknown) => {
       await mx.setExtendedProfileProperty?.(key, value);
       setGlobalProfiles((prev) => {
         const newCache = { ...prev };
@@ -542,26 +544,43 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           title="General Global Name Color"
           description="Custom name color everywhere names have color!"
           focusId="name-color"
-          current={profile.nameColor || profile.extended?.['moe.sable.app.name_color']}
-          onSave={(color) => handleSaveField('moe.sable.app.name_color', color)}
+          current={
+            profile.nameColor ||
+            (profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as
+              | string
+              | undefined)
+          }
+          onSave={(color) =>
+            handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME, color)
+          }
         />
         <NameColorEditor
           title="Dark theme Global Name Color"
           description="Your name's color for a dark theme user."
           focusId="name-color-dark-theme"
           current={
-            profile.nameColorDark || profile.extended?.['moe.sable.app.name_color_dark_theme']
+            profile.nameColorDark ||
+            (profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
+              | string
+              | undefined)
           }
-          onSave={(color) => handleSaveField('moe.sable.app.name_color_dark_theme', color)}
+          onSave={(color) =>
+            handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME, color)
+          }
         />
         <NameColorEditor
           title="Light theme Global Name Color"
           description="Your name's color for a light theme user."
           focusId="name-color-light-theme"
           current={
-            profile.nameColorLight || profile.extended?.['moe.sable.app.name_color_light_theme']
+            profile.nameColorLight ||
+            (profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as
+              | string
+              | undefined)
           }
-          onSave={(color) => handleSaveField('moe.sable.app.name_color_light_theme', color)}
+          onSave={(color) =>
+            handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME, color)
+          }
         />
       </SequenceCard>
       <SequenceCard
@@ -573,7 +592,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
         <PronounEditor
           title="Pronouns"
           current={pronouns}
-          onSave={(p) => handleSaveField('io.fsky.nyx.pronouns', p)}
+          onSave={(p) => handleSaveField(prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME, p)}
         />
       </SequenceCard>
       <SequenceCard
@@ -585,8 +604,8 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
         <TimezoneEditor
           current={profile.timezone}
           onSave={(tz) => {
-            handleSaveField('us.cloke.msc4175.tz', tz);
-            handleSaveField('m.tz', tz);
+            handleSaveField(prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME, tz);
+            handleSaveField(prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME, tz);
           }}
         />
       </SequenceCard>
@@ -598,16 +617,24 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
       >
         <BioEditor
           value={
-            (profile.extended?.['gay.fomx.biography'] satisfies MSC4440Bio)?.formatted_body ||
-            profile.extended?.['moe.sable.app.bio'] ||
-            profile.extended?.['chat.commet.profile_bio'] ||
+            (
+              profile.extended?.[prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as
+                | MSC4440Bio
+                | undefined
+            )?.['m.text']?.[0]?.body ||
+            (profile.extended?.[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as
+              | string
+              | undefined) ||
+            (profile.extended?.[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as
+              | string
+              | undefined) ||
             profile.bio
           }
           onSave={(htmlBio, plainTextBio) => {
-            handleSaveField('moe.sable.app.bio', htmlBio);
+            handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME, htmlBio);
 
             // MSC4440
-            handleSaveField('gay.fomx.biography', {
+            handleSaveField(prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME, {
               'm.text': [
                 {
                   body: htmlBio,
@@ -620,12 +647,50 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
             } satisfies MSC4440Bio);
 
             const cleanedHtml = htmlBio.replaceAll('<br/></blockquote>', '</blockquote>');
-            handleSaveField('chat.commet.profile_bio', {
+            handleSaveField(prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME, {
               format: 'org.matrix.custom.html',
               formatted_body: cleanedHtml,
             });
           }}
         />
+      </SequenceCard>
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
+        <NameColorEditor
+          title="Background Color"
+          description="The background color that will be used when making your profile card"
+          focusId="user-hero-color"
+          current={profile?.heroColorScheme?.color}
+          onSave={(color) =>
+            handleSaveField(prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME, {
+              color,
+              brightness: color ? profile?.heroColorScheme?.brightness : null,
+            })
+          }
+        />
+        <IconButton
+          variant={profile?.heroColorScheme?.brightness === 'dark' ? 'Primary' : 'Warning'}
+          onClick={() =>
+            handleSaveField(prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME, {
+              color: profile?.heroColorScheme?.color,
+              brightness: profile?.heroColorScheme?.brightness === 'dark' ? 'light' : 'dark',
+            })
+          }
+        >
+          <Box gap="200" direction="Row">
+            <Text truncate>
+              {profile?.heroColorScheme?.brightness === 'dark' ? 'Dark Mode' : 'Light Mode'}
+            </Text>
+            <Icon
+              src={profile?.heroColorScheme?.brightness === 'dark' ? Icons.Star : Icons.Sun}
+              size="200"
+            />
+          </Box>
+        </IconButton>
       </SequenceCard>
 
       {extendedFields.length > 0 &&
@@ -650,6 +715,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
           return (
             <SequenceCard
+              key={key}
               className={SequenceCardStyle}
               variant="SurfaceVariant"
               direction="Column"
@@ -658,6 +724,7 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
               <SettingTile
                 key={key}
                 focusId={`profile-field-${toSettingsFocusIdPart(key)}`}
+                showSettingLinkAction={false}
                 title={key.split('.').pop() || key}
                 description={key}
                 after={
@@ -687,7 +754,7 @@ export function Profile() {
           direction="Column"
           gap="400"
         >
-          <ProfileBanner userId={userId} profile={profile} />
+          <ProfileBanner profile={profile} />
         </SequenceCard>
         <SequenceCard
           className={SequenceCardStyle}

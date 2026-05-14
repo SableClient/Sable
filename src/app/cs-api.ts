@@ -86,7 +86,7 @@ export const autoDiscovery = async (
     ];
   }
 
-  if (/^https?:\/\//.test(baseUrl) === false) {
+  if (!/^https?:\/\//.test(baseUrl)) {
     return [
       {
         host,

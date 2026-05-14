@@ -1,5 +1,9 @@
-import { MouseEventHandler, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { serverMaxDelayMsAtom } from '$state/scheduledMessages';
 import FocusTrap from 'focus-trap-react';
+import type { RectCords } from 'folds';
 import {
   Dialog,
   Overlay,
@@ -16,7 +20,6 @@ import {
   Button,
   Chip,
   PopOut,
-  RectCords,
 } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
 import { timeDayMonthYear, timeHourMinute, hoursToMs, daysToMs } from '$utils/time';
@@ -38,7 +41,9 @@ export function SchedulePickerDialog({
   onSubmit,
 }: SchedulePickerDialogProps) {
   const now = Date.now();
-  const maxDelay = daysToMs(30);
+  const serverMaxDelayMs = useAtomValue(serverMaxDelayMsAtom);
+  const maxDelay = serverMaxDelayMs ?? daysToMs(30);
+  const maxDays = Math.round(maxDelay / daysToMs(1));
   const defaultTs = initialTime ?? now + hoursToMs(1);
   const [ts, setTs] = useState(() => Math.max(defaultTs, now + 60000));
   const [error, setError] = useState<string>();
@@ -66,7 +71,7 @@ export function SchedulePickerDialog({
       return;
     }
     if (delay > maxDelay) {
-      setError('Cannot schedule more than 30 days in advance');
+      setError(`Cannot schedule more than ${maxDays} day${maxDays !== 1 ? 's' : ''} in advance`);
       return;
     }
     setError(undefined);

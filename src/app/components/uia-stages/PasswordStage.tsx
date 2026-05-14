@@ -1,8 +1,8 @@
 import { Box, Button, color, config, Dialog, Header, Icon, IconButton, Icons, Text } from 'folds';
-import { FormEventHandler } from 'react';
+import type { FormEventHandler } from 'react';
 import { AuthType } from '$types/matrix-sdk';
 import { PasswordInput } from '$components/password-input';
-import { StageComponentProps } from './types';
+import type { StageComponentProps } from './types';
 import { ErrorCode } from '../../cs-errorcode';
 
 export function PasswordStage({
@@ -69,7 +69,7 @@ export function PasswordStage({
                 <Icon size="50" src={Icons.Warning} filled />
                 <Text size="T200">
                   <b>
-                    {errorCode === ErrorCode.M_FORBIDDEN
+                    {errorCode === (ErrorCode.M_FORBIDDEN as string)
                       ? 'Invalid Password!'
                       : `${errorCode}: ${error}`}
                   </b>

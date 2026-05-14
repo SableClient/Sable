@@ -3,8 +3,9 @@ import { Box, Button, Icon, Icons, Text } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
-import { Direction, EventType, NotificationCountType, Room } from '$types/matrix-sdk';
-import { Membership } from '$types/matrix/room';
+import type { Room } from '$types/matrix-sdk';
+import { Direction, EventType, NotificationCountType, KnownMembership } from '$types/matrix-sdk';
+
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { getUnreadInfo, isNotificationEvent } from '$utils/room';
 
@@ -38,8 +39,8 @@ const getRoomRenderingDiagnostics = (rooms: Room[]): RoomRenderingDiagnostics =>
 
   rooms.forEach((room) => {
     const membership = room.getMyMembership();
-    if (membership === Membership.Join) joinedRooms += 1;
-    if (membership === Membership.Invite) inviteRooms += 1;
+    if (membership === (KnownMembership.Join as string)) joinedRooms += 1;
+    if (membership === (KnownMembership.Invite as string)) inviteRooms += 1;
 
     if (!room.name || room.name.trim().length === 0) roomsMissingName += 1;
 
@@ -69,7 +70,9 @@ const getUnreadDriftRooms = (mx: ReturnType<typeof useMatrixClient>): UnreadDrif
 
   return mx
     .getRooms()
-    .filter((room) => !room.isSpaceRoom() && room.getMyMembership() === Membership.Join)
+    .filter(
+      (room) => !room.isSpaceRoom() && room.getMyMembership() === (KnownMembership.Join as string)
+    )
     .reduce<UnreadDriftRoom[]>((driftRooms, room) => {
       const reconciledUnread = getUnreadInfo(room);
       const sdkTotal = room.getUnreadNotificationCount(NotificationCountType.Total);
@@ -78,7 +81,7 @@ const getUnreadDriftRooms = (mx: ReturnType<typeof useMatrixClient>): UnreadDrif
       if (reconciledUnread.total <= 0 && reconciledUnread.highlight <= 0) return driftRooms;
 
       const latestNotificationEvent = [...room.getLiveTimeline().getEvents()]
-        .reverse()
+        .toReversed()
         .find((event) => !event.isSending() && isNotificationEvent(event));
       const latestNotificationEventId = latestNotificationEvent?.getId() ?? null;
       if (!latestNotificationEventId) return driftRooms;

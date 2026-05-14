@@ -1,4 +1,5 @@
-import { FormEventHandler, MouseEventHandler, useState } from 'react';
+import type { FormEventHandler, MouseEventHandler } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Header,
@@ -14,21 +15,26 @@ import {
   config,
   Button,
   Line,
+  toRem,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useRoomWidgets, RoomWidget, enrichWidgetUrl } from '$hooks/useRoomWidgets';
-import { useSetSetting } from '$state/hooks/settings';
+import type { RoomWidget } from '$hooks/useRoomWidgets';
+import { useRoomWidgets, enrichWidgetUrl } from '$hooks/useRoomWidgets';
+import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { StateEvent } from '$types/matrix/room';
+
 import { createLogger } from '$utils/debug';
 import { WidgetIframe } from './WidgetIframe';
 import * as css from './WidgetsDrawer.css';
 import { IntegrationManager } from './IntegrationManager';
+import { CustomStateEvent } from '$types/matrix/room';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type WidgetsDrawerHeaderProps = {
   activeWidget: RoomWidget | null;
@@ -102,14 +108,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
       const widgetId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await mx.sendStateEvent(
         room.roomId,
-        StateEvent.RoomWidget as any,
+        CustomStateEvent.RoomWidget,
         {
           type: 'm.custom',
           url: enrichWidgetUrl(url.trim()),
           name: name.trim(),
           id: widgetId,
           creatorUserId: mx.getUserId(),
-        } as any,
+        },
         widgetId
       );
       setName('');
@@ -133,14 +139,14 @@ function AddWidgetForm({ room, onAdded }: AddWidgetFormProps) {
           size="300"
           placeholder="Widget Name"
           value={name}
-          onChange={(e: any) => setName(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
         />
         <Input
           className={css.AddWidgetInput}
           size="300"
           placeholder="Widget URL (https://...)"
           value={url}
-          onChange={(e: any) => setUrl(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
         />
         <Button
           type="submit"
@@ -224,11 +230,20 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const powerLevels = usePowerLevelsContext();
   const creators = useRoomCreators(room);
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canManageWidgets = permissions.stateEvent(StateEvent.RoomWidget, mx.getSafeUserId());
+  const canManageWidgets = permissions.stateEvent(CustomStateEvent.RoomWidget, mx.getSafeUserId());
+
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(widgetSidebarWidth);
+  useEffect(() => {
+    setCurWidth(widgetSidebarWidth);
+  }, [widgetSidebarWidth]);
 
   const handleRemoveWidget = async (widget: RoomWidget) => {
     try {
-      await mx.sendStateEvent(room.roomId, StateEvent.RoomWidget as any, {} as any, widget.id);
+      await mx.sendStateEvent(room.roomId, CustomStateEvent.RoomWidget, {}, widget.id);
       if (activeWidget?.id === widget.id) {
         setActiveWidget(null);
       }
@@ -240,7 +255,25 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
   const handleBack = () => setActiveWidget(null);
 
   return (
-    <Box className={css.WidgetsDrawer} direction="Column">
+    <Box
+      className={css.WidgetsDrawer}
+      shrink="No"
+      direction="Column"
+      style={{
+        position: 'relative',
+        width: !mobileOrTablet() ? toRem(curWidth) : 'inherit',
+      }}
+    >
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={widgetSidebarWidth}
+          setSidebarWidth={setWidgetSidebarWidth}
+          minValue={50}
+          maxValue={1200}
+          isReversed
+        />
+      )}
       <WidgetDrawerHeader activeWidget={activeWidget} onBack={handleBack} />
       {activeWidget ? (
         <Box className={css.WidgetIframeContainer} grow="Yes">
@@ -274,7 +307,9 @@ export function WidgetsDrawer({ room }: WidgetsDrawerProps) {
                   <Box
                     direction="Column"
                     gap="100"
-                    style={{ padding: `${config.space.S100} ${config.space.S300}` }}
+                    style={{
+                      padding: `${config.space.S100} ${config.space.S300}`,
+                    }}
                   >
                     <Button
                       size="300"

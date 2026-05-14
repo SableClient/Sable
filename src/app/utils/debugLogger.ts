@@ -122,7 +122,6 @@ class DebugLoggerService {
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
     const consoleLevel = level === 'debug' ? 'log' : level;
-    // eslint-disable-next-line no-console
     console[consoleLevel](prefix, message, data !== undefined ? data : '');
   }
 
@@ -182,7 +181,11 @@ class DebugLoggerService {
         }
       });
     }
-    const logAttrs = { category: entry.category, namespace: entry.namespace, ...logDataAttrs };
+    const logAttrs = {
+      category: entry.category,
+      namespace: entry.namespace,
+      ...logDataAttrs,
+    };
     if (entry.level === 'debug') Sentry.logger.debug(logMsg, logAttrs);
     else if (entry.level === 'info') Sentry.logger.info(logMsg, logAttrs);
     else if (entry.level === 'warn') Sentry.logger.warn(logMsg, logAttrs);

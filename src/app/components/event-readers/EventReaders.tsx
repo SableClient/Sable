@@ -12,7 +12,7 @@ import {
   as,
   config,
 } from 'folds';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
@@ -58,9 +58,14 @@ export const EventReaders = as<'div', EventReadersProps>(
             <Icon src={Icons.Cross} />
           </IconButton>
         </Header>
-        <Box grow="Yes">
-          <Scroll visibility="Hover" hideTrack size="300">
-            <Box className={css.Content} direction="Column">
+        <Box grow="Yes" style={{ width: '100%', minWidth: 0 }}>
+          <Box
+            grow="Yes"
+            className={css.Content}
+            direction="Column"
+            style={{ width: '100%', minWidth: 0 }}
+          >
+            <Scroll visibility="Hover" hideTrack size="300" style={{ width: '100%' }}>
               {latestEventReaders.map((readerId) => {
                 const name = getName(readerId);
                 const avatarMxcUrl = room.getMember(readerId)?.getMxcAvatarUrl();
@@ -79,7 +84,7 @@ export const EventReaders = as<'div', EventReadersProps>(
                 return (
                   <MenuItem
                     key={readerId}
-                    style={{ padding: `0 ${config.space.S200}` }}
+                    style={{ padding: `0 ${config.space.S200}`, width: '100%' }}
                     radii="400"
                     onClick={(event) => {
                       openProfile(
@@ -107,8 +112,8 @@ export const EventReaders = as<'div', EventReadersProps>(
                   </MenuItem>
                 );
               })}
-            </Box>
-          </Scroll>
+            </Scroll>
+          </Box>
         </Box>
       </Box>
     );

@@ -1,16 +1,11 @@
-import {
-  KeyboardEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import type { CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
 import {
   PopOut,
   Menu,
@@ -21,7 +16,6 @@ import {
   Chip,
   Icon,
   Icons,
-  RectCords,
   Spinner,
   toRem,
   Box,
@@ -29,7 +23,7 @@ import {
   Avatar,
 } from 'folds';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdServer } from '$utils/matrix';
+import { getMxIdServer } from '$utils/mxIdHelper';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { stopPropagation } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
@@ -50,8 +44,27 @@ import { useNickname, useSetNickname } from '$hooks/useNickname';
 import { CutoutCard } from '$components/cutout-card';
 import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
+import { heroMenuItemStyle } from './heroMenuItemStyle';
+import * as css from './styles.css';
 
-export function ServerChip({ server }: { server: string }) {
+export function ServerChip({
+  server,
+  innerColor,
+  cardColor,
+  textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
+}: {
+  server: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
+}) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const myServer = getMxIdServer(mx.getSafeUserId());
   const navigate = useNavigate();
@@ -84,54 +97,91 @@ export function ServerChip({ server }: { server: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
-              <MenuItem
-                variant="Surface"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  copyToClipboard(server);
-                  setCopied();
-                  close();
-                }}
-              >
-                <Text size="B300">Copy Server</Text>
-              </MenuItem>
-              <MenuItem
-                variant="Surface"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  navigate(getExploreServerPath(server));
-                  closeProfile();
-                }}
-              >
-                <Text size="B300">Explore Community</Text>
-              </MenuItem>
+            <div
+              style={{
+                padding: config.space.S200,
+                maxWidth: toRem(200),
+                backgroundColor: innerColor,
+              }}
+            >
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    copyToClipboard(server);
+                    setCopied();
+                    close();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Copy Server</Text>
+                </MenuItem>
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    navigate(getExploreServerPath(server));
+                    closeProfile();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Explore Community</Text>
+                </MenuItem>
+              </Box>
             </div>
             <Line size="300" />
-            <div style={{ padding: config.space.S100 }}>
-              <MenuItem
-                variant={myServer === server ? 'Surface' : 'Critical'}
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  window.open(`https://${server}`, '_blank');
-                  close();
-                }}
-              >
-                <Text size="B300">Open in Browser</Text>
-              </MenuItem>
+            <div
+              style={{
+                padding: config.space.S200,
+                backgroundColor: innerColor,
+                color: textColor,
+              }}
+            >
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    window.open(`https://${server}`, '_blank');
+                    close();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                >
+                  <Text size="B300">Open in Browser</Text>
+                </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>
       }
     >
       <Chip
-        variant={myServer === server ? 'SurfaceVariant' : 'Warning'}
+        variant={cardColor ? undefined : myServer === server ? 'SurfaceVariant' : 'Warning'}
         radii="Pill"
         before={
           cords ? (
@@ -142,6 +192,11 @@ export function ServerChip({ server }: { server: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" truncate>
           {server}
@@ -151,7 +206,24 @@ export function ServerChip({ server }: { server: string }) {
   );
 }
 
-export function ShareChip({ userId }: { userId: string }) {
+export function ShareChip({
+  userId,
+  innerColor,
+  cardColor,
+  textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
+}: {
+  userId: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
+}) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const [cords, setCords] = useState<RectCords>();
 
   const [copied, setCopied] = useTimeoutToggle();
@@ -180,40 +252,56 @@ export function ShareChip({ userId }: { userId: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
-              <MenuItem
-                variant="Surface"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  copyToClipboard(userId);
-                  setCopied();
-                  close();
-                }}
-              >
-                <Text size="B300">Copy User ID</Text>
-              </MenuItem>
-              <MenuItem
-                variant="Surface"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  copyToClipboard(getMatrixToUser(userId));
-                  setCopied();
-                  close();
-                }}
-              >
-                <Text size="B300">Copy User Link</Text>
-              </MenuItem>
+            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+              <Box direction="Column" gap="100">
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                  onClick={() => {
+                    copyToClipboard(userId);
+                    setCopied();
+                    close();
+                  }}
+                >
+                  <Text size="B300">Copy User ID</Text>
+                </MenuItem>
+                <MenuItem
+                  fill="None"
+                  size="300"
+                  radii="300"
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle(
+                    {
+                      backgroundColor: menuItemBg,
+                      color: textColor,
+                    },
+                    chipHoverBrightness
+                  )}
+                  onClick={() => {
+                    copyToClipboard(getMatrixToUser(userId));
+                    setCopied();
+                    close();
+                  }}
+                >
+                  <Text size="B300">Copy User Link</Text>
+                </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>
       }
     >
       <Chip
-        variant={copied ? 'Success' : 'SurfaceVariant'}
+        variant={copied ? 'Success' : cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={
           cords ? (
@@ -224,6 +312,11 @@ export function ShareChip({ userId }: { userId: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={!copied && cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && !copied && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
         <Text size="B300" truncate>
           Share
@@ -239,7 +332,24 @@ type MutualRoomsData = {
   directs: Room[];
 };
 
-export function MutualRoomsChip({ userId }: { userId: string }) {
+export function MutualRoomsChip({
+  userId,
+  innerColor,
+  cardColor,
+  textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
+}: {
+  userId: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
+}) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
   const mutualRoomsState = useMutualRooms(userId);
@@ -268,7 +378,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
 
     if (mutualRoomsState.status === AsyncStatus.Success) {
       const mutualRooms = mutualRoomsState.data
-        .sort(factoryRoomIdByAtoZ(mx))
+        .toSorted(factoryRoomIdByAtoZ(mx))
         .map(getRoom)
         .filter((room) => !!room);
       mutualRooms.forEach((room) => {
@@ -305,7 +415,15 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
         fill="None"
         size="300"
         radii="300"
-        style={{ paddingLeft: config.space.S100 }}
+        className={css.UserHeroMenuItem}
+        style={heroMenuItemStyle(
+          {
+            paddingLeft: config.space.S100,
+            backgroundColor: menuItemBg,
+            color: textColor,
+          },
+          chipHoverBrightness
+        )}
         onClick={() => {
           if (room.isSpaceRoom()) {
             navigateSpace(roomId);
@@ -332,12 +450,17 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                 )}
               />
             ) : (
-              <RoomIcon size="100" joinRule={room.getJoinRule()} roomType={room.getType()} />
+              <RoomIcon
+                size="100"
+                joinRule={room.getJoinRule()}
+                roomType={room.getType()}
+                style={{ color: textColor }}
+              />
             )}
           </Avatar>
         }
       >
-        <Text size="B300" truncate>
+        <Text size="B300" truncate style={{ color: textColor }}>
           {room.name}
         </Text>
       </MenuItem>
@@ -367,6 +490,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                 display: 'flex',
                 maxWidth: toRem(200),
                 maxHeight: '80vh',
+                backgroundColor: innerColor,
               }}
             >
               <Box grow="Yes">
@@ -374,7 +498,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
                   <Box
                     direction="Column"
                     gap="400"
-                    style={{ padding: config.space.S200, paddingRight: 0 }}
+                    style={{ padding: config.space.S200, paddingRight: 0, color: textColor }}
                   >
                     {mutual.spaces.length > 0 && (
                       <Box direction="Column" gap="100">
@@ -409,7 +533,7 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
       }
     >
       <Chip
-        variant="SurfaceVariant"
+        variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
         disabled={
@@ -417,8 +541,13 @@ export function MutualRoomsChip({ userId }: { userId: string }) {
         }
         onClick={open}
         aria-pressed={!!cords}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
       >
-        <Text size="B300">
+        <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
             `${mutualRoomsState.data.length} Mutual Rooms`}
           {mutualRoomsState.status === AsyncStatus.Loading && 'Mutual Rooms'}
@@ -433,7 +562,7 @@ export function IgnoredUserAlert() {
     <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
       <SettingTile>
         <Box direction="Column" gap="200">
-          <Box gap="200" justifyContent="SpaceBetween">
+          <Box gap="200" justifyContent="Center">
             <Text size="L400">Blocked User</Text>
           </Box>
           <Box direction="Column">
@@ -445,7 +574,24 @@ export function IgnoredUserAlert() {
   );
 }
 
-export function OptionsChip({ userId }: { userId: string }) {
+export function OptionsChip({
+  userId,
+  innerColor,
+  cardColor,
+  textColor,
+  chipSurfaceStyle,
+  chipFillColor,
+  chipHoverBrightness,
+}: {
+  userId: string;
+  innerColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  chipSurfaceStyle?: CSSProperties;
+  chipFillColor?: string;
+  chipHoverBrightness?: number;
+}) {
+  const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const [cords, setCords] = useState<RectCords>();
   const [editingNick, setEditingNick] = useState(false);
@@ -510,94 +656,130 @@ export function OptionsChip({ userId }: { userId: string }) {
           }}
         >
           <Menu>
-            <div style={{ padding: config.space.S100 }}>
-              {editingNick ? (
-                <Box
-                  direction="Column"
-                  gap="100"
-                  style={{ padding: `${config.space.S100} ${config.space.S200}` }}
-                >
-                  <Text size="L400">Nickname</Text>
-                  <input
-                    ref={nickInputRef}
-                    defaultValue={currentNick ?? ''}
-                    placeholder="Enter a nickname…"
-                    onKeyDown={handleNickKeyDown}
-                    style={{
-                      background: 'var(--mx-c-surface)',
-                      color: 'var(--mx-c-on-surface)',
-                      border: '1px solid var(--mx-c-outline)',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      fontSize: '14px',
-                      width: '100%',
-                      outline: 'none',
-                    }}
-                  />
-                  <Box gap="200">
-                    <MenuItem
-                      size="300"
-                      radii="300"
-                      variant="Success"
-                      fill="None"
-                      onClick={handleSaveNick}
-                    >
-                      <Text size="B300">Save</Text>
-                    </MenuItem>
-                    {currentNick && (
+            <div style={{ padding: config.space.S200, backgroundColor: innerColor }}>
+              <Box direction="Column" gap="100">
+                {editingNick ? (
+                  <Box direction="Column" gap="100" style={{ color: textColor }}>
+                    <Text size="L400">Nickname</Text>
+                    <input
+                      ref={nickInputRef}
+                      defaultValue={currentNick ?? ''}
+                      placeholder="Enter a nickname…"
+                      onKeyDown={handleNickKeyDown}
+                      style={{
+                        background: 'var(--mx-c-surface)',
+                        color: 'var(--mx-c-on-surface)',
+                        border: '1px solid var(--mx-c-outline)',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                        width: '100%',
+                        outline: 'none',
+                      }}
+                    />
+                    <Box gap="200">
                       <MenuItem
                         size="300"
                         radii="300"
-                        variant="Critical"
+                        variant="Success"
                         fill="None"
-                        onClick={() => {
-                          setNickname(userId, undefined);
-                          close();
-                        }}
+                        onClick={handleSaveNick}
+                        className={css.UserHeroMenuItem}
+                        style={heroMenuItemStyle(
+                          {
+                            backgroundColor: menuItemBg,
+                            color: textColor,
+                          },
+                          chipHoverBrightness
+                        )}
                       >
-                        <Text size="B300">Clear</Text>
+                        <Text size="B300">Save</Text>
                       </MenuItem>
-                    )}
+                      {currentNick && (
+                        <MenuItem
+                          size="300"
+                          radii="300"
+                          variant="Critical"
+                          fill="None"
+                          className={css.UserHeroMenuItem}
+                          onClick={() => {
+                            setNickname(userId, undefined);
+                            close();
+                          }}
+                          style={heroMenuItemStyle(
+                            {
+                              backgroundColor: menuItemBg,
+                              color: textColor,
+                            },
+                            chipHoverBrightness
+                          )}
+                        >
+                          <Text size="B300">Clear</Text>
+                        </MenuItem>
+                      )}
+                    </Box>
                   </Box>
-                </Box>
-              ) : (
+                ) : (
+                  <MenuItem
+                    variant="Surface"
+                    fill="None"
+                    size="300"
+                    radii="300"
+                    before={<Icon size="50" src={Icons.Pencil} />}
+                    onClick={() => setEditingNick(true)}
+                    className={css.UserHeroMenuItem}
+                    style={heroMenuItemStyle(
+                      {
+                        backgroundColor: menuItemBg,
+                        color: textColor,
+                      },
+                      chipHoverBrightness
+                    )}
+                  >
+                    <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
+                  </MenuItem>
+                )}
                 <MenuItem
-                  variant="Surface"
+                  variant="Critical"
                   fill="None"
                   size="300"
                   radii="300"
-                  before={<Icon size="50" src={Icons.Pencil} />}
-                  onClick={() => setEditingNick(true)}
+                  onClick={() => {
+                    toggleIgnore();
+                    close();
+                  }}
+                  className={css.UserHeroMenuItem}
+                  style={heroMenuItemStyle({ backgroundColor: menuItemBg }, chipHoverBrightness)}
+                  before={
+                    ignoring ? (
+                      <Spinner variant="Critical" size="50" />
+                    ) : (
+                      <Icon size="50" src={Icons.Prohibited} />
+                    )
+                  }
+                  disabled={ignoring}
                 >
-                  <Text size="B300">{currentNick ? 'Edit Nickname' : 'Set Nickname'}</Text>
+                  <Text size="B300" style={{ color: textColor }}>
+                    {ignored ? 'Unblock User' : 'Block User'}
+                  </Text>
                 </MenuItem>
-              )}
-              <MenuItem
-                variant="Critical"
-                fill="None"
-                size="300"
-                radii="300"
-                onClick={() => {
-                  toggleIgnore();
-                  close();
-                }}
-                before={
-                  ignoring ? (
-                    <Spinner variant="Critical" size="50" />
-                  ) : (
-                    <Icon size="50" src={Icons.Prohibited} />
-                  )
-                }
-                disabled={ignoring}
-              >
-                <Text size="B300">{ignored ? 'Unblock User' : 'Block User'}</Text>
-              </MenuItem>
+              </Box>
             </div>
           </Menu>
         </FocusTrap>
       }
     >
-      <Chip variant="SurfaceVariant" radii="Pill" onClick={open} aria-pressed={!!cords}>
+      <Chip
+        variant={cardColor ? undefined : 'SurfaceVariant'}
+        radii="Pill"
+        onClick={open}
+        aria-pressed={!!cords}
+        className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}
+        style={heroMenuItemStyle(
+          cardColor && chipSurfaceStyle ? chipSurfaceStyle : {},
+          chipHoverBrightness
+        )}
+      >
         {ignoring ? (
           <Spinner variant="Secondary" size="50" />
         ) : (

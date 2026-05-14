@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
-import { StateEvent } from '$types/matrix/room';
-import { PermissionGroup } from '$features/common-settings/permissions';
+
+import type { PermissionGroup } from '$features/common-settings/permissions';
+import { EventType } from '$types/matrix-sdk';
+import { CustomStateEvent } from '$types/matrix/room';
 
 export const usePermissionGroups = (): PermissionGroup[] => {
   const groups: PermissionGroup[] = useMemo(() => {
@@ -10,7 +12,7 @@ export const usePermissionGroups = (): PermissionGroup[] => {
         {
           location: {
             state: true,
-            key: StateEvent.SpaceChild,
+            key: EventType.SpaceChild,
           },
           name: 'Manage space rooms',
         },
@@ -54,21 +56,21 @@ export const usePermissionGroups = (): PermissionGroup[] => {
         {
           location: {
             state: true,
-            key: StateEvent.RoomAvatar,
+            key: EventType.RoomAvatar,
           },
           name: 'Space Avatar',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomName,
+            key: EventType.RoomName,
           },
           name: 'Space Name',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomTopic,
+            key: EventType.RoomTopic,
           },
           name: 'Space Topic',
         },
@@ -81,35 +83,35 @@ export const usePermissionGroups = (): PermissionGroup[] => {
         {
           location: {
             state: true,
-            key: StateEvent.RoomJoinRules,
+            key: EventType.RoomJoinRules,
           },
           name: 'Change Space Access',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomCanonicalAlias,
+            key: EventType.RoomCanonicalAlias,
           },
           name: 'Publish Address',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomPowerLevels,
+            key: EventType.RoomPowerLevels,
           },
           name: 'Change All Permission',
         },
         {
           location: {
             state: true,
-            key: StateEvent.PowerLevelTags,
+            key: CustomStateEvent.PowerLevelTags,
           },
           name: 'Edit Power Levels',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomTombstone,
+            key: EventType.RoomTombstone,
           },
           name: 'Upgrade Space',
         },
@@ -128,14 +130,14 @@ export const usePermissionGroups = (): PermissionGroup[] => {
         {
           location: {
             state: true,
-            key: StateEvent.PoniesRoomEmotes,
+            key: CustomStateEvent.PoniesRoomEmotes,
           },
           name: 'Manage Emojis & Stickers',
         },
         {
           location: {
             state: true,
-            key: StateEvent.RoomServerAcl,
+            key: EventType.RoomServerAcl,
           },
           name: 'Change Server ACLs',
         },

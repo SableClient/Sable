@@ -1,12 +1,5 @@
-import {
-  MouseEventHandler,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { MouseEventHandler, ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
@@ -20,20 +13,23 @@ import {
   color,
   config,
 } from 'folds';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
+import type { VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
-import {
-  JoinRule,
-  RestrictedAllowType,
+import type {
   Room,
   RoomJoinRulesEventContent,
   IHierarchyRoom,
+  StateEvents,
+  AccountDataEvents,
 } from '$types/matrix-sdk';
+import { JoinRule, RestrictedAllowType, EventType } from '$types/matrix-sdk';
 import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
-import { HierarchyItem, HierarchyItemSpace, useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
+import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -41,8 +37,8 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { settingsAtom } from '$state/settings';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
+import type { IPowerLevels } from '$hooks/usePowerLevels';
 import {
-  IPowerLevels,
   PowerLevelsContextProvider,
   usePowerLevels,
   useRoomsPowerLevels,
@@ -54,7 +50,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getCanonicalAliasOrRoomId, rateLimitedActions } from '$utils/matrix';
 import { getSpaceRoomPath } from '$pages/pathUtils';
-import { StateEvent } from '$types/matrix/room';
+
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
 import { getStateEvent } from '$utils/room';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
@@ -65,7 +61,7 @@ import {
 } from '$hooks/useSidebarItems';
 import { useOrphanSpaces } from '$state/hooks/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { AccountDataEvent } from '$types/matrix/accountData';
+
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useGetRoom } from '$hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -73,10 +69,12 @@ import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
-import { CanDropCallback, useDnDMonitor } from './DnD';
+import type { CanDropCallback } from './DnD';
+import { useDnDMonitor } from './DnD';
 import { LobbyHero } from './LobbyHero';
 import { LobbyHeader } from './LobbyHeader';
 import { SpaceHierarchyNavItem } from './SpaceHierarchyNavItem';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 const useCanDropLobbyItem = (
   space: Room,
@@ -106,7 +104,7 @@ const useCanDropLobbyItem = (
 
       if (
         getRoom(containerSpaceId) === undefined ||
-        !permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+        !permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
       ) {
         return false;
       }
@@ -132,7 +130,7 @@ const useCanDropLobbyItem = (
         const itemPermissions = getRoomPermissionsAPI(itemCreators, itemPowerLevels);
 
         const canChangeJoinRuleAllow = itemPermissions.stateEvent(
-          StateEvent.RoomJoinRules,
+          EventType.RoomJoinRules,
           mx.getSafeUserId()
         );
         if (!canChangeJoinRuleAllow) {
@@ -145,7 +143,7 @@ const useCanDropLobbyItem = (
       const permissions = getRoomPermissionsAPI(creators, powerLevels);
       if (
         getRoom(containerSpaceId) === undefined ||
-        !permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId())
+        !permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId())
       ) {
         return false;
       }
@@ -369,22 +367,22 @@ export function Lobby() {
             orderKey,
           }))
           .filter((reorder, index) => {
-            if (!reorder.item.parentId) return false;
+            if (!reorder.item || !reorder.item.parentId) return false;
             const parentPL = roomsPowerLevels.get(reorder.item.parentId);
             if (!parentPL) return false;
 
             const creators = getRoomCreatorsForRoomId(mx, reorder.item.parentId);
             const permissions = getRoomPermissionsAPI(creators, parentPL);
-            const canEdit = permissions.stateEvent(StateEvent.SpaceChild, mx.getSafeUserId());
+            const canEdit = permissions.stateEvent(EventType.SpaceChild, mx.getSafeUserId());
             return canEdit && reorder.orderKey !== currentOrders[index];
           });
 
         if (reorders) {
           await rateLimitedActions(reorders, async (reorder) => {
-            if (!reorder.item.parentId) return;
+            if (!reorder.item || !reorder.item.parentId) return;
             await mx.sendStateEvent(
               reorder.item.parentId,
-              StateEvent.SpaceChild as any,
+              EventType.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -409,7 +407,12 @@ export function Lobby() {
 
         // remove from current space
         if (item.parentId !== containerParentId) {
-          await mx.sendStateEvent(item.parentId, StateEvent.SpaceChild as any, {}, item.roomId);
+          await mx.sendStateEvent(
+            item.parentId,
+            EventType.SpaceChild as keyof StateEvents,
+            {},
+            item.roomId
+          );
         }
 
         if (
@@ -420,15 +423,18 @@ export function Lobby() {
           // restricted room from one space to another
           const joinRuleContent = getStateEvent(
             itemRoom,
-            StateEvent.RoomJoinRules
+            EventType.RoomJoinRules
           )?.getContent<RoomJoinRulesEventContent>();
 
           if (joinRuleContent) {
             const allow =
               joinRuleContent.allow?.filter((allowRule) => allowRule.room_id !== item.parentId) ??
               [];
-            allow.push({ type: RestrictedAllowType.RoomMembership, room_id: containerParentId });
-            await mx.sendStateEvent(itemRoom.roomId, StateEvent.RoomJoinRules as any, {
+            allow.push({
+              type: RestrictedAllowType.RoomMembership,
+              room_id: containerParentId,
+            });
+            await mx.sendStateEvent(itemRoom.roomId, EventType.RoomJoinRules as keyof StateEvents, {
               ...joinRuleContent,
               allow,
             });
@@ -468,9 +474,10 @@ export function Lobby() {
 
         if (reorders) {
           await rateLimitedActions(reorders, async (reorder) => {
+            if (!reorder.item) return;
             await mx.sendStateEvent(
               containerParentId,
-              StateEvent.SpaceChild as any,
+              EventType.SpaceChild as keyof StateEvents,
               { ...reorder.item.content, order: reorder.orderKey },
               reorder.item.roomId
             );
@@ -519,7 +526,7 @@ export function Lobby() {
     const [spaceId, roomId] = getLobbyCategoryIdParts(categoryId);
 
     // Prevent collapsing if all parents are collapsed
-    const toggleable = !getAllAncestorsCollapsed(spaceId, roomId);
+    const toggleable = !getAllAncestorsCollapsed(spaceId ?? '', roomId ?? '');
 
     if (toggleable) {
       return collapsed;
@@ -541,7 +548,10 @@ export function Lobby() {
         newItems.push(rId);
       }
       const newSpacesContent = makeCinnySpacesContent(mx, newItems);
-      mx.setAccountData(AccountDataEvent.CinnySpaces as any, newSpacesContent as any);
+      mx.setAccountData(
+        CustomAccountDataEvent.CinnySpaces as keyof AccountDataEvents,
+        newSpacesContent
+      );
     },
     [mx, sidebarItems, sidebarSpaces]
   );
@@ -549,8 +559,8 @@ export function Lobby() {
   const getPaddingTop = (vItem: VirtualItem) => {
     if (vItem.index === 0) return 0;
     const prevDepth = hierarchy[vItem.index - 1]?.space.depth ?? 0;
-    const { depth } = hierarchy[vItem.index].space;
-    if (depth !== 1 && depth >= prevDepth) return config.space.S200;
+    const { depth } = hierarchy[vItem.index]?.space ?? {};
+    if (depth !== 1 && (depth ?? 0) >= prevDepth) return config.space.S200;
     return config.space.S500;
   };
 
@@ -563,11 +573,11 @@ export function Lobby() {
       // Holder for the paths
       const pathHolder: ReactElement[] = [];
       virtualizedItems.forEach((vItem) => {
-        const { depth } = hierarchy[vItem.index].space ?? {};
+        const { depth } = hierarchy[vItem.index]?.space ?? {};
 
         // We will render spaces at a level above their normal depth, since we want their children to be "under" them
         // for the root items, we are not doing anything with it.
-        if (depth < 1) {
+        if ((depth ?? 0) < 1) {
           return;
         }
         // for the sub-root items, we will not draw any arcs from root to it.
@@ -579,7 +589,7 @@ export function Lobby() {
 
         const pathStrings: string[] = [];
 
-        for (let iDepth = 0; iDepth < depth; iDepth += 1) {
+        for (let iDepth = 0; iDepth < (depth ?? 0); iDepth += 1) {
           const X = iDepth * PADDING_LEFT_DEPTH_OFFSET + PADDING_LEFT_DEPTH_OFFSET_START;
 
           const bY = vItem.end;

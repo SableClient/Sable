@@ -1,4 +1,6 @@
-import { MouseEventHandler, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import type { RectCords } from 'folds';
 import {
   Box,
   Button,
@@ -8,7 +10,6 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Switch,
   Text,
@@ -17,7 +18,8 @@ import FocusTrap from 'focus-trap-react';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { useSetting } from '$state/hooks/settings';
-import { JumboEmojiSize, settingsAtom } from '$state/settings';
+import type { JumboEmojiSize, RenderUserCardsMode } from '$state/settings';
+import { settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -87,6 +89,82 @@ function SelectJumboEmojiSize() {
                     key={item.id}
                     size="300"
                     variant={jumboEmojiSize === item.id ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item.id)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+
+const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
+  { id: 'both', name: 'Light & dark' },
+  { id: 'light', name: 'Light only' },
+  { id: 'dark', name: 'Dark only' },
+  { id: 'none', name: 'Off' },
+];
+
+function SelectRenderCustomProfileCards() {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const [renderUserCardsMode, setRenderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (mode: RenderUserCardsMode) => {
+    setRenderUserCardsMode(mode);
+    setMenuCords(undefined);
+  };
+
+  const currentLabel =
+    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ?? 'Light & dark';
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">{currentLabel}</Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {profileCardRenderItems.map((item) => (
+                  <MenuItem
+                    key={item.id}
+                    size="300"
+                    variant={renderUserCardsMode === item.id ? 'Primary' : 'Surface'}
                     radii="300"
                     onClick={() => handleSelect(item.id)}
                   >
@@ -214,6 +292,14 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          title="Render Custom Profile Cards"
+          focusId="custom-profile-cards"
+          description="Choose whose profile card colors to show: everyone with a scheme, only light or dark schemes, or hide them."
+          after={<SelectRenderCustomProfileCards />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
           title="Render Global Username Colors"
           focusId="render-global-username-colors"
           description="Display the username colors anyone can set in their account settings."
@@ -258,17 +344,45 @@ type CosmeticsProps = {
 };
 
 export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
+  const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
+  const appearanceScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+    const el = appearanceScrollRef.current;
+
+    if (themeBrowserOpen && el) {
+      const scrollToTop = () => {
+        el.scrollTop = 0;
+      };
+
+      scrollToTop();
+      requestAnimationFrame(scrollToTop);
+      timeoutId = window.setTimeout(scrollToTop, 0);
+    }
+
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [themeBrowserOpen]);
+
   return (
     <SettingsSectionPage title="Appearance" requestBack={requestBack} requestClose={requestClose}>
       <Box grow="Yes">
-        <Scroll hideTrack visibility="Hover">
+        <Scroll ref={appearanceScrollRef} hideTrack visibility="Hover">
           <PageContent>
             <Box direction="Column" gap="700">
-              <Appearance />
-              <IdentityCosmetics />
-              <JumboEmoji />
-              <Privacy />
-              <LanguageSpecificPronouns />
+              <Appearance onThemeBrowserOpenChange={setThemeBrowserOpen} />
+              {!themeBrowserOpen && (
+                <>
+                  <IdentityCosmetics />
+                  <JumboEmoji />
+                  <Privacy />
+                  <LanguageSpecificPronouns />
+                </>
+              )}
             </Box>
           </PageContent>
         </Scroll>

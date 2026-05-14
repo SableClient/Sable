@@ -1,15 +1,25 @@
-import { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useMemo, useRef } from 'react';
 import { TYPING_TIMEOUT_MS } from '$state/typingMembers';
 
 type TypingStatusUpdater = (typing: boolean) => void;
 
-export const useTypingStatusUpdater = (mx: MatrixClient, roomId: string): TypingStatusUpdater => {
-  const statusSentTsRef = useRef<number>(0);
+type TypingStatusUpdaterOptions = {
+  disabled?: boolean;
+};
+
+export const useTypingStatusUpdater = (
+  mx: MatrixClient,
+  roomId: string,
+  options?: TypingStatusUpdaterOptions
+): TypingStatusUpdater => {
+  const statusSentTsRef = useRef(0);
+  const disabled = options?.disabled ?? false;
 
   const sendTypingStatus: TypingStatusUpdater = useMemo(() => {
     statusSentTsRef.current = 0;
     return (typing) => {
+      if (disabled) return;
       if (typing) {
         if (Date.now() - statusSentTsRef.current < TYPING_TIMEOUT_MS) {
           return;
@@ -35,7 +45,7 @@ export const useTypingStatusUpdater = (mx: MatrixClient, roomId: string): Typing
       }
       statusSentTsRef.current = 0;
     };
-  }, [mx, roomId]);
+  }, [mx, roomId, disabled]);
 
   return sendTypingStatus;
 };

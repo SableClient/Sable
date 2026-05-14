@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 
+import type { Settings } from '$state/settings';
+
 export type HashRouterConfig = {
   enabled?: boolean;
   basename?: string;
@@ -42,7 +44,12 @@ export type ClientConfig = {
   hashRouter?: HashRouterConfig;
 
   matrixToBaseUrl?: string;
-  settingsLinkBaseUrl?: string;
+
+  themeCatalogBaseUrl?: string;
+  themeCatalogManifestUrl?: string;
+  themeCatalogApprovedHostPrefixes?: string[];
+
+  settingsDefaults?: Partial<Settings>;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);
@@ -53,6 +60,10 @@ export function useClientConfig(): ClientConfig {
   const config = useContext(ClientConfigContext);
   if (!config) throw new Error('Client config are not provided!');
   return config;
+}
+
+export function useOptionalClientConfig(): ClientConfig | null {
+  return useContext(ClientConfigContext);
 }
 
 export const clientDefaultServer = (clientConfig: ClientConfig): string =>

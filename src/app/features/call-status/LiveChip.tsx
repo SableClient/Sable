@@ -1,4 +1,6 @@
-import { MouseEventHandler, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+import { useState } from 'react';
+import type { RectCords } from 'folds';
 import {
   Avatar,
   Badge,
@@ -10,14 +12,13 @@ import {
   Menu,
   MenuItem,
   PopOut,
-  RectCords,
   Scroll,
   Text,
   toRem,
 } from 'folds';
-import { CallMembership } from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
+import type { CallMembership } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
-import { Room } from 'matrix-js-sdk';
+import type { Room } from '$types/matrix-sdk';
 import * as css from './styles.css';
 import { stopPropagation } from '../../utils/keyboard';
 import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';

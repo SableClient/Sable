@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import {
   Fragment,
-  ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -8,11 +8,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Editor } from 'slate';
+import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { PushProcessor, Room, Direction } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
+import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
-import { VList, VListHandle } from 'virtua';
+import type { VListHandle } from 'virtua';
+import { VList } from 'virtua';
+import type { ContainerColor } from 'folds';
 import {
   as,
   Box,
@@ -25,7 +28,6 @@ import {
   color,
   config,
   toRem,
-  ContainerColor,
   Spinner,
 } from 'folds';
 import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components/message';
@@ -43,6 +45,7 @@ import {
   factoryRenderLinkifyWithMention,
 } from '$plugins/react-custom-html-parser';
 import { today, yesterday, timeDayMonthYear } from '$utils/time';
+import { unwrapRelationJumpTarget } from '$utils/room';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -75,7 +78,11 @@ import {
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
 import { useTimelineActions } from '$hooks/timeline/useTimelineActions';
-import { ProcessedEvent, useProcessedTimeline } from '$hooks/timeline/useProcessedTimeline';
+import {
+  useProcessedTimeline,
+  getProcessedRowIndexForRawTimelineIndex,
+  type ProcessedEvent,
+} from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
@@ -148,6 +155,11 @@ export function RoomTimeline({
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [incomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
@@ -408,7 +420,7 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    timelineSyncRef.current.loadEventTimeline(eventId);
+    void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
   useEffect(() => {
@@ -455,7 +467,7 @@ export function RoomTimeline({
     if (!el) return () => {};
 
     const observer = new ResizeObserver((entries) => {
-      const newHeight = entries[0].contentRect.height;
+      const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
       const shrank = newHeight < prev;
@@ -477,26 +489,54 @@ export function RoomTimeline({
     nicknames,
     globalProfiles,
     spaceId: optionalSpace?.roomId,
-    openUserRoomProfile,
+    openUserRoomProfile: openUserRoomProfile as unknown as (
+      roomId: string,
+      spaceId: string | undefined,
+      userId: string,
+      rect: DOMRect,
+      undefinedArg?: undefined,
+      options?: unknown
+    ) => void,
     activeReplyId,
-    setReplyDraft,
+    setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
-    setOpenThread,
+    setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
     handleEdit,
     handleOpenEvent: (id) => {
-      const evtTimeline = getEventTimeline(room, id);
+      const anchorId = unwrapRelationJumpTarget(room, id);
+      let evtTimeline = getEventTimeline(room, anchorId);
+      let resolvedForIndex = anchorId;
+      if (!evtTimeline && anchorId !== id) {
+        evtTimeline = getEventTimeline(room, id);
+        resolvedForIndex = id;
+      }
       const absoluteIndex = evtTimeline
-        ? getEventIdAbsoluteIndex(timelineSync.timeline.linkedTimelines, evtTimeline, id)
+        ? getEventIdAbsoluteIndex(
+            timelineSync.timeline.linkedTimelines,
+            evtTimeline,
+            resolvedForIndex
+          )
         : undefined;
 
       if (typeof absoluteIndex === 'number') {
-        const processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
+        let processedIndex = getRawIndexToProcessedIndex(absoluteIndex);
+        let focusRawIndex = absoluteIndex;
+        if (processedIndex === undefined) {
+          const nearest = getProcessedRowIndexForRawTimelineIndex(
+            processedEventsRef.current,
+            absoluteIndex
+          );
+          if (nearest) {
+            processedIndex = nearest.rowIndex;
+            focusRawIndex = nearest.focusRawIndex;
+          }
+        }
         if (vListRef.current && processedIndex !== undefined) {
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
         }
-        timelineSync.setFocusItem({ index: absoluteIndex, scrollTo: false, highlight: true });
+        timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
-        timelineSync.loadEventTimeline(id);
+        void timelineSync.loadEventTimeline(anchorId);
       }
     },
   });
@@ -532,6 +572,8 @@ export function RoomTimeline({
         handleMentionClick: mentionClickHandler,
         nicknames,
         autoplayEmojis,
+        incomingInlineImagesDefaultHeight,
+        incomingInlineImagesMaxHeight,
         replaceTextNode: buildAbbrReplaceTextNode(abbrMap, linkifyOpts),
       }),
     [
@@ -539,6 +581,8 @@ export function RoomTimeline({
       room.roomId,
       linkifyOpts,
       autoplayEmojis,
+      incomingInlineImagesDefaultHeight,
+      incomingInlineImagesMaxHeight,
       mentionClickHandler,
       nicknames,
       mediaAuthentication,
@@ -636,14 +680,14 @@ export function RoomTimeline({
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
       if (
         distanceFromBottom < 500 &&
         !liveTimelineLinkedRef.current &&
         forwardStatusRef.current === 'idle'
       ) {
-        timelineSyncRef.current.handleTimelinePagination(false);
+        void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
     [setAtBottom]
@@ -722,11 +766,11 @@ export function RoomTimeline({
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
       ? 3
       : timelineSync.eventsLength;
-  const vListIndices = useMemo(
-    () => Array.from({ length: vListItemCount }, (_, i) => i),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [vListItemCount, timelineSync.timeline]
-  );
+  const vListIndices = useMemo(() => {
+    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
+    void timelineSync.timeline;
+    return Array.from({ length: vListItemCount }, (_, i) => i);
+  }, [vListItemCount, timelineSync.timeline]);
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
@@ -762,7 +806,7 @@ export function RoomTimeline({
     ref.current = () => {
       const myUserId = mx.getUserId();
       const found = [...processedEventsRef.current]
-        .reverse()
+        .toReversed()
         .find(
           (e) =>
             e.mEvent.getSender() === myUserId &&
@@ -781,7 +825,7 @@ export function RoomTimeline({
       backwardStatusRef.current === 'idle' &&
       v.scrollSize <= v.viewportSize
     ) {
-      timelineSyncRef.current.handleTimelinePagination(true);
+      void timelineSyncRef.current.handleTimelinePagination(true);
     }
   }, [timelineSync.eventsLength, timelineSync.backwardStatus]);
 
@@ -811,7 +855,7 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
     };
 
@@ -911,7 +955,9 @@ export function RoomTimeline({
               eventData.collapsed
             );
 
-            const dividers = (
+            const showDividers = renderedEvent !== null;
+
+            const dividers = showDividers ? (
               <>
                 {eventData.willRenderDayDivider && (
                   <MessageBase space={messageSpacing}>
@@ -932,7 +978,7 @@ export function RoomTimeline({
                   </MessageBase>
                 )}
               </>
-            );
+            ) : null;
 
             if (index === 0) {
               return (

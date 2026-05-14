@@ -1,6 +1,8 @@
-import { generatePath, Path } from 'react-router-dom';
+import type { Path } from 'react-router-dom';
+import { generatePath } from 'react-router-dom';
 import { trimLeadingSlash, trimTrailingSlash } from '$utils/common';
-import { HashRouterConfig } from '$hooks/useClientConfig';
+import type { HashRouterConfig } from '$hooks/useClientConfig';
+import type { SettingsPathSearchParams } from './paths';
 import {
   DIRECT_CREATE_PATH,
   DIRECT_PATH,
@@ -26,15 +28,11 @@ import {
   SPACE_ROOM_PATH,
   SPACE_SEARCH_PATH,
   CREATE_PATH,
-  SettingsPathSearchParams,
 } from './paths';
 
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
 
-export const withSearchParam = <T extends Record<string, string>>(
-  path: string,
-  searchParam: T
-): string => {
+export const withSearchParam = (path: string, searchParam: Record<string, string>): string => {
   const params = new URLSearchParams(searchParam);
 
   return `${path}?${params}`;

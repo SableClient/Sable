@@ -1,12 +1,13 @@
 import { memo, useMemo, useCallback } from 'react';
-import { IPreviewUrlResponse, MsgType } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts } from 'linkifyjs';
 import { Box, config } from 'folds';
 import {
   AudioContent,
@@ -29,7 +30,15 @@ import {
   UnsupportedContent,
   VideoContent,
 } from './message';
-import { UrlPreviewCard, UrlPreviewHolder, ClientPreview, youtubeUrl } from './url-preview';
+import {
+  UrlPreviewCard,
+  UrlPreviewHolder,
+  ClientPreview,
+  ThemePreviewUrlCard,
+  TweakPreviewUrlCard,
+  youtubeUrl,
+} from './url-preview';
+import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
@@ -42,7 +51,7 @@ type RenderMessageContentProps = {
   msgType: string;
   ts: number;
   edited?: boolean;
-  getContent: <T>() => T;
+  getContent: () => unknown;
   mediaAutoLoad?: boolean;
   bundledPreview?: boolean;
   urlPreview?: boolean;
@@ -62,6 +71,10 @@ const getMediaType = (url: string) => {
   return null;
 };
 
+const isSableChatEmbedCandidate = (url: string): boolean =>
+  /^https:\/\//i.test(url) &&
+  (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
+
 const CAPTION_STYLE = { marginTop: config.space.S200 };
 
 function RenderMessageContentInternal({
@@ -80,10 +93,12 @@ function RenderMessageContentInternal({
   outlineAttachment,
   hideCaption,
 }: RenderMessageContentProps) {
-  const content = useMemo(() => getContent<any>(), [getContent]);
+  const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
+  const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
+  const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -94,9 +109,10 @@ function RenderMessageContentInternal({
   const attachmentDirection = captionPositionMap[captionPosition];
 
   const renderBody = useCallback(
-    (props: any) => (
+    (props: Record<string, unknown>) => (
       <RenderBody
         {...props}
+        body={props.body as string}
         highlightRegex={highlightRegex}
         htmlReactParserOptions={htmlReactParserOptions}
         linkifyOpts={linkifyOpts}
@@ -112,21 +128,42 @@ function RenderMessageContentInternal({
       );
       if (filteredUrls.length === 0) return undefined;
 
+      const themePreviewUrls = themeChatSableWidgets
+        ? filteredUrls.filter(
+            (u) => /^https:\/\//i.test(u) && /\.preview\.sable\.css(\?|#|$)/i.test(u)
+          )
+        : [];
+      const themeToRender = themePreviewUrls.filter((u) => /^https:\/\//i.test(u));
+
+      const tweakCandidateUrls = themeChatSableWidgets
+        ? filteredUrls.filter((u) => isHttpsFullSableCssUrl(u))
+        : [];
+
       const analyzed = filteredUrls.map((url) => ({
         url,
         type: getMediaType(url),
       }));
-
       const mediaLinks = analyzed.filter((item) => item.type !== null);
-      const toRender = mediaLinks.length > 0 ? mediaLinks : [analyzed[0]];
+      const previewCandidates = mediaLinks.length > 0 ? mediaLinks : analyzed;
+      const toRender = multiplePreviews ? previewCandidates : [previewCandidates[0]!];
       return (
         <UrlPreviewHolder>
-          {toRender.map(({ url, type }) => {
+          {themeToRender.map((url) => (
+            <ThemePreviewUrlCard key={`theme:${url}`} url={url} />
+          ))}
+          {tweakCandidateUrls.map((url) => (
+            <TweakPreviewUrlCard key={`tweak:${url}`} url={url} />
+          ))}
+          {toRender.map((item) => {
+            const { url, type } = item;
+            if (themeToRender.includes(url)) return null;
+            if (tweakCandidateUrls.includes(url)) return null;
             if (type) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
             }
+            if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
             if (clientUrlPreview && youtubeUrl(url)) {
-              return <ClientPreview url={url} />;
+              return <ClientPreview key={url} url={url} />;
             }
             if (urlPreview) {
               return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
@@ -136,7 +173,7 @@ function RenderMessageContentInternal({
         </UrlPreviewHolder>
       );
     },
-    [ts, clientUrlPreview, settingsLinkBaseUrl, urlPreview]
+    [multiplePreviews, themeChatSableWidgets, settingsLinkBaseUrl, clientUrlPreview, urlPreview, ts]
   );
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (
@@ -153,13 +190,17 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview ? renderUrlsPreview : undefined;
+  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
   const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
-    const hasCaption = content.body && content.body.trim().length > 0;
+    const hasCaption = content.body && (content.body as string).trim().length > 0;
     if (captionPosition === CaptionPosition.Hidden || hideCaption) return null;
-    if (hasCaption && content.filename && content.filename !== content.body) {
+    if (
+      hasCaption &&
+      (content as { filename?: string }).filename &&
+      (content as { filename?: string }).filename !== content.body
+    ) {
       if (captionPosition !== CaptionPosition.Inline)
         return (
           <MText
@@ -213,7 +254,7 @@ function RenderMessageContentInternal({
   const renderFile = () =>
     renderCaptionedAttachment(
       <MFile
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.File }}
         renderFileContent={({ body, mimeType, info, encInfo, url }) => (
           <FileContent
             body={body}
@@ -244,7 +285,7 @@ function RenderMessageContentInternal({
       />
     );
 
-  if (msgType === MsgType.Text) {
+  if (msgType === (MsgType.Text as string)) {
     return (
       <MText
         edited={edited}
@@ -256,13 +297,15 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Emote) {
-    if (content['fyi.cisnt.headpat']) {
+  if (msgType === (MsgType.Emote as string)) {
+    if ((content as { 'fyi.cisnt.headpat'?: boolean })['fyi.cisnt.headpat']) {
       return (
         <MCuteEvent
-          content={content}
+          content={(content as { body?: string }).body}
           type={CuteEventType.Headpat}
-          mentionedUserIds={content?.['m.mentions']?.user_ids}
+          mentionedUserIds={
+            (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+          }
         />
       );
     }
@@ -278,7 +321,7 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Notice) {
+  if (msgType === (MsgType.Notice as string)) {
     return (
       <MNotice
         edited={edited}
@@ -290,17 +333,23 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Image) {
+  if (msgType === (MsgType.Image as string)) {
+    const info = (content as { info?: { mimetype?: string } }).info;
     const isGif =
-      content.info?.mimetype === 'image/gif' ||
-      content.info?.mimetype === 'image/webp' ||
-      content.body?.toLowerCase().endsWith('.gif') ||
-      content.body?.toLowerCase().endsWith('.webp') ||
-      (typeof content.url === 'string' && content.url.toLowerCase().includes('gif'));
+      info?.mimetype === 'image/gif' ||
+      info?.mimetype === 'image/apng' ||
+      info?.mimetype === 'image/webp' ||
+      (content.body as string)?.toLowerCase().endsWith('.gif') ||
+      (content.body as string)?.toLowerCase().endsWith('.apng') ||
+      (content.body as string)?.toLowerCase().endsWith('.webp') ||
+      (typeof (content as { url?: string }).url === 'string' &&
+        ((content as { url?: string }).url?.toLowerCase().endsWith('.gif') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.apng') ||
+          (content as { url?: string }).url?.toLowerCase().endsWith('.webp')));
 
     return renderCaptionedAttachment(
       <MImage
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Image }}
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}
@@ -323,10 +372,10 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Video) {
+  if (msgType === (MsgType.Video as string)) {
     return renderCaptionedAttachment(
       <MVideo
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Video }}
         renderAsFile={renderFile}
         renderVideoContent={({ body, info, ...videoProps }) => (
           <VideoContent
@@ -353,10 +402,10 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.Audio) {
+  if (msgType === (MsgType.Audio as string)) {
     return renderCaptionedAttachment(
       <MAudio
-        content={content}
+        content={content as Record<string, never> & { msgtype: MsgType.Audio }}
         renderAsFile={renderFile}
         renderAudioContent={(audioProps) => (
           <AudioContent {...audioProps} renderMediaControl={(p) => <MediaControl {...p} />} />
@@ -366,29 +415,33 @@ function RenderMessageContentInternal({
     );
   }
 
-  if (msgType === MsgType.File) return renderFile();
-  if (msgType === MsgType.Location) return <MLocation content={content} />;
+  if (msgType === (MsgType.File as string)) return renderFile();
+  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events
   if (msgType === 'im.fluffychat.cute_event')
     return (
       <MCuteEvent
-        content={content}
-        type={content?.cute_type}
-        mentionedUserIds={content?.['m.mentions']?.user_ids}
+        content={(content as { body?: string }).body}
+        type={(content as { cute_type: CuteEventType }).cute_type ?? CuteEventType.Hug}
+        mentionedUserIds={
+          (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+        }
       />
     );
   // as fallback to render older events where msgtype was set instead of m.emote with a custom property
   if (msgType === 'fyi.cisnt.headpat')
     return (
       <MCuteEvent
-        content={content}
+        content={(content as { body?: string }).body}
         type={CuteEventType.Headpat}
-        mentionedUserIds={content?.['m.mentions']?.user_ids}
+        mentionedUserIds={
+          (content as { 'm.mentions'?: { user_ids?: string[] } })['m.mentions']?.user_ids
+        }
       />
     );
-  return <UnsupportedContent body={content?.body} />;
+  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

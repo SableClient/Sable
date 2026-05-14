@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Room } from '$types/matrix-sdk';
+import type { IContent } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { usePowerLevels } from './usePowerLevels';
 import { useRoomCreators } from './useRoomCreators';
 import { useAccessiblePowerTagColors, useGetMemberPowerTag } from './useMemberPowerTag';
@@ -8,7 +9,7 @@ import { usePowerLevelTags } from './usePowerLevelTags';
 import { useTheme } from './useTheme';
 import { useUserProfile } from './useUserProfile';
 
-export function useSableCosmetics(userId: string, room: Room) {
+export function useSableCosmetics(userId: string, room: Room, isUserHero?: boolean) {
   const theme = useTheme();
   const profile = useUserProfile(userId, room);
 
@@ -23,17 +24,27 @@ export function useSableCosmetics(userId: string, room: Room) {
   return useMemo(() => {
     if (!room || !userId) return { color: undefined, font: undefined };
 
-    let finalColor = profile.resolvedColor;
+    let finalColor = isUserHero ? profile.heroNameColor : profile.resolvedColor;
     if (!finalColor) {
       const memberPowerTag = getPowerTag(userId);
       finalColor = memberPowerTag?.color
         ? accessibleTagColors?.get(memberPowerTag.color)
         : undefined;
     }
-
-    return {
+    const resolvedCosmetics: IContent = {
       color: finalColor,
       font: profile.resolvedFont,
     };
-  }, [room, userId, profile.resolvedColor, profile.resolvedFont, getPowerTag, accessibleTagColors]);
+
+    return resolvedCosmetics;
+  }, [
+    room,
+    userId,
+    isUserHero,
+    profile.heroNameColor,
+    profile.resolvedColor,
+    profile.resolvedFont,
+    getPowerTag,
+    accessibleTagColors,
+  ]);
 }

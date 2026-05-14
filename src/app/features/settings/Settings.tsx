@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { IconSrc } from 'folds';
 import {
   Avatar,
   Box,
@@ -7,7 +8,6 @@ import {
   Icon,
   IconButton,
   Icons,
-  IconSrc,
   MenuItem,
   Overlay,
   OverlayBackdrop,
@@ -197,11 +197,10 @@ export function Settings({
     () =>
       settingsSections
         .filter((section) => showPersona || section.id !== 'persona')
-        .map((section) => ({
-          id: section.id,
-          name: section.label,
-          ...settingsMenuIcons[section.id],
-        })),
+        .map((section) => {
+          const icon = settingsMenuIcons[section.id];
+          return { id: section.id, name: section.label, ...icon };
+        }),
     [showPersona]
   );
 
@@ -250,29 +249,31 @@ export function Settings({
       nav={
         screenSize === ScreenSize.Mobile && visibleSection !== null ? undefined : (
           <PageNav size="300">
-            <PageNavHeader className={settingsHeader}>
+            <PageNavHeader className={settingsHeader} size="600">
               <Box grow="Yes" gap="200">
-                <Avatar size="200" radii="300">
-                  <UserAvatar
-                    userId={userId}
-                    src={avatarUrl}
-                    renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
-                  />
-                </Avatar>
-                <Text size="H4" truncate>
-                  Settings
-                </Text>
-              </Box>
-              <Box shrink="No">
-                {visibleSection === null && (
-                  <IconButton
-                    aria-label="Close settings"
-                    onClick={handleRequestClose}
-                    variant="Background"
-                  >
-                    <Icon src={Icons.Cross} />
-                  </IconButton>
-                )}
+                <Box grow="Yes" alignItems="Center" gap="200">
+                  <Avatar size="200" radii="300">
+                    <UserAvatar
+                      userId={userId}
+                      src={avatarUrl}
+                      renderFallback={() => <Text size="H6">{nameInitials(displayName)}</Text>}
+                    />
+                  </Avatar>
+                  <Text size="H4" truncate>
+                    Settings
+                  </Text>
+                </Box>
+                <Box shrink="No">
+                  {visibleSection === null && (
+                    <IconButton
+                      aria-label="Close settings"
+                      onClick={handleRequestClose}
+                      variant="Background"
+                    >
+                      <Icon src={Icons.Cross} />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
             </PageNavHeader>
             <Box grow="Yes" direction="Column">

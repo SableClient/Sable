@@ -1,152 +1,13 @@
-import { BasePoint, BaseRange, Editor, Element, Point, Range, Text, Transforms } from 'slate';
-import { BlockType, MarkType } from './types';
-import {
+import type { BasePoint, BaseRange } from 'slate';
+import { Editor, Element, Point, Range, Text, Transforms } from 'slate';
+import { BlockType } from './types';
+import type {
   CommandElement,
   EmoticonElement,
   FormattedText,
-  HeadingLevel,
   LinkElement,
   MentionElement,
 } from './slate';
-
-const ALL_MARK_TYPE: MarkType[] = [
-  MarkType.Bold,
-  MarkType.Code,
-  MarkType.Italic,
-  MarkType.Spoiler,
-  MarkType.StrikeThrough,
-  MarkType.Underline,
-];
-
-export const isMarkActive = (editor: Editor, format: MarkType) => {
-  const marks = Editor.marks(editor);
-  return marks ? marks[format] === true : false;
-};
-
-export const isAnyMarkActive = (editor: Editor) => {
-  const marks = Editor.marks(editor);
-  return marks && !!ALL_MARK_TYPE.find((type) => marks[type] === true);
-};
-
-export const toggleMark = (editor: Editor, format: MarkType) => {
-  const isActive = isMarkActive(editor, format);
-
-  if (isActive) {
-    Editor.removeMark(editor, format);
-  } else {
-    Editor.addMark(editor, format, true);
-  }
-};
-
-export const removeAllMark = (editor: Editor) => {
-  ALL_MARK_TYPE.forEach((mark) => {
-    if (isMarkActive(editor, mark)) Editor.removeMark(editor, mark);
-  });
-};
-
-export const isBlockActive = (editor: Editor, format: BlockType) => {
-  const [match] = Editor.nodes(editor, {
-    match: (node) => Element.isElement(node) && node.type === format,
-  });
-
-  return !!match;
-};
-
-export const headingLevel = (editor: Editor): HeadingLevel | undefined => {
-  const [nodeEntry] = Editor.nodes(editor, {
-    match: (node) => Element.isElement(node) && node.type === BlockType.Heading,
-  });
-  const [node] = nodeEntry ?? [];
-  if (!node) return undefined;
-  if ('level' in node) return node.level;
-  return undefined;
-};
-
-type BlockOption = { level: HeadingLevel };
-const NESTED_BLOCK = [
-  BlockType.OrderedList,
-  BlockType.UnorderedList,
-  BlockType.BlockQuote,
-  BlockType.CodeBlock,
-];
-
-export const toggleBlock = (editor: Editor, format: BlockType, option?: BlockOption) => {
-  Transforms.collapse(editor, {
-    edge: 'end',
-  });
-  const isActive = isBlockActive(editor, format);
-
-  Transforms.unwrapNodes(editor, {
-    match: (node) => Element.isElement(node) && NESTED_BLOCK.includes(node.type),
-    split: true,
-  });
-
-  if (isActive) {
-    Transforms.setNodes(editor, {
-      type: BlockType.Paragraph,
-    });
-    return;
-  }
-
-  if (format === BlockType.OrderedList || format === BlockType.UnorderedList) {
-    Transforms.setNodes(editor, {
-      type: BlockType.ListItem,
-    });
-    const block = {
-      type: format,
-      children: [],
-    };
-    Transforms.wrapNodes(editor, block);
-    return;
-  }
-  if (format === BlockType.CodeBlock) {
-    Transforms.setNodes(editor, {
-      type: BlockType.CodeLine,
-    });
-    const block = {
-      type: format,
-      children: [],
-    };
-    Transforms.wrapNodes(editor, block);
-    return;
-  }
-
-  if (format === BlockType.BlockQuote) {
-    Transforms.setNodes(editor, {
-      type: BlockType.QuoteLine,
-    });
-    const block = {
-      type: format,
-      children: [],
-    };
-    Transforms.wrapNodes(editor, block);
-    return;
-  }
-
-  if (format === BlockType.Heading) {
-    Transforms.setNodes(editor, {
-      type: format,
-      level: option?.level ?? 1,
-    });
-  }
-
-  if (format === BlockType.HorizontalRule) {
-    Transforms.insertNodes(editor, {
-      type: BlockType.HorizontalRule,
-      children: [{ text: '' }],
-    });
-    return;
-  }
-
-  if (format === BlockType.Small) {
-    Transforms.setNodes(editor, { type: BlockType.Small });
-    return;
-  }
-
-  Transforms.setNodes(editor, {
-    type: format,
-  });
-};
 
 export const resetEditor = (editor: Editor) => {
   Transforms.delete(editor, {
@@ -156,12 +17,10 @@ export const resetEditor = (editor: Editor) => {
     },
   });
 
-  toggleBlock(editor, BlockType.Paragraph);
-  removeAllMark(editor);
+  Transforms.setNodes(editor, { type: BlockType.Paragraph });
 };
 
 export const resetEditorHistory = (editor: Editor) => {
-  // eslint-disable-next-line no-param-reassign
   editor.history = {
     undos: [],
     redos: [],
@@ -242,7 +101,6 @@ export const getPointUntilChar = (
     reverse: options.reverse,
   });
 
-  // eslint-disable-next-line no-restricted-syntax
   for (const point of pointItr) {
     if (!Point.equals(point, cursorPoint) && prevPoint) {
       char = Editor.string(editor, { anchor: point, focus: prevPoint });
@@ -287,3 +145,35 @@ export const getBeginCommand = (editor: Editor): string | undefined => {
     return secondInline.command;
   return undefined;
 };
+
+export const getMarkdownCodeSpanRanges = (text: string): [number, number][] => {
+  const ranges: [number, number][] = [];
+  let openRun: { start: number; length: number } | undefined;
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '`') {
+      let runEnd = index;
+      while (runEnd < text.length && text[runEnd] === '`') {
+        runEnd += 1;
+      }
+
+      const runLength = runEnd - index;
+      if (!openRun) {
+        openRun = { start: index, length: runLength };
+      } else if (openRun.length === runLength) {
+        ranges.push([openRun.start, runEnd]);
+        openRun = undefined;
+      }
+
+      index = runEnd - 1;
+    }
+  }
+
+  return ranges;
+};
+
+export const isInsideMarkdownCodeSpan = (
+  start: number,
+  end: number,
+  codeSpanRanges: [number, number][]
+): boolean => codeSpanRanges.some(([rangeStart, rangeEnd]) => start > rangeStart && end < rangeEnd);

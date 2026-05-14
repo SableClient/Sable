@@ -1,7 +1,9 @@
-import { MatrixClient } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
+import type { MatrixClient } from '$types/matrix-sdk';
+
 import { getAccountData } from '$utils/room';
-import { IEmoji, emojis } from './emoji';
+import type { IEmoji } from './emoji';
+import { emojis } from './emoji';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
 
 type EmojiUnicode = string;
 type EmojiUsageCount = number;
@@ -11,12 +13,12 @@ export type IRecentEmojiContent = {
 };
 
 export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
-  const recentEmojiEvent = getAccountData(mx, AccountDataEvent.ElementRecentEmoji);
+  const recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.ElementRecentEmoji);
   const recentEmoji = recentEmojiEvent?.getContent<IRecentEmojiContent>().recent_emoji;
   if (!Array.isArray(recentEmoji)) return [];
 
   return recentEmoji
-    .sort((e1, e2) => e2[1] - e1[1])
+    .toSorted((e1, e2) => e2[1] - e1[1])
     .slice(0, limit)
     .reduce<IEmoji[]>((list, [unicode]) => {
       const emoji = emojis.find((e) => e.unicode === unicode);
@@ -26,7 +28,7 @@ export const getRecentEmojis = (mx: MatrixClient, limit?: number): IEmoji[] => {
 };
 
 export function addRecentEmoji(mx: MatrixClient, unicode: string) {
-  const recentEmojiEvent = getAccountData(mx, AccountDataEvent.ElementRecentEmoji);
+  const recentEmojiEvent = getAccountData(mx, CustomAccountDataEvent.ElementRecentEmoji);
   const recentEmojiContent = recentEmojiEvent?.getContent<IRecentEmojiContent>();
   const recentEmoji =
     recentEmojiContent && Array.isArray(recentEmojiContent.recent_emoji)
@@ -38,11 +40,12 @@ export function addRecentEmoji(mx: MatrixClient, unicode: string) {
   if (emojiIndex < 0) {
     entry = [unicode, 1];
   } else {
-    [entry] = recentEmoji.splice(emojiIndex, 1);
+    const spliced = recentEmoji.splice(emojiIndex, 1);
+    entry = spliced[0] ?? [unicode, 1];
     entry[1] += 1;
   }
   recentEmoji.unshift(entry);
-  mx.setAccountData(AccountDataEvent.ElementRecentEmoji, {
+  mx.setAccountData(CustomAccountDataEvent.ElementRecentEmoji, {
     recent_emoji: recentEmoji.slice(0, 100),
   });
 }

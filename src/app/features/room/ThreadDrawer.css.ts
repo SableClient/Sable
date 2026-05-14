@@ -1,8 +1,7 @@
 import { style, globalStyle } from '@vanilla-extract/css';
-import { config, color, toRem } from 'folds';
+import { config, color } from 'folds';
 
 export const ThreadDrawer = style({
-  width: toRem(440),
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
@@ -27,6 +26,23 @@ export const ThreadDrawerHeader = style({
   flexShrink: 0,
   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
   borderBottomWidth: config.borderWidth.B300,
+});
+
+export const threadRootShell = style({
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  flexShrink: 0,
+});
+
+export const threadRootScrollShadow = style({
+  position: 'relative',
+  flexShrink: 0,
+  zIndex: 1,
+  boxShadow: config.shadow.E100,
+  borderBottomWidth: config.borderWidth.B300,
+  borderBottomStyle: 'solid',
+  borderBottomColor: color.Surface.ContainerLine,
 });
 
 export const ThreadDrawerContent = style({

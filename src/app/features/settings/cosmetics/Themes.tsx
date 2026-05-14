@@ -1,5 +1,21 @@
-import { ChangeEventHandler, KeyboardEventHandler, type MouseEventHandler, useState } from 'react';
-import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
+import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
+import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
+import {
+  Box,
+  Button,
+  Chip,
+  config,
+  Icon,
+  Icons,
+  Input,
+  Menu,
+  MenuItem,
+  PopOut,
+  Switch,
+  Text,
+  toRem,
+  type RectCords,
+} from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
 import { SettingMenuSelector } from '$components/setting-menu-selector';
@@ -11,26 +27,19 @@ import {
   getArboriumThemeLabel,
   getArboriumThemeOptions,
 } from '$plugins/arborium';
-import {
-  DarkTheme,
-  LightTheme,
-  Theme,
-  ThemeKind,
-  useActiveTheme,
-  useSystemThemeKind,
-  useThemeNames,
-  useThemes,
-} from '$hooks/useTheme';
+import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
+import type { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
+import { ThemeAppearanceSection } from './ThemeAppearanceSection';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
+import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
+import type { PanelSizetItem } from '$hooks/usePanelSizes';
+import { usePanelSizeItems } from '$hooks/usePanelSizes';
 
-function makeThemeOptions(themes: Theme[], themeNames: Record<string, string>) {
-  return themes.map((theme) => ({
-    value: theme.id,
-    label: themeNames[theme.id] ?? theme.id,
-  }));
-}
+const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
 
 function makeArboriumThemeOptions(kind?: 'light' | 'dark') {
   const themes = kind
@@ -66,86 +75,6 @@ function ThemeTrigger({
     >
       <Text size="B300">{selectedLabel}</Text>
     </Chip>
-  );
-}
-
-function SelectTheme({ disabled }: Readonly<{ disabled?: boolean }>) {
-  const themes = useThemes();
-  const themeNames = useThemeNames();
-  const [themeId, setThemeId] = useSetting(settingsAtom, 'themeId');
-
-  const themeOptions = makeThemeOptions(themes, themeNames);
-  const selectedThemeId =
-    themeOptions.find((theme) => theme.value === themeId)?.value ?? LightTheme.id;
-
-  return (
-    <SettingMenuSelector
-      value={selectedThemeId}
-      options={themeOptions}
-      onSelect={setThemeId}
-      disabled={disabled}
-    />
-  );
-}
-
-function SystemThemePreferences() {
-  const themeKind = useSystemThemeKind();
-  const themeNames = useThemeNames();
-  const themes = useThemes();
-  const [lightThemeId, setLightThemeId] = useSetting(settingsAtom, 'lightThemeId');
-  const [darkThemeId, setDarkThemeId] = useSetting(settingsAtom, 'darkThemeId');
-
-  const lightThemes = themes.filter((theme) => theme.kind === ThemeKind.Light);
-  const darkThemes = themes.filter((theme) => theme.kind === ThemeKind.Dark);
-  const lightThemeOptions = makeThemeOptions(lightThemes, themeNames);
-  const darkThemeOptions = makeThemeOptions(darkThemes, themeNames);
-
-  const selectedLightThemeId =
-    lightThemeOptions.find((theme) => theme.value === lightThemeId)?.value ?? LightTheme.id;
-  const selectedDarkThemeId =
-    darkThemeOptions.find((theme) => theme.value === darkThemeId)?.value ?? DarkTheme.id;
-
-  return (
-    <Box wrap="Wrap" gap="400">
-      <SettingTile
-        title="Light Theme:"
-        focusId="light-theme"
-        after={
-          <SettingMenuSelector
-            value={selectedLightThemeId}
-            options={lightThemeOptions}
-            onSelect={setLightThemeId}
-            renderTrigger={({ selectedOption, openMenu, disabled }) => (
-              <ThemeTrigger
-                selectedLabel={selectedOption.label}
-                onClick={openMenu}
-                active={themeKind === ThemeKind.Light}
-                disabled={disabled}
-              />
-            )}
-          />
-        }
-      />
-      <SettingTile
-        title="Dark Theme:"
-        focusId="dark-theme"
-        after={
-          <SettingMenuSelector
-            value={selectedDarkThemeId}
-            options={darkThemeOptions}
-            onSelect={setDarkThemeId}
-            renderTrigger={({ selectedOption, openMenu, disabled }) => (
-              <ThemeTrigger
-                selectedLabel={selectedOption.label}
-                onClick={openMenu}
-                active={themeKind === ThemeKind.Dark}
-                disabled={disabled}
-              />
-            )}
-          />
-        }
-      />
-    </Box>
   );
 }
 
@@ -280,42 +209,73 @@ function CodeBlockThemeSettings() {
   );
 }
 
-function ThemeSettings() {
-  const [systemTheme, setSystemTheme] = useSetting(settingsAtom, 'useSystemTheme');
+function ThemeVisualPreferences() {
   const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
   const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion, setReducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesDefaultHeight'
+  );
+  const [incomingInlineImagesMaxHeight, setIncomingInlineImagesMaxHeight] = useSetting(
+    settingsAtom,
+    'incomingInlineImagesMaxHeight'
+  );
+  const [linkPreviewImageMaxHeight, setLinkPreviewImageMaxHeight] = useSetting(
+    settingsAtom,
+    'linkPreviewImageMaxHeight'
+  );
+  const [incomingDefaultHeightInput, setIncomingDefaultHeightInput] = useState(
+    incomingInlineImagesDefaultHeight.toString()
+  );
+  const [incomingMaxHeightInput, setIncomingMaxHeightInput] = useState(
+    incomingInlineImagesMaxHeight.toString()
+  );
+  const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
+    linkPreviewImageMaxHeight.toString()
+  );
+  const [showRoomBanners, setShowRoomBanners] = useSetting(settingsAtom, 'showRoomBanners');
+
+  const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setIncomingDefaultHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed))
+      setIncomingInlineImagesDefaultHeight(clampIncomingInlineImageHeight(parsed));
+  };
+  const handleIncomingMaxHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setIncomingMaxHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed))
+      setIncomingInlineImagesMaxHeight(clampIncomingInlineImageHeight(parsed));
+  };
+  const handleLinkPreviewMaxHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setLinkPreviewMaxHeightInput(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
+  };
+
+  const onNumberInputKeyDown =
+    (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
+    (evt) => {
+      if (isKeyHotkey('escape', evt)) {
+        evt.stopPropagation();
+        reset();
+        (evt.target as HTMLInputElement).blur();
+      }
+      if (isKeyHotkey('enter', evt)) {
+        (evt.target as HTMLInputElement).blur();
+      }
+    };
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Theme</Text>
-
-      <SequenceCard
-        className={SequenceCardStyle}
-        variant="SurfaceVariant"
-        direction="Column"
-        gap="400"
-      >
-        <SettingTile
-          title="System Theme"
-          focusId="system-theme"
-          description="Sync with your device's light/dark mode."
-          after={<Switch variant="Primary" value={systemTheme} onChange={setSystemTheme} />}
-        />
-        {systemTheme && <SystemThemePreferences />}
-      </SequenceCard>
-
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Manual Theme"
-          focusId="manual-theme"
-          description="Active when System Theme is disabled."
-          after={<SelectTheme disabled={systemTheme} />}
-        />
-      </SequenceCard>
+      <Text size="L400">Display</Text>
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -383,6 +343,105 @@ function ThemeSettings() {
           focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Room banners"
+          focusId="display-room-banners"
+          after={<Switch variant="Primary" value={showRoomBanners} onChange={setShowRoomBanners} />}
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Incoming inline images default height"
+          focusId="incoming-inline-images-default-height"
+          description={`Default height for incoming inline images that don't specify a height.`}
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(incomingDefaultHeightInput, 10) ===
+                incomingInlineImagesDefaultHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={incomingDefaultHeightInput}
+              onChange={handleIncomingDefaultHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setIncomingDefaultHeightInput(incomingInlineImagesDefaultHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Incoming inline images max height"
+          focusId="incoming-inline-images-max-height"
+          description={`Maximum height for incoming inline images. Any incoming height above this is clamped down.`}
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(incomingMaxHeightInput, 10) === incomingInlineImagesMaxHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={incomingMaxHeightInput}
+              onChange={handleIncomingMaxHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setIncomingMaxHeightInput(incomingInlineImagesMaxHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Link preview image max height"
+          focusId="link-preview-image-max-height"
+          description="Maximum height for URL / Open Graph preview media (image or playable og:video), including bundled previews."
+          after={
+            <Input
+              style={{ width: toRem(100) }}
+              variant={
+                Number.parseInt(linkPreviewMaxHeightInput, 10) === linkPreviewImageMaxHeight
+                  ? 'Secondary'
+                  : 'Success'
+              }
+              size="300"
+              radii="300"
+              type="number"
+              min="1"
+              max="4096"
+              value={linkPreviewMaxHeightInput}
+              onChange={handleLinkPreviewMaxHeightChange}
+              onKeyDown={onNumberInputKeyDown(() =>
+                setLinkPreviewMaxHeightInput(linkPreviewImageMaxHeight.toString())
+              )}
+              after={<Text size="T300">px</Text>}
+              outlined
+            />
+          }
         />
       </SequenceCard>
     </Box>
@@ -479,10 +538,254 @@ function PageZoomInput() {
   );
 }
 
-export function Appearance() {
+function PanelSelector({
+  sidebarSelector,
+  setSidebarSelector,
+}: {
+  sidebarSelector: string;
+  setSidebarSelector: (arg0: string) => void;
+}) {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const panelSizeItems = usePanelSizeItems();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position: PanelSizetItem) => {
+    setSidebarSelector(position.layout);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {panelSizeItems.find((i) => i.layout === sidebarSelector)?.name ?? sidebarSelector}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {panelSizeItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={sidebarSelector === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
+    settingsAtom,
+    'memberSidebarWidth'
+  );
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [vcmsgSidebarWidth, setvcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+  const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
+
+  // Yandere style code but it works  and is as straight forward as can be :shrug:
+  const getCurValue = useMemo(() => {
+    if (sidebarSelector === 'roomSidebarWidth') return roomSidebarWidth;
+    if (sidebarSelector === 'memberSidebarWidth') return memberSidebarWidth;
+    if (sidebarSelector === 'threadSidebarWidth') return threadSidebarWidth;
+    if (sidebarSelector === 'threadRootHeight') return threadRootHeight;
+    if (sidebarSelector === 'vcmsgSidebarWidth') return vcmsgSidebarWidth;
+    if (sidebarSelector === 'widgetSidebarWidth') return widgetSidebarWidth;
+    if (sidebarSelector === 'roomBannerHeight') return roomBannerHeight;
+    return undefined;
+  }, [
+    sidebarSelector,
+    roomSidebarWidth,
+    memberSidebarWidth,
+    threadSidebarWidth,
+    threadRootHeight,
+    vcmsgSidebarWidth,
+    widgetSidebarWidth,
+    roomBannerHeight,
+  ]);
+  const [curValue, setCurValue] = useState(getCurValue);
+  const setValue = (value: number) => {
+    if (sidebarSelector === 'roomSidebarWidth') setRoomSidebarWidth(value);
+    if (sidebarSelector === 'memberSidebarWidth') setMemberSidebarWidth(value);
+    if (sidebarSelector === 'threadSidebarWidth') setThreadSidebarWidth(value);
+    if (sidebarSelector === 'threadRootHeight') setThreadRootHeight(value);
+    if (sidebarSelector === 'vcmsgSidebarWidth') setvcmsgSidebarWidth(value);
+    if (sidebarSelector === 'widgetSidebarWidth') setWidgetSidebarWidth(value);
+    if (sidebarSelector === 'roomBannerHeight') setRoomBannerHeight(value);
+  };
+
+  useEffect(() => {
+    setInputValue(curValue?.toString());
+  }, [curValue]);
+  useEffect(() => {
+    setCurValue(getCurValue);
+  }, [getCurValue]);
+
+  const [inputValue, setInputValue] = useState(curValue?.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = parseInt(val, 10);
+    if (!Number.isNaN(parsed)) {
+      setValue(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(curValue?.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={parseInt(inputValue ?? '', 10) === curValue ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="0"
+      max="1000"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      outlined
+    />
+  );
+}
+
+function SelectShowRoomIcon() {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const showRoomIconItems = useShowRoomIcon();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position: ShowRoomIcon) => {
+    setShowRoomIcon(position);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {showRoomIconItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item.layout)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+export function Appearance({
+  onThemeBrowserOpenChange,
+}: {
+  onThemeBrowserOpenChange?: (open: boolean) => void;
+} = {}) {
+  const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
@@ -490,67 +793,107 @@ export function Appearance() {
 
   return (
     <Box direction="Column" gap="700">
-      <ThemeSettings />
-      <CodeBlockThemeSettings />
+      <ThemeAppearanceSection
+        onBrowseOpenChange={(open) => {
+          setThemeBrowserOpen(open);
+          onThemeBrowserOpenChange?.(open);
+        }}
+      />
+      {!themeBrowserOpen && (
+        <>
+          <ThemeVisualPreferences />
+          <CodeBlockThemeSettings />
 
-      <Box direction="Column" gap="100">
-        <Text size="L400">Visual Tweaks</Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">Visual Tweaks</Text>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Twitter Emoji"
-            focusId="twitter-emoji"
-            description="Use Twitter-style emojis instead of system native ones."
-            after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
-          />
-        </SequenceCard>
-
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Close Space Folders by Default"
-            focusId="collapse-folders-by-default"
-            description="Collapse sidebar folders upon loading."
-            after={
-              <Switch
-                variant="Primary"
-                value={closeFoldersByDefault}
-                onChange={setCloseFoldersByDefault}
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Twitter Emoji"
+                focusId="twitter-emoji"
+                description="Use Twitter-style emojis instead of system native ones."
+                after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
               />
-            }
-          />
-        </SequenceCard>
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Customize DM cards"
-            focusId="customize-dm-cards"
-            description="Show a custom DM card instead of the DM-ed's details"
-            after={<Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />}
-          />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Close Space Folders by Default"
+                focusId="collapse-folders-by-default"
+                description="Collapse sidebar folders upon loading."
+                after={
+                  <Switch
+                    variant="Primary"
+                    value={closeFoldersByDefault}
+                    onChange={setCloseFoldersByDefault}
+                  />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Show Easter Eggs"
-            focusId="show-easter-eggs"
-            description="Lets the interface keep a little mischief turned on."
-            after={<Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />}
-          />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Customize DM cards"
+                focusId="customize-dm-cards"
+                description="Show a custom DM card instead of the DM-ed's details"
+                after={
+                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
-        </SequenceCard>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Easter Eggs"
+                focusId="show-easter-eggs"
+                description="Lets the interface keep a little mischief turned on."
+                after={
+                  <Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />
+                }
+              />
+            </SequenceCard>
 
-        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-          <SettingTile
-            title="Subspace Hierarchy Limit"
-            focusId="subspace-hierarchy-limit"
-            description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
-            after={<SubnestedSpaceLinkDepthInput />}
-          />
-        </SequenceCard>
-      </Box>
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Subspace Hierarchy Limit"
+                focusId="subspace-hierarchy-limit"
+                description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
+                after={<SubnestedSpaceLinkDepthInput />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons"
+                focusId="show-room-icons"
+                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                after={<SelectShowRoomIcon />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Sidebar Size"
+                focusId="sidebar-size"
+                description="The Size of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
+                after={
+                  <>
+                    <PanelSelector
+                      sidebarSelector={sidebarSelector}
+                      setSidebarSelector={setSidebarSelector}
+                    />
+                    <SidebarWidth sidebarSelector={sidebarSelector} />
+                  </>
+                }
+              />
+            </SequenceCard>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

@@ -1,15 +1,13 @@
-import { Room } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import { StateEvent } from '$types/matrix/room';
+
+import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
   getGlobalImagePacks,
   getRoomImagePack,
   getRoomImagePacks,
   getUserImagePack,
   globalPacksScope,
-  ImagePack,
-  ImageUsage,
   readCachedPack,
   readCachedPacks,
   roomPacksScope,
@@ -20,6 +18,8 @@ import {
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { CustomStateEvent } from '$types/matrix/room';
 
 const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boolean => {
   if (!a && !b) return true;
@@ -28,7 +28,9 @@ const imagePackEqual = (a: ImagePack | undefined, b: ImagePack | undefined): boo
   const bImages = Array.from(b.images.collection.entries());
   if (aImages.length !== bImages.length) return false;
   const sameImages = aImages.every(([shortcode, image], index) => {
-    const [otherShortcode, otherImage] = bImages[index];
+    const other = bImages[index];
+    if (!other) return false;
+    const [otherShortcode, otherImage] = other;
     if (shortcode !== otherShortcode) return false;
     return (
       image.url === otherImage.url &&
@@ -55,18 +57,14 @@ const imagePackListEqual = (a: ImagePack[], b: ImagePack[]): boolean => {
 
 export const useUserImagePack = (): ImagePack | undefined => {
   const mx = useMatrixClient();
-  const [userPack, setUserPack] = useState<ImagePack | undefined>(() => getUserImagePack(mx));
-
-  // Async: seed from cache after first render if no live data is available yet
-  useEffect(() => {
-    setUserPack((current) => {
-      if (current) return current;
-      const userId = mx.getUserId();
-      if (!userId) return current;
-      return readCachedPack(userId, userPackScope()) ?? current;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Seed from cache during initial state when live data is not available yet.
+  const [userPack, setUserPack] = useState<ImagePack | undefined>(() => {
+    const livePack = getUserImagePack(mx);
+    if (livePack) return livePack;
+    const userId = mx.getUserId();
+    if (!userId) return undefined;
+    return readCachedPack(userId, userPackScope()) ?? undefined;
+  });
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -77,7 +75,7 @@ export const useUserImagePack = (): ImagePack | undefined => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.PoniesUserEmotes) {
+        if (mEvent.getType() === (CustomAccountDataEvent.PoniesUserEmotes as string)) {
           setUserPack((prev) => {
             const next = getUserImagePack(mx);
             return imagePackEqual(prev, next) ? prev : next;
@@ -93,19 +91,15 @@ export const useUserImagePack = (): ImagePack | undefined => {
 
 export const useGlobalImagePacks = (): ImagePack[] => {
   const mx = useMatrixClient();
-  const [globalPacks, setGlobalPacks] = useState<ImagePack[]>(() => getGlobalImagePacks(mx));
-
-  // Async: seed from cache after first render if no live data is available yet
-  useEffect(() => {
-    setGlobalPacks((current) => {
-      if (current.length > 0) return current;
-      const userId = mx.getUserId();
-      if (!userId) return current;
-      const cached = readCachedPacks(userId, globalPacksScope());
-      return cached.length > 0 ? cached : current;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Seed from cache during initial state when live data is not available yet.
+  const [globalPacks, setGlobalPacks] = useState<ImagePack[]>(() => {
+    const livePacks = getGlobalImagePacks(mx);
+    if (livePacks.length > 0) return livePacks;
+    const userId = mx.getUserId();
+    if (!userId) return livePacks;
+    const cachedPacks = readCachedPacks(userId, globalPacksScope());
+    return cachedPacks.length > 0 ? cachedPacks : livePacks;
+  });
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -116,7 +110,7 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.PoniesEmoteRooms) {
+        if (mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)) {
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;
@@ -134,7 +128,11 @@ export const useGlobalImagePacks = (): ImagePack[] => {
         const eventType = mEvent.getType();
         const roomId = mEvent.getRoomId();
         const stateKey = mEvent.getStateKey();
-        if (eventType === StateEvent.PoniesRoomEmotes && roomId && typeof stateKey === 'string') {
+        if (
+          eventType === (CustomStateEvent.PoniesRoomEmotes as string) &&
+          roomId &&
+          typeof stateKey === 'string'
+        ) {
           setGlobalPacks((prev) => {
             const global = !!prev.find(
               (pack) =>
@@ -155,24 +153,16 @@ export const useGlobalImagePacks = (): ImagePack[] => {
 
 export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | undefined => {
   const mx = useMatrixClient();
-  const [roomPack, setRoomPack] = useState<ImagePack | undefined>(() =>
-    getRoomImagePack(room, stateKey)
-  );
-
-  // Async: seed from cache after first render if no live data is available yet
-  useEffect(() => {
-    setRoomPack((current) => {
-      if (current) return current;
-      const userId = mx.getUserId();
-      if (!userId) return current;
-      return (
-        readCachedPacks(userId, roomPacksScope(room.roomId)).find(
-          (p) => p.address?.stateKey === stateKey
-        ) ?? current
-      );
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Seed from cache during initial state when live data is not available yet.
+  const [roomPack, setRoomPack] = useState<ImagePack | undefined>(() => {
+    const livePack = getRoomImagePack(room, stateKey);
+    if (livePack) return livePack;
+    const userId = mx.getUserId();
+    if (!userId) return undefined;
+    return readCachedPacks(userId, roomPacksScope(room.roomId)).find(
+      (pack) => pack.address?.stateKey === stateKey
+    );
+  });
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -188,7 +178,7 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes &&
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string) &&
           mEvent.getStateKey() === stateKey
         ) {
           setRoomPack((prev) => {
@@ -206,19 +196,15 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
 
 export const useRoomImagePacks = (room: Room): ImagePack[] => {
   const mx = useMatrixClient();
-  const [roomPacks, setRoomPacks] = useState<ImagePack[]>(() => getRoomImagePacks(room));
-
-  // Async: seed from cache after first render if no live data is available yet
-  useEffect(() => {
-    setRoomPacks((current) => {
-      if (current.length > 0) return current;
-      const userId = mx.getUserId();
-      if (!userId) return current;
-      const cached = readCachedPacks(userId, roomPacksScope(room.roomId));
-      return cached.length > 0 ? cached : current;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Seed from cache during initial state when live data is not available yet.
+  const [roomPacks, setRoomPacks] = useState<ImagePack[]>(() => {
+    const livePacks = getRoomImagePacks(room);
+    if (livePacks.length > 0) return livePacks;
+    const userId = mx.getUserId();
+    if (!userId) return livePacks;
+    const cachedPacks = readCachedPacks(userId, roomPacksScope(room.roomId));
+    return cachedPacks.length > 0 ? cachedPacks : livePacks;
+  });
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -231,7 +217,7 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = getRoomImagePacks(room);
@@ -248,23 +234,19 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
 
 export const useRoomsImagePacks = (rooms: Room[]) => {
   const mx = useMatrixClient();
-  const [roomPacks, setRoomPacks] = useState<ImagePack[]>(() => rooms.flatMap(getRoomImagePacks));
-
-  // Async: seed from cache after first render if no live data is available yet
-  useEffect(() => {
-    setRoomPacks((current) => {
-      if (current.length > 0) return current;
-      const userId = mx.getUserId();
-      if (!userId) return current;
-      const cached = rooms.flatMap((room) => {
-        const livePacks = getRoomImagePacks(room);
-        if (livePacks.length > 0) return livePacks;
-        return readCachedPacks(userId, roomPacksScope(room.roomId));
-      });
-      return cached.length > 0 ? cached : current;
+  // Seed from cache during initial state when live data is not available yet.
+  const [roomPacks, setRoomPacks] = useState<ImagePack[]>(() => {
+    const livePacks = rooms.flatMap(getRoomImagePacks);
+    if (livePacks.length > 0) return livePacks;
+    const userId = mx.getUserId();
+    if (!userId) return livePacks;
+    const cachedPacks = rooms.flatMap((room) => {
+      const roomLivePacks = getRoomImagePacks(room);
+      if (roomLivePacks.length > 0) return roomLivePacks;
+      return readCachedPacks(userId, roomPacksScope(room.roomId));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return cachedPacks.length > 0 ? cachedPacks : livePacks;
+  });
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -288,7 +270,7 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
       (mEvent) => {
         if (
           rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
-          mEvent.getType() === StateEvent.PoniesRoomEmotes
+          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
         ) {
           setRoomPacks((prev) => {
             const next = rooms.flatMap(getRoomImagePacks);

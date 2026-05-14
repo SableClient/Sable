@@ -1,26 +1,15 @@
-/* eslint-disable jsx-a11y/alt-text */
-import {
-  CSSProperties,
-  ComponentPropsWithoutRef,
-  Fragment,
-  ReactEventHandler,
-  ReactNode,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  attributesToProps,
-  domToReact,
-  Element,
-  HTMLReactParserOptions,
-  Text as DOMText,
-} from 'html-react-parser';
-import { MatrixClient } from '$types/matrix-sdk';
+/* oxlint-disable jsx-a11y/alt-text */
+import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
+import type { MatrixClient } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { Box, Chip, config, Header, Icon, IconButton, Icons, Scroll, Text, toRem } from 'folds';
-import { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
+import type { IntermediateRepresentation, OptFn, Opts as LinkifyOpts } from 'linkifyjs';
 import Linkify from 'linkify-react';
-import { ChildNode } from 'domhandler';
+import type { ChildNode } from 'domhandler';
+
 import * as css from '$styles/CustomHtml.css';
 import {
   getCanonicalAliasRoomId,
@@ -29,18 +18,18 @@ import {
   mxcUrlToHttp,
 } from '$utils/matrix';
 import { getMemberDisplayName } from '$utils/room';
-import { Nicknames } from '$state/nicknames';
+import type { Nicknames } from '$state/nicknames';
 import { EMOJI_PATTERN, sanitizeForRegex, URL_NEG_LB } from '$utils/regex';
 import { findAndReplace } from '$utils/findAndReplace';
 import { onEnterOrSpace } from '$utils/keyboard';
 import { copyToClipboard } from '$utils/dom';
 import { isMatrixHexColor } from '$utils/matrixHtml';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
-import { parseSettingsLink } from '$features/settings/settingsLink';
-import { settingsSections } from '$features/settings/routes';
+import { getSettingsLinkChipLabel, parseSettingsLink } from '$features/settings/settingsLink';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 import { CodeHighlightRenderer } from '$components/code-highlight';
 import {
+  isRedundantMatrixToAnchorText,
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
   parseMatrixToUser,
@@ -49,6 +38,10 @@ import {
 import { getHexcodeForEmoji, getShortcodeFor } from './emoji';
 
 const EMOJI_REG_G = new RegExp(`${URL_NEG_LB}(${EMOJI_PATTERN})`, 'g');
+
+const shouldLinkifyDomText = (domNode: DOMText): boolean =>
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
+  !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
 
 export const LINKIFY_OPTS: LinkifyOpts = {
   attributes: {
@@ -105,6 +98,43 @@ const ensureNoopenerRel = (rel: unknown): string => {
   return parts.join(' ');
 };
 
+function KatexRenderer({
+  math,
+  displayMode,
+  style,
+}: {
+  math: string;
+  displayMode: boolean;
+  style?: CSSProperties;
+}) {
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([import('katex'), import('katex/dist/katex.min.css')]).then(([katex]) => {
+      if (mounted) {
+        setHtml(katex.default.renderToString(math, { throwOnError: false, displayMode }));
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [math, displayMode]);
+
+  if (html === null) {
+    return (
+      <code style={style}>
+        {displayMode ? '$$\n' : '$'}
+        {math}
+        {displayMode ? '\n$$' : '$'}
+      </code>
+    );
+  }
+
+  const Tag = displayMode ? 'div' : 'span';
+  return <Tag style={style} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 export const makeMentionCustomProps = (
   handleMentionClick?: ReactEventHandler<HTMLElement>,
   content?: string
@@ -118,6 +148,18 @@ export const makeMentionCustomProps = (
   onClick: handleMentionClick,
   children: content,
 });
+
+const matrixPermalinkDisplayLabel = (
+  href: string,
+  customChildren: ReactNode | undefined,
+  fallback: ReactNode
+): ReactNode => {
+  if (customChildren === undefined || customChildren === null) return fallback;
+  if (typeof customChildren === 'string') {
+    return isRedundantMatrixToAnchorText(href, customChildren) ? fallback : customChildren;
+  }
+  return customChildren;
+};
 
 export const renderMatrixMention = (
   mx: MatrixClient,
@@ -153,6 +195,7 @@ export const renderMatrixMention = (
     );
 
     const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
 
     return (
       <a
@@ -164,7 +207,7 @@ export const renderMatrixMention = (
         data-mention-id={mentionRoom?.roomId ?? roomIdOrAlias}
         data-mention-via={viaServers?.join(',')}
       >
-        {customProps.children ? customProps.children : fallbackContent}
+        {label}
       </a>
     );
   }
@@ -175,7 +218,20 @@ export const renderMatrixMention = (
     const mentionRoom = mx.getRoom(
       isRoomAlias(roomIdOrAlias) ? getCanonicalAliasRoomId(mx, roomIdOrAlias) : roomIdOrAlias
     );
-    const fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    let fallbackContent = mentionRoom ? `#${mentionRoom.name}` : roomIdOrAlias;
+    if (mentionRoom) {
+      const linkedEvent = mentionRoom.findEventById?.(eventId);
+      if (linkedEvent) {
+        const raw = linkedEvent.getContent() as { body?: unknown };
+        const body = typeof raw.body === 'string' ? raw.body.trim() : '';
+        if (body) {
+          const singleLine = body.replace(/\s+/g, ' ');
+          const short = singleLine.length > 72 ? `${singleLine.slice(0, 69)}…` : singleLine;
+          fallbackContent = `#${mentionRoom.name}: ${short}`;
+        }
+      }
+    }
+    const label = matrixPermalinkDisplayLabel(href, customProps.children, fallbackContent);
 
     return (
       <a
@@ -194,7 +250,7 @@ export const renderMatrixMention = (
         <span aria-hidden="true" className={css.MentionIcon}>
           <Icon size="50" src={Icons.Message} />
         </span>
-        {customProps.children ? customProps.children : fallbackContent}
+        {label}
       </a>
     );
   }
@@ -202,65 +258,20 @@ export const renderMatrixMention = (
   return undefined;
 };
 
-const settingsSectionLabel = Object.fromEntries(
-  settingsSections.map((section) => [section.id, section.label])
-) as Record<(typeof settingsSections)[number]['id'], string>;
-
-const humanizeSettingsLinkPart = (value: string): string =>
-  value
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const getSettingsLinkLabel = (
-  section: keyof typeof settingsSectionLabel,
-  focus?: string
-): string => {
-  const sectionLabel = settingsSectionLabel[section];
-  const focusLabel = focus ? humanizeSettingsLinkPart(focus) : undefined;
-
-  return focusLabel ? `${sectionLabel} / ${focusLabel}` : sectionLabel;
-};
-
-const getSettingsLinkChildren = ({
-  href,
-  section,
-  focus,
-  content,
-  fallbackChildren,
-}: {
-  href: string;
-  section: keyof typeof settingsSectionLabel;
-  focus?: string;
-  content?: string;
-  fallbackChildren?: ReactNode;
-}): ReactNode => {
-  if (!content || content === href || content === safeDecodeUrl(href)) {
-    return getSettingsLinkLabel(section, focus);
-  }
-
-  return fallbackChildren ?? content;
-};
-
 const renderSettingsLink = ({
   href,
   section,
   focus,
   handleMentionClick,
-  content,
-  fallbackChildren,
 }: {
   href: string;
-  section: keyof typeof settingsSectionLabel;
+  section: Parameters<typeof getSettingsLinkChipLabel>[0];
   focus?: string;
   handleMentionClick?: ReactEventHandler<HTMLElement>;
-  content?: string;
-  fallbackChildren?: ReactNode;
 }) => (
   <a
     href={href}
-    {...makeMentionCustomProps(handleMentionClick, content)}
+    {...makeMentionCustomProps(handleMentionClick)}
     className={classNames(css.Mention({}), css.MentionWithIcon)}
     data-settings-link-section={section}
     data-settings-link-focus={focus}
@@ -268,7 +279,7 @@ const renderSettingsLink = ({
     <span aria-hidden="true" className={css.MentionIcon}>
       <Icon size="50" src={Icons.Setting} />
     </span>
-    {getSettingsLinkChildren({ href, section, focus, content, fallbackChildren })}
+    {getSettingsLinkChipLabel(section, focus)}
   </a>
 );
 
@@ -276,8 +287,8 @@ export const factoryRenderLinkifyWithMention = (
   settingsLinkBaseUrl: string,
   mentionRender: (href: string) => JSX.Element | undefined,
   handleMentionClick?: ReactEventHandler<HTMLElement>
-): OptFn<(ir: IntermediateRepresentation) => any> => {
-  const renderLink: OptFn<(ir: IntermediateRepresentation) => any> = ({
+): OptFn<(ir: IntermediateRepresentation) => unknown> => {
+  const renderLink: OptFn<(ir: IntermediateRepresentation) => unknown> = ({
     tagName,
     attributes,
     content,
@@ -299,13 +310,15 @@ export const factoryRenderLinkifyWithMention = (
           section,
           focus,
           handleMentionClick,
-          content,
-          fallbackChildren: content,
         });
       }
     }
 
-    return <a {...attributes}>{content}</a>;
+    return (
+      <a {...attributes} target="_blank" rel="noreferrer noopener">
+        {content}
+      </a>
+    );
   };
 
   return renderLink;
@@ -357,17 +370,19 @@ export const highlightText = (
  * @returns {string} The concatenated plain text content of all descendant text nodes.
  */
 const extractTextFromChildren = (nodes: ChildNode[]): string => {
-  let text = '';
+  const worker = (n: ChildNode[]): string => {
+    let text = '';
+    n.forEach((node) => {
+      if ((node.type as unknown as string) === 'text') {
+        text += (node as unknown as Text).data;
+      } else if (node instanceof Element && node.children) {
+        text += worker(node.children);
+      }
+    });
+    return text;
+  };
 
-  nodes.forEach((node) => {
-    if (node.type === 'text') {
-      text += node.data;
-    } else if (node instanceof Element && node.children) {
-      text += extractTextFromChildren(node.children);
-    }
-  });
-
-  return text;
+  return worker(nodes).replace(/\n$/, '');
 };
 
 const getLanguageFromClassName = (className?: string): string | undefined => {
@@ -467,7 +482,7 @@ export function CodeBlock({
         hideTrack
       >
         <div id="code-block-content" className={css.CodeBlockInternal}>
-          {domToReact(children as any, opts)}
+          {domToReact(children as unknown as Parameters<typeof domToReact>[0], opts)}
         </div>
       </Scroll>
       {largeCodeBlock && !expanded && <Box className={css.CodeBlockBottomShadow} />}
@@ -501,6 +516,8 @@ export const getReactCustomHtmlParser = (
     useAuthentication?: boolean;
     nicknames?: Nicknames;
     autoplayEmojis?: boolean;
+    incomingInlineImagesDefaultHeight?: number;
+    incomingInlineImagesMaxHeight?: number;
     replaceTextNode?: (
       text: string,
       renderText: (text: string, key?: string) => JSX.Element
@@ -509,9 +526,19 @@ export const getReactCustomHtmlParser = (
 ): HTMLReactParserOptions => {
   const { replaceTextNode } = params;
 
-  const shouldLinkifyDomText = (domNode: DOMText): boolean =>
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'code') &&
-    !(domNode.parent && 'name' in domNode.parent && domNode.parent.name === 'a');
+  const defaultIncomingImgHeight = params.incomingInlineImagesDefaultHeight ?? 32;
+  const maxIncomingImgHeight = params.incomingInlineImagesMaxHeight ?? 64;
+
+  const normalizeIncomingImgHeight = (raw: unknown): number => {
+    const parsed =
+      typeof raw === 'number' ? raw : typeof raw === 'string' ? Number.parseInt(raw, 10) : NaN;
+    const fallback = defaultIncomingImgHeight;
+    const safe = Number.isFinite(parsed) ? parsed : fallback;
+    // Clamp to sane bounds first, then apply the user max.
+    const bounded = Math.max(1, Math.min(4096, Math.round(safe)));
+    const max = Math.max(1, Math.min(4096, Math.round(maxIncomingImgHeight)));
+    return Math.min(bounded, max);
+  };
 
   const decorateText = (text: string) => {
     let jsx = scaleSystemEmoji(text);
@@ -550,7 +577,8 @@ export const getReactCustomHtmlParser = (
       }
       if (domNode instanceof Element && 'name' in domNode) {
         const { name, attribs, children, parent } = domNode;
-        const renderChildren = () => domToReact(children as any, opts);
+        const renderChildren = () =>
+          domToReact(children as unknown as Parameters<typeof domToReact>[0], opts);
         const props = stripIncomingStyle(attribs);
         const matrixColorStyle = getMatrixColorStyle(attribs);
 
@@ -664,9 +692,10 @@ export const getReactCustomHtmlParser = (
               parent instanceof Element ? parent.children : [],
               parent instanceof Element ? parent.attribs : undefined
             );
+            const trimmedCode = codeContent.replace(/\n$/, '');
             return (
               <CodeHighlightRenderer
-                code={codeContent}
+                code={trimmedCode}
                 language={language}
                 allowDetect={false}
                 className={typeof props.className === 'string' ? props.className : undefined}
@@ -687,6 +716,7 @@ export const getReactCustomHtmlParser = (
           const renderedChildren = renderChildren();
           const anchorProps = {
             ...props,
+            target: '_blank',
             rel: ensureNoopenerRel(props.rel),
           };
 
@@ -715,8 +745,6 @@ export const getReactCustomHtmlParser = (
                 section,
                 focus,
                 handleMentionClick: params.handleMentionClick,
-                content,
-                fallbackChildren: renderedChildren,
               });
             }
           }
@@ -739,6 +767,20 @@ export const getReactCustomHtmlParser = (
               {renderChildren()}
             </span>
           );
+        }
+
+        if (name === 'span' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            return <KatexRenderer math={math} displayMode={false} style={matrixColorStyle} />;
+          }
+        }
+
+        if (name === 'div' && 'data-mx-maths' in props) {
+          const math = props['data-mx-maths'];
+          if (typeof math === 'string') {
+            return <KatexRenderer math={math} displayMode={true} style={matrixColorStyle} />;
+          }
         }
 
         if (name === 'span' && matrixColorStyle) {
@@ -781,6 +823,8 @@ export const getReactCustomHtmlParser = (
               );
             }
 
+            const height = normalizeIncomingImgHeight(props.height);
+
             const siblingCount = domNode.parent?.children.length ?? 0;
 
             // seperate style for bundled emojis
@@ -795,6 +839,7 @@ export const getReactCustomHtmlParser = (
                           {...props}
                           src={htmlSrc}
                           className={css.EmoticonImg}
+                          height={height}
                           style={{ verticalAlign: 'middle' }}
                           fallback={
                             <span className={css.EmoticonBase}>
@@ -808,6 +853,7 @@ export const getReactCustomHtmlParser = (
                         {...props}
                         src={htmlSrc}
                         className={css.EmoticonImg}
+                        height={height}
                         style={{ verticalAlign: 'middle' }}
                         fallback={
                           <span className={css.EmoticonBase}>
@@ -831,6 +877,7 @@ export const getReactCustomHtmlParser = (
                         {...props}
                         src={htmlSrc}
                         className={css.EmoticonImg}
+                        height={height}
                         fallback={
                           <span className={css.EmoticonBase}>
                             {props.alt || props.title || '?'}
@@ -843,6 +890,7 @@ export const getReactCustomHtmlParser = (
                       {...props}
                       src={htmlSrc}
                       className={css.EmoticonImg}
+                      height={height}
                       fallback={
                         <span className={css.EmoticonBase}>{props.alt || props.title || '?'}</span>
                       }
@@ -867,6 +915,7 @@ export const getReactCustomHtmlParser = (
                 {...props}
                 className={css.Img}
                 src={htmlSrc}
+                height={normalizeIncomingImgHeight(props.height)}
                 fallback={
                   <span title={`Failed to load media${props.alt ? `: ${props.alt}` : ''}`}>
                     {props.alt || '[media]'}

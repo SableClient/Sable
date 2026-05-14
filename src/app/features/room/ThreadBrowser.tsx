@@ -1,12 +1,5 @@
-import {
-  ChangeEventHandler,
-  MouseEventHandler,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Header,
@@ -20,19 +13,13 @@ import {
   Avatar,
   config,
   Chip,
+  toRem,
 } from 'folds';
-import {
-  EventTimelineSet,
-  MatrixEvent,
-  NotificationCountType,
-  Room,
-  RoomEvent,
-  Thread,
-  ThreadEvent,
-} from '$types/matrix-sdk';
+import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
+import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import { HTMLReactParserOptions } from 'html-react-parser';
-import { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -53,7 +40,7 @@ import {
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { GetContentCallback } from '$types/matrix/room';
+import type { GetContentCallback } from '$types/matrix/room';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import {
@@ -66,6 +53,8 @@ import {
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -142,9 +131,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
     const onUnread = (_count: unknown, threadId?: string) => {
       if (!threadId || threadId === thread.id) forceUnread((n) => n + 1);
     };
-    room.on(RoomEvent.UnreadNotifications as any, onUnread);
+    room.on(RoomEvent.UnreadNotifications, onUnread);
     return () => {
-      room.off(RoomEvent.UnreadNotifications as any, onUnread);
+      room.off(RoomEvent.UnreadNotifications, onUnread);
     };
   }, [room, thread.id]);
   const unreadTotal = room.getThreadUnreadNotificationCount(thread.id, NotificationCountType.Total);
@@ -168,9 +157,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   // Use Math.max so we never show fewer replies than the server reports.
   const replyCount = Math.max(localReplyCount, thread.length ?? 0);
 
-  const lastReply = thread.events
-    .filter((ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev))
-    .at(-1);
+  const lastReply = thread.events.findLast(
+    (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
+  );
   const lastSenderId = lastReply?.getSender() ?? '';
   const lastDisplayName =
     getMemberDisplayName(room, lastSenderId, nicknames) ??
@@ -318,9 +307,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   // always be a no-op and left threadsReady=true prematurely.
   useEffect(() => {
     const onUpdate = () => forceUpdate((n) => n + 1);
-    room.on(ThreadEvent.New as any, onUpdate);
-    room.on(ThreadEvent.Update as any, onUpdate);
-    room.on(ThreadEvent.NewReply as any, onUpdate);
+    room.on(ThreadEvent.New, onUpdate);
+    room.on(ThreadEvent.Update, onUpdate);
+    room.on(ThreadEvent.NewReply, onUpdate);
 
     let cancelled = false;
     const loadThreads = async () => {
@@ -335,7 +324,6 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         // Now fetch page 1 from the /threads endpoint.  threadsTimelineSets is
         // populated so fetchRoomThreadList will not early-return.
         await room.fetchRoomThreads().catch((err: unknown) => {
-          // eslint-disable-next-line no-console
           console.warn('ThreadBrowser: fetchRoomThreads failed', err);
         });
 
@@ -358,28 +346,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             const id = event.getId()!;
             const existingThread = room.getThread(id);
 
-            const bundled = (event.getUnsigned() as any)?.['m.relations']?.['m.thread'];
-            const bundledCount: number | undefined =
-              typeof bundled?.count === 'number' ? bundled.count : undefined;
             if (!existingThread) {
               room.createThread(id, event, [], false);
             } else {
               if (!existingThread.rootEvent) {
                 existingThread.rootEvent = event;
                 existingThread.setEventMetadata(event);
-              }
-              // Seed/update replyCount from bundled aggregations.  This is needed
-              // for threads that were created by sliding-sync BEFORE fetchRoomThreads
-              // ran: SS delivers root events without bundled aggregations, so
-              // room.createThread() sets replyCount=0 and the SDK's fast-path
-              // ("replyCount===0 → initialEventsFetched=true, no server fetch") fires.
-              // Later, fetchRoomThreads() brings events WITH bundled counts, but
-              // createThread() is idempotent and returns the stale thread unchanged.
-              // Backfilling replyCount here lets ThreadPreview show the right count
-              // and lets Case C in ThreadDrawer know there are replies to fetch.
-
-              if (bundledCount !== undefined && (existingThread as any).replyCount === 0) {
-                (existingThread as any).replyCount = bundledCount;
               }
             }
           });
@@ -397,9 +369,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
 
     return () => {
       cancelled = true;
-      room.off(ThreadEvent.New as any, onUpdate);
-      room.off(ThreadEvent.Update as any, onUpdate);
-      room.off(ThreadEvent.NewReply as any, onUpdate);
+      room.off(ThreadEvent.New, onUpdate);
+      room.off(ThreadEvent.Update, onUpdate);
+      room.off(ThreadEvent.NewReply, onUpdate);
     };
   }, [room, mx]);
 
@@ -408,7 +380,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     if (!tls || loadingMore) return;
     setLoadingMore(true);
     try {
-      const hasMore = await mx.paginateEventTimeline(tls.getLiveTimeline(), { backwards: true });
+      const hasMore = await mx.paginateEventTimeline(tls.getLiveTimeline(), {
+        backwards: true,
+      });
       tls
         .getLiveTimeline()
         .getEvents()
@@ -417,19 +391,12 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           const id = event.getId()!;
           const existingThread = room.getThread(id);
 
-          const bundled = (event.getUnsigned() as any)?.['m.relations']?.['m.thread'];
-          const bundledCount: number | undefined =
-            typeof bundled?.count === 'number' ? bundled.count : undefined;
           if (!existingThread) {
             room.createThread(id, event, [], false);
           } else {
             if (!existingThread.rootEvent) {
               existingThread.rootEvent = event;
               existingThread.setEventMetadata(event);
-            }
-
-            if (bundledCount !== undefined && (existingThread as any).replyCount === 0) {
-              (existingThread as any).replyCount = bundledCount;
             }
           }
         });
@@ -454,7 +421,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     }
   }, []);
 
-  const allThreads = room.getThreads().sort((a: Thread, b: Thread) => {
+  const allThreads = room.getThreads().toSorted((a: Thread, b: Thread) => {
     const aTs = a.events.at(-1)?.getTs() ?? a.rootEvent?.getTs() ?? 0;
     const bTs = b.events.at(-1)?.getTs() ?? b.rootEvent?.getTs() ?? 0;
     return bTs - aTs;
@@ -472,12 +439,34 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     setQuery(e.target.value);
   };
 
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  useEffect(() => {
+    setCurWidth(threadSidebarWidth);
+  }, [threadSidebarWidth]);
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
       direction="Column"
       shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
     >
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={threadSidebarWidth}
+          setSidebarWidth={setThreadSidebarWidth}
+          minValue={150}
+          maxValue={600}
+          isReversed
+        />
+      )}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
           <Icon size="200" src={Icons.Thread} />

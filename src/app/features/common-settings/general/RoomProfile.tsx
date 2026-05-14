@@ -4,18 +4,27 @@ import {
   Button,
   Chip,
   color,
+  config,
+  Dialog,
+  Header,
   Icon,
+  IconButton,
   Icons,
   Input,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   Spinner,
   Text,
   TextArea,
 } from 'folds';
-import { FormEventHandler, useCallback, useMemo, useState } from 'react';
+import type { FormEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
-import { JoinRule, MatrixError } from '$types/matrix-sdk';
+import type { MatrixError, StateEvents } from '$types/matrix-sdk';
+import { JoinRule, EventType } from '$types/matrix-sdk';
 import { SequenceCard } from '$components/sequence-card';
 import { SequenceCardStyle } from '$features/room-settings/styles.css';
 import { useRoom } from '$hooks/useRoom';
@@ -27,16 +36,23 @@ import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { StateEvent } from '$types/matrix/room';
+
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useObjectURL } from '$hooks/useObjectURL';
-import { createUploadAtom, UploadSuccess } from '$state/upload';
+import type { UploadSuccess } from '$state/upload';
+import { createUploadAtom } from '$state/upload';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
-import { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useStateEvent } from '$hooks/useStateEvent';
+import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import { CustomStateEvent } from '$types/matrix/room';
+import { SettingTile } from '$components/setting-tile';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -92,15 +108,21 @@ export function RoomProfileEdit({
     useCallback(
       async (roomAvatarMxc?: string | null, roomName?: string, roomTopic?: string) => {
         if (roomAvatarMxc !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomAvatar as any, {
-            url: roomAvatarMxc,
-          });
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomAvatar as keyof StateEvents,
+            roomAvatarMxc ? { url: roomAvatarMxc } : {}
+          );
         }
         if (roomName !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomName as any, { name: roomName });
+          await mx.sendStateEvent(room.roomId, EventType.RoomName as keyof StateEvents, {
+            name: roomName,
+          });
         }
         if (roomTopic !== undefined) {
-          await mx.sendStateEvent(room.roomId, StateEvent.RoomTopic as any, { topic: roomTopic });
+          await mx.sendStateEvent(room.roomId, EventType.RoomTopic as keyof StateEvents, {
+            topic: roomTopic,
+          });
         }
       },
       [mx, room.roomId]
@@ -287,6 +309,175 @@ export function RoomProfileEdit({
   );
 }
 
+export type ProfileProps = {
+  bannerURI?: string;
+};
+function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
+  const mx = useMatrixClient();
+  const [alertRemove, setAlertRemove] = useState(false);
+
+  const space = useRoom();
+  const [stagedUrl, setStagedUrl] = useState<string>();
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const bannerUrl = bannerURI;
+
+  useEffect(() => {
+    if (bannerUrl) {
+      setStagedUrl(undefined);
+    }
+  }, [bannerUrl]);
+
+  const [imageFile, setImageFile] = useState<File>();
+  const imageFileURL = useObjectURL(imageFile);
+
+  const uploadAtom = useMemo(() => {
+    if (imageFile) return createUploadAtom(imageFile);
+    return undefined;
+  }, [imageFile]);
+
+  const pickFile = useFilePicker(setImageFile, false);
+
+  const handlePick = useCallback(() => {
+    setIsRemoving(false);
+    setStagedUrl(undefined);
+    pickFile('image/*');
+  }, [pickFile]);
+
+  const handleRemoveUpload = useCallback(() => {
+    setImageFile(undefined);
+  }, []);
+
+  const handleUploaded = useCallback(
+    (upload: UploadSuccess) => {
+      const { mxc } = upload;
+
+      if (imageFileURL) setStagedUrl(imageFileURL);
+      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: mxc }, '');
+      setImageFile(undefined);
+    },
+    [mx, imageFileURL, space]
+  );
+
+  const handleRemoveBanner = async () => {
+    setIsRemoving(true);
+    setStagedUrl(undefined);
+    setImageFile(undefined);
+
+    mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: '' }, '');
+
+    setAlertRemove(false);
+  };
+
+  const previewUrl = isRemoving ? undefined : imageFileURL || stagedUrl || bannerUrl;
+
+  return (
+    <SettingTile title="Banner" focusId="banner">
+      <Box direction="Column" gap="300" grow="Yes">
+        <Box
+          style={{
+            height: '100px',
+            width: '100%',
+            borderRadius: config.radii.R400,
+            overflow: 'hidden',
+            backgroundColor: 'var(--sable-surface-container)',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              key={previewUrl}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              alt="Banner Preview"
+            />
+          ) : (
+            <Box justifyContent="Center" alignItems="Center">
+              <Text priority="300" size="T200">
+                No Banner Set
+              </Text>
+            </Box>
+          )}
+        </Box>
+
+        {uploadAtom ? (
+          <Box gap="200" direction="Column">
+            <CompactUploadCardRenderer
+              uploadAtom={uploadAtom}
+              onRemove={handleRemoveUpload}
+              onComplete={handleUploaded}
+            />
+          </Box>
+        ) : (
+          <Box gap="200">
+            <Button
+              onClick={handlePick}
+              size="300"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+            >
+              <Text size="B300">{bannerUrl ? 'Change Banner' : 'Upload Banner'}</Text>
+            </Button>
+            {bannerUrl && (
+              <Button
+                size="300"
+                variant="Critical"
+                fill="None"
+                radii="300"
+                onClick={() => setAlertRemove(true)}
+              >
+                <Text size="B300">Remove</Text>
+              </Button>
+            )}
+          </Box>
+        )}
+      </Box>
+
+      <Overlay open={alertRemove} backdrop={<OverlayBackdrop />}>
+        <OverlayCenter>
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setAlertRemove(false),
+              clickOutsideDeactivates: true,
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Dialog variant="Surface">
+              <Header
+                style={{
+                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                  borderBottomWidth: config.borderWidth.B300,
+                }}
+                variant="Surface"
+                size="500"
+              >
+                <Box grow="Yes">
+                  <Text size="H4">Remove Banner</Text>
+                </Box>
+                <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
+                  <Icon src={Icons.Cross} />
+                </IconButton>
+              </Header>
+              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                <Text priority="400">Are you sure you want to remove profile banner?</Text>
+                <Button variant="Critical" onClick={handleRemoveBanner}>
+                  <Text size="B400">Remove</Text>
+                </Button>
+              </Box>
+            </Dialog>
+          </FocusTrap>
+        </OverlayCenter>
+      </Overlay>
+    </SettingTile>
+  );
+}
+
 type RoomProfileProps = {
   permissions: RoomPermissionsAPI;
 };
@@ -303,9 +494,9 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const topic = useRoomTopic(room);
   const joinRule = useRoomJoinRule(room);
 
-  const canEditAvatar = permissions.stateEvent(StateEvent.RoomAvatar, mx.getSafeUserId());
-  const canEditName = permissions.stateEvent(StateEvent.RoomName, mx.getSafeUserId());
-  const canEditTopic = permissions.stateEvent(StateEvent.RoomTopic, mx.getSafeUserId());
+  const canEditAvatar = permissions.stateEvent(EventType.RoomAvatar, mx.getSafeUserId());
+  const canEditName = permissions.stateEvent(EventType.RoomName, mx.getSafeUserId());
+  const canEditTopic = permissions.stateEvent(EventType.RoomTopic, mx.getSafeUserId());
   const canEdit = canEditAvatar || canEditName || canEditTopic;
 
   const avatarUrl = avatar
@@ -315,6 +506,10 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const [edit, setEdit] = useState(false);
 
   const handleCloseEdit = useCallback(() => setEdit(false), []);
+
+  const bannerState = useStateEvent(room, CustomStateEvent.RoomBanner);
+  const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
+  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
 
   return (
     <Box direction="Column" gap="100">
@@ -384,6 +579,16 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           </Box>
         )}
       </SequenceCard>
+      {room.isSpaceRoom() && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <RoomBannerEdit bannerURI={bannerURI ?? undefined} />
+        </SequenceCard>
+      )}
     </Box>
   );
 }

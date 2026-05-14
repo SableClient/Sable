@@ -12,6 +12,7 @@ describe('getBlobSafeMimeType', () => {
     expect(getBlobSafeMimeType('image/jpeg')).toBe('image/jpeg');
     expect(getBlobSafeMimeType('image/png')).toBe('image/png');
     expect(getBlobSafeMimeType('image/webp')).toBe('image/webp');
+    expect(getBlobSafeMimeType('image/svg+xml')).toBe('image/svg+xml');
   });
 
   it('passes through known video and audio types', () => {

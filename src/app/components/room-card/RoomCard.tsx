@@ -1,5 +1,7 @@
-import { ReactNode, useCallback, useRef, useState } from 'react';
-import { JoinRule, MatrixError, Room } from '$types/matrix-sdk';
+import type { ReactNode } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { MatrixError, Room } from '$types/matrix-sdk';
+import { JoinRule, EventType, RoomType } from '$types/matrix-sdk';
 import {
   Avatar,
   Badge,
@@ -24,7 +26,7 @@ import { nameInitials } from '$utils/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
-import { RoomType, StateEvent } from '$types/matrix/room';
+
 import { useJoinedRoomId } from '$hooks/useJoinedRoomId';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';
 import { getRoomAvatarUrl, getStateEvent } from '$utils/room';
@@ -173,7 +175,7 @@ export const RoomCard = as<'div', RoomCardProps>(
     const joinedRoomId = useJoinedRoomId(allRooms, roomIdOrAlias);
     const joinedRoom = mx.getRoom(joinedRoomId);
     const [topicEvent, setTopicEvent] = useState(() =>
-      joinedRoom ? getStateEvent(joinedRoom, StateEvent.RoomTopic) : undefined
+      joinedRoom ? getStateEvent(joinedRoom, EventType.RoomTopic) : undefined
     );
     const [knocking, setKnocking] = useState(false);
     const fallbackName = getMxIdLocalPart(roomIdOrAlias) ?? roomIdOrAlias;
@@ -195,9 +197,9 @@ export const RoomCard = as<'div', RoomCardProps>(
           if (
             joinedRoom &&
             event.getRoomId() === joinedRoom.roomId &&
-            event.getType() === StateEvent.RoomTopic
+            event.getType() === (EventType.RoomTopic as string)
           ) {
-            setTopicEvent(getStateEvent(joinedRoom, StateEvent.RoomTopic));
+            setTopicEvent(getStateEvent(joinedRoom, EventType.RoomTopic));
           }
         },
         [joinedRoom]

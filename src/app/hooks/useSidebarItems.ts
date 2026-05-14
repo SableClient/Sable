@@ -1,10 +1,12 @@
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
-import { MatrixClient } from '$types/matrix-sdk';
-import { AccountDataEvent } from '$types/matrix/accountData';
-import { Membership } from '$types/matrix/room';
+import type { Dispatch, SetStateAction } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { MatrixClient } from '$types/matrix-sdk';
+
 import { getAccountData, isSpace } from '$utils/room';
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
+import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { KnownMembership } from '$types/matrix-sdk';
 
 export type ISidebarFolder = {
   name?: string;
@@ -32,7 +34,7 @@ export const parseSidebar = (
   const safeToAdd = (spaceId: string): boolean => {
     if (typeof spaceId !== 'string') return false;
     const space = mx.getRoom(spaceId);
-    if (space?.getMyMembership() !== Membership.Join) return false;
+    if (space?.getMyMembership() !== (KnownMembership.Join as string)) return false;
     return isSpace(space);
   };
 
@@ -71,7 +73,7 @@ export const useSidebarItems = (
   const [sidebarItems, setSidebarItems] = useState(() => {
     const inCinnySpacesContent = getAccountData(
       mx,
-      AccountDataEvent.CinnySpaces
+      CustomAccountDataEvent.CinnySpaces
     )?.getContent<InCinnySpacesContent>();
     return parseSidebar(mx, orphanSpaces, inCinnySpacesContent);
   });
@@ -79,7 +81,7 @@ export const useSidebarItems = (
   useEffect(() => {
     const inCinnySpacesContent = getAccountData(
       mx,
-      AccountDataEvent.CinnySpaces
+      CustomAccountDataEvent.CinnySpaces
     )?.getContent<InCinnySpacesContent>();
     setSidebarItems(parseSidebar(mx, orphanSpaces, inCinnySpacesContent));
   }, [mx, orphanSpaces]);
@@ -88,7 +90,7 @@ export const useSidebarItems = (
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === AccountDataEvent.CinnySpaces) {
+        if (mEvent.getType() === (CustomAccountDataEvent.CinnySpaces as string)) {
           const newContent = mEvent.getContent<InCinnySpacesContent>();
           setSidebarItems(parseSidebar(mx, orphanSpaces, newContent));
         }
@@ -98,6 +100,18 @@ export const useSidebarItems = (
   );
 
   return [sidebarItems, setSidebarItems];
+};
+
+export const renameSidebarFolderItem = (
+  items: SidebarItems,
+  folderId: string,
+  name: string | undefined
+): SidebarItems => {
+  const trimmed = name?.trim();
+  const nextName = trimmed ? trimmed : undefined;
+  return items.map((item) =>
+    typeof item === 'object' && item.id === folderId ? { ...item, name: nextName } : item
+  );
 };
 
 export const sidebarItemWithout = (items: SidebarItems, roomId: string) => {
@@ -127,7 +141,8 @@ export const makeCinnySpacesContent = (
   items: SidebarItems
 ): InCinnySpacesContent => {
   const currentInSpaces =
-    getAccountData(mx, AccountDataEvent.CinnySpaces)?.getContent<InCinnySpacesContent>() ?? {};
+    getAccountData(mx, CustomAccountDataEvent.CinnySpaces)?.getContent<InCinnySpacesContent>() ??
+    {};
 
   const newSpacesContent: InCinnySpacesContent = {
     ...currentInSpaces,

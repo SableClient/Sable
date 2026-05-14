@@ -1,6 +1,6 @@
 import { Box, Button, Icon, Icons, Text, config, toRem } from 'folds';
 import { Page, PageHero, PageHeroSection } from '$components/page';
-import CinnySVG from '$public/res/svg/cinny-logo.svg';
+import LogoSVG from '$public/res/svg/logo.svg';
 
 export function WelcomePage() {
   return (
@@ -13,7 +13,7 @@ export function WelcomePage() {
       >
         <PageHeroSection>
           <PageHero
-            icon={<img width="70" height="70" src={CinnySVG} alt="Cinny Logo" />}
+            icon={<img width="70" height="70" src={LogoSVG} alt="Sable Logo" />}
             title="Welcome to Sable"
             subTitle={
               <span>

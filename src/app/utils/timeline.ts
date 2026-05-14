@@ -1,5 +1,11 @@
-import { Direction, EventTimeline, MatrixEvent, Room } from '$types/matrix-sdk';
-import { roomHaveNotification, roomHaveUnread, reactionOrEditEvent } from '$utils/room';
+import type { EventTimeline, MatrixEvent, Room } from '$types/matrix-sdk';
+import { Direction } from '$types/matrix-sdk';
+import {
+  isThreadRelationEvent,
+  reactionOrEditEvent,
+  roomHaveNotification,
+  roomHaveUnread,
+} from '$utils/room';
 
 export const PAGINATION_LIMIT = 60;
 
@@ -63,10 +69,12 @@ export const getTimelineAndBaseIndex = (
       const len = events ? events.length : 0;
 
       if (index < acc.baseIndex + len) {
-        return { ...acc, found: timeline };
+        acc.found = timeline;
+        return acc;
       }
 
-      return { ...acc, baseIndex: acc.baseIndex + len };
+      acc.baseIndex += len;
+      return acc;
     },
     { baseIndex: 0 }
   );
@@ -158,7 +166,8 @@ export const getThreadReplyCount = (room: Room, mEventId: string): number => {
     const threadEvents = tl
       .getEvents()
       .filter(
-        (ev) => ev.threadRootId === mEventId && ev.getId() !== mEventId && !reactionOrEditEvent(ev)
+        (ev) =>
+          ev.getId() !== mEventId && !reactionOrEditEvent(ev) && isThreadRelationEvent(ev, mEventId)
       );
     return acc + threadEvents.length;
   }, 0);

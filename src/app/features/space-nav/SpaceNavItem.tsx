@@ -1,6 +1,8 @@
-import { MouseEventHandler, useState } from 'react';
-import { Room } from '$types/matrix-sdk';
-import { Box, Icon, Icons, Text, config, RectCords, Avatar } from 'folds';
+import type { MouseEventHandler } from 'react';
+import { useState } from 'react';
+import type { Room } from '$types/matrix-sdk';
+import type { RectCords } from 'folds';
+import { Box, Icon, Icons, Text, config, Avatar } from 'folds';
 import { useNavigate } from 'react-router-dom';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useRoomName } from '$hooks/useRoomMeta';
@@ -9,9 +11,10 @@ type SpaceNavItemProps = {
   room: Room;
   selected: boolean;
   linkPath: string;
+  hideText?: boolean;
 };
 
-export function SpaceNavItem({ room, selected, linkPath }: SpaceNavItemProps) {
+export function SpaceNavItem({ room, selected, linkPath, hideText }: SpaceNavItemProps) {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const matrixRoomName = useRoomName(room);
@@ -47,7 +50,13 @@ export function SpaceNavItem({ room, selected, linkPath }: SpaceNavItemProps) {
       >
         <NavButton onClick={handleNavItemClick} aria-label={ariaLabel}>
           <NavItemContent>
-            <Box as="span" grow="Yes" alignItems="Center" gap="200">
+            <Box
+              as="span"
+              grow="Yes"
+              alignItems="Center"
+              gap="200"
+              style={{ padding: hideText ? '0' : '1' }}
+            >
               <Avatar size="200" radii="400">
                 <Icon
                   src={Icons.Space}
@@ -56,11 +65,13 @@ export function SpaceNavItem({ room, selected, linkPath }: SpaceNavItemProps) {
                   size="100"
                 />
               </Avatar>
-              <Box as="span" grow="Yes">
-                <Text priority="300" as="span" size="Inherit" truncate>
-                  {roomName}
-                </Text>
-              </Box>
+              {!hideText && (
+                <Box as="span" grow="Yes">
+                  <Text priority="300" as="span" size="Inherit" truncate>
+                    {roomName}
+                  </Text>
+                </Box>
+              )}
             </Box>
           </NavItemContent>
         </NavButton>

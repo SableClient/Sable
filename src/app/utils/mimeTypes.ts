@@ -5,6 +5,7 @@ export const IMAGE_MIME_TYPES = [
   'image/apng',
   'image/webp',
   'image/avif',
+  'image/svg+xml',
 ];
 
 export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
@@ -106,10 +107,10 @@ export const ALLOWED_BLOB_MIME_TYPES = [
 
 export const FALLBACK_MIMETYPE = 'application/octet-stream';
 
-export const getBlobSafeMimeType = (mimeType: string) => {
+export const getBlobSafeMimeType = (mimeType: string): string => {
   if (typeof mimeType !== 'string') return FALLBACK_MIMETYPE;
   const [type] = mimeType.split(';');
-  if (!ALLOWED_BLOB_MIME_TYPES.includes(type)) {
+  if (!type || !ALLOWED_BLOB_MIME_TYPES.includes(type)) {
     return FALLBACK_MIMETYPE;
   }
   // Required for Chromium browsers

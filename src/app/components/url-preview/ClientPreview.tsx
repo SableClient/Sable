@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useState, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Badge, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { encodeBlurHash } from '$utils/blurHash';
-import { MATRIX_BLUR_HASH_PROPERTY_NAME } from '$types/matrix/common';
 import { Attachment, AttachmentBox, AttachmentHeader } from '../message/attachment';
 import { Image } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
+import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../unstable/prefixes';
 
 interface OEmbed {
   type: 'photo' | 'video' | 'link' | 'rich';
@@ -113,7 +114,7 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embed
           mimeType="fake"
           url={videoUrl}
           info={{
-            thumbnail_info: { [MATRIX_BLUR_HASH_PROPERTY_NAME]: blurHash },
+            thumbnail_info: { [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: blurHash },
           }}
           renderThumbnail={() => (
             <Image

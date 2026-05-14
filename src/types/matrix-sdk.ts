@@ -12,7 +12,7 @@ export * from 'matrix-js-sdk/lib/sliding-sync';
 export * from 'matrix-js-sdk/lib/sync-accumulator';
 export * from 'matrix-js-sdk/lib/scheduler';
 export * from 'matrix-js-sdk/lib/store/memory';
-export { createClient } from 'matrix-js-sdk/lib/matrix';
+export { createClient, Filter } from 'matrix-js-sdk/lib/matrix';
 
 export * from 'matrix-js-sdk/lib/models/event';
 export * from 'matrix-js-sdk/lib/models/room';
@@ -51,6 +51,6 @@ export * from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 
 export * from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
+export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
 
-export { ThreadEvent } from 'matrix-js-sdk/lib/models/thread';
-export type { Thread } from 'matrix-js-sdk/lib/models/thread';
+export * from 'matrix-js-sdk/lib/models/thread';

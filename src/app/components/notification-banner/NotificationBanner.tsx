@@ -1,8 +1,10 @@
 import { useAtom } from 'jotai';
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Icon, IconButton, Icons, Text } from 'folds';
 import { createLogger } from '$utils/debug';
-import { inAppBannerAtom, InAppBannerNotification } from '$state/sessions';
+import type { InAppBannerNotification } from '$state/sessions';
+import { inAppBannerAtom } from '$state/sessions';
 import * as css from './NotificationBanner.css';
 
 const log = createLogger('NotificationBanner');

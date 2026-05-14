@@ -6,11 +6,6 @@ interface Vector2 {
   y: number;
 }
 
-interface Transforms {
-  zoom: number;
-  pan: Vector2;
-}
-
 // calculate pointer position relative to the image center
 //
 // use container rect & manually apply transforms as if we get two+ events quickly,
@@ -27,7 +22,7 @@ function getCursorOffsetFromImageCenter(
 }
 
 export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5) => {
-  const [transforms, setTransforms] = useState<Transforms>({
+  const [transforms, setTransforms] = useState({
     zoom: 1,
     pan: { x: 0, y: 0 },
   });
@@ -54,9 +49,9 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
     [setShouldResizeWithWindow]
   );
 
-  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const initialDist = useRef<number>(0);
-  const lastTapRef = useRef<number>(0);
+  const activePointers = useRef(new Map());
+  const initialDist = useRef(0);
+  const lastTapRef = useRef(0);
 
   const prepareForTransform = useCallback(() => {
     const img = imageRef.current;

@@ -728,12 +728,21 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               {!room.isCallRoom() &&
                 callStartCapabilities.canRenderCallButton &&
                 shouldShowCallButton && (
-                  <RoomCallButton
-                    room={room}
-                    direct={direct}
-                    defaultPreferences={{ microphone, video, sound }}
-                    allowVideoStart
-                  />
+                  <>
+                    <RoomCallButton
+                      room={room}
+                      direct={direct}
+                      kind="voice"
+                      defaultPreferences={{ microphone, video, sound }}
+                    />
+                    <RoomCallButton
+                      room={room}
+                      direct={direct}
+                      kind="video"
+                      defaultPreferences={{ microphone, video, sound }}
+                      allowVideoStart
+                    />
+                  </>
                 )}
               <PopOut
                 anchor={pinMenuAnchor}

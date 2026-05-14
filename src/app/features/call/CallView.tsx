@@ -265,6 +265,7 @@ export function CallView({ resizable }: CallViewProps) {
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
         backgroundColor: currentJoined ? 'transparent' : undefined,
+        pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >
       {isDragging && (

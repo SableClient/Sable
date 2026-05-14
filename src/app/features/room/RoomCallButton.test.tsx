@@ -30,56 +30,59 @@ describe('RoomCallButton', () => {
     useCallJoinedMock.mockReset().mockReturnValue(false);
   });
 
-  it('opens a voice/video start menu', async () => {
+  it('starts a voice call from the voice button', async () => {
     render(
       <RoomCallButton
         room={room}
         direct
+        kind="voice"
         defaultPreferences={{ microphone: true, video: true, sound: true }}
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /start call/i }));
+    fireEvent.click(screen.getByRole('button', { name: /start voice call/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Voice Call')).toBeInTheDocument();
+      expect(startCallMock).toHaveBeenCalledWith(room, {
+        microphone: true,
+        video: false,
+        sound: true,
+      });
     });
-    expect(screen.getByText('Video Call')).toBeInTheDocument();
   });
 
-  it('hides video start when video start is disabled', async () => {
+  it('starts a video call from the video button', async () => {
     render(
       <RoomCallButton
         room={room}
-        direct={false}
+        direct
+        kind="video"
+        defaultPreferences={{ microphone: true, video: true, sound: true }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /start video call/i }));
+
+    await waitFor(() => {
+      expect(startCallMock).toHaveBeenCalledWith(room, {
+        microphone: true,
+        video: true,
+        sound: true,
+      });
+    });
+  });
+
+  it('hides video button when video start is disabled', () => {
+    render(
+      <RoomCallButton
+        room={room}
+        direct
+        kind="video"
         allowVideoStart={false}
         defaultPreferences={{ microphone: true, video: true, sound: true }}
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /start call/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Voice Call')).toBeInTheDocument();
-    });
-    expect(screen.queryByText('Video Call')).toBeNull();
-  });
-
-  it('starts the default mode on context-click', () => {
-    render(
-      <RoomCallButton
-        room={room}
-        direct
-        defaultPreferences={{ microphone: true, video: false, sound: true }}
-      />
-    );
-
-    fireEvent.contextMenu(screen.getByRole('button', { name: /start call/i }));
-
-    expect(startCallMock).toHaveBeenCalledWith(room, {
-      microphone: true,
-      video: false,
-      sound: true,
-    });
+    expect(screen.queryByRole('button', { name: /start video call/i })).toBeNull();
   });
 });

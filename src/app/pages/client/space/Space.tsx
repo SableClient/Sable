@@ -12,6 +12,10 @@ import {
   Line,
   Menu,
   MenuItem,
+  Modal,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   PopOut,
   Spinner,
   Text,
@@ -88,6 +92,8 @@ import { nameInitials } from '$utils/common';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { CustomStateEvent } from '$types/matrix/room';
 import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import { ModalWide } from '$styles/Modal.css';
+import { ImageViewer } from '$components/image-viewer';
 import * as css from './styles.css';
 import { ClientSideHoverFreeze } from '$components/ClientSideHoverFreeze';
 
@@ -283,6 +289,11 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
   const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
   const hasBanner = !!(bannerURI && !hideText && showBanners);
 
+  const [bannerViewerOpen, setBannerViewerOpen] = useState(false);
+  useEffect(() => {
+    if (!hasBanner) setBannerViewerOpen(false);
+  }, [hasBanner]);
+
   return (
     <>
       <div className={hasBanner ? css.RoomCoverHeaderContainer : ''}>
@@ -310,7 +321,12 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
               </Box>
             ) : (
               <Box grow="Yes" gap="300">
-                <Box grow="Yes" alignItems="Center" gap="100">
+                <Box
+                  grow="Yes"
+                  alignItems="Center"
+                  gap="100"
+                  style={hasBanner ? { color: '#fff' } : {}}
+                >
                   <Text size="H4" truncate>
                     {spaceName}
                   </Text>
@@ -320,7 +336,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                   <IconButton
                     aria-pressed={!!menuAnchor}
                     variant="Background"
-                    style={hasBanner ? { backgroundColor: '#0000' } : {}}
+                    style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
                     onClick={handleOpenMenu}
                   >
                     <Icon src={Icons.VerticalDots} size="200" />
@@ -363,20 +379,56 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 src={bannerURI}
                 alt={`${spaceName}'s banner`}
                 draggable="false"
+                role="button"
+                tabIndex={0}
+                aria-label={`View ${spaceName} banner`}
+                onClick={() => setBannerViewerOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setBannerViewerOpen(true);
+                  }
+                }}
+              />
+              <SidebarResizer
+                setCurWidth={setCurHeight}
+                sidebarWidth={roomBannerHeight}
+                setSidebarWidth={setRoomBannerHeight}
+                instep={50}
+                outstep={60}
+                minValue={50}
+                maxValue={500}
+                topSided
               />
             </ClientSideHoverFreeze>
           </div>
-          <SidebarResizer
-            setCurWidth={setCurHeight}
-            sidebarWidth={roomBannerHeight}
-            setSidebarWidth={setRoomBannerHeight}
-            instep={50}
-            outstep={60}
-            minValue={50}
-            maxValue={500}
-            topSided
-          />
         </>
+      )}
+      {hasBanner && bannerViewerOpen && (
+        <Overlay open backdrop={<OverlayBackdrop />}>
+          <OverlayCenter>
+            <FocusTrap
+              focusTrapOptions={{
+                initialFocus: false,
+                onDeactivate: () => setBannerViewerOpen(false),
+                clickOutsideDeactivates: true,
+                escapeDeactivates: stopPropagation,
+              }}
+            >
+              <Modal
+                className={ModalWide}
+                size="500"
+                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+              >
+                <ImageViewer
+                  src={bannerURI}
+                  alt={`${spaceName} banner`}
+                  requestClose={() => setBannerViewerOpen(false)}
+                />
+              </Modal>
+            </FocusTrap>
+          </OverlayCenter>
+        </Overlay>
       )}
     </>
   );

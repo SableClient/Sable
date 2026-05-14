@@ -8,7 +8,7 @@ export const RoomCoverNavContainer = style({
   width: '100%',
   zIndex: '10000',
   top: '0',
-  background: 'linear-gradient(0deg,#0000 0%, rgb(0, 0, 0) 120%)',
+  background: 'linear-gradient(180deg, #000 0%, #0000 100%)',
 });
 export const RoomCoverlessNavContainer = recipe({
   base: {

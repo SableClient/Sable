@@ -56,6 +56,8 @@ import * as customHtmlCss from '$styles/CustomHtml.css';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import type { ForwardedMessageProps } from '$features/room/message';
 import { EncryptedContent, Event, Message, Reactions } from '$features/room/message';
+import { PollContent } from '$features/room/PollContent';
+import { M_POLL_START } from 'matrix-js-sdk/lib/@types/polls';
 
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 

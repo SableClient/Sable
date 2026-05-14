@@ -32,6 +32,9 @@ type RoomCosmeticsPronounsEventContent = {
   pronouns?: PronounSet[];
 };
 
+type RoomBannerContent = {
+  url?: string;
+};
 declare module 'matrix-js-sdk/lib/@types/event' {
   interface StateEvents {
     [prefix.MATRIX_UNSTABLE_STATE_ROOM_EMOTES_PROPERTY_NAME]: PackContent;
@@ -41,6 +44,7 @@ declare module 'matrix-js-sdk/lib/@types/event' {
     [prefix.MATRIX_SABLE_UNSTABLE_STATE_COSMETICS_MEMBER_FONT_PROPERTY_NAME]: RoomCosmeticsFontEventContent;
     [prefix.MATRIX_SABLE_UNSTABLE_STATE_COSMETICS_MEMBER_PRONOUNS_PROPERTY_NAME]: RoomCosmeticsPronounsEventContent;
     [prefix.MATRIX_SABLE_UNSTABLE_STATE_ROOM_ABBREVIATIONS_PROPERTY_NAME]: RoomAbbreviationsContent;
+    [prefix.MATRIX_UNSTABLE_STATE_ROOM_BANNER_PROPERTY_NAME]: RoomBannerContent;
   }
 
   interface AccountDataEvents {

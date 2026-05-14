@@ -143,10 +143,43 @@ describe('markdownToHtml', () => {
     expect(result).toContain('Plain text');
   });
 
+  it('omits a single outer paragraph wrapper for one-paragraph messages', () => {
+    expect(markdownToHtml('Hello')).toBe('Hello');
+    expect(markdownToHtml('**bold**')).toBe('<strong>bold</strong>');
+    expect(markdownToHtml('a<br>b')).toBe('a<br>b');
+  });
+
+  it('keeps paragraph tags when there are multiple paragraphs', () => {
+    const result = markdownToHtml('First\n\nSecond');
+    expect(result).toContain('<p>');
+    expect(result).toContain('First');
+    expect(result).toContain('Second');
+  });
+
+  it('does not strip the first <p> when there are three paragraphs with extra blank lines', () => {
+    const result = markdownToHtml('test\n\ntest 2\n\n\ntest 3');
+    expect(result).toMatch(/^<p>test<\/p>/i);
+    expect(result).toContain('<p>test 2</p>');
+    expect(result).toContain('<p>test 3</p>');
+    expect(result).not.toMatch(/^test<\/p>/i);
+  });
+
+  it('with emote: strips only the first <p> when multiple paragraphs are present', () => {
+    const result = markdownToHtml('first\n\nsecond', { emote: true });
+    expect(result).toMatch(/^first<p>/i);
+    expect(result).toContain('second');
+    expect(result).not.toMatch(/^<p>first<\/p>\s*<p>second<\/p>$/i);
+  });
+
+  it('with emote: still unwraps a single-paragraph body like the default path', () => {
+    expect(markdownToHtml('**waves**', { emote: true })).toBe('<strong>waves</strong>');
+  });
+
   it('handles multiline content', () => {
     const result = markdownToHtml('Line 1\nLine 2\nLine 3');
     expect(result).toContain('Line 1');
     expect(result).toContain('Line 2');
+    expect(result).toContain('Line 3');
   });
 
   it('handles escaped markdown characters', () => {
@@ -222,5 +255,22 @@ describe('markdownToHtml', () => {
     const html = '<img data-mx-emoticon src="mxc://example.com/image?x=y" alt="test" />';
     const result = markdownToHtml(html);
     expect(result).not.toContain('?');
+  });
+
+  it('keeps normal markdown links valid when many bare matrix.to URLs are shielded', () => {
+    const matrixLines = Array.from(
+      { length: 12 },
+      (_, i) => `https://matrix.to/#/@u${i}:example.org`
+    ).join('\n');
+    const md = `${matrixLines}\n[docs](https://example.com/doc)`;
+    const result = markdownToHtml(md);
+    expect(result).toContain('<a href="https://example.com/doc"');
+    expect(result).not.toContain('&lt;a href=');
+  });
+
+  it('emits bare matrix.to text for unformatted URLs, not anchor tags', () => {
+    const result = markdownToHtml('join https://matrix.to/#/#room:example.org please');
+    expect(result).toContain('https://matrix.to/#/#room:example.org');
+    expect(result).not.toMatch(/<a[^>]*matrix\.to/);
   });
 });

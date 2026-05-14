@@ -13,6 +13,7 @@ import {
   Avatar,
   config,
   Chip,
+  toRem,
 } from 'folds';
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
@@ -52,6 +53,8 @@ import {
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -436,12 +439,34 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
     setQuery(e.target.value);
   };
 
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  useEffect(() => {
+    setCurWidth(threadSidebarWidth);
+  }, [threadSidebarWidth]);
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
       direction="Column"
       shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
     >
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={threadSidebarWidth}
+          setSidebarWidth={setThreadSidebarWidth}
+          minValue={150}
+          maxValue={600}
+          isReversed
+        />
+      )}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
           <Icon size="200" src={Icons.Thread} />

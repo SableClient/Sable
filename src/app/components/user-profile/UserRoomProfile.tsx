@@ -575,7 +575,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           style={{
             backgroundColor: innerColor,
             borderRadius: toRem(5),
-            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+            boxShadow: showCustomHeroCard ? 'inset 0 1px 2px rgba(0, 0, 0, 0.1)' : undefined,
             padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S300,
           }}
         >

@@ -4,15 +4,22 @@ import {
   Button,
   Chip,
   color,
+  config,
+  Dialog,
+  Header,
   Icon,
+  IconButton,
   Icons,
   Input,
+  Overlay,
+  OverlayBackdrop,
+  OverlayCenter,
   Spinner,
   Text,
   TextArea,
 } from 'folds';
 import type { FormEventHandler } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import Linkify from 'linkify-react';
 import classNames from 'classnames';
@@ -40,6 +47,12 @@ import { useAlive } from '$hooks/useAlive';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { useStateEvent } from '$hooks/useStateEvent';
+import type { RoomBannerContent } from '$types/matrix-sdk-events';
+import { CustomStateEvent } from '$types/matrix/room';
+import { SettingTile } from '$components/setting-tile';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
 
 type RoomProfileEditProps = {
   canEditAvatar: boolean;
@@ -296,6 +309,175 @@ export function RoomProfileEdit({
   );
 }
 
+export type ProfileProps = {
+  bannerURI?: string;
+};
+function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
+  const mx = useMatrixClient();
+  const [alertRemove, setAlertRemove] = useState(false);
+
+  const space = useRoom();
+  const [stagedUrl, setStagedUrl] = useState<string>();
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const bannerUrl = bannerURI;
+
+  useEffect(() => {
+    if (bannerUrl) {
+      setStagedUrl(undefined);
+    }
+  }, [bannerUrl]);
+
+  const [imageFile, setImageFile] = useState<File>();
+  const imageFileURL = useObjectURL(imageFile);
+
+  const uploadAtom = useMemo(() => {
+    if (imageFile) return createUploadAtom(imageFile);
+    return undefined;
+  }, [imageFile]);
+
+  const pickFile = useFilePicker(setImageFile, false);
+
+  const handlePick = useCallback(() => {
+    setIsRemoving(false);
+    setStagedUrl(undefined);
+    pickFile('image/*');
+  }, [pickFile]);
+
+  const handleRemoveUpload = useCallback(() => {
+    setImageFile(undefined);
+  }, []);
+
+  const handleUploaded = useCallback(
+    (upload: UploadSuccess) => {
+      const { mxc } = upload;
+
+      if (imageFileURL) setStagedUrl(imageFileURL);
+      mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: mxc }, '');
+      setImageFile(undefined);
+    },
+    [mx, imageFileURL, space]
+  );
+
+  const handleRemoveBanner = async () => {
+    setIsRemoving(true);
+    setStagedUrl(undefined);
+    setImageFile(undefined);
+
+    mx.sendStateEvent(space.roomId, CustomStateEvent.RoomBanner, { url: '' }, '');
+
+    setAlertRemove(false);
+  };
+
+  const previewUrl = isRemoving ? undefined : imageFileURL || stagedUrl || bannerUrl;
+
+  return (
+    <SettingTile title="Banner" focusId="banner">
+      <Box direction="Column" gap="300" grow="Yes">
+        <Box
+          style={{
+            height: '100px',
+            width: '100%',
+            borderRadius: config.radii.R400,
+            overflow: 'hidden',
+            backgroundColor: 'var(--sable-surface-container)',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              key={previewUrl}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              alt="Banner Preview"
+            />
+          ) : (
+            <Box justifyContent="Center" alignItems="Center">
+              <Text priority="300" size="T200">
+                No Banner Set
+              </Text>
+            </Box>
+          )}
+        </Box>
+
+        {uploadAtom ? (
+          <Box gap="200" direction="Column">
+            <CompactUploadCardRenderer
+              uploadAtom={uploadAtom}
+              onRemove={handleRemoveUpload}
+              onComplete={handleUploaded}
+            />
+          </Box>
+        ) : (
+          <Box gap="200">
+            <Button
+              onClick={handlePick}
+              size="300"
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              radii="300"
+            >
+              <Text size="B300">{bannerUrl ? 'Change Banner' : 'Upload Banner'}</Text>
+            </Button>
+            {bannerUrl && (
+              <Button
+                size="300"
+                variant="Critical"
+                fill="None"
+                radii="300"
+                onClick={() => setAlertRemove(true)}
+              >
+                <Text size="B300">Remove</Text>
+              </Button>
+            )}
+          </Box>
+        )}
+      </Box>
+
+      <Overlay open={alertRemove} backdrop={<OverlayBackdrop />}>
+        <OverlayCenter>
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setAlertRemove(false),
+              clickOutsideDeactivates: true,
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Dialog variant="Surface">
+              <Header
+                style={{
+                  padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+                  borderBottomWidth: config.borderWidth.B300,
+                }}
+                variant="Surface"
+                size="500"
+              >
+                <Box grow="Yes">
+                  <Text size="H4">Remove Banner</Text>
+                </Box>
+                <IconButton size="300" onClick={() => setAlertRemove(false)} radii="300">
+                  <Icon src={Icons.Cross} />
+                </IconButton>
+              </Header>
+              <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+                <Text priority="400">Are you sure you want to remove profile banner?</Text>
+                <Button variant="Critical" onClick={handleRemoveBanner}>
+                  <Text size="B400">Remove</Text>
+                </Button>
+              </Box>
+            </Dialog>
+          </FocusTrap>
+        </OverlayCenter>
+      </Overlay>
+    </SettingTile>
+  );
+}
+
 type RoomProfileProps = {
   permissions: RoomPermissionsAPI;
 };
@@ -324,6 +506,10 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const [edit, setEdit] = useState(false);
 
   const handleCloseEdit = useCallback(() => setEdit(false), []);
+
+  const bannerState = useStateEvent(room, CustomStateEvent.RoomBanner);
+  const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
+  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
 
   return (
     <Box direction="Column" gap="100">
@@ -393,6 +579,16 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           </Box>
         )}
       </SequenceCard>
+      {room.isSpaceRoom() && (
+        <SequenceCard
+          className={SequenceCardStyle}
+          variant="SurfaceVariant"
+          direction="Column"
+          gap="400"
+        >
+          <RoomBannerEdit bannerURI={bannerURI ?? undefined} />
+        </SequenceCard>
+      )}
     </Box>
   );
 }

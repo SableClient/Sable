@@ -497,7 +497,19 @@ export const useCommands = (mx: MatrixClient, room: Room): CommandRecord => {
             ?.getStateEvents(EventType.RoomMember, mx.getSafeUserId());
           const content = mEvent?.getContent<RoomMemberEventContent>();
           if (!content) return;
-          await mx.sendStateEvent(room.roomId, EventType.RoomMember, content, mx.getSafeUserId());
+          const updatedContent: RoomMemberEventContent = { ...content };
+          const withDisplay = updatedContent as RoomMemberEventContent & { displayname?: string };
+          if (nick == null || nick === '') {
+            delete withDisplay.displayname;
+          } else {
+            withDisplay.displayname = nick;
+          }
+          await mx.sendStateEvent(
+            room.roomId,
+            EventType.RoomMember,
+            updatedContent,
+            mx.getSafeUserId()
+          );
         },
       },
       [Command.AddPerMessageProfileToAccount]: {

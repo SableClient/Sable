@@ -3,7 +3,7 @@ import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from '
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
-import CinnySVG from '$public/res/svg/cinny-logo.svg';
+import LogoSVG from '$public/res/svg/logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { SequenceCardStyle } from '$features/settings/styles.css';
@@ -190,8 +190,8 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                 <Box shrink="No">
                   <img
                     style={{ width: toRem(60), height: toRem(60) }}
-                    src={CinnySVG}
-                    alt="Cinny logo"
+                    src={LogoSVG}
+                    alt="Sable logo"
                   />
                 </Box>
                 <Box direction="Column" gap="300">

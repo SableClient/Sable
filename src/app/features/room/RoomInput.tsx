@@ -1,6 +1,7 @@
 import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
 import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+
 import { isKeyHotkey } from 'is-hotkey';
 import type {
   IContent,
@@ -10,6 +11,7 @@ import type {
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
+import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
@@ -108,6 +110,7 @@ import {
   delayedEventsSupportedAtom,
   roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
 import {
   sendDelayedMessage,
@@ -115,7 +118,7 @@ import {
   computeDelayMs,
   cancelDelayedEvent,
 } from '$utils/delayedEvents';
-import { timeHourMinute, timeDayMonthYear } from '$utils/time';
+import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
@@ -128,6 +131,7 @@ import {
 } from '$hooks/usePerMessageProfile';
 import { Microphone, Stop } from '@phosphor-icons/react';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
+import { ErrorCode } from '../../cs-errorcode';
 import { sanitizeText } from '$utils/sanitize';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
@@ -381,6 +385,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+    const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
+    const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
 
     useElementSizeObserver(
@@ -771,6 +777,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         toMatrixCustomHTML(serializedChildren, {
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
+          forEmote: commandName === Command.Me,
         })
       );
 
@@ -845,6 +852,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               toMatrixCustomHTML(serializedChildren, {
                 stripNickname: true,
                 nickNameReplacement: nicknameReplacement,
+                forEmote: commandName === Command.Me,
               })
             );
           }
@@ -959,12 +967,28 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           } else {
             await sendDelayedMessage(mx, roomId, content as RoomMessageEventContent, delayMs);
           }
+          setSendError(undefined);
           invalidate();
           setEditingScheduledDelayId(null);
           setScheduledTime(null);
           resetInput();
-        } catch {
-          // Network/server error — leave editor and scheduled state intact for retry
+        } catch (e: unknown) {
+          if (
+            e instanceof MatrixError &&
+            (e.errcode === ErrorCode.M_MAX_DELAY_EXCEEDED ||
+              e.data?.['org.matrix.msc4140.errcode'] === 'M_MAX_DELAY_EXCEEDED')
+          ) {
+            const maxDelay =
+              (e.data as { max_delay?: number })?.max_delay ??
+              e.data?.['org.matrix.msc4140.max_delay'];
+            if (typeof maxDelay === 'number') setServerMaxDelayMs(maxDelay);
+            const maxDelayDays = maxDelay / daysToMs(1);
+            setSendError(
+              `Scheduled time exceeds the maximum delay allowed by this server. Please choose an earlier time. The Maximum Delay is of ${maxDelayDays} day${maxDelayDays > 1 ? 's' : ''}.`
+            );
+          } else {
+            setSendError('Failed to schedule message. Please try again.');
+          }
         }
       } else if (editingScheduledDelayId) {
         try {
@@ -1055,6 +1079,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       isEncrypted,
       setEditingScheduledDelayId,
       setScheduledTime,
+      setServerMaxDelayMs,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1385,6 +1410,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       onClick={() => {
                         setScheduledTime(null);
                         setEditingScheduledDelayId(null);
+                        setSendError(undefined);
                       }}
                       variant="SurfaceVariant"
                       size="300"
@@ -1400,6 +1426,19 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {timeHourMinute(scheduledTime.getTime(), hour24Clock)}
                       </Text>
                     </Box>
+                  </Box>
+                </div>
+              )}
+              {sendError && (
+                <div>
+                  <Box
+                    alignItems="Center"
+                    gap="300"
+                    style={{ padding: `${config.space.S200} ${config.space.S300} 0` }}
+                  >
+                    <Text style={{ color: color.Critical.Main }} size="T300">
+                      {sendError}
+                    </Text>
                   </Box>
                 </div>
               )}
@@ -1726,6 +1765,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             onSubmit={(date) => {
               setScheduledTime(date);
               setShowSchedulePicker(false);
+              setSendError(undefined);
             }}
           />
         )}

@@ -16,6 +16,7 @@ export const CustomStateEvent = {
   RoomCosmeticsFont: 'moe.sable.room.cosmetics.font',
   RoomCosmeticsPronouns: 'moe.sable.room.cosmetics.pronouns',
   RoomAbbreviations: 'moe.sable.room.abbreviations',
+  RoomBanner: 'page.codeberg.everypizza.room.banner',
 } as const;
 export type CustomStateEvent = (typeof CustomStateEvent)[keyof typeof CustomStateEvent];
 

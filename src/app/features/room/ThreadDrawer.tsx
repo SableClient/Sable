@@ -1,6 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config } from 'folds';
+import { Box, Header, Icon, IconButton, Icons, Scroll, Spinner, Text, config, toRem } from 'folds';
 import type { IEvent, Room } from '$types/matrix-sdk';
 import {
   Direction,
@@ -64,6 +64,8 @@ import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRender
 import { RoomInput } from './RoomInput';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import * as css from './ThreadDrawer.css';
+import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -736,13 +738,40 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   );
   const latestThreadEventId = processedEvents.at(-1)?.id ?? rootEvent?.getId();
 
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [curWidth, setCurWidth] = useState(threadSidebarWidth);
+  useEffect(() => {
+    setCurWidth(threadSidebarWidth);
+  }, [threadSidebarWidth]);
+
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [curHeight, setCurHeight] = useState(threadRootHeight);
+  useEffect(() => {
+    setCurHeight(threadRootHeight);
+  }, [threadRootHeight]);
   return (
     <Box
-      ref={drawerRef}
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
       direction="Column"
       shrink="No"
+      style={{
+        position: 'relative',
+        width: overlay ? '100%' : toRem(curWidth),
+      }}
     >
+      {!mobileOrTablet() && (
+        <SidebarResizer
+          setCurWidth={setCurWidth}
+          sidebarWidth={threadSidebarWidth}
+          setSidebarWidth={setThreadSidebarWidth}
+          minValue={150}
+          maxValue={600}
+          isReversed
+        />
+      )}
       {/* Header */}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
@@ -766,38 +795,48 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
 
       {/* Thread root message */}
       {rootEvent && (
-        <Scroll
-          variant="Background"
-          visibility="Hover"
-          direction="Vertical"
-          size="300"
-          hideTrack
-          style={{
-            maxHeight: '200px',
-            height: 'fit-content',
-            flexShrink: 0,
-          }}
-        >
-          <Box
-            className={css.messageList}
-            direction="Column"
-            style={{
-              padding: `${config.space.S200} 0 ${config.space.S100} 0`,
-            }}
-          >
-            {renderMatrixEvent(
-              rootEvent.getType(),
-              typeof rootEvent.getStateKey() === 'string',
-              rootEvent.getId()!,
-              rootEvent,
-              processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
-              thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
-              false
-            )}
+        <Box className={css.threadRootShell}>
+          <Box className={css.threadRootScrollShadow}>
+            <Scroll
+              variant="Background"
+              visibility="Hover"
+              direction="Vertical"
+              size="300"
+              hideTrack
+              style={{
+                height: toRem(curHeight),
+                flexShrink: 0,
+              }}
+            >
+              <Box
+                className={css.messageList}
+                direction="Column"
+                style={{
+                  padding: `${config.space.S200} 0 ${config.space.S100} 0`,
+                }}
+              >
+                {renderMatrixEvent(
+                  rootEvent.getType(),
+                  typeof rootEvent.getStateKey() === 'string',
+                  rootEvent.getId()!,
+                  rootEvent,
+                  processedEvents.find((e) => e.id === threadRootId)?.itemIndex ?? 0,
+                  thread?.timelineSet ?? room.getUnfilteredTimelineSet(),
+                  false
+                )}
+              </Box>
+            </Scroll>
           </Box>
-        </Scroll>
+          <SidebarResizer
+            setCurWidth={setCurHeight}
+            sidebarWidth={threadRootHeight}
+            setSidebarWidth={setThreadRootHeight}
+            minValue={60}
+            maxValue={700}
+            topSided
+          />
+        </Box>
       )}
-
       {/* Replies */}
       <Box className={css.ThreadDrawerContent} grow="Yes" direction="Column">
         <Scroll

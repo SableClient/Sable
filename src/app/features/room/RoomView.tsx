@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { Transforms } from 'slate';
-import { Box, Text, config, toRem } from 'folds';
+import { Box, Text, config } from 'folds';
 import { EventType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
@@ -141,14 +141,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
   return (
     <BackRouteHandler>
       {(onBack) => (
-        <Page
-          ref={roomViewRef}
-          style={
-            room.isCallRoom() && screenSize === ScreenSize.Desktop
-              ? { maxWidth: toRem(399), minWidth: toRem(399) }
-              : {}
-          }
-        >
+        <Page ref={roomViewRef}>
           <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
             <Box grow="Yes" direction="Column">
               {showCallView && (

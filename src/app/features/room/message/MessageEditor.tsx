@@ -170,8 +170,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const [saveState, save] = useAsyncCallback(
       useCallback(async () => {
         const oldContent = mEvent.getContent();
+        const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
         let plainText = toPlainText(editor.children).trim();
-        let customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
+        let customHtml = trimCustomHtml(
+          toMatrixCustomHTML(editor.children, { forEmote: msgtype === MsgType.Emote })
+        );
 
         const [prevBody, prevCustomHtml, prevMentions] = getPrevBodyAndFormattedBody();
 
@@ -191,8 +194,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             return undefined;
           }
         }
-
-        const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
 
         const newContent: IContent = {
           msgtype,

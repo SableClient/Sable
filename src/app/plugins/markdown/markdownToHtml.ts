@@ -50,14 +50,78 @@ const decodeHtmlEntities = (text: string): string => {
   return result;
 };
 
+const MATRIX_TO_PLACEHOLDER_PREFIX = 'MATRIXTORAWLINKTOKEN';
+
+const escapeHtml = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const shieldBareMatrixToLinks = (
+  input: string
+): { shielded: string; placeholders: Map<string, string> } => {
+  const placeholders = new Map<string, string>();
+  let index = 0;
+
+  const shielded = input.replace(/(?<!\]\()https?:\/\/matrix\.to\/[^\s<)]+/gi, (url) => {
+    const key = `${MATRIX_TO_PLACEHOLDER_PREFIX}${index++}X`;
+    placeholders.set(key, url);
+    return key;
+  });
+
+  return { shielded, placeholders };
+};
+
+const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, string>): string => {
+  let result = html;
+  const keys = [...placeholders.keys()].sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const url = placeholders.get(key);
+    if (url) result = result.split(key).join(escapeHtml(url));
+  }
+  return result;
+};
+
+/** When the whole message is a single paragraph, drop the redundant wrapper. */
+const unwrapSingleOuterParagraph = (html: string): string => {
+  const trimmed = html.trim();
+  const m = trimmed.match(/^<p\b[^>]*>([\s\S]*)<\/p>$/i);
+  if (!m) return html;
+  const inner = m[1] ?? '';
+  if (/<\/p>/i.test(inner)) return html;
+  return inner;
+};
+
+/**
+ * For `m.emote`, the sender display name is added at render time. Strips the leading `<p>…</p>`
+ * block (when its inner HTML has no `</p>`) so we don't send `<p>` around the action.
+ */
+const stripLeadingEmoteParagraph = (html: string): string | null => {
+  const trimmed = html.trim();
+  const m = trimmed.match(/^<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  if (!m) return null;
+  const inner = m[1] ?? '';
+  if (/<\/p>/i.test(inner)) return null;
+  const rest = trimmed.slice(m[0].length).trimStart();
+  return rest.length > 0 ? `${inner}${rest}` : inner;
+};
+
+export type MarkdownToHtmlOptions = {
+  emote?: boolean;
+};
+
 /**
  * Converts markdown string to sanitized Matrix-compatible HTML.
  * Uses marked for parsing and DOMPurify for sanitization per Matrix spec.
  *
  * @param markdown - Input markdown string
+ * @param options - Optional; set `emote` for `/me` outgoing HTML
  * @returns Sanitized HTML string safe for Matrix client output
  */
-export function markdownToHtml(markdown: string): string {
+export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions): string {
   // Decode HTML entities so marked can properly parse markdown syntax
   // (e.g., &lt; becomes < for link URLs)
   const decoded = decodeHtmlEntities(markdown);
@@ -67,7 +131,10 @@ export function markdownToHtml(markdown: string): string {
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
-  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(preprocessed));
+  const { shielded: matrixToShielded, placeholders: matrixToPlaceholders } =
+    shieldBareMatrixToLinks(preprocessed);
+
+  const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(matrixToShielded));
 
   // Parse markdown to HTML using marked with our Matrix extensions
   const html = processor.parse(mathInput) as string;
@@ -164,5 +231,14 @@ export function markdownToHtml(markdown: string): string {
     }
   );
 
-  return restoredMxEmoticonHeight.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  const unshieldedMatrixTo = unshieldBareMatrixToLinks(
+    restoredMxEmoticonHeight,
+    matrixToPlaceholders
+  );
+
+  const listFixed = unshieldedMatrixTo.replace(/<li>(<p><\/p>)?<\/li>/gi, '<li><br></li>');
+  if (options?.emote) {
+    return stripLeadingEmoteParagraph(listFixed) ?? unwrapSingleOuterParagraph(listFixed);
+  }
+  return unwrapSingleOuterParagraph(listFixed);
 }

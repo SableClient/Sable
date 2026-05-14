@@ -14,9 +14,13 @@ import { MessageReadReceiptInternal } from './MessageReadRecipts';
 export function GlobalModalManager() {
   const [modal, setModal] = useAtom(modalAtom);
 
-  if (!modal) return null;
-
   const close = () => setModal(null);
+
+  if (modal?.type === ModalType.Forward) {
+    return <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />;
+  }
+
+  if (!modal) return null;
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
@@ -39,12 +43,6 @@ export function GlobalModalManager() {
             {modal.type === ModalType.Delete && (
               <Box>
                 <MessageDeleteInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />
-              </Box>
-            )}
-
-            {modal.type === ModalType.Forward && (
-              <Box>
-                <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />
               </Box>
             )}
 

@@ -22,6 +22,12 @@ export enum CaptionPosition {
   Hidden = 'hidden',
   Below = 'below',
 }
+
+export enum ShowRoomIcon {
+  Always = 'always',
+  Smart = 'smart',
+  Never = 'never',
+}
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -146,6 +152,7 @@ export interface Settings {
   saveStickerEmojiBandwidth: boolean;
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
+  joinCallOnSingleClick: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -153,6 +160,15 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  showRoomIcon: ShowRoomIcon;
+  showRoomBanners: boolean;
+  roomSidebarWidth: number;
+  roomBannerHeight: number;
+  memberSidebarWidth: number;
+  threadSidebarWidth: number;
+  threadRootHeight: number;
+  vcmsgSidebarWidth: number;
+  widgetSidebarWidth: number;
 
   // furry stuff
   renderAnimals: boolean;
@@ -268,6 +284,7 @@ export const defaultSettings: Settings = {
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
+  joinCallOnSingleClick: true,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -275,7 +292,15 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-
+  showRoomIcon: ShowRoomIcon.Smart,
+  showRoomBanners: true,
+  roomSidebarWidth: 256,
+  roomBannerHeight: 190,
+  memberSidebarWidth: 262,
+  threadSidebarWidth: 440,
+  threadRootHeight: 220,
+  vcmsgSidebarWidth: 399,
+  widgetSidebarWidth: 420,
   // furry stuff
   renderAnimals: true,
 

@@ -1,5 +1,35 @@
 # Sable Client Changelog
 
+## 1.16.0 (2026-05-14)
+
+### Features
+
+* Add Space banner support per MSC4221. You can now set it from the space settings. ([#801](<https://github.com/SableClient/Sable/pull/801>) by @nushea)
+* Add setting to show icons of the rooms in the Rooms sidebar ([#768](<https://github.com/SableClient/Sable/pull/768>) by @nushea)
+* Add Resize the sidepanels and the thread height of the original object using hoverable tools. ([#768](<https://github.com/SableClient/Sable/pull/768>) by @nushea)
+* Add toggle to allow one to not join a call in a room by just clicking it in the sidebar. ([#768](<https://github.com/SableClient/Sable/pull/768>) by @nushea)
+* Added the ability to right click on a folder to rename it. ([#814](<https://github.com/SableClient/Sable/pull/814>) by @7w1)
+* Upgraded the forward modal to use the same modal present for search and added the ability to forward to same room the message is from. ([#808](<https://github.com/SableClient/Sable/pull/808>) by @7w1)
+
+#### Introduce the new Sable logo! ([#809](<https://github.com/SableClient/Sable/pull/809>) by @Septicity)
+
+- You may need to reinstall PWAs to recieve the new app icons, if you use them.
+- Our logo is [licensed under CC0](https://github.com/SableClient/Sable/blob/dev/TRADEMARKS.md), aka do whatever you want with it!
+- Also, there's a script for other us or other forks to replace the icon in the future, if needed.
+
+### Fixes
+
+* Add graceful fail if MSC4140 event delay exceeded ([#276](<https://github.com/SableClient/Sable/pull/276>) by @jasonlaguidice)
+* Drops paragraph tags when messages are only a single paragraph, use markdown (two new lines) to define a new paragraph rather than a line break. ([#799](<https://github.com/SableClient/Sable/pull/799>) by @7w1)
+* Fixed the text wrapping behavior of fallback messages. ([#806](<https://github.com/SableClient/Sable/pull/806>) by @7w1)
+* Fixed the thin line appearing at the top of unstyled profiles. ([#803](<https://github.com/SableClient/Sable/pull/803>) by @7w1)
+* Matrix.to links sent without explicit markdown formatting are sent as raw links instead of html links. ([#786](<https://github.com/SableClient/Sable/pull/786>) by @7w1)
+* Fix `/myroomnick` and room cosmetics display name not updating name. ([#805](<https://github.com/SableClient/Sable/pull/805>) by @7w1)
+* Fix spoilers not hiding nested content like mentions, emoji images, and custom-colored spans. ([#807](<https://github.com/SableClient/Sable/pull/807>) by @7w1)
+* Added svgs to the allowed embeds for rendering/sending. ([#804](<https://github.com/SableClient/Sable/pull/804>) by @7w1)
+* Suppress timeline dividers when there's no rendered events between them. ([#720](<https://github.com/SableClient/Sable/pull/720>) by @mvanhorn)
+* Improve thread drawer separation between the pinned root message and replies with a border. ([#830](<https://github.com/SableClient/Sable/pull/830>) by @7w1)
+
 ## 1.15.3 (2026-05-09)
 
 ### Fixes

@@ -158,6 +158,7 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
+import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 
 

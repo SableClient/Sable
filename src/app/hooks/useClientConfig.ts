@@ -151,6 +151,16 @@ export const useExperimentVariant = (key: string, subjectId?: string): Experimen
   return selectExperimentVariant(key, clientConfig.experiments?.[key], subjectId);
 };
 
+const EXPERIMENT_OVERRIDE_PREFIX = 'sable_exp_';
+
+export const setExperimentOverride = (key: string, value: boolean | null): void => {
+  if (value === null) {
+    localStorage.removeItem(`${EXPERIMENT_OVERRIDE_PREFIX}${key}`);
+  } else {
+    localStorage.setItem(`${EXPERIMENT_OVERRIDE_PREFIX}${key}`, String(value));
+  }
+};
+
 export const clientDefaultServer = (clientConfig: ClientConfig): string =>
   clientConfig.homeserverList?.[clientConfig.defaultHomeserver ?? 0] ?? 'matrix.org';
 

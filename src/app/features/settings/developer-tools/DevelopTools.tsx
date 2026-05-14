@@ -19,6 +19,8 @@ import { ExperimentsPanel } from './ExperimentsPanel';
 import { DebugLogViewer } from './DebugLogViewer';
 import { SentrySettings } from './SentrySettings';
 
+const JOIN_MEMBERSHIP: string = KnownMembership.Join;
+
 type DeveloperToolsProps = {
   requestBack?: () => void;
   requestClose: () => void;
@@ -49,8 +51,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
       const encryptedRooms = mx
         .getRooms()
         .filter(
-          (room) =>
-            room.getMyMembership() === KnownMembership.Join && mx.isRoomEncrypted(room.roomId)
+          (room) => room.getMyMembership() === JOIN_MEMBERSHIP && mx.isRoomEncrypted(room.roomId)
         );
 
       const results = await Promise.allSettled(

@@ -43,6 +43,9 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import type { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
@@ -485,7 +488,13 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const pronouns = (profile.pronouns as PronounSet[]) || [];
   const presence = useUserPresence(userId);
-  const currentStatus = presence?.status || '';
+  // presenceStatusMsg is the locally-cached status. On sliding sync, own presence is
+  // never echoed back by the server, so presence?.status would always be stale/empty.
+  // The settings atom is the authoritative local source; fall back to the SDK value for
+  // other clients (e.g. when viewing another user's profile page — but this component
+  // is only rendered for the own user, so the atom always wins in practice).
+  const [presenceStatusMsg, setPresenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const currentStatus = presenceStatusMsg || presence?.status || '';
 
   // Keys we don't render here nor handle seperately but still need to exclude
   const EXCLUDED_KEYS = new Set([
@@ -513,14 +522,14 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const handleSaveStatus = useCallback(
     async (newStatus: string) => {
-      const currentState = presence?.presence || 'online';
-
-      await mx.setPresence({
-        presence: currentState,
-        status_msg: newStatus,
-      });
+      const currentState = presence?.presence ?? 'online';
+      setPresenceStatusMsg(newStatus);
+      await mx.setPresence({ presence: currentState, status_msg: newStatus });
+      // MSC4186 servers don't echo own presence back; synthesize the update locally so
+      // useUserPresence(myUserId) and the member-list badge stay accurate.
+      getSlidingSyncManager(mx)?.updateOwnPresence(currentState, newStatus);
     },
-    [mx, presence]
+    [mx, presence, setPresenceStatusMsg]
   );
 
   return (

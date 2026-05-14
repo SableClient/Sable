@@ -851,6 +851,7 @@ function PresenceFeature() {
   const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
   const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
   const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
   const [autoIdled] = useAtom(presenceAutoIdledAtom);
 
   const timeoutMs = autoIdlePresence ? Math.max(1, presenceIdleTimeoutMins) * 60 * 1000 : 0;
@@ -863,6 +864,8 @@ function PresenceFeature() {
     const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
     const effectiveState = sendPresence ? activePresence : 'offline';
     const broadcasting = effectiveState !== 'offline';
+    // DND overrides the user's custom status message with the 'dnd' sentinel.
+    const effectiveStatusMsg = sendPresence && effectiveMode === 'dnd' ? 'dnd' : presenceStatusMsg;
 
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
@@ -876,11 +879,17 @@ function PresenceFeature() {
     //   their presence events because the extension is still enabled above.
     mx.setPresence({
       presence: effectiveState,
-      status_msg: sendPresence && effectiveMode === 'dnd' ? 'dnd' : '',
-    }).catch(() => {
-      // Server doesn't support presence — ignore.
-    });
-  }, [mx, sendPresence, presenceMode, autoIdled]);
+      status_msg: effectiveStatusMsg,
+    })
+      .then(() => {
+        // MSC4186 servers don't echo own presence back; synthesize the update locally so
+        // useUserPresence(myUserId) stays accurate (e.g. own badge in member list).
+        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
+      })
+      .catch(() => {
+        // Server doesn't support presence — ignore.
+      });
+  }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
 
   return null;
 }

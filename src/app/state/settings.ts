@@ -135,6 +135,8 @@ export interface Settings {
   presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
   autoIdlePresence: boolean;
   presenceIdleTimeoutMins: number;
+  /** User-set status message, cached locally so it survives mode changes and sliding-sync restarts. */
+  presenceStatusMsg: string;
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -271,6 +273,7 @@ export const defaultSettings: Settings = {
   presenceMode: 'online',
   autoIdlePresence: true,
   presenceIdleTimeoutMins: 5,
+  presenceStatusMsg: '',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,

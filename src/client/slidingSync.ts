@@ -578,6 +578,33 @@ export class SlidingSyncManager {
     this.presenceExtension.setEnabled(enabled);
   }
 
+  /**
+   * Synthesizes an own-presence update into the SDK store.
+   * MSC4186 servers never echo back the client's own m.presence events, so after
+   * calling mx.setPresence() we manually build a synthetic event and feed it into
+   * the SDK's User object — exactly what ExtensionPresence.onResponse does for others.
+   */
+  public updateOwnPresence(presence: string, statusMsg: string): void {
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+    const mapper = this.mx.getEventMapper();
+    const rawEvent = {
+      type: 'm.presence',
+      sender: userId,
+      content: { presence, status_msg: statusMsg, currently_active: presence === 'online' },
+    };
+    const event = mapper(rawEvent as Parameters<typeof mapper>[0]);
+    let user = this.mx.store.getUser(userId);
+    if (user) {
+      user.setPresenceEvent(event);
+    } else {
+      user = User.createUser(userId, this.mx);
+      user.setPresenceEvent(event);
+      this.mx.store.storeUser(user);
+    }
+    this.mx.emit(ClientEvent.Event, event);
+  }
+
   public getDiagnostics(): SlidingSyncDiagnostics {
     return {
       proxyBaseUrl: this.proxyBaseUrl,

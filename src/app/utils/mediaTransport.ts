@@ -175,7 +175,8 @@ async function fetchMediaResponse(
 
 async function fetchMediaBlobInternal(url: string, options?: MediaTransportOptions): Promise<Blob> {
   const cacheMode = options?.cache ?? 'default';
-  const scopedCacheKey = getScopedMediaCacheKey(url, resolveSessionScope(options));
+  const resolvedScope = resolveSessionScope(options);
+  const scopedCacheKey = getScopedMediaCacheKey(url, resolvedScope);
 
   if (cacheMode === 'default') {
     const cachedBlob = await getFromMediaCache(scopedCacheKey);

@@ -38,7 +38,7 @@ const isSyncStatusDemoEnabled = (): boolean => {
 
 export function SyncStatus({ mx }: SyncStatusProps) {
   const [stateData, setStateData] = useState<StateData>({
-    current: null,
+    current: mx.getSyncState(),
     previous: undefined,
   });
   const [demoIndex, setDemoIndex] = useState(0);

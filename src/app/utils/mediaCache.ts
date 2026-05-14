@@ -10,11 +10,24 @@ async function openCache(): Promise<Cache | undefined> {
   }
 }
 
+function getCacheRequest(url: string): Request {
+  const isAbsoluteHttpUrl = /^https?:\/\//i.test(url);
+  if (!isAbsoluteHttpUrl) {
+    return new Request(`https://sable-media-cache.invalid/${encodeURIComponent(url)}`);
+  }
+
+  try {
+    return new Request(url);
+  } catch {
+    return new Request(`https://sable-media-cache.invalid/${encodeURIComponent(url)}`);
+  }
+}
+
 export async function getFromMediaCache(url: string): Promise<Blob | undefined> {
   const cache = await openCache();
   if (!cache) return undefined;
   try {
-    const response = await cache.match(url);
+    const response = await cache.match(getCacheRequest(url));
     if (!response) return undefined;
     return await response.blob();
   } catch {
@@ -43,7 +56,7 @@ export async function putInMediaCache(url: string, blob: Blob): Promise<void> {
   if (!cache) return;
   try {
     await cache.put(
-      url,
+      getCacheRequest(url),
       new Response(blob, {
         headers: { 'Content-Type': blob.type || 'application/octet-stream' },
       })

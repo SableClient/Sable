@@ -476,13 +476,17 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       data?: ISyncStateData
     ) => {
       classicSyncCount += 1;
-      Sentry.metrics.count('sable.sync.cycle', 1, { attributes: { transport: 'classic', state } });
-      debugLog.info('sync', `Classic sync state: ${state}`, {
-        state,
-        prevState: prevState ?? 'null',
-        syncNumber: classicSyncCount,
-        error: data?.error?.message,
-      });
+      if (prevState !== state) {
+        Sentry.metrics.count('sable.sync.cycle', 1, {
+          attributes: { transport: 'classic', state },
+        });
+        debugLog.info('sync', `Classic sync state: ${state}`, {
+          state,
+          prevState: prevState ?? 'null',
+          syncNumber: classicSyncCount,
+          error: data?.error?.message,
+        });
+      }
       if (state === SyncState.Error || state === SyncState.Reconnecting) {
         debugLog.warn('sync', `Classic sync problem: ${state}`, {
           state,

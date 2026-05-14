@@ -49,6 +49,7 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
   const [multiSelect, setMultiSelect] = useState(false);
   const [maxSelections, setMaxSelections] = useState(2);
   const [disclosed, setDisclosed] = useState(true);
+  const [durationDays, setDurationDays] = useState(0);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -94,6 +95,13 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
     const pollEvent = PollStartEvent.from(q, validAnswers, kind, maxSel);
     const serialized = pollEvent.serialize();
 
+    if (durationDays > 0) {
+      const closesAt = Date.now() + durationDays * 24 * 60 * 60 * 1000;
+      const content = serialized.content as Record<string, Record<string, unknown>>;
+      const pollSubtype = content[M_POLL_START.name];
+      if (pollSubtype) pollSubtype.closes_at = closesAt;
+    }
+
     setSending(true);
     setError(undefined);
     try {
@@ -118,7 +126,7 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
       setError(err instanceof Error ? err.message : 'Failed to send poll.');
       setSending(false);
     }
-  }, [question, answers, multiSelect, maxSelections, disclosed, mx, room.roomId, onClose]);
+  }, [question, answers, multiSelect, maxSelections, disclosed, durationDays, mx, room.roomId, onClose]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>
@@ -257,6 +265,27 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
                           ? 'Results visible while voting'
                           : 'Results hidden until poll ends'}
                       </Text>
+                    </Box>
+                  </Box>
+
+                  {/* Duration */}
+                  <Box direction="Column" gap="100">
+                    <Text size="L400">Poll ends after</Text>
+                    <Box gap="200" wrap="Wrap">
+                      {([0, 1, 3, 7, 14] as const).map((days) => (
+                        <Button
+                          key={days}
+                          size="300"
+                          radii="300"
+                          variant={durationDays === days ? 'Primary' : 'Secondary'}
+                          fill={durationDays === days ? 'Solid' : 'Soft'}
+                          onClick={() => setDurationDays(days)}
+                        >
+                          <Text size="B300">
+                            {days === 0 ? 'No end' : days === 1 ? '1 day' : `${days} days`}
+                          </Text>
+                        </Button>
+                      ))}
                     </Box>
                   </Box>
 

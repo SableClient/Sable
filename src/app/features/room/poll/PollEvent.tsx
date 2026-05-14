@@ -24,7 +24,7 @@ import {
   MatrixEventEvent,
   RoomEvent,
 } from '$types/matrix-sdk';
-import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import type { MatrixEvent, Room, TimelineEvents } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { stopPropagation } from '$utils/keyboard';
 import {
@@ -33,7 +33,6 @@ import {
   AttachmentContent,
   AttachmentHeader,
 } from '$components/message/attachment/Attachment';
-import { MessageEvent } from '$types/matrix/room';
 import * as css from './PollEvent.css';
 
 type PollAnswer = { id: string; text: string };
@@ -263,21 +262,29 @@ export function PollEvent({ room, mEvent, canEnd, outlined }: PollEventProps) {
         next = [...myVote, answerId].slice(0, maxSelections);
       }
       const selections: Record<string, string[]> = { 'm.selections': next };
-      (mx as { sendEvent(roomId: string, eventType: string, content: Record<string, unknown>): Promise<unknown> }).sendEvent(room.roomId, MessageEvent.PollResponse, {
-        'm.relates_to': { rel_type: 'm.reference', event_id: pollEventId },
-        ...selections,
-        'org.matrix.msc3381.poll.response': { answers: next },
-      }).catch(() => undefined);
+      mx.sendEvent(
+        room.roomId,
+        M_POLL_RESPONSE.name as keyof TimelineEvents,
+        {
+          'm.relates_to': { rel_type: 'm.reference', event_id: pollEventId },
+          ...selections,
+          'org.matrix.msc3381.poll.response': { answers: next },
+        } as TimelineEvents[keyof TimelineEvents]
+      ).catch(() => undefined);
     },
     [effectivelyEnded, pollData, myVote, mx, room.roomId, pollEventId]
   );
 
   const endPoll = useCallback(() => {
-    (mx as { sendEvent(roomId: string, eventType: string, content: Record<string, unknown>): Promise<unknown> }).sendEvent(room.roomId, MessageEvent.PollEnd, {
-      'm.relates_to': { rel_type: 'm.reference', event_id: pollEventId },
-      'org.matrix.msc3381.poll.end': {},
-      body: 'The poll has ended',
-    }).catch(() => undefined);
+    mx.sendEvent(
+      room.roomId,
+      M_POLL_END.name as keyof TimelineEvents,
+      {
+        'm.relates_to': { rel_type: 'm.reference', event_id: pollEventId },
+        'org.matrix.msc3381.poll.end': {},
+        body: 'The poll has ended',
+      } as TimelineEvents[keyof TimelineEvents]
+    ).catch(() => undefined);
   }, [mx, room.roomId, pollEventId]);
 
   const [expandedVoters, setExpandedVoters] = useState<{ id: string; anchor: DOMRect } | null>(

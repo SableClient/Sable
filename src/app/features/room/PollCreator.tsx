@@ -156,6 +156,7 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
                   <Box direction="Column" gap="100">
                     <Text size="L400">Question</Text>
                     <Input
+                      style={{ width: '100%' }}
                       variant="Background"
                       size="400"
                       radii="300"
@@ -173,6 +174,7 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
                       <Box key={ans.id} gap="200" alignItems="Center">
                         <Box grow="Yes">
                           <Input
+                            style={{ width: '100%' }}
                             ref={idx === answers.length - 1 ? lastInputRef : undefined}
                             variant="Background"
                             size="400"

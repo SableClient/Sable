@@ -648,7 +648,16 @@ export function useTimelineEventRenderer({
                   type === (M_POLL_START.name as string) ||
                   type === (M_POLL_START.altName as string)
                 )
-                  return <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />;
+                  return (
+                    <PollEvent
+                      mEvent={mEvent}
+                      room={room}
+                      canEnd={
+                        mEvent.getSender() === mx.getUserId() || canRedact
+                      }
+                      outlined={messageLayout === MessageLayout.Bubble}
+                    />
+                  );
                 if (type === (EventType.RoomMessage as string)) {
                   const editedEvent = getEditedEvent(mEventId, mEvent, timelineSet);
                   let editedNewContent: unknown;
@@ -786,7 +795,12 @@ export function useTimelineEventRenderer({
             {mEvent.isRedacted() ? (
               <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
             ) : (
-              <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+              <PollEvent
+                mEvent={mEvent}
+                room={room}
+                canEnd={senderId === mx.getUserId() || canRedact}
+                outlined={messageLayout === MessageLayout.Bubble}
+              />
             )}
           </Message>
         );
@@ -886,7 +900,12 @@ export function useTimelineEventRenderer({
             {mEvent.isRedacted() ? (
               <RedactedContent reason={mEvent.getUnsigned().redacted_because?.content.reason} />
             ) : (
-              <PollContent mEvent={mEvent} room={room} messageLayout={messageLayout} />
+              <PollEvent
+                mEvent={mEvent}
+                room={room}
+                canEnd={senderId === mx.getUserId() || canRedact}
+                outlined={messageLayout === MessageLayout.Bubble}
+              />
             )}
           </Message>
         );

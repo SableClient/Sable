@@ -91,6 +91,7 @@ import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
+import { useCallPreferences } from '$state/hooks/callPreferences';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
@@ -355,6 +356,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
   const direct = useIsDirectRoom();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const { microphone, video, sound } = useCallPreferences();
 
   const [chat, setChat] = useAtom(callChatAtom);
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -725,7 +727,14 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                   </IconButton>
                 )}
               </TooltipProvider>
-              {canUseCalls && shouldShowCallButton && <RoomCallButton room={room} />}
+              {canUseCalls && shouldShowCallButton && (
+                <RoomCallButton
+                  room={room}
+                  direct={direct}
+                  defaultPreferences={{ microphone, video, sound }}
+                  allowVideoStart
+                />
+              )}
               <PopOut
                 anchor={pinMenuAnchor}
                 position="Bottom"

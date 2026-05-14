@@ -11,7 +11,7 @@ import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useEffect, useState } from 'react';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 function InvitesNavItem({ hideText }: { hideText?: boolean }) {
@@ -62,7 +62,7 @@ export function Inbox() {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -118,7 +118,7 @@ export function Inbox() {
           </Box>
         </PageNavContent>
       </PageNav>
-      {!mobileOrTablet() && (
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

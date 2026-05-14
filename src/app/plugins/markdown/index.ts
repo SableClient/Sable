@@ -1,3 +1,3 @@
 export * from './utils';
-export { markdownToHtml } from './markdownToHtml';
+export { markdownToHtml, type MarkdownToHtmlOptions } from './markdownToHtml';
 export { htmlToMarkdown, injectDataMd } from './markdownPipeline';

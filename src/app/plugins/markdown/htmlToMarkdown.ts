@@ -45,19 +45,36 @@ function isBlockTag(node: ChildNode | undefined): boolean {
 }
 
 function processNodes(nodes: ChildNode[]): string {
-  return nodes
-    .filter((n, i) => {
-      if (isText(n) && /^\s*$/.test(n.data)) {
-        const prev = nodes[i - 1];
-        const next = nodes[i + 1];
-        // Ignore whitespace between block tags or at the edges
-        const isBetweenBlocks = (!prev || isBlockTag(prev)) && (!next || isBlockTag(next));
-        if (isBetweenBlocks) return false;
-      }
-      return true;
-    })
-    .map((n) => processNode(n))
-    .join('');
+  const filtered = nodes.filter((n, i) => {
+    if (isText(n) && /^\s*$/.test(n.data)) {
+      const prev = nodes[i - 1];
+      const next = nodes[i + 1];
+      // Ignore whitespace between block tags or at the edges
+      const isBetweenBlocks = (!prev || isBlockTag(prev)) && (!next || isBlockTag(next));
+      if (isBetweenBlocks) return false;
+    }
+    return true;
+  });
+
+  const parts: string[] = [];
+  for (let i = 0; i < filtered.length; i += 1) {
+    const cur = filtered[i]!;
+    const prev = filtered[i - 1];
+    // Adjacent <p> blocks must become \n\n in markdown so the editor gets separate Slate
+    // paragraphs and marked emits <p> per block again on send (single \n would collapse).
+    if (
+      i > 0 &&
+      prev &&
+      isTag(prev) &&
+      isTag(cur) &&
+      prev.name.toLowerCase() === 'p' &&
+      cur.name.toLowerCase() === 'p'
+    ) {
+      parts.push('\n');
+    }
+    parts.push(processNode(cur));
+  }
+  return parts.join('');
 }
 
 function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean = false): string {

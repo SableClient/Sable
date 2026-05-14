@@ -19,6 +19,8 @@ export type OutputOptions = {
    * a map of regex patterns to replace nicknames with, used when stripNickname is true
    */
   nickNameReplacement?: Map<RegExp, string>;
+  /** When true, markdown HTML omits the leading `<p>` wrapper (for `m.emote` / `/me`). */
+  forEmote?: boolean;
 };
 
 const textToCustomHtml = (node: Text): string => sanitizeText(node.text);
@@ -86,13 +88,13 @@ export const toMatrixCustomHTML = (
       }
       markdownLines += line;
       if (index === targetNodes.length - 1) {
-        const html = markdownToHtml(markdownLines);
+        const html = markdownToHtml(markdownLines, { emote: opts.forEmote });
         return injectDataMd(html);
       }
       return '';
     }
 
-    const parsedMarkdown = markdownToHtml(markdownLines);
+    const parsedMarkdown = markdownToHtml(markdownLines, { emote: opts.forEmote });
     markdownLines = '';
     return `${parsedMarkdown}${toMatrixCustomHTML(n, opts)}`;
   };

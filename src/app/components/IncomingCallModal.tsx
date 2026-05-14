@@ -168,7 +168,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
     navigateRoom(room.roomId);
   };
 
-  const handleDeclineOrIgnore = async () => {
+  const handleDeclineOrIgnore = () => {
     setCallSoundBlocked(false);
     const action = isDirectRing ? 'decline' : 'ignore';
     debugLog.info('call', 'Incoming call dismissed', {
@@ -192,22 +192,20 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
       },
     });
 
+    setMutedRoomId(room.roomId);
+    void dismissSystemCallNotifications(room.roomId);
+    onClose();
+
     if (isDirectRing) {
-      try {
-        await mx.sendRtcDecline(room.roomId, incomingCall.notificationEventId);
-      } catch (error) {
+      void mx.sendRtcDecline(room.roomId, incomingCall.notificationEventId).catch((error) => {
         debugLog.warn('call', 'Failed to send RTC decline event', {
           roomId: room.roomId,
           notificationEventId: incomingCall.notificationEventId,
           error: error instanceof Error ? error.message : String(error),
         });
         Sentry.metrics.count('sable.call.decline.error', 1);
-      }
+      });
     }
-
-    setMutedRoomId(room.roomId);
-    void dismissSystemCallNotifications(room.roomId);
-    onClose();
   };
 
   const handleModalKeyDown = (evt: ReactKeyboardEvent<HTMLDivElement>) => {

@@ -285,6 +285,12 @@ export function useIncomingCallSignaling() {
     }
   }, [incomingRingtoneAllowed, outgoingRingbackAllowed, stopIncomingRing, stopOutgoingRing]);
 
+  useEffect(() => {
+    if (!incomingCall) {
+      stopIncomingRing();
+    }
+  }, [incomingCall, stopIncomingRing]);
+
   const handleIncomingCall = useCallback(
     (nextIncomingCall: IncomingCall) => {
       if (mutedRoomIdRef.current === nextIncomingCall.roomId) return;

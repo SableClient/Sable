@@ -62,7 +62,7 @@ export function extractPollData(mEvent: MatrixEvent): {
     'm.text'?: { body: string }[];
   }[] = pollData.answers ?? [];
   const answers: PollAnswer[] = rawAnswers.slice(0, 20).map((a) => ({
-    id: String(a['m.id'] ?? a.id ?? ''),
+    id: a['m.id'] ?? a.id ?? '',
     text:
       (a['m.text'] as { body: string }[] | undefined)?.[0]?.body ??
       a['org.matrix.msc1767.text'] ??
@@ -84,11 +84,12 @@ export function extractPollData(mEvent: MatrixEvent): {
 
 export function extractVoteSelections(responseEvent: MatrixEvent): string[] {
   const content = responseEvent.getContent();
-  const unstablePayload = content['org.matrix.msc3381.poll.response'];
+  const responsePayload =
+    content[M_POLL_RESPONSE.name] ?? content[M_POLL_RESPONSE.altName ?? 'm.poll.response'];
   const selections: unknown =
     content['m.selections'] ??
-    (typeof unstablePayload === 'object' && unstablePayload !== null
-      ? (unstablePayload as { answers?: unknown }).answers
+    (typeof responsePayload === 'object' && responsePayload !== null
+      ? (responsePayload as { answers?: unknown }).answers
       : undefined);
   if (!Array.isArray(selections)) return [];
   return selections.filter((s): s is string => typeof s === 'string');

@@ -57,6 +57,7 @@ export type CatalogPreviewRow = ThemePair & {
   contrast: SableThemeContrast;
   tags: string[];
   fullInstallUrl: string;
+  defaults?: SableThemeMetadata['defaults'];
 };
 
 export type LocalPreviewRow = ThemeRemoteFavorite & {
@@ -68,6 +69,7 @@ export type LocalPreviewRow = ThemeRemoteFavorite & {
   contrast: SableThemeContrast;
   tags: string[];
   importedLocal?: boolean;
+  defaults?: SableThemeMetadata['defaults'];
 };
 
 export type CatalogTweakRow = TweakCatalogEntry & {
@@ -355,6 +357,7 @@ export function ThemeCatalogSettings({
             contrast,
             tags: meta.tags ?? [],
             fullInstallUrl,
+            defaults: meta.defaults,
           };
         })
       );
@@ -484,6 +487,7 @@ export function ThemeCatalogSettings({
               contrast,
               tags: meta.tags ?? [],
               importedLocal: fav.importedLocal,
+              defaults: meta.defaults,
               ...(authorTrim ? { author: authorTrim } : {}),
             };
             return row;
@@ -559,30 +563,81 @@ export function ThemeCatalogSettings({
 
   const applyFavoriteToLight = useCallback(
     (row: LocalPreviewRow) => {
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteLightFullUrl: row.fullUrl,
         themeRemoteLightKind: row.kind,
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [patchSettings]
   );
 
   const applyFavoriteToDark = useCallback(
     (row: LocalPreviewRow) => {
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteDarkFullUrl: row.fullUrl,
         themeRemoteDarkKind: row.kind,
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [patchSettings]
   );
 
   const applyFavoriteToManual = useCallback(
     (row: LocalPreviewRow) => {
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteManualFullUrl: row.fullUrl,
         themeRemoteManualKind: row.kind,
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [patchSettings]
   );
@@ -697,11 +752,28 @@ export function ThemeCatalogSettings({
         ];
       }
 
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteLightFullUrl: row.fullInstallUrl,
         themeRemoteLightKind: kind,
         themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [darkRemoteFullUrl, favorites, manualRemoteFullUrl, patchSettings, prefetchFull, pruneFavorites]
   );
@@ -732,11 +804,28 @@ export function ThemeCatalogSettings({
         ];
       }
 
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteDarkFullUrl: row.fullInstallUrl,
         themeRemoteDarkKind: kind,
         themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [
       favorites,
@@ -774,11 +863,28 @@ export function ThemeCatalogSettings({
         ];
       }
 
-      patchSettings({
+      const patch: Partial<Settings> = {
         themeRemoteManualFullUrl: row.fullInstallUrl,
         themeRemoteManualKind: kind,
         themeRemoteFavorites: pruneFavorites(nextFavorites, nextActive),
-      });
+      };
+      if (row.defaults?.neonGlass) {
+        const ng = row.defaults.neonGlass;
+        if (ng.primaryColor) patch.neonGlassPrimaryColor = ng.primaryColor;
+        if (ng.blurRadius !== undefined) patch.neonGlassBlur = ng.blurRadius;
+        if (ng.bgOpacity !== undefined) patch.neonGlassBgOpacity = ng.bgOpacity;
+        if (ng.chatOpacity !== undefined) patch.neonGlassChatOpacity = ng.chatOpacity;
+        if (ng.glowRadius !== undefined) patch.neonGlassGlow = ng.glowRadius;
+        if (ng.bubbleGlow !== undefined) patch.neonGlassBubbleGlow = ng.bubbleGlow;
+        if (ng.applySidebar !== undefined) patch.neonGlassApplySidebar = ng.applySidebar;
+        if (ng.applyChat !== undefined) patch.neonGlassApplyChat = ng.applyChat;
+        if (ng.applyModals !== undefined) patch.neonGlassApplyModals = ng.applyModals;
+        if (ng.applyReply !== undefined) patch.neonGlassApplyReply = ng.applyReply;
+        patch.neonGlassEnabled = true;
+      } else {
+        patch.neonGlassEnabled = false;
+      }
+      patchSettings(patch);
     },
     [darkRemoteFullUrl, favorites, lightRemoteFullUrl, patchSettings, prefetchFull, pruneFavorites]
   );

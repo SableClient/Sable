@@ -68,10 +68,13 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [neonGlassPrimaryColor] = useSetting(settingsAtom, 'neonGlassPrimaryColor');
   const [neonGlassBlur] = useSetting(settingsAtom, 'neonGlassBlur');
   const [neonGlassBgOpacity] = useSetting(settingsAtom, 'neonGlassBgOpacity');
+  const [neonGlassChatOpacity] = useSetting(settingsAtom, 'neonGlassChatOpacity');
   const [neonGlassGlow] = useSetting(settingsAtom, 'neonGlassGlow');
+  const [neonGlassBubbleGlow] = useSetting(settingsAtom, 'neonGlassBubbleGlow');
   const [neonGlassApplySidebar] = useSetting(settingsAtom, 'neonGlassApplySidebar');
   const [neonGlassApplyChat] = useSetting(settingsAtom, 'neonGlassApplyChat');
   const [neonGlassApplyModals] = useSetting(settingsAtom, 'neonGlassApplyModals');
+  const [neonGlassApplyReply] = useSetting(settingsAtom, 'neonGlassApplyReply');
 
   useEffect(() => {
     document.body.className = '';
@@ -105,10 +108,13 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
         primaryColor: neonGlassPrimaryColor,
         blurRadius: neonGlassBlur,
         bgOpacity: neonGlassBgOpacity,
+        chatOpacity: neonGlassChatOpacity,
         glowRadius: neonGlassGlow,
+        bubbleGlow: neonGlassBubbleGlow,
         applySidebar: neonGlassApplySidebar,
         applyChat: neonGlassApplyChat,
         applyModals: neonGlassApplyModals,
+        applyReply: neonGlassApplyReply,
       });
     } else {
       ThemeEngine.resetNeonGlass();
@@ -118,10 +124,13 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     neonGlassPrimaryColor,
     neonGlassBlur,
     neonGlassBgOpacity,
+    neonGlassChatOpacity,
     neonGlassGlow,
+    neonGlassBubbleGlow,
     neonGlassApplySidebar,
     neonGlassApplyChat,
     neonGlassApplyModals,
+    neonGlassApplyReply,
   ]);
 
   useEffect(() => {

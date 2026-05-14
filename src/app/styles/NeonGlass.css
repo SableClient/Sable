@@ -1,26 +1,24 @@
 /* 
  * Neon Glass Theme — Professional Overlay for Sable 
- * Fixed: Light Theme "Blackout" in Dialogs & Menus.
+ * Fully rewritten for maximum compatibility with all themes and shapes.
  */
 
 :root {
-  /* Default variables (Dark Theme) */
   --ng-glass-color: 15, 15, 25;
-  --ng-border-color: rgba(255, 255, 255, 0.1);
+  --ng-border-color: rgba(255, 255, 255, 0.12);
   --ng-text-contrast: #ffffff;
 }
 
-/* --- Theme Awareness --- */
-
-/* Light Theme Settings */
+/* Light Theme Variables */
 body.light-theme[data-neon-glass="true"] {
   --ng-glass-color: 255, 255, 255;
-  --ng-border-color: rgba(0, 0, 0, 0.12);
+  --ng-border-color: rgba(0, 0, 0, 0.1);
   --ng-text-contrast: #18181b;
-  background-color: #f0f0f5 !important;
+  background-color: #f5f5fa !important;
+  color: #18181b;
 }
 
-/* Dark Theme Settings */
+/* Dark Theme Variables */
 body.dark-theme[data-neon-glass="true"] {
   --ng-glass-color: 10, 10, 18;
   --ng-border-color: rgba(255, 255, 255, 0.08);
@@ -28,117 +26,157 @@ body.dark-theme[data-neon-glass="true"] {
   background-color: #0a0a12 !important;
 }
 
-/* Combined Glass Variable */
+/* Global Glass Background */
 body[data-neon-glass="true"] {
   --ng-glass-bg: rgba(var(--ng-glass-color), var(--ng-opacity));
-  
+  --ng-chat-glass-bg: rgba(var(--ng-glass-color), var(--ng-chat-opacity));
   background-image: 
-    radial-gradient(circle at 0% 0%, rgba(var(--sable-primary-main-rgb), 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 100% 100%, rgba(var(--sable-primary-main-rgb), 0.08) 0%, transparent 45%) !important;
+    radial-gradient(circle at 10% 10%, rgba(var(--sable-primary-main-rgb), calc(var(--ng-chat-opacity) * 1.5)) 0%, transparent 45%),
+    radial-gradient(circle at 90% 90%, rgba(var(--sable-primary-main-rgb), calc(var(--ng-chat-opacity) * 1.0)) 0%, transparent 45%) !important;
   background-attachment: fixed !important;
 }
 
-/* --- Global Transparency Fix --- 
- * This ensures Sable's internal boxes don't block the glass effect.
- */
-body[data-neon-glass="true"] [class*="ContainerColor_variant_Background"],
-body[data-neon-glass="true"] [class*="ContainerColor_variant_Surface"],
-body[data-neon-glass="true"] [class*="ContainerColor_variant_SurfaceVariant"],
+/* Base Transparency to allow Glass to show through */
 body[data-neon-glass="true"] [class*="Sidebar_Sidebar"],
 body[data-neon-glass="true"] [class*="RoomView_RoomView"],
-body[data-neon-glass="true"] [class*="Page_Page"] {
+body[data-neon-glass="true"] [class*="Page_Page"],
+body[data-neon-glass="true"] [class*="SidebarNav_SidebarNav"],
+body[data-neon-glass="true"] aside,
+body[data-neon-glass="true"] main {
   background-color: transparent !important;
   box-shadow: none !important;
 }
 
-/* --- Sidebar Glass --- */
+/* Give structural containers a very subtle glass tint so they look organized, not empty */
+body[data-neon-glass="true"] [class*="ContainerColor_variant_Background"],
+body[data-neon-glass="true"] [class*="ContainerColor_variant_Surface"],
+body[data-neon-glass="true"] [class*="ContainerColor_variant_SurfaceVariant"],
+body[data-neon-glass="true"] [data-sequence-card="true"] {
+  background-color: rgba(var(--ng-glass-color), 0.1) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--ng-border-color) !important;
+  backdrop-filter: blur(calc(var(--ng-blur) * 0.4)) !important;
+}
+
+/* Beautiful, subtle hover/active states for buttons and interactive items */
+body[data-neon-glass="true"] button[class*="ContainerColor_variant_Surface"]:hover,
+body[data-neon-glass="true"] button[class*="ContainerColor_variant_SurfaceVariant"]:hover,
+body[data-neon-glass="true"] [role="button"][class*="ContainerColor_variant_Surface"]:hover,
+body[data-neon-glass="true"] [class*="ContainerColor_variant_Surface"][aria-pressed="true"] {
+  background-color: rgba(var(--sable-primary-main-rgb), 0.2) !important;
+  border-color: rgba(var(--sable-primary-main-rgb), 0.3) !important;
+}
+
+/* --- 1. Sidebar Glass --- */
 body[data-ng-sidebar="true"] [class*="Sidebar_Sidebar"],
 body[data-ng-sidebar="true"] [class*="SidebarNav_SidebarNav"],
 body[data-ng-sidebar="true"] aside {
   backdrop-filter: blur(var(--ng-blur)) saturate(160%) !important;
   background-color: var(--ng-glass-bg) !important;
   border-right: 1px solid var(--ng-border-color) !important;
-  overflow: hidden;
 }
 
-/* Aesthetic Polish: Fully rounded sidebar avatars (Profile, Search, etc.) */
-body[data-ng-sidebar="true"] [class*="SidebarAvatar_SidebarAvatar"],
-body[data-ng-sidebar="true"] [class*="SidebarFolder_SidebarFolder"] {
-  border-radius: 50% !important;
-  overflow: hidden !important;
-}
-body[data-ng-sidebar="true"] [class*="SidebarAvatar_SidebarAvatar"] *,
-body[data-ng-sidebar="true"] [class*="SidebarFolder_SidebarFolder"] * {
-  border-radius: 50% !important;
-}
-
-/* --- Chat & Main Content Area --- */
+/* --- 2. Chat Glass --- */
 body[data-ng-chat="true"] [class*="RoomView_RoomView"],
 body[data-ng-chat="true"] [class*="Page_Page"],
 body[data-ng-chat="true"] main {
   backdrop-filter: blur(var(--ng-blur)) saturate(160%) !important;
-  background-color: var(--ng-glass-bg) !important;
+  background-color: var(--ng-chat-glass-bg) !important;
 }
 
-/* Aesthetic Polish: Rounded Glassy Chat Bubbles */
+/* Chat Bubbles */
 body[data-ng-chat="true"] [class*="layout_BubbleContent"] {
   backdrop-filter: blur(calc(var(--ng-blur) * 0.8)) saturate(160%) !important;
-  background-color: var(--ng-glass-bg) !important;
+  background-color: var(--ng-chat-glass-bg) !important;
   border: 1px solid var(--ng-border-color) !important;
-  border-radius: 18px !important; /* Generous roundness */
-}
-/* Preserve bubble tails if present */
-body[data-ng-chat="true"] [class*="layout_BubbleContentArrowLeft"] {
-  border-top-left-radius: 4px !important;
-}
-body[data-ng-chat="true"] [class*="layout_BubbleContentArrowRight"] {
-  border-top-right-radius: 4px !important;
+  box-shadow: var(--ng-bubble-glow) !important;
 }
 body[data-ng-chat="true"] [class*="layout_BubbleLeftArrow"] path,
 body[data-ng-chat="true"] [class*="layout_BubbleRightArrow"] path {
-  fill: var(--ng-border-color) !important; /* Hide solid tail color, make it match border */
+  fill: var(--ng-border-color) !important;
+  filter: drop-shadow(var(--ng-bubble-glow)) !important;
 }
 
-/* --- Modals, Menus, Dialogs & Popouts --- 
- * We target the Portal-rendered elements specifically.
- */
+/* Bottom Bar (Read Receipts) */
+body[data-ng-chat="true"] [class*="RoomViewFollowing_RoomViewFollowing"] {
+  backdrop-filter: blur(var(--ng-blur)) saturate(160%) !important;
+  background-color: var(--ng-chat-glass-bg) !important;
+  border-top: 1px solid var(--ng-border-color) !important;
+  margin-top: 2px;
+}
+
+/* Replied / Targeted Messages */
+body[data-ng-reply="true"] [class*="messageJumpHighlight"],
+body[data-ng-reply="true"] [class*="SelectedVariant_true"] {
+  box-shadow: inset 0 0 16px var(--sable-primary-main) !important;
+  background-color: rgba(var(--sable-primary-main-rgb), 0.1) !important;
+  border-radius: inherit;
+}
+
+/* --- 3. Modals Glass --- */
+/* Target ONLY specific floating surfaces to prevent ugly double-glass and protruding borders on wrappers */
 body[data-ng-modals="true"] [class*="Modal_Modal"],
 body[data-ng-modals="true"] [class*="Dialog_Dialog"],
-body[data-ng-modals="true"] [class*="PopOut_PopOut"],
-body[data-ng-modals="true"] [class*="Menu_Menu"],
-body[data-ng-modals="true"] [class*="Overlay"],
-body[data-ng-modals="true"] [role="dialog"],
-body[data-ng-modals="true"] [role="menu"] {
+body[data-ng-modals="true"] [class*="Menu_Menu"] {
   backdrop-filter: blur(var(--ng-blur)) saturate(180%) !important;
   background-color: var(--ng-glass-bg) !important;
   border: 1px solid var(--ng-border-color) !important;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35) !important;
-  /* Preserve original border radius but ensure blur doesn't leak */
-  overflow: hidden !important; 
+  border-radius: 12px !important;
+  overflow: hidden;
 }
 
-/* Glow effects for active elements */
-body[data-neon-glass="true"] [aria-selected="true"],
-body[data-neon-glass="true"] [data-active="true"],
-body[data-neon-glass="true"] [class*="active_true"],
-body[data-neon-glass="true"] [class*="variant_Primary"] {
+/* Fix: Redesign 'Create Space' and 'Join with Address' menu items (SequenceCard inside Menu) */
+body[data-neon-glass="true"] [class*="Menu_Menu"] [data-sequence-card="true"] {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 10px !important;
+  margin: 6px 12px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Special Neon Hover for Menu Items */
+body[data-neon-glass="true"] [class*="Menu_Menu"] [data-sequence-card="true"]:hover {
+  background-color: rgba(var(--sable-primary-main-rgb), 0.12) !important;
+  border-color: rgba(var(--sable-primary-main-rgb), 0.2) !important;
+  box-shadow: 0 0 15px rgba(var(--sable-primary-main-rgb), 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+/* Highlight the icons in the menu so they look 'Neon' */
+body[data-neon-glass="true"] [class*="Menu_Menu"] [class*="Icon"] {
+  color: var(--sable-primary-main) !important;
+  filter: drop-shadow(0 0 4px var(--sable-primary-main));
+}
+
+/* --- 4. Neon Glows --- */
+/* 
+   We use box-shadow so the glow can have a strong spread and multi-layered intensity.
+*/
+body[data-neon-glass="true"] [class*="SidebarItem_active_true"] [class*="Avatar"],
+body[data-neon-glass="true"] [class*="SidebarItem_active_true"] [class*="SidebarAvatar"],
+body[data-neon-glass="true"] [class*="SidebarItem_active_true"] [class*="SidebarFolder"],
+body[data-neon-glass="true"] [class*="SpaceNavItem"] [aria-selected="true"] [class*="Avatar"],
+body[data-neon-glass="true"] [class*="SidebarAvatar_outlined_true"][class*="variant_Surface"], /* '+' button when open */
+body[data-neon-glass="true"] [class*="variant_Primary"]:not([role="menuitem"]):not(body) {
   box-shadow: var(--ng-glow) !important;
 }
 
-/* Fix for Light Theme Text Contrast */
-body.light-theme[data-neon-glass="true"] {
-  color: #18181b;
+/* Fix overlapping elements clipping the drop-shadow */
+body[data-neon-glass="true"] [class*="SidebarItem_active_true"],
+body[data-neon-glass="true"] [class*="SidebarItem"]:hover,
+body[data-neon-glass="true"] [class*="SpaceNavItem"]:hover,
+body[data-neon-glass="true"] [class*="SpaceNavItem"] [aria-selected="true"] {
+  z-index: 2 !important;
+  position: relative !important;
+}
+
+/* Hide the standard Sidebar active indicator line since we use neon glows to show active state */
+body[data-neon-glass="true"] [class*="SidebarItem_active_true"]::before {
+  display: none !important;
 }
 
 /* Scrollbar Integration */
 body[data-neon-glass="true"] ::-webkit-scrollbar-thumb {
   background: rgba(var(--sable-primary-main-rgb), 0.2) !important;
-  border-radius: 10px !important;
-}
-
-/* Focused inputs ring */
-body[data-neon-glass="true"] input:focus,
-body[data-neon-glass="true"] textarea:focus {
-  border-color: var(--sable-primary-main) !important;
-  box-shadow: 0 0 0 2px rgba(var(--sable-primary-main-rgb), 0.2) !important;
 }

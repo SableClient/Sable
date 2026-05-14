@@ -10,6 +10,20 @@ export type SableThemeMetadata = {
   contrast: SableThemeContrast;
   tags: string[];
   fullThemeUrl?: string;
+  defaults?: {
+    neonGlass?: {
+      primaryColor?: string;
+      blurRadius?: number;
+      bgOpacity?: number;
+      chatOpacity?: number;
+      glowRadius?: number;
+      bubbleGlow?: number;
+      applySidebar?: boolean;
+      applyChat?: boolean;
+      applyModals?: boolean;
+      applyReply?: boolean;
+    };
+  };
 };
 
 export type SableTweakMetadata = {
@@ -96,6 +110,57 @@ export function parseSableThemeMetadata(cssText: string): Partial<SableThemeMeta
         case 'fullthemeurl':
         case 'full_theme_url':
           out.fullThemeUrl = value;
+          break;
+        case 'ng_color':
+        case 'ng_primary_color':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.primaryColor = value;
+          break;
+        case 'ng_blur':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.blurRadius = Number(value);
+          break;
+        case 'ng_opacity':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.bgOpacity = Number(value);
+          break;
+        case 'ng_chat_opacity':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.chatOpacity = Number(value);
+          break;
+        case 'ng_glow':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.glowRadius = Number(value);
+          break;
+        case 'ng_bubble_glow':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.bubbleGlow = Number(value);
+          break;
+        case 'ng_sidebar':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.applySidebar = value === 'true';
+          break;
+        case 'ng_chat':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.applyChat = value === 'true';
+          break;
+        case 'ng_modals':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.applyModals = value === 'true';
+          break;
+        case 'ng_reply':
+          if (!out.defaults) out.defaults = {};
+          if (!out.defaults.neonGlass) out.defaults.neonGlass = {};
+          out.defaults.neonGlass.applyReply = value === 'true';
           break;
         default:
           break;

@@ -127,11 +127,13 @@ export interface Settings {
   neonGlassEnabled: boolean;
   neonGlassPrimaryColor?: string;
   neonGlassBlur?: number;
-  neonGlassBgOpacity?: number;
+  neonGlassChatOpacity?: number;
   neonGlassGlow?: number;
+  neonGlassBubbleGlow?: number;
   neonGlassApplySidebar: boolean;
   neonGlassApplyChat: boolean;
   neonGlassApplyModals: boolean;
+  neonGlassApplyReply: boolean;
 
   // Sable features!
   sendPresence: boolean;
@@ -260,10 +262,13 @@ export const defaultSettings: Settings = {
   neonGlassPrimaryColor: '#00f0ff',
   neonGlassBlur: 14,
   neonGlassBgOpacity: 0.42,
+  neonGlassChatOpacity: 0.15,
   neonGlassGlow: 12,
+  neonGlassBubbleGlow: 4,
   neonGlassApplySidebar: true,
   neonGlassApplyChat: true,
   neonGlassApplyModals: true,
+  neonGlassApplyReply: true,
 
   // Sable features!
   sendPresence: true,

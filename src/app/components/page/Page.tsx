@@ -44,7 +44,9 @@ export function PageNav({ size, children }: ClientDrawerLayoutProps & css.PageNa
   );
 }
 
-export const PageNavHeader = as<'header', css.PageNavHeaderVariants>(
+type PageNavHeaderOwnProps = Pick<ComponentProps<typeof Header>, 'size'>;
+
+export const PageNavHeader = as<'header', css.PageNavHeaderVariants & PageNavHeaderOwnProps>(
   ({ className, outlined, ...props }, ref) => (
     <Header
       className={classNames(css.PageNavHeader({ outlined }), className)}

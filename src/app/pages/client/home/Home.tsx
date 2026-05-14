@@ -113,30 +113,27 @@ function HomeHeader({ hideText }: { hideText?: boolean }) {
 
   return (
     <>
-      <PageNavHeader>
-        <Box
-          alignItems="Center"
-          grow="Yes"
-          gap="300"
-          justifyContent={hideText ? 'Center' : 'Start'}
-        >
-          {!hideText && (
-            <Box grow="Yes">
+      <PageNavHeader size="600">
+        {hideText ? (
+          <Box alignItems="Center" grow="Yes" justifyContent="Center">
+            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
+              <Icon src={Icons.Home} size="200" filled={!!menuAnchor} />
+            </IconButton>
+          </Box>
+        ) : (
+          <Box grow="Yes" gap="300">
+            <Box grow="Yes" alignItems="Center">
               <Text size="H4" truncate>
                 Home
               </Text>
             </Box>
-          )}
-          <Box>
-            <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
-              <Icon
-                src={hideText ? Icons.Home : Icons.VerticalDots}
-                size="200"
-                filled={!!menuAnchor}
-              />
-            </IconButton>
+            <Box shrink="No">
+              <IconButton aria-pressed={!!menuAnchor} variant="Background" onClick={handleOpenMenu}>
+                <Icon src={Icons.VerticalDots} size="200" filled={!!menuAnchor} />
+              </IconButton>
+            </Box>
           </Box>
-        </Box>
+        )}
       </PageNavHeader>
       <PopOut
         anchor={menuAnchor}

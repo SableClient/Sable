@@ -46,7 +46,7 @@ export const PageNavHeader = recipe({
   variants: {
     outlined: {
       true: {
-        borderBottomWidth: 1,
+        borderBottomWidth: config.borderWidth.B300,
       },
     },
   },

@@ -484,11 +484,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
             focusId="auto-idle-presence"
             description="Automatically appear unavailable after a period of inactivity or when the app isn't active."
             after={
-              <Switch
-                variant="Primary"
-                value={autoIdlePresence}
-                onChange={setAutoIdlePresence}
-              />
+              <Switch variant="Primary" value={autoIdlePresence} onChange={setAutoIdlePresence} />
             }
           />
         </SequenceCard>

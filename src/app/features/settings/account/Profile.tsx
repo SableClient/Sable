@@ -522,14 +522,24 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const handleSaveStatus = useCallback(
     async (newStatus: string) => {
-      const currentState = presence?.presence ?? 'online';
+      // Only update the local atom. PresenceFeature's effect will broadcast the new
+      // status_msg to the server on its next run (triggered by this atom change).
+      // We don't call mx.setPresence here to avoid passing our internal Presence.Dnd
+      // value ('dnd'), which is not a valid Matrix presence state.
       setPresenceStatusMsg(newStatus);
-      await mx.setPresence({ presence: currentState, status_msg: newStatus });
-      // MSC4186 servers don't echo own presence back; synthesize the update locally so
-      // useUserPresence(myUserId) and the member-list badge stay accurate.
-      getSlidingSyncManager(mx)?.updateOwnPresence(currentState, newStatus);
+
+      // Eagerly mirror the change in the SDK store so the member list updates without
+      // waiting for the PresenceFeature effect to resolve the network call.
+      const myUser = mx.getUser(mx.getUserId() ?? '');
+      const isDnd = myUser?.presence === 'online' && myUser?.presenceStatusMsg === 'dnd';
+      if (!isDnd) {
+        // Not in DND: update local presence to reflect the new status immediately.
+        getSlidingSyncManager(mx)?.updateOwnPresence(myUser?.presence ?? 'online', newStatus);
+      }
+      // In DND mode the sentinel ('dnd') stays as status_msg on the wire; the user's
+      // custom status is preserved in the atom and used once they leave DND.
     },
-    [mx, presence, setPresenceStatusMsg]
+    [mx, setPresenceStatusMsg]
   );
 
   return (

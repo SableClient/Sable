@@ -296,8 +296,6 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   );
 
   const handleMemberClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    // oxlint-disable-next-line no-console
-    console.log(evt);
     const btn = evt.currentTarget as HTMLButtonElement;
     const userId = btn.getAttribute('data-user-id');
     if (!userId) return;

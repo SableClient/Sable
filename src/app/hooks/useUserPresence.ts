@@ -28,7 +28,8 @@ const getUserPresence = (user: User): UserPresence => {
       : rawPresence;
   return {
     presence,
-    status: user.presenceStatusMsg,
+    // Don't leak the internal DND sentinel as a visible status message.
+    status: user.presenceStatusMsg !== 'dnd' ? user.presenceStatusMsg : undefined,
     active: user.currentlyActive,
     lastActiveTs: user.getLastActiveTs(),
   };

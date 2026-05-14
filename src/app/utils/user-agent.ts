@@ -20,11 +20,26 @@ const normalizeMacName = (os?: string) => {
   return os;
 };
 
+// True for layout purposes: phones and tablets with native touch UA.
+// Intentionally excludes iPads in "Request Desktop Website" mode (macOS UA +
+// maxTouchPoints > 1) because those users explicitly want the desktop layout.
+const isMobileOrTabletLayout = (() => {
+  const { os, device } = result;
+  if (device.type === 'mobile' || device.type === 'tablet') return true;
+  if (os.name === 'Android' || os.name === 'iOS') return true;
+  return false;
+})();
+
 const isMac = result.os.name === 'Mac OS';
 
 export const ua = () => result;
 export const isMacOS = () => isMac;
 export const mobileOrTablet = () => isMobileOrTablet;
+/**
+ * Like `mobileOrTablet` but excludes iPads using "Request Desktop Website".
+ * Use this for layout/nav decisions; use `mobileOrTablet` for touch/keyboard behaviour.
+ */
+export const mobileOrTabletLayout = () => isMobileOrTabletLayout;
 
 export const deviceDisplayName = (): string => {
   const browser = result.browser.name;

@@ -16,6 +16,7 @@ import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
+import { expandBlockBoundariesAfterSingleNewlines } from './expandBlockNewlines';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
@@ -131,8 +132,10 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
+  const boundaryExpanded = expandBlockBoundariesAfterSingleNewlines(preprocessed);
+
   const { shielded: matrixToShielded, placeholders: matrixToPlaceholders } =
-    shieldBareMatrixToLinks(preprocessed);
+    shieldBareMatrixToLinks(boundaryExpanded);
 
   const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(matrixToShielded));
 

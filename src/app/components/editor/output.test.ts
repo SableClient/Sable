@@ -184,3 +184,19 @@ describe('toMatrixCustomHTML matrix.to', () => {
     expect(html).not.toMatch(/<a\b[^>]*matrix\.to/i);
   });
 });
+
+describe('toMatrixCustomHTML single-newline markdown blocks', () => {
+  it('parses -# on a second Slate paragraph joined with a single newline', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          { type: BlockType.Paragraph, children: [{ text: 'test' }] } as never,
+          { type: BlockType.Paragraph, children: [{ text: '-# caption' }] } as never,
+        ],
+        {}
+      )
+    );
+    expect(html).toContain('<sub');
+    expect(html).toContain('data-md="-#"');
+  });
+});

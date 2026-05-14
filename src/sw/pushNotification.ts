@@ -15,8 +15,16 @@ type NotificationSettings = {
 
 interface MatrixPushData {
   type?: string;
-  content?: { notification_type?: string; membership?: string };
+  content?: {
+    notification_type?: string;
+    membership?: string;
+    sender_ts?: number;
+    lifetime?: number;
+    'm.call.intent'?: string;
+    'm.relates_to'?: { event_id?: string };
+  };
   sender_display_name?: string;
+  sender_id?: string;
   room_name?: string;
   room_id?: string;
   room_avatar_url?: string;
@@ -27,6 +35,113 @@ interface MatrixPushData {
 }
 
 const resolveSilent = (): boolean => false;
+const MAX_CALL_NOTIFICATION_LIFETIME_MS = 120_000;
+
+const normalizeCallIntentKind = (intentRaw: string | undefined): 'audio' | 'video' => {
+  if (!intentRaw) return 'audio';
+  const normalized = intentRaw.toLowerCase();
+  if (normalized.includes('video')) return 'video';
+  return 'audio';
+};
+
+const isCallNotificationType = (value: unknown): value is 'ring' | 'notification' =>
+  value === 'ring' || value === 'notification';
+
+const getCallTiming = (
+  content: MatrixPushData['content'],
+  originTs: number
+): { senderTs: number; expiresAt: number } => {
+  const senderTsCandidate = content?.sender_ts;
+  const lifetimeCandidate = content?.lifetime;
+
+  if (typeof senderTsCandidate !== 'number' || !Number.isFinite(senderTsCandidate)) {
+    const senderTs = originTs;
+    return {
+      senderTs,
+      expiresAt: senderTs + MAX_CALL_NOTIFICATION_LIFETIME_MS,
+    };
+  }
+
+  const senderTs = senderTsCandidate - originTs > 20_000 ? originTs : senderTsCandidate;
+  const lifetime =
+    typeof lifetimeCandidate === 'number' && Number.isFinite(lifetimeCandidate)
+      ? Math.min(Math.max(lifetimeCandidate, 0), MAX_CALL_NOTIFICATION_LIFETIME_MS)
+      : MAX_CALL_NOTIFICATION_LIFETIME_MS;
+
+  return {
+    senderTs,
+    expiresAt: senderTs + lifetime,
+  };
+};
+
+const resolveCallNotificationCopy = (
+  notificationType: 'ring' | 'notification',
+  intentKind: 'audio' | 'video',
+  senderDisplayName: string | undefined,
+  roomName: string | undefined,
+  showPreviewDetails: boolean
+): { title: string; body: string | undefined } => {
+  if (notificationType === 'notification') {
+    if (!showPreviewDetails) {
+      return {
+        title: 'Room call started',
+        body: 'Open Sable to join.',
+      };
+    }
+    if (roomName && senderDisplayName) {
+      return {
+        title: 'Room call started',
+        body: `${senderDisplayName} started a call in ${roomName}`,
+      };
+    }
+    if (roomName) {
+      return {
+        title: 'Room call started',
+        body: `A call started in ${roomName}`,
+      };
+    }
+    if (senderDisplayName) {
+      return {
+        title: 'Room call started',
+        body: `${senderDisplayName} started a call`,
+      };
+    }
+    return {
+      title: 'Room call started',
+      body: 'A room call started.',
+    };
+  }
+
+  const title = intentKind === 'video' ? 'Incoming video call' : 'Incoming voice call';
+  if (!showPreviewDetails) {
+    return {
+      title,
+      body: 'Open Sable to answer.',
+    };
+  }
+  if (senderDisplayName && roomName) {
+    return {
+      title,
+      body: `${senderDisplayName} is calling you in ${roomName}`,
+    };
+  }
+  if (senderDisplayName) {
+    return {
+      title,
+      body: `${senderDisplayName} is calling you`,
+    };
+  }
+  if (roomName) {
+    return {
+      title,
+      body: `Incoming call in ${roomName}`,
+    };
+  }
+  return {
+    title,
+    body: 'Incoming call',
+  };
+};
 
 export const createPushNotifications = (
   self: ServiceWorkerGlobalScope,
@@ -38,13 +153,15 @@ export const createPushNotifications = (
     data: Record<string, unknown>,
     silent?: boolean,
     icon?: string,
-    badge?: string
+    badge?: string,
+    tagOverride?: string
   ) => {
     const roomId: string | undefined = data?.room_id as string | undefined;
     // Group by room so new messages in the same room replace the previous
     // notification rather than stacking individually. renotify: true ensures
     // the user is still alerted when the existing tag is replaced.
-    const tag: string = roomId ? `room-${roomId}` : ((data?.event_id as string) ?? 'Cinny');
+    const tag: string =
+      tagOverride ?? (roomId ? `room-${roomId}` : ((data?.event_id as string) ?? 'Cinny'));
     const renotify = !!roomId;
     // `renotify` is a valid Web API property absent from TypeScript's NotificationOptions type.
     // Build the options object separately to avoid the excess-property check, then cast.
@@ -62,26 +179,57 @@ export const createPushNotifications = (
   };
 
   const handleCallNotification = async (pushData: MatrixPushData) => {
-    const content = pushData?.content as { notification_type?: string } | undefined;
-    if (content?.notification_type !== 'ring') return;
+    if (pushData.type === EventType.RoomMessageEncrypted) return;
 
+    const notificationTypeRaw = pushData?.content?.notification_type;
+    if (!isCallNotificationType(notificationTypeRaw)) return;
+
+    const intentRaw =
+      typeof pushData?.content?.['m.call.intent'] === 'string'
+        ? pushData.content['m.call.intent']
+        : undefined;
+    const intentKind = normalizeCallIntentKind(intentRaw);
     const senderDisplayName = pushData?.sender_display_name;
     const roomName = pushData?.room_name;
-    const title = 'Incoming Call';
-    const body = senderDisplayName
-      ? `${senderDisplayName} is calling you ${roomName ? `in ${roomName}` : ''}`
-      : 'Incoming voice chat';
+    const showPreviewDetails = getNotificationSettings().showMessageContent;
+    const copy = resolveCallNotificationCopy(
+      notificationTypeRaw,
+      intentKind,
+      senderDisplayName,
+      roomName,
+      showPreviewDetails
+    );
+    const originTs = typeof pushData.timestamp === 'number' ? pushData.timestamp : Date.now();
+    const { senderTs, expiresAt } = getCallTiming(pushData.content, originTs);
 
     const data = {
       type: pushData?.type,
       room_id: pushData?.room_id,
+      event_id: pushData?.event_id,
       user_id: pushData?.user_id,
+      sender_id: pushData?.sender_id,
       timestamp: Date.now(),
       isCall: true,
+      callNotificationType: notificationTypeRaw,
+      callIntentKind: intentKind,
+      callIntentRaw: intentRaw,
+      callNotificationEventId: pushData?.event_id,
+      callRefEventId: pushData?.content?.['m.relates_to']?.event_id,
+      callSenderTs: senderTs,
+      callExpiresAt: expiresAt,
       ...pushData.data,
     };
 
-    await showNotificationWithData(title, body, data, resolveSilent(), pushData?.room_avatar_url);
+    const callTag = pushData?.room_id ? `call-${pushData.room_id}` : undefined;
+    await showNotificationWithData(
+      copy.title,
+      copy.body,
+      data,
+      resolveSilent(),
+      pushData?.room_avatar_url,
+      undefined,
+      callTag
+    );
   };
 
   const handleRoomMessageNotification = async (pushData: MatrixPushData) => {

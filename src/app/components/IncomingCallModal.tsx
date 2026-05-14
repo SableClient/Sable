@@ -37,6 +37,7 @@ import {
   type IncomingCall,
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
+import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { RoomAvatar } from './room-avatar';
 import { UserAvatar } from './user-avatar';
 
@@ -162,6 +163,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
 
     setMutedRoomId(room.roomId);
     setAutoJoinIntent({ roomId: room.roomId, video: isVideoIntent });
+    void dismissSystemCallNotifications(room.roomId);
     onClose();
     navigateRoom(room.roomId);
   };
@@ -204,6 +206,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
     }
 
     setMutedRoomId(room.roomId);
+    void dismissSystemCallNotifications(room.roomId);
     onClose();
   };
 

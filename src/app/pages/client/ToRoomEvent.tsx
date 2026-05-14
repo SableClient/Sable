@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { useSetAtom } from 'jotai';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
+import { mDirectAtom } from '$state/mDirectList';
+import { incomingCallAtom } from '$state/callEmbed';
+import { resolveIncomingCallFromSearchParams } from '$features/call/callNotificationBridge';
 
 // ToRoomEvent handles /to/:user_id/:room_id/:event_id? — the canonical deep-link
 // URL used by the service worker's notificationclick handler.
@@ -17,8 +20,11 @@ import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 // setActiveSessionId() triggers an account switch.
 export function ToRoomEvent() {
   const { user_id: userId, room_id: roomId, event_id: eventId } = useParams();
+  const [searchParams] = useSearchParams();
+  const mDirects = useAtomValue(mDirectAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
+  const setIncomingCall = useSetAtom(incomingCallAtom);
 
   useEffect(() => {
     if (!roomId) return;
@@ -26,9 +32,20 @@ export function ToRoomEvent() {
     // under the correct session.
     if (userId) setActiveSessionId(userId);
     setPending({ roomId, eventId, targetSessionId: userId });
+
+    const incomingCall = resolveIncomingCallFromSearchParams(
+      searchParams,
+      roomId,
+      eventId,
+      mDirects.has(roomId)
+    );
+    if (incomingCall) {
+      setIncomingCall(incomingCall);
+    }
+
     // Replace /to/… in history so the back button doesn't return to this route.
     window.history.replaceState({}, '', '/');
-  }, [userId, roomId, eventId, setActiveSessionId, setPending]);
+  }, [eventId, mDirects, roomId, searchParams, setActiveSessionId, setIncomingCall, setPending, userId]);
 
   return null;
 }

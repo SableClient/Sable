@@ -45,6 +45,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
+import { incomingCallAtom } from '$state/callEmbed';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -60,6 +61,7 @@ import { useIncomingCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { resolveIncomingCallFromNotificationData } from '$features/call/callNotificationBridge';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -609,6 +611,8 @@ type ClientNonUIFeaturesProps = {
 export function HandleNotificationClick() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+  const setIncomingCall = useSetAtom(incomingCallAtom);
+  const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -634,11 +638,19 @@ export function HandleNotificationClick() {
 
       if (!roomId) return;
       setPending({ roomId, eventId, targetSessionId: userId });
+
+      const incomingCall = resolveIncomingCallFromNotificationData(
+        data as Record<string, unknown>,
+        mDirects.has(roomId)
+      );
+      if (incomingCall) {
+        setIncomingCall(incomingCall);
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [setPending, setActiveSessionId, navigate]);
+  }, [mDirects, navigate, setActiveSessionId, setIncomingCall, setPending]);
 
   return null;
 }

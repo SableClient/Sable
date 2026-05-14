@@ -481,6 +481,7 @@ async function handleMinimalPushPayload(
     room_id: roomId,
     event_id: eventId,
     user_id: session.userId,
+    sender_id: sender,
   };
 
   if (eventType === 'm.room.encrypted') {
@@ -837,6 +838,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const pushRoomId: string | undefined = data?.room_id ?? undefined;
   const pushEventId: string | undefined = data?.event_id ?? undefined;
   const isInvite = data?.content?.membership === 'invite';
+  const callNotificationType: string | undefined = data?.callNotificationType ?? undefined;
+  const callIntentKind: string | undefined = data?.callIntentKind ?? undefined;
+  const callIntentRaw: string | undefined = data?.callIntentRaw ?? undefined;
+  const callRefEventId: string | undefined = data?.callRefEventId ?? undefined;
+  const callSenderId: string | undefined = data?.sender_id ?? data?.callSenderId ?? undefined;
+  const callSenderTs: number | undefined =
+    typeof data?.callSenderTs === 'number' ? data.callSenderTs : undefined;
+  const callExpiresAt: number | undefined =
+    typeof data?.callExpiresAt === 'number' ? data.callExpiresAt : undefined;
 
   console.debug('[SW notificationclick] notification data:', JSON.stringify(data, null, 2));
   console.debug('[SW notificationclick] resolved fields:', {
@@ -864,11 +874,25 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     if (pushUserId) u.searchParams.set('uid', pushUserId);
     targetUrl = u.href;
   } else if (pushUserId && pushRoomId) {
-    const callParam = isCall ? '?joinCall=true' : '';
     const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
-    targetUrl = new URL(segments, scope).href;
+      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
+      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`;
+    const target = new URL(segments, scope);
+    if (isCall) {
+      target.searchParams.set('call', '1');
+      if (callNotificationType) target.searchParams.set('callType', callNotificationType);
+      if (callIntentKind) target.searchParams.set('callIntentKind', callIntentKind);
+      if (callIntentRaw) target.searchParams.set('callIntentRaw', callIntentRaw);
+      if (callRefEventId) target.searchParams.set('callRefEventId', callRefEventId);
+      if (callSenderId) target.searchParams.set('callSenderId', callSenderId);
+      if (typeof callSenderTs === 'number') {
+        target.searchParams.set('callSenderTs', String(callSenderTs));
+      }
+      if (typeof callExpiresAt === 'number') {
+        target.searchParams.set('callExpiresAt', String(callExpiresAt));
+      }
+    }
+    targetUrl = target.href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -906,6 +930,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
+            callNotificationType,
+            callIntentKind,
+            callIntentRaw,
+            callRefEventId,
+            callSenderId,
+            callSenderTs,
+            callExpiresAt,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

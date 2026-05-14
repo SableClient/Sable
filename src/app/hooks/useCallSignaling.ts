@@ -22,6 +22,7 @@ import {
   resolveIncomingCallToneUrl,
   resolveOutgoingRingbackToneUrl,
 } from '$features/call/callRingtone';
+import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { getCustomCallRingtone } from '$features/call/callRingtoneStorage';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
@@ -223,8 +224,12 @@ export function useIncomingCallSignaling() {
   }, []);
 
   const clearIncomingCall = useCallback(() => {
+    const activeIncomingCall = incomingCallRef.current;
     stopIncomingRing();
     setIncomingCall(null);
+    if (activeIncomingCall) {
+      void dismissSystemCallNotifications(activeIncomingCall.roomId);
+    }
   }, [setIncomingCall, stopIncomingRing]);
 
   const callAudioAllowed = canPlayCallAudio({
@@ -273,6 +278,13 @@ export function useIncomingCallSignaling() {
       });
 
       if (nextIncomingCall.notificationType === 'ring') {
+        const appVisible = document.visibilityState === 'visible';
+        if (!appVisible) {
+          stopIncomingRing();
+          setCallSoundBlocked(false);
+          return;
+        }
+
         if (!incomingRingtoneAllowed) {
           stopIncomingRing();
           return;

@@ -778,6 +778,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           stripNickname: true,
           nickNameReplacement: nicknameReplacement,
           forEmote: commandName === Command.Me,
+          room,
         })
       );
 
@@ -853,6 +854,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 stripNickname: true,
                 nickNameReplacement: nicknameReplacement,
                 forEmote: commandName === Command.Me,
+                room,
               })
             );
           }

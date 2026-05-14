@@ -1,10 +1,11 @@
 import type { Descendant, Editor } from 'slate';
 import { Text } from 'slate';
-import type { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { sanitizeText } from '$utils/sanitize';
 import { markdownToHtml, injectDataMd } from '$plugins/markdown';
 import { sanitizeForRegex } from '$utils/regex';
-import { isUserId } from '$utils/matrix';
+import { getMxIdLocalPart, isUserId } from '$utils/matrix';
+import { getMemberDisplayName } from '$utils/room';
 import type { CustomElement } from './slate';
 import { BlockType } from './types';
 import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from './utils';
@@ -21,11 +22,30 @@ export type OutputOptions = {
   nickNameReplacement?: Map<RegExp, string>;
   /** When true, markdown HTML omits the leading `<p>` wrapper (for `m.emote` / `/me`). */
   forEmote?: boolean;
+  room?: Room;
 };
 
 const textToCustomHtml = (node: Text): string => sanitizeText(node.text);
 
-const elementToCustomHtml = (node: CustomElement, children: string): string => {
+const markdownInlineLinkLabel = (label: string, fallback: string): string => {
+  const t = label.trim();
+  if (!t) return fallback;
+  if (/[\]\n\r\u0000-\u001f]/.test(t)) return fallback;
+  return t;
+};
+
+const userMentionMarkdownLinkLabel = (userId: string, room: Room | undefined): string => {
+  const fallback = getMxIdLocalPart(userId) ?? userId;
+  if (!room) return fallback;
+  const fromMembership = getMemberDisplayName(room, userId);
+  return markdownInlineLinkLabel(fromMembership ?? '', fallback);
+};
+
+const elementToCustomHtml = (
+  node: CustomElement,
+  children: string,
+  opts: OutputOptions
+): string => {
   switch (node.type) {
     case BlockType.Paragraph:
       return `${children}<br/>`;
@@ -43,6 +63,10 @@ const elementToCustomHtml = (node: CustomElement, children: string): string => {
       const matrixTo = `${MATRIX_TO_BASE}#/${fragment}`;
       if (node.name === '@room') {
         return `[@room](${encodeURI(matrixTo)})`;
+      }
+      if (isUserId(node.id)) {
+        const label = userMentionMarkdownLinkLabel(node.id, opts.room);
+        return `[${label}](${encodeURI(matrixTo)})`;
       }
       return sanitizeText(matrixTo);
     }
@@ -108,7 +132,7 @@ export const toMatrixCustomHTML = (
   const children = node.children
     .map((element, index, array) => parseNode(element, index, array))
     .join('');
-  return elementToCustomHtml(node, children);
+  return elementToCustomHtml(node, children, opts);
 };
 
 const elementToPlainText = (node: CustomElement, children: string): string => {

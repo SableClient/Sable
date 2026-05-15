@@ -129,14 +129,14 @@ export const parseRtcDecline = (
   if (!event.isLiveEvent) return undefined;
   if (event.type !== RTC_DECLINE_EVENT_TYPE) return undefined;
   if (event.sender === options.myUserId) return undefined;
-  if (event.relation?.rel_type !== REFERENCE_REL_TYPE || !event.relation.event_id) {
-    return undefined;
-  }
 
   return {
     roomId: event.roomId,
     declineEventId: event.eventId,
-    notificationEventId: event.relation.event_id,
+    notificationEventId:
+      event.relation?.rel_type === REFERENCE_REL_TYPE && event.relation.event_id
+        ? event.relation.event_id
+        : event.eventId,
     senderId: event.sender,
   };
 };

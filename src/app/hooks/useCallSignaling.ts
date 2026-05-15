@@ -41,6 +41,27 @@ const MAX_NOTIFICATION_LIFETIME_MS = 120_000;
 const DECRYPT_TIMEOUT_MS = 8_000;
 const FALLBACK_INTERVAL_MS = 5_000;
 const OUTGOING_RING_TIMEOUT_MS = 30_000;
+const DECLINE_DEBUG_MAX = 200;
+
+type DeclineDebugEntry = {
+  ts: number;
+  phase: string;
+  roomId?: string;
+  eventId?: string;
+  eventType?: string;
+  encrypted?: boolean;
+  detail?: string;
+};
+
+const pushDeclineDebug = (entry: DeclineDebugEntry): void => {
+  const scope = globalThis as typeof globalThis & {
+    __sableDeclineDebug?: DeclineDebugEntry[];
+  };
+  const queue = scope.__sableDeclineDebug ?? [];
+  queue.push(entry);
+  if (queue.length > DECLINE_DEBUG_MAX) queue.shift();
+  scope.__sableDeclineDebug = queue;
+};
 
 type SessionDescription = Parameters<typeof MatrixRTCSession.sessionMembershipsForRoom>[1];
 type RtcMembership = { userId?: string; sender?: string };
@@ -297,10 +318,30 @@ export function useIncomingCallSignaling() {
       notificationEventId: string;
       senderId: string;
     }) => {
-      if (!callEmbed || callEmbed.roomId !== decline.roomId) return;
+      if (!callEmbed || callEmbed.roomId !== decline.roomId) {
+        pushDeclineDebug({
+          ts: Date.now(),
+          phase: 'handle_skip',
+          roomId: decline.roomId,
+          eventId: decline.declineEventId,
+          eventType: RTC_DECLINE_EVENT_TYPE,
+          detail: 'no_active_embed_for_room',
+        });
+        return;
+      }
 
       const outgoingRoom = mx.getRoom(decline.roomId);
-      if (!outgoingRoom) return;
+      if (!outgoingRoom) {
+        pushDeclineDebug({
+          ts: Date.now(),
+          phase: 'handle_skip',
+          roomId: decline.roomId,
+          eventId: decline.declineEventId,
+          eventType: RTC_DECLINE_EVENT_TYPE,
+          detail: 'missing_room',
+        });
+        return;
+      }
 
       const isDirectRoom = mDirects.has(decline.roomId);
       const remoteJoinedIds = new Set(
@@ -324,8 +365,17 @@ export function useIncomingCallSignaling() {
       const allRemoteDeclined =
         remoteJoinedIds.size > 0 &&
         [...remoteJoinedIds].every((userId) => declineState.declinerIds.has(userId));
+      const treatAsOneToOne = isDirectRoom || remoteJoinedIds.size <= 1;
 
-      if (!isDirectRoom && remoteJoinedIds.size > 0 && !allRemoteDeclined) {
+      if (!treatAsOneToOne && remoteJoinedIds.size > 0 && !allRemoteDeclined) {
+        pushDeclineDebug({
+          ts: Date.now(),
+          phase: 'handle_partial',
+          roomId: decline.roomId,
+          eventId: decline.declineEventId,
+          eventType: RTC_DECLINE_EVENT_TYPE,
+          detail: `${declineState.declinerIds.size}/${remoteJoinedIds.size}`,
+        });
         debugLog.info('call', 'Ignoring partial outgoing decline for group call', {
           roomId: decline.roomId,
           declineEventId: decline.declineEventId,
@@ -338,6 +388,14 @@ export function useIncomingCallSignaling() {
       }
 
       declinedOutgoingRoomIdRef.current = decline.roomId;
+      pushDeclineDebug({
+        ts: Date.now(),
+        phase: 'handle_end',
+        roomId: decline.roomId,
+        eventId: decline.declineEventId,
+        eventType: RTC_DECLINE_EVENT_TYPE,
+        detail: `${declineState.declinerIds.size}/${remoteJoinedIds.size}`,
+      });
       debugLog.info('call', 'Outgoing call declined and ending call', {
         roomId: decline.roomId,
         declineEventId: decline.declineEventId,
@@ -348,11 +406,17 @@ export function useIncomingCallSignaling() {
       Sentry.metrics.count('sable.call.outgoing.declined', 1);
       stopOutgoingRing();
 
-      // Run the same hangup path as the "End call" controls so MatrixRTC membership
-      // is properly cleared before we dispose the embed.
       void callEmbed
         .hangup()
         .catch((error) => {
+          pushDeclineDebug({
+            ts: Date.now(),
+            phase: 'hangup_error',
+            roomId: decline.roomId,
+            eventId: decline.declineEventId,
+            eventType: RTC_DECLINE_EVENT_TYPE,
+            detail: error instanceof Error ? error.message : String(error),
+          });
           debugLog.warn('call', 'Failed to hang up after outgoing decline', {
             roomId: decline.roomId,
             error: error instanceof Error ? error.message : String(error),
@@ -360,7 +424,13 @@ export function useIncomingCallSignaling() {
           Sentry.metrics.count('sable.call.outgoing.decline_hangup_error', 1);
         })
         .finally(() => {
-          // If the widget doesn't close itself after hangup, force cleanup as a fallback.
+          pushDeclineDebug({
+            ts: Date.now(),
+            phase: 'hangup_finally',
+            roomId: decline.roomId,
+            eventId: decline.declineEventId,
+            eventType: RTC_DECLINE_EVENT_TYPE,
+          });
           window.setTimeout(() => {
             const activeEmbed = store.get(callEmbedAtom);
             if (activeEmbed !== callEmbed) return;
@@ -508,23 +578,57 @@ export function useIncomingCallSignaling() {
       room: Room,
       liveEvent: boolean
     ): Promise<ReturnType<typeof parseRtcDecline>> => {
-      const relation = event.getRelation();
-      if (relation?.rel_type !== REFERENCE_REL_TYPE || !relation.event_id) return undefined;
-
+      pushDeclineDebug({
+        ts: Date.now(),
+        phase: 'parse_start',
+        roomId: room.roomId,
+        eventId: event.getId() ?? undefined,
+        eventType: event.getType(),
+        encrypted: event.isEncrypted(),
+      });
       let eventType = event.getType();
       let content = event.getContent();
 
       if (event.isEncrypted()) {
         const decrypted = await decryptWithTimeout(event, mx);
         if (!decrypted?.content || !decrypted.type) {
+          pushDeclineDebug({
+            ts: Date.now(),
+            phase: 'parse_decrypt_fallback',
+            roomId: room.roomId,
+            eventId: event.getId() ?? undefined,
+            eventType: event.getType(),
+            encrypted: event.isEncrypted(),
+            detail: 'decrypt_timeout_or_missing_content',
+          });
           Sentry.metrics.count('sable.call.signal.decrypt_timeout', 1);
-          return undefined;
+        } else {
+          eventType = decrypted.type;
+          content = decrypted.content;
+          pushDeclineDebug({
+            ts: Date.now(),
+            phase: 'parse_decrypted',
+            roomId: room.roomId,
+            eventId: event.getId() ?? undefined,
+            eventType,
+            encrypted: event.isEncrypted(),
+          });
         }
-        eventType = decrypted.type;
-        content = decrypted.content;
       }
 
-      return parseRtcDecline(
+      const relationFromContent = (() => {
+        if (!content || typeof content !== 'object') return undefined;
+        const maybeRelates = (content as { 'm.relates_to'?: unknown })['m.relates_to'];
+        if (!maybeRelates || typeof maybeRelates !== 'object') return undefined;
+        const relation = maybeRelates as { rel_type?: unknown; event_id?: unknown };
+        return {
+          rel_type: typeof relation.rel_type === 'string' ? relation.rel_type : undefined,
+          event_id: typeof relation.event_id === 'string' ? relation.event_id : undefined,
+        };
+      })();
+      const relation = event.getRelation() ?? relationFromContent;
+
+      const parsed = parseRtcDecline(
         {
           type: eventType,
           sender: event.getSender() ?? '',
@@ -532,15 +636,27 @@ export function useIncomingCallSignaling() {
           eventId: event.getId() ?? '',
           originServerTs: event.getTs(),
           content,
-          relation: {
-            rel_type: relation.rel_type,
-            event_id: relation.event_id,
-          },
+          relation: relation
+            ? {
+                rel_type: relation.rel_type,
+                event_id: relation.event_id,
+              }
+            : undefined,
           isLiveEvent: liveEvent,
           isEncrypted: false,
         },
         { myUserId }
       );
+      pushDeclineDebug({
+        ts: Date.now(),
+        phase: parsed ? 'parse_match' : 'parse_skip',
+        roomId: room.roomId,
+        eventId: event.getId() ?? undefined,
+        eventType,
+        encrypted: event.isEncrypted(),
+        detail: parsed ? 'decline_parsed' : 'type_or_sender_mismatch',
+      });
+      return parsed;
     };
 
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = async (
@@ -553,7 +669,7 @@ export function useIncomingCallSignaling() {
       if (!room || !data.liveEvent) return;
 
       const relation = event.getRelation();
-      if (relation?.rel_type !== REFERENCE_REL_TYPE) return;
+      if (relation?.rel_type !== REFERENCE_REL_TYPE && !event.isEncrypted()) return;
 
       const type = event.getType();
       if (
@@ -566,16 +682,46 @@ export function useIncomingCallSignaling() {
       if (event.getSender() === myUserId) return;
       if (!event.getId()) return;
 
-      const decline = await parseDeclineEvent(event, room, data.liveEvent);
-      if (decline) {
-        handleOutgoingDecline(decline);
+      const incoming = await parseEvent(event, room, data.liveEvent);
+      if (incoming) {
+        handleIncomingCall(incoming);
         return;
       }
 
-      const incoming = await parseEvent(event, room, data.liveEvent);
-      if (!incoming) return;
+      // Avoid decrypting unrelated encrypted timeline traffic; only inspect declines
+      // for the currently active outgoing call room.
+      const shouldCheckDecline =
+        !!callEmbed &&
+        callEmbed.roomId === room.roomId &&
+        (event.isEncrypted() || type === RTC_DECLINE_EVENT_TYPE);
+      if (!shouldCheckDecline) {
+        if (event.isEncrypted() || type === RTC_DECLINE_EVENT_TYPE) {
+          pushDeclineDebug({
+            ts: Date.now(),
+            phase: 'timeline_skip',
+            roomId: room.roomId,
+            eventId: event.getId() ?? undefined,
+            eventType: type,
+            encrypted: event.isEncrypted(),
+            detail: `activeRoom=${callEmbed?.roomId ?? 'none'}`,
+          });
+        }
+        return;
+      }
 
-      handleIncomingCall(incoming);
+      const decline = await parseDeclineEvent(event, room, data.liveEvent);
+      if (decline) {
+        pushDeclineDebug({
+          ts: Date.now(),
+          phase: 'timeline_match',
+          roomId: room.roomId,
+          eventId: event.getId() ?? undefined,
+          eventType: type,
+          encrypted: event.isEncrypted(),
+        });
+        handleOutgoingDecline(decline);
+        return;
+      }
     };
 
     const evaluateFallbackState = () => {

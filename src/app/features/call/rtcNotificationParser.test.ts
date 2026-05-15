@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseRtcDecline,
-  parseIncomingRtcNotification,
   RTC_DECLINE_EVENT_TYPE,
+  parseIncomingRtcNotification,
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
   type RtcNotificationEventLike,

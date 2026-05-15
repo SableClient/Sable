@@ -1,5 +1,17 @@
 # Sable Client Changelog
 
+## 1.16.1 (2026-05-15)
+
+### Fixes
+
+* Fix issues related to editing messages with links losing previews or gaining \<> ([#847](<https://github.com/SableClient/Sable/pull/847>) by @7w1)
+* Made markdown headers also function properly with single new lines instead of only two new lines. ([#837](<https://github.com/SableClient/Sable/pull/837>) by @7w1)
+* Fix mentions not being linkfied. ([#837](<https://github.com/SableClient/Sable/pull/837>) by @7w1)
+* Fixed crash when rendering some `m.room.pinned_events` timeline rows (old/malformed pin state edge case). ([#848](<https://github.com/SableClient/Sable/pull/848>) by @7w1)
+* Fixed reply chips for deleted messages and media without captions showing `m.room.message` type instead of the event. ([#846](<https://github.com/SableClient/Sable/pull/846>) by @7w1)
+* Fixed room pings looking like normal message links instead of pings. ([#837](<https://github.com/SableClient/Sable/pull/837>) by @7w1)
+* Properly centered message loading indicators to avoid brief scrollbar shift while loading messages. ([#849](<https://github.com/SableClient/Sable/pull/849>) by @7w1)
+
 ## 1.16.0 (2026-05-14)
 
 ### Features

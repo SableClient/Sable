@@ -156,7 +156,7 @@ const elementToPlainText = (node: CustomElement, children: string): string => {
 };
 
 const SPOILERINPUTREGEX = /\|\|.+?\|\|/g;
-const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
 const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
 const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, 'g');

@@ -32,6 +32,15 @@ describe('getLinks', () => {
     expect(links).toContain('https://example.com');
   });
 
+  it('does not merge link text URL with destination when both are https (edited bare link)', () => {
+    const node: ParagraphElement = {
+      type: BlockType.Paragraph,
+      children: [{ text: '[https://example.com/](https://example.com/)' }],
+    };
+    const links = getLinks([node]);
+    expect(links).toEqual(['https://example.com/']);
+  });
+
   it('excludes URLs inside markdown inline code spans', () => {
     const node: ParagraphElement = {
       type: BlockType.Paragraph,

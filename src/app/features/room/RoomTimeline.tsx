@@ -442,17 +442,23 @@ export function RoomTimeline({
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
-  // Recovery: loadEventTimeline's onError callback restores the live timeline
-  // (setTimeline + scrollToBottom) but never calls setIsReady(true) — only
-  // focusItem does.  Detect the "eventId load failed, fell back to live" state
-  // (eventsLength > 0, liveTimelineLinked, no focusItem) and reveal the timeline
-  // so the room is usable rather than stuck on opacity-0 until a restart.
+  // Recovery: loadEventTimeline's onError callback restores the live timeline but
+  // scrollToBottom fires before the VList has rendered the new events (the list is
+  // still empty at that point), so it returns early and no scroll happens.
+  // Detect the "eventId load failed, fell back to live" state and reveal the
+  // timeline scrolled to the bottom so the room is usable rather than stuck at
+  // opacity-0 or stranded at the top of history.
   useEffect(() => {
     if (!eventId) return;
     if (isReady) return;
     if (timelineSync.eventsLength === 0) return;
     if (timelineSync.focusItem) return;
     if (!timelineSync.liveTimelineLinked) return;
+    // Scroll to the last rendered event before revealing so the VList isn't
+    // shown at position 0 (the start of history) when the user expected to see
+    // recent messages.
+    const lastIdx = processedEventsRef.current.length - 1;
+    if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
     setIsReady(true);
   }, [
     eventId,

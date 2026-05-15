@@ -752,6 +752,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
+
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
@@ -804,7 +805,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               size="300"
               hideTrack
               style={{
-                height: toRem(curHeight),
+                maxHeight: toRem(curHeight),
                 flexShrink: 0,
               }}
             >

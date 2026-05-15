@@ -19,26 +19,27 @@ import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
-import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
+import { useShowPerRoomRoomIcon } from '$hooks/useShowRoomIcon';
 import { useSetting } from '$state/hooks/settings';
 import type { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
 
-function SelectShowRoomIcon({roomId}: {roomId: string}) {
+export function SelectShowPerRoomRoomIcon({roomId}: {roomId: string}) {
   const [menuCords, setMenuCords] = useState<RectCords>();
-  const showRoomIconItems = useShowRoomIcon();
+  const showRoomIconItems = useShowPerRoomRoomIcon();
   const [showRoomIconArray, setShowRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
   const showRoomIcon = showRoomIconArray.find(item => item.roomId === roomId )?.display;
-  
+
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
   };
 
-  const handleSelect = (position: ShowRoomIcon) => {
-    const CleanedShowRoomIconArray = showRoomIconArray.filter(item => item.roomId !== roomId );
-    const newShowRoomIconArray = [...CleanedShowRoomIconArray, {roomId, display: position}]
+  const handleSelect = (position?: ShowRoomIcon) => {
+    let newShowRoomIconArray = showRoomIconArray.filter(item => item.roomId !== roomId );
+    if(position)
+      newShowRoomIconArray = [...newShowRoomIconArray, {roomId, display: position}]
     setShowRoomIconArray(newShowRoomIconArray);
     setMenuCords(undefined);
   };
@@ -134,7 +135,7 @@ export function Appearance({ requestClose }: AppearanceProps) {
                   <SettingTile
                     title="Show Room Icons In Sidebar"
                     description="When do you want to show the specific room icons in the sidebar within this space?"
-                    after={<SelectShowRoomIcon roomId={room.roomId}/>}
+                    after={<SelectShowPerRoomRoomIcon roomId={room.roomId}/>}
                   />
                 </SequenceCard>
               </Box>

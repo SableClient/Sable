@@ -38,6 +38,7 @@ import FocusTrap from 'focus-trap-react';
 import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
 import type { PanelSizetItem } from '$hooks/usePanelSizes';
 import { usePanelSizeItems } from '$hooks/usePanelSizes';
+import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
 
 const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
 
@@ -717,7 +718,8 @@ function SelectShowRoomIcon() {
     setMenuCords(evt.currentTarget.getBoundingClientRect());
   };
 
-  const handleSelect = (position: ShowRoomIcon) => {
+  const handleSelect = (position?: ShowRoomIcon) => {
+    if(!position) return;
     setShowRoomIcon(position);
     setMenuCords(undefined);
   };
@@ -872,6 +874,16 @@ export function Appearance({
                 focusId="show-room-icons"
                 description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
                 after={<SelectShowRoomIcon />}
+              />
+            </SequenceCard>
+            {/*THIS SHOULD BE MOVED TO A NEW SETTINGS MENU INSIDE OF THE HOME SETTINGS AS SOON AS THERE IS A REASON TO CREATE A HOME MENU SETTINGS PANEL
+              it is currently here because it would be eerie to have an entire home settings menu for just one single setting*/}
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons In Home menu sidebar"
+                focusId="show-room-home-icons"
+                description="Show Room icons in the home menu? (overrides setting above if set)"
+                after={<SelectShowPerRoomRoomIcon roomId={'Home'} />}
               />
             </SequenceCard>
 

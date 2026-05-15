@@ -520,21 +520,18 @@ export function Space() {
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
-
-  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
-  // oxlint-disable-next-line no-console
-  console.log(showRoomIconArray, space.roomId);
-
-  const showIcons = () => {
-    if (showRoomIconGeneral === ShowRoomIcon.Always) return true;
-    if (showRoomIconGeneral === ShowRoomIcon.Never) return false;
-    return curWidth < 144;
-  };
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+
+  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
+  const showRoomIcon = showRoomIconArray.find(item => item.roomId === space.roomId )?.display ?? showRoomIconGeneral;
+  const showIcons = () => {
+    if (showRoomIcon === ShowRoomIcon.Always) return true;
+    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    return curWidth < 144;
+  };
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);

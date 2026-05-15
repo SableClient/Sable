@@ -1060,6 +1060,9 @@ export function useTimelineEventRenderer({
         const pinsRemoved =
           (prevPinned && pinned && prevPinned.filter((x: string) => !pinned.includes(x))) || [];
 
+        const pinPreviewIds = (pinsAdded ?? []).concat(...(pinsRemoved ?? []));
+        const pinnedSet = new Set(pinned ?? []);
+
         const timeJSX = (
           <Time
             ts={mEvent.getTs()}
@@ -1104,28 +1107,22 @@ export function useTimelineEventRenderer({
                       `has not changed the pins`) ||
                       `:`}
                   </Text>
-                  {(pinsAdded || pinsRemoved) &&
-                    pinsAdded
-                      .concat(...pinsRemoved)
-                      .slice(0, 4)
-                      .map((x: string) => (
-                        <Reply
-                          key={x}
-                          style={{ opacity: '80%' }}
-                          room={room}
-                          replyEventId={x}
-                          onClick={handleOpenReply}
-                          replyIcon={
-                            <>
-                              <Icon size="100" src={Icons.Pin} />
-                              <Icon
-                                size="100"
-                                src={pinned.includes(x) ? Icons.Plus : Icons.Minus}
-                              />
-                            </>
-                          }
-                        />
-                      ))}
+                  {pinPreviewIds.length > 0 &&
+                    pinPreviewIds.slice(0, 4).map((x: string) => (
+                      <Reply
+                        key={x}
+                        style={{ opacity: '80%' }}
+                        room={room}
+                        replyEventId={x}
+                        onClick={handleOpenReply}
+                        replyIcon={
+                          <>
+                            <Icon size="100" src={Icons.Pin} />
+                            <Icon size="100" src={pinnedSet.has(x) ? Icons.Plus : Icons.Minus} />
+                          </>
+                        }
+                      />
+                    ))}
                 </Box>
               }
             />

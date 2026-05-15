@@ -1,4 +1,5 @@
 export const RTC_NOTIFICATION_EVENT_TYPE = 'org.matrix.msc4075.rtc.notification';
+export const RTC_DECLINE_EVENT_TYPE = 'org.matrix.msc4310.rtc.decline';
 export const REFERENCE_REL_TYPE = 'm.reference';
 
 export type NotificationType = 'ring' | 'notification';
@@ -49,6 +50,13 @@ export type ParsedIncomingRtcNotification = {
   notificationType: NotificationType;
   intentKind: NotificationIntentKind;
   intentRaw?: string;
+};
+
+export type ParsedRtcDecline = {
+  roomId: string;
+  declineEventId: string;
+  notificationEventId: string;
+  senderId: string;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -111,5 +119,24 @@ export const parseIncomingRtcNotification = async (
     notificationType,
     intentKind: normalizeIntentKind(intentRaw),
     intentRaw,
+  };
+};
+
+export const parseRtcDecline = (
+  event: RtcNotificationEventLike,
+  options: Pick<ParseIncomingRtcNotificationOptions, 'myUserId'>
+): ParsedRtcDecline | undefined => {
+  if (!event.isLiveEvent) return undefined;
+  if (event.type !== RTC_DECLINE_EVENT_TYPE) return undefined;
+  if (event.sender === options.myUserId) return undefined;
+  if (event.relation?.rel_type !== REFERENCE_REL_TYPE || !event.relation.event_id) {
+    return undefined;
+  }
+
+  return {
+    roomId: event.roomId,
+    declineEventId: event.eventId,
+    notificationEventId: event.relation.event_id,
+    senderId: event.sender,
   };
 };

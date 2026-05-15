@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseRtcDecline,
   parseIncomingRtcNotification,
+  RTC_DECLINE_EVENT_TYPE,
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
   type RtcNotificationEventLike,
@@ -203,5 +205,54 @@ describe('parseIncomingRtcNotification', () => {
 
     expect(audio?.intentKind).toBe('audio');
     expect(video?.intentKind).toBe('video');
+  });
+});
+
+describe('parseRtcDecline', () => {
+  it('parses a live remote decline referencing a notification event', () => {
+    const parsed = parseRtcDecline(
+      createEvent({
+        type: RTC_DECLINE_EVENT_TYPE,
+        eventId: '$decline',
+        content: {},
+        relation: {
+          rel_type: REFERENCE_REL_TYPE,
+          event_id: '$notif',
+        },
+      }),
+      { myUserId: '@self:example.org' }
+    );
+
+    expect(parsed).toEqual({
+      roomId: '!room:example.org',
+      declineEventId: '$decline',
+      notificationEventId: '$notif',
+      senderId: '@caller:example.org',
+    });
+  });
+
+  it('ignores self-sent declines and declines without reference relations', () => {
+    expect(
+      parseRtcDecline(
+        createEvent({
+          type: RTC_DECLINE_EVENT_TYPE,
+          sender: '@self:example.org',
+        }),
+        { myUserId: '@self:example.org' }
+      )
+    ).toBeUndefined();
+
+    expect(
+      parseRtcDecline(
+        createEvent({
+          type: RTC_DECLINE_EVENT_TYPE,
+          relation: {
+            rel_type: 'm.thread',
+            event_id: '$notif',
+          },
+        }),
+        { myUserId: '@self:example.org' }
+      )
+    ).toBeUndefined();
   });
 });

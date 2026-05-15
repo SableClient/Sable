@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import type { RoomEventHandlerMap, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import {
   type CryptoBackend,
@@ -18,7 +18,9 @@ import {
 } from '$state/callEmbed';
 import { settingsAtom } from '$state/settings';
 import {
+  parseRtcDecline,
   parseIncomingRtcNotification,
+  RTC_DECLINE_EVENT_TYPE,
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
 } from '$features/call/rtcNotificationParser';
@@ -146,6 +148,7 @@ const canSenderStartCalls = (room: Room, senderId: string): boolean =>
 
 export function useIncomingCallSignaling() {
   const mx = useMatrixClient();
+  const store = useStore();
   const callEmbed = useAtomValue(callEmbedAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const settings = useAtomValue(settingsAtom);
@@ -154,6 +157,7 @@ export function useIncomingCallSignaling() {
   const setIncomingCall = useSetAtom(incomingCallAtom);
   const setMutedRoomId = useSetAtom(mutedCallRoomIdAtom);
   const setCallSoundBlocked = useSetAtom(callSoundBlockedAtom);
+  const setCallEmbed = useSetAtom(callEmbedAtom);
 
   const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
   const outgoingAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -161,10 +165,19 @@ export function useIncomingCallSignaling() {
   const mutedRoomIdRef = useRef<string | null>(mutedRoomId);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
   const outgoingRingRoomIdRef = useRef<string | null>(null);
+  const declinedOutgoingRoomIdRef = useRef<string | null>(null);
+  const outgoingDeclinesRef = useRef<
+    Map<string, { notificationEventId: string; declinerIds: Set<string> }>
+  >(new Map());
   const outgoingStartRef = useRef<number | null>(null);
 
   incomingCallRef.current = incomingCall;
   mutedRoomIdRef.current = mutedRoomId;
+
+  useEffect(() => {
+    declinedOutgoingRoomIdRef.current = null;
+    outgoingDeclinesRef.current.clear();
+  }, [callEmbed]);
 
   useEffect(() => {
     const incoming = new Audio();
@@ -276,6 +289,87 @@ export function useIncomingCallSignaling() {
       void dismissSystemCallNotifications(activeIncomingCall.roomId);
     }
   }, [setIncomingCall, stopIncomingRing]);
+
+  const handleOutgoingDecline = useCallback(
+    (decline: {
+      roomId: string;
+      declineEventId: string;
+      notificationEventId: string;
+      senderId: string;
+    }) => {
+      if (!callEmbed || callEmbed.roomId !== decline.roomId) return;
+
+      const outgoingRoom = mx.getRoom(decline.roomId);
+      if (!outgoingRoom) return;
+
+      const isDirectRoom = mDirects.has(decline.roomId);
+      const remoteJoinedIds = new Set(
+        outgoingRoom
+          .getJoinedMembers()
+          .map((member) => member.userId)
+          .filter((userId) => userId !== mx.getSafeUserId())
+      );
+
+      const trackedDecline = outgoingDeclinesRef.current.get(decline.roomId);
+      const declineState =
+        trackedDecline && trackedDecline.notificationEventId === decline.notificationEventId
+          ? trackedDecline
+          : {
+              notificationEventId: decline.notificationEventId,
+              declinerIds: new Set<string>(),
+            };
+      declineState.declinerIds.add(decline.senderId);
+      outgoingDeclinesRef.current.set(decline.roomId, declineState);
+
+      const allRemoteDeclined =
+        remoteJoinedIds.size > 0 &&
+        [...remoteJoinedIds].every((userId) => declineState.declinerIds.has(userId));
+
+      if (!isDirectRoom && remoteJoinedIds.size > 0 && !allRemoteDeclined) {
+        debugLog.info('call', 'Ignoring partial outgoing decline for group call', {
+          roomId: decline.roomId,
+          declineEventId: decline.declineEventId,
+          notificationEventId: decline.notificationEventId,
+          declinedCount: declineState.declinerIds.size,
+          targetCount: remoteJoinedIds.size,
+        });
+        Sentry.metrics.count('sable.call.outgoing.declined.partial', 1);
+        return;
+      }
+
+      declinedOutgoingRoomIdRef.current = decline.roomId;
+      debugLog.info('call', 'Outgoing call declined and ending call', {
+        roomId: decline.roomId,
+        declineEventId: decline.declineEventId,
+        notificationEventId: decline.notificationEventId,
+        declinedCount: declineState.declinerIds.size,
+        targetCount: remoteJoinedIds.size,
+      });
+      Sentry.metrics.count('sable.call.outgoing.declined', 1);
+      stopOutgoingRing();
+
+      // Run the same hangup path as the "End call" controls so MatrixRTC membership
+      // is properly cleared before we dispose the embed.
+      void callEmbed
+        .hangup()
+        .catch((error) => {
+          debugLog.warn('call', 'Failed to hang up after outgoing decline', {
+            roomId: decline.roomId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          Sentry.metrics.count('sable.call.outgoing.decline_hangup_error', 1);
+        })
+        .finally(() => {
+          // If the widget doesn't close itself after hangup, force cleanup as a fallback.
+          window.setTimeout(() => {
+            const activeEmbed = store.get(callEmbedAtom);
+            if (activeEmbed !== callEmbed) return;
+            setCallEmbed(undefined);
+          }, 2_000);
+        });
+    },
+    [callEmbed, mDirects, mx, setCallEmbed, stopOutgoingRing, store]
+  );
 
   const callAudioAllowed = canPlayCallAudio({
     isNotificationSounds: settings.isNotificationSounds,
@@ -409,6 +503,46 @@ export function useIncomingCallSignaling() {
       };
     };
 
+    const parseDeclineEvent = async (
+      event: MatrixEvent,
+      room: Room,
+      liveEvent: boolean
+    ): Promise<ReturnType<typeof parseRtcDecline>> => {
+      const relation = event.getRelation();
+      if (relation?.rel_type !== REFERENCE_REL_TYPE || !relation.event_id) return undefined;
+
+      let eventType = event.getType();
+      let content = event.getContent();
+
+      if (event.isEncrypted()) {
+        const decrypted = await decryptWithTimeout(event, mx);
+        if (!decrypted?.content || !decrypted.type) {
+          Sentry.metrics.count('sable.call.signal.decrypt_timeout', 1);
+          return undefined;
+        }
+        eventType = decrypted.type;
+        content = decrypted.content;
+      }
+
+      return parseRtcDecline(
+        {
+          type: eventType,
+          sender: event.getSender() ?? '',
+          roomId: room.roomId,
+          eventId: event.getId() ?? '',
+          originServerTs: event.getTs(),
+          content,
+          relation: {
+            rel_type: relation.rel_type,
+            event_id: relation.event_id,
+          },
+          isLiveEvent: liveEvent,
+          isEncrypted: false,
+        },
+        { myUserId }
+      );
+    };
+
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = async (
       event,
       room,
@@ -422,9 +556,21 @@ export function useIncomingCallSignaling() {
       if (relation?.rel_type !== REFERENCE_REL_TYPE) return;
 
       const type = event.getType();
-      if (type !== RTC_NOTIFICATION_EVENT_TYPE && !event.isEncrypted()) return;
+      if (
+        type !== RTC_NOTIFICATION_EVENT_TYPE &&
+        type !== RTC_DECLINE_EVENT_TYPE &&
+        !event.isEncrypted()
+      ) {
+        return;
+      }
       if (event.getSender() === myUserId) return;
       if (!event.getId()) return;
+
+      const decline = await parseDeclineEvent(event, room, data.liveEvent);
+      if (decline) {
+        handleOutgoingDecline(decline);
+        return;
+      }
 
       const incoming = await parseEvent(event, room, data.liveEvent);
       if (!incoming) return;
@@ -470,6 +616,10 @@ export function useIncomingCallSignaling() {
 
       const activeCallRoomId = callEmbed?.roomId;
       if (!activeCallRoomId || !outgoingRingbackAllowed) {
+        stopOutgoingRing();
+        return;
+      }
+      if (declinedOutgoingRoomIdRef.current === activeCallRoomId) {
         stopOutgoingRing();
         return;
       }
@@ -536,6 +686,7 @@ export function useIncomingCallSignaling() {
     mDirects,
     outgoingRingbackAllowed,
     handleIncomingCall,
+    handleOutgoingDecline,
     clearIncomingCall,
     stopIncomingRing,
     stopOutgoingRing,

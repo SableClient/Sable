@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CallSoundSettings } from './CallSoundSettings';
 
 vi.mock('$state/settings', () => ({
+  CALL_TONE_IDS: ['sable-default', 'classic-soft', 'minimal-ping', 'silent', 'custom'],
   settingsAtom: {},
 }));
 

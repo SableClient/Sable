@@ -877,18 +877,16 @@ function PresenceFeature() {
     // - MSC4186 servers that have no presence extension see this immediately.
     // - When 'offline' (Invisible mode), we appear offline to others but still receive
     //   their presence events because the extension is still enabled above.
+    // Optimistically update own presence in the local SDK store so the member list
+    // badge and status editor reflect the change immediately. MSC4186 servers never
+    // echo own presence back, so we can't rely on the server round-trip for this.
+    getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
     mx.setPresence({
       presence: effectiveState,
       status_msg: effectiveStatusMsg,
-    })
-      .then(() => {
-        // MSC4186 servers don't echo own presence back; synthesize the update locally so
-        // useUserPresence(myUserId) stays accurate (e.g. own badge in member list).
-        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
-      })
-      .catch(() => {
-        // Server doesn't support presence — ignore.
-      });
+    }).catch(() => {
+      // Server doesn't support presence — ignore.
+    });
   }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
 
   return null;

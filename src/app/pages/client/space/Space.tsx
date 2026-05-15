@@ -372,7 +372,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       </div>
       {hasBanner && (
         <>
-          <div className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
+          <Box shrink="No" className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
             <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
               <img
                 className={css.RoomCoverImage}
@@ -401,7 +401,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 topSided
               />
             </ClientSideHoverFreeze>
-          </div>
+          </Box>
         </>
       )}
       {hasBanner && bannerViewerOpen && (
@@ -521,10 +521,15 @@ export function Space() {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
 
-  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
+
+  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
+  // oxlint-disable-next-line no-console
+  console.log(showRoomIconArray, space.roomId);
+
   const showIcons = () => {
-    if (showRoomIcon === ShowRoomIcon.Always) return true;
-    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    if (showRoomIconGeneral === ShowRoomIcon.Always) return true;
+    if (showRoomIconGeneral === ShowRoomIcon.Never) return false;
     return curWidth < 144;
   };
   useEffect(() => {

@@ -28,6 +28,11 @@ export enum ShowRoomIcon {
   Smart = 'smart',
   Never = 'never',
 }
+export type PerRoomShowRoomIcon = {
+  roomId: string;
+  display: ShowRoomIcon;
+};
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -160,6 +165,7 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
@@ -292,6 +298,7 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+  perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
   showRoomBanners: true,
   roomSidebarWidth: 256,

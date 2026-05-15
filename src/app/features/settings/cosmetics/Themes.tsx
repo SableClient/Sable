@@ -868,7 +868,7 @@ export function Appearance({
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
-                title="Show Room Icons"
+                title="Show Room Icons In Sidebars"
                 focusId="show-room-icons"
                 description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
                 after={<SelectShowRoomIcon />}

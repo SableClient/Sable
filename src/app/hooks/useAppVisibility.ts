@@ -59,19 +59,57 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
   useEffect(() => {
     if (!mx) return undefined;
 
-    const handleForeground = () => {
-      if (document.visibilityState !== 'visible') return;
+    const doRetry = () => {
       // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
       // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
       // slidingSync.resend() which aborts any stalled request and retries without backoff.
       mx.retryImmediately();
       getSlidingSyncManager(mx)?.retryNow();
+    };
+
+    const handleForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      doRetry();
       debugLog.info('general', 'App foregrounded — sync retry triggered');
+
+      if (!mobileOrTablet()) return;
+      // On iOS the network layer is not always immediately available when
+      // visibilitychange fires after a background suspension. Schedule
+      // fallback retries so the sync recovers once networking is ready.
+      // Each timer is cancelled if the app goes back to background first.
+      const t1 = setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          doRetry();
+          debugLog.info('general', 'App foregrounded — sync retry (1.5 s fallback)');
+        }
+      }, 1500);
+      const t2 = setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          doRetry();
+          debugLog.info('general', 'App foregrounded — sync retry (5 s fallback)');
+        }
+      }, 5000);
+      const cancelOnHide = () => {
+        if (document.visibilityState === 'visible') return;
+        clearTimeout(t1);
+        clearTimeout(t2);
+        document.removeEventListener('visibilitychange', cancelOnHide);
+      };
+      document.addEventListener('visibilitychange', cancelOnHide);
+    };
+
+    // pageshow fires when the page is restored from the browser's back-forward
+    // cache (bfcache). On some iOS versions the PWA can be restored from bfcache
+    // without a visibilitychange event, so this acts as an extra safety net.
+    const handlePageShow = (ev: PageTransitionEvent) => {
+      if (ev.persisted) handleForeground();
     };
 
     document.addEventListener('visibilitychange', handleForeground);
+    window.addEventListener('pageshow', handlePageShow);
     return () => {
       document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [mx]);
 }

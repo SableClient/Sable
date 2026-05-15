@@ -720,12 +720,6 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      backPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
 
@@ -752,14 +746,19 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      frontPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
+
+  const showBackPaginationSpinner =
+    timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const showFrontPaginationSpinner =
+    timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const timelineBottomFloatLift =
+    !atBottomState && isReady ? { bottom: `calc(${config.space.S400} + ${toRem(52)})` } : undefined;
+  const timelineTopFloatLift =
+    unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady
+      ? { top: `calc(${config.space.S400} + ${toRem(52)})` }
+      : undefined;
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
@@ -1009,7 +1008,23 @@ export function RoomTimeline({
         </VList>
       </div>
 
-      {frontPaginationJSX}
+      {showBackPaginationSpinner && (
+        <TimelineFloat position="Top" style={timelineTopFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {showFrontPaginationSpinner && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {frontPaginationJSX && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          {frontPaginationJSX}
+        </TimelineFloat>
+      )}
 
       {!atBottomState && isReady && (
         <TimelineFloat position="Bottom">

@@ -719,7 +719,7 @@ function SelectShowRoomIcon() {
   };
 
   const handleSelect = (position?: ShowRoomIcon) => {
-    if(!position) return;
+    if (!position) return;
     setShowRoomIcon(position);
     setMenuCords(undefined);
   };

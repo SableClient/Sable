@@ -527,6 +527,8 @@ export function Space() {
   const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
   const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
   const showRoomIcon = showRoomIconArray.find(item => item.roomId === space.roomId )?.display ?? showRoomIconGeneral;
+  // oxlint-disable-next-line no-console
+  console.log(showRoomIconArray, space.roomId);
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;

@@ -1,6 +1,6 @@
 // The disable is because the position should only update whenever the new one is updated
 // oxlint-disable eslint-plugin-react-hooks/exhaustive-deps
-import { Box, toRem } from 'folds';
+import { Box } from 'folds';
 import * as css from '$pages/client/sidebar/SidebarResizer.css';
 import type { Dispatch, SetStateAction } from 'react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -64,6 +64,7 @@ export function SidebarResizer({
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
       setOldPos(topSided ? e.clientY : e.clientX);
       setIsPointerDown(true);
       window.addEventListener('pointerup', onPointerUp);
@@ -80,14 +81,10 @@ export function SidebarResizer({
 
   return (
     <Box
-      className={`${css.SidebarResizer} ${dockClass} ${isPointerOver || isPointerDown ? css.SidebarResizerHover : ''}`}
+      className={`${css.SidebarResizer({ topSided: !!topSided })} ${dockClass} ${isPointerOver || isPointerDown ? css.SidebarResizerHover : ''}`}
       onPointerEnter={() => setIsPointerOver(true)}
       onPointerLeave={() => setIsPointerOver(false)}
       onPointerDown={onPointerDown}
-      style={{
-        width: topSided ? '100%' : toRem(4),
-        height: topSided ? toRem(4) : '100%',
-      }}
       shrink="No"
     >
       <Box

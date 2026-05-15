@@ -4,6 +4,7 @@ import { type MatrixClient, UserEvent, type UserEventHandlerMap } from '$types/m
 import { presenceAutoIdledAtom } from '$state/settings';
 import { appEvents } from '$utils/appEvents';
 import { createDebugLogger } from '$utils/debugLogger';
+import { mobileOrTablet } from '$utils/user-agent';
 
 const debugLog = createDebugLogger('PresenceAutoIdle');
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'] as const;
@@ -55,7 +56,14 @@ export function usePresenceAutoIdle(
       setAutoIdled(true);
     };
 
-    const handleActivity = () => {
+    const handleActivity = (event?: Event) => {
+      // On desktop, cursor movement over the window fires mousemove even when
+      // the window does not have OS focus (e.g. the user is working in another
+      // app). Treat those as non-events so the idle timer can run to completion
+      // without the user having to keep their hands off the mouse entirely.
+      if (!mobileOrTablet() && event?.type === 'mousemove' && !document.hasFocus()) {
+        return;
+      }
       clearTimer();
       if (autoIdledRef.current) {
         debugLog.info('general', 'Activity detected — clearing auto-idle');

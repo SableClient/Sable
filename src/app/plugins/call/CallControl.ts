@@ -193,7 +193,8 @@ export class CallControl extends EventEmitter implements CallControlState {
       | ((this: AudioContext) => Promise<void>)
       | undefined;
     if (typeof originalResumeImpl !== 'function') return;
-    const originalResume = (context: AudioContext): Promise<void> => originalResumeImpl.call(context);
+    const originalResume = (context: AudioContext): Promise<void> =>
+      originalResumeImpl.call(context);
     const trackedContexts = this.trackedAudioContexts;
     const isOverrideMuted = () => this.outputOverrideMuted;
     originalCtor.prototype.resume = function patchedResume(this: AudioContext) {

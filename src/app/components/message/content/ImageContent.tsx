@@ -142,21 +142,24 @@ export const ImageContent = as<'div', ImageContentProps>(
     );
 
     useEffect(() => {
-      let cancelled = false;
       if (!viewer) {
         setViewerFullSrc(null);
-      } else if (
-        typeof matrixThumbnailMaxEdge === 'number' &&
-        matrixThumbnailMaxEdge > 0 &&
-        !encInfo &&
-        !url.startsWith('http')
-      ) {
-        void (async () => {
-          const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-          if (!mediaUrl || cancelled) return;
-          setViewerFullSrc(mediaUrl);
-        })();
+        return undefined;
       }
+      if (
+        typeof matrixThumbnailMaxEdge !== 'number' ||
+        matrixThumbnailMaxEdge <= 0 ||
+        encInfo ||
+        url.startsWith('http')
+      ) {
+        return undefined;
+      }
+      let cancelled = false;
+      void (async () => {
+        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        if (!mediaUrl || cancelled) return;
+        setViewerFullSrc(mediaUrl);
+      })();
       return () => {
         cancelled = true;
       };
@@ -179,7 +182,9 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
 
-    const hasDimensions = typeof info?.w === 'number' && typeof info?.h === 'number';
+    const imageW = info?.w;
+    const imageH = info?.h;
+    const hasDimensions = typeof imageW === 'number' && typeof imageH === 'number';
     const isContained = mediaLayout === 'contained';
     const fillsSlot = Boolean(fillsPreviewSlot && isContained);
     const containedReserveStrip =
@@ -192,14 +197,12 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     const rootClass = isContained ? css.ContainedMediaRoot : css.RelativeBase;
     const stripMin = containedStripMinPx ?? 56;
-    const imageWidth = info?.w;
-    const imageHeight = info?.h;
     const intrinsicSizingStyle = fillsSlot
       ? {}
       : isContained
         ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
         : hasDimensions
-          ? { aspectRatio: `${imageWidth} / ${imageHeight}` }
+          ? { aspectRatio: `${imageW} / ${imageH}` }
           : { minHeight: '150px' };
 
     const fillPreviewSlotStyle = fillsSlot

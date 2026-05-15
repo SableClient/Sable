@@ -44,7 +44,7 @@ import { createUploadAtom } from '$state/upload';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
-import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { type RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useStateEvent } from '$hooks/useStateEvent';
@@ -310,13 +310,18 @@ export function RoomProfileEdit({
 }
 
 export type ProfileProps = {
+  permissions: RoomPermissionsAPI;
   bannerURI?: string;
 };
-function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
+function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
   const mx = useMatrixClient();
   const [alertRemove, setAlertRemove] = useState(false);
 
   const space = useRoom();
+
+  const userId = mx.getUserId() ?? '';
+  const canEdit = permissions.stateEvent(CustomStateEvent.RoomAbbreviations, userId);
+
   const [stagedUrl, setStagedUrl] = useState<string>();
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -420,6 +425,7 @@ function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
               fill="Soft"
               outlined
               radii="300"
+              disabled={!canEdit}
             >
               <Text size="B300">{bannerUrl ? 'Change Banner' : 'Upload Banner'}</Text>
             </Button>
@@ -430,6 +436,7 @@ function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
                 fill="None"
                 radii="300"
                 onClick={() => setAlertRemove(true)}
+                disabled={!canEdit}
               >
                 <Text size="B300">Remove</Text>
               </Button>
@@ -466,7 +473,7 @@ function RoomBannerEdit({ bannerURI }: Readonly<ProfileProps>) {
               </Header>
               <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
                 <Text priority="400">Are you sure you want to remove profile banner?</Text>
-                <Button variant="Critical" onClick={handleRemoveBanner}>
+                <Button variant="Critical" onClick={handleRemoveBanner} disabled={!canEdit}>
                   <Text size="B400">Remove</Text>
                 </Button>
               </Box>
@@ -585,8 +592,9 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
           variant="SurfaceVariant"
           direction="Column"
           gap="400"
+          disabled={!canEdit}
         >
-          <RoomBannerEdit bannerURI={bannerURI ?? undefined} />
+          <RoomBannerEdit permissions={permissions} bannerURI={bannerURI ?? undefined} />
         </SequenceCard>
       )}
     </Box>

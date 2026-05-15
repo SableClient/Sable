@@ -223,22 +223,19 @@ export const RoomCard = as<'div', RoomCardProps>(
     const [viewTopic, setViewTopic] = useState(false);
     const closeTopic = () => setViewTopic(false);
     const openTopic = () => setViewTopic(true);
-    if (!bannerURI && !avatar)
-      // oxlint-disable-next-line no-console
-      console.log(bannerURI, avatar, roomIdOrAlias);
     return (
       <RoomCardBase {...props} ref={ref}>
-        <Box style={{ height: toRem(120) }} direction='Column'>
+        <Box style={{ height: toRem(120) }} direction="Column">
           {!bannerURI && !avatar ? (
             <span
-              className={css.RoomCardBanner({trueBanner: false})}
+              className={css.RoomCardBanner({ trueBanner: false })}
               style={{
                 backgroundColor: colorMXID(roomIdOrAlias),
               }}
             />
           ) : (
             <img
-              className={css.RoomCardBanner({trueBanner: !!bannerURI})}
+              className={css.RoomCardBanner({ trueBanner: !!bannerURI })}
               src={bannerURI ? bannerURI : (avatar ?? undefined)}
               alt={`${name} cover`}
               draggable="false"

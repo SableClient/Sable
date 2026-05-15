@@ -52,7 +52,7 @@ export const RoomCardBanner = recipe({
     trueBanner: {
       true: {},
       false: {
-        filter: 'blur(40px)',
+        filter: 'blur(10px)',
       },
     },
   },

@@ -483,9 +483,10 @@ export class SlidingSyncManager {
           syncNumber: this.syncCount,
         });
       } else {
-        debugLog.info('network', 'Device back online - sync will resume', {
+        debugLog.info('network', 'Device back online - triggering immediate resync', {
           syncNumber: this.syncCount,
         });
+        this.slidingSync.resend();
       }
     };
   }
@@ -572,6 +573,15 @@ export class SlidingSyncManager {
     debugLog.info('sync', 'Sliding sync disposed successfully', {
       totalSyncCycles: this.syncCount,
     });
+  }
+
+  /**
+   * Abort any in-flight sliding sync request and retry immediately.
+   * Safe to call at any time; if the sync is healthy the next poll just fires sooner.
+   */
+  public retryNow(): void {
+    if (this.disposed) return;
+    this.slidingSync.resend();
   }
 
   public setPresenceEnabled(enabled: boolean): void {

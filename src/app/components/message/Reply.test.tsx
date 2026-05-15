@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Reply } from './Reply';
+import { EventType, MsgType } from '$types/matrix-sdk';
+import { Reply, replyPreviewBodyForTimelineEvent } from './Reply';
 
 /* oxlint-disable typescript/no-explicit-any */
 
@@ -91,7 +92,94 @@ const createReplyEvent = (formattedBody: string) =>
     getClearContent: () => ({}),
   }) as any;
 
+describe('replyPreviewBodyForTimelineEvent', () => {
+  it('uses filename for image messages with an empty body', () => {
+    const { container } = render(
+      <span>
+        {replyPreviewBodyForTimelineEvent(
+          EventType.RoomMessage as string,
+          {
+            msgtype: MsgType.Image,
+            body: '',
+            filename: 'vacation.png',
+          },
+          false
+        )}
+      </span>
+    );
+    expect(container).toHaveTextContent('vacation.png');
+  });
+
+  it('falls back to Image when an image message has no body or filename', () => {
+    const { container } = render(
+      <span>
+        {replyPreviewBodyForTimelineEvent(
+          EventType.RoomMessage as string,
+          {
+            msgtype: MsgType.Image,
+            body: '',
+          },
+          false
+        )}
+      </span>
+    );
+    expect(container).toHaveTextContent('Image');
+  });
+
+  it('renders deleted content for redacted timeline messages', () => {
+    render(
+      <span>
+        {replyPreviewBodyForTimelineEvent(
+          EventType.RoomMessage as string,
+          { msgtype: MsgType.Text },
+          true
+        )}
+      </span>
+    );
+    expect(screen.getByText(/This message has been deleted/i)).toBeInTheDocument();
+  });
+
+  it('shows Sticker when a sticker event has no body', () => {
+    const { container } = render(
+      <span>
+        {replyPreviewBodyForTimelineEvent(EventType.Sticker as string, { body: '' }, false)}
+      </span>
+    );
+    expect(container).toHaveTextContent('Sticker');
+  });
+});
+
+const createImageReplyEvent = (filename?: string) =>
+  ({
+    getContent: () => ({
+      msgtype: MsgType.Image,
+      body: '',
+      ...(filename !== undefined ? { filename } : {}),
+    }),
+    getSender: () => '@alice:example.com',
+    getType: () => EventType.RoomMessage,
+    isRedacted: () => false,
+    isEncrypted: () => false,
+    isDecryptionFailure: () => false,
+    getClearContent: () => ({ msgtype: MsgType.Image }),
+    isState: () => false,
+  }) as any;
+
 describe('Reply', () => {
+  it('shows an image filename in the reply chip when the body is blank', () => {
+    mockUseRoomEvent.mockReturnValue(createImageReplyEvent('screenshot.png'));
+
+    render(
+      <Reply
+        room={{ roomId: '!room:example.com', getMember: () => undefined } as any}
+        replyEventId="$reply:example.com"
+      />
+    );
+
+    expect(screen.getByText('screenshot.png')).toBeInTheDocument();
+    expect(screen.queryByText(/state event/i)).not.toBeInTheDocument();
+  });
+
   it('sanitizes formatted_body before trimming and parsing the reply preview', () => {
     mockUseRoomEvent.mockReturnValue(
       createReplyEvent(

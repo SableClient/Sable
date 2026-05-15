@@ -114,6 +114,58 @@ describe('markdownToHtml', () => {
     expect(html).toContain('fenced');
   });
 
+  describe('single-newline block boundaries', () => {
+    it('parses matrix -# after a single newline following text', () => {
+      const result = markdownToHtml('test\n-# caption');
+      expect(result).toContain('<sub');
+      expect(result).toContain('data-md="-#"');
+      expect(result).toContain('caption');
+    });
+
+    it('parses ATX heading after a single newline', () => {
+      expect(markdownToHtml('intro\n# Heading')).toContain('<h1');
+      expect(markdownToHtml('intro\n# Heading')).toContain('Heading');
+    });
+
+    it('parses unordered list after a single newline', () => {
+      const html = markdownToHtml('intro\n- item');
+      expect(html).toContain('<ul');
+      expect(html).toContain('<li');
+    });
+
+    it('parses blockquote after a single newline', () => {
+      expect(markdownToHtml('intro\n> quote')).toContain('<blockquote>');
+    });
+
+    it('does not promote -# inside fenced code when the fence follows a single newline', () => {
+      const html = markdownToHtml('test\n```\n-# not sub\n```');
+      expect(html).not.toContain('<sub');
+      expect(html).toContain('-# not sub');
+    });
+
+    it('parses -# after a fenced block when separated by a single newline', () => {
+      const html = markdownToHtml('test\n```\ncode\n```\n-# cap');
+      expect(html).toContain('<pre>');
+      expect(html).toContain('<sub');
+      expect(html).toContain('cap');
+    });
+
+    it('keeps existing double-newline behavior before -#', () => {
+      const result = markdownToHtml('test\n\n-# caption');
+      expect(result).toContain('<sub');
+      expect(result).toContain('caption');
+    });
+
+    it('does not treat the second line of k. Hello as a new ordered list', () => {
+      const html = markdownToHtml('k. Hello world\nHello again');
+      expect(html).not.toContain('<ol>');
+    });
+
+    it('does not promote escaped line-start -# after a single newline', () => {
+      expect(markdownToHtml('x\n\\-# literal')).not.toContain('data-md="-#"');
+    });
+  });
+
   it('does not parse escaped \\-# as small/sub', () => {
     const result = markdownToHtml('\\-# literal caption');
     expect(result).not.toContain('<sub');

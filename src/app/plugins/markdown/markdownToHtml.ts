@@ -16,6 +16,7 @@ import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
+import { expandBlockBoundariesAfterSingleNewlines } from './expandBlockNewlines';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
@@ -77,7 +78,7 @@ const shieldBareMatrixToLinks = (
 
 const unshieldBareMatrixToLinks = (html: string, placeholders: Map<string, string>): string => {
   let result = html;
-  const keys = [...placeholders.keys()].sort((a, b) => b.length - a.length);
+  const keys = [...placeholders.keys()].toSorted((a, b) => b.length - a.length);
   for (const key of keys) {
     const url = placeholders.get(key);
     if (url) result = result.split(key).join(escapeHtml(url));
@@ -131,8 +132,10 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
 
   const preprocessed = preprocessEmoticon(blockquotePrefixed);
 
+  const boundaryExpanded = expandBlockBoundariesAfterSingleNewlines(preprocessed);
+
   const { shielded: matrixToShielded, placeholders: matrixToPlaceholders } =
-    shieldBareMatrixToLinks(preprocessed);
+    shieldBareMatrixToLinks(boundaryExpanded);
 
   const mathInput = shieldDollarRunsForMarked(maskDollarSignsInsideMarkdownCode(matrixToShielded));
 

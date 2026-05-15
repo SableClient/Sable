@@ -173,7 +173,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
         let plainText = toPlainText(editor.children).trim();
         let customHtml = trimCustomHtml(
-          toMatrixCustomHTML(editor.children, { forEmote: msgtype === MsgType.Emote })
+          toMatrixCustomHTML(editor.children, {
+            forEmote: msgtype === MsgType.Emote,
+            room,
+          })
         );
 
         const [prevBody, prevCustomHtml, prevMentions] = getPrevBodyAndFormattedBody();

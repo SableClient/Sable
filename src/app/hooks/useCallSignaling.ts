@@ -29,10 +29,7 @@ import {
   resolveOutgoingRingbackToneUrl,
 } from '$features/call/callRingtone';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
-import {
-  getCustomCallRingback,
-  getCustomCallRingtone,
-} from '$features/call/callRingtoneStorage';
+import { getCustomCallRingback, getCustomCallRingtone } from '$features/call/callRingtoneStorage';
 import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
@@ -473,7 +470,11 @@ export function useIncomingCallSignaling() {
       }
 
       const session = mx.matrixRTC.getRoomSession(outgoingRoom);
-      const pendingOutgoing = isOutgoingCallPending(myUserId, outgoingRoom, session.sessionDescription);
+      const pendingOutgoing = isOutgoingCallPending(
+        myUserId,
+        outgoingRoom,
+        session.sessionDescription
+      );
       const activeCall = isCallActive(myUserId, outgoingRoom, session.sessionDescription);
 
       if (!pendingOutgoing || activeCall) {

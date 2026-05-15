@@ -720,9 +720,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   if (method !== 'GET') return;
 
   if (isElementCallRingtoneRequest(url)) {
+    const silentWavBytes = createSilentWavBytes();
+    const silentWavBuffer = new Uint8Array(silentWavBytes).buffer;
     event.respondWith(
       Promise.resolve(
-        new Response(createSilentWavBytes(), {
+        new Response(silentWavBuffer, {
           status: 200,
           headers: {
             'Content-Type': 'audio/wav',

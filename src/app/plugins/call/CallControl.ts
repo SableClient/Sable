@@ -166,7 +166,7 @@ export class CallControl extends EventEmitter implements CallControlState {
     const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
     const shouldMute = this.outputOverrideMuted || !sound;
     if (callDocument) {
-      callDocument.querySelectorAll('audio, video').forEach((el) => {
+      callDocument.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
         el.muted = shouldMute;
         if (shouldMute) el.volume = 0;
       });
@@ -188,7 +188,12 @@ export class CallControl extends EventEmitter implements CallControlState {
     const originalCtor = scopedWindow[key];
     if (typeof originalCtor !== 'function') return;
 
-    const originalResume = originalCtor.prototype.resume;
+    const resumeDescriptor = Object.getOwnPropertyDescriptor(originalCtor.prototype, 'resume');
+    const originalResumeImpl = resumeDescriptor?.value as
+      | ((this: AudioContext) => Promise<void>)
+      | undefined;
+    if (typeof originalResumeImpl !== 'function') return;
+    const originalResume = (context: AudioContext): Promise<void> => originalResumeImpl.call(context);
     const trackedContexts = this.trackedAudioContexts;
     const isOverrideMuted = () => this.outputOverrideMuted;
     originalCtor.prototype.resume = function patchedResume(this: AudioContext) {
@@ -196,10 +201,10 @@ export class CallControl extends EventEmitter implements CallControlState {
       if (isOverrideMuted()) {
         return Promise.resolve();
       }
-      return originalResume.call(this);
+      return originalResume(this);
     };
     this.audioPatchRestores.push(() => {
-      originalCtor.prototype.resume = originalResume;
+      originalCtor.prototype.resume = originalResumeImpl;
     });
 
     const wrappedCtor = function patchedAudioContext(

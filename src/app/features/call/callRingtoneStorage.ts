@@ -73,8 +73,10 @@ async function clearCustomCallAudio(key: string): Promise<void> {
   });
 }
 
-export const putCustomCallRingtone = (file: File, durationMs: number): Promise<StoredCallRingtone> =>
-  putCustomCallAudio(CUSTOM_RINGTONE_KEY, file, durationMs);
+export const putCustomCallRingtone = (
+  file: File,
+  durationMs: number
+): Promise<StoredCallRingtone> => putCustomCallAudio(CUSTOM_RINGTONE_KEY, file, durationMs);
 
 export const getCustomCallRingtone = (): Promise<StoredCallRingtone | undefined> =>
   getCustomCallAudio(CUSTOM_RINGTONE_KEY);
@@ -82,8 +84,10 @@ export const getCustomCallRingtone = (): Promise<StoredCallRingtone | undefined>
 export const clearCustomCallRingtone = (): Promise<void> =>
   clearCustomCallAudio(CUSTOM_RINGTONE_KEY);
 
-export const putCustomCallRingback = (file: File, durationMs: number): Promise<StoredCallRingtone> =>
-  putCustomCallAudio(CUSTOM_RINGBACK_KEY, file, durationMs);
+export const putCustomCallRingback = (
+  file: File,
+  durationMs: number
+): Promise<StoredCallRingtone> => putCustomCallAudio(CUSTOM_RINGBACK_KEY, file, durationMs);
 
 export const getCustomCallRingback = (): Promise<StoredCallRingtone | undefined> =>
   getCustomCallAudio(CUSTOM_RINGBACK_KEY);

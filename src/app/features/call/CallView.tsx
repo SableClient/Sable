@@ -183,6 +183,12 @@ export function CallView({ resizable }: CallViewProps) {
   const room = useRoom();
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
+  const desktopMinCallHeight = 620;
+  const desktopMaxCallHeight = Math.round(window.innerHeight * 0.8);
+  const desktopDefaultCallHeight = Math.min(
+    Math.max(desktopMinCallHeight, Math.round(window.innerHeight * 0.72)),
+    desktopMaxCallHeight
+  );
 
   const callViewRef = useRef<HTMLDivElement>(null);
   const callContainerRef = useRef<HTMLDivElement>(null);
@@ -193,7 +199,7 @@ export function CallView({ resizable }: CallViewProps) {
 
   const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
 
-  const [height, setHeight] = useState(isMobile ? 240 : 380);
+  const [height, setHeight] = useState(isMobile ? 240 : desktopDefaultCallHeight);
   const [isDragging, setIsDragging] = useState(false);
   const isResizing = useRef(false);
   const previousBodyUserSelect = useRef<string | null>(null);
@@ -202,9 +208,11 @@ export function CallView({ resizable }: CallViewProps) {
     (clientY: number) => {
       if (!isResizing.current || !callViewRef.current) return;
       const { top } = callViewRef.current.getBoundingClientRect();
-      setHeight(Math.max(isMobile ? 120 : 150, Math.min(clientY - top, window.innerHeight * 0.8)));
+      const maxHeight = window.innerHeight * 0.8;
+      const minHeight = isMobile ? 120 : Math.min(desktopMinCallHeight, maxHeight);
+      setHeight(Math.max(minHeight, Math.min(clientY - top, maxHeight)));
     },
-    [isMobile]
+    [isMobile, desktopMinCallHeight]
   );
 
   const handleMouseMove = useCallback((e: MouseEvent) => handleMove(e.clientY), [handleMove]);

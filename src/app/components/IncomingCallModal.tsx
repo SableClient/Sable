@@ -212,7 +212,7 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
     if (evt.key === 'Escape') {
       evt.preventDefault();
       evt.stopPropagation();
-      void handleDeclineOrIgnore();
+      handleDeclineOrIgnore();
       return;
     }
     if (evt.key === 'Enter' && canAnswer) {

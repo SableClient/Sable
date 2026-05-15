@@ -8,6 +8,7 @@ import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
 import { createDebugLogger } from '../utils/debugLogger';
+import { getSlidingSyncManager } from '$client/initMatrix';
 
 const debugLog = createDebugLogger('AppVisibility');
 
@@ -54,4 +55,23 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       appEvents.onVisibilityChange = null;
     };
   }, [mx, clientConfig, usePushNotifications, pushSubAtom]);
+
+  useEffect(() => {
+    if (!mx) return undefined;
+
+    const handleForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      // For classic sync, retryImmediately() breaks out of keepalive backoff immediately.
+      // For sliding sync the SDK's retryImmediately() is a stub; retryNow() calls
+      // slidingSync.resend() which aborts any stalled request and retries without backoff.
+      mx.retryImmediately();
+      getSlidingSyncManager(mx)?.retryNow();
+      debugLog.info('general', 'App foregrounded — sync retry triggered');
+    };
+
+    document.addEventListener('visibilitychange', handleForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', handleForeground);
+    };
+  }, [mx]);
 }

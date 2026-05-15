@@ -30,7 +30,7 @@ export function SelectShowPerRoomRoomIcon({ roomId }: { roomId: string }) {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const showRoomIconItems = useShowPerRoomRoomIcon();
   const [showRoomIconArray, setShowRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
-  const showRoomIcon = showRoomIconArray.find((item) => item.roomId === roomId)?.display;
+  const showRoomIcon = showRoomIconArray?.find((item) => item.roomId === roomId)?.display;
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(evt.currentTarget.getBoundingClientRect());

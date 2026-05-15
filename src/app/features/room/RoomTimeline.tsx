@@ -297,6 +297,10 @@ export function RoomTimeline({
   const forwardStatusRef = useRef(timelineSync.forwardStatus);
   forwardStatusRef.current = timelineSync.forwardStatus;
 
+  // Caps consecutive auto-pagination calls so a sparse timeline that never fills
+  // the viewport cannot loop indefinitely. Reset on every timeline clear/room jump.
+  const autopagAttemptsRef = useRef(0);
+
   const getRawIndexToProcessedIndex = useCallback((rawIndex: number): number | undefined => {
     const events = processedEventsRef.current;
     const match = events.find((e) => e.itemIndex === rawIndex);
@@ -358,6 +362,7 @@ export function RoomTimeline({
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
     hasInitialScrolledRef.current = false;
+    autopagAttemptsRef.current = 0;
   }, [isReady, timelineSync.eventsLength]);
 
   const recalcTopSpacer = useCallback(() => {
@@ -402,6 +407,10 @@ export function RoomTimeline({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (timelineSync.focusItem) {
+      // Reveal the timeline in the same effect that scrolls to the focus event so
+      // both the scroll and opacity-1 land in a single commit — no intermediate
+      // frame where events are rendered but still opacity-0.
+      setIsReady(true);
       if (timelineSync.focusItem.scrollTo && vListRef.current) {
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
@@ -419,23 +428,39 @@ export function RoomTimeline({
   }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
 
   useEffect(() => {
-    if (timelineSync.focusItem) {
-      setIsReady(true);
-    }
-  }, [timelineSync.focusItem]);
-
-  useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
     // Re-arm the initial-scroll guard so that if the jump fails and falls back
     // to the live timeline, the useLayoutEffect can fire via the normal path.
     hasInitialScrolledRef.current = false;
+    // Reset auto-pagination cap so the new timeline can fill the viewport.
+    autopagAttemptsRef.current = 0;
     // Clear the stale live-timeline content immediately so loading placeholders
     // are shown while the event-context API call is in flight, rather than
     // having the entire message area go invisible (opacity:0) with no feedback.
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
+
+  // Recovery: loadEventTimeline's onError callback restores the live timeline
+  // (setTimeline + scrollToBottom) but never calls setIsReady(true) — only
+  // focusItem does.  Detect the "eventId load failed, fell back to live" state
+  // (eventsLength > 0, liveTimelineLinked, no focusItem) and reveal the timeline
+  // so the room is usable rather than stuck on opacity-0 until a restart.
+  useEffect(() => {
+    if (!eventId) return;
+    if (isReady) return;
+    if (timelineSync.eventsLength === 0) return;
+    if (timelineSync.focusItem) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    setIsReady(true);
+  }, [
+    eventId,
+    isReady,
+    timelineSync.eventsLength,
+    timelineSync.focusItem,
+    timelineSync.liveTimelineLinked,
+  ]);
 
   useEffect(() => {
     if (eventId) return;
@@ -886,7 +911,10 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        void timelineSyncRef.current.handleTimelinePagination(true);
+        if (autopagAttemptsRef.current < 20) {
+          autopagAttemptsRef.current += 1;
+          void timelineSyncRef.current.handleTimelinePagination(true);
+        }
       }
     };
 
@@ -1011,6 +1039,8 @@ export function RoomTimeline({
               </>
             ) : null;
 
+            const isLastItem = index === processedEvents.length - 1;
+
             if (index === 0) {
               return (
                 <Fragment key="first-item-block">
@@ -1026,6 +1056,7 @@ export function RoomTimeline({
                   {backPaginationJSX}
                   {dividers}
                   {renderedEvent}
+                  {isLastItem && frontPaginationJSX}
                 </Fragment>
               );
             }
@@ -1034,6 +1065,7 @@ export function RoomTimeline({
               <Fragment key={eventData.id}>
                 {dividers}
                 {renderedEvent}
+                {isLastItem && frontPaginationJSX}
               </Fragment>
             );
           }}
@@ -1085,6 +1117,7 @@ export function RoomTimeline({
           </MessageBase>
         </div>
       )}
+
 
       {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
         <TimelineFloat position="Bottom">

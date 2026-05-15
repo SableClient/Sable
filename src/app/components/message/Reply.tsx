@@ -71,10 +71,11 @@ export const replyPreviewBodyForTimelineEvent = (
     return 'Sticker';
   }
 
-  const msgtype = content.msgtype;
-  if (typeof msgtype !== 'string') {
+  const rawMsgtype = content.msgtype;
+  if (typeof rawMsgtype !== 'string') {
     return <MessageUnsupportedContent />;
   }
+  const msgtype = rawMsgtype as MsgType;
 
   const trimmedBody = nonEmptyTrimmed(
     typeof content.body === 'string' ? trimReplyFromBody(content.body) : ''

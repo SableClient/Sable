@@ -533,7 +533,7 @@ export function RoomTimeline({
     setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
     setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
-    handleEdit,
+    handleEdit: handleEditCallback,
     handleOpenEvent: (id) => {
       const anchorId = unwrapRelationJumpTarget(room, id);
       let evtTimeline = getEventTimeline(room, anchorId);
@@ -927,10 +927,6 @@ export function RoomTimeline({
           overflow: 'hidden',
           position: 'relative',
           opacity: isReady || showLoadingPlaceholders ? 1 : 0,
-          // Fade the timeline in once the initial scroll has settled so the
-          // reveal feels intentional rather than a hard flash.  We never
-          // animate the transition TO opacity:0 so the hide is instant.
-          transition: isReady || showLoadingPlaceholders ? 'opacity 100ms ease-in' : 'none',
         }}
       >
         <VList<ProcessedEvent>

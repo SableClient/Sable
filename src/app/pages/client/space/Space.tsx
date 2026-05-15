@@ -1020,6 +1020,7 @@ export function Space() {
                                 width: '100%',
                                 aspectRatio: 1,
                                 display: 'flex',
+                                flexDirection: 'column',
                               }
                             : { paddingLeft }
                         }

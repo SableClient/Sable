@@ -427,6 +427,7 @@ export function Home() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
+                                  flexDirection: 'column',
                                 }
                               : {}
                           }

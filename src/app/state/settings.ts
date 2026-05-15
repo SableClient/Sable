@@ -29,12 +29,14 @@ export enum ShowRoomIcon {
   Never = 'never',
 }
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
-export type CallRingtoneId =
-  | 'sable-default'
-  | 'classic-soft'
-  | 'minimal-ping'
-  | 'silent'
-  | 'custom';
+export const CALL_TONE_IDS = [
+  'sable-default',
+  'classic-soft',
+  'minimal-ping',
+  'silent',
+  'custom',
+] as const;
+export type CallRingtoneId = (typeof CALL_TONE_IDS)[number];
 export type CallRingbackTone = CallRingtoneId;
 
 export type ThemeRemoteFavorite = {
@@ -364,6 +366,18 @@ function cloneDefaultSettings(): Settings {
   };
 }
 
+const CALL_TONE_ID_SET = new Set<unknown>(CALL_TONE_IDS);
+const CALL_AUDIO_METADATA_NUMBER_KEYS = [
+  'callCustomRingtoneSizeBytes',
+  'callCustomRingtoneDurationMs',
+  'callCustomRingbackSizeBytes',
+  'callCustomRingbackDurationMs',
+] as const;
+
+const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_SET.has(value);
+
+const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
+
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   if (parsed.monochromeMode === true && parsed.saturationLevel === undefined) {
     parsed.saturationLevel = 0;
@@ -393,16 +407,10 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   delete parsed.themeChatPreviewApprovedCatalogOnly;
 
   if (typeof parsed.callRingtoneVolume === 'number' && Number.isFinite(parsed.callRingtoneVolume)) {
-    parsed.callRingtoneVolume = Math.max(0, Math.min(100, Math.round(parsed.callRingtoneVolume)));
+    parsed.callRingtoneVolume = clampPercent(parsed.callRingtoneVolume);
   }
 
-  if (
-    parsed.callRingtoneId !== 'sable-default' &&
-    parsed.callRingtoneId !== 'classic-soft' &&
-    parsed.callRingtoneId !== 'minimal-ping' &&
-    parsed.callRingtoneId !== 'silent' &&
-    parsed.callRingtoneId !== 'custom'
-  ) {
+  if (!isCallToneId(parsed.callRingtoneId)) {
     delete parsed.callRingtoneId;
   }
 
@@ -412,44 +420,15 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.callRingbackTone = 'classic-soft';
   }
 
-  if (
-    parsed.callRingbackTone !== 'sable-default' &&
-    parsed.callRingbackTone !== 'classic-soft' &&
-    parsed.callRingbackTone !== 'minimal-ping' &&
-    parsed.callRingbackTone !== 'silent' &&
-    parsed.callRingbackTone !== 'custom'
-  ) {
+  if (!isCallToneId(parsed.callRingbackTone)) {
     delete parsed.callRingbackTone;
   }
 
-  if (
-    typeof parsed.callCustomRingtoneSizeBytes === 'number' &&
-    (!Number.isFinite(parsed.callCustomRingtoneSizeBytes) || parsed.callCustomRingtoneSizeBytes < 0)
-  ) {
-    delete parsed.callCustomRingtoneSizeBytes;
-  }
-
-  if (
-    typeof parsed.callCustomRingtoneDurationMs === 'number' &&
-    (!Number.isFinite(parsed.callCustomRingtoneDurationMs) ||
-      parsed.callCustomRingtoneDurationMs < 0)
-  ) {
-    delete parsed.callCustomRingtoneDurationMs;
-  }
-
-  if (
-    typeof parsed.callCustomRingbackSizeBytes === 'number' &&
-    (!Number.isFinite(parsed.callCustomRingbackSizeBytes) || parsed.callCustomRingbackSizeBytes < 0)
-  ) {
-    delete parsed.callCustomRingbackSizeBytes;
-  }
-
-  if (
-    typeof parsed.callCustomRingbackDurationMs === 'number' &&
-    (!Number.isFinite(parsed.callCustomRingbackDurationMs) ||
-      parsed.callCustomRingbackDurationMs < 0)
-  ) {
-    delete parsed.callCustomRingbackDurationMs;
+  for (const key of CALL_AUDIO_METADATA_NUMBER_KEYS) {
+    const value = parsed[key];
+    if (typeof value === 'number' && (!Number.isFinite(value) || value < 0)) {
+      delete parsed[key];
+    }
   }
 }
 
@@ -563,24 +542,11 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
     case 'callRingtoneId':
-      return val === 'sable-default' ||
-        val === 'classic-soft' ||
-        val === 'minimal-ping' ||
-        val === 'silent' ||
-        val === 'custom'
-        ? val
-        : undefined;
     case 'callRingbackTone':
-      return val === 'sable-default' ||
-        val === 'classic-soft' ||
-        val === 'minimal-ping' ||
-        val === 'silent' ||
-        val === 'custom'
-        ? val
-        : undefined;
+      return isCallToneId(val) ? val : undefined;
     case 'callRingtoneVolume':
       if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
-      return Math.max(0, Math.min(100, Math.round(val)));
+      return clampPercent(val);
     case 'callCustomRingtoneSizeBytes':
     case 'callCustomRingtoneDurationMs':
     case 'callCustomRingbackSizeBytes':

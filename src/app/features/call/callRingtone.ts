@@ -1,7 +1,12 @@
 import InviteSound from '$public/sound/invite.ogg';
 import NotificationSound from '$public/sound/notification.ogg';
 import RingtoneSound from '$public/sound/ringtone.webm';
-import type { CallRingbackTone, CallRingtoneId, Settings } from '$state/settings';
+import {
+  CALL_TONE_IDS,
+  type CallRingbackTone,
+  type CallRingtoneId,
+  type Settings,
+} from '$state/settings';
 
 export type CallToneOption<T extends string> = {
   value: T;
@@ -13,21 +18,22 @@ export type CallToneOption<T extends string> = {
 export const CUSTOM_CALL_RINGTONE_MAX_BYTES = 3_000_000;
 export const CUSTOM_CALL_RINGTONE_MAX_DURATION_MS = 45_000;
 
-export const CALL_RINGTONE_OPTIONS: CallToneOption<CallRingtoneId>[] = [
-  { value: 'sable-default', label: 'Sable Default' },
-  { value: 'classic-soft', label: 'Classic Soft Ring' },
-  { value: 'minimal-ping', label: 'Minimal Ping Loop' },
-  { value: 'silent', label: 'Silent (Visual Only)' },
-  { value: 'custom', label: 'Custom File' },
-];
+const CALL_TONE_LABELS: Record<CallRingtoneId, string> = {
+  'sable-default': 'Sable Default',
+  'classic-soft': 'Classic Soft Ring',
+  'minimal-ping': 'Minimal Ping Loop',
+  silent: 'Silent (Visual Only)',
+  custom: 'Custom File',
+};
 
-export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingbackTone>[] = [
-  { value: 'sable-default', label: 'Sable Default' },
-  { value: 'classic-soft', label: 'Classic Soft Ring' },
-  { value: 'minimal-ping', label: 'Minimal Ping Loop' },
-  { value: 'silent', label: 'Silent (Visual Only)' },
-  { value: 'custom', label: 'Custom File' },
-];
+export const CALL_RINGTONE_OPTIONS: CallToneOption<CallRingtoneId>[] = CALL_TONE_IDS.map(
+  (value) => ({
+    value,
+    label: CALL_TONE_LABELS[value],
+  })
+);
+
+export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingbackTone>[] = CALL_RINGTONE_OPTIONS;
 
 type ToneSettings = Pick<Settings, 'isNotificationSounds' | 'callSoundOverrideGlobalNotifications'>;
 

@@ -41,24 +41,39 @@ const FALLBACK_INTERVAL_MS = 5_000;
 const OUTGOING_RING_TIMEOUT_MS = 30_000;
 
 type SessionDescription = Parameters<typeof MatrixRTCSession.sessionMembershipsForRoom>[1];
+type RtcMembership = { userId?: string; sender?: string };
 
 const getRoomMemberships = (room: Room, sessionDescription: SessionDescription) =>
   MatrixRTCSession.sessionMembershipsForRoom(room, sessionDescription);
+
+const getCallMembershipPresence = (
+  mxUserId: string,
+  room: Room,
+  sessionDescription: SessionDescription
+) => {
+  const memberships = getRoomMemberships(room, sessionDescription) as RtcMembership[];
+  const remoteMemberCount = memberships.filter(
+    (membership) => (membership.userId || membership.sender) !== mxUserId
+  ).length;
+  const hasSelfMember = memberships.some(
+    (membership) => (membership.userId || membership.sender) === mxUserId
+  );
+
+  return { hasSelfMember, remoteMemberCount };
+};
 
 const isIncomingCallActive = (
   mxUserId: string,
   room: Room,
   sessionDescription: SessionDescription
 ): boolean => {
-  const memberships = getRoomMemberships(room, sessionDescription);
-  const remoteMembers = memberships.filter(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== mxUserId
-  );
-  const selfMember = memberships.some(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === mxUserId
+  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
+    mxUserId,
+    room,
+    sessionDescription
   );
 
-  return remoteMembers.length > 0 && !selfMember;
+  return remoteMemberCount > 0 && !hasSelfMember;
 };
 
 const isCallActive = (
@@ -66,15 +81,13 @@ const isCallActive = (
   room: Room,
   sessionDescription: SessionDescription
 ): boolean => {
-  const memberships = getRoomMemberships(room, sessionDescription);
-  const remoteMembers = memberships.filter(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== mxUserId
-  );
-  const selfMember = memberships.some(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === mxUserId
+  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
+    mxUserId,
+    room,
+    sessionDescription
   );
 
-  return selfMember && remoteMembers.length > 0;
+  return hasSelfMember && remoteMemberCount > 0;
 };
 
 const isOutgoingCallPending = (
@@ -82,15 +95,13 @@ const isOutgoingCallPending = (
   room: Room,
   sessionDescription: SessionDescription
 ): boolean => {
-  const memberships = getRoomMemberships(room, sessionDescription);
-  const remoteMembers = memberships.filter(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) !== mxUserId
-  );
-  const selfMember = memberships.some(
-    (m: { userId?: string; sender?: string }) => (m.userId || m.sender) === mxUserId
+  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
+    mxUserId,
+    room,
+    sessionDescription
   );
 
-  return selfMember && remoteMembers.length === 0;
+  return hasSelfMember && remoteMemberCount === 0;
 };
 
 const decryptWithTimeout = async (

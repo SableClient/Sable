@@ -142,21 +142,24 @@ export const ImageContent = as<'div', ImageContentProps>(
     );
 
     useEffect(() => {
-      let cancelled = false;
       if (!viewer) {
         setViewerFullSrc(null);
-      } else if (
-        typeof matrixThumbnailMaxEdge === 'number' &&
-        matrixThumbnailMaxEdge > 0 &&
-        !encInfo &&
-        !url.startsWith('http')
-      ) {
-        void (async () => {
-          const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
-          if (!mediaUrl || cancelled) return;
-          setViewerFullSrc(mediaUrl);
-        })();
+        return;
       }
+      if (
+        typeof matrixThumbnailMaxEdge !== 'number' ||
+        matrixThumbnailMaxEdge <= 0 ||
+        encInfo ||
+        url.startsWith('http')
+      ) {
+        return;
+      }
+      let cancelled = false;
+      void (async () => {
+        const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
+        if (!mediaUrl || cancelled) return;
+        setViewerFullSrc(mediaUrl);
+      })();
       return () => {
         cancelled = true;
       };
@@ -192,14 +195,12 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     const rootClass = isContained ? css.ContainedMediaRoot : css.RelativeBase;
     const stripMin = containedStripMinPx ?? 56;
-    const imageWidth = info?.w;
-    const imageHeight = info?.h;
     const intrinsicSizingStyle = fillsSlot
       ? {}
       : isContained
         ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
         : hasDimensions
-          ? { aspectRatio: `${imageWidth} / ${imageHeight}` }
+          ? { aspectRatio: `${info!.w} / ${info!.h}` }
           : { minHeight: '150px' };
 
     const fillPreviewSlotStyle = fillsSlot

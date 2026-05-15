@@ -28,8 +28,7 @@ export function stripMarkdownEscapesForHiddenPreviews(markdown: string): string 
   s = s.replace(ESCAPED_SUPPRESSED_MD_LINK, '[$1]($2)');
 
   // Same for "\<[label](bare-url)>" when angle brackets were lost on the destination.
-  const WRONG_OUTER_ESCAPED_AUTOLINK =
-    /\\<\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)(?:>|\\>)/g;
+  const WRONG_OUTER_ESCAPED_AUTOLINK = /\\<\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)(?:>|\\>)/g;
   s = s.replace(WRONG_OUTER_ESCAPED_AUTOLINK, '[$1](<$2>)');
 
   return s;

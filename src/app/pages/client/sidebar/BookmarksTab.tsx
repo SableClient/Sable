@@ -5,13 +5,14 @@ import { getInboxBookmarksPath } from '$pages/pathUtils';
 import { useInboxBookmarksSelected } from '$hooks/router/useInbox';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useFiredReminderCount } from '$features/bookmarks/useBookmarks';
+import { useFiredReminderCount, useBookmarkList } from '$features/bookmarks/useBookmarks';
 
 export function BookmarksTab() {
   const navigate = useNavigate();
   const bookmarksSelected = useInboxBookmarksSelected();
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
   const firedReminderCount = useFiredReminderCount();
+  const bookmarks = useBookmarkList();
 
   if (!enableMessageBookmarks) return null;
 
@@ -24,7 +25,7 @@ export function BookmarksTab() {
       <SidebarItemTooltip tooltip="Bookmarks">
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick}>
-            <Icon src={Icons.Bookmark} filled={bookmarksSelected} />
+            <Icon src={Icons.Bookmark} filled={bookmarksSelected || bookmarks.length > 0} />
             {firedReminderCount > 0 && (
               <Badge size="300" variant="Critical" fill="Solid" radii="Pill" outlined>
                 {firedReminderCount > 9 ? '9+' : firedReminderCount}

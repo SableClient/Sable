@@ -435,6 +435,12 @@ export function RoomTimeline({
     hasInitialScrolledRef.current = false;
     // Reset auto-pagination cap so the new timeline can fill the viewport.
     autopagAttemptsRef.current = 0;
+    // Cancel any pending error-recovery scroll timer from a previous eventId load
+    // so it cannot reveal the timeline mid-flight of a new load.
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
     // Clear the stale live-timeline content immediately so loading placeholders
     // are shown while the event-context API call is in flight, rather than
     // having the entire message area go invisible (opacity:0) with no feedback.
@@ -454,12 +460,30 @@ export function RoomTimeline({
     if (timelineSync.eventsLength === 0) return;
     if (timelineSync.focusItem) return;
     if (!timelineSync.liveTimelineLinked) return;
-    // Scroll to the last rendered event before revealing so the VList isn't
-    // shown at position 0 (the start of history) when the user expected to see
-    // recent messages.
+    // Guard: don't start a second timer if one is already in flight.
+    if (initialScrollTimerRef.current !== undefined) return;
+
+    // Virtua has no measured item heights yet when data first populates
+    // (transition from 0 → N items).  A single scrollToIndex call lands at the
+    // estimated position (often 0) because every item is still at its default
+    // height.  Mirror the double-scroll pattern from the initial-scroll
+    // useLayoutEffect: scroll once immediately to warm up virtua's layout pass,
+    // then scroll again after 80 ms when heights are measured, then reveal.
     const lastIdx = processedEventsRef.current.length - 1;
     if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
-    setIsReady(true);
+
+    initialScrollTimerRef.current = setTimeout(() => {
+      initialScrollTimerRef.current = undefined;
+      // Bail out if the timeline was already revealed by another code path
+      // (e.g. loadEventTimeline succeeded and set focusItem in the meantime).
+      if (isReadyRef.current) return;
+      if (timelineSyncRef.current.focusItem) return;
+      if (timelineSyncRef.current.eventsLength === 0) return;
+      if (!timelineSyncRef.current.liveTimelineLinked) return;
+      const idx = processedEventsRef.current.length - 1;
+      if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+      setIsReady(true);
+    }, 80);
   }, [
     eventId,
     isReady,

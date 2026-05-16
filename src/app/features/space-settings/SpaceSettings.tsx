@@ -17,6 +17,7 @@ import { EmojisStickers } from '$features/common-settings/emojis-stickers';
 import { Members } from '$features/common-settings/members';
 import { DeveloperTools } from '$features/common-settings/developer-tools';
 import { Cosmetics } from '$features/common-settings/cosmetics/Cosmetics';
+import { Appearance } from '$features/common-settings/appearance/Appearance';
 import { RoomAbbreviations } from '$features/room-settings/abbreviations/RoomAbbreviations';
 import { General } from './general';
 import { Permissions } from './permissions';
@@ -66,6 +67,12 @@ const useSpaceSettingsMenuItems = (): SpaceSettingsMenuItem[] =>
         page: SpaceSettingsPage.DeveloperToolsPage,
         name: 'Developer Tools',
         icon: Icons.Terminal,
+      },
+      {
+        page: SpaceSettingsPage.AppearancePage,
+        name: 'Appearance',
+        icon: Icons.Alphabet,
+        activeIcon: Icons.AlphabetUnderline,
       },
     ],
     []
@@ -196,6 +203,9 @@ export function SpaceSettings({ initialPage, requestClose }: SpaceSettingsProps)
       )}
       {activePage === SpaceSettingsPage.AbbreviationsPage && (
         <RoomAbbreviations isSpace requestClose={handlePageRequestClose} />
+      )}
+      {activePage === SpaceSettingsPage.AppearancePage && (
+        <Appearance requestClose={handlePageRequestClose} />
       )}
     </PageRoot>
   );

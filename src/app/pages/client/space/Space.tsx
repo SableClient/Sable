@@ -372,7 +372,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       </div>
       {hasBanner && (
         <>
-          <div className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
+          <Box shrink="No" className={css.RoomCoverContainer} style={{ height: toRem(curHeight) }}>
             <ClientSideHoverFreeze src={bannerURI} className={css.RoomCover}>
               <img
                 className={css.RoomCoverImage}
@@ -401,7 +401,7 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                 topSided
               />
             </ClientSideHoverFreeze>
-          </div>
+          </Box>
         </>
       )}
       {hasBanner && bannerViewerOpen && (
@@ -520,16 +520,19 @@ export function Space() {
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
 
-  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
+  const showRoomIcon =
+    showRoomIconArray.find((item) => item.roomId === space.roomId)?.display ?? showRoomIconGeneral;
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
     return curWidth < 144;
   };
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const tombstoneEvent = useStateEvent(space, EventType.RoomTombstone);
@@ -1017,6 +1020,7 @@ export function Space() {
                                 width: '100%',
                                 aspectRatio: 1,
                                 display: 'flex',
+                                flexDirection: 'column',
                               }
                             : { paddingLeft }
                         }

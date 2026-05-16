@@ -213,16 +213,20 @@ export function Home() {
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
-  const showIcons = () => {
-    if (showRoomIcon === ShowRoomIcon.Always) return true;
-    if (showRoomIcon === ShowRoomIcon.Never) return false;
-    return curWidth < 96;
-  };
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+
+  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
+  const showRoomIcon =
+    showRoomIconArray.find((item) => item.roomId === 'Home')?.display ?? showRoomIconGeneral;
+  const showIcons = () => {
+    if (showRoomIcon === ShowRoomIcon.Always) return true;
+    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    return curWidth < 144;
+  };
+
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const selectedRoomId = useSelectedRoom();
@@ -423,6 +427,7 @@ export function Home() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
+                                  flexDirection: 'column',
                                 }
                               : {}
                           }

@@ -29,7 +29,6 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       zoomIn,
       zoomOut,
       setZoom,
-      setZoomSilently,
       fitRatio,
       imageRef,
       containerRef,
@@ -96,6 +95,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                 setZoom(1);
               }}
               aria-label="View Original Size"
+              title="View Original Size"
             >
               <Icon size="50" src={Icons.Photo} />
             </IconButton>
@@ -113,9 +113,10 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               onClick={() => {
                 resetTransforms();
                 enableResizeWithWindow();
-                setZoomSilently(fitRatio);
+                setZoom(fitRatio);
               }}
               aria-label="Reset Zoom"
+              title="Zoom to Fill Container"
             >
               <Icon size="50" src={Icons.Reload} />
             </IconButton>
@@ -126,6 +127,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               radii="Pill"
               onClick={zoomOut}
               aria-label="Zoom Out"
+              title="Zoom Out"
             >
               <Icon size="50" src={Icons.Minus} />
             </IconButton>
@@ -142,6 +144,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                 setZoomInput(Math.round(transforms.zoom * 100).toString());
                 setIsEditingZoom(true);
               }}
+              title="Update Zoom"
             >
               <Text
                 size="B300"
@@ -192,6 +195,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               radii="Pill"
               onClick={zoomIn}
               aria-label="Zoom In"
+              title="Zoom In"
             >
               <Icon size="50" src={Icons.Plus} />
             </IconButton>
@@ -200,6 +204,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
               onClick={handleDownload}
               radii="300"
               before={<Icon size="50" src={Icons.Download} />}
+              outlined
             >
               <Text size="B300">Download</Text>
             </Chip>

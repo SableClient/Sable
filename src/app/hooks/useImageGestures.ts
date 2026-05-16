@@ -236,7 +236,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
       }
       const heightRatio = height / img.naturalHeight;
       const widthRatio = width / img.naturalWidth;
-      const fitZoom = Math.min(heightRatio, widthRatio, 1);
+      const fitZoom = Math.min(heightRatio, widthRatio);
 
       img.style.transition = 'none';
       setFitRatio(fitZoom);

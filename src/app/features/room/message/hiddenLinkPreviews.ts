@@ -1,6 +1,6 @@
 import type { BundleContent } from '$components/message';
 
-const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\]()@!$&'*+,;%=]+)`;
+const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
 
 /**
@@ -18,7 +18,20 @@ export function stripMarkdownEscapesForHiddenPreviews(markdown: string): string 
   const OPEN_ONLY = new RegExp(String.raw`\\<(${LINK_URL})`, 'g');
   const CLOSE_ONLY = new RegExp(String.raw`(${LINK_URL})\\>`, 'g');
 
-  return markdown.replace(WRAPPED, '<$1>').replace(OPEN_ONLY, '<$1').replace(CLOSE_ONLY, '$1>');
+  let s = markdown.replace(WRAPPED, '<$1>').replace(OPEN_ONLY, '<$1').replace(CLOSE_ONLY, '$1>');
+
+  // Restore [label](<url>) after htmlToMarkdown escaped a surrounding "\<...\>".
+  const ESCAPED_SUPPRESSED_MD_LINK = new RegExp(
+    String.raw`\\<\[([^\]]*)\]\((<https?:\/\/[^>\s]+>)\)\\>`,
+    'g'
+  );
+  s = s.replace(ESCAPED_SUPPRESSED_MD_LINK, '[$1]($2)');
+
+  // Same for "\<[label](bare-url)>" when angle brackets were lost on the destination.
+  const WRONG_OUTER_ESCAPED_AUTOLINK = /\\<\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)(?:>|\\>)/g;
+  s = s.replace(WRONG_OUTER_ESCAPED_AUTOLINK, '[$1](<$2>)');
+
+  return s;
 }
 
 export function readdAngleBracketsForHiddenPreviews(
@@ -30,8 +43,22 @@ export function readdAngleBracketsForHiddenPreviews(
   const previewed = new Set(linkPreviews.map((b) => b.matched_url));
 
   LINKINPUTREGEX.lastIndex = 0;
-  return body.replace(LINKINPUTREGEX, (full, url: string, offset: number) => {
+  return body.replace(LINKINPUTREGEX, (...args: unknown[]) => {
+    const full = args[0] as string;
+    const url = args[args.length - 3] as string;
+    const offset = args[args.length - 2] as number;
     if (!url || previewed.has(url)) return full;
+
+    // URL is the label of a markdown link [url](...) — do not insert "<" into the label.
+    const after = body.slice(offset + full.length, offset + full.length + 2);
+    if (after === '](') {
+      return full;
+    }
+
+    // Already a preview-suppressed destination ...](<https://...>)
+    if (offset >= 3 && body.slice(offset - 3, offset) === '](<') {
+      return full;
+    }
 
     // If the URL is already wrapped as <url>, leave it alone.
     const urlIndex = body.indexOf(url, offset);

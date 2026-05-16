@@ -196,6 +196,17 @@ function processInlineElements(
   return processChildren(node.children, listDepth, insideCode);
 }
 
+/** Text node is a literal or entity-encoded angle bracket (preview-suppressed autolink wrapper). */
+function isOpeningAngleBracketText(data: string): boolean {
+  const t = data.trim();
+  return t === '<' || t === '&lt;' || t === '&#60;' || t === '&#x3c;';
+}
+
+function isClosingAngleBracketText(data: string): boolean {
+  const t = data.trim();
+  return t === '>' || t === '&gt;' || t === '&#62;' || t === '&#x3e;';
+}
+
 function processChildren(
   children: ChildNode[],
   listDepth: number = 0,
@@ -213,14 +224,15 @@ function processChildren(
       next &&
       next2 &&
       isText(cur) &&
-      cur.data === '<' &&
+      isOpeningAngleBracketText(cur.data) &&
       isTag(next) &&
       next.name.toLowerCase() === 'a' &&
       isText(next2) &&
-      next2.data === '>'
+      isClosingAngleBracketText(next2.data)
     ) {
       const href = next.attribs.href ?? '';
       const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
+      // Suppressed autolink: [label](<href>) so bracket text is not run through escapeMarkdown as "\<".
       out.push(`[${content}](<${href}>)`);
       i += 2;
       continue;

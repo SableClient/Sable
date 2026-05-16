@@ -67,6 +67,11 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
   });
 
+  it('converts hidden-preview wrapped links when angle brackets are decimal entities', () => {
+    const html = '<p>&#60;<a href="https://example.org/">https://example.org/</a>&#62;</p>';
+    expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
+  });
+
   it('converts spoiler spans', () => {
     expect(htmlToMarkdown('<span data-mx-spoiler>hidden</span>')).toContain('||hidden||');
   });

@@ -9,6 +9,7 @@ export enum SpaceSettingsPage {
   // Sable pages
   CosmeticsPage,
   AbbreviationsPage,
+  AppearancePage,
 }
 
 export type SpaceSettingsState = {

@@ -123,6 +123,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'twitter-emoji',
     'underline-links',
     'show-room-icons',
+    'show-room-home-icons',
     'sidebar-size',
     'incoming-inline-images-default-height',
     'incoming-inline-images-max-height',

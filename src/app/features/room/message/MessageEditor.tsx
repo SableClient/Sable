@@ -121,9 +121,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         );
       }
 
-      const bundleContent = content['com.beeper.linkpreviews'] as BundleContent[];
+      const bundleContent =
+        (content['com.beeper.linkpreviews'] as BundleContent[] | undefined) ?? [];
       const markHiddenLinks = (original: string, isHTML?: boolean) => {
-        if (!bundleContent) return original;
         if (!isHTML) {
           return readdAngleBracketsForHiddenPreviews(original, bundleContent);
         }
@@ -155,7 +155,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
               (bundleContent?.length === 0 ||
                 bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
               strippedS.match(LINKINPUTREGEX) !== null;
-            newBody += `${isHidden ? (isHTML && ((s.startsWith('<a') && `&lt;${s[0]}`) || `${s[0]}&lt;`)) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
+
+            // Wrap whole <a>…</a> as &lt;…&gt; once; duplicating the leading "<" breaks htmlToMarkdown's [<][a][>] detection.
+            if (isHidden && isHTML && s.toLowerCase().startsWith('<a')) {
+              newBody += `&lt;${s}&gt;`;
+              return;
+            }
+
+            newBody += `${isHidden ? (isHTML && `${s[0]}&lt;`) || `${s[0]}<` : s[0]}${strippedS}${isHidden ? (isHTML && '&gt;') || '>' : ''}`;
           });
         return newBody;
       };
@@ -173,7 +180,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
         let plainText = toPlainText(editor.children).trim();
         let customHtml = trimCustomHtml(
-          toMatrixCustomHTML(editor.children, { forEmote: msgtype === MsgType.Emote })
+          toMatrixCustomHTML(editor.children, {
+            forEmote: msgtype === MsgType.Emote,
+            room,
+          })
         );
 
         const [prevBody, prevCustomHtml, prevMentions] = getPrevBodyAndFormattedBody();

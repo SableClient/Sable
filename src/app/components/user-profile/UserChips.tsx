@@ -30,7 +30,11 @@ import { copyToClipboard } from '$utils/dom';
 import { getExploreServerPath } from '$pages/pathUtils';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
-import { useMutualRooms, useMutualRoomsSupport } from '$hooks/useMutualRooms';
+import {
+  useMutualRooms,
+  useMutualRoomsSupport,
+  useUnstableMutualRoomsSupport,
+} from '$hooks/useMutualRooms';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -352,6 +356,7 @@ export function MutualRoomsChip({
   const menuItemBg = chipFillColor ?? cardColor;
   const mx = useMatrixClient();
   const mutualRoomSupported = useMutualRoomsSupport();
+  const mutualRoomUnstable = useUnstableMutualRoomsSupport();
   const mutualRoomsState = useMutualRooms(userId);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
   const closeUserRoomProfile = useCloseUserRoomProfile();
@@ -398,7 +403,7 @@ export function MutualRoomsChip({
 
   if (
     userId === mx.getSafeUserId() ||
-    !mutualRoomSupported ||
+    (!mutualRoomSupported && !mutualRoomUnstable) ||
     mutualRoomsState.status === AsyncStatus.Error
   ) {
     return null;

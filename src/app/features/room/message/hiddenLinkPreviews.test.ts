@@ -25,6 +25,22 @@ describe('stripMarkdownEscapesForHiddenPreviews', () => {
       String.raw`keep \*this\* and \<not-a-url\>`
     );
   });
+
+  it('unwraps outer \\< \\> around a preview-suppressed markdown link from htmlToMarkdown', () => {
+    expect(
+      stripMarkdownEscapesForHiddenPreviews(
+        String.raw`\<[https://example.org/](<https://example.org/>)\>`
+      )
+    ).toBe('[https://example.org/](<https://example.org/>)');
+  });
+
+  it('fixes escaped outer brackets when destination lost angle brackets (bad HTML wrap)', () => {
+    expect(
+      stripMarkdownEscapesForHiddenPreviews(
+        String.raw`\<[https://example.com/](https://example.com/)>`
+      )
+    ).toBe('[https://example.com/](<https://example.com/>)');
+  });
 });
 
 describe('readdAngleBracketsForHiddenPreviews', () => {
@@ -46,5 +62,14 @@ describe('readdAngleBracketsForHiddenPreviews', () => {
     expect(readdAngleBracketsForHiddenPreviews('see <https://example.org/>', [])).toBe(
       'see <https://example.org/>'
     );
+  });
+
+  it('does not corrupt markdown suppressed links [url](<url>)', () => {
+    expect(
+      readdAngleBracketsForHiddenPreviews(
+        'see [https://example.org/](<https://example.org/>) thanks',
+        []
+      )
+    ).toBe('see [https://example.org/](<https://example.org/>) thanks');
   });
 });

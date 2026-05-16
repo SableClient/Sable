@@ -1,6 +1,7 @@
 import type { IconSrc } from 'folds';
 import { Box, Chip, Icon, Icons, Text, as, color, toRem } from 'folds';
 import type { EventTimelineSet, IMentions, Room, SessionMembershipData } from '$types/matrix-sdk';
+import { EventType, MsgType } from '$types/matrix-sdk';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,11 +38,72 @@ import {
   MessageBadEncryptedContent,
   MessageBlockedContent,
   MessageDeletedContent,
+  MessageEmptyContent,
   MessageFailedContent,
+  MessageUnsupportedContent,
 } from './content';
 import * as css from './Reply.css';
 import { LinePlaceholder } from './placeholder';
-import { EventType } from '$types/matrix-sdk';
+
+const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
+  EventType.RoomMessage as string,
+  EventType.RoomMessageEncrypted as string,
+  EventType.Sticker as string,
+]);
+
+const nonEmptyTrimmed = (v: unknown): string | undefined => {
+  if (typeof v !== 'string') return undefined;
+  const t = v.trim();
+  return t.length > 0 ? t : undefined;
+};
+
+export const replyPreviewBodyForTimelineEvent = (
+  eventType: string | undefined,
+  content: Record<string, unknown>,
+  isRedacted: boolean
+): ReactNode | undefined => {
+  if (!eventType || !ROOM_REPLY_TIMELINE_EVENT_TYPES.has(eventType)) return undefined;
+  if (isRedacted) return <MessageDeletedContent />;
+
+  if (eventType === (EventType.Sticker as string)) {
+    const stickerBody = nonEmptyTrimmed(content.body);
+    if (stickerBody) return scaleSystemEmoji(stickerBody);
+    return 'Sticker';
+  }
+
+  const rawMsgtype = content.msgtype;
+  if (typeof rawMsgtype !== 'string') {
+    return <MessageUnsupportedContent />;
+  }
+  const msgtype = rawMsgtype as MsgType;
+
+  const trimmedBody = nonEmptyTrimmed(
+    typeof content.body === 'string' ? trimReplyFromBody(content.body) : ''
+  );
+  const filename = nonEmptyTrimmed(content.filename);
+  if (trimmedBody) return undefined;
+
+  const attachmentLabel = filename;
+
+  switch (msgtype) {
+    case MsgType.Image:
+      return attachmentLabel ?? 'Image';
+    case MsgType.Video:
+      return attachmentLabel ?? 'Video';
+    case MsgType.Audio:
+      return attachmentLabel ?? 'Audio';
+    case MsgType.File:
+      return attachmentLabel ?? 'Attachment';
+    case MsgType.Location:
+      return 'Location';
+    case MsgType.Text:
+    case MsgType.Emote:
+    case MsgType.Notice:
+      return <MessageEmptyContent />;
+    default:
+      return <MessageUnsupportedContent />;
+  }
+};
 
 type ReplyLayoutProps = {
   userColor?: string;
@@ -194,16 +256,23 @@ export const Reply = as<'div', ReplyProps>(
 
     if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
-      const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl,
-        linkifyOpts: replyLinkifyOpts,
-        useAuthentication,
-        nicknames,
-        handleMentionClick: mentionClickHandler,
-        incomingInlineImagesDefaultHeight,
-        incomingInlineImagesMaxHeight,
-      });
-      bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
+      const textOnly = sanitizedHtml
+        .replaceAll(/<br\s*\/?>/gi, ' ')
+        .replaceAll(/<[^>]+>/g, '')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
+      if (textOnly !== '') {
+        const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
+          settingsLinkBaseUrl,
+          linkifyOpts: replyLinkifyOpts,
+          useAuthentication,
+          nicknames,
+          handleMentionClick: mentionClickHandler,
+          incomingInlineImagesDefaultHeight,
+          incomingInlineImagesMaxHeight,
+        });
+        bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
+      }
     } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
       bodyJSX = scaleSystemEmoji(strippedBody);
@@ -252,15 +321,26 @@ export const Reply = as<'div', ReplyProps>(
             `has not changed the pins`}
         </>
       );
-    } else if (Object.values(MessageEvent).every((v) => v !== eventType && !!eventType)) {
-      image = Icons.Code;
-      bodyJSX = (
-        <>
-          {' sent '}
-          <code className={customHtmlCss.Code}>{eventType}</code>
-          {' state event'}
-        </>
+    } else if (replyEvent && eventType) {
+      const timelinePreview = replyPreviewBodyForTimelineEvent(
+        eventType,
+        replyEvent.getContent() as Record<string, unknown>,
+        isRedacted
       );
+      if (timelinePreview !== undefined) {
+        bodyJSX = timelinePreview;
+      } else if (replyEvent.isState()) {
+        image = Icons.Code;
+        bodyJSX = (
+          <>
+            {' sent '}
+            <code className={customHtmlCss.Code}>{eventType}</code>
+            {' state event'}
+          </>
+        );
+      } else {
+        bodyJSX = <MessageUnsupportedContent />;
+      }
     }
     let replyContent = bodyJSX;
     if (isBlockedSender) {

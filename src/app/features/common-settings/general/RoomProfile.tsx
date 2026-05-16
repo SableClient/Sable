@@ -320,7 +320,7 @@ function RoomBannerEdit({ bannerURI, permissions }: Readonly<ProfileProps>) {
   const space = useRoom();
 
   const userId = mx.getUserId() ?? '';
-  const canEdit = permissions.stateEvent(CustomStateEvent.RoomAbbreviations, userId);
+  const canEdit = permissions.stateEvent(CustomStateEvent.RoomBanner, userId);
 
   const [stagedUrl, setStagedUrl] = useState<string>();
   const [isRemoving, setIsRemoving] = useState(false);

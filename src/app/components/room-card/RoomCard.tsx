@@ -236,7 +236,7 @@ export const RoomCard = as<'div', RoomCardProps>(
           ) : (
             <img
               className={css.RoomCardBanner({ trueBanner: !!bannerURI })}
-              src={bannerURI ? bannerURI : (avatar ?? undefined)}
+              src={bannerURI || avatar || undefined}
               alt={`${name} cover`}
               draggable="false"
             />

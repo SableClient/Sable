@@ -519,7 +519,7 @@ export function Space() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
   const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
-  const [idHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
@@ -817,7 +817,7 @@ export function Space() {
       [getInClosedCategories, space.roomId]
     )
   );
-  const hierarchy = idHidingRooms
+  const hierarchy = isHidingRooms
     ? baseHierarchy.filter(
         (item) => !hiddenRooms.includes(item.roomId) || item.roomId === selectedRoomId
       )

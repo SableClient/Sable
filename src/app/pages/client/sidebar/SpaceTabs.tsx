@@ -660,6 +660,7 @@ type ClosedSpaceFolderProps = {
   onDragging: (dragItem?: SidebarDraggable) => void;
   disabled?: boolean;
   onFolderContextMenu?: MouseEventHandler<HTMLButtonElement>;
+  hiddenSpaces?: string[];
 };
 function ClosedSpaceFolder({
   folder,
@@ -668,6 +669,7 @@ function ClosedSpaceFolder({
   onDragging,
   disabled,
   onFolderContextMenu,
+  hiddenSpaces,
 }: Readonly<ClosedSpaceFolderProps>) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -701,6 +703,7 @@ function ClosedSpaceFolder({
                 onContextMenu={onFolderContextMenu}
               >
                 {folder.content.map((sId) => {
+                  if (hiddenSpaces?.includes(sId)) return null;
                   const space = mx.getRoom(sId);
                   if (!space) return null;
 
@@ -753,6 +756,9 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
     anchor: RectCords;
   }>();
   const [renameTargetFolder, setRenameTargetFolder] = useState<ISidebarFolder>();
+  const [baseHiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const hiddenSpaces = isHidingRooms ? baseHiddenSpaces : undefined;
 
   const handleFolderContextMenu = useCallback(
     (folder: ISidebarFolder): MouseEventHandler =>
@@ -1009,6 +1015,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
                   onFolderContextMenu={handleFolderContextMenu(item)}
                 >
                   {item.content.map((sId) => {
+                    if (hiddenSpaces?.includes(sId)) return null;
                     const space = mx.getRoom(sId);
                     if (!space) return null;
                     return (
@@ -1043,9 +1050,11 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
                 disabled={
                   typeof draggingItem === 'object' ? draggingItem.folder.id === item.id : false
                 }
+                hiddenSpaces={hiddenSpaces}
               />
             );
           }
+          if (hiddenSpaces?.includes(item)) return null;
 
           const space = mx.getRoom(item);
           if (!space) return null;

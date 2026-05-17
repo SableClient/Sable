@@ -787,6 +787,7 @@ export function Appearance({
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [isHidingRooms, setIsHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
@@ -851,6 +852,17 @@ export function Appearance({
                 description="Lets the interface keep a little mischief turned on."
                 after={
                   <Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Hide rooms"
+                focusId="show-easter-eggs"
+                description="Hide the rooms that are set to be in the hidden list"
+                after={
+                  <Switch variant="Primary" value={isHidingRooms} onChange={setIsHidingRooms} />
                 }
               />
             </SequenceCard>

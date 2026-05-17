@@ -175,6 +175,9 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
+  hiddenSpaces: string[];
+  hiddenRooms: string[];
+  isHidingRooms: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -308,6 +311,10 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
+  hiddenSpaces: [],
+  hiddenRooms: [],
+  isHidingRooms: false,
+
   // furry stuff
   renderAnimals: true,
 

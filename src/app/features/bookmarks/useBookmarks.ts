@@ -184,3 +184,33 @@ export function useBookmarkReminderActions() {
 
   return { setReminder, clearReminder };
 }
+
+/**
+ * Returns the count of reminder bookmarks that have fired (remindAt <= now)
+ * but haven't been cleared yet. These represent unread/unacknowledged reminders.
+ *
+ * Updates every minute to catch newly fired reminders without requiring
+ * account data changes.
+ */
+export function useFiredReminderCount(): number {
+  const reminders = useBookmarkReminders();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const computeCount = () => {
+      const now = Date.now();
+      return reminders.filter((r) => r.remindAt <= now).length;
+    };
+
+    setCount(computeCount());
+
+    // Recompute every minute to catch reminders that become due
+    const interval = setInterval(() => {
+      setCount(computeCount());
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [reminders]);
+
+  return count;
+}

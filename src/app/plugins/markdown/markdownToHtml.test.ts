@@ -43,6 +43,17 @@ describe('markdownToHtml', () => {
     expect(result).toContain('spoiler');
   });
 
+  it('converts MFM fg.color syntax', () => {
+    const result = markdownToHtml('$[fg.color=f00 red]');
+    expect(result).toContain('data-mx-color="#ff0000"');
+    expect(result).toContain('red');
+  });
+
+  it('converts MFM bg.color with 6-digit hex', () => {
+    const result = markdownToHtml('$[bg.color=00ff00 green]');
+    expect(result).toContain('data-mx-bg-color="#00ff00"');
+  });
+
   it('converts inline math syntax', () => {
     const result = markdownToHtml('$E = mc^2$');
     expect(result).toContain('data-mx-maths');

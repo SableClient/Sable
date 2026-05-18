@@ -1,44 +1,44 @@
-import { getMarkdownCodeSpanRanges } from "$components/editor/utils";
+import { getMarkdownCodeSpanRanges } from '$components/editor/utils';
 
 export const MARKDOWN_ALLOWED_HTML_TAGS = new Set([
-  "a",
-  "blockquote",
-  "br",
-  "code",
-  "del",
-  "details",
-  "div",
-  "em",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "hr",
-  "img",
-  "li",
-  "mx-reply",
-  "ol",
-  "p",
-  "pre",
-  "s",
-  "span",
-  "strong",
-  "sub",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "th",
-  "thead",
-  "tr",
-  "u",
-  "ul",
+  'a',
+  'blockquote',
+  'br',
+  'code',
+  'del',
+  'details',
+  'div',
+  'em',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'hr',
+  'img',
+  'li',
+  'mx-reply',
+  'ol',
+  'p',
+  'pre',
+  's',
+  'span',
+  'strong',
+  'sub',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'th',
+  'thead',
+  'tr',
+  'u',
+  'ul',
 ]);
 
 /** Void elements that do not require a separate closing tag. */
-export const VOID_HTML_TAGS = new Set(["br", "hr", "img"]);
+export const VOID_HTML_TAGS = new Set(['br', 'hr', 'img']);
 
 export const isAllowedHtmlTag = (tagName: string): boolean =>
   MARKDOWN_ALLOWED_HTML_TAGS.has(tagName.toLowerCase());
@@ -46,37 +46,37 @@ export const isAllowedHtmlTag = (tagName: string): boolean =>
 /** Matches HTML open/close/self-closing tags (not `<https://…>` preview suppressors). */
 const RAW_HTML_TAG = /<\/?([a-zA-Z][\da-zA-Z-]*)(?:\s(?:[^>"']|"[^"]*"|'[^']*')*)?\s*\/?>/g;
 
-const CODE_PLACEHOLDER_START = "\uE000";
-const CODE_PLACEHOLDER_END = "\uE001";
+const CODE_PLACEHOLDER_START = '\uE000';
+const CODE_PLACEHOLDER_END = '\uE001';
 
 type HtmlTagToken = {
   index: number;
   length: number;
   raw: string;
   tagName: string;
-  kind: "open" | "close" | "void";
+  kind: 'open' | 'close' | 'void';
 };
 
 const entityEscapeTag = (raw: string): string =>
-  raw.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  raw.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 const isVoidHtmlTag = (tagName: string, raw: string): boolean =>
   VOID_HTML_TAGS.has(tagName.toLowerCase()) || /\/>\s*$/.test(raw);
 
 const scanHtmlTags = (input: string): HtmlTagToken[] => {
   const tokens: HtmlTagToken[] = [];
-  const re = new RegExp(RAW_HTML_TAG.source, "g");
+  const re = new RegExp(RAW_HTML_TAG.source, 'g');
   let match: RegExpExecArray | null;
 
   while ((match = re.exec(input)) !== null) {
     const raw = match[0];
     const tagName = match[1]!.toLowerCase();
-    const isClose = raw.startsWith("</");
-    const kind: HtmlTagToken["kind"] = isClose
-      ? "close"
+    const isClose = raw.startsWith('</');
+    const kind: HtmlTagToken['kind'] = isClose
+      ? 'close'
       : isVoidHtmlTag(tagName, raw)
-        ? "void"
-        : "open";
+        ? 'void'
+        : 'open';
 
     tokens.push({
       index: match.index,
@@ -100,11 +100,11 @@ const collectTagsToEscape = (tokens: HtmlTagToken[]): Set<number> => {
       continue;
     }
 
-    if (token.kind === "void") {
+    if (token.kind === 'void') {
       continue;
     }
 
-    if (token.kind === "open") {
+    if (token.kind === 'open') {
       openStack.push({ tagName: token.tagName, index: token.index });
       continue;
     }
@@ -127,7 +127,7 @@ const collectTagsToEscape = (tokens: HtmlTagToken[]): Set<number> => {
 const applyTagEscapes = (input: string, tokens: HtmlTagToken[], escapeAt: Set<number>): string => {
   if (escapeAt.size === 0) return input;
 
-  let out = "";
+  let out = '';
   let cursor = 0;
 
   for (const token of tokens) {
@@ -166,8 +166,8 @@ const maskMarkdownVerbatimRegions = (text: string): { masked: string; chunks: st
 
 const unmaskMarkdownVerbatimRegions = (text: string, chunks: string[]): string =>
   text.replace(
-    new RegExp(`${CODE_PLACEHOLDER_START}CODE(\\d+)${CODE_PLACEHOLDER_END}`, "g"),
-    (_, index) => chunks[parseInt(index, 10)] ?? "",
+    new RegExp(`${CODE_PLACEHOLDER_START}CODE(\\d+)${CODE_PLACEHOLDER_END}`, 'g'),
+    (_, index) => chunks[parseInt(index, 10)] ?? ''
   );
 
 const escapeHtmlTagsInMarkdown = (input: string): string => {

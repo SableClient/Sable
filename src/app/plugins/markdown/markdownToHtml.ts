@@ -12,20 +12,19 @@ import {
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
 import { matrixUnderlineExtension } from './extensions/matrix-underline';
+import { matrixMfmColorExtension } from './extensions/matrix-mfm-color';
 import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
 import { expandBlockBoundariesAfterSingleNewlines } from './expandBlockNewlines';
-import {
-  escapeNonAllowlistedHtmlTags,
-  MARKDOWN_ALLOWED_HTML_TAGS,
-} from './allowedHtmlTags';
+import { escapeNonAllowlistedHtmlTags, MARKDOWN_ALLOWED_HTML_TAGS } from './allowedHtmlTags';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
   breaks: true,
   extensions: [
+    matrixMfmColorExtension,
     matrixUnderlineExtension,
     matrixSpoilerExtension,
     matrixMathExtension,

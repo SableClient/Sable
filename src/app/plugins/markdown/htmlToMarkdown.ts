@@ -8,6 +8,8 @@ import {
 import { escapeMarkdownInlineSequences } from './utils';
 import { testMatrixTo } from '$plugins/matrix-to';
 import { isAllowedHtmlTag } from './allowedHtmlTags';
+import { formatMfmColorDataMd } from './extensions/matrix-mfm-color';
+import { isMatrixHexColor } from '$utils/matrixHtml';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -99,13 +101,17 @@ function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean
       return processMath(node, 'inline');
     }
     if (node.attribs['data-md'] !== undefined) {
+      const dataMd = node.attribs['data-md'];
+      if (typeof dataMd === 'string' && dataMd.startsWith('$[')) {
+        return processMfmColorSpan(node, listDepth, insideCode);
+      }
       return processInlineMarkdown(node, listDepth, insideCode);
     }
     if (
       node.attribs['data-mx-color'] !== undefined ||
       node.attribs['data-mx-bg-color'] !== undefined
     ) {
-      return reconstructTag(node, listDepth, insideCode);
+      return processMfmColorSpan(node, listDepth, insideCode);
     }
   }
 
@@ -434,6 +440,30 @@ function processLink(node: Element, listDepth = 0, insideCode = false): string {
   const href = node.attribs.href ?? '';
   const content = node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
   return `[${content}](${href})`;
+}
+
+function processMfmColorSpan(
+  node: Element,
+  listDepth: number = 0,
+  insideCode: boolean = false
+): string {
+  const content = processChildren(node.children, listDepth, insideCode);
+  const dataMd = node.attribs['data-md'];
+  if (typeof dataMd === 'string' && dataMd.startsWith('$[')) {
+    return `${dataMd} ${content}]`;
+  }
+
+  const args: { fg?: string; bg?: string } = {};
+  const fg = node.attribs['data-mx-color'];
+  const bg = node.attribs['data-mx-bg-color'];
+  if (typeof fg === 'string' && isMatrixHexColor(fg)) args.fg = fg;
+  if (typeof bg === 'string' && isMatrixHexColor(bg)) args.bg = bg;
+
+  if (args.fg !== undefined || args.bg !== undefined) {
+    return `${formatMfmColorDataMd(args)} ${content}]`;
+  }
+
+  return reconstructTag(node, listDepth, insideCode);
 }
 
 function processSpoiler(node: Element, listDepth = 0, insideCode = false): string {

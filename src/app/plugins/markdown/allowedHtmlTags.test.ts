@@ -4,15 +4,11 @@ import { escapeNonAllowlistedHtmlTags } from './allowedHtmlTags';
 describe('escapeNonAllowlistedHtmlTags', () => {
   it('entity-escapes unknown tags', () => {
     expect(escapeNonAllowlistedHtmlTags('<test>')).toBe('&lt;test&gt;');
-    expect(escapeNonAllowlistedHtmlTags('<test> </test>')).toBe(
-      '&lt;test&gt; &lt;/test&gt;'
-    );
+    expect(escapeNonAllowlistedHtmlTags('<test> </test>')).toBe('&lt;test&gt; &lt;/test&gt;');
   });
 
   it('leaves well-formed allowlisted tags unchanged', () => {
-    expect(escapeNonAllowlistedHtmlTags('<strong>bold</strong>')).toBe(
-      '<strong>bold</strong>'
-    );
+    expect(escapeNonAllowlistedHtmlTags('<strong>bold</strong>')).toBe('<strong>bold</strong>');
     expect(escapeNonAllowlistedHtmlTags('<br>')).toBe('<br>');
     expect(escapeNonAllowlistedHtmlTags('<img src="mxc://x/y" alt="e" />')).toBe(
       '<img src="mxc://x/y" alt="e" />'
@@ -25,9 +21,7 @@ describe('escapeNonAllowlistedHtmlTags', () => {
   });
 
   it('entity-escapes mismatched closing tags', () => {
-    expect(escapeNonAllowlistedHtmlTags('<strong>foo</em>')).toBe(
-      '&lt;strong&gt;foo&lt;/em&gt;'
-    );
+    expect(escapeNonAllowlistedHtmlTags('<strong>foo</em>')).toBe('&lt;strong&gt;foo&lt;/em&gt;');
   });
 
   it('entity-escapes orphan closing tags', () => {

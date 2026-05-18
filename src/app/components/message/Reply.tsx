@@ -57,6 +57,20 @@ const nonEmptyTrimmed = (v: unknown): string | undefined => {
   return t.length > 0 ? t : undefined;
 };
 
+const FORMATTED_EMOTICON_IMG_RE = /<img\b[^>]*\bdata-mx-emoticon\b/i;
+
+export const replyFormattedPreviewTextOnly = (sanitizedHtml: string): string =>
+  sanitizedHtml
+    .replaceAll(/<br\s*\/?>/gi, ' ')
+    .replaceAll(/<[^>]+>/g, '')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+
+export const shouldParseReplyFormattedPreview = (sanitizedHtml: string): boolean => {
+  const textOnly = replyFormattedPreviewTextOnly(sanitizedHtml);
+  return textOnly !== '' || FORMATTED_EMOTICON_IMG_RE.test(sanitizedHtml);
+};
+
 export const replyPreviewBodyForTimelineEvent = (
   eventType: string | undefined,
   content: Record<string, unknown>,
@@ -256,12 +270,7 @@ export const Reply = as<'div', ReplyProps>(
 
     if (isFormattedReply && formattedBody !== '') {
       const sanitizedHtml = sanitizeReplyFormattedPreview(formattedBody);
-      const textOnly = sanitizedHtml
-        .replaceAll(/<br\s*\/?>/gi, ' ')
-        .replaceAll(/<[^>]+>/g, '')
-        .replaceAll(/\s+/g, ' ')
-        .trim();
-      if (textOnly !== '') {
+      if (shouldParseReplyFormattedPreview(sanitizedHtml)) {
         const parserOpts = getReactCustomHtmlParser(mx, room.roomId, {
           settingsLinkBaseUrl,
           linkifyOpts: replyLinkifyOpts,
@@ -272,6 +281,9 @@ export const Reply = as<'div', ReplyProps>(
           incomingInlineImagesMaxHeight,
         });
         bodyJSX = parse(sanitizedHtml, parserOpts) as JSX.Element;
+      } else if (hasPlainTextReply) {
+        const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
+        bodyJSX = scaleSystemEmoji(strippedBody);
       }
     } else if (hasPlainTextReply) {
       const strippedBody = trimReplyFromBody(body).replaceAll(/(?:\r\n|\r|\n)/g, ' ');
@@ -394,7 +406,7 @@ export const Reply = as<'div', ReplyProps>(
             before={<Icon size="50" src={Icons.Reload} />}
             onClick={(evt) => {
               evt.stopPropagation();
-              queryClient.invalidateQueries({
+              void queryClient.invalidateQueries({
                 queryKey: [room.roomId, replyEventId],
               });
             }}

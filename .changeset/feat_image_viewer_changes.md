@@ -4,8 +4,6 @@ default: minor
 
 Change Image Viewer to feel more natural to use.
 
-# Changes to Image viewer
-
 - Fixed zoom gestures generally not working on mobile.
 - Changed the % number in the top right to reflect the zoom of the original image as opposed to the change from it fitting the container.
 - Made the zoom pill allow entering custom values.

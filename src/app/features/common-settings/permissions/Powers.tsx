@@ -67,7 +67,7 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
 
                           return (
                             <Text
-                              key={JSON.stringify(item.location)}
+                              key={item.name}
                               size="T200"
                               style={{
                                 color: hasPower ? undefined : color.Critical.Main,

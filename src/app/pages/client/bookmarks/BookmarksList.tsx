@@ -56,6 +56,13 @@ import {
   useBookmarkReminderActions,
 } from '$features/bookmarks/useBookmarks';
 
+/** Format a Unix timestamp as a `datetime-local` input value in the user's local timezone. */
+function toDateTimeLocal(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ---------------------------------------------------------------------------
 // RemoveBookmarkDialog
 // ---------------------------------------------------------------------------
@@ -144,7 +151,7 @@ function BookmarkItemRow({
   const reminder = reminders.find((r) => r.bookmarkId === item.bookmark_id);
 
   const handleOpenReminderPicker = () => {
-    const defaultValue = reminder ? new Date(reminder.remindAt).toISOString().slice(0, 16) : '';
+    const defaultValue = reminder ? toDateTimeLocal(reminder.remindAt) : '';
     setReminderInputValue(defaultValue);
     setReminderPickerOpen((prev) => !prev);
   };

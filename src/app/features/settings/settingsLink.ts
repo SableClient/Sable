@@ -116,6 +116,8 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'saturation',
     'selected-language-for-pronouns',
     'show-easter-eggs',
+    'toggle-hide-rooms',
+    'clear-hidden-room-list',
     'show-pronoun-pills',
     'show-pronouns-only-in-selected-language',
     'subspace-hierarchy-limit',

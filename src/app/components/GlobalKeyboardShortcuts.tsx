@@ -22,6 +22,8 @@ import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -31,6 +33,7 @@ export function GlobalKeyboardShortcuts() {
   const mDirects = useAtomValue(mDirectAtom);
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const unreadIndexRef = useRef(0);
+  const [isHidingRooms, setIsHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
 
   // Derive the current room ID from the URL so we know which room is active.
   const roomMatch =
@@ -151,9 +154,21 @@ export function GlobalKeyboardShortcuts() {
     [currentRoom, replyDraft, setReplyDraft]
   );
 
+  /** Alt+Shift+H: Toggle Hide Rooms. */
+  const handleHideRoomsKeyDown = useCallback(
+    (evt: KeyboardEvent) => {
+      if (!isKeyHotkey('alt+shift+h', evt)) return;
+      evt.preventDefault();
+      unreadIndexRef.current = 0;
+      setIsHidingRooms(!isHidingRooms);
+    },
+    [setIsHidingRooms, isHidingRooms]
+  );
+
   useKeyDown(window, handleNextUnreadKeyDown);
   useKeyDown(window, handleUnreadNavKeyDown);
   useKeyDown(window, handleReplyKeyDown);
+  useKeyDown(window, handleHideRoomsKeyDown);
 
   return null;
 }

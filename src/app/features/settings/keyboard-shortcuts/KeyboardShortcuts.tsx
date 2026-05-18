@@ -46,6 +46,10 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { keys: 'Ctrl+U / ⌘+U', description: 'Underline' },
     ],
   },
+  {
+    name: 'Other',
+    shortcuts: [{ keys: 'Alt+Shift+H', description: 'Toggle Hiding Rooms' }],
+  },
 ];
 
 function ShortcutRow({ keys, description }: ShortcutEntry) {

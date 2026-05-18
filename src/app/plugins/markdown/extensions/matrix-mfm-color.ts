@@ -72,7 +72,6 @@ export function tryParseMfmColor(
 export const matrixMfmColorExtension = {
   name: 'mfmColor',
   level: 'inline',
-  priority: 10,
   start(src: string) {
     const fg = src.indexOf('$[fg.color=');
     const bg = src.indexOf('$[bg.color=');
@@ -102,8 +101,8 @@ export const matrixMfmColorExtension = {
     this: { parser: { parseInline: (tokens: Tokens.Generic[]) => string } },
     token: Tokens.Generic
   ) {
-    const t = token as {
-      tokens: Tokens.Generic[];
+    const t = token as unknown as {
+      tokens?: Tokens.Generic[];
       mfmArgs: MfmColorArgs;
       dataMd: string;
     };

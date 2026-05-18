@@ -115,7 +115,7 @@ export function UserMentionAutocomplete({
     else resetSearch();
   }, [query.text, search, resetSearch]);
 
-  const handleAutocomplete: MentionAutoCompleteHandler = (uId, name) => {
+  const handleAutocomplete: MentionAutoCompleteHandler = (uId) => {
     const mentionEl = createMentionElement(
       uId,
       resolveUserMentionName(uId, { room, nicknames }),

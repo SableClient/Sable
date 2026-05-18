@@ -378,7 +378,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       const mentionOptions = {
         room,
         nicknames,
-        mxUserId: mx.getUserId(),
+        mxUserId: mx.getUserId() ?? undefined,
       };
       const initialValue = plainToEditorInput(
         customHtml

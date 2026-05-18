@@ -1,18 +1,8 @@
 import type { BundleContent } from '$components/message';
-import { isMatrixToMentionHref, testMatrixTo } from '$plugins/matrix-to';
+import { testMatrixTo } from '$plugins/matrix-to';
 
 const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
-
-/** True when `urlStart` lies inside the destination of a markdown link `[…](…)`. */
-const isUrlInsideMarkdownLinkDestination = (body: string, urlStart: number): boolean => {
-  const destOpen = body.lastIndexOf('](', urlStart);
-  if (destOpen === -1) return false;
-  const destStart = destOpen + 2;
-  const destClose = body.indexOf(')', destStart);
-  if (destClose === -1) return urlStart >= destStart;
-  return urlStart >= destStart && urlStart < destClose;
-};
 
 /**
  * `htmlToMarkdown()` escapes `<` and `>` into `\<` and `\>` in text nodes.
@@ -60,16 +50,10 @@ export function readdAngleBracketsForHiddenPreviews(
     const offset = args[args.length - 2] as number;
     if (!url || previewed.has(url)) return full;
 
-    // matrix.to user/room/event permalinks inside markdown link destinations are mentions, not previews.
+    // matrix.to permalinks are never preview-suppressed (mentions, event links, room links).
+    if (testMatrixTo(url)) return full;
+
     const urlIndex = body.indexOf(url, offset);
-    if (
-      urlIndex !== -1 &&
-      testMatrixTo(url) &&
-      isMatrixToMentionHref(url) &&
-      isUrlInsideMarkdownLinkDestination(body, urlIndex)
-    ) {
-      return full;
-    }
 
     // URL is the label of a markdown link [url](...) — do not insert "<" into the label.
     const after = body.slice(offset + full.length, offset + full.length + 2);

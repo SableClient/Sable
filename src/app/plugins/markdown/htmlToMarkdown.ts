@@ -6,7 +6,7 @@ import {
   validateMxcUrl,
 } from './extensions/matrix-emoticon';
 import { escapeMarkdownInlineSequences } from './utils';
-import { isMatrixToMentionHref } from '$plugins/matrix-to';
+import { testMatrixTo } from '$plugins/matrix-to';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -233,7 +233,7 @@ function processChildren(
     ) {
       const href = next.attribs.href ?? '';
       const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
-      if (isMatrixToMentionHref(href)) {
+      if (testMatrixTo(href)) {
         out.push(`[${content}](${href})`);
       } else {
         out.push(`[${content}](<${href}>)`);

@@ -55,7 +55,7 @@ import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
-import { isMatrixToMentionHref } from '$plugins/matrix-to';
+import { testMatrixTo } from '$plugins/matrix-to';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -155,15 +155,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             // it needs to be separated such that it can be reintroduced before the < in case of regular text
             // or after it in case that it is matching a <a> tag
             const strippedS = s.substring(1);
-            const matrixToMentionAnchorHref =
+            const matrixToAnchorHref =
               isHTML && s.toLowerCase().startsWith('<a')
                 ? s.match(/href\s*=\s*["']([^"']+)["']/i)?.[1]
                 : undefined;
-            const isMatrixToMentionAnchor =
-              matrixToMentionAnchorHref !== undefined &&
-              isMatrixToMentionHref(matrixToMentionAnchorHref);
+            const urlFromChunk = strippedS.match(/https?:\/\/[^\s)]+/)?.[0];
+            const isMatrixToPermalink = testMatrixTo(matrixToAnchorHref ?? urlFromChunk ?? '');
             const isHidden =
-              !isMatrixToMentionAnchor &&
+              !isMatrixToPermalink &&
               (bundleContent?.length === 0 ||
                 bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
               strippedS.match(LINKINPUTREGEX) !== null;
@@ -385,7 +384,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         customHtml
           ? stripMarkdownEscapesForHiddenPreviews(htmlToMarkdown(customHtml))
           : typeof body === 'string'
-            ? body
+            ? stripMarkdownEscapesForHiddenPreviews(body)
             : '',
         mentionOptions
       );

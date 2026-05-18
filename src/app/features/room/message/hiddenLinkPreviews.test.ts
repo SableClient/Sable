@@ -73,6 +73,12 @@ describe('readdAngleBracketsForHiddenPreviews', () => {
     ).toBe('Hello [Alice](https://matrix.to/#/@alice:example.org)!');
   });
 
+  it('does not wrap bare matrix.to event permalinks', () => {
+    const url =
+      'https://matrix.to/#/!ILh1573wEoGMeBRdt_lvfuF-6UZntdLebiZq7uV4cS0/$WqIkTq0ZUF1_8hCamWNf4wDj7oKrK4VeNDWLAtgVXjg?via=sable.moe&via=matrix.org';
+    expect(readdAngleBracketsForHiddenPreviews(`see ${url} thanks`, [])).toBe(`see ${url} thanks`);
+  });
+
   it('does not corrupt markdown suppressed links [url](<url>)', () => {
     expect(
       readdAngleBracketsForHiddenPreviews(

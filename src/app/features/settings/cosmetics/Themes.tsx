@@ -883,7 +883,7 @@ export function Appearance({
                       setHiddenSpaces([]);
                     }}
                     radii="300"
-                    disabled={hiddenRooms.length === 0 && hiddenSpaces.length === 0}
+                    disabled={hiddenRooms?.length === 0 && hiddenSpaces?.length === 0}
                   >
                     <Icon src={Icons.Reload} />
                   </IconButton>

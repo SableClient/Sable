@@ -558,9 +558,7 @@ export function MutualRoomsChip({
         variant={cardColor ? undefined : 'SurfaceVariant'}
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
-        disabled={
-          mutualRoomsState.status !== AsyncStatus.Success || baseMutualRooms.length === 0
-        }
+        disabled={mutualRoomsState.status !== AsyncStatus.Success || baseMutualRooms.length === 0}
         onClick={open}
         aria-pressed={!!cords}
         className={cardColor ? css.UserHeroChipThemed : css.UserHeroBrightnessHover}

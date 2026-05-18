@@ -81,6 +81,17 @@ const getMatchRegexes = () => {
 
 export const testMatrixTo = (href: string): boolean => getMatchRegexes().any.test(href);
 
+/** True when the URL is a matrix.to user, room, or event permalink (a mention), not an arbitrary link. */
+export const isMatrixToMentionHref = (href: string): boolean => {
+  const trimmed = href.trim();
+  if (!testMatrixTo(trimmed)) return false;
+  return !!(
+    parseMatrixToUser(trimmed) ??
+    parseMatrixToRoom(trimmed) ??
+    parseMatrixToRoomEvent(trimmed)
+  );
+};
+
 export const parseMatrixToUser = (href: string): string | undefined => {
   const match = href.match(getMatchRegexes().user);
   if (!match) return undefined;

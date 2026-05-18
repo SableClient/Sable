@@ -6,6 +6,7 @@ import {
   validateMxcUrl,
 } from './extensions/matrix-emoticon';
 import { escapeMarkdownInlineSequences } from './utils';
+import { isMatrixToMentionHref } from '$plugins/matrix-to';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -232,8 +233,11 @@ function processChildren(
     ) {
       const href = next.attribs.href ?? '';
       const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
-      // Suppressed autolink: [label](<href>) so bracket text is not run through escapeMarkdown as "\<".
-      out.push(`[${content}](<${href}>)`);
+      if (isMatrixToMentionHref(href)) {
+        out.push(`[${content}](${href})`);
+      } else {
+        out.push(`[${content}](<${href}>)`);
+      }
       i += 2;
       continue;
     }

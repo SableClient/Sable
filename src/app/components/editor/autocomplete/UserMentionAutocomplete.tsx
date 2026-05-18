@@ -18,7 +18,12 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import { createMentionElement, moveCursor, replaceWithElement } from '$components/editor/utils';
+import {
+  createMentionElement,
+  moveCursor,
+  replaceWithElement,
+  resolveUserMentionName,
+} from '$components/editor/utils';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
 import type { AutocompleteQuery } from './autocompleteQuery';
@@ -113,7 +118,7 @@ export function UserMentionAutocomplete({
   const handleAutocomplete: MentionAutoCompleteHandler = (uId, name) => {
     const mentionEl = createMentionElement(
       uId,
-      name.startsWith('@') ? name : `@${name}`,
+      resolveUserMentionName(uId, { room, nicknames }),
       mx.getUserId() === uId || roomAliasOrId === uId
     );
     replaceWithElement(editor, query.range, mentionEl);

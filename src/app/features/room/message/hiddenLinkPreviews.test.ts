@@ -64,6 +64,15 @@ describe('readdAngleBracketsForHiddenPreviews', () => {
     );
   });
 
+  it('does not wrap matrix.to mention destinations in markdown links', () => {
+    expect(
+      readdAngleBracketsForHiddenPreviews(
+        'Hello [Alice](https://matrix.to/#/@alice:example.org)!',
+        []
+      )
+    ).toBe('Hello [Alice](https://matrix.to/#/@alice:example.org)!');
+  });
+
   it('does not corrupt markdown suppressed links [url](<url>)', () => {
     expect(
       readdAngleBracketsForHiddenPreviews(

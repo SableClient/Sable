@@ -63,7 +63,6 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 type HomeMenuProps = {
@@ -263,7 +262,7 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -454,7 +453,7 @@ export function Home() {
           </PageNavContent>
         )}
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

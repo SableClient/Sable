@@ -74,6 +74,7 @@ import {
   getEventTimeline,
   getFirstLinkedTimeline,
   getInitialTimeline,
+  getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
@@ -420,6 +421,11 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    // Clear the stale live-timeline content immediately so loading placeholders
+    // are shown while the event-context API call is in flight, rather than
+    // having the entire message area go invisible (opacity:0) with no feedback
+    // for however long the network round-trip takes.
+    timelineSyncRef.current.setTimeline(getEmptyTimeline());
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 

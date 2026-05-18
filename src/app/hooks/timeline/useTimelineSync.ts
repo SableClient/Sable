@@ -57,10 +57,18 @@ const useEventTimelineLoader = (
   room: Room,
   onLoad: (eventId: string, linkedTimelines: EventTimeline[], evtAbsIndex: number) => void,
   onError: (err: Error | null) => void
-) =>
-  useCallback(
+) => {
+  // Monotonically-increasing counter so that only the most-recently-started
+  // loadEventTimeline call can commit its result.  Concurrent calls (e.g. one
+  // from the eventId useEffect and one triggered by useLiveTimelineRefresh)
+  // would otherwise both fire setTimeline + setFocusItem, producing a double
+  // scroll animation and potentially landing on the wrong event.
+  const loadIdRef = useRef(0);
+
+  return useCallback(
     async (eventId: string) =>
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
+        const loadId = ++loadIdRef.current;
         const jumpLoadStart = performance.now();
 
         if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
@@ -80,16 +88,20 @@ const useEventTimelineLoader = (
           )
         );
         if (!replyEvtTimeline) {
-          onError(err ?? null);
+          if (loadId === loadIdRef.current) onError(err ?? null);
           return;
         }
         const linkedTimelines = getLinkedTimelines(replyEvtTimeline);
         const absIndex = getEventIdAbsoluteIndex(linkedTimelines, replyEvtTimeline, eventId);
 
         if (absIndex === undefined) {
-          onError(err ?? null);
+          if (loadId === loadIdRef.current) onError(err ?? null);
           return;
         }
+
+        // A newer loadEventTimeline call is already in flight; discard this result
+        // so we do not clobber the more-recent load's timeline or focus scroll.
+        if (loadId !== loadIdRef.current) return;
 
         Sentry.metrics.distribution(
           'sable.timeline.jump_load_ms',
@@ -99,6 +111,7 @@ const useEventTimelineLoader = (
       }),
     [mx, room, onLoad, onError]
   );
+};
 
 const useTimelinePagination = (
   mx: MatrixClient,

@@ -216,6 +216,17 @@ describe('markdownToHtml', () => {
     expect(result).not.toContain('<ul>');
   });
 
+  it('preserves arbitrary ordered list start numbers', () => {
+    const result = markdownToHtml('23423. hello');
+    expect(result).toContain('start="23423"');
+  });
+
+  it('strips invalid ol start values', () => {
+    const result = markdownToHtml('<ol start="javascript:alert(1)"><li>x</li></ol>');
+    expect(result).toContain('<ol>');
+    expect(result).not.toContain('start=');
+  });
+
   it('handles text without markdown', () => {
     const result = markdownToHtml('Plain text without any formatting');
     expect(result).toContain('Plain text');

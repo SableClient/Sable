@@ -56,6 +56,8 @@ const decodeHtmlEntities = (text: string): string => {
 
 const MATRIX_TO_PLACEHOLDER_PREFIX = 'MATRIXTORAWLINKTOKEN';
 
+const ORDERED_LIST_START_REGEX = /^-?\d+$/;
+
 const escapeHtml = (text: string): string =>
   text
     .replace(/&/g, '&amp;')
@@ -152,11 +154,17 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
 
   const allowlistedHtml = escapeNonAllowlistedHtmlTags(unescapedInline);
 
-  // Force all links to open in a new tab
+  // Force all links to open in a new tab, validate <ol start>.
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName === 'A' && node.getAttribute('href')) {
       node.setAttribute('target', '_blank');
       node.setAttribute('rel', 'noreferrer noopener');
+    }
+    if (node.tagName === 'OL') {
+      const start = node.getAttribute('start');
+      if (start !== null && !ORDERED_LIST_START_REGEX.test(start)) {
+        node.removeAttribute('start');
+      }
     }
   });
 
@@ -185,7 +193,9 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
     ],
     // Ensure these safe attrs survive sanitization even when the input HTML
     // originates from markdown-embedded tags (e.g. custom emoji <img>).
+    // `start` must be URI-safe or DOMPurify drops it when ALLOWED_URI_REGEXP is set.
     ADD_ATTR: ['target', 'rel', 'height', 'width'],
+    ADD_URI_SAFE_ATTR: ['start'],
     // Force all links to have safe rel attribute
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,

@@ -37,4 +37,12 @@ describe('escapeNonAllowlistedHtmlTags', () => {
     expect(escapeNonAllowlistedHtmlTags('`<strong>`')).toBe('`<strong>`');
     expect(escapeNonAllowlistedHtmlTags('```\n<strong>\n```')).toBe('```\n<strong>\n```');
   });
+
+  it('does not entity-escape markdown-backslash-escaped tags', () => {
+    expect(escapeNonAllowlistedHtmlTags(String.raw`\<test\>`)).toBe(String.raw`\<test\>`);
+    expect(escapeNonAllowlistedHtmlTags(String.raw`\<test>`)).toBe(String.raw`\<test>`);
+    expect(escapeNonAllowlistedHtmlTags(String.raw`before \<foo\> after`)).toBe(
+      String.raw`before \<foo\> after`
+    );
+  });
 });

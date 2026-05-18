@@ -60,6 +60,15 @@ type HtmlTagToken = {
 const entityEscapeTag = (raw: string): string =>
   raw.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
+/** True when an odd number of `\` immediately precedes `index` (CommonMark escape). */
+const isMarkdownEscapedAt = (input: string, index: number): boolean => {
+  let slashes = 0;
+  for (let i = index - 1; i >= 0 && input[i] === '\\'; i -= 1) {
+    slashes += 1;
+  }
+  return slashes % 2 === 1;
+};
+
 const isVoidHtmlTag = (tagName: string, raw: string): boolean =>
   VOID_HTML_TAGS.has(tagName.toLowerCase()) || /\/>\s*$/.test(raw);
 
@@ -90,11 +99,15 @@ const scanHtmlTags = (input: string): HtmlTagToken[] => {
   return tokens;
 };
 
-const collectTagsToEscape = (tokens: HtmlTagToken[]): Set<number> => {
+const collectTagsToEscape = (input: string, tokens: HtmlTagToken[]): Set<number> => {
   const escapeAt = new Set<number>();
   const openStack: { tagName: string; index: number }[] = [];
 
   for (const token of tokens) {
+    if (isMarkdownEscapedAt(input, token.index)) {
+      continue;
+    }
+
     if (!isAllowedHtmlTag(token.tagName)) {
       escapeAt.add(token.index);
       continue;
@@ -173,7 +186,7 @@ const unmaskMarkdownVerbatimRegions = (text: string, chunks: string[]): string =
 const escapeHtmlTagsInMarkdown = (input: string): string => {
   const tokens = scanHtmlTags(input);
   if (tokens.length === 0) return input;
-  const escapeAt = collectTagsToEscape(tokens);
+  const escapeAt = collectTagsToEscape(input, tokens);
   return applyTagEscapes(input, tokens, escapeAt);
 };
 

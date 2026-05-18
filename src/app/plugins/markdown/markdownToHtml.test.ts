@@ -352,6 +352,19 @@ describe('markdownToHtml', () => {
     expect(result).not.toMatch(/<a[^>]*matrix\.to/);
   });
 
+  it('renders backslash-escaped angle brackets as literal < and > in HTML output', () => {
+    const html = markdownToHtml(String.raw`\<test\>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('does not double-encode when only the opening bracket is backslash-escaped', () => {
+    const html = markdownToHtml(String.raw`\<test>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toContain('&amp;lt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
   it('entity-escapes unknown html-like tags instead of stripping them', () => {
     expect(markdownToHtml('<test>')).toContain('&lt;test&gt;');
     expect(markdownToHtml('<test>')).not.toMatch(/<test[^>]*>/);

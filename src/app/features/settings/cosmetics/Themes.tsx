@@ -18,7 +18,7 @@ import {
 } from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
-import { SettingMenuSelector } from '$components/setting-menu-selector';
+import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
@@ -29,7 +29,7 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import type { ShowRoomIcon } from '$state/settings';
+import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
@@ -217,6 +217,16 @@ function ThemeVisualPreferences() {
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
+    settingsAtom,
+    'pixelatedImageRendering'
+  );
+  const pixelatedImageRenderingOptions: SettingMenuOption<PixelatedImageRenderingMode>[] = [
+    { value: 'both', label: 'Both' },
+    { value: 'chat', label: 'Chat' },
+    { value: 'viewer', label: 'Image viewer' },
+    { value: 'none', label: 'Neither' },
+  ];
   const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,
     'incomingInlineImagesDefaultHeight'
@@ -326,6 +336,20 @@ function ThemeVisualPreferences() {
           focusId="autoplay-gifs"
           description="Automatically play animated image uploads and links."
           after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Pixelated image scaling"
+          focusId="pixelated-image-rendering"
+          description="Use crisp nearest-neighbor scaling where selected. Improves pixel art but makes normal images worse."
+          after={
+            <SettingMenuSelector
+              value={pixelatedImageRendering}
+              options={pixelatedImageRenderingOptions}
+              onSelect={setPixelatedImageRendering}
+            />
+          }
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">

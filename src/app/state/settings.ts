@@ -55,6 +55,17 @@ export type ThemeRemoteTweakFavorite = {
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
 
+/** Where to use crisp nearest-neighbor (pixelated) image scaling. */
+export type PixelatedImageRenderingMode = 'both' | 'chat' | 'viewer' | 'none';
+
+export function isPixelatedChatRendering(mode: PixelatedImageRenderingMode): boolean {
+  return mode === 'both' || mode === 'chat';
+}
+
+export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): boolean {
+  return mode === 'both' || mode === 'viewer';
+}
+
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
   brightness: string | undefined
@@ -151,6 +162,7 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
   linkPreviewImageMaxHeight: number;
@@ -284,6 +296,7 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  pixelatedImageRendering: 'viewer',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
@@ -357,6 +370,17 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.renderUserCards !== 'none'
   ) {
     parsed.renderUserCards = 'both';
+  }
+
+  if (typeof parsed.pixelatedImageRendering === 'boolean') {
+    parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
+  } else if (
+    parsed.pixelatedImageRendering !== 'both' &&
+    parsed.pixelatedImageRendering !== 'chat' &&
+    parsed.pixelatedImageRendering !== 'viewer' &&
+    parsed.pixelatedImageRendering !== 'none'
+  ) {
+    delete parsed.pixelatedImageRendering;
   }
 
   if (
@@ -480,6 +504,10 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
+        ? val
+        : undefined;
+    case 'pixelatedImageRendering':
+      return val === 'both' || val === 'chat' || val === 'viewer' || val === 'none'
         ? val
         : undefined;
     case 'jumboEmojiSize':

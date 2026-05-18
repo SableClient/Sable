@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useElementSizeObserver } from './useElementSizeObserver';
 
 interface Vector2 {
   x: number;
@@ -20,7 +21,7 @@ function getCursorOffsetFromImageCenter(
   };
 }
 
-export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5) => {
+export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 500) => {
   const [transforms, setTransforms] = useState({
     zoom: 1,
     pan: { x: 0, y: 0 },
@@ -28,12 +29,38 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
   const [cursor, setCursor] = useState<'grab' | 'grabbing' | 'initial'>(
     active ? 'grab' : 'initial'
   );
+  const [shouldResizeWithWindow, setShouldResizeWithWindowState] = useState(true);
+  const shouldResizeWithWindowRef = useRef(true);
+  const [fitRatio, setFitRatio] = useState(1);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  const setShouldResizeWithWindow = useCallback((next: boolean) => {
+    shouldResizeWithWindowRef.current = next;
+    setShouldResizeWithWindowState(next);
+  }, []);
+
+  const enableResizeWithWindow = useCallback(
+    () => setShouldResizeWithWindow(true),
+    [setShouldResizeWithWindow]
+  );
+  const disableResizeWithWindow = useCallback(
+    () => setShouldResizeWithWindow(false),
+    [setShouldResizeWithWindow]
+  );
 
   const activePointers = useRef(new Map());
   const initialDist = useRef(0);
   const lastTapRef = useRef(0);
 
-  const setZoom = useCallback((next: number | ((prev: number) => number)) => {
+  const prepareForTransform = useCallback(() => {
+    const img = imageRef.current;
+    if (img) {
+      img.style.transition = '';
+    }
+  }, []);
+
+  const updateZoom = useCallback((next: number | ((prev: number) => number)) => {
     setTransforms((prev) => {
       if (typeof next === 'function') {
         return {
@@ -47,6 +74,23 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
       };
     });
   }, []);
+
+  const setZoom = useCallback(
+    (next: number | ((prev: number) => number)) => {
+      disableResizeWithWindow();
+      prepareForTransform();
+      updateZoom(next);
+    },
+    [disableResizeWithWindow, prepareForTransform, updateZoom]
+  );
+
+  const setZoomSilently = useCallback(
+    (next: number | ((prev: number) => number)) => {
+      prepareForTransform();
+      updateZoom(next);
+    },
+    [prepareForTransform, updateZoom]
+  );
 
   const setPan = useCallback((next: Vector2 | ((prev: Vector2) => Vector2)) => {
     setTransforms((prev) => {
@@ -71,12 +115,22 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
     (e: React.PointerEvent) => {
       if (!active || (e.pointerType === 'mouse' && e.button === 2)) return;
 
+      disableResizeWithWindow();
+      prepareForTransform();
       e.stopPropagation();
       const target = e.target as HTMLElement;
       target.setPointerCapture(e.pointerId);
 
+      // Double click zoom
       const now = Date.now();
-      if (now - lastTapRef.current < 300) {
+      if (now - lastTapRef.current < 300 && now - lastTapRef.current > 30) {
+        // If two cursors are active, this isn't a double click.
+        if (activePointers.current.size === 2) {
+          const points = Array.from(activePointers.current.values());
+          initialDist.current = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+          return;
+        }
+
         const container = target.parentElement ?? target;
         const containerRect = container.getBoundingClientRect();
         setTransforms((prev) => {
@@ -102,12 +156,13 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
       activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       setCursor('grabbing');
 
+      // Initialize pinch zoom
       if (activePointers.current.size === 2) {
         const points = Array.from(activePointers.current.values());
         initialDist.current = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
       }
     },
-    [active]
+    [active, disableResizeWithWindow, prepareForTransform]
   );
 
   const handlePointerMove = useCallback(
@@ -116,6 +171,12 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
 
       activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
+      // Disable transitions for responsive movement
+      if (e.target instanceof HTMLElement) {
+        e.target.style.transition = 'none';
+      }
+
+      // Pinch zoom
       if (activePointers.current.size === 2) {
         const points = Array.from(activePointers.current.values());
         const currentDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
@@ -126,6 +187,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
         return;
       }
 
+      // Pan
       if (activePointers.current.size === 1) {
         setPan((p) => ({
           x: p.x + e.movementX,
@@ -160,7 +222,64 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
     };
   }, [handlePointerMove, handlePointerUp]);
 
+  // When the size of the container changes, zoom without a transition.
+  const handleContainerResize = useCallback(
+    (width: number, height: number) => {
+      const img = imageRef.current;
+      if (
+        !img || // Image not loaded
+        !shouldResizeWithWindowRef.current || // Resizing disabled
+        !img.naturalWidth ||
+        !img.naturalHeight // Invalid image dimensions
+      ) {
+        return;
+      }
+      const heightRatio = height / img.naturalHeight;
+      const widthRatio = width / img.naturalWidth;
+      const fitZoom = Math.min(heightRatio, widthRatio);
+
+      img.style.transition = 'none';
+      setFitRatio(fitZoom);
+      updateZoom(fitZoom);
+      setTimeout(() => {
+        img.style.transition = '';
+      }, 15);
+    },
+    [updateZoom]
+  );
+
+  useElementSizeObserver(() => containerRef.current, handleContainerResize);
+
+  const handleImageLoad = useCallback(
+    (event: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = event.currentTarget;
+      imageRef.current = img;
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const imgHeight = img.naturalHeight;
+      const imgWidth = img.naturalWidth;
+      const containerHeight = container.clientHeight || 0;
+      const containerWidth = container.clientWidth || 0;
+
+      const heightRatio = containerHeight / imgHeight;
+      const widthRatio = containerWidth / imgWidth;
+      const fitZoom = Math.min(heightRatio, widthRatio, 1);
+
+      img.style.transition = 'none';
+      setFitRatio(fitZoom);
+      updateZoom(fitZoom);
+      setTimeout(() => {
+        img.style.transition = '';
+      }, 15);
+    },
+    [updateZoom]
+  );
+
   const zoomIn = useCallback(() => {
+    disableResizeWithWindow();
+    prepareForTransform();
     setTransforms((prev) => {
       const newZoom = Math.min(prev.zoom * (1 + step), max);
       const zoomMult = newZoom / prev.zoom;
@@ -173,9 +292,11 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
         },
       };
     });
-  }, [step, max]);
+  }, [step, max, disableResizeWithWindow, prepareForTransform]);
 
   const zoomOut = useCallback(() => {
+    disableResizeWithWindow();
+    prepareForTransform();
     setTransforms((prev) => {
       const newZoom = Math.min(prev.zoom / (1 + step), max);
       const zoomMult = newZoom / prev.zoom;
@@ -188,7 +309,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
         },
       };
     });
-  }, [step, max]);
+  }, [step, max, disableResizeWithWindow, prepareForTransform]);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -199,6 +320,9 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
         // If it's not an integer, then it's a touchpad action, do nothing and let the browser handle the zooming
         return;
       }
+
+      disableResizeWithWindow();
+      prepareForTransform();
 
       // the wheel handler is attached to the container element, not the image
       const containerRect = e.currentTarget.getBoundingClientRect();
@@ -227,7 +351,7 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
         };
       });
     },
-    [max, min, step]
+    [max, min, step, disableResizeWithWindow, prepareForTransform]
   );
 
   return {
@@ -235,11 +359,20 @@ export const useImageGestures = (active: boolean, step = 0.2, min = 0.1, max = 5
     cursor,
     onPointerDown,
     handleWheel,
+    handleImageLoad,
     setZoom,
+    setZoomSilently,
     setPan,
     setTransforms,
     resetTransforms,
     zoomIn,
     zoomOut,
+    fitRatio,
+    imageRef,
+    containerRef,
+    shouldResizeWithWindow,
+    shouldResizeWithWindowRef,
+    enableResizeWithWindow,
+    disableResizeWithWindow,
   };
 };

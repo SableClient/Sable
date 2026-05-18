@@ -421,10 +421,12 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    // Re-arm the initial-scroll guard so that if the jump fails and falls back
+    // to the live timeline, the useLayoutEffect can fire via the normal path.
+    hasInitialScrolledRef.current = false;
     // Clear the stale live-timeline content immediately so loading placeholders
     // are shown while the event-context API call is in flight, rather than
-    // having the entire message area go invisible (opacity:0) with no feedback
-    // for however long the network round-trip takes.
+    // having the entire message area go invisible (opacity:0) with no feedback.
     timelineSyncRef.current.setTimeline(getEmptyTimeline());
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
@@ -1064,7 +1066,7 @@ export function RoomTimeline({
         </div>
       )}
 
-      {!atBottomState && isReady && (
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
         <TimelineFloat position="Bottom">
           <Chip
             variant="SurfaceVariant"

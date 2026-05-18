@@ -59,10 +59,9 @@ const useEventTimelineLoader = (
   onError: (err: Error | null) => void
 ) => {
   // Monotonically-increasing counter so that only the most-recently-started
-  // loadEventTimeline call can commit its result.  Concurrent calls (e.g. one
-  // from the eventId useEffect and one triggered by useLiveTimelineRefresh)
-  // would otherwise both fire setTimeline + setFocusItem, producing a double
-  // scroll animation and potentially landing on the wrong event.
+  // loadEventTimeline call can commit its result.  Concurrent calls (e.g. from
+  // rapid navigation or concurrent useEffect triggers) would otherwise both call
+  // setFocusItem({scrollTo:true}), causing a double scroll that lands on the wrong event.
   const loadIdRef = useRef(0);
 
   return useCallback(
@@ -71,16 +70,6 @@ const useEventTimelineLoader = (
         const loadId = ++loadIdRef.current;
         const jumpLoadStart = performance.now();
 
-        if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
-          await withTimeout(
-            mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-          await withTimeout(
-            mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-        }
         const [err, replyEvtTimeline] = await to(
           withTimeout(
             mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
@@ -99,8 +88,8 @@ const useEventTimelineLoader = (
           return;
         }
 
-        // A newer loadEventTimeline call is already in flight; discard this result
-        // so we do not clobber the more-recent load's timeline or focus scroll.
+        // A newer loadEventTimeline call is already in flight; discard this
+        // result so we do not clobber the more-recent load's scroll target.
         if (loadId !== loadIdRef.current) return;
 
         Sentry.metrics.distribution(
@@ -319,17 +308,24 @@ const useRelationUpdate = (room: Room, onRelation: () => void) => {
   }, [room]);
 };
 
-const useLiveTimelineRefresh = (room: Room, onRefresh: () => void) => {
+const useLiveTimelineRefresh = (room: Room, onRefresh: () => void, onReset?: () => void) => {
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
+  const onResetRef = useRef(onReset);
+  onResetRef.current = onReset;
 
   useEffect(() => {
+    // TimelineRefresh fires when getEventTimeline() creates a new timeline
+    // context (e.g. for a history jump).  This is triggered by our own call,
+    // so it has a separate handler from TimelineReset.
     const handleTimelineRefresh: RoomEventHandlerMap[RoomEvent.TimelineRefresh] = (r: Room) => {
       if (r.roomId !== room.roomId) return;
       onRefreshRef.current();
     };
+    // TimelineReset fires on an external sync gap and requires different
+    // handling: if we are viewing history we need to reload the event context.
     const handleTimelineReset: EventTimelineSetHandlerMap[RoomEvent.TimelineReset] = () => {
-      onRefreshRef.current();
+      (onResetRef.current ?? onRefreshRef.current)();
     };
     const unfilteredTimelineSet = room.getUnfilteredTimelineSet();
 
@@ -535,14 +531,36 @@ export function useTimelineSync({
 
   useLiveTimelineRefresh(
     room,
+    // TimelineRefresh fires when getEventTimeline() creates a new context —
+    // i.e. it was triggered by our own history load.  If eventId is set we
+    // must NOT restart the load here: doing so would cause an infinite loop
+    // (getEventTimeline → TimelineRefresh → loadEventTimeline → getEventTimeline…).
     useCallback(() => {
+      if (eventId) return;
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
       }
-    }, [room, isAtBottomRef, scrollToBottom])
+    }, [eventId, room, isAtBottomRef, scrollToBottom]),
+    // TimelineReset fires on an external sync gap.  If we are viewing a
+    // history event and already have it loaded (eventsLength > 0), reload so
+    // the event stays visible after the gap.  If eventsLength === 0 we are
+    // still loading — let the in-flight load complete instead of stacking
+    // another one on top.
+    useCallback(() => {
+      if (eventId) {
+        if (eventsLengthRef.current > 0) void loadEventTimeline(eventId);
+        return;
+      }
+      const wasAtBottom = isAtBottomRef.current;
+      resetAutoScrollPendingRef.current = wasAtBottom;
+      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+      if (wasAtBottom) {
+        scrollToBottom('instant');
+      }
+    }, [eventId, eventsLengthRef, loadEventTimeline, room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(

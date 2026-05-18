@@ -452,13 +452,17 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
+      // In-app audio plays regardless of tab visibility — sound doesn't require the page to be visible.
+      if (notificationSound && isLoud) {
+        playSound();
+      }
+
+      // Everything below requires the page to be visible (in-app UI only).
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
-      // For DMs, show banner for all messages.
-      if (showNotifications && (isHighlightByRule || isDM)) {
+      // Show for DMs, highlighted messages (mentions/keywords), or any loud push-rule match.
+      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc
@@ -530,10 +534,7 @@ function MessageNotifications() {
         });
       }
 
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
+      // (Audio is handled above the visibility gate.)
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {

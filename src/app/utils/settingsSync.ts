@@ -16,6 +16,8 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'memberSortFilterIndex',
   // Developer / diagnostic
   'developerTools',
+  // Input behaviour — mobile disables enter-for-newline; syncing would override that
+  'enterForNewline',
   // Sync toggle itself must never be uploaded (it's device-local)
   'settingsSyncEnabled',
 ]);

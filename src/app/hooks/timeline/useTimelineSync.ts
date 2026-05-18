@@ -528,8 +528,14 @@ export function useTimelineSync({
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
+      } else {
+        // Timeline reset with new events loaded by the SDK (e.g. after a sync
+        // gap on mobile resume). useLiveEventArrive won't fire for events that
+        // were already in getInitialTimeline's result, so show the unread bar
+        // here if the room has messages the user hasn't read yet.
+        setUnreadInfo(getRoomUnreadInfo(room));
       }
-    }, [room, isAtBottomRef, scrollToBottom])
+    }, [room, isAtBottomRef, scrollToBottom, setUnreadInfo])
   );
 
   useRelationUpdate(

@@ -54,6 +54,9 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
+          // A timestamp lets us expire stale entries (app may have closed without sending false).
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -76,6 +79,14 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    // Restore appIsVisible from the last-known visibility timestamp.
+    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
+    // If the app reported itself visible within the last 30 s, trust that it still is.
+    // The 30-second window is a safety net in case the app crashed without sending visible=false.
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 30_000) appIsVisible = true;
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }
@@ -156,28 +167,45 @@ async function checkDueReminders(): Promise<void> {
   const due = reminders.filter((r) => r.remindAt <= now);
   const remaining = reminders.filter((r) => r.remindAt > now);
 
-  await Promise.all(
-    due.map((r) =>
-      self.registration.showNotification('Bookmark Reminder', {
-        body: r.note ?? 'You have a bookmark reminder.',
-        tag: `reminder-${r.bookmarkId}`,
-        data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
-        icon: '/res/ic_launcher-192.png',
-      })
-    )
-  );
+  if (due.length === 0) return;
 
-  if (due.length > 0) {
-    await persistReminders(remaining);
-    // Notify open app tabs so they can clear fired reminders from Matrix account data.
-    // Without this, useReminderSync would push all account-data reminders back to the SW
-    // cache on the next sync, causing the same reminders to fire again.
-    const firedIds = due.map((r) => r.bookmarkId);
-    const openClients = await self.clients.matchAll({ type: 'window' });
-    openClients.forEach((client) => {
-      client.postMessage({ type: 'remindersFired', bookmarkIds: firedIds });
+  // If the app is open in a visible tab, route reminders as in-app banners instead
+  // of OS notifications — avoids duplicate alerts on iPad and provides a nicer UX.
+  const windowClients = await self.clients.matchAll({ type: 'window' });
+  const visibleClients = windowClients.filter((c) => c.visibilityState === 'visible');
+
+  if (visibleClients.length > 0) {
+    visibleClients[0]!.postMessage({
+      type: 'remindersInApp',
+      reminders: due.map((r) => ({
+        bookmarkId: r.bookmarkId,
+        note: r.note,
+        roomId: r.roomId,
+        eventId: r.eventId,
+      })),
     });
+  } else {
+    await Promise.all(
+      due.map((r) =>
+        self.registration.showNotification('Bookmark Reminder', {
+          body: r.note ?? 'You have a bookmark reminder.',
+          tag: `reminder-${r.bookmarkId}`,
+          data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
+          icon: '/res/ic_launcher-192.png',
+        })
+      )
+    );
   }
+
+  await persistReminders(remaining);
+  // Notify open app tabs so they can clear fired reminders from Matrix account data.
+  // Without this, useReminderSync would push all account-data reminders back to the SW
+  // cache on the next sync, causing the same reminders to fire again.
+  const firedIds = due.map((r) => r.bookmarkId);
+  const openClients = await self.clients.matchAll({ type: 'window' });
+  openClients.forEach((client) => {
+    client.postMessage({ type: 'remindersFired', bookmarkIds: firedIds });
+  });
 }
 
 // Check for due reminders every minute.
@@ -673,6 +701,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
+      // Persist the visibility timestamp so cold SW restarts (iOS/iPad) can still
+      // suppress duplicate OS notifications when the app was recently visible.
+      persistSettings().catch(() => undefined);
     }
   }
   if (type === 'setNotificationSettings') {

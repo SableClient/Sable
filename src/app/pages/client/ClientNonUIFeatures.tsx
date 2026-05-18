@@ -879,11 +879,57 @@ function ReminderSync() {
   return null;
 }
 
+/**
+ * Listens for `remindersInApp` messages from the service worker and shows an
+ * in-app notification banner. The SW sends this instead of an OS notification
+ * when the app is foregrounded (visible tab), avoiding duplicate alerts.
+ */
+function ReminderBanners() {
+  const navigate = useNavigate();
+  const setInAppBanner = useSetAtom(inAppBannerAtom);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'remindersInApp') return;
+      const reminders: Array<{
+        bookmarkId: string;
+        note?: string;
+        roomId: string;
+        eventId: string;
+      }> = event.data.reminders ?? [];
+      const first = reminders[0];
+      if (!first) return;
+
+      setInAppBanner({
+        id: `reminder-${first.bookmarkId}`,
+        title: 'Bookmark Reminder',
+        body: first.note ?? 'You have a bookmark reminder.',
+        onClick: () => {
+          window.focus();
+          navigate(getInboxBookmarksPath());
+        },
+      });
+    };
+
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, setInAppBanner]);
+
+  return null;
+}
+
 function RemindersFeature() {
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
   const [enableBookmarkReminders] = useSetting(settingsAtom, 'enableBookmarkReminders');
   if (!enableMessageBookmarks || !enableBookmarkReminders) return null;
-  return <ReminderSync />;
+  return (
+    <>
+      <ReminderSync />
+      <ReminderBanners />
+    </>
+  );
 }
 
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {

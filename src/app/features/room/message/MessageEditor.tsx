@@ -1,5 +1,6 @@
 import type { KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
 import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, as, config } from 'folds';
 import { Editor, Transforms } from 'slate';
@@ -46,6 +47,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { nicknamesAtom } from '$state/nicknames';
 import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '$utils/room';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useComposingCheck } from '$hooks/useComposingCheck';
@@ -53,6 +55,7 @@ import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
+import { testMatrixTo } from '$plugins/matrix-to';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -75,6 +78,7 @@ type MessageEditorProps = {
 export const MessageEditor = as<'div', MessageEditorProps>(
   ({ room, roomId, mEvent, imagePackRooms, onCancel, ...props }, ref) => {
     const mx = useMatrixClient();
+    const nicknames = useAtomValue(nicknamesAtom);
     const editor = useEditor();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const isComposing = useComposingCheck();
@@ -151,7 +155,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             // it needs to be separated such that it can be reintroduced before the < in case of regular text
             // or after it in case that it is matching a <a> tag
             const strippedS = s.substring(1);
+            const matrixToAnchorHref =
+              isHTML && s.toLowerCase().startsWith('<a')
+                ? s.match(/href\s*=\s*["']([^"']+)["']/i)?.[1]
+                : undefined;
+            const urlFromChunk = strippedS.match(/https?:\/\/[^\s)]+/)?.[0];
+            const isMatrixToPermalink = testMatrixTo(matrixToAnchorHref ?? urlFromChunk ?? '');
             const isHidden =
+              !isMatrixToPermalink &&
               (bundleContent?.length === 0 ||
                 bundleContent.filter((b) => s.includes(b.matched_url)).length === 0) &&
               strippedS.match(LINKINPUTREGEX) !== null;
@@ -364,12 +375,18 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     useEffect(() => {
       const [body, customHtml] = getPrevBodyAndFormattedBody();
 
+      const mentionOptions = {
+        room,
+        nicknames,
+        mxUserId: mx.getUserId() ?? undefined,
+      };
       const initialValue = plainToEditorInput(
         customHtml
           ? stripMarkdownEscapesForHiddenPreviews(htmlToMarkdown(customHtml))
           : typeof body === 'string'
-            ? body
-            : ''
+            ? stripMarkdownEscapesForHiddenPreviews(body)
+            : '',
+        mentionOptions
       );
 
       Transforms.select(editor, {
@@ -379,7 +396,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
 
       editor.insertFragment(initialValue);
       if (!mobileOrTablet()) ReactEditor.focus(editor);
-    }, [editor, getPrevBodyAndFormattedBody]);
+    }, [editor, getPrevBodyAndFormattedBody, room, nicknames, mx]);
 
     useEffect(() => {
       if (saveState.status === AsyncStatus.Success) {

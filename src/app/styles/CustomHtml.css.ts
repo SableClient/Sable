@@ -138,6 +138,17 @@ export const List = style([
   },
 ]);
 
+/** Outside markers right-align digits so periods line up, pushing long numbers off-screen left. */
+export const OrderedList = style([
+  DefaultReset,
+  MarginSpaced,
+  {
+    padding: `0 ${config.space.S100}`,
+    paddingInlineStart: config.space.S200,
+    listStylePosition: 'inside',
+  },
+]);
+
 export const Img = style([
   DefaultReset,
   MarginSpaced,

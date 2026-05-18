@@ -1,5 +1,6 @@
 import type { Descendant } from 'slate';
 
+import type { MentionResolveOptions } from './utils';
 import {
   MX_EMOTICON_MD_END,
   MX_EMOTICON_MD_SEP,
@@ -9,6 +10,7 @@ import {
 import { BlockType } from './types';
 import type { ParagraphElement } from './slate';
 import { createEmoticonElement } from './utils';
+import { expandMatrixMentionMarkdownInText } from './matrixMentionMarkdown';
 
 /** Matches placeholders emitted by htmlToMarkdown for &lt;img data-mx-emoticon&gt;. */
 const MX_EMOTICON_MD_TOKEN = new RegExp(
@@ -35,14 +37,19 @@ function mergeAdjacentTextNodes(
   return out.length > 0 ? out : [{ text: '' }];
 }
 
-function lineToParagraphChildren(line: string): ParagraphElement['children'] {
+function lineToParagraphChildren(
+  line: string,
+  mentionOptions?: MentionResolveOptions
+): ParagraphElement['children'] {
   MX_EMOTICON_MD_TOKEN.lastIndex = 0;
   const parts: ParagraphElement['children'] = [];
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = MX_EMOTICON_MD_TOKEN.exec(line)) !== null) {
     if (match.index > last) {
-      parts.push({ text: line.slice(last, match.index) });
+      parts.push(
+        ...expandMatrixMentionMarkdownInText(line.slice(last, match.index), mentionOptions)
+      );
     }
     const [, src, shortcode] = match;
     if (src && shortcode && validateMxcUrl(src)) {
@@ -53,15 +60,18 @@ function lineToParagraphChildren(line: string): ParagraphElement['children'] {
     last = MX_EMOTICON_MD_TOKEN.lastIndex;
   }
   if (last < line.length) {
-    parts.push({ text: line.slice(last) });
+    parts.push(...expandMatrixMentionMarkdownInText(line.slice(last), mentionOptions));
   }
   return mergeAdjacentTextNodes(parts);
 }
 
-export const plainToEditorInput = (text: string): Descendant[] => {
+export const plainToEditorInput = (
+  text: string,
+  mentionOptions?: MentionResolveOptions
+): Descendant[] => {
   const lines = text.split('\n');
   return lines.map((lineText) => ({
     type: BlockType.Paragraph,
-    children: lineToParagraphChildren(lineText),
+    children: lineToParagraphChildren(lineText, mentionOptions),
   }));
 };

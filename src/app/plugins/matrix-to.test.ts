@@ -4,6 +4,7 @@ import {
   getMatrixToRoomEvent,
   getMatrixToUser,
   isRedundantMatrixToAnchorText,
+  isMatrixToMentionHref,
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
   parseMatrixToUser,
@@ -90,6 +91,13 @@ describe('testMatrixTo', () => {
     expect(testMatrixTo('https://matrix.to/#/!room:example.com')).toBe(true);
     expect(testMatrixTo('https://matrix.to/#/!room:example.com/$event')).toBe(true);
     expect(testMatrixTo('http://matrix.to/#/@alice:example.com')).toBe(true);
+  });
+
+  it('isMatrixToMentionHref matches user, room, and event permalinks only', () => {
+    expect(isMatrixToMentionHref('https://matrix.to/#/@alice:example.com')).toBe(true);
+    expect(isMatrixToMentionHref('https://matrix.to/#/!room:example.com')).toBe(true);
+    expect(isMatrixToMentionHref('https://matrix.to/#/!room:example.com/$event123')).toBe(true);
+    expect(isMatrixToMentionHref('https://example.com')).toBe(false);
   });
 
   it('rejects non-matrix.to URLs', () => {

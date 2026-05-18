@@ -88,6 +88,27 @@ export function injectDataMd(html: string): string {
     return `<del data-md="~~"${attrs}>${content}</del>`;
   });
 
+  // Inject MFM color data-md on colored spans from other clients
+  html = html.replace(
+    /<span([^>]*data-mx-color="(#[0-9a-fA-F]{6})"[^>]*)>([^<]*)<\/span>/g,
+    (match, attrs, _color, content) => {
+      if (attrs.includes('data-md')) return match;
+      const bgMatch = /data-mx-bg-color="(#[0-9a-fA-F]{6})"/.exec(attrs);
+      const fg = _color as string;
+      const bg = bgMatch?.[1];
+      const parts: string[] = [`fg.color=${fg.replace(/^#/, '').toLowerCase()}`];
+      if (bg) parts.push(`bg.color=${bg.replace(/^#/, '').toLowerCase()}`);
+      return `<span data-md="$[${parts.join(' ')}"${attrs}>${content}</span>`;
+    }
+  );
+  html = html.replace(
+    /<span([^>]*data-mx-bg-color="(#[0-9a-fA-F]{6})"[^>]*)>([^<]*)<\/span>/g,
+    (match, attrs, bg, content) => {
+      if (attrs.includes('data-md') || attrs.includes('data-mx-color')) return match;
+      return `<span data-md="$[bg.color=${(bg as string).replace(/^#/, '').toLowerCase()}"${attrs}>${content}</span>`;
+    }
+  );
+
   // Inject inline code marker
   html = html.replace(/<code([^>]*)>([^<]*)<\/code>/g, (_, attrs, content) => {
     if (attrs.includes('data-md')) return `<code${attrs}>${content}</code>`;

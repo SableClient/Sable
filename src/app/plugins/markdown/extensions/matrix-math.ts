@@ -256,6 +256,7 @@ export const matrixMathExtension = {
   name: 'math',
   level: 'inline',
   start(src: string) {
+    if (/^\$\[(?:fg|bg)\.color=/.test(src)) return -1;
     return src.indexOf('$');
   },
   tokenizer(src: string) {

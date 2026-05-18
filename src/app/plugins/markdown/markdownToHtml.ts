@@ -12,16 +12,19 @@ import {
 import { matrixSubscriptExtension } from './extensions/matrix-subscript';
 import { matrixEmoticonExtension, preprocessEmoticon } from './extensions/matrix-emoticon';
 import { matrixUnderlineExtension } from './extensions/matrix-underline';
+import { matrixMfmColorExtension } from './extensions/matrix-mfm-color';
 import {
   escapeLineStartBlockquoteWithoutFollowingSpace,
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
 import { expandBlockBoundariesAfterSingleNewlines } from './expandBlockNewlines';
+import { escapeNonAllowlistedHtmlTags, MARKDOWN_ALLOWED_HTML_TAGS } from './allowedHtmlTags';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
   breaks: true,
   extensions: [
+    matrixMfmColorExtension,
     matrixUnderlineExtension,
     matrixSpoilerExtension,
     matrixMathExtension,
@@ -52,6 +55,8 @@ const decodeHtmlEntities = (text: string): string => {
 };
 
 const MATRIX_TO_PLACEHOLDER_PREFIX = 'MATRIXTORAWLINKTOKEN';
+
+const ORDERED_LIST_START_REGEX = /^-?\d+$/;
 
 const escapeHtml = (text: string): string =>
   text
@@ -130,7 +135,9 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
   // Only treat `> ` as block quote, escape bare `>` at line start (e.g. `>:3`)
   const blockquotePrefixed = escapeLineStartBlockquoteWithoutFollowingSpace(decoded);
 
-  const preprocessed = preprocessEmoticon(blockquotePrefixed);
+  const allowlistedOnly = escapeNonAllowlistedHtmlTags(blockquotePrefixed);
+
+  const preprocessed = preprocessEmoticon(allowlistedOnly);
 
   const boundaryExpanded = expandBlockBoundariesAfterSingleNewlines(preprocessed);
 
@@ -145,51 +152,24 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
   // Unescape inline sequences (e.g., \*, \_) after parsing, but not inside <pre>/<code>
   const unescapedInline = unescapeMarkdownInlineSequencesExceptInCodeHtml(html);
 
-  // Force all links to open in a new tab
+  const allowlistedHtml = escapeNonAllowlistedHtmlTags(unescapedInline);
+
+  // Force all links to open in a new tab, validate <ol start>.
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName === 'A' && node.getAttribute('href')) {
       node.setAttribute('target', '_blank');
       node.setAttribute('rel', 'noreferrer noopener');
     }
+    if (node.tagName === 'OL') {
+      const start = node.getAttribute('start');
+      if (start !== null && !ORDERED_LIST_START_REGEX.test(start)) {
+        node.removeAttribute('start');
+      }
+    }
   });
 
-  const sanitized = DOMPurify.sanitize(unescapedInline, {
-    ALLOWED_TAGS: [
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'p',
-      'br',
-      'hr',
-      'blockquote',
-      'ul',
-      'ol',
-      'li',
-      'pre',
-      'code',
-      'strong',
-      'em',
-      'u',
-      's',
-      'del',
-      'a',
-      'img',
-      'span',
-      'div',
-      'sub',
-      'details',
-      'summary',
-      'table',
-      'thead',
-      'tbody',
-      'tr',
-      'th',
-      'td',
-      'mx-reply',
-    ],
+  const sanitized = DOMPurify.sanitize(allowlistedHtml, {
+    ALLOWED_TAGS: [...MARKDOWN_ALLOWED_HTML_TAGS],
     ALLOWED_ATTR: [
       'href',
       'src',
@@ -213,7 +193,9 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
     ],
     // Ensure these safe attrs survive sanitization even when the input HTML
     // originates from markdown-embedded tags (e.g. custom emoji <img>).
+    // `start` must be URI-safe or DOMPurify drops it when ALLOWED_URI_REGEXP is set.
     ADD_ATTR: ['target', 'rel', 'height', 'width'],
+    ADD_URI_SAFE_ATTR: ['start'],
     // Force all links to have safe rel attribute
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,

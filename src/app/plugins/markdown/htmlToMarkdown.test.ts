@@ -67,6 +67,17 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
   });
 
+  it('does not use preview-suppressed destinations for matrix.to user mentions', () => {
+    const html = '<p>&lt;<a href="https://matrix.to/#/@alice:example.org">Alice</a>&gt;</p>';
+    expect(htmlToMarkdown(html)).toBe('[Alice](https://matrix.to/#/@alice:example.org)');
+  });
+
+  it('does not use preview-suppressed destinations for matrix.to event permalinks', () => {
+    const url = 'https://matrix.to/#/!room:example.org/$event123?via=sable.moe&via=matrix.org';
+    const html = `<p>&lt;<a href="${url}">${url}</a>&gt;</p>`;
+    expect(htmlToMarkdown(html)).toBe(`[${url}](${url})`);
+  });
+
   it('converts hidden-preview wrapped links when angle brackets are decimal entities', () => {
     const html = '<p>&#60;<a href="https://example.org/">https://example.org/</a>&#62;</p>';
     expect(htmlToMarkdown(html)).toBe('[https://example.org/](<https://example.org/>)');
@@ -128,6 +139,11 @@ describe('htmlToMarkdown', () => {
     expect(md).toContain(
       `${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}blobcat${MX_EMOTICON_MD_END}`
     );
+  });
+
+  it('preserves unknown tags as escaped markdown literals', () => {
+    expect(htmlToMarkdown('<p><test>hi</test></p>')).toContain('\\<test\\>');
+    expect(htmlToMarkdown('<p><test></p>')).toContain('\\<test\\>');
   });
 
   it('plainToEditorInput expands emoticon placeholders into Slate emoticon elements', () => {

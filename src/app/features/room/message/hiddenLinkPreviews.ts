@@ -1,4 +1,5 @@
 import type { BundleContent } from '$components/message';
+import { testMatrixTo } from '$plugins/matrix-to';
 
 const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
@@ -49,6 +50,11 @@ export function readdAngleBracketsForHiddenPreviews(
     const offset = args[args.length - 2] as number;
     if (!url || previewed.has(url)) return full;
 
+    // matrix.to permalinks are never preview-suppressed (mentions, event links, room links).
+    if (testMatrixTo(url)) return full;
+
+    const urlIndex = body.indexOf(url, offset);
+
     // URL is the label of a markdown link [url](...) — do not insert "<" into the label.
     const after = body.slice(offset + full.length, offset + full.length + 2);
     if (after === '](') {
@@ -61,7 +67,6 @@ export function readdAngleBracketsForHiddenPreviews(
     }
 
     // If the URL is already wrapped as <url>, leave it alone.
-    const urlIndex = body.indexOf(url, offset);
     if (urlIndex !== -1 && body.slice(urlIndex - 1, urlIndex + url.length + 1) === `<${url}>`) {
       return full;
     }

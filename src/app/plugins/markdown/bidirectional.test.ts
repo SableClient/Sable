@@ -94,7 +94,6 @@ describe('bidirectional round-trip', () => {
     const html = markdownToHtml(markdown);
     const injected = injectDataMd(html);
     const result = htmlToMarkdown(injected);
-    // Note: marked normalizes ordered lists to start at 1, but we increment for output
     expect(result).toContain('1. First');
     expect(result).toContain('2. Second');
   });

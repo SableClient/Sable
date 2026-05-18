@@ -644,7 +644,9 @@ function fetchConfig(token: string): RequestInit {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    cache: 'default',
+    // Use 'no-cache' to ensure we check with the server on each request
+    // This prevents stale/expired token responses from being cached
+    cache: 'no-cache',
   };
 }
 

@@ -334,7 +334,11 @@ export const mxcUrlToHttp = (
 
 export const downloadMedia = async (src: string): Promise<Blob> => {
   // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
+  // Use 'no-cache' to ensure retries hit the network instead of returning cached failures
+  const res = await fetch(src, { method: 'GET', cache: 'no-cache' });
+  if (!res.ok) {
+    throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+  }
   const blob = await res.blob();
   return blob;
 };

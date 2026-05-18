@@ -675,7 +675,7 @@ export const getReactCustomHtmlParser = (
         }
         if (name === 'ol') {
           return (
-            <ol {...props} className={css.List}>
+            <ol {...props} className={css.OrderedList}>
               {renderChildren()}
             </ol>
           );

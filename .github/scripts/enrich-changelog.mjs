@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* oxlint-disable no-console */
 /**
  * Replaces Knope commit markers with PR links and credits every human commit author.
  *
@@ -53,22 +54,33 @@ function parseRepository() {
   return { owner, repo };
 }
 
+function setSearchParams(url, params) {
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value === undefined) continue;
+    if (typeof value === 'string' || typeof value === 'number') {
+      url.searchParams.set(key, String(value));
+    }
+  }
+}
+
 async function githubRequest(token, path, { params, method = 'GET', body, accept } = {}) {
   const url = new URL(`https://api.github.com${path}`);
-  for (const [key, value] of Object.entries(params ?? {})) {
-    if (value !== undefined) url.searchParams.set(key, String(value));
+  setSearchParams(url, params);
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: accept ?? 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'sable-changelog-enrich',
+  };
+
+  const init = { method, headers };
+  if (body != null && method !== 'GET') {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
   }
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: accept ?? 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'sable-changelog-enrich',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+
+  const response = await fetch(url, init);
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`GitHub API ${response.status} ${path}: ${text}`);
@@ -77,18 +89,17 @@ async function githubRequest(token, path, { params, method = 'GET', body, accept
   return response.json();
 }
 
+async function fetchPullRequestCommitPage(token, owner, repo, pullNumber, page, commits) {
+  const batch = await githubRequest(token, `/repos/${owner}/${repo}/pulls/${pullNumber}/commits`, {
+    params: { per_page: 100, page },
+  });
+  commits.push(...batch);
+  if (batch.length < 100) return commits;
+  return fetchPullRequestCommitPage(token, owner, repo, pullNumber, page + 1, commits);
+}
+
 async function listPullRequestCommits(token, owner, repo, pullNumber) {
-  const commits = [];
-  let page = 1;
-  while (true) {
-    const batch = await githubRequest(token, `/repos/${owner}/${repo}/pulls/${pullNumber}/commits`, {
-      params: { per_page: 100, page },
-    });
-    commits.push(...batch);
-    if (batch.length < 100) break;
-    page += 1;
-  }
-  return commits;
+  return fetchPullRequestCommitPage(token, owner, repo, pullNumber, 1, []);
 }
 
 async function getPullRequestContributors(token, owner, repo, pullNumber, cache) {
@@ -103,7 +114,7 @@ async function getPullRequestContributors(token, owner, repo, pullNumber, cache)
     }
   }
 
-  const contributors = [...logins].sort((a, b) => a.localeCompare(b, 'en'));
+  const contributors = [...logins].toSorted((a, b) => a.localeCompare(b, 'en'));
   cache.set(pullNumber, contributors);
   return contributors;
 }
@@ -117,11 +128,9 @@ function formatPullRequestCredit(pr, contributors) {
 
 async function resolveCommitMarker(token, owner, repo, hash, contributorCache) {
   try {
-    const associated = await githubRequest(
-      token,
-      `/repos/${owner}/${repo}/commits/${hash}/pulls`,
-      { accept: 'application/vnd.github.groot-preview+json' },
-    );
+    const associated = await githubRequest(token, `/repos/${owner}/${repo}/commits/${hash}/pulls`, {
+      accept: 'application/vnd.github.groot-preview+json',
+    });
     const pr = associated[0];
     if (!pr) return `(\`${hash}\`)`;
 
@@ -130,7 +139,7 @@ async function resolveCommitMarker(token, owner, repo, hash, contributorCache) {
       owner,
       repo,
       pr.number,
-      contributorCache,
+      contributorCache
     );
     return formatPullRequestCredit(pr, contributors);
   } catch {
@@ -140,9 +149,15 @@ async function resolveCommitMarker(token, owner, repo, hash, contributorCache) {
 
 async function enrichText(token, owner, repo, text, contributorCache) {
   const hashes = [...new Set([...text.matchAll(COMMIT_MARKER)].map((match) => match[1]))];
+  const credits = await Promise.all(
+    hashes.map(async (hash) => ({
+      hash,
+      credit: await resolveCommitMarker(token, owner, repo, hash, contributorCache),
+    }))
+  );
+
   let enriched = text;
-  for (const hash of hashes) {
-    const credit = await resolveCommitMarker(token, owner, repo, hash, contributorCache);
+  for (const { hash, credit } of credits) {
     enriched = enriched.replaceAll(`<!-- commit:${hash} -->`, credit);
   }
   return enriched;
@@ -196,7 +211,9 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
-    throw new Error('Set GITHUB_TOKEN to a token with repo read access (and write for --update-release-pr).');
+    throw new Error(
+      'Set GITHUB_TOKEN to a token with repo read access (and write for --update-release-pr).'
+    );
   }
 
   const { owner, repo } = parseRepository();

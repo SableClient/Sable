@@ -99,6 +99,7 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'manual-theme',
     'message-link-preview',
     'page-zoom',
+    'pixelated-image-rendering',
     'catalog-themes',
     'catalog-tweaks',
     'theme-browse-remote',

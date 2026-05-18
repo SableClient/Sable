@@ -7,9 +7,12 @@ export const Image = style([
     objectFit: 'contain',
     width: '100%',
     height: '100%',
-    imageRendering: 'pixelated',
   },
 ]);
+
+export const ImagePixelated = style({
+  imageRendering: 'pixelated',
+});
 
 export const Video = style([
   DefaultReset,

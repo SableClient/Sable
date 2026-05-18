@@ -45,7 +45,6 @@ export const ImageViewerImg = style([
     userSelect: 'none',
     touchAction: 'none',
     display: 'block',
-    imageRendering: 'pixelated', // Possibly allow for a custom setting later?
     objectFit: 'contain',
     width: 'auto',
     height: 'auto',
@@ -56,3 +55,7 @@ export const ImageViewerImg = style([
     willChange: 'transform',
   },
 ]);
+
+export const ImageViewerImgPixelated = style({
+  imageRendering: 'pixelated',
+});

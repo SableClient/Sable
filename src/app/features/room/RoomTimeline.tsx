@@ -895,6 +895,10 @@ export function RoomTimeline({
           overflow: 'hidden',
           position: 'relative',
           opacity: isReady || showLoadingPlaceholders ? 1 : 0,
+          // Fade the timeline in once the initial scroll has settled so the
+          // reveal feels intentional rather than a hard flash.  We never
+          // animate the transition TO opacity:0 so the hide is instant.
+          transition: isReady || showLoadingPlaceholders ? 'opacity 100ms ease-in' : 'none',
         }}
       >
         <VList<ProcessedEvent>
@@ -1024,6 +1028,34 @@ export function RoomTimeline({
         <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
           {frontPaginationJSX}
         </TimelineFloat>
+      )}
+
+      {/* While the real VList is invisible (opacity:0) during the initial
+          scroll-settle window, show skeleton placeholders so the user sees
+          loading feedback instead of a blank area. */}
+      {!isReady && !showLoadingPlaceholders && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            padding: `0 0 ${config.space.S600} 0`,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+          </MessageBase>
+        </div>
       )}
 
       {!atBottomState && isReady && (

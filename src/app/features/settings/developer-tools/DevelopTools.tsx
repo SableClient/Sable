@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Text, Scroll, Switch, Button, Spinner, color } from 'folds';
 import { KnownMembership } from '$types/matrix-sdk';
 import { PageContent } from '$components/page';
@@ -9,6 +9,7 @@ import { settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
+import { clearMediaCache, getBlobCacheStats } from '$hooks/useBlobCache';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -30,6 +31,18 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
+  const [cacheStats, setCacheStats] = useState(() => getBlobCacheStats());
+
+  useEffect(() => {
+    setCacheStats(getBlobCacheStats());
+  }, []);
+
+  const [clearCacheState, clearMediaCacheAction] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      await clearMediaCache();
+      setCacheStats(getBlobCacheStats());
+    }, [])
+  );
 
   const [rotateState, rotateAllSessions] = useAsyncCallback<
     { rotated: number; total: number },
@@ -203,6 +216,56 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                       {rotateState.status === AsyncStatus.Error && (
                         <Text size="T200" style={{ color: color.Critical.Main }}>
                           {rotateState.error.message}
+                        </Text>
+                      )}
+                    </SettingTile>
+                  </SequenceCard>
+                </Box>
+              )}
+              {developerTools && (
+                <Box direction="Column" gap="100">
+                  <Text size="L400">Caches</Text>
+                  <SequenceCard
+                    className={SequenceCardStyle}
+                    variant="SurfaceVariant"
+                    direction="Column"
+                    gap="400"
+                  >
+                    <SettingTile
+                      focusId="clear-media-cache"
+                      title="Media Cache"
+                      description={`${cacheStats.persistentCacheCount} files · ${cacheStats.persistentCacheSizeMB.toFixed(1)} MB`}
+                      after={
+                        <Button
+                          onClick={clearMediaCacheAction}
+                          variant="Secondary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                          disabled={clearCacheState.status === AsyncStatus.Loading}
+                          before={
+                            clearCacheState.status === AsyncStatus.Loading && (
+                              <Spinner size="100" variant="Secondary" />
+                            )
+                          }
+                        >
+                          <Text size="B300">
+                            {clearCacheState.status === AsyncStatus.Loading
+                              ? 'Clearing…'
+                              : 'Clear'}
+                          </Text>
+                        </Button>
+                      }
+                    >
+                      {clearCacheState.status === AsyncStatus.Success && (
+                        <Text size="T200" style={{ color: color.Success.Main }}>
+                          Media cache cleared.
+                        </Text>
+                      )}
+                      {clearCacheState.status === AsyncStatus.Error && (
+                        <Text size="T200" style={{ color: color.Critical.Main }}>
+                          {clearCacheState.error.message}
                         </Text>
                       )}
                     </SettingTile>

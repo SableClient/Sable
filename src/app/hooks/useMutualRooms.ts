@@ -17,6 +17,8 @@ export const useUnstableMutualRoomsSupport = (): boolean => {
   return !!supported;
 };
 
+// Mutual rooms detection and fetching ported from Cinny
+// Original by ajbura here https://github.com/cinnyapp/cinny/commit/bef267257a28b3be8a96852fed1718f63cf570f9
 export const useMutualRoomsSupport = (): boolean => {
   const { unstable_features: unstableFeatures, versions } = useSpecVersions();
 

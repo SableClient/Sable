@@ -18,8 +18,6 @@ import {
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -37,7 +35,6 @@ import {
   UsernameBold,
   Reply,
 } from '$components/message';
-import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import type { GetContentCallback } from '$types/matrix/room';
@@ -53,6 +50,7 @@ import {
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
+import { RenderMessageContent } from '$components/RenderMessageContent';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
 
@@ -76,7 +74,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
 
-  const linkifyOpts = useMemo<LinkifyOpts>(
+  const linkifyOpts = useMemo<import('linkifyjs').Opts>(
     () => ({
       ...LINKIFY_OPTS,
       render: factoryRenderLinkifyWithMention(
@@ -95,7 +93,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
     [mx, room.roomId, nicknames, mentionClickHandler, settingsLinkBaseUrl]
   );
 
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
+  const htmlReactParserOptions = useMemo<import('html-react-parser').Options>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
         settingsLinkBaseUrl,
@@ -228,7 +226,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
             onClick={handleJumpClick}
           />
         )}
-        <Box style={{ maxHeight: '200px', overflow: 'auto', flexShrink: 0 }}>
+        <Box direction="Column" style={{ maxHeight: '200px', overflow: 'auto', minHeight: 0 }}>
           <EncryptedContent mEvent={rootEvent}>
             {() => {
               if (rootEvent.isRedacted()) {

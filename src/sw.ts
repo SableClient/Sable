@@ -185,7 +185,7 @@ async function checkDueReminders(): Promise<void> {
       })),
     });
   } else {
-    await Promise.all(
+    await Promise.allSettled(
       due.map((r) =>
         self.registration.showNotification('Bookmark Reminder', {
           body: r.note ?? 'You have a bookmark reminder.',
@@ -1003,10 +1003,12 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
       : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
     targetUrl = new URL(segments, scope).href;
-  } else if (isReminder && data?.roomId && data?.eventId) {
-    // Reminder notifications carry roomId/eventId (no userId), so navigate directly.
-    const segments = `to/${encodeURIComponent(data.roomId as string)}/${encodeURIComponent(data.eventId as string)}/`;
-    targetUrl = new URL(segments, scope).href;
+  } else if (isReminder) {
+    // Reminder notifications don't carry a user_id, so the /to/:user/:room/:event
+    // pattern is inapplicable.  Navigate straight to the bookmarks inbox page.
+    // On a warm start the HandleNotificationClick message handler also routes to
+    // this page; here we handle the cold-start (app was killed) case.
+    targetUrl = new URL('inbox/bookmarks/', scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;

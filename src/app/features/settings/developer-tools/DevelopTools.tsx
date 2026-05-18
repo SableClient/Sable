@@ -251,9 +251,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                           }
                         >
                           <Text size="B300">
-                            {clearCacheState.status === AsyncStatus.Loading
-                              ? 'Clearing…'
-                              : 'Clear'}
+                            {clearCacheState.status === AsyncStatus.Loading ? 'Clearing…' : 'Clear'}
                           </Text>
                         </Button>
                       }

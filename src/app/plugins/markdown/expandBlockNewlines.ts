@@ -104,14 +104,44 @@ function looksLikeBlockStart(effective: string): boolean {
   return false;
 }
 
-function nextLineIsBlockStarter(md: string, newlineIdx: number): boolean {
+function lineAtNewline(md: string, newlineIdx: number): string {
+  let start = newlineIdx - 1;
+  while (start >= 0 && md[start] !== '\n') start--;
+  return md.slice(start + 1, newlineIdx);
+}
+
+function lineAfterNewline(md: string, newlineIdx: number): string {
   const start = newlineIdx + 1;
-  if (start >= md.length) return false;
+  if (start >= md.length) return '';
   const nextNl = md.indexOf('\n', start);
-  const line = nextNl === -1 ? md.slice(start) : md.slice(start, nextNl);
-  const effective = effectiveContentAfterEscapes(line);
+  return nextNl === -1 ? md.slice(start) : md.slice(start, nextNl);
+}
+
+function prevLineIsBlockquote(md: string, newlineIdx: number): boolean {
+  const effective = effectiveContentAfterEscapes(lineAtNewline(md, newlineIdx));
+  if (effective === null) return false;
+  return /^>\s/.test(effective);
+}
+
+function nextLineContinuesBlockquote(md: string, newlineIdx: number): boolean {
+  const effective = effectiveContentAfterEscapes(lineAfterNewline(md, newlineIdx));
+  if (effective === null) return false;
+  return effective.startsWith('>');
+}
+
+function nextLineIsBlockStarter(md: string, newlineIdx: number): boolean {
+  const effective = effectiveContentAfterEscapes(lineAfterNewline(md, newlineIdx));
   if (effective === null) return false;
   return looksLikeBlockStart(effective);
+}
+
+function shouldExpandSingleNewline(md: string, newlineIdx: number): boolean {
+  if (nextLineIsBlockStarter(md, newlineIdx)) return true;
+  // CommonMark lazy continuation keeps non-`>` lines inside blockquotes, close on single `\n`.
+  if (prevLineIsBlockquote(md, newlineIdx) && !nextLineContinuesBlockquote(md, newlineIdx)) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -139,7 +169,7 @@ export function expandBlockBoundariesAfterSingleNewlines(markdown: string): stri
       md[i] === '\n' &&
       (i === 0 || md[i - 1] !== '\n') &&
       (i + 1 >= n || md[i + 1] !== '\n') &&
-      nextLineIsBlockStarter(md, i)
+      shouldExpandSingleNewline(md, i)
     ) {
       out += '\n\n';
       i += 1;

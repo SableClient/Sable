@@ -137,6 +137,21 @@ describe('markdownToHtml', () => {
       expect(markdownToHtml('intro\n> quote')).toContain('<blockquote>');
     });
 
+    it('ends blockquote when the next line does not start with >', () => {
+      const html = markdownToHtml('> test\ntest 2');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('test');
+      expect(html).not.toMatch(/<blockquote>[\s\S]*test 2[\s\S]*<\/blockquote>/);
+      expect(html).toContain('test 2');
+    });
+
+    it('keeps consecutive blockquote lines with > markers', () => {
+      const html = markdownToHtml('> line one\n> line two');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('line one');
+      expect(html).toContain('line two');
+    });
+
     it('does not promote -# inside fenced code when the fence follows a single newline', () => {
       const html = markdownToHtml('test\n```\n-# not sub\n```');
       expect(html).not.toContain('<sub');

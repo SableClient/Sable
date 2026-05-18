@@ -295,12 +295,9 @@ export function useIncomingCallSignaling() {
   const stopOutgoingRing = useCallback(() => {
     outgoingAudioRef.current?.pause();
     if (outgoingAudioRef.current) outgoingAudioRef.current.currentTime = 0;
-    if (callEmbed) {
-      callEmbed.control.setOutputOverrideMuted(false);
-    }
     outgoingRingRoomIdRef.current = null;
     outgoingStartRef.current = null;
-  }, [callEmbed]);
+  }, []);
 
   const clearIncomingCall = useCallback(() => {
     const activeIncomingCall = incomingCallRef.current;
@@ -800,7 +797,6 @@ export function useIncomingCallSignaling() {
         return;
       }
 
-      callEmbed.control.setOutputOverrideMuted(true);
       outgoingAudioRef.current?.play().catch(() => {
         Sentry.metrics.count('sable.call.ringback.blocked', 1);
       });

@@ -24,12 +24,6 @@ export class CallControl extends EventEmitter implements CallControlState {
   private iframe: HTMLIFrameElement;
 
   private controlMutationObserver: MutationObserver;
-  private audioMutationObserver: MutationObserver;
-  private outputOverrideMuted = false;
-  private patchedWindow: Window | undefined;
-  private readonly trackedAudioContexts = new Set<AudioContext>();
-  private readonly runningContextsBeforeOverride = new WeakMap<AudioContext, boolean>();
-  private readonly audioPatchRestores: Array<() => void> = [];
 
   private get document(): Document | undefined {
     return this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
@@ -63,9 +57,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     this.iframe = iframe;
 
     this.controlMutationObserver = new MutationObserver(this.onControlMutation.bind(this));
-    this.audioMutationObserver = new MutationObserver(() => {
-      this.applyOutputMute();
-    });
   }
 
   public getState(): CallControlState {
@@ -126,34 +117,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     this.setSound(this.sound);
   }
 
-  public setOutputOverrideMuted(muted: boolean) {
-    const win = this.iframe.contentWindow;
-    const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
-    const windowChanged = !!win && this.patchedWindow !== win;
-    if (this.outputOverrideMuted === muted && !windowChanged) return;
-    this.outputOverrideMuted = muted;
-
-    if (muted) {
-      const target = callDocument?.body;
-      if (target) {
-        this.audioMutationObserver.observe(target, {
-          childList: true,
-          subtree: true,
-        });
-      }
-      if (win) {
-        this.ensureAudioPatches(win);
-        this.collectExistingAudioContexts(win);
-        this.suspendTrackedAudioContexts();
-      }
-    } else {
-      this.audioMutationObserver.disconnect();
-      this.resumeTrackedAudioContexts();
-      this.teardownAudioPatches();
-    }
-    this.applyOutputMute();
-  }
-
   private setMediaState(state: ElementMediaStatePayload) {
     return this.call.transport.send(ElementWidgetActions.DeviceMute, state);
   }
@@ -164,110 +127,13 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   private applyOutputMute(sound = this.sound): void {
     const callDocument = this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
-    const shouldMute = this.outputOverrideMuted || !sound;
+    const shouldMute = !sound;
     if (callDocument) {
       callDocument.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
         el.muted = shouldMute;
         if (shouldMute) el.volume = 0;
       });
     }
-  }
-
-  private ensureAudioPatches(win: Window): void {
-    if (this.patchedWindow === win) return;
-    this.teardownAudioPatches();
-    this.patchedWindow = win;
-
-    this.patchAudioContextConstructor(win, 'AudioContext');
-    this.patchAudioContextConstructor(win, 'webkitAudioContext');
-  }
-
-  private patchAudioContextConstructor(win: Window, key: 'AudioContext' | 'webkitAudioContext') {
-    const scopedWindow = win as Window &
-      Partial<Record<'AudioContext' | 'webkitAudioContext', typeof AudioContext>>;
-    const originalCtor = scopedWindow[key];
-    if (typeof originalCtor !== 'function') return;
-
-    const resumeDescriptor = Object.getOwnPropertyDescriptor(originalCtor.prototype, 'resume');
-    const originalResumeImpl = resumeDescriptor?.value as
-      | ((this: AudioContext) => Promise<void>)
-      | undefined;
-    if (typeof originalResumeImpl !== 'function') return;
-    const originalResume = (context: AudioContext): Promise<void> =>
-      originalResumeImpl.call(context);
-    const trackedContexts = this.trackedAudioContexts;
-    const isOverrideMuted = () => this.outputOverrideMuted;
-    originalCtor.prototype.resume = function patchedResume(this: AudioContext) {
-      trackedContexts.add(this);
-      if (isOverrideMuted()) {
-        return Promise.resolve();
-      }
-      return originalResume(this);
-    };
-    this.audioPatchRestores.push(() => {
-      originalCtor.prototype.resume = originalResumeImpl;
-    });
-
-    const wrappedCtor = function patchedAudioContext(
-      this: unknown,
-      ...args: ConstructorParameters<typeof AudioContext>
-    ) {
-      const context = Reflect.construct(
-        originalCtor,
-        args,
-        new.target ?? originalCtor
-      ) as AudioContext;
-      trackedContexts.add(context);
-      if (isOverrideMuted()) {
-        void context.suspend().catch(() => {});
-      }
-      return context;
-    } as unknown as typeof AudioContext;
-    wrappedCtor.prototype = originalCtor.prototype;
-    Object.setPrototypeOf(wrappedCtor, originalCtor);
-
-    scopedWindow[key] = wrappedCtor;
-    this.audioPatchRestores.push(() => {
-      scopedWindow[key] = originalCtor;
-    });
-  }
-
-  private teardownAudioPatches(): void {
-    this.audioPatchRestores.splice(0).forEach((restore) => restore());
-    this.patchedWindow = undefined;
-  }
-
-  private collectExistingAudioContexts(win: Window): void {
-    const scopedWindow = win as Window &
-      Partial<Record<'AudioContext' | 'webkitAudioContext', typeof AudioContext>>;
-    const audioCtor = scopedWindow.AudioContext;
-    if (!audioCtor) return;
-
-    Object.values(win as unknown as Record<string, unknown>).forEach((value) => {
-      if (value instanceof audioCtor) {
-        this.trackedAudioContexts.add(value);
-      }
-    });
-  }
-
-  private suspendTrackedAudioContexts(): void {
-    this.trackedAudioContexts.forEach((context) => {
-      const wasRunning = context.state === 'running';
-      this.runningContextsBeforeOverride.set(context, wasRunning);
-      if (wasRunning) {
-        void context.suspend().catch(() => {});
-      }
-    });
-  }
-
-  private resumeTrackedAudioContexts(): void {
-    this.trackedAudioContexts.forEach((context) => {
-      const wasRunning = this.runningContextsBeforeOverride.get(context) ?? false;
-      if (wasRunning) {
-        void context.resume().catch(() => {});
-      }
-      this.runningContextsBeforeOverride.delete(context);
-    });
   }
 
   public onMediaState(evt: CustomEvent<ElementMediaStateDetail>) {
@@ -362,9 +228,6 @@ export class CallControl extends EventEmitter implements CallControlState {
 
   public dispose() {
     this.controlMutationObserver.disconnect();
-    this.audioMutationObserver.disconnect();
-    this.resumeTrackedAudioContexts();
-    this.teardownAudioPatches();
   }
 
   private emitStateUpdate() {

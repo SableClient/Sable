@@ -381,7 +381,13 @@ function MessageNotifications() {
       // For "Mention & Keywords": respect the push rule (only notify if it matches).
       const shouldForceDMNotification =
         isDM && notificationType !== NotificationType.MentionsAndKeywords;
-      const shouldNotify = pushActions?.notify || shouldForceDMNotification;
+      // For rooms explicitly set to "All Messages": also force-notify, mirroring the DM
+      // bypass above.  Push-rule evaluation can silently return notify=false when the
+      // room-specific rule was written by another client with a different action format.
+      const shouldForceRoomLoudNotification =
+        !isDM && notificationType === NotificationType.AllMessages;
+      const shouldNotify =
+        pushActions?.notify || shouldForceDMNotification || shouldForceRoomLoudNotification;
 
       // If we shouldn't notify based on rules/settings, skip everything
       if (!shouldNotify) return;
@@ -395,7 +401,10 @@ function MessageNotifications() {
       // messages fall through to .m.rule.message which carries no sound tweak —
       // leaving loudByRule=false.  Treat known DMs as inherently loud so that
       // the OS notification and badge are consistent with the DM context.
-      const isLoud = loudByRule || isDM;
+      // Similarly, rooms explicitly set to "All Messages" are treated as loud
+      // even when the room-specific push rule was written by another client
+      // without a sound tweak, or when push-rule evaluation fails silently.
+      const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
 
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);

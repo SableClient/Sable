@@ -22,6 +22,7 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { getRecentRoomIds } from '$utils/recentRooms';
 import * as Sentry from '@sentry/react';
 
 const log = createLogger('slidingSync');
@@ -375,7 +376,34 @@ export class SlidingSyncManager {
             const room = this.mx.getRoom(roomId);
             if (!room) return;
             const timelineSet = room.getUnfilteredTimelineSet();
-            if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
+            const liveTimeline = timelineSet.getLiveTimeline();
+            const localEvents = liveTimeline.getEvents();
+
+            // Empty timeline: reset is fine, no flicker
+            if (localEvents.length === 0) return;
+
+            // Check for event overlap with server data
+            const serverEvents = roomData.timeline ?? [];
+            if (serverEvents.length === 0) {
+              // No incoming events: preserve local timeline
+              return;
+            }
+
+            // Build set of local event IDs for fast lookup
+            const localIds = new Set(localEvents.map((e) => e.getId()));
+            const serverIds = serverEvents.map((e) => e.event_id);
+
+            // Check if any server event ID exists in local timeline
+            const hasOverlap = serverIds.some((id) => localIds.has(id));
+
+            if (hasOverlap) {
+              // Overlap detected: SDK will merge naturally, no reset needed
+              // This prevents flicker when reopening recently-viewed rooms
+              return;
+            }
+
+            // No overlap: local events are stale, reset needed
+>>>>>>> 5406e00b2 (feat(slidingSync): prefetch recently-visited rooms on sync complete (P3))
             timelineSet.resetLiveTimeline();
           });
       }
@@ -439,6 +467,9 @@ export class SlidingSyncManager {
         });
         this.initialSyncSpan?.end();
         this.initialSyncSpan = null;
+
+        // Prefetch recently-visited rooms to warm the cache for likely next navigations
+        this.prefetchRecentRooms();
       }
 
       this.expandListsToKnownCount();
@@ -1002,6 +1033,39 @@ export class SlidingSyncManager {
       remainingSubscriptions: this.activeRoomSubscriptions.size,
       syncCycle: this.syncCount,
     });
+  }
+
+  /**
+   * Prefetch recently-visited rooms by subscribing to them immediately.
+   * This reduces the time between room navigation and timeline appearing,
+   * especially beneficial for rooms not in the initial sync window.
+   *
+   * Called after initial sync completes to warm up the cache for likely
+   * next-room-to-be-opened scenarios.
+   */
+  public prefetchRecentRooms(): void {
+    if (this.disposed) return;
+
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const toPrefetch = recentRoomIds.slice(0, 5); // Top 5 most recent
+
+    if (toPrefetch.length === 0) return;
+
+    debugLog.info('sync', 'Prefetching recent rooms', {
+      count: toPrefetch.length,
+      roomIds: toPrefetch,
+    });
+
+    for (const roomId of toPrefetch) {
+      // Only subscribe if room exists and not already subscribed
+      const room = this.mx.getRoom(roomId);
+      if (room && !this.activeRoomSubscriptions.has(roomId)) {
+        this.subscribeToRoom(roomId);
+      }
+    }
   }
 
   public static async probe(

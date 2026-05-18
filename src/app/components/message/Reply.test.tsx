@@ -59,7 +59,7 @@ vi.mock('$hooks/useMatrixClient', () => ({
     ({
       getRoom: () => undefined,
       getUserId: () => '@me:example.com',
-      mxcUrlToHttp: (...args: unknown[]) => mockMxcUrlToHttp(...args),
+      mxcUrlToHttp: () => mockMxcUrlToHttp(),
     }) as any,
 }));
 

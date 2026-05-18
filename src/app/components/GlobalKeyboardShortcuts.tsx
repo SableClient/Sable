@@ -24,6 +24,8 @@ import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { allRoomsAtom } from '$state/room-list/roomList';
+import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -33,7 +35,16 @@ export function GlobalKeyboardShortcuts() {
   const mDirects = useAtomValue(mDirectAtom);
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const unreadIndexRef = useRef(0);
+
+  const allRooms = useAtomValue(allRoomsAtom);
   const [isHidingRooms, setIsHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const selectedRoomId = useSelectedRoom();
+
+  const filteredRooms = allRooms.filter(
+    (item) => !hiddenRooms.includes(item) && !hiddenSpaces.includes(item)
+  );
 
   // Derive the current room ID from the URL so we know which room is active.
   const roomMatch =
@@ -57,7 +68,7 @@ export function GlobalKeyboardShortcuts() {
 
   /** Navigate to a room by ID and announce it to screen readers. */
   const navigateToRoom = useCallback(
-    (roomId: string, remaining: number) => {
+    (roomId: string, remaining?: number) => {
       const roomIdOrAliasToNav = getCanonicalAliasOrRoomId(mx, roomId);
       const isDirect = mDirects.has(roomId);
       if (isDirect) {
@@ -78,7 +89,9 @@ export function GlobalKeyboardShortcuts() {
       }
       const roomName = mx.getRoom(roomId)?.name ?? 'Room';
       const roomType = isDirect ? 'Direct Message' : 'Group Room';
-      announce(`${roomName}, ${roomType}. ${remaining} room${remaining === 1 ? '' : 's'} unread.`);
+      announce(
+        `${roomName}, ${roomType}.${remaining && `${remaining} room${remaining === 1 ? '' : 's'} unread.`}`
+      );
     },
     [mx, mDirects, roomToParents, navigate]
   );
@@ -159,10 +172,17 @@ export function GlobalKeyboardShortcuts() {
     (evt: KeyboardEvent) => {
       if (!isKeyHotkey('alt+shift+h', evt)) return;
       evt.preventDefault();
-      unreadIndexRef.current = 0;
+      announce(`${isHidingRooms ? 'Disabling' : 'Enabling'} hiding rooms.`);
       setIsHidingRooms(!isHidingRooms);
+      if (
+        selectedRoomId &&
+        filteredRooms.length > 0 &&
+        filteredRooms[0] &&
+        !filteredRooms.includes(selectedRoomId)
+      )
+        navigateToRoom(filteredRooms[0]);
     },
-    [setIsHidingRooms, isHidingRooms]
+    [setIsHidingRooms, isHidingRooms, navigateToRoom, filteredRooms, selectedRoomId]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);

@@ -50,6 +50,8 @@ import { SettingTile } from '$components/setting-tile';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 
 export function ServerChip({
   server,
@@ -368,6 +370,21 @@ export function MutualRoomsChip({
 
   const [cords, setCords] = useState<RectCords>();
 
+  const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
+  const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
+  const baseMutualRooms = useMemo(
+    () =>
+      (mutualRoomsState.status === AsyncStatus.Success &&
+        (!isHidingRooms
+          ? mutualRoomsState.data
+          : mutualRoomsState.data.filter(
+              (item) => !hiddenRooms.includes(item) && !hiddenSpaces.includes(item)
+            ))) ||
+      [],
+    [isHidingRooms, hiddenRooms, hiddenSpaces, mutualRoomsState]
+  );
+
   const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setCords(evt.currentTarget.getBoundingClientRect());
   };
@@ -382,7 +399,7 @@ export function MutualRoomsChip({
     };
 
     if (mutualRoomsState.status === AsyncStatus.Success) {
-      const mutualRooms = mutualRoomsState.data
+      const mutualRooms = baseMutualRooms
         .toSorted(factoryRoomIdByAtoZ(mx))
         .map(getRoom)
         .filter((room) => !!room);
@@ -399,7 +416,7 @@ export function MutualRoomsChip({
       });
     }
     return data;
-  }, [mutualRoomsState, getRoom, directs, mx]);
+  }, [mutualRoomsState, getRoom, directs, mx, baseMutualRooms]);
 
   if (
     userId === mx.getSafeUserId() ||
@@ -542,7 +559,7 @@ export function MutualRoomsChip({
         radii="Pill"
         before={mutualRoomsState.status === AsyncStatus.Loading && <Spinner size="50" />}
         disabled={
-          mutualRoomsState.status !== AsyncStatus.Success || mutualRoomsState.data.length === 0
+          mutualRoomsState.status !== AsyncStatus.Success || baseMutualRooms.length === 0
         }
         onClick={open}
         aria-pressed={!!cords}
@@ -554,7 +571,7 @@ export function MutualRoomsChip({
       >
         <Text size="B300" style={{ color: textColor }}>
           {mutualRoomsState.status === AsyncStatus.Success &&
-            `${mutualRoomsState.data.length} Mutual Rooms`}
+            `${baseMutualRooms.length} Mutual Rooms`}
           {mutualRoomsState.status === AsyncStatus.Loading && 'Mutual Rooms'}
         </Text>
       </Chip>

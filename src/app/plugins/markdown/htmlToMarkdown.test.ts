@@ -142,6 +142,11 @@ describe('htmlToMarkdown', () => {
     );
   });
 
+  it('preserves unknown tags as escaped markdown literals', () => {
+    expect(htmlToMarkdown('<p><test>hi</test></p>')).toContain('\\<test\\>');
+    expect(htmlToMarkdown('<p><test></p>')).toContain('\\<test\\>');
+  });
+
   it('plainToEditorInput expands emoticon placeholders into Slate emoticon elements', () => {
     const src = 'mxc://matrix.org/emote';
     const md = `before${MX_EMOTICON_MD_START}${src}${MX_EMOTICON_MD_SEP}blobcat${MX_EMOTICON_MD_END}after`;

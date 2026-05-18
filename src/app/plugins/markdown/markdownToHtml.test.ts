@@ -340,4 +340,26 @@ describe('markdownToHtml', () => {
     expect(result).toContain('https://matrix.to/#/#room:example.org');
     expect(result).not.toMatch(/<a[^>]*matrix\.to/);
   });
+
+  it('entity-escapes unknown html-like tags instead of stripping them', () => {
+    expect(markdownToHtml('<test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<test>')).not.toMatch(/<test[^>]*>/);
+    expect(markdownToHtml('<test> <\\test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('&lt;b&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('nope');
+  });
+
+  it('entity-escapes allowlisted tags without a proper closing tag', () => {
+    const result = markdownToHtml('<strong>bold');
+    expect(result).toContain('&lt;strong&gt;');
+    expect(result).toContain('bold');
+    expect(result).not.toMatch(/<strong[^>]*>bold/);
+  });
+
+  it('preserves preview-suppressed angle-bracket URLs', () => {
+    const url = 'https://example.com/doc';
+    const result = markdownToHtml(`see <${url}> there`);
+    expect(result).toContain(url);
+    expect(result).not.toContain('&lt;https');
+  });
 });

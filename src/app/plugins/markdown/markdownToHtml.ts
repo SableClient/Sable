@@ -17,6 +17,10 @@ import {
   unescapeMarkdownInlineSequencesExceptInCodeHtml,
 } from './utils';
 import { expandBlockBoundariesAfterSingleNewlines } from './expandBlockNewlines';
+import {
+  escapeNonAllowlistedHtmlTags,
+  MARKDOWN_ALLOWED_HTML_TAGS,
+} from './allowedHtmlTags';
 
 // Configure marked with Matrix extensions
 const processor = marked.use({
@@ -130,7 +134,9 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
   // Only treat `> ` as block quote, escape bare `>` at line start (e.g. `>:3`)
   const blockquotePrefixed = escapeLineStartBlockquoteWithoutFollowingSpace(decoded);
 
-  const preprocessed = preprocessEmoticon(blockquotePrefixed);
+  const allowlistedOnly = escapeNonAllowlistedHtmlTags(blockquotePrefixed);
+
+  const preprocessed = preprocessEmoticon(allowlistedOnly);
 
   const boundaryExpanded = expandBlockBoundariesAfterSingleNewlines(preprocessed);
 
@@ -145,6 +151,8 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
   // Unescape inline sequences (e.g., \*, \_) after parsing, but not inside <pre>/<code>
   const unescapedInline = unescapeMarkdownInlineSequencesExceptInCodeHtml(html);
 
+  const allowlistedHtml = escapeNonAllowlistedHtmlTags(unescapedInline);
+
   // Force all links to open in a new tab
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName === 'A' && node.getAttribute('href')) {
@@ -153,43 +161,8 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
     }
   });
 
-  const sanitized = DOMPurify.sanitize(unescapedInline, {
-    ALLOWED_TAGS: [
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'p',
-      'br',
-      'hr',
-      'blockquote',
-      'ul',
-      'ol',
-      'li',
-      'pre',
-      'code',
-      'strong',
-      'em',
-      'u',
-      's',
-      'del',
-      'a',
-      'img',
-      'span',
-      'div',
-      'sub',
-      'details',
-      'summary',
-      'table',
-      'thead',
-      'tbody',
-      'tr',
-      'th',
-      'td',
-      'mx-reply',
-    ],
+  const sanitized = DOMPurify.sanitize(allowlistedHtml, {
+    ALLOWED_TAGS: [...MARKDOWN_ALLOWED_HTML_TAGS],
     ALLOWED_ATTR: [
       'href',
       'src',

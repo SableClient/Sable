@@ -7,6 +7,7 @@ import {
 } from './extensions/matrix-emoticon';
 import { escapeMarkdownInlineSequences } from './utils';
 import { testMatrixTo } from '$plugins/matrix-to';
+import { isAllowedHtmlTag } from './allowedHtmlTags';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -178,8 +179,28 @@ function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean
       return processImage(node);
 
     default:
+      if (!isAllowedHtmlTag(tag)) {
+        return processUnknownHtmlTag(node, listDepth, insideCode);
+      }
       return processInlineElements(node, listDepth, insideCode);
   }
+}
+
+function formatHtmlTagAttributes(attribs: Element['attribs']): string {
+  return Object.entries(attribs)
+    .map(([key, value]) => ` ${key}="${value}"`)
+    .join('');
+}
+
+function processUnknownHtmlTag(
+  node: Element,
+  listDepth: number = 0,
+  insideCode: boolean = false
+): string {
+  const content = processChildren(node.children, listDepth, insideCode);
+  const attrs = formatHtmlTagAttributes(node.attribs);
+  const raw = `<${node.name}${attrs}>${content}</${node.name}>`;
+  return escapeMarkdownInlineSequences(raw);
 }
 function reconstructTag(node: Element, listDepth: number = 0, insideCode: boolean = false): string {
   const content = processInlineElements(node, listDepth, insideCode);

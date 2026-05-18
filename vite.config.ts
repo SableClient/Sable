@@ -131,6 +131,7 @@ export default defineConfig(({ command }) => ({
     APP_VERSION: JSON.stringify(appVersion),
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
     IS_RELEASE_TAG: JSON.stringify(isReleaseTag),
+    INJECTED_EXPERIMENT_FLAGS: JSON.stringify(injectedExperimentFlags),
   },
   resolve: {
     alias: {

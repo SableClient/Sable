@@ -873,20 +873,23 @@ function PresenceFeature() {
     // Sliding sync: keep the extension enabled so we always receive others' presence.
     // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-    // Explicitly PUT /presence/{userId}/status so the server knows the exact state:
-    // - MSC4186 servers that have no presence extension see this immediately.
-    // - When 'offline' (Invisible mode), we appear offline to others but still receive
-    //   their presence events because the extension is still enabled above.
-    // Optimistically update own presence in the local SDK store so the member list
-    // badge and status editor reflect the change immediately. MSC4186 servers never
-    // echo own presence back, so we can't rely on the server round-trip for this.
-    getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
+
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state.
+    // Do the optimistic update AFTER the network call to avoid inconsistency if it fails.
     mx.setPresence({
       presence: effectiveState,
       status_msg: effectiveStatusMsg,
-    }).catch(() => {
-      // Server doesn't support presence — ignore.
-    });
+    })
+      .then(() => {
+        // Optimistically update own presence in the local SDK store so the member list
+        // badge and status editor reflect the change immediately. MSC4186 servers never
+        // echo own presence back, so we rely on this local update for consistency.
+        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
+      })
+      .catch(() => {
+        // Server doesn't support presence or network error — the local SDK store
+        // won't be updated, but that's acceptable since the server state is canonical.
+      });
   }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
 
   return null;

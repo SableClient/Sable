@@ -9,6 +9,8 @@ import type {
 import { useCallback } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useClientConfig } from '$hooks/useClientConfig';
+import { useAtomValue } from 'jotai';
+import { settingsAtom } from '$state/settings';
 import {
   searchEncryptedRoomsInMemory,
   partitionRoomsByEncryption,
@@ -80,6 +82,7 @@ export type MessageSearchParams = {
 export const useMessageSearch = (params: MessageSearchParams) => {
   const mx = useMatrixClient();
   const { features } = useClientConfig();
+  const settings = useAtomValue(settingsAtom);
   const { term, order, rooms, senders } = params;
 
   const searchMessages = useCallback(
@@ -91,7 +94,9 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         };
       const limit = 20;
 
-      const encryptedSearchEnabled = features?.encryptedSearch !== false;
+      // Operator kill switch takes priority; user toggle controls the rest.
+      const encryptedSearchEnabled =
+        features?.encryptedSearch !== false && settings.encryptedSearch;
       const isFirstPage = !nextBatch || nextBatch === '';
 
       const { encryptedRoomIds, serverRooms, skipServerSearch } = encryptedSearchEnabled
@@ -150,7 +155,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         inMemoryRoomCount: encryptedRoomIds.length,
       };
     },
-    [mx, features, term, order, rooms, senders]
+    [mx, features, settings.encryptedSearch, term, order, rooms, senders]
   );
 
   return searchMessages;

@@ -23,6 +23,9 @@ import { SearchOrderBy } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useAtomValue } from 'jotai';
+import { settingsAtom } from '$state/settings';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { getRoomIconSrc } from '$utils/room';
 import { factoryRoomIdByAtoZ } from '$utils/sort';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
@@ -120,6 +123,10 @@ type SelectRoomButtonProps = {
 };
 function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButtonProps) {
   const mx = useMatrixClient();
+  const { features } = useClientConfig();
+  const settings = useAtomValue(settingsAtom);
+  const encryptedSearchActive =
+    features?.encryptedSearch !== false && settings.encryptedSearch;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [localSelected, setLocalSelected] = useState(selectedRooms);
@@ -268,6 +275,15 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                                 size="50"
                                 src={getRoomIconSrc(Icons, room.getType(), room.getJoinRule())}
                               />
+                            }
+                            after={
+                              encryptedSearchActive && mx.isRoomEncrypted(roomId) ? (
+                                <Icon
+                                  size="50"
+                                  src={Icons.Lock}
+                                  title="Encrypted — searched from local cache"
+                                />
+                              ) : null
                             }
                           >
                             <Text truncate size="T300">

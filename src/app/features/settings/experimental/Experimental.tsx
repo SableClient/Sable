@@ -10,6 +10,7 @@ import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
+import { EncryptedSearch } from './EncryptedSearch';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -59,6 +60,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
             <br />
             <Box direction="Column" gap="700">
               <Sync />
+              <EncryptedSearch />
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />

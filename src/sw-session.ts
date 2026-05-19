@@ -19,7 +19,12 @@ export function pushSessionToSW(baseUrl?: string, accessToken?: string, userId?:
   const postToController = () => postToWorker(navigator.serviceWorker.controller);
 
   postToController();
-  navigator.serviceWorker.addEventListener('controllerchange', postToController, { once: true });
+  // Only wait for a future controller if there isn't one yet — repeated calls
+  // (e.g. the 10-minute heartbeat) would otherwise accumulate { once: true }
+  // listeners that never fire when a controller is already active.
+  if (!navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('controllerchange', postToController, { once: true });
+  }
   navigator.serviceWorker.ready
     .then((registration) => {
       postToWorker(registration.active);

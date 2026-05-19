@@ -805,9 +805,13 @@ export const clearLoginData = async () => {
 
   // Unregister all service workers so the next load starts fresh.
   // Especially important on iOS/mobile where stale SWs can persist.
-  if ('serviceWorker' in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((r) => r.unregister()));
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((r) => r.unregister()));
+    }
+  } catch {
+    // SW unregister is best-effort; reload regardless
   }
 
   window.location.reload();

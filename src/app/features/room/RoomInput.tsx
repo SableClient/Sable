@@ -286,6 +286,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setEmojiBoardAnchorRect(rect);
       setEmojiBoardTab(tab);
     }, []);
+    // Keep the emoji/sticker picker position in sync with viewport changes (e.g.
+    // the iOS virtual keyboard appearing/disappearing while the board is open).
+    useEffect(() => {
+      if (emojiBoardTab === undefined) return undefined;
+      const updateRect = () => {
+        setEmojiBoardAnchorRect(emojiBtnRef.current?.getBoundingClientRect() ?? null);
+      };
+      const vp = window.visualViewport;
+      if (vp) {
+        vp.addEventListener('resize', updateRect);
+        vp.addEventListener('scroll', updateRect);
+        return () => {
+          vp.removeEventListener('resize', updateRect);
+          vp.removeEventListener('scroll', updateRect);
+        };
+      }
+      return undefined;
+    }, [emojiBoardTab]);
     const closeEmojiBoard = useCallback(() => {
       setEmojiBoardTab((t) => {
         if (t) {

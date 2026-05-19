@@ -374,6 +374,8 @@ export function RoomTimeline({
   useEffect(
     () => () => {
       if (initialScrollTimerRef.current !== undefined) clearTimeout(initialScrollTimerRef.current);
+      if (jumpScrollBlockTimerRef.current !== undefined)
+        clearTimeout(jumpScrollBlockTimerRef.current);
     },
     []
   );
@@ -467,7 +469,7 @@ export function RoomTimeline({
     // useTimelineSync falls back to the live timeline, the useLayoutEffect
     // can fire and call setIsReady(true) via the normal initial-scroll path.
     hasInitialScrolledRef.current = false;
-    timelineSyncRef.current.loadEventTimeline(eventId);
+    void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
   useEffect(() => {

@@ -342,6 +342,13 @@ function useMobileLongPress(callback: () => void, delay = 500) {
     ? ({ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties)
     : undefined;
 
+  useEffect(
+    () => () => {
+      cancel();
+    },
+    [cancel]
+  );
+
   return {
     onTouchStart,
     onTouchMove,
@@ -567,6 +574,7 @@ function MessageInternal(
 
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
+  const [showPronouns] = useSetting(settingsAtom, 'showPronouns');
   const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
 
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
@@ -615,7 +623,7 @@ function MessageInternal(
             <UsernameBold>{cleanedDisplayName}</UsernameBold>
           </Text>
         </Username>
-        {mergedPronouns.length > 0 && (
+        {showPronouns && mergedPronouns.length > 0 && (
           <Pronouns pronouns={mergedPronouns} tagColor={usernameColor ?? 'currentColor'} />
         )}
         {showPmPInfo && (

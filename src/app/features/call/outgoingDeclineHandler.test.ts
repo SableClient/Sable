@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyOutgoingDeclineToTracker, type OutgoingDeclineTracker } from './outgoingDeclineHandler';
+import {
+  applyOutgoingDeclineToTracker,
+  type OutgoingDeclineTracker,
+} from './outgoingDeclineHandler';
 
 const decline = {
   roomId: '!room:example.org',

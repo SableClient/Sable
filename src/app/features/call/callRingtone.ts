@@ -1,11 +1,7 @@
 import InviteSound from '$public/sound/invite.ogg';
 import NotificationSound from '$public/sound/notification.ogg';
 import RingtoneSound from '$public/sound/ringtone.webm';
-import {
-  CALL_TONE_IDS,
-  type CallRingtoneId,
-  type Settings,
-} from '$state/settings';
+import { CALL_TONE_IDS, type CallRingtoneId, type Settings } from '$state/settings';
 
 export type CallToneOption<T extends string> = {
   value: T;

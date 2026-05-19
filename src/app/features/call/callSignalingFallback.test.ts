@@ -24,11 +24,11 @@ const incomingCall: IncomingCall = {
 describe('evaluateIncomingCallFallback', () => {
   it('clears expired incoming calls', () => {
     expect(
-      evaluateIncomingCallFallback(
-        { ...incomingCall, expiresAt: NOW - 1 },
-        NOW,
-        { myUserId: '@self:example.org', getRoom: () => null, getSessionDescription: () => ({}) }
-      )
+      evaluateIncomingCallFallback({ ...incomingCall, expiresAt: NOW - 1 }, NOW, {
+        myUserId: '@self:example.org',
+        getRoom: () => null,
+        getSessionDescription: () => ({}),
+      })
     ).toEqual({ kind: 'clear', reason: 'expired' });
   });
 

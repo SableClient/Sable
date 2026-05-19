@@ -94,11 +94,7 @@ export const evaluateOutgoingRingbackFallback = (
   const sessionDescription = context.getSessionDescription(outgoingRoom);
   const isOutgoingPending = context.isOutgoingPending ?? isOutgoingCallPending;
   const isActive = context.isCallActive ?? isCallActive;
-  const pendingOutgoing = isOutgoingPending(
-    context.myUserId,
-    outgoingRoom,
-    sessionDescription
-  );
+  const pendingOutgoing = isOutgoingPending(context.myUserId, outgoingRoom, sessionDescription);
   const activeCall = isActive(context.myUserId, outgoingRoom, sessionDescription);
 
   if (!pendingOutgoing || activeCall) {

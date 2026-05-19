@@ -486,10 +486,7 @@ export function useIncomingCallSignaling() {
       if (!senderId || !eventId) return;
 
       if (senderId === myUserId) {
-        if (
-          type === RTC_NOTIFICATION_EVENT_TYPE &&
-          handlers().callEmbed?.roomId === room.roomId
-        ) {
+        if (type === RTC_NOTIFICATION_EVENT_TYPE && handlers().callEmbed?.roomId === room.roomId) {
           activeOutgoingNotificationIdRef.current = eventId;
         }
         return;
@@ -626,4 +623,3 @@ export function useIncomingCallSignaling() {
 
   return null;
 }
-

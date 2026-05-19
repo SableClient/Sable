@@ -58,13 +58,7 @@ describe('callNotificationBridge', () => {
       callType: 'ring',
     });
 
-    const incoming = resolveIncomingCallFromSearchParams(
-      params,
-      '!room:test',
-      '$notif',
-      true,
-      now
-    );
+    const incoming = resolveIncomingCallFromSearchParams(params, '!room:test', '$notif', true, now);
 
     expect(incoming).toMatchObject({
       roomId: '!room:test',

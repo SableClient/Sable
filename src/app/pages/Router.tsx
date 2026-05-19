@@ -270,6 +270,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           <Route path={CREATE_PATH_SEGMENT} element={<DirectCreate />} />
           <Route path={SEARCH_PATH_SEGMENT} element={<DirectSearch />} />
           <Route
+            path={ROOM_PATH_SEGMENT}
             element={
               <DirectRouteRoomProvider>
                 <Room />

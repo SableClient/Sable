@@ -306,10 +306,14 @@ export function Direct() {
                         as="span"
                         grow="Yes"
                         alignItems="Center"
+                        justifyContent="Start"
                         gap="200"
-                        justifyContent="Center"
                       >
-                        <Avatar size="200" radii="400">
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideText ? { width: '100%' } : undefined}
+                        >
                           <Icon src={Icons.Search} size="100" filled={searchSelected} />
                         </Avatar>
                         {!hideText && (

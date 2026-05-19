@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventType } from '$types/matrix-sdk';
-import type { MatrixEvent } from '$types/matrix-sdk';
+import type { IEventWithRoomId, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import {
   searchRoomTimeline,
   searchEncryptedRoomsInMemory,
@@ -48,7 +48,7 @@ describe('searchRoomTimeline', () => {
     const group = searchRoomTimeline(room, 'hello world');
     expect(group).toBeDefined();
     expect(group!.items).toHaveLength(1);
-    expect(group!.items[0].event.event_id).toBe('$e1');
+    expect(group!.items[0]!.event.event_id).toBe('$e1');
   });
 
   it('is case-insensitive', () => {
@@ -76,7 +76,7 @@ describe('searchRoomTimeline', () => {
     ]);
     const group = searchRoomTimeline(room, 'match', ['@alice:example.org']);
     expect(group!.items).toHaveLength(1);
-    expect(group!.items[0].event.sender).toBe('@alice:example.org');
+    expect(group!.items[0]!.event.sender).toBe('@alice:example.org');
   });
 
   it('sorts results most-recent-first', () => {
@@ -96,8 +96,8 @@ describe('searchRoomTimeline', () => {
       makeEvent({ type: EventType.RoomMessage, body: 'secret message', id: '$enc' }),
     ]);
     const group = searchRoomTimeline(room, 'secret');
-    expect(group!.items[0].event.type).toBe(EventType.RoomMessage);
-    expect(group!.items[0].event.content.body).toBe('secret message');
+    expect(group!.items[0]!.event.type).toBe(EventType.RoomMessage);
+    expect(group!.items[0]!.event.content.body).toBe('secret message');
   });
 });
 
@@ -112,49 +112,48 @@ describe('searchEncryptedRoomsInMemory', () => {
         return rooms.find((r) => r.roomId === id) ?? null;
       },
     };
-    const groups = searchEncryptedRoomsInMemory(
-      mx as any,
-      'hello',
-      ['!room1:example.org', '!room2:example.org']
-    );
+    const groups = searchEncryptedRoomsInMemory(mx as unknown as MatrixClient, 'hello', [
+      '!room1:example.org',
+      '!room2:example.org',
+    ]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].roomId).toBe('!room1:example.org');
+    expect(groups[0]!.roomId).toBe('!room1:example.org');
   });
 
   it('returns empty array when no rooms match', () => {
     const mx = {
-      getRoom: () =>
-        makeRoom('!room:example.org', [makeEvent({ body: 'unrelated content' })]),
+      getRoom: () => makeRoom('!room:example.org', [makeEvent({ body: 'unrelated content' })]),
     };
-    const groups = searchEncryptedRoomsInMemory(mx as any, 'notfound', ['!room:example.org']);
+    const groups = searchEncryptedRoomsInMemory(mx as unknown as MatrixClient, 'notfound', [
+      '!room:example.org',
+    ]);
     expect(groups).toHaveLength(0);
   });
 
   it('skips rooms not found in the client', () => {
     const mx = { getRoom: () => null };
-    const groups = searchEncryptedRoomsInMemory(mx as any, 'match', ['!ghost:example.org']);
+    const groups = searchEncryptedRoomsInMemory(mx as unknown as MatrixClient, 'match', [
+      '!ghost:example.org',
+    ]);
     expect(groups).toHaveLength(0);
   });
 });
 
 describe('partitionRoomsByEncryption', () => {
   const mx = {
-    getRooms: () => [
-      { roomId: '!enc:example.org' },
-      { roomId: '!plain:example.org' },
-    ],
+    getRooms: () => [{ roomId: '!enc:example.org' }, { roomId: '!plain:example.org' }],
     isRoomEncrypted: (id: string) => id === '!enc:example.org',
   };
 
   it('returns all encrypted rooms and undefined serverRooms for global search', () => {
-    const result = partitionRoomsByEncryption(mx as any, undefined);
+    const result = partitionRoomsByEncryption(mx as unknown as MatrixClient, undefined);
     expect(result.encryptedRoomIds).toEqual(['!enc:example.org']);
     expect(result.serverRooms).toBeUndefined();
     expect(result.skipServerSearch).toBe(false);
   });
 
   it('splits a mixed room list correctly', () => {
-    const result = partitionRoomsByEncryption(mx as any, [
+    const result = partitionRoomsByEncryption(mx as unknown as MatrixClient, [
       '!enc:example.org',
       '!plain:example.org',
     ]);
@@ -164,24 +163,24 @@ describe('partitionRoomsByEncryption', () => {
   });
 
   it('sets skipServerSearch when all specified rooms are encrypted', () => {
-    const result = partitionRoomsByEncryption(mx as any, ['!enc:example.org']);
+    const result = partitionRoomsByEncryption(mx as unknown as MatrixClient, ['!enc:example.org']);
     expect(result.skipServerSearch).toBe(true);
     expect(result.serverRooms).toBeUndefined();
   });
 });
 
-describe('mergeSearchGroups', () => {
-  const makeGroup = (roomId: string, ts: number): ResultGroup => ({
-    roomId,
-    items: [
-      {
-        rank: 1,
-        event: { room_id: roomId, origin_server_ts: ts } as any,
-        context: { events_before: [], events_after: [], profile_info: {} },
-      },
-    ],
-  });
+const makeGroup = (roomId: string, ts: number): ResultGroup => ({
+  roomId,
+  items: [
+    {
+      rank: 1,
+      event: { room_id: roomId, origin_server_ts: ts } as unknown as IEventWithRoomId,
+      context: { events_before: [], events_after: [], profile_info: {} },
+    },
+  ],
+});
 
+describe('mergeSearchGroups', () => {
   it('returns server groups unchanged when there are no in-memory groups', () => {
     const server = [makeGroup('!a:x', 2000)];
     expect(mergeSearchGroups(server, [])).toBe(server);
@@ -196,15 +195,15 @@ describe('mergeSearchGroups', () => {
     const server = [makeGroup('!a:x', 1000)];
     const mem = [makeGroup('!b:x', 3000)];
     const merged = mergeSearchGroups(server, mem, 'recent');
-    expect(merged[0].roomId).toBe('!b:x');
-    expect(merged[1].roomId).toBe('!a:x');
+    expect(merged[0]!.roomId).toBe('!b:x');
+    expect(merged[1]!.roomId).toBe('!a:x');
   });
 
   it('puts server results first for rank order', () => {
     const server = [makeGroup('!a:x', 1000)];
     const mem = [makeGroup('!b:x', 3000)];
     const merged = mergeSearchGroups(server, mem, 'rank');
-    expect(merged[0].roomId).toBe('!a:x');
-    expect(merged[1].roomId).toBe('!b:x');
+    expect(merged[0]!.roomId).toBe('!a:x');
+    expect(merged[1]!.roomId).toBe('!b:x');
   });
 });

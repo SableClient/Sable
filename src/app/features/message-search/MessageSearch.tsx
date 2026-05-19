@@ -108,12 +108,20 @@ export function MessageSearch({
       senders: searchParamsSenders ?? senders,
       hasTypes: searchParamHasTypes,
     };
-  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, searchParamHasTypes, rooms, senders]);
+  }, [
+    searchPathSearchParams,
+    searchParamRooms,
+    searchParamsSenders,
+    searchParamHasTypes,
+    rooms,
+    senders,
+  ]);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    enabled: !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0),
+    enabled:
+      !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0),
     queryKey: [
       'search',
       msgSearchParams.term,
@@ -325,7 +333,13 @@ export function MessageSearch({
       {vItems.length > 0 && (
         <Box direction="Column" gap="300">
           <Box direction="Column" gap="200">
-            <Text size="H5">{`Results for "${msgSearchParams.term}"`}</Text>
+            <Text size="H5">
+              {msgSearchParams.term
+                ? `Results for "${msgSearchParams.term}"`
+                : msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0
+                  ? `Results for ${msgSearchParams.hasTypes.join(', ')}`
+                  : 'Results'}
+            </Text>
             <Line size="300" variant="Surface" />
           </Box>
           <div

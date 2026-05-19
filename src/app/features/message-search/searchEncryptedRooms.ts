@@ -1,5 +1,10 @@
 import { EventType } from '$types/matrix-sdk';
-import type { IEventWithRoomId, IResultContext, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
+import type {
+  IEventWithRoomId,
+  IResultContext,
+  MatrixClient,
+  MatrixEvent,
+} from '$types/matrix-sdk';
 import type { ResultGroup, ResultItem } from './useMessageSearch';
 
 /** Media / content type filters — mirrors Discord's `has:` filter. */

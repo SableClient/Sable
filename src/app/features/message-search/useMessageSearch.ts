@@ -189,12 +189,26 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       const termWords = term.split(/\s+/).filter(Boolean);
       return {
         ...filteredServerResult,
-        groups: mergeSearchGroups(filteredServerResult.groups, filterGroupsByHasType(inMemoryGroups), order),
+        groups: mergeSearchGroups(
+          filteredServerResult.groups,
+          filterGroupsByHasType(inMemoryGroups),
+          order
+        ),
         highlights: Array.from(new Set([...filteredServerResult.highlights, ...termWords])),
         inMemoryRoomCount: encryptedRoomIds.length,
       };
     },
-    [mx, features, settings.encryptedSearch, term, order, rooms, senders, hasTypes, filterGroupsByHasType]
+    [
+      mx,
+      features,
+      settings.encryptedSearch,
+      term,
+      order,
+      rooms,
+      senders,
+      hasTypes,
+      filterGroupsByHasType,
+    ]
   );
 
   return searchMessages;

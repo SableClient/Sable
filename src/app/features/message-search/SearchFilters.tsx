@@ -1,5 +1,5 @@
-import type { ChangeEventHandler, KeyboardEvent, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
   Box,
@@ -19,7 +19,9 @@ import {
   Input,
   Badge,
 } from 'folds';
+import type { IconSrc } from 'folds';
 import { SearchOrderBy } from '$types/matrix-sdk';
+import type { RoomMember } from '$types/matrix-sdk';
 import FocusTrap from 'focus-trap-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -126,8 +128,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
   const mx = useMatrixClient();
   const { features } = useClientConfig();
   const settings = useAtomValue(settingsAtom);
-  const encryptedSearchActive =
-    features?.encryptedSearch !== false && settings.encryptedSearch;
+  const encryptedSearchActive = features?.encryptedSearch !== false && settings.encryptedSearch;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const [localSelected, setLocalSelected] = useState(selectedRooms);
@@ -279,11 +280,9 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
                             }
                             after={
                               encryptedSearchActive && mx.isRoomEncrypted(roomId) ? (
-                                <Icon
-                                  size="50"
-                                  src={Icons.Lock}
-                                  title="Encrypted — searched from local cache"
-                                />
+                                <span title="Encrypted — searched from local cache">
+                                  <Icon size="50" src={Icons.Lock} />
+                                </span>
                               ) : null
                             }
                           >
@@ -334,7 +333,7 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
   );
 }
 
-const HAS_FILTER_OPTIONS: { type: SearchHasType; label: string; icon: string }[] = [
+const HAS_FILTER_OPTIONS: { type: SearchHasType; label: string; icon: IconSrc }[] = [
   { type: 'image', label: 'Image', icon: Icons.Photo },
   { type: 'file', label: 'File', icon: Icons.File },
   { type: 'audio', label: 'Audio', icon: Icons.VolumeHigh },
@@ -378,33 +377,77 @@ function HasFilterChips({ hasTypes, onChange }: HasFilterChipsProps) {
 }
 
 type SelectSenderButtonProps = {
+  roomList: string[];
   selectedSenders?: string[];
   onChange: (senders?: string[]) => void;
 };
-function SelectSenderButton({ selectedSenders, onChange }: SelectSenderButtonProps) {
+
+const SENDER_SEARCH_OPTS: UseAsyncSearchOptions = { limit: 50, matchOptions: { contain: true } };
+const SENDER_DEBOUNCE_OPTS: DebounceOptions = { wait: 200 };
+const getMemberStr: SearchItemStrGetter<RoomMember> = (member, query) => {
+  const name = member.name ?? member.userId;
+  return query ? [name, member.userId] : name;
+};
+function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSenderButtonProps) {
+  const mx = useMatrixClient();
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [inputValue, setInputValue] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const members = useMemo(() => {
+    const seen = new Set<string>();
+    const result: RoomMember[] = [];
+    const scope = roomList.length > 0 ? roomList : [];
+    for (const roomId of scope) {
+      const room = mx.getRoom(roomId);
+      if (!room) continue;
+      for (const m of room.getMembers()) {
+        if (!seen.has(m.userId)) {
+          seen.add(m.userId);
+          result.push(m);
+        }
+      }
+    }
+    return result.toSorted((a, b) => (a.name ?? a.userId).localeCompare(b.name ?? b.userId));
+  }, [mx, roomList]);
+
+  const [searchState, searchMembersRaw, resetSearch] = useAsyncSearch(
+    members,
+    getMemberStr,
+    SENDER_SEARCH_OPTS
+  );
+  const searchMembers = useDebounce(searchMembersRaw, SENDER_DEBOUNCE_OPTS);
+  const handleSearchChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const value = evt.currentTarget.value.trim();
+    if (!value) {
+      resetSearch();
+      return;
+    }
+    searchMembers(value);
+  };
+
+  const displayMembers = searchState?.items ?? members;
+
+  const virtualizer = useVirtualizer({
+    count: displayMembers.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 32 + 4,
+    overscan: 10,
+  });
+  const vItems = virtualizer.getVirtualItems();
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
 
-  const addSender = () => {
-    const value = inputValue.trim();
-    if (!value) return;
-    if (!selectedSenders?.includes(value)) {
-      onChange([...(selectedSenders ?? []), value]);
+  const handleMemberClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    const userId = evt.currentTarget.getAttribute('data-user-id');
+    if (!userId) return;
+    if (selectedSenders?.includes(userId)) {
+      const next = selectedSenders.filter((s) => s !== userId);
+      onChange(next.length > 0 ? next : undefined);
+    } else {
+      onChange([...(selectedSenders ?? []), userId]);
     }
-    setInputValue('');
-    setMenuAnchor(undefined);
-  };
-
-  const handleKeyDown = (evt: KeyboardEvent<HTMLInputElement>) => {
-    if (evt.key === 'Enter') addSender();
-  };
-
-  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
-    setInputValue(evt.currentTarget.value);
   };
 
   return (
@@ -422,22 +465,74 @@ function SelectSenderButton({ selectedSenders, onChange }: SelectSenderButtonPro
           }}
         >
           <Menu variant="Surface" style={{ width: toRem(260) }}>
-            <Box direction="Column" style={{ padding: config.space.S200 }} gap="200">
-              <Text size="L400">From (Matrix ID)</Text>
-              <Box gap="200">
+            <Box direction="Column" style={{ maxHeight: toRem(450) }}>
+              <Box
+                shrink="No"
+                direction="Column"
+                gap="100"
+                style={{ padding: config.space.S200, paddingBottom: 0 }}
+              >
+                <Text size="L400">From</Text>
                 <Input
-                  value={inputValue}
-                  onChange={handleInputChange}
+                  onChange={handleSearchChange}
                   size="300"
                   radii="300"
-                  placeholder="@user:server"
-                  onKeyDown={handleKeyDown}
-                  style={{ flex: 1 }}
+                  placeholder="Search members..."
+                  after={
+                    searchState && searchState.items.length > 0 ? (
+                      <Badge variant="Secondary" size="400" radii="Pill">
+                        <Text size="L400">{searchState.items.length}</Text>
+                      </Badge>
+                    ) : null
+                  }
                 />
-                <Button size="300" variant="Secondary" radii="300" onClick={addSender}>
-                  <Text size="B300">Add</Text>
-                </Button>
               </Box>
+              <Scroll ref={scrollRef} size="300" hideTrack>
+                <Box
+                  direction="Column"
+                  gap="100"
+                  style={{ padding: config.space.S200, paddingRight: 0 }}
+                >
+                  {displayMembers.length === 0 && (
+                    <Text style={{ padding: config.space.S400 }} size="T300" align="Center">
+                      No members found
+                    </Text>
+                  )}
+                  <div style={{ position: 'relative', height: virtualizer.getTotalSize() }}>
+                    {vItems.map((vItem) => {
+                      const member = displayMembers[vItem.index]!;
+                      const selected = selectedSenders?.includes(member.userId);
+                      return (
+                        <VirtualTile
+                          virtualItem={vItem}
+                          style={{ paddingBottom: config.space.S100 }}
+                          ref={virtualizer.measureElement}
+                          key={vItem.index}
+                        >
+                          <MenuItem
+                            data-user-id={member.userId}
+                            onClick={handleMemberClick}
+                            variant={selected ? 'Success' : 'Surface'}
+                            size="300"
+                            radii="300"
+                            aria-pressed={selected}
+                            before={<Icon size="50" src={Icons.User} />}
+                          >
+                            <Box direction="Column">
+                              <Text truncate size="T300">
+                                {member.name ?? member.userId}
+                              </Text>
+                              <Text truncate size="T200">
+                                {member.userId}
+                              </Text>
+                            </Box>
+                          </MenuItem>
+                        </VirtualTile>
+                      );
+                    })}
+                  </div>
+                </Box>
+              </Scroll>
             </Box>
           </Menu>
         </FocusTrap>
@@ -573,7 +668,11 @@ export function SearchFilters({
             <Text size="T200">{mx.getUser(sender)?.displayName ?? sender}</Text>
           </Chip>
         ))}
-        <SelectSenderButton selectedSenders={senders} onChange={onSendersChange} />
+        <SelectSenderButton
+          roomList={roomList}
+          selectedSenders={senders}
+          onChange={onSendersChange}
+        />
       </Box>
     </Box>
   );

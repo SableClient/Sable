@@ -26,7 +26,9 @@ export function EncryptedSearch() {
               variant="Primary"
               value={encryptedSearch}
               onChange={setEncryptedSearch}
-              title={encryptedSearch ? 'Disable encrypted room search' : 'Enable encrypted room search'}
+              title={
+                encryptedSearch ? 'Disable encrypted room search' : 'Enable encrypted room search'
+              }
             />
           }
         />

@@ -47,7 +47,12 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { getDirectSearchPath, getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
+import {
+  getDirectSearchPath,
+  getHomeSearchPath,
+  getSpaceSearchPath,
+  withSearchParam,
+} from '$pages/pathUtils';
 import { createLogger } from '$utils/debug';
 import {
   getCanonicalAliasOrRoomId,
@@ -375,8 +380,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const { features } = useClientConfig();
   const settings = useAtomValue(settingsAtom);
-  const encryptedSearchEnabled =
-    features?.encryptedSearch !== false && settings.encryptedSearch;
+  const encryptedSearchEnabled = features?.encryptedSearch !== false && settings.encryptedSearch;
   const avatarMxc = useRoomAvatar(room, direct && !customDMCards);
   const name = useRoomName(room);
   const topic = useRoomTopic(room);
@@ -562,7 +566,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     };
     const path = space
       ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))
-      : isDirectConversation
+      : direct
         ? getDirectSearchPath()
         : getHomeSearchPath();
     navigate(withSearchParam(path, searchParams));

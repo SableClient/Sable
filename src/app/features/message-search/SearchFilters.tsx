@@ -2,6 +2,7 @@ import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
+  Avatar,
   Box,
   Chip,
   Text,
@@ -36,6 +37,8 @@ import type { DebounceOptions } from '$hooks/useDebounce';
 import { useDebounce } from '$hooks/useDebounce';
 import { VirtualTile } from '$components/virtualizer';
 import { stopPropagation } from '$utils/keyboard';
+import { UserAvatar } from '$components/user-avatar';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { SearchHasType } from './useMessageSearch';
 
 type OrderButtonProps = {
@@ -388,8 +391,10 @@ const getMemberStr: SearchItemStrGetter<RoomMember> = (member, query) => {
   const name = member.name ?? member.userId;
   return query ? [name, member.userId] : name;
 };
+const getMemberDisplayName = (member: RoomMember): string => member.name ?? member.userId;
 function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSenderButtonProps) {
   const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -407,7 +412,9 @@ function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSende
         }
       }
     }
-    return result.toSorted((a, b) => (a.name ?? a.userId).localeCompare(b.name ?? b.userId));
+    return result.toSorted((a, b) =>
+      getMemberDisplayName(a).localeCompare(getMemberDisplayName(b))
+    );
   }, [mx, roomList]);
 
   const [searchState, searchMembersRaw, resetSearch] = useAsyncSearch(
@@ -516,11 +523,32 @@ function SelectSenderButton({ roomList, selectedSenders, onChange }: SelectSende
                             size="300"
                             radii="300"
                             aria-pressed={selected}
-                            before={<Icon size="50" src={Icons.User} />}
+                            before={
+                              <Avatar size="200" radii="Pill">
+                                <UserAvatar
+                                  userId={member.userId}
+                                  src={
+                                    member.getMxcAvatarUrl()
+                                      ? (mx.mxcUrlToHttp(
+                                          member.getMxcAvatarUrl()!,
+                                          32,
+                                          32,
+                                          'crop',
+                                          undefined,
+                                          false,
+                                          useAuthentication
+                                        ) ?? undefined)
+                                      : undefined
+                                  }
+                                  alt={getMemberDisplayName(member)}
+                                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                                />
+                              </Avatar>
+                            }
                           >
                             <Box direction="Column">
                               <Text truncate size="T300">
-                                {member.name ?? member.userId}
+                                {getMemberDisplayName(member)}
                               </Text>
                               <Text truncate size="T200">
                                 {member.userId}
@@ -554,6 +582,7 @@ type SearchFiltersProps = {
   defaultRoomsFilterName: string;
   allowGlobal?: boolean;
   roomList: string[];
+  defaultRooms: string[];
   selectedRooms?: string[];
   onSelectedRoomsChange: (selectedRooms?: string[]) => void;
   global?: boolean;
@@ -569,6 +598,7 @@ export function SearchFilters({
   defaultRoomsFilterName,
   allowGlobal,
   roomList,
+  defaultRooms,
   selectedRooms,
   onSelectedRoomsChange,
   global,
@@ -580,6 +610,7 @@ export function SearchFilters({
   senders,
   onSendersChange,
 }: SearchFiltersProps) {
+  const senderScope = selectedRooms && selectedRooms.length > 0 ? selectedRooms : defaultRooms;
   const mx = useMatrixClient();
 
   return (
@@ -669,7 +700,7 @@ export function SearchFilters({
           </Chip>
         ))}
         <SelectSenderButton
-          roomList={roomList}
+          roomList={senderScope}
           selectedSenders={senders}
           onChange={onSendersChange}
         />

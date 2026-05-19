@@ -264,6 +264,7 @@ export function MessageSearch({
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
           roomList={allRooms}
+          defaultRooms={rooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}

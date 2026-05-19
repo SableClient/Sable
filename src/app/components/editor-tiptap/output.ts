@@ -193,12 +193,9 @@ export function tiptapCustomHtmlEqualsPlainText(
 ): boolean {
   const plain = tiptapToPlainText(editor);
   const html = tiptapToMatrixCustomHTML(editor, opts);
-  // Strip HTML tags and compare
-  const stripped = html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
+  // Use DOMParser to extract text content safely — avoids manual tag-stripping
+  // regex and chained entity unescaping (which can double-decode).
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const stripped = doc.body.textContent ?? '';
   return stripped.trim() === plain.trim();
 }

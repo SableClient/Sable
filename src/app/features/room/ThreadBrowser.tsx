@@ -18,6 +18,8 @@ import {
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
+import type { HTMLReactParserOptions } from 'html-react-parser';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
@@ -74,7 +76,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
 
-  const linkifyOpts = useMemo<import('linkifyjs').Opts>(
+  const linkifyOpts = useMemo<LinkifyOpts>(
     () => ({
       ...LINKIFY_OPTS,
       render: factoryRenderLinkifyWithMention(
@@ -93,7 +95,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
     [mx, room.roomId, nicknames, mentionClickHandler, settingsLinkBaseUrl]
   );
 
-  const htmlReactParserOptions = useMemo<import('html-react-parser').Options>(
+  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
     () =>
       getReactCustomHtmlParser(mx, room.roomId, {
         settingsLinkBaseUrl,

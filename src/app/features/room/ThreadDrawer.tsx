@@ -618,7 +618,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       );
     const ownId = ownReply?.id;
     if (ownId) {
-      handleEditCallback(ownId);
+      handleEdit(ownId);
       const el = drawerRef.current;
       if (el) {
         el.querySelector(`[data-message-id="${ownId}"]`)?.scrollIntoView({
@@ -627,7 +627,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         });
       }
     }
-  }, [mx, threadRootId, handleEditCallback]);
+  }, [mx, threadRootId, handleEdit]);
 
   const handleResend = useCallback(
     (event: MatrixEvent) => {

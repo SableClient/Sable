@@ -244,6 +244,8 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(isReady);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;
@@ -588,7 +590,7 @@ export function RoomTimeline({
     setReplyDraft: setReplyDraft as unknown as (draft: unknown) => void,
     openThreadId,
     setOpenThread: setOpenThread as unknown as (threadId: string | undefined) => void,
-    handleEdit: handleEditCallback,
+    handleEdit,
     handleOpenEvent: (id) => {
       const anchorId = unwrapRelationJumpTarget(room, id);
       let evtTimeline = getEventTimeline(room, anchorId);
@@ -1137,17 +1139,28 @@ export function RoomTimeline({
           }}
         >
           <MessageBase space={messageSpacing}>
-            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
           </MessageBase>
           <MessageBase space={messageSpacing}>
-            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
           </MessageBase>
           <MessageBase space={messageSpacing}>
-            {messageLayout === MessageLayout.Compact ? <CompactPlaceholder /> : <DefaultPlaceholder />}
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
           </MessageBase>
         </div>
       )}
-
 
       {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
         <TimelineFloat position="Bottom">

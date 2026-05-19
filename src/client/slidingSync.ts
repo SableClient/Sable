@@ -372,7 +372,7 @@ export class SlidingSyncManager {
         Object.entries(rooms)
           .filter(([, roomData]) => roomData.initial || roomData.limited)
           .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
-          .forEach(([roomId]) => {
+          .forEach(([roomId, roomData]) => {
             const room = this.mx.getRoom(roomId);
             if (!room) return;
             const timelineSet = room.getUnfilteredTimelineSet();

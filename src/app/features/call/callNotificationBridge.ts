@@ -1,10 +1,9 @@
-import type {
-  IncomingCall,
-  IncomingCallIntentKind,
-  IncomingCallNotificationType,
-} from '$state/callEmbed';
-
-const MAX_CALL_NOTIFICATION_LIFETIME_MS = 120_000;
+import type { IncomingCall } from '$state/callEmbed';
+import {
+  MAX_CALL_NOTIFICATION_LIFETIME_MS,
+  normalizeCallIntent,
+  toCallNotificationTypeOrDefault,
+} from './callIntent';
 
 type CallCandidate = {
   roomId: string;
@@ -19,27 +18,8 @@ type CallCandidate = {
   isDirect: boolean;
 };
 
-const toNotificationType = (
-  value: string | undefined
-): IncomingCallNotificationType | undefined => {
-  if (value === 'ring' || value === 'notification') return value;
-  return undefined;
-};
-
-const normalizeIntentKind = (
-  intentKindRaw: string | undefined,
-  intentRaw: string | undefined
-): IncomingCallIntentKind => {
-  if (intentKindRaw === 'audio' || intentKindRaw === 'video') {
-    return intentKindRaw;
-  }
-  const normalized = intentRaw?.toLowerCase();
-  if (normalized?.includes('video')) return 'video';
-  return 'audio';
-};
-
 const fromCandidate = (candidate: CallCandidate, now = Date.now()): IncomingCall | undefined => {
-  const notificationType = toNotificationType(candidate.notificationTypeRaw) ?? 'ring';
+  const notificationType = toCallNotificationTypeOrDefault(candidate.notificationTypeRaw);
   const senderTs =
     typeof candidate.senderTsRaw === 'number' && Number.isFinite(candidate.senderTsRaw)
       ? candidate.senderTsRaw
@@ -59,7 +39,7 @@ const fromCandidate = (candidate: CallCandidate, now = Date.now()): IncomingCall
     senderTs,
     expiresAt,
     notificationType,
-    intentKind: normalizeIntentKind(candidate.intentKindRaw, candidate.intentRaw),
+    intentKind: normalizeCallIntent(candidate.intentKindRaw, candidate.intentRaw),
     intentRaw: candidate.intentRaw,
     isDirect: candidate.isDirect,
   };

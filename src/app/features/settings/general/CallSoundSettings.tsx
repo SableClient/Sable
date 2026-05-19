@@ -13,10 +13,9 @@ import {
   callRingtoneVolumeToGain,
   clampCallRingtoneVolume,
   readAudioDurationMs,
-  resolveIncomingCallToneUrl,
-  resolveOutgoingRingbackToneUrl,
   validateCustomCallRingtone,
 } from '$features/call/callRingtone';
+import { resolveCallToneSources, revokeUnusedCustomToneUrls } from '$features/call/callToneSources';
 import {
   clearCustomCallRingback,
   clearCustomCallRingtone,
@@ -294,33 +293,9 @@ export function CallSoundSettings() {
 
   const resolveToneForPreview = useCallback(
     async (tone: PreviewTone): Promise<string | null> => {
-      let customRingtoneUrl: string | undefined;
-      let customRingbackUrl: string | undefined;
-      if (callRingtoneId === 'custom') {
-        const customRingtone = await getCustomCallRingtone();
-        if (customRingtone?.blob) {
-          customRingtoneUrl = URL.createObjectURL(customRingtone.blob);
-        }
-      }
-      if (callRingbackTone === 'custom') {
-        const customRingback = await getCustomCallRingback();
-        if (customRingback?.blob) {
-          customRingbackUrl = URL.createObjectURL(customRingback.blob);
-        }
-      }
-
-      const source =
-        tone === 'incoming'
-          ? resolveIncomingCallToneUrl({ callRingtoneId }, customRingtoneUrl)
-          : resolveOutgoingRingbackToneUrl(
-              { callRingbackTone, callRingtoneId },
-              customRingtoneUrl,
-              customRingbackUrl
-            );
-
-      if (customRingtoneUrl && source !== customRingtoneUrl) URL.revokeObjectURL(customRingtoneUrl);
-      if (customRingbackUrl && source !== customRingbackUrl) URL.revokeObjectURL(customRingbackUrl);
-
+      const resolved = await resolveCallToneSources({ callRingtoneId, callRingbackTone });
+      const source = tone === 'incoming' ? resolved.incomingUrl : resolved.outgoingUrl;
+      revokeUnusedCustomToneUrls(resolved, source);
       return source;
     },
     [callRingtoneId, callRingbackTone]

@@ -1,9 +1,19 @@
+import {
+  MAX_CALL_NOTIFICATION_LIFETIME_MS,
+  normalizeCallIntent,
+  toCallNotificationType,
+  type CallIntentKind,
+  type CallNotificationType,
+} from './callIntent';
+
 export const RTC_NOTIFICATION_EVENT_TYPE = 'org.matrix.msc4075.rtc.notification';
 export const RTC_DECLINE_EVENT_TYPE = 'org.matrix.msc4310.rtc.decline';
 export const REFERENCE_REL_TYPE = 'm.reference';
 
-export type NotificationType = 'ring' | 'notification';
-export type NotificationIntentKind = 'audio' | 'video';
+export type NotificationType = CallNotificationType;
+export type NotificationIntentKind = CallIntentKind;
+
+export { MAX_CALL_NOTIFICATION_LIFETIME_MS };
 
 export type RtcNotificationEventLike = {
   type: string;
@@ -62,17 +72,11 @@ export type ParsedRtcDecline = {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const normalizeIntentKind = (intent?: string): NotificationIntentKind =>
-  intent && intent.includes('voice') ? 'audio' : 'video';
-
 const isMentioned = (mentions: RtcMentions | undefined, myUserId: string): boolean => {
   if (!mentions) return false;
   if (mentions.room) return true;
   return Array.isArray(mentions.user_ids) && mentions.user_ids.includes(myUserId);
 };
-
-const toNotificationType = (value: unknown): NotificationType | undefined =>
-  value === 'ring' || value === 'notification' ? value : undefined;
 
 const getSenderTimestamp = (contentTs: number, originTs: number): number =>
   contentTs - originTs > 20_000 ? originTs : contentTs;
@@ -94,7 +98,7 @@ export const parseIncomingRtcNotification = async (
 
   const senderTsCandidate = content.sender_ts;
   const lifetimeCandidate = content.lifetime;
-  const notificationType = toNotificationType(content.notification_type);
+  const notificationType = toCallNotificationType(content.notification_type);
 
   if (typeof senderTsCandidate !== 'number') return undefined;
   if (typeof lifetimeCandidate !== 'number' || !Number.isFinite(lifetimeCandidate))
@@ -117,7 +121,7 @@ export const parseIncomingRtcNotification = async (
     senderTs,
     expiresAt,
     notificationType,
-    intentKind: normalizeIntentKind(intentRaw),
+    intentKind: normalizeCallIntent(undefined, intentRaw),
     intentRaw,
   };
 };
@@ -129,14 +133,14 @@ export const parseRtcDecline = (
   if (!event.isLiveEvent) return undefined;
   if (event.type !== RTC_DECLINE_EVENT_TYPE) return undefined;
   if (event.sender === options.myUserId) return undefined;
+  if (event.relation?.rel_type !== REFERENCE_REL_TYPE || !event.relation.event_id) {
+    return undefined;
+  }
 
   return {
     roomId: event.roomId,
     declineEventId: event.eventId,
-    notificationEventId:
-      event.relation?.rel_type === REFERENCE_REL_TYPE && event.relation.event_id
-        ? event.relation.event_id
-        : event.eventId,
+    notificationEventId: event.relation.event_id,
     senderId: event.sender,
   };
 };

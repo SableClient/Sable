@@ -71,7 +71,7 @@ describe('parseIncomingRtcNotification', () => {
     );
 
     expect(parsed?.notificationType).toBe('notification');
-    expect(parsed?.intentKind).toBe('video');
+    expect(parsed?.intentKind).toBe('audio');
   });
 
   it('ignores expired notifications', async () => {
@@ -193,7 +193,7 @@ describe('parseIncomingRtcNotification', () => {
           sender_ts: NOW - 500,
           lifetime: 60_000,
           notification_type: 'ring',
-          'm.call.intent': 'start_call_dm',
+          'm.call.intent': 'start_call_dm_video',
           'm.mentions': { room: true },
         },
       }),

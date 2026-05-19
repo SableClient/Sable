@@ -20,6 +20,29 @@ const isBridgeBot = (userId: string): boolean => {
 };
 
 /**
+ * Read member info synchronously from already-loaded room state.
+ * Returns partial data (no profile API) so the first render has something to
+ * show rather than being empty while the async fetch is in-flight.
+ */
+function getInitialMembers(
+  mx: MatrixClient,
+  room: Room | undefined,
+  maxMembers: number
+): GroupMemberInfo[] {
+  if (!room) return [];
+  const currentUserId = mx.getUserId();
+  return room
+    .getMembers()
+    .filter((m) => m.membership === 'join' && m.userId !== currentUserId && !isBridgeBot(m.userId))
+    .slice(0, maxMembers)
+    .map((m) => ({
+      userId: m.userId,
+      displayName: m.name || m.userId,
+      avatarUrl: m.getMxcAvatarUrl() ?? undefined,
+    }));
+}
+
+/**
  * Fetches member information for a group DM.
  * Gets all joined members from room state and fetches their profiles.
  * Sorts members by who last sent messages (most recent first), with members who haven't sent messages last.
@@ -29,7 +52,11 @@ export const useGroupDMMembers = (
   room: Room | undefined,
   maxMembers = 3
 ): GroupMemberInfo[] => {
-  const [members, setMembers] = useState<GroupMemberInfo[]>([]);
+  // Seed from local room state so the triple-avatar layout renders on the
+  // first paint instead of flashing in after the async profile fetch.
+  const [members, setMembers] = useState<GroupMemberInfo[]>(() =>
+    getInitialMembers(mx, room, maxMembers)
+  );
 
   useEffect(() => {
     let cancelled = false;

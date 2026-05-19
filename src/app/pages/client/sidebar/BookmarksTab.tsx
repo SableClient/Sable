@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { Icon, Icons } from 'folds';
-import { SidebarAvatar, SidebarItem, SidebarItemTooltip, SidebarUnreadBadge } from '$components/sidebar';
+import {
+  SidebarAvatar,
+  SidebarItem,
+  SidebarItemTooltip,
+  SidebarUnreadBadge,
+} from '$components/sidebar';
 import { getInboxBookmarksPath } from '$pages/pathUtils';
 import { useInboxBookmarksSelected } from '$hooks/router/useInbox';
 import { useSetting } from '$state/hooks/settings';

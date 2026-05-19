@@ -61,9 +61,6 @@ import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
-import { useInitBookmarks } from '$features/bookmarks/useInitBookmarks';
-import { bookmarksPanelAtom } from '$state/bookmarksPanelAtom';
-import { useReminderSync } from '$features/bookmarks/useReminderSync';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 

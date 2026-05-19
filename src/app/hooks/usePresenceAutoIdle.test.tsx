@@ -88,9 +88,9 @@ describe('usePresenceAutoIdle', () => {
     });
     expect(result.current).toBe(true);
 
-    // Simulate user activity.
+    // Simulate user activity (keydown is not filtered by the focus guard).
     act(() => {
-      document.dispatchEvent(new Event('mousemove'));
+      document.dispatchEvent(new Event('keydown'));
     });
     expect(result.current).toBe(false);
   });

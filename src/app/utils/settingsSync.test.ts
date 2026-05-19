@@ -37,12 +37,6 @@ describe('NON_SYNCABLE_KEYS', () => {
       'callRingtoneId',
       'callRingbackTone',
       'callSoundOverrideGlobalNotifications',
-      'callCustomRingtoneName',
-      'callCustomRingtoneSizeBytes',
-      'callCustomRingtoneDurationMs',
-      'callCustomRingbackName',
-      'callCustomRingbackSizeBytes',
-      'callCustomRingbackDurationMs',
       'developerTools',
       'settingsSyncEnabled',
     ] as const;

@@ -38,6 +38,7 @@ import {
 } from '$state/callEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
+import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
 import { RoomAvatar } from './room-avatar';
 import { UserAvatar } from './user-avatar';
 
@@ -47,12 +48,6 @@ type IncomingCallInternalProps = {
   room: Room;
   incomingCall: IncomingCall;
   onClose: () => void;
-};
-
-type CapabilityIssue = {
-  id: string;
-  message: string;
-  shortReason: string;
 };
 
 export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCallInternalProps) {
@@ -86,40 +81,16 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const hasCallMemberPermission =
     room.currentState?.maySendStateEvent('org.matrix.msc3401.call.member', myUserId) ?? false;
 
-  const capabilityIssues = useMemo<CapabilityIssue[]>(() => {
-    const issues: CapabilityIssue[] = [];
-
-    if (!canUseWebRTC) {
-      issues.push({
-        id: 'webrtc',
-        message: 'Your browser does not support WebRTC calling.',
-        shortReason: 'WebRTC is unavailable in this browser.',
-      });
-    }
-    if (!livekitSupported) {
-      issues.push({
-        id: 'livekit',
-        message: 'Your homeserver does not expose a LiveKit call focus.',
-        shortReason: 'Homeserver call focus is unavailable.',
-      });
-    }
-    if (!hasCallMemberPermission) {
-      issues.push({
-        id: 'permission',
-        message: "You don't have permission to join this room's call.",
-        shortReason: 'Missing permission to join this call.',
-      });
-    }
-    if (inAnotherCall) {
-      issues.push({
-        id: 'another_call',
-        message: 'You are already in another call.',
-        shortReason: 'Finish your current call first.',
-      });
-    }
-
-    return issues;
-  }, [canUseWebRTC, livekitSupported, hasCallMemberPermission, inAnotherCall]);
+  const capabilityIssues = useMemo(
+    () =>
+      getIncomingCallBlockers({
+        canUseWebRTC,
+        livekitSupported,
+        hasCallMemberPermission,
+        inAnotherCall,
+      }),
+    [canUseWebRTC, livekitSupported, hasCallMemberPermission, inAnotherCall]
+  );
 
   const canAnswer = capabilityIssues.length === 0;
   const primaryBlockedReason = capabilityIssues[0]?.shortReason;

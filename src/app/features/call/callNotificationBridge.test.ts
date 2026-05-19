@@ -51,6 +51,28 @@ describe('callNotificationBridge', () => {
     expect(incoming).toBeUndefined();
   });
 
+  it('hydrates incoming call from legacy joinCall deep-link params', () => {
+    const now = 1_000_000;
+    const params = new URLSearchParams({
+      joinCall: 'true',
+      callType: 'ring',
+    });
+
+    const incoming = resolveIncomingCallFromSearchParams(
+      params,
+      '!room:test',
+      '$notif',
+      true,
+      now
+    );
+
+    expect(incoming).toMatchObject({
+      roomId: '!room:test',
+      notificationEventId: '$notif',
+      notificationType: 'ring',
+    });
+  });
+
   it('hydrates incoming call from /to/ deep-link search params', () => {
     const now = 1_000_000;
     const params = new URLSearchParams({

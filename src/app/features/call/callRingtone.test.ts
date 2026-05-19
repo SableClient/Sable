@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CALL_RINGBACK_OPTIONS,
   callRingtoneVolumeToGain,
   canPlayCallAudio,
   clampCallRingtoneVolume,
@@ -114,5 +115,10 @@ describe('callRingtone', () => {
         durationMs: 4_000,
       })
     ).toEqual({ valid: true });
+  });
+
+  it('excludes silent option from ringback choices', () => {
+    expect(CALL_RINGBACK_OPTIONS.some((option) => option.value === 'silent')).toBe(false);
+    expect(CALL_RINGBACK_OPTIONS.length).toBeGreaterThan(0);
   });
 });

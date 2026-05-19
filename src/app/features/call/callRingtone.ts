@@ -3,7 +3,6 @@ import NotificationSound from '$public/sound/notification.ogg';
 import RingtoneSound from '$public/sound/ringtone.webm';
 import {
   CALL_TONE_IDS,
-  type CallRingbackTone,
   type CallRingtoneId,
   type Settings,
 } from '$state/settings';
@@ -33,7 +32,9 @@ export const CALL_RINGTONE_OPTIONS: CallToneOption<CallRingtoneId>[] = CALL_TONE
   })
 );
 
-export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingbackTone>[] = CALL_RINGTONE_OPTIONS;
+export const CALL_RINGBACK_OPTIONS: CallToneOption<CallRingtoneId>[] = CALL_RINGTONE_OPTIONS.filter(
+  (option) => option.value !== 'silent'
+);
 
 type ToneSettings = Pick<Settings, 'isNotificationSounds' | 'callSoundOverrideGlobalNotifications'>;
 

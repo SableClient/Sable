@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Icon, Icons, Input, Spinner, Switch, Text, toRem } from 'folds';
+import { Box, Icons, Input, Switch, Text, toRem } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom, type CallRingbackTone, type CallRingtoneId } from '$state/settings';
+import { settingsAtom, type CallRingtoneId } from '$state/settings';
 import {
   CALL_RINGBACK_OPTIONS,
   CALL_RINGTONE_OPTIONS,
-  CUSTOM_CALL_RINGTONE_MAX_BYTES,
-  CUSTOM_CALL_RINGTONE_MAX_DURATION_MS,
   callRingtoneVolumeToGain,
   clampCallRingtoneVolume,
   readAudioDurationMs,
@@ -23,158 +21,21 @@ import {
   getCustomCallRingtone,
   putCustomCallRingback,
   putCustomCallRingtone,
+  type StoredCallRingtone,
 } from '$features/call/callRingtoneStorage';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
+import {
+  CustomToneSettingsCard,
+  customToneValidationError,
+  type CustomToneMetadata,
+  type PreviewTone,
+} from './CallSoundSettingsCards';
 
-type PreviewTone = 'incoming' | 'outgoing';
-
-function CustomToneMeta({
-  fileName,
-  sizeBytes,
-  durationMs,
-  emptyLabel,
-}: {
-  fileName?: string;
-  sizeBytes?: number;
-  durationMs?: number;
-  emptyLabel: string;
-}) {
-  if (!fileName) {
-    return (
-      <Text size="T200" priority="300">
-        {emptyLabel}
-      </Text>
-    );
-  }
-
-  return (
-    <Text size="T200" priority="300">
-      {[
-        fileName,
-        typeof sizeBytes === 'number' ? bytesToSize(sizeBytes) : undefined,
-        typeof durationMs === 'number' ? millisecondsToMinutesAndSeconds(durationMs) : undefined,
-      ]
-        .filter(Boolean)
-        .join(' - ')}
-    </Text>
-  );
-}
-
-function CustomToneSettingsCard({
-  title,
-  focusId,
-  description,
-  fileName,
-  sizeBytes,
-  durationMs,
-  emptyLabel,
-  hasCustomTone,
-  previewing,
-  previewActions,
-  onImport,
-  onPreview,
-  onReset,
-}: {
-  title: string;
-  focusId: string;
-  description: string;
-  fileName?: string;
-  sizeBytes?: number;
-  durationMs?: number;
-  emptyLabel: string;
-  hasCustomTone: boolean;
-  previewing: boolean;
-  previewActions: {
-    label: string;
-    tone: PreviewTone;
-    icon: (typeof Icons)[keyof typeof Icons];
-  }[];
-  onImport: () => void;
-  onPreview: (tone: PreviewTone) => void;
-  onReset: () => void;
-}) {
-  return (
-    <SequenceCard
-      className={SequenceCardStyle}
-      variant="SurfaceVariant"
-      direction="Column"
-      gap="400"
-    >
-      <SettingTile title={title} focusId={focusId} description={description}>
-        <Box direction="Column" gap="200">
-          <CustomToneMeta
-            fileName={fileName}
-            sizeBytes={sizeBytes}
-            durationMs={durationMs}
-            emptyLabel={emptyLabel}
-          />
-          <Box gap="200" wrap="Wrap">
-            <Button
-              variant="Secondary"
-              fill="Soft"
-              size="300"
-              radii="300"
-              before={<Icon src={Icons.ArrowTop} size="100" />}
-              onClick={onImport}
-            >
-              <Text size="B300">Import</Text>
-            </Button>
-            {previewActions.map(({ label, tone, icon }) => (
-              <Button
-                key={label}
-                variant="Secondary"
-                fill="Soft"
-                size="300"
-                radii="300"
-                before={
-                  previewing ? (
-                    <Spinner variant="Secondary" size="100" />
-                  ) : (
-                    <Icon src={icon} size="100" />
-                  )
-                }
-                onClick={() => onPreview(tone)}
-                disabled={previewing}
-              >
-                <Text size="B300">{label}</Text>
-              </Button>
-            ))}
-            <Button
-              variant="Critical"
-              fill="Soft"
-              size="300"
-              radii="300"
-              before={<Icon src={Icons.Cross} size="100" />}
-              onClick={onReset}
-              disabled={!hasCustomTone}
-            >
-              <Text size="B300">Reset</Text>
-            </Button>
-          </Box>
-          <Text size="T200" priority="300">
-            Max file size: {bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)}. Max duration:{' '}
-            {millisecondsToMinutesAndSeconds(CUSTOM_CALL_RINGTONE_MAX_DURATION_MS)}.
-          </Text>
-        </Box>
-      </SettingTile>
-    </SequenceCard>
-  );
-}
-
-const customToneValidationError = (
-  reason: 'type' | 'size' | 'duration',
-  label: 'Ringtone' | 'Ringback'
-): string => {
-  if (reason === 'type') return 'Only audio files are supported.';
-  if (reason === 'size') {
-    return `File is too large. Max ${bytesToSize(CUSTOM_CALL_RINGTONE_MAX_BYTES)} allowed.`;
-  }
-
-  return `${label} must be between 1s and ${millisecondsToMinutesAndSeconds(
-    CUSTOM_CALL_RINGTONE_MAX_DURATION_MS
-  )}.`;
-};
+const toCustomToneMetadata = (stored: StoredCallRingtone): CustomToneMetadata => ({
+  fileName: stored.fileName,
+  sizeBytes: stored.sizeBytes,
+  durationMs: stored.durationMs,
+});
 
 export function CallSoundSettings() {
   const [incomingCallSoundEnabled, setIncomingCallSoundEnabled] = useSetting(
@@ -193,35 +54,13 @@ export function CallSoundSettings() {
   );
   const [callSoundOverrideGlobalNotifications, setCallSoundOverrideGlobalNotifications] =
     useSetting(settingsAtom, 'callSoundOverrideGlobalNotifications');
-  const [callCustomRingtoneName, setCallCustomRingtoneName] = useSetting(
-    settingsAtom,
-    'callCustomRingtoneName'
-  );
-  const [callCustomRingtoneSizeBytes, setCallCustomRingtoneSizeBytes] = useSetting(
-    settingsAtom,
-    'callCustomRingtoneSizeBytes'
-  );
-  const [callCustomRingtoneDurationMs, setCallCustomRingtoneDurationMs] = useSetting(
-    settingsAtom,
-    'callCustomRingtoneDurationMs'
-  );
-  const [callCustomRingbackName, setCallCustomRingbackName] = useSetting(
-    settingsAtom,
-    'callCustomRingbackName'
-  );
-  const [callCustomRingbackSizeBytes, setCallCustomRingbackSizeBytes] = useSetting(
-    settingsAtom,
-    'callCustomRingbackSizeBytes'
-  );
-  const [callCustomRingbackDurationMs, setCallCustomRingbackDurationMs] = useSetting(
-    settingsAtom,
-    'callCustomRingbackDurationMs'
-  );
 
   const [previewing, setPreviewing] = useState(false);
   const [loadingCustomState, setLoadingCustomState] = useState(true);
   const [hasCustomRingtone, setHasCustomRingtone] = useState(false);
   const [hasCustomRingback, setHasCustomRingback] = useState(false);
+  const [customRingtoneMeta, setCustomRingtoneMeta] = useState<CustomToneMetadata | null>(null);
+  const [customRingbackMeta, setCustomRingbackMeta] = useState<CustomToneMetadata | null>(null);
   const [customError, setCustomError] = useState<string | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -232,6 +71,8 @@ export function CallSoundSettings() {
         if (!mounted) return;
         setHasCustomRingtone(Boolean(ringtone));
         setHasCustomRingback(Boolean(ringback));
+        setCustomRingtoneMeta(ringtone ? toCustomToneMetadata(ringtone) : null);
+        setCustomRingbackMeta(ringback ? toCustomToneMetadata(ringback) : null);
       })
       .finally(() => {
         if (!mounted) return;
@@ -270,12 +111,12 @@ export function CallSoundSettings() {
         option.value === 'custom'
           ? {
               ...option,
-              label: callCustomRingtoneName ? 'Custom File (Imported)' : 'Custom File',
+              label: customRingtoneMeta ? 'Custom File (Imported)' : 'Custom File',
               disabled: loadingCustomState,
             }
           : option
       ),
-    [callCustomRingtoneName, loadingCustomState]
+    [customRingtoneMeta, loadingCustomState]
   );
   const ringbackOptions = useMemo(
     () =>
@@ -283,12 +124,12 @@ export function CallSoundSettings() {
         option.value === 'custom'
           ? {
               ...option,
-              label: callCustomRingbackName ? 'Custom File (Imported)' : 'Custom File',
+              label: customRingbackMeta ? 'Custom File (Imported)' : 'Custom File',
               disabled: loadingCustomState,
             }
           : option
       ),
-    [callCustomRingbackName, loadingCustomState]
+    [customRingbackMeta, loadingCustomState]
   );
 
   const resolveToneForPreview = useCallback(
@@ -335,8 +176,8 @@ export function CallSoundSettings() {
   const importCustomTone = useCallback(
     (
       label: 'Ringtone' | 'Ringback',
-      putTone: (file: File, durationMs: number) => Promise<unknown>,
-      onImported: (file: File, durationMs: number) => void
+      putTone: (file: File, durationMs: number) => Promise<StoredCallRingtone>,
+      onImported: (stored: StoredCallRingtone) => void
     ) => {
       setCustomError(null);
       const input = document.createElement('input');
@@ -359,8 +200,8 @@ export function CallSoundSettings() {
             return;
           }
 
-          await putTone(file, durationMs);
-          onImported(file, durationMs);
+          const stored = await putTone(file, durationMs);
+          onImported(stored);
         } catch {
           setCustomError('Could not import this file. Try a different audio format.');
         }
@@ -372,72 +213,40 @@ export function CallSoundSettings() {
   );
 
   const handleImportCustomRingtone = useCallback(() => {
-    importCustomTone('Ringtone', putCustomCallRingtone, (file, durationMs) => {
+    importCustomTone('Ringtone', putCustomCallRingtone, (stored) => {
       setHasCustomRingtone(true);
       setCallRingtoneId('custom');
-      setCallCustomRingtoneName(file.name);
-      setCallCustomRingtoneSizeBytes(file.size);
-      setCallCustomRingtoneDurationMs(durationMs);
+      setCustomRingtoneMeta(toCustomToneMetadata(stored));
     });
-  }, [
-    importCustomTone,
-    setCallCustomRingtoneDurationMs,
-    setCallCustomRingtoneName,
-    setCallCustomRingtoneSizeBytes,
-    setCallRingtoneId,
-  ]);
+  }, [importCustomTone, setCallRingtoneId]);
 
   const handleResetCustomRingtone = useCallback(async () => {
     setCustomError(null);
     await clearCustomCallRingtone();
     setHasCustomRingtone(false);
-    setCallCustomRingtoneName(undefined);
-    setCallCustomRingtoneSizeBytes(undefined);
-    setCallCustomRingtoneDurationMs(undefined);
+    setCustomRingtoneMeta(null);
     if (callRingtoneId === 'custom') {
       setCallRingtoneId('sable-default');
     }
-  }, [
-    callRingtoneId,
-    setCallCustomRingtoneDurationMs,
-    setCallCustomRingtoneName,
-    setCallCustomRingtoneSizeBytes,
-    setCallRingtoneId,
-  ]);
+  }, [callRingtoneId, setCallRingtoneId]);
 
   const handleImportCustomRingback = useCallback(() => {
-    importCustomTone('Ringback', putCustomCallRingback, (file, durationMs) => {
+    importCustomTone('Ringback', putCustomCallRingback, (stored) => {
       setHasCustomRingback(true);
       setCallRingbackTone('custom');
-      setCallCustomRingbackName(file.name);
-      setCallCustomRingbackSizeBytes(file.size);
-      setCallCustomRingbackDurationMs(durationMs);
+      setCustomRingbackMeta(toCustomToneMetadata(stored));
     });
-  }, [
-    importCustomTone,
-    setCallCustomRingbackDurationMs,
-    setCallCustomRingbackName,
-    setCallCustomRingbackSizeBytes,
-    setCallRingbackTone,
-  ]);
+  }, [importCustomTone, setCallRingbackTone]);
 
   const handleResetCustomRingback = useCallback(async () => {
     setCustomError(null);
     await clearCustomCallRingback();
     setHasCustomRingback(false);
-    setCallCustomRingbackName(undefined);
-    setCallCustomRingbackSizeBytes(undefined);
-    setCallCustomRingbackDurationMs(undefined);
+    setCustomRingbackMeta(null);
     if (callRingbackTone === 'custom') {
       setCallRingbackTone('sable-default');
     }
-  }, [
-    callRingbackTone,
-    setCallCustomRingbackDurationMs,
-    setCallCustomRingbackName,
-    setCallCustomRingbackSizeBytes,
-    setCallRingbackTone,
-  ]);
+  }, [callRingbackTone, setCallRingbackTone]);
 
   const handleRingtoneSelection = (next: CallRingtoneId) => {
     if (next === 'custom' && !hasCustomRingtone) {
@@ -448,7 +257,7 @@ export function CallSoundSettings() {
     setCallRingtoneId(next);
   };
 
-  const handleRingbackSelection = (next: CallRingbackTone) => {
+  const handleRingbackSelection = (next: CallRingtoneId) => {
     if (next === 'custom' && !hasCustomRingback) {
       setCustomError('Import a custom ringback file first.');
       return;
@@ -562,9 +371,7 @@ export function CallSoundSettings() {
         title="Custom Ringtone"
         focusId="custom-call-ringtone"
         description="Import an audio file for your ringtone."
-        fileName={callCustomRingtoneName}
-        sizeBytes={callCustomRingtoneSizeBytes}
-        durationMs={callCustomRingtoneDurationMs}
+        metadata={customRingtoneMeta}
         emptyLabel="No custom ringtone imported."
         hasCustomTone={hasCustomRingtone}
         previewing={previewing}
@@ -580,9 +387,7 @@ export function CallSoundSettings() {
         title="Custom Ringback"
         focusId="custom-call-ringback"
         description="Import an audio file for outgoing ringback."
-        fileName={callCustomRingbackName}
-        sizeBytes={callCustomRingbackSizeBytes}
-        durationMs={callCustomRingbackDurationMs}
+        metadata={customRingbackMeta}
         emptyLabel="No custom ringback imported."
         hasCustomTone={hasCustomRingback}
         previewing={previewing}

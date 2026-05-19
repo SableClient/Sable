@@ -63,7 +63,7 @@ describe('mergePersistedSettings', () => {
     expect(mergedDefault.callRingbackTone).toBe('classic-soft');
   });
 
-  it('drops invalid custom ringtone metadata during migration', () => {
+  it('ignores legacy custom tone metadata keys during migration', () => {
     localStorage.setItem(
       'settings',
       JSON.stringify({
@@ -76,12 +76,8 @@ describe('mergePersistedSettings', () => {
       })
     );
     const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
-    expect(merged.callCustomRingtoneName).toBe('tone.ogg');
-    expect(merged.callCustomRingtoneSizeBytes).toBeUndefined();
-    expect(merged.callCustomRingtoneDurationMs).toBeNull();
-    expect(merged.callCustomRingbackName).toBe('ringback.ogg');
-    expect(merged.callCustomRingbackSizeBytes).toBeUndefined();
-    expect(merged.callCustomRingbackDurationMs).toBeNull();
+    expect(merged).not.toHaveProperty('callCustomRingtoneName');
+    expect(merged).not.toHaveProperty('callCustomRingbackName');
   });
 });
 

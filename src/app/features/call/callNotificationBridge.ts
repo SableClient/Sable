@@ -82,11 +82,17 @@ export const resolveIncomingCallFromSearchParams = (
   isDirect: boolean,
   now = Date.now()
 ): IncomingCall | undefined => {
-  if (searchParams.get('call') !== '1') return undefined;
+  const isCallDeepLink =
+    searchParams.get('call') === '1' ||
+    searchParams.get('joinCall') === 'true' ||
+    searchParams.get('joinCall') === '1';
+  if (!isCallDeepLink) return undefined;
   if (!notificationEventId) return undefined;
 
-  const senderTsRaw = Number(searchParams.get('callSenderTs'));
-  const expiresAtRaw = Number(searchParams.get('callExpiresAt'));
+  const senderTsParam = searchParams.get('callSenderTs');
+  const expiresAtParam = searchParams.get('callExpiresAt');
+  const senderTsRaw = senderTsParam ? Number(senderTsParam) : Number.NaN;
+  const expiresAtRaw = expiresAtParam ? Number(expiresAtParam) : Number.NaN;
 
   return fromCandidate(
     {

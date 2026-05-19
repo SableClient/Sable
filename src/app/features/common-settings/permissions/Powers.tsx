@@ -6,7 +6,7 @@ import { Box, Button, Chip, Text, PopOut, Menu, Scroll, toRem, config, color } f
 import { SequenceCard } from '$components/sequence-card';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { SettingTile } from '$components/setting-tile';
-import type { IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels, PermissionLocation } from '$hooks/usePowerLevels';
 import { getPermissionPower } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
 import { PowerColorBadge, PowerIcon } from '$components/power';
@@ -18,6 +18,8 @@ import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
+
+const getPermissionLocationKey = (location: PermissionLocation): string => JSON.stringify(location);
 
 type PeekPermissionsProps = {
   powerLevels: IPowerLevels;
@@ -67,7 +69,7 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
 
                           return (
                             <Text
-                              key={item.name}
+                              key={getPermissionLocationKey(item.location)}
                               size="T200"
                               style={{
                                 color: hasPower ? undefined : color.Critical.Main,

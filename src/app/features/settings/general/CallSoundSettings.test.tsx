@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useSetting } from '$state/hooks/settings';
 import { CallSoundSettings } from './CallSoundSettings';
 
 vi.mock('$state/settings', () => ({
@@ -8,23 +9,7 @@ vi.mock('$state/settings', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: (_atom: unknown, key: string) => {
-    const values: Record<string, unknown> = {
-      incomingCallSoundEnabled: true,
-      outgoingRingbackEnabled: true,
-      callRingtoneId: 'sable-default',
-      callRingbackTone: 'sable-default',
-      callRingtoneVolume: 80,
-      callSoundOverrideGlobalNotifications: false,
-      callCustomRingtoneName: undefined,
-      callCustomRingtoneSizeBytes: undefined,
-      callCustomRingtoneDurationMs: undefined,
-      callCustomRingbackName: undefined,
-      callCustomRingbackSizeBytes: undefined,
-      callCustomRingbackDurationMs: undefined,
-    };
-    return [values[key], vi.fn<(value: unknown) => void>()] as const;
-  },
+  useSetting: vi.fn(),
 }));
 
 vi.mock('$features/call/callRingtoneStorage', () => ({
@@ -36,7 +21,38 @@ vi.mock('$features/call/callRingtoneStorage', () => ({
   clearCustomCallRingback: vi.fn<() => Promise<void>>(),
 }));
 
+const defaultSettingValues: Record<string, unknown> = {
+  incomingCallSoundEnabled: true,
+  outgoingRingbackEnabled: true,
+  callRingtoneId: 'sable-default',
+  callRingbackTone: 'sable-default',
+  callRingtoneVolume: 80,
+  callSoundOverrideGlobalNotifications: false,
+};
+
 describe('CallSoundSettings', () => {
+  beforeEach(() => {
+    vi.mocked(useSetting).mockImplementation((_atom: unknown, key: string) => {
+      return [defaultSettingValues[key], vi.fn<(value: unknown) => void>()] as const;
+    });
+  });
+
+  it('falls back to default ringtone when custom ringtone is unavailable', async () => {
+    const setCallRingtoneId = vi.fn<(value: unknown) => void>();
+    vi.mocked(useSetting).mockImplementation((_atom: unknown, key: string) => {
+      if (key === 'callRingtoneId') {
+        return ['custom', setCallRingtoneId] as const;
+      }
+      return [defaultSettingValues[key], vi.fn<(value: unknown) => void>()] as const;
+    });
+
+    render(<CallSoundSettings />);
+
+    await waitFor(() => {
+      expect(setCallRingtoneId).toHaveBeenCalledWith('sable-default');
+    });
+  });
+
   it('renders expected call sound setting controls', async () => {
     render(<CallSoundSettings />);
 

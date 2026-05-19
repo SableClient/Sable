@@ -186,7 +186,7 @@ export function PermissionGroups({
 
             return (
               <SequenceCard
-                key={item.name}
+                key={getPermissionLocationKey(item.location)}
                 variant="SurfaceVariant"
                 className={SequenceCardStyle}
                 direction="Column"

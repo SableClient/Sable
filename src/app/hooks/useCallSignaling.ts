@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
-import type { RoomEventHandlerMap, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import {
-  type CryptoBackend,
-  MatrixRTCSession,
-  MatrixRTCSessionManagerEvents,
-  RoomEvent,
-} from '$types/matrix-sdk';
+import type { RoomEventHandlerMap, MatrixEvent, Room } from '$types/matrix-sdk';
+import { MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import {
   callEmbedAtom,
@@ -18,12 +13,26 @@ import {
 } from '$state/callEmbed';
 import { settingsAtom } from '$state/settings';
 import {
-  parseRtcDecline,
   parseIncomingRtcNotification,
   RTC_DECLINE_EVENT_TYPE,
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
 } from '$features/call/rtcNotificationParser';
+import { decryptRtcTimelineEvent } from '$features/call/callSignalingDecrypt';
+import {
+  FALLBACK_INTERVAL_MS,
+  MAX_NOTIFICATION_LIFETIME_MS,
+  OUTGOING_DECLINE_EMBED_CLEAR_MS,
+} from '$features/call/callSignalingPolicy';
+import {
+  applyOutgoingDeclineToTracker,
+  type OutgoingDeclineEvent,
+} from '$features/call/outgoingDeclineHandler';
+import { parseRtcDeclineFromTimelineEvent } from '$features/call/rtcTimelineDecline';
+import {
+  evaluateIncomingCallFallback,
+  evaluateOutgoingRingbackFallback,
+} from '$features/call/callSignalingFallback';
 import { callRingtoneVolumeToGain, canPlayCallAudio } from '$features/call/callRingtone';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { resolveCallToneSources } from '$features/call/callToneSources';
@@ -31,112 +40,6 @@ import { useMatrixClient } from './useMatrixClient';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallSignaling');
-
-const MAX_NOTIFICATION_LIFETIME_MS = 120_000;
-const DECRYPT_TIMEOUT_MS = 8_000;
-const FALLBACK_INTERVAL_MS = 5_000;
-const OUTGOING_RING_TIMEOUT_MS = 30_000;
-
-type SessionDescription = Parameters<typeof MatrixRTCSession.sessionMembershipsForRoom>[1];
-type RtcMembership = { userId?: string; sender?: string };
-
-const getRoomMemberships = (room: Room, sessionDescription: SessionDescription) =>
-  MatrixRTCSession.sessionMembershipsForRoom(room, sessionDescription);
-
-const getCallMembershipPresence = (
-  mxUserId: string,
-  room: Room,
-  sessionDescription: SessionDescription
-) => {
-  const memberships = getRoomMemberships(room, sessionDescription) as RtcMembership[];
-  const remoteMemberCount = memberships.filter(
-    (membership) => (membership.userId || membership.sender) !== mxUserId
-  ).length;
-  const hasSelfMember = memberships.some(
-    (membership) => (membership.userId || membership.sender) === mxUserId
-  );
-
-  return { hasSelfMember, remoteMemberCount };
-};
-
-const isIncomingCallActive = (
-  mxUserId: string,
-  room: Room,
-  sessionDescription: SessionDescription
-): boolean => {
-  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
-    mxUserId,
-    room,
-    sessionDescription
-  );
-
-  return remoteMemberCount > 0 && !hasSelfMember;
-};
-
-const isCallActive = (
-  mxUserId: string,
-  room: Room,
-  sessionDescription: SessionDescription
-): boolean => {
-  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
-    mxUserId,
-    room,
-    sessionDescription
-  );
-
-  return hasSelfMember && remoteMemberCount > 0;
-};
-
-const isOutgoingCallPending = (
-  mxUserId: string,
-  room: Room,
-  sessionDescription: SessionDescription
-): boolean => {
-  const { hasSelfMember, remoteMemberCount } = getCallMembershipPresence(
-    mxUserId,
-    room,
-    sessionDescription
-  );
-
-  return hasSelfMember && remoteMemberCount === 0;
-};
-
-const decryptWithTimeout = async (
-  event: MatrixEvent,
-  mx: MatrixClient
-): Promise<{ type?: string; content?: unknown } | undefined> => {
-  const crypto = mx.getCrypto();
-  if (!crypto) return undefined;
-
-  try {
-    if (!event.isBeingDecrypted()) {
-      await event.attemptDecryption(crypto as CryptoBackend);
-    }
-
-    const decryptionPromise = event.getDecryptionPromise();
-    if (decryptionPromise) {
-      await Promise.race([
-        decryptionPromise,
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, DECRYPT_TIMEOUT_MS);
-        }),
-      ]);
-    }
-  } catch (error) {
-    debugLog.warn('call', 'RTC notification decryption failed', {
-      eventId: event.getId(),
-      roomId: event.getRoomId(),
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return undefined;
-  }
-
-  const effectiveEvent = event.getEffectiveEvent();
-  return {
-    type: effectiveEvent.type,
-    content: effectiveEvent.content,
-  };
-};
 
 const canSenderStartCalls = (room: Room, senderId: string): boolean =>
   room.currentState?.maySendStateEvent('org.matrix.msc3401.call.member', senderId) ?? false;
@@ -159,6 +62,19 @@ export function useIncomingCallSignaling() {
   const incomingCallRef = useRef<IncomingCall | null>(incomingCall);
   const mutedRoomIdRef = useRef<string | null>(mutedRoomId);
   const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const MAX_SEEN_NOTIFICATION_IDS = 256;
+
+  const rememberNotificationId = (notificationEventId: string) => {
+    const seen = seenNotificationIdsRef.current;
+    if (seen.has(notificationEventId)) return false;
+    seen.add(notificationEventId);
+    while (seen.size > MAX_SEEN_NOTIFICATION_IDS) {
+      const oldest = seen.values().next().value;
+      if (!oldest) break;
+      seen.delete(oldest);
+    }
+    return true;
+  };
   const outgoingRingRoomIdRef = useRef<string | null>(null);
   const declinedOutgoingRoomIdRef = useRef<string | null>(null);
   const outgoingDeclinesRef = useRef<
@@ -283,12 +199,7 @@ export function useIncomingCallSignaling() {
   }, [setIncomingCall, stopIncomingRing]);
 
   const handleOutgoingDecline = useCallback(
-    (decline: {
-      roomId: string;
-      declineEventId: string;
-      notificationEventId: string;
-      senderId: string;
-    }) => {
+    (decline: OutgoingDeclineEvent) => {
       if (!callEmbed || callEmbed.roomId !== decline.roomId) {
         return;
       }
@@ -298,7 +209,6 @@ export function useIncomingCallSignaling() {
         return;
       }
 
-      const isDirectRoom = mDirects.has(decline.roomId);
       const remoteJoinedIds = new Set(
         outgoingRoom
           .getJoinedMembers()
@@ -306,29 +216,18 @@ export function useIncomingCallSignaling() {
           .filter((userId) => userId !== mx.getSafeUserId())
       );
 
-      const trackedDecline = outgoingDeclinesRef.current.get(decline.roomId);
-      const declineState =
-        trackedDecline && trackedDecline.notificationEventId === decline.notificationEventId
-          ? trackedDecline
-          : {
-              notificationEventId: decline.notificationEventId,
-              declinerIds: new Set<string>(),
-            };
-      declineState.declinerIds.add(decline.senderId);
-      outgoingDeclinesRef.current.set(decline.roomId, declineState);
+      const decision = applyOutgoingDeclineToTracker(outgoingDeclinesRef.current, decline, {
+        remoteJoinedIds,
+        isDirectRoom: mDirects.has(decline.roomId),
+      });
 
-      const allRemoteDeclined =
-        remoteJoinedIds.size > 0 &&
-        [...remoteJoinedIds].every((userId) => declineState.declinerIds.has(userId));
-      const treatAsOneToOne = isDirectRoom || remoteJoinedIds.size <= 1;
-
-      if (!treatAsOneToOne && remoteJoinedIds.size > 0 && !allRemoteDeclined) {
+      if (decision.kind === 'ignore_partial') {
         debugLog.info('call', 'Ignoring partial outgoing decline for group call', {
           roomId: decline.roomId,
           declineEventId: decline.declineEventId,
           notificationEventId: decline.notificationEventId,
-          declinedCount: declineState.declinerIds.size,
-          targetCount: remoteJoinedIds.size,
+          declinedCount: decision.declinedCount,
+          targetCount: decision.targetCount,
         });
         Sentry.metrics.count('sable.call.outgoing.declined.partial', 1);
         return;
@@ -339,8 +238,8 @@ export function useIncomingCallSignaling() {
         roomId: decline.roomId,
         declineEventId: decline.declineEventId,
         notificationEventId: decline.notificationEventId,
-        declinedCount: declineState.declinerIds.size,
-        targetCount: remoteJoinedIds.size,
+        declinedCount: decision.declinedCount,
+        targetCount: decision.targetCount,
       });
       Sentry.metrics.count('sable.call.outgoing.declined', 1);
       stopOutgoingRing();
@@ -359,7 +258,7 @@ export function useIncomingCallSignaling() {
             const activeEmbed = store.get(callEmbedAtom);
             if (activeEmbed !== callEmbed) return;
             setCallEmbed(undefined);
-          }, 2_000);
+          }, OUTGOING_DECLINE_EMBED_CLEAR_MS);
         });
     },
     [callEmbed, mDirects, mx, setCallEmbed, stopOutgoingRing, store]
@@ -402,9 +301,7 @@ export function useIncomingCallSignaling() {
   const handleIncomingCall = useCallback(
     (nextIncomingCall: IncomingCall) => {
       if (mutedRoomIdRef.current === nextIncomingCall.roomId) return;
-      if (seenNotificationIdsRef.current.has(nextIncomingCall.notificationEventId)) return;
-
-      seenNotificationIdsRef.current.add(nextIncomingCall.notificationEventId);
+      if (!rememberNotificationId(nextIncomingCall.notificationEventId)) return;
       setIncomingCall(nextIncomingCall);
 
       debugLog.info('call', 'Incoming RTC notification accepted', {
@@ -464,7 +361,7 @@ export function useIncomingCallSignaling() {
       let content = event.getContent();
 
       if (event.isEncrypted()) {
-        const decrypted = await decryptWithTimeout(event, mx);
+        const decrypted = await decryptRtcTimelineEvent(event, mx);
         if (!decrypted?.content || !decrypted.type) {
           Sentry.metrics.count('sable.call.signal.decrypt_timeout', 1);
           return undefined;
@@ -510,57 +407,7 @@ export function useIncomingCallSignaling() {
       };
     };
 
-    const parseDeclineEvent = async (
-      event: MatrixEvent,
-      room: Room,
-      liveEvent: boolean
-    ): Promise<ReturnType<typeof parseRtcDecline>> => {
-      let eventType = event.getType();
-      let content = event.getContent();
-
-      if (event.isEncrypted()) {
-        const decrypted = await decryptWithTimeout(event, mx);
-        if (!decrypted?.content || !decrypted.type) {
-          Sentry.metrics.count('sable.call.signal.decrypt_timeout', 1);
-        } else {
-          eventType = decrypted.type;
-          content = decrypted.content;
-        }
-      }
-
-      const relationFromContent = (() => {
-        if (!content || typeof content !== 'object') return undefined;
-        const maybeRelates = (content as { 'm.relates_to'?: unknown })['m.relates_to'];
-        if (!maybeRelates || typeof maybeRelates !== 'object') return undefined;
-        const relation = maybeRelates as { rel_type?: unknown; event_id?: unknown };
-        return {
-          rel_type: typeof relation.rel_type === 'string' ? relation.rel_type : undefined,
-          event_id: typeof relation.event_id === 'string' ? relation.event_id : undefined,
-        };
-      })();
-      const relation = event.getRelation() ?? relationFromContent;
-
-      const parsed = parseRtcDecline(
-        {
-          type: eventType,
-          sender: event.getSender() ?? '',
-          roomId: room.roomId,
-          eventId: event.getId() ?? '',
-          originServerTs: event.getTs(),
-          content,
-          relation: relation
-            ? {
-                rel_type: relation.rel_type,
-                event_id: relation.event_id,
-              }
-            : undefined,
-          isLiveEvent: liveEvent,
-          isEncrypted: false,
-        },
-        { myUserId }
-      );
-      return parsed;
-    };
+    let timelineHandlerEpoch = 0;
 
     const handleTimelineEvent: RoomEventHandlerMap[RoomEvent.Timeline] = async (
       event,
@@ -570,6 +417,9 @@ export function useIncomingCallSignaling() {
       data
     ) => {
       if (!room || !data.liveEvent) return;
+
+      const epochAtStart = timelineHandlerEpoch;
+      const isStale = () => epochAtStart !== timelineHandlerEpoch;
 
       const relation = event.getRelation();
       if (relation?.rel_type !== REFERENCE_REL_TYPE && !event.isEncrypted()) return;
@@ -586,6 +436,7 @@ export function useIncomingCallSignaling() {
       if (!event.getId()) return;
 
       const incoming = await parseEvent(event, room, data.liveEvent);
+      if (isStale()) return;
       if (incoming) {
         handlers().handleIncomingCall(incoming);
         return;
@@ -602,92 +453,84 @@ export function useIncomingCallSignaling() {
         return;
       }
 
-      const decline = await parseDeclineEvent(event, room, data.liveEvent);
+      const decline = await parseRtcDeclineFromTimelineEvent(
+        event,
+        room,
+        data.liveEvent,
+        myUserId,
+        mx
+      );
+      if (isStale()) return;
       if (decline) {
         handlers().handleOutgoingDecline(decline);
-        return;
       }
     };
 
-    const evaluateFallbackState = () => {
-      const now = Date.now();
+    const fallbackContext = {
+      myUserId,
+      getRoom: (roomId: string) => mx.getRoom(roomId),
+      getSessionDescription: (room: Room) => mx.matrixRTC.getRoomSession(room).sessionDescription,
+    };
 
-      const currentIncoming = incomingCallRef.current;
-      if (currentIncoming) {
-        if (Date.now() >= currentIncoming.expiresAt) {
-          debugLog.info('call', 'Incoming call timed out', {
-            roomId: currentIncoming.roomId,
-            notificationEventId: currentIncoming.notificationEventId,
-          });
-          Sentry.metrics.count('sable.call.timeout', 1);
-          handlers().clearIncomingCall();
-          return;
-        }
-
-        const incomingRoom = mx.getRoom(currentIncoming.roomId);
-        if (!incomingRoom) {
-          handlers().clearIncomingCall();
-          return;
-        }
-
-        const session = mx.matrixRTC.getRoomSession(incomingRoom);
-        if (!isIncomingCallActive(myUserId, incomingRoom, session.sessionDescription)) {
-          // Session membership can lag behind live RTC notification delivery.
-          // Keep ringing for a short grace window before treating the call as ended.
-          if (now - currentIncoming.senderTs < 15_000) {
-            return;
-          }
-          debugLog.info('call', 'Incoming call cleared after membership drop', {
-            roomId: currentIncoming.roomId,
-          });
-          handlers().clearIncomingCall();
-          return;
-        }
-      }
-
-      const activeCallRoomId = handlers().callEmbed?.roomId;
-      if (!activeCallRoomId || !handlers().outgoingRingbackAllowed) {
-        handlers().stopOutgoingRing();
-        return;
-      }
-      if (declinedOutgoingRoomIdRef.current === activeCallRoomId) {
-        handlers().stopOutgoingRing();
-        return;
-      }
-
-      const outgoingRoom = mx.getRoom(activeCallRoomId);
-      if (!outgoingRoom) {
-        handlers().stopOutgoingRing();
-        return;
-      }
-
-      const session = mx.matrixRTC.getRoomSession(outgoingRoom);
-      const pendingOutgoing = isOutgoingCallPending(
-        myUserId,
-        outgoingRoom,
-        session.sessionDescription
+    const evaluateIncomingFallback = () => {
+      const action = evaluateIncomingCallFallback(
+        incomingCallRef.current,
+        Date.now(),
+        fallbackContext
       );
-      const activeCall = isCallActive(myUserId, outgoingRoom, session.sessionDescription);
+      if (action.kind !== 'clear') return;
 
-      if (!pendingOutgoing || activeCall) {
+      if (action.reason === 'expired') {
+        const currentIncoming = incomingCallRef.current;
+        debugLog.info('call', 'Incoming call timed out', {
+          roomId: currentIncoming?.roomId,
+          notificationEventId: currentIncoming?.notificationEventId,
+        });
+        Sentry.metrics.count('sable.call.timeout', 1);
+      } else if (action.reason === 'membership_dropped') {
+        debugLog.info('call', 'Incoming call cleared after membership drop', {
+          roomId: incomingCallRef.current?.roomId,
+        });
+      }
+
+      handlers().clearIncomingCall();
+    };
+
+    const evaluateOutgoingFallback = () => {
+      const ringAction = evaluateOutgoingRingbackFallback(
+        {
+          ringRoomId: outgoingRingRoomIdRef.current,
+          ringStartedAt: outgoingStartRef.current,
+        },
+        Date.now(),
+        {
+          ...fallbackContext,
+          activeCallRoomId: handlers().callEmbed?.roomId,
+          outgoingRingbackAllowed: handlers().outgoingRingbackAllowed,
+          declinedRoomId: declinedOutgoingRoomIdRef.current,
+        }
+      );
+
+      outgoingRingRoomIdRef.current = ringAction.nextState.ringRoomId;
+      outgoingStartRef.current = ringAction.nextState.ringStartedAt;
+
+      if (ringAction.kind === 'stop') {
         handlers().stopOutgoingRing();
         return;
       }
 
-      if (outgoingRingRoomIdRef.current !== activeCallRoomId) {
-        outgoingRingRoomIdRef.current = activeCallRoomId;
-        outgoingStartRef.current = now;
-        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: activeCallRoomId });
-      }
-
-      if (outgoingStartRef.current && now - outgoingStartRef.current >= OUTGOING_RING_TIMEOUT_MS) {
-        handlers().stopOutgoingRing();
-        return;
+      if (ringAction.started) {
+        debugLog.info('call', 'Outgoing ringing fallback started', { roomId: ringAction.roomId });
       }
 
       outgoingAudioRef.current?.play().catch(() => {
         Sentry.metrics.count('sable.call.ringback.blocked', 1);
       });
+    };
+
+    const evaluateFallbackState = () => {
+      evaluateIncomingFallback();
+      evaluateOutgoingFallback();
     };
 
     const handleSessionEnded = (roomId: string) => {
@@ -703,6 +546,7 @@ export function useIncomingCallSignaling() {
     evaluateFallbackState();
 
     return () => {
+      timelineHandlerEpoch += 1;
       mx.off(RoomEvent.Timeline, handleTimelineEvent);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, evaluateFallbackState);
       mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, handleSessionEnded);
@@ -715,6 +559,3 @@ export function useIncomingCallSignaling() {
   return null;
 }
 
-export function useCallSignaling() {
-  return useIncomingCallSignaling();
-}

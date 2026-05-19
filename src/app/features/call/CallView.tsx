@@ -17,7 +17,7 @@ import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 function LivekitServerMissingMessage() {
   return (
     <Text style={{ margin: 'auto', color: color.Critical.Main }} size="L400" align="Center">
-      Your homeserver does not support calling.
+      Your homeserver does not support calling. You can still join calls started by others.
     </Text>
   );
 }

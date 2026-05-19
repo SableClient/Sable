@@ -1,12 +1,14 @@
 /* oxlint-disable no-console */
 // Keep the service worker import graph narrow, the app barrel pulls in runtime Matrix SDK modules that break SW script evaluation
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
+import { normalizeCallIntent } from '../app/features/call/callIntent';
 import {
   buildRoomMessageNotification,
   DEFAULT_NOTIFICATION_ICON,
   DEFAULT_NOTIFICATION_BADGE,
   resolveNotificationPreviewText,
 } from '../app/utils/notificationStyle';
+import { resolveCallNotificationCopy } from './pushCallNotificationCopy';
 
 type NotificationSettings = {
   showMessageContent: boolean;
@@ -37,13 +39,6 @@ interface MatrixPushData {
 const resolveSilent = (): boolean => false;
 const MAX_CALL_NOTIFICATION_LIFETIME_MS = 120_000;
 
-const normalizeCallIntentKind = (intentRaw: string | undefined): 'audio' | 'video' => {
-  if (!intentRaw) return 'audio';
-  const normalized = intentRaw.toLowerCase();
-  if (normalized.includes('video')) return 'video';
-  return 'audio';
-};
-
 const isCallNotificationType = (value: unknown): value is 'ring' | 'notification' =>
   value === 'ring' || value === 'notification';
 
@@ -71,75 +66,6 @@ const getCallTiming = (
   return {
     senderTs,
     expiresAt: senderTs + lifetime,
-  };
-};
-
-const resolveCallNotificationCopy = (
-  notificationType: 'ring' | 'notification',
-  intentKind: 'audio' | 'video',
-  senderDisplayName: string | undefined,
-  roomName: string | undefined,
-  showPreviewDetails: boolean
-): { title: string; body: string | undefined } => {
-  if (notificationType === 'notification') {
-    if (!showPreviewDetails) {
-      return {
-        title: 'Room call started',
-        body: 'Open Sable to join.',
-      };
-    }
-    if (roomName && senderDisplayName) {
-      return {
-        title: 'Room call started',
-        body: `${senderDisplayName} started a call in ${roomName}`,
-      };
-    }
-    if (roomName) {
-      return {
-        title: 'Room call started',
-        body: `A call started in ${roomName}`,
-      };
-    }
-    if (senderDisplayName) {
-      return {
-        title: 'Room call started',
-        body: `${senderDisplayName} started a call`,
-      };
-    }
-    return {
-      title: 'Room call started',
-      body: 'A room call started.',
-    };
-  }
-
-  const title = intentKind === 'video' ? 'Incoming video call' : 'Incoming voice call';
-  if (!showPreviewDetails) {
-    return {
-      title,
-      body: 'Open Sable to answer.',
-    };
-  }
-  if (senderDisplayName && roomName) {
-    return {
-      title,
-      body: `${senderDisplayName} is calling you in ${roomName}`,
-    };
-  }
-  if (senderDisplayName) {
-    return {
-      title,
-      body: `${senderDisplayName} is calling you`,
-    };
-  }
-  if (roomName) {
-    return {
-      title,
-      body: `Incoming call in ${roomName}`,
-    };
-  }
-  return {
-    title,
-    body: 'Incoming call',
   };
 };
 
@@ -188,17 +114,17 @@ export const createPushNotifications = (
       typeof pushData?.content?.['m.call.intent'] === 'string'
         ? pushData.content['m.call.intent']
         : undefined;
-    const intentKind = normalizeCallIntentKind(intentRaw);
+    const intentKind = normalizeCallIntent(undefined, intentRaw);
     const senderDisplayName = pushData?.sender_display_name;
     const roomName = pushData?.room_name;
     const showPreviewDetails = getNotificationSettings().showMessageContent;
-    const copy = resolveCallNotificationCopy(
-      notificationTypeRaw,
+    const copy = resolveCallNotificationCopy({
+      notificationType: notificationTypeRaw,
       intentKind,
       senderDisplayName,
       roomName,
-      showPreviewDetails
-    );
+      showPreviewDetails,
+    });
     const originTs = typeof pushData.timestamp === 'number' ? pushData.timestamp : Date.now();
     const { senderTs, expiresAt } = getCallTiming(pushData.content, originTs);
 

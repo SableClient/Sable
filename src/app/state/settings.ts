@@ -37,7 +37,6 @@ export const CALL_TONE_IDS = [
   'custom',
 ] as const;
 export type CallRingtoneId = (typeof CALL_TONE_IDS)[number];
-export type CallRingbackTone = CallRingtoneId;
 
 export type ThemeRemoteFavorite = {
   fullUrl: string;
@@ -166,14 +165,8 @@ export interface Settings {
   outgoingRingbackEnabled: boolean;
   callRingtoneVolume: number;
   callRingtoneId: CallRingtoneId;
-  callRingbackTone: CallRingbackTone;
+  callRingbackTone: CallRingtoneId;
   callSoundOverrideGlobalNotifications: boolean;
-  callCustomRingtoneName?: string;
-  callCustomRingtoneSizeBytes?: number;
-  callCustomRingtoneDurationMs?: number;
-  callCustomRingbackName?: string;
-  callCustomRingbackSizeBytes?: number;
-  callCustomRingbackDurationMs?: number;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -312,12 +305,6 @@ export const defaultSettings: Settings = {
   callRingtoneId: 'sable-default',
   callRingbackTone: 'sable-default',
   callSoundOverrideGlobalNotifications: false,
-  callCustomRingtoneName: undefined,
-  callCustomRingtoneSizeBytes: undefined,
-  callCustomRingtoneDurationMs: undefined,
-  callCustomRingbackName: undefined,
-  callCustomRingbackSizeBytes: undefined,
-  callCustomRingbackDurationMs: undefined,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -367,12 +354,6 @@ function cloneDefaultSettings(): Settings {
 }
 
 const CALL_TONE_ID_SET = new Set<unknown>(CALL_TONE_IDS);
-const CALL_AUDIO_METADATA_NUMBER_KEYS = [
-  'callCustomRingtoneSizeBytes',
-  'callCustomRingtoneDurationMs',
-  'callCustomRingbackSizeBytes',
-  'callCustomRingbackDurationMs',
-] as const;
 
 const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_SET.has(value);
 
@@ -424,11 +405,17 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     delete parsed.callRingbackTone;
   }
 
-  for (const key of CALL_AUDIO_METADATA_NUMBER_KEYS) {
-    const value = parsed[key];
-    if (typeof value === 'number' && (!Number.isFinite(value) || value < 0)) {
-      delete parsed[key];
-    }
+  const legacyCallCustomMetadataKeys = [
+    'callCustomRingtoneName',
+    'callCustomRingtoneSizeBytes',
+    'callCustomRingtoneDurationMs',
+    'callCustomRingbackName',
+    'callCustomRingbackSizeBytes',
+    'callCustomRingbackDurationMs',
+  ] as const;
+
+  for (const key of legacyCallCustomMetadataKeys) {
+    delete parsed[key];
   }
 }
 
@@ -547,13 +534,6 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
     case 'callRingtoneVolume':
       if (typeof val !== 'number' || !Number.isFinite(val)) return undefined;
       return clampPercent(val);
-    case 'callCustomRingtoneSizeBytes':
-    case 'callCustomRingtoneDurationMs':
-    case 'callCustomRingbackSizeBytes':
-    case 'callCustomRingbackDurationMs':
-      return typeof val === 'number' && Number.isFinite(val) && val >= 0
-        ? Math.round(val)
-        : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
         ? val

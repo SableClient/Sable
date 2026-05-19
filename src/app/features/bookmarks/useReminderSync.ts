@@ -1,10 +1,11 @@
 import { useCallback, useEffect } from 'react';
+import { useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { CustomAccountDataEvent as AccountDataEvent } from '$types/matrix/accountData';
 import type { BookmarkReminder, BookmarksRemindersContent } from '$types/matrix/accountData';
 import type { MatrixEvent } from '$types/matrix-sdk';
-import { clearBookmarkReminder } from './reminderRepository';
+import { remindersAtom } from '$state/bookmarks';
 
 function postRemindersToSW(reminders: BookmarkReminder[]): void {
   if (!('serviceWorker' in navigator)) return;
@@ -43,14 +44,16 @@ async function tryRegisterPeriodicSync(): Promise<void> {
  */
 export function useReminderSync(): void {
   const mx = useMatrixClient();
+  const setReminders = useSetAtom(remindersAtom);
 
   const syncReminders = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const accountDataEvent = mx.getAccountData(AccountDataEvent.SableBookmarksReminders as any);
     const content = accountDataEvent?.getContent<BookmarksRemindersContent>();
     const reminders = content?.reminders ?? [];
+    setReminders(reminders);
     postRemindersToSW(reminders);
-  }, [mx]);
+  }, [mx, setReminders]);
 
   // Initial sync on mount — covers the common case where ClientNonUIFeatures
   // mounts after the initial sync has already fired.
@@ -58,20 +61,6 @@ export function useReminderSync(): void {
     syncReminders();
     tryRegisterPeriodicSync().catch(() => undefined);
   }, [syncReminders]);
-
-  // When the SW fires a reminder, it posts a 'remindersFired' message with the
-  // bookmark IDs. We clear them from account data here so that the next syncReminders
-  // call doesn't push them back to the SW cache (which would cause repeated firings).
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type !== 'remindersFired') return;
-      const firedIds: string[] = event.data.bookmarkIds ?? [];
-      firedIds.forEach((id) => clearBookmarkReminder(mx, id).catch(() => undefined));
-    };
-    navigator.serviceWorker.addEventListener('message', handler);
-    return () => navigator.serviceWorker.removeEventListener('message', handler);
-  }, [mx]);
 
   // React to account data changes pushed by other devices mid-session.
   useAccountDataCallback(

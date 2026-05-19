@@ -37,6 +37,8 @@ type BookmarkReminder = {
   remindAt: number;
   userId: string;
   note?: string;
+  /** Timestamp (ms) when this device fired the reminder — suppresses re-firing. */
+  firedAt?: number;
 };
 
 /** Cache key used to persist bookmark reminders so the SW can fire them after a restart. */
@@ -164,10 +166,17 @@ async function checkDueReminders(): Promise<void> {
   if (reminders.length === 0) return;
 
   const now = Date.now();
-  const due = reminders.filter((r) => r.remindAt <= now);
-  const remaining = reminders.filter((r) => r.remindAt > now);
+  // Only fire reminders that are due AND haven't been fired on this device yet.
+  const due = reminders.filter((r) => r.remindAt <= now && !r.firedAt);
 
   if (due.length === 0) return;
+
+  // Mark as fired in the cache so the same reminder doesn't re-fire on this device
+  // after the next updateReminders push (which would otherwise re-add it without firedAt).
+  const updatedReminders = reminders.map((r) =>
+    due.some((d) => d.bookmarkId === r.bookmarkId) ? { ...r, firedAt: now } : r
+  );
+  await persistReminders(updatedReminders);
 
   // If the app is open in a visible tab, route reminders as in-app banners instead
   // of OS notifications — avoids duplicate alerts on iPad and provides a nicer UX.
@@ -196,16 +205,8 @@ async function checkDueReminders(): Promise<void> {
       )
     );
   }
-
-  await persistReminders(remaining);
-  // Notify open app tabs so they can clear fired reminders from Matrix account data.
-  // Without this, useReminderSync would push all account-data reminders back to the SW
-  // cache on the next sync, causing the same reminders to fire again.
-  const firedIds = due.map((r) => r.bookmarkId);
-  const openClients = await self.clients.matchAll({ type: 'window' });
-  openClients.forEach((client) => {
-    client.postMessage({ type: 'remindersFired', bookmarkIds: firedIds });
-  });
+  // Each device fires independently. No remindersFired message — users dismiss
+  // overdue reminders explicitly via "Clear Reminder" in the bookmarks panel.
 }
 
 // Check for due reminders every minute.
@@ -733,8 +734,22 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     event.waitUntil(persistSettings());
   }
   if (data.type === 'updateReminders') {
-    const reminders = (data as { type: string; reminders: BookmarkReminder[] }).reminders;
-    event.waitUntil(persistReminders(reminders));
+    const incoming = (data as { type: string; reminders: BookmarkReminder[] }).reminders;
+    // Preserve per-device firedAt for entries where bookmarkId AND remindAt both match
+    // the cached entry — same reminder, already fired on this device.  If remindAt
+    // changed (user set a new time), firedAt is dropped so the new time fires fresh.
+    event.waitUntil(
+      (async () => {
+        const cached = await loadPersistedReminders();
+        const merged = incoming.map((r) => {
+          const existing = cached.find(
+            (c) => c.bookmarkId === r.bookmarkId && c.remindAt === r.remindAt && c.firedAt
+          );
+          return existing ? { ...r, firedAt: existing.firedAt } : r;
+        });
+        await persistReminders(merged);
+      })()
+    );
   }
 });
 

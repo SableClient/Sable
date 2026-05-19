@@ -6,6 +6,7 @@ import {
   bookmarkIdSetAtom,
   bookmarkListAtom,
   bookmarkLoadingAtom,
+  remindersAtom,
 } from '$state/bookmarks';
 import type { BookmarkItemContent } from './bookmarkDomain';
 import { computeBookmarkId } from './bookmarkDomain';
@@ -17,10 +18,8 @@ import {
   removeBookmark,
   isBookmarked,
 } from './bookmarkRepository';
-import { clearBookmarkReminder, listReminders, setBookmarkReminder } from './reminderRepository';
+import { clearBookmarkReminder, setBookmarkReminder } from './reminderRepository';
 import type { BookmarkReminder } from '$types/matrix/accountData';
-import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
-import { CustomAccountDataEvent as AccountDataEvent } from '$types/matrix/accountData';
 
 /** Returns the current ordered bookmark list. */
 export function useBookmarkList(): BookmarkItemContent[] {
@@ -135,51 +134,42 @@ export function useBookmarkActions() {
 }
 
 /**
- * Returns the live list of bookmark reminders, re-read whenever the
- * `moe.sable.bookmarks.reminders` account data event changes.
+ * Returns the live list of bookmark reminders.
+ * State is maintained by useReminderSync (in ClientNonUIFeatures) and updated
+ * optimistically by useBookmarkReminderActions, so no local subscription is needed.
  */
 export function useBookmarkReminders(): BookmarkReminder[] {
-  const mx = useMatrixClient();
-  const [reminders, setReminders] = useState<BookmarkReminder[]>(() => listReminders(mx));
-
-  useAccountDataCallback(
-    mx,
-    useCallback(
-      (mxEvent) => {
-        if (mxEvent.getType() === (AccountDataEvent.SableBookmarksReminders as string)) {
-          setReminders(listReminders(mx));
-        }
-      },
-      [mx]
-    )
-  );
-
-  // Re-read when mx changes (e.g. session switch)
-  useEffect(() => {
-    setReminders(listReminders(mx));
-  }, [mx]);
-
-  return reminders;
+  return useAtomValue(remindersAtom);
 }
 
 /**
  * Returns callbacks to set and clear a reminder for a specific bookmark.
+ * Both operations update remindersAtom optimistically before writing to the server,
+ * so the UI reflects the change immediately without waiting for a sync-loop echo.
  */
 export function useBookmarkReminderActions() {
   const mx = useMatrixClient();
+  const setRemindersAtom = useSetAtom(remindersAtom);
 
   const setReminder = useCallback(
     async (reminder: BookmarkReminder) => {
+      // Optimistic: replace existing entry or append
+      setRemindersAtom((prev) => [
+        ...prev.filter((r) => r.bookmarkId !== reminder.bookmarkId),
+        reminder,
+      ]);
       await setBookmarkReminder(mx, reminder);
     },
-    [mx]
+    [mx, setRemindersAtom]
   );
 
   const clearReminder = useCallback(
     async (bookmarkId: string) => {
+      // Optimistic: remove immediately so the UI stops showing 'overdue'
+      setRemindersAtom((prev) => prev.filter((r) => r.bookmarkId !== bookmarkId));
       await clearBookmarkReminder(mx, bookmarkId);
     },
-    [mx]
+    [mx, setRemindersAtom]
   );
 
   return { setReminder, clearReminder };

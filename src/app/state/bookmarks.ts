@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import type { BookmarkItemContent } from '../features/bookmarks/bookmarkDomain';
+import type { BookmarkReminder } from '$types/matrix/accountData';
 
 /** Ordered list of active bookmark items (mirrors the server index order). */
 export const bookmarkListAtom = atom<BookmarkItemContent[]>([]);
@@ -25,3 +26,7 @@ export const bookmarkIdSetAtom = atom<Set<string>>((get) => {
   const list = get(bookmarkListAtom);
   return new Set(list.map((b) => b.bookmark_id));
 });
+
+/** Live list of bookmark reminders from Matrix account data.
+ * Maintained by useReminderSync and updated optimistically by useBookmarkReminderActions. */
+export const remindersAtom = atom<BookmarkReminder[]>([]);

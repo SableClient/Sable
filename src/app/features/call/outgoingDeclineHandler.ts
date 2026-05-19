@@ -37,6 +37,11 @@ export const applyOutgoingDeclineToTracker = (
 
   const targetCount = options.remoteJoinedIds.size;
   const declinedCount = declineState.declinerIds.size;
+
+  if (targetCount === 0 && !options.isDirectRoom) {
+    return { kind: 'ignore_partial', declinedCount, targetCount };
+  }
+
   const allRemoteDeclined =
     targetCount > 0 && [...options.remoteJoinedIds].every((userId) => declineState.declinerIds.has(userId));
   const treatAsOneToOne = options.isDirectRoom || targetCount <= 1;

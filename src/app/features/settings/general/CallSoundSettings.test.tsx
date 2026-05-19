@@ -9,7 +9,7 @@ vi.mock('$state/settings', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: vi.fn(),
+  useSetting: vi.fn<typeof useSetting>(),
 }));
 
 vi.mock('$features/call/callRingtoneStorage', () => ({

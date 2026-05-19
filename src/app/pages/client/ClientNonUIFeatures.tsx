@@ -45,7 +45,6 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { registrationAtom } from '$state/serviceWorkerRegistration';
 import { pendingNotificationAtom, inAppBannerAtom, activeSessionIdAtom } from '$state/sessions';
-import { incomingCallAtom } from '$state/callEmbed';
 import {
   buildRoomMessageNotification,
   resolveNotificationPreviewText,
@@ -62,6 +61,8 @@ import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
 import { resolveIncomingCallFromNotificationData } from '$features/call/callNotificationBridge';
+import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
+import { incomingCallAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -612,6 +613,7 @@ export function HandleNotificationClick() {
   const setPending = useSetAtom(pendingNotificationAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
+  const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const mDirects = useAtomValue(mDirectAtom);
   const navigate = useNavigate();
 
@@ -643,14 +645,14 @@ export function HandleNotificationClick() {
         data as Record<string, unknown>,
         mDirects.has(roomId)
       );
-      if (incomingCall) {
+      if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId)) {
         setIncomingCall(incomingCall);
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [mDirects, navigate, setActiveSessionId, setIncomingCall, setPending]);
+  }, [mDirects, mutedRoomId, navigate, setActiveSessionId, setIncomingCall, setPending]);
 
   return null;
 }

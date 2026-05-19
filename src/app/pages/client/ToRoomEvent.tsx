@@ -3,8 +3,9 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 import { mDirectAtom } from '$state/mDirectList';
-import { incomingCallAtom } from '$state/callEmbed';
+import { incomingCallAtom, mutedCallRoomIdAtom } from '$state/callEmbed';
 import { resolveIncomingCallFromSearchParams } from '$features/call/callNotificationBridge';
+import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
 
 // ToRoomEvent handles /to/:user_id/:room_id/:event_id? — the canonical deep-link
 // URL used by the service worker's notificationclick handler.
@@ -22,6 +23,7 @@ export function ToRoomEvent() {
   const { user_id: userId, room_id: roomId, event_id: eventId } = useParams();
   const [searchParams] = useSearchParams();
   const mDirects = useAtomValue(mDirectAtom);
+  const mutedRoomId = useAtomValue(mutedCallRoomIdAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const setPending = useSetAtom(pendingNotificationAtom);
   const setIncomingCall = useSetAtom(incomingCallAtom);
@@ -39,7 +41,7 @@ export function ToRoomEvent() {
       eventId,
       mDirects.has(roomId)
     );
-    if (incomingCall) {
+    if (incomingCall && !isIncomingCallSuppressed(incomingCall, mutedRoomId)) {
       setIncomingCall(incomingCall);
     }
 
@@ -48,6 +50,7 @@ export function ToRoomEvent() {
   }, [
     eventId,
     mDirects,
+    mutedRoomId,
     roomId,
     searchParams,
     setActiveSessionId,

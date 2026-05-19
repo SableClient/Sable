@@ -131,7 +131,6 @@ export class CallControl extends EventEmitter implements CallControlState {
     if (callDocument) {
       callDocument.querySelectorAll<HTMLMediaElement>('audio, video').forEach((el) => {
         el.muted = shouldMute;
-        if (shouldMute) el.volume = 0;
       });
     }
   }

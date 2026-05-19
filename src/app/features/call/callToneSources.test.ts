@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveCallToneSources } from './callToneSources';
 
 vi.mock('./callRingtoneStorage', () => ({
-  getCustomCallRingtone: vi.fn(),
-  getCustomCallRingback: vi.fn(),
+  getCustomCallRingtone: vi.fn<() => Promise<Blob | undefined>>(),
+  getCustomCallRingback: vi.fn<() => Promise<Blob | undefined>>(),
 }));
 
 const { getCustomCallRingtone, getCustomCallRingback } = await import('./callRingtoneStorage');
@@ -15,8 +15,8 @@ describe('resolveCallToneSources', () => {
     vi.stubGlobal(
       'URL',
       Object.assign(URL, {
-        createObjectURL: vi.fn(() => 'blob:custom'),
-        revokeObjectURL: vi.fn(),
+        createObjectURL: vi.fn<() => string>(() => 'blob:custom'),
+        revokeObjectURL: vi.fn<() => void>(),
       })
     );
   });

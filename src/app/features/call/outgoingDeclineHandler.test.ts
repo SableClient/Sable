@@ -36,4 +36,14 @@ describe('applyOutgoingDeclineToTracker', () => {
     );
     expect(end).toEqual({ kind: 'end_call', declinedCount: 2, targetCount: 2 });
   });
+
+  it('ignores declines when there are no remote RTC targets in a group room', () => {
+    const tracker: OutgoingDeclineTracker = new Map();
+    const decision = applyOutgoingDeclineToTracker(tracker, decline, {
+      remoteJoinedIds: new Set(),
+      isDirectRoom: false,
+    });
+
+    expect(decision).toEqual({ kind: 'ignore_partial', declinedCount: 1, targetCount: 0 });
+  });
 });

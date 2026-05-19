@@ -69,7 +69,7 @@ describe('call intent cross-path consistency', () => {
     });
   });
 
-  it('parser and bridge both default start_call_dm to audio', async () => {
+  it('parser and bridge both map start_call_dm to video', async () => {
     const parsed = await parseIncomingRtcNotification(
       createEvent({
         content: {
@@ -97,7 +97,7 @@ describe('call intent cross-path consistency', () => {
       NOW
     );
 
-    expect(parsed?.intentKind).toBe('audio');
-    expect(fromBridge?.intentKind).toBe('audio');
+    expect(parsed?.intentKind).toBe('video');
+    expect(fromBridge?.intentKind).toBe('video');
   });
 });

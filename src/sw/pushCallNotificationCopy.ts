@@ -29,14 +29,6 @@ const firstMatchingTemplate = (
   return undefined;
 };
 
-const resolveTemplate = (
-  ctx: CallNotificationCopyContext,
-  template: CopyTemplate
-): { title: string; body: string | undefined } => ({
-  title: template.title,
-  body: typeof template.body === 'function' ? template.body(ctx) : template.body,
-});
-
 const ROOM_CALL_RULES: CopyRule[] = [
   {
     when: (ctx) => !ctx.showPreviewDetails,

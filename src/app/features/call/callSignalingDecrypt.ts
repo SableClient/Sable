@@ -16,6 +16,8 @@ export const decryptRtcTimelineEvent = async (
   const crypto = mx.getCrypto();
   if (!crypto) return undefined;
 
+  if (event.isDecryptionFailure()) return undefined;
+
   try {
     if (!event.isBeingDecrypted()) {
       await event.attemptDecryption(crypto as CryptoBackend);
@@ -23,10 +25,13 @@ export const decryptRtcTimelineEvent = async (
 
     const decryptionPromise = event.getDecryptionPromise();
     if (decryptionPromise) {
+      let timeoutId: ReturnType<typeof window.setTimeout> | undefined;
       await Promise.race([
-        decryptionPromise,
+        decryptionPromise.finally(() => {
+          if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+        }),
         new Promise<void>((resolve) => {
-          window.setTimeout(resolve, DECRYPT_TIMEOUT_MS);
+          timeoutId = window.setTimeout(resolve, DECRYPT_TIMEOUT_MS);
         }),
       ]);
     }
@@ -36,6 +41,10 @@ export const decryptRtcTimelineEvent = async (
       roomId: event.getRoomId(),
       error: error instanceof Error ? error.message : String(error),
     });
+    return undefined;
+  }
+
+  if (event.isBeingDecrypted() || event.isDecryptionFailure()) {
     return undefined;
   }
 

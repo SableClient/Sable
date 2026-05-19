@@ -70,3 +70,16 @@ export const isOutgoingCallPending = (
 
   return hasSelfMember && remoteMemberCount === 0;
 };
+
+export const getRemoteRtcMemberUserIds = (
+  mxUserId: string,
+  room: Room,
+  sessionDescription: SessionDescription
+): Set<string> => {
+  const memberships = getRoomMemberships(room, sessionDescription);
+  return new Set(
+    memberships
+      .map((membership) => membership.userId || membership.sender)
+      .filter((userId): userId is string => !!userId && userId !== mxUserId)
+  );
+};

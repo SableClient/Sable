@@ -3,11 +3,15 @@ import { Box, Text, Switch, Button } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
-import { useClientConfig, setExperimentOverride } from '$hooks/useClientConfig';
+import {
+  useClientConfig,
+  setExperimentOverride,
+  type ExperimentConfig,
+} from '$hooks/useClientConfig';
 
 const EXPERIMENT_OVERRIDE_PREFIX = 'sable_exp_';
 
-function getActiveExperimentKeys(configExperiments?: Record<string, boolean>): string[] {
+function getActiveExperimentKeys(configExperiments?: Record<string, ExperimentConfig>): string[] {
   const fromConfig = Object.keys(configExperiments ?? {});
   const fromBuild = Object.keys(INJECTED_EXPERIMENT_FLAGS);
   const fromStorage = Object.keys(localStorage)
@@ -19,12 +23,12 @@ function getActiveExperimentKeys(configExperiments?: Record<string, boolean>): s
 
 function getEffectiveValue(
   key: string,
-  configExperiments?: Record<string, boolean>
+  configExperiments?: Record<string, ExperimentConfig>
 ): { value: boolean; source: 'override' | 'config' | 'build' | 'default' } {
   const lsValue = localStorage.getItem(`${EXPERIMENT_OVERRIDE_PREFIX}${key}`);
   if (lsValue !== null) return { value: lsValue === 'true', source: 'override' };
   if (configExperiments && key in configExperiments)
-    return { value: configExperiments[key] ?? false, source: 'config' };
+    return { value: configExperiments[key]?.enabled ?? false, source: 'config' };
   if (key in INJECTED_EXPERIMENT_FLAGS)
     return { value: INJECTED_EXPERIMENT_FLAGS[key] ?? false, source: 'build' };
   return { value: false, source: 'default' };

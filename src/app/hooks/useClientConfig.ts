@@ -141,7 +141,7 @@ export const selectExperimentVariant = (
     key,
     enabled,
     rolloutPercentage,
-    variant: variants[variantIndex],
+    variant: variants[variantIndex]!,
     inExperiment: true,
   };
 };

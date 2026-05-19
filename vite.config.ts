@@ -50,6 +50,12 @@ const resolveBuildHash = (): string | undefined => {
 const appVersion = packageJson.version;
 const buildHash = resolveBuildHash();
 
+const injectedExperimentFlags: Record<string, boolean> = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([key]) => key.startsWith('VITE_FEATURE_'))
+    .map(([key, val]) => [key.slice('VITE_FEATURE_'.length), val === 'true' || val === '1'])
+);
+
 const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
   if (envVal !== undefined && envVal !== '') return envVal === 'true';

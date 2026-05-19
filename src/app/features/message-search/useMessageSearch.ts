@@ -142,12 +142,37 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           : [];
 
       // When there's no text term, skip server search (server requires search_term).
-      // Only in-memory encrypted rooms are searchable by has: type alone.
+      // For has: filters, scan all rooms' in-memory timelines (encrypted + unencrypted).
       if (skipServerSearch || !term) {
+        let unencryptedMemoryGroups: ResultGroup[] = [];
+        let unencryptedRoomCount = 0;
+        if (hasHasTypes && isFirstPage) {
+          // For global search (serverRooms undefined), gather all non-encrypted joined rooms.
+          const unencryptedRooms =
+            serverRooms ??
+            mx
+              .getRooms()
+              .filter((r) => !mx.isRoomEncrypted(r.roomId))
+              .map((r) => r.roomId);
+          unencryptedRoomCount = unencryptedRooms.length;
+          if (unencryptedRooms.length > 0) {
+            unencryptedMemoryGroups = searchEncryptedRoomsInMemory(
+              mx,
+              '',
+              unencryptedRooms,
+              senders,
+              hasTypes
+            );
+          }
+        }
         return {
-          highlights: term ? term.split(/\s+/).filter(Boolean) : [],
-          groups: filterGroupsByHasType(inMemoryGroups),
-          inMemoryRoomCount: encryptedRoomIds.length,
+          highlights: [],
+          groups: mergeSearchGroups(
+            filterGroupsByHasType(inMemoryGroups),
+            unencryptedMemoryGroups,
+            order
+          ),
+          inMemoryRoomCount: encryptedRoomIds.length + unencryptedRoomCount,
         };
       }
 

@@ -287,7 +287,7 @@ export function MessageSearch({
         >
           <Icon size="200" src={Icons.Info} />
           <Text size="T300">
-            {`${inMemoryRoomCount} encrypted ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
+            {`${inMemoryRoomCount} ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
           </Text>
         </Box>
       )}

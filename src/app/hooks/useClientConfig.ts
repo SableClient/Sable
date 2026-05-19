@@ -50,6 +50,23 @@ export type ClientConfig = {
   themeCatalogApprovedHostPrefixes?: string[];
 
   settingsDefaults?: Partial<Settings>;
+
+  experiments?: Record<string, ExperimentConfig>;
+};
+
+export type ExperimentConfig = {
+  enabled?: boolean;
+  controlVariant?: string;
+  variants?: string[];
+  rolloutPercentage?: number;
+};
+
+export type ExperimentSelection = {
+  key: string;
+  enabled: boolean;
+  rolloutPercentage: number;
+  variant: string;
+  inExperiment: boolean;
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

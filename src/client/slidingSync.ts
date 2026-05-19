@@ -403,7 +403,6 @@ export class SlidingSyncManager {
             }
 
             // No overlap: local events are stale, reset needed
->>>>>>> 5406e00b2 (feat(slidingSync): prefetch recently-visited rooms on sync complete (P3))
             timelineSet.resetLiveTimeline();
           });
       }

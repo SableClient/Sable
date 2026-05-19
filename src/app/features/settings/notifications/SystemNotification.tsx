@@ -18,6 +18,7 @@ import {
   requestBrowserNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
+  isPushSupported,
 } from './PushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
 
@@ -136,6 +137,8 @@ function WebPushNotificationSetting() {
       setIsLoading(false);
     }
   };
+
+  if (!isPushSupported()) return null;
 
   return (
     <SettingTile

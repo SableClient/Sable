@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
-import { Icon, Icons, Text } from 'folds';
+import { Icon, Icons, MenuItem, Text } from 'folds';
+import * as messageCss from './styles.css';
 import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { EmojiBoard } from '$components/emoji-board';
@@ -142,6 +143,7 @@ export function MobileMessageMenu({
   const setNickname = useSetAtom(setNicknameAtom);
   const [nickEditOpen, setNickEditOpen] = useState(false);
   const [nickDraft, setNickDraft] = useState('');
+  const nickInputRef = useRef<HTMLInputElement>(null);
 
   // Bookmarks
   const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
@@ -151,6 +153,16 @@ export function MobileMessageMenu({
   // Register a keyboard-height listener so --sable-visible-height is set when the
   // nickname input is focused. The Sheet CSS uses that variable to stay above the keyboard.
   useKeyboardHeight();
+
+  // Delay focus so iOS's synthesised tap fires before the keyboard opens and
+  // shifts the sheet, preventing the tap from landing on the backdrop.
+  useEffect(() => {
+    if (nickEditOpen) {
+      const id = setTimeout(() => nickInputRef.current?.focus(), 100);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [nickEditOpen]);
 
   // Kick permissions
   const powerLevels = usePowerLevels(room);
@@ -453,8 +465,7 @@ export function MobileMessageMenu({
                       Nickname
                     </Text>
                     <input
-                      // eslint-disable-next-line jsx-a11y/no-autofocus
-                      autoFocus
+                      ref={nickInputRef}
                       className={css.NickEditInput}
                       value={nickDraft}
                       onChange={(e) => setNickDraft(e.target.value)}
@@ -536,12 +547,18 @@ export function MobileMessageMenu({
             canKick ? (
               <div className={css.ActionGroup}>
                 {canKick && (
-                  <ActionItem
-                    icon={<Icon src={Icons.ArrowLeft} size="200" />}
-                    label="Kick from Room"
-                    danger
+                  <MenuItem
+                    size="300"
+                    after={<Icon size="100" src={Icons.ArrowLeft} />}
+                    radii="300"
+                    fill="None"
+                    variant="Critical"
                     onClick={handleKick}
-                  />
+                  >
+                    <Text className={messageCss.MessageMenuItemText} as="span" size="T300" truncate>
+                      Kick from Room
+                    </Text>
+                  </MenuItem>
                 )}
                 {!mEvent.isRedacted() && canDelete && (
                   <MessageDeleteItem room={room} mEvent={mEvent} />

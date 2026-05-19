@@ -200,8 +200,11 @@ const getListEndIndex = (list: MSC3575List | null): number => {
 };
 
 // MSC4186 presence extension: requests `extensions.presence` in every sliding sync
-// poll and feeds received `m.presence` events into the SDK's User objects so that
-// components using `useUserPresence` see live updates (same path as regular /sync).
+// poll.  NOTE: Synapse's MSC4186 implementation does not currently support this
+// extension (its get_extensions_response only handles to_device, e2ee, account_data,
+// receipts, typing, and thread_subscriptions).  The extension is kept here so that
+// clients automatically benefit if/when server support is added; live presence for
+// now is handled by the direct REST fallback in useUserPresence.
 class ExtensionPresence implements Extension<{ enabled: boolean }, { events?: object[] }> {
   private enabled = true;
 

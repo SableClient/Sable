@@ -71,6 +71,25 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
     user.on(UserEvent.CurrentlyActive, updatePresence);
     user.on(UserEvent.LastPresenceTs, updatePresence);
 
+    // Synapse's MSC4186 simplified sliding sync has no presence extension, so
+    // presence events never arrive over the sync stream.  If lastPresenceTs is
+    // still 0 we have never received presence data for this user — fall back to
+    // a direct REST call so badges appear on first render.
+    if (user.lastPresenceTs === 0) {
+      mx.getPresence(userId)
+        .then((status) => {
+          user.presence = status.presence;
+          user.presenceStatusMsg = status.status_msg;
+          user.currentlyActive = status.currently_active ?? false;
+          user.lastActiveAgo = status.last_active_ago ?? 0;
+          user.lastPresenceTs = Date.now();
+          setPresence(getUserPresence(user));
+        })
+        .catch(() => {
+          // Presence unavailable or disabled on this server — stay offline.
+        });
+    }
+
     return () => {
       user.removeListener(UserEvent.Presence, updatePresence);
       user.removeListener(UserEvent.CurrentlyActive, updatePresence);

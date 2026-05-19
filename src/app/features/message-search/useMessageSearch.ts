@@ -147,13 +147,16 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         let unencryptedMemoryGroups: ResultGroup[] = [];
         let unencryptedRoomCount = 0;
         if (hasHasTypes && isFirstPage) {
-          // For global search (serverRooms undefined), gather all non-encrypted joined rooms.
+          // When scoped (rooms defined), use only unencrypted rooms within scope (may be empty
+          // when all scoped rooms are encrypted). When global (rooms undefined), fall back to
+          // all non-encrypted joined rooms.
           const unencryptedRooms =
-            serverRooms ??
-            mx
-              .getRooms()
-              .filter((r) => !mx.isRoomEncrypted(r.roomId))
-              .map((r) => r.roomId);
+            rooms !== undefined
+              ? (serverRooms ?? [])
+              : mx
+                  .getRooms()
+                  .filter((r) => !mx.isRoomEncrypted(r.roomId))
+                  .map((r) => r.roomId);
           unencryptedRoomCount = unencryptedRooms.length;
           if (unencryptedRooms.length > 0) {
             unencryptedMemoryGroups = searchEncryptedRoomsInMemory(

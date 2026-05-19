@@ -41,6 +41,7 @@ export function DirectSearch() {
             <PageContentCenter>
               <MessageSearch
                 defaultRoomsFilterName="Direct Messages"
+                allowGlobal
                 rooms={rooms}
                 scrollRef={scrollRef}
               />

@@ -71,7 +71,10 @@ type HomeMenuProps = {
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useHomeRooms();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useSetting(settingsAtom, 'isShowingAllRoomsInHome');
+  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useSetting(
+    settingsAtom,
+    'isShowingAllRoomsInHome'
+  );
   const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const mx = useMatrixClient();
 
@@ -98,11 +101,11 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         <MenuItem
           onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
           size="300"
-          after={<Icon size="100" src={isShowingAllRoomsInHome? Icons.Home : Icons.Globe} />}
+          after={<Icon size="100" src={isShowingAllRoomsInHome ? Icons.Home : Icons.Globe} />}
           radii="300"
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            {isShowingAllRoomsInHome? 'Show Home Rooms' : 'Show All Rooms'}
+            {isShowingAllRoomsInHome ? 'Show Home Rooms' : 'Show All Rooms'}
           </Text>
         </MenuItem>
       </Box>
@@ -423,6 +426,7 @@ export function Home() {
                     const room = mx.getRoom(roomId);
                     if (!room) return null;
                     const selected = selectedRoomId === roomId;
+                    const canonicalName = getCanonicalAliasOrRoomId(mx, roomId);
 
                     return (
                       <VirtualTile
@@ -448,7 +452,7 @@ export function Home() {
                             selected={selected}
                             showAvatar={showIcons()}
                             hideText={hideText}
-                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                            linkPath={getHomeRoomPath(canonicalName)}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId

@@ -32,8 +32,16 @@ export type { SearchHasType };
  * (m.image, m.file, m.audio, m.video) render with their full content
  * (url, file, info, …). Falls back to a plain-text synthetic event showing
  * the stored filename/body when the event is no longer in memory.
+ *
+ * For "recent" order, items within each group and the groups themselves are
+ * sorted newest-first so that mergeSearchGroups' timestamp-based interleaving
+ * (and its single-source early-return fast paths) both produce correct order.
  */
-function idbEventsToGroups(mx: Pick<MatrixClient, 'getRoom'>, events: IndexableEvent[]): ResultGroup[] {
+function idbEventsToGroups(
+  mx: Pick<MatrixClient, 'getRoom'>,
+  events: IndexableEvent[],
+  order?: string
+): ResultGroup[] {
   const byRoom = new Map<string, ResultItem[]>();
   for (const ev of events) {
     const liveEvent = mx.getRoom(ev.roomId)?.findEventById(ev.eventId);
@@ -44,9 +52,18 @@ function idbEventsToGroups(mx: Pick<MatrixClient, 'getRoom'>, events: IndexableE
           room_id: ev.roomId,
           sender: ev.sender,
           origin_server_ts: ev.ts,
-          // Fall back to m.text so media renderers don't show "Broken message"
-          // when the event has scrolled out of the in-memory timeline.
-          content: { msgtype: 'm.text', body: ev.body },
+          // Reconstruct full content from IDB-stored fields so media events
+          // (m.image, m.file, m.audio, m.video) render correctly even when
+          // the event is no longer in the live timeline window.
+          // Fall back to m.text only for pre-v3 index entries that lack media fields.
+          content: {
+            msgtype: ev.url !== undefined || ev.file !== undefined ? ev.msgtype : 'm.text',
+            body: ev.body,
+            ...(ev.url !== undefined && { url: ev.url }),
+            ...(ev.file !== undefined && { file: ev.file }),
+            ...(ev.info !== undefined && { info: ev.info }),
+            ...(ev.filename !== undefined && { filename: ev.filename }),
+          },
           type: 'm.room.message',
           unsigned: {},
         } as IEventWithRoomId;
@@ -59,7 +76,27 @@ function idbEventsToGroups(mx: Pick<MatrixClient, 'getRoom'>, events: IndexableE
     arr.push(item);
     byRoom.set(ev.roomId, arr);
   }
-  return Array.from(byRoom.entries()).map(([roomId, items]) => ({ roomId, items }));
+
+  const groups = Array.from(byRoom.entries()).map(([roomId, items]) => ({
+    roomId,
+    // Sort items newest-first so items[0] is always the most recent — required
+    // for mergeSearchGroups' timestamp comparisons to be correct.
+    items:
+      order !== 'rank'
+        ? items.toSorted(
+            (a, b) => (b.event.origin_server_ts ?? 0) - (a.event.origin_server_ts ?? 0)
+          )
+        : items,
+  }));
+
+  // Sort groups newest-first so single-source fast-paths in mergeSearchGroups
+  // (which return the array unchanged) still produce correct recent order.
+  return order !== 'rank'
+    ? groups.toSorted(
+        (a, b) =>
+          (b.items[0]?.event.origin_server_ts ?? 0) - (a.items[0]?.event.origin_server_ts ?? 0)
+      )
+    : groups;
 }
 
 export type ResultItem = {
@@ -191,7 +228,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             senders,
             hasTypes: hasHasTypes ? hasTypes : undefined,
           });
-          inMemoryGroups = idbEventsToGroups(mx, idbEvents);
+          inMemoryGroups = idbEventsToGroups(mx, idbEvents, order);
           usedIdb = true;
         } else {
           inMemoryGroups = searchEncryptedRoomsInMemory(
@@ -229,7 +266,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
                 senders,
                 hasTypes,
               });
-              unencryptedMemoryGroups = idbEventsToGroups(mx, idbEvents);
+              unencryptedMemoryGroups = idbEventsToGroups(mx, idbEvents, order);
               usedIdbForUnencrypted = true;
             } else {
               unencryptedMemoryGroups = searchEncryptedRoomsInMemory(

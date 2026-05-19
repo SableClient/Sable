@@ -12,7 +12,7 @@ import type { IndexableEvent, BackfillState, WorkerInMessage, WorkerOutMessage }
 
 function openDb(dbName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 2);
+    const req = indexedDB.open(dbName, 3);
     req.onupgradeneeded = (event) => {
       const db = req.result;
       const oldVersion = event.oldVersion;
@@ -20,8 +20,15 @@ function openDb(dbName: string): Promise<IDBDatabase> {
         db.createObjectStore('index');
         db.createObjectStore('backfill');
       }
-      // v2: added msgtype to stored fields — clear persisted index/backfill so it rebuilds
+      // v2: added msgtype to stored fields
       if (oldVersion >= 1 && oldVersion < 2) {
+        db.deleteObjectStore('index');
+        db.deleteObjectStore('backfill');
+        db.createObjectStore('index');
+        db.createObjectStore('backfill');
+      }
+      // v3: added url/file/info/filename to stored fields for media events
+      if (oldVersion >= 2 && oldVersion < 3) {
         db.deleteObjectStore('index');
         db.deleteObjectStore('backfill');
         db.createObjectStore('index');
@@ -100,7 +107,7 @@ function makeIndex(): MiniSearch<IndexableEvent> {
   return new MiniSearch<IndexableEvent>({
     idField: 'eventId',
     fields: ['body', 'sender'],
-    storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body'],
+    storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body', 'url', 'file', 'info', 'filename'],
     searchOptions: {
       boost: { body: 2 },
       fuzzy: 0.2,
@@ -203,7 +210,7 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       index = MiniSearch.loadJSON(serialized, {
         idField: 'eventId',
         fields: ['body', 'sender'],
-        storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body'],
+        storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body', 'url', 'file', 'info', 'filename'],
         searchOptions: {
           boost: { body: 2 },
           fuzzy: 0.2,

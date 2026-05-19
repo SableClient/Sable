@@ -7,6 +7,15 @@ export type IndexableEvent = {
   msgtype: string;
   body: string;
   ts: number;
+  // ── Media fields (present for m.image / m.file / m.audio / m.video) ──
+  /** mxc:// URL for unencrypted media. */
+  url?: string;
+  /** EncryptedFile descriptor for encrypted media (contains url + key material). */
+  file?: Record<string, unknown>;
+  /** Dimensions, mimetype, size, thumbnail info, etc. */
+  info?: Record<string, unknown>;
+  /** Original filename (m.file). */
+  filename?: string;
 };
 
 export type BackfillState = {

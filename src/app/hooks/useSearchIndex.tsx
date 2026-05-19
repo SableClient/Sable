@@ -92,6 +92,8 @@ function scheduleIdle(cb: () => void): () => void {
 
 // ── Event conversion ──────────────────────────────────────────────────────────
 
+const MEDIA_MSGTYPES = new Set(['m.image', 'm.file', 'm.audio', 'm.video']);
+
 function toIndexableEvent(mEvent: MatrixEvent, roomId: string): IndexableEvent | null {
   const eventId = mEvent.getId();
   if (!eventId) return null;
@@ -99,13 +101,27 @@ function toIndexableEvent(mEvent: MatrixEvent, roomId: string): IndexableEvent |
   if (mEvent.getType() === 'm.room.encrypted') return null;
   if (mEvent.getType() !== (EventType.RoomMessage as string)) return null;
   if (mEvent.isRedacted()) return null;
-  const content = mEvent.getContent<{ body?: string; msgtype?: string }>();
+  const content = mEvent.getContent<{
+    body?: string;
+    msgtype?: string;
+    url?: string;
+    file?: Record<string, unknown>;
+    info?: Record<string, unknown>;
+    filename?: string;
+  }>();
   const body: string = content.body ?? '';
   if (!body.trim()) return null;
   const sender = mEvent.getSender();
   if (!sender) return null;
   const msgtype = content.msgtype ?? 'm.text';
-  return { eventId, roomId, sender, msgtype, body, ts: mEvent.getTs() };
+  const base: IndexableEvent = { eventId, roomId, sender, msgtype, body, ts: mEvent.getTs() };
+  if (MEDIA_MSGTYPES.has(msgtype)) {
+    if (content.url !== undefined) base.url = content.url;
+    if (content.file !== undefined) base.file = content.file;
+    if (content.info !== undefined) base.info = content.info;
+    if (content.filename !== undefined) base.filename = content.filename;
+  }
+  return base;
 }
 
 // ── Provider ─────────────────────────────────────────────────────────────────

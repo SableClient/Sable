@@ -670,23 +670,21 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
         <Box shrink="No">
           {(!room.isCallRoom() || chat) && (
             <>
-              {!encryptedRoom && (
-                <TooltipProvider
-                  position="Bottom"
-                  offset={4}
-                  tooltip={
-                    <Tooltip>
-                      <Text>Search</Text>
-                    </Tooltip>
-                  }
-                >
-                  {(triggerRef) => (
-                    <IconButton fill="None" ref={triggerRef} onClick={handleSearchClick}>
-                      <Icon size="400" src={Icons.Search} />
-                    </IconButton>
-                  )}
-                </TooltipProvider>
-              )}
+              <TooltipProvider
+                position="Bottom"
+                offset={4}
+                tooltip={
+                  <Tooltip>
+                    <Text>{encryptedRoom ? 'Search (local cache)' : 'Search'}</Text>
+                  </Tooltip>
+                }
+              >
+                {(triggerRef) => (
+                  <IconButton fill="None" ref={triggerRef} onClick={handleSearchClick}>
+                    <Icon size="400" src={Icons.Search} />
+                  </IconButton>
+                )}
+              </TooltipProvider>
               <TooltipProvider
                 position="Bottom"
                 offset={4}

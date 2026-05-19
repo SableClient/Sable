@@ -119,6 +119,7 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           // Allow reaching the login page with ?addAccount=1 even when already logged in
           const url = new URL(request.url);
           if (url.searchParams.get('addAccount') === '1') return null;
+          if (url.searchParams.has('loginToken')) return null;
           if (hasStoredSession()) return redirect(getHomePath());
           return null;
         }}

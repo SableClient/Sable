@@ -16,28 +16,43 @@ import {
   partitionRoomsByEncryption,
   mergeSearchGroups,
   EMPTY_CONTEXT,
+  toSearchEvent,
 } from './searchEncryptedRooms';
 import type { SearchHasType } from './searchEncryptedRooms';
+import type { MatrixClient } from '$types/matrix-sdk';
 import type { IndexableEvent } from '$plugins/search-worker/types';
 import { useSearchIndex } from '$hooks/useSearchIndex';
 
 export type { SearchHasType };
 
-/** Convert IDB-indexed events back to the ResultGroup format used by the search UI. */
-function idbEventsToGroups(events: IndexableEvent[]): ResultGroup[] {
+/**
+ * Convert IDB-indexed events back to the ResultGroup format used by the search UI.
+ *
+ * Prefers the live MatrixEvent from the room cache so that media messages
+ * (m.image, m.file, m.audio, m.video) render with their full content
+ * (url, file, info, …). Falls back to a plain-text synthetic event showing
+ * the stored filename/body when the event is no longer in memory.
+ */
+function idbEventsToGroups(mx: Pick<MatrixClient, 'getRoom'>, events: IndexableEvent[]): ResultGroup[] {
   const byRoom = new Map<string, ResultItem[]>();
   for (const ev of events) {
+    const liveEvent = mx.getRoom(ev.roomId)?.findEventById(ev.eventId);
+    const eventData: IEventWithRoomId = liveEvent
+      ? toSearchEvent(liveEvent, ev.roomId)
+      : {
+          event_id: ev.eventId,
+          room_id: ev.roomId,
+          sender: ev.sender,
+          origin_server_ts: ev.ts,
+          // Fall back to m.text so media renderers don't show "Broken message"
+          // when the event has scrolled out of the in-memory timeline.
+          content: { msgtype: 'm.text', body: ev.body },
+          type: 'm.room.message',
+          unsigned: {},
+        } as IEventWithRoomId;
     const item: ResultItem = {
       rank: 1,
-      event: {
-        event_id: ev.eventId,
-        room_id: ev.roomId,
-        sender: ev.sender,
-        origin_server_ts: ev.ts,
-        content: { msgtype: ev.msgtype, body: ev.body },
-        type: 'm.room.message',
-        unsigned: {},
-      } as IEventWithRoomId,
+      event: eventData,
       context: EMPTY_CONTEXT as IResultContext,
     };
     const arr = byRoom.get(ev.roomId) ?? [];
@@ -176,7 +191,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             senders,
             hasTypes: hasHasTypes ? hasTypes : undefined,
           });
-          inMemoryGroups = idbEventsToGroups(idbEvents);
+          inMemoryGroups = idbEventsToGroups(mx, idbEvents);
           usedIdb = true;
         } else {
           inMemoryGroups = searchEncryptedRoomsInMemory(
@@ -214,7 +229,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
                 senders,
                 hasTypes,
               });
-              unencryptedMemoryGroups = idbEventsToGroups(idbEvents);
+              unencryptedMemoryGroups = idbEventsToGroups(mx, idbEvents);
               usedIdbForUnencrypted = true;
             } else {
               unencryptedMemoryGroups = searchEncryptedRoomsInMemory(

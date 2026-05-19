@@ -45,7 +45,12 @@ function userMentionLabel(userId: string, room: Room | undefined): string {
 // Node → markdown text
 // ─────────────────────────────────────────────────────────────────────────────
 
-function marksForNode(node: JSONContent): { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean } {
+function marksForNode(node: JSONContent): {
+  bold?: boolean;
+  italic?: boolean;
+  strike?: boolean;
+  code?: boolean;
+} {
   const marks: Record<string, boolean> = {};
   for (const m of node.marks ?? []) {
     if (typeof m === 'string') marks[m] = true;
@@ -73,7 +78,7 @@ function inlineNodeToMarkdown(node: JSONContent, opts: TiptapOutputOptions): str
     }
 
     case 'mention': {
-      const { id, label, nodeType, highlight, viaServers, eventId } = node.attrs ?? {};
+      const { id, nodeType, viaServers, eventId } = node.attrs ?? {};
       if (!id) return '';
 
       let fragment = String(id);
@@ -189,6 +194,11 @@ export function tiptapCustomHtmlEqualsPlainText(
   const plain = tiptapToPlainText(editor);
   const html = tiptapToMatrixCustomHTML(editor, opts);
   // Strip HTML tags and compare
-  const stripped = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+  const stripped = html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
   return stripped.trim() === plain.trim();
 }

@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKbEvent } from 'react';
 import { useEffect, useMemo } from 'react';
-import { Box, MenuItem, Text, toRem } from 'folds';
+import { MenuItem, Text, toRem } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAsyncSearch, type UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
@@ -11,7 +11,6 @@ import { useRelevantImagePacks } from '$hooks/useImagePacks';
 import type { IEmoji } from '$plugins/emoji';
 import { emojis } from '$plugins/emoji';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { PackImageReader } from '$plugins/custom-emoji';
 import { ImageUsage } from '$plugins/custom-emoji';
 import { getEmoticonSearchStr } from '$plugins/utils';
@@ -47,7 +46,11 @@ export function TiptapEmoticonAutocomplete({
     [imagePacks]
   );
 
-  const [result, search, resetSearch] = useAsyncSearch(searchList, getEmoticonSearchStr, SEARCH_OPTIONS);
+  const [result, search, resetSearch] = useAsyncSearch(
+    searchList,
+    getEmoticonSearchStr,
+    SEARCH_OPTIONS
+  );
 
   const candidates = useMemo(() => {
     if (queryText.length < emojiThreshold) return [];
@@ -60,7 +63,7 @@ export function TiptapEmoticonAutocomplete({
   }, [queryText, search, resetSearch]);
 
   function getKey(item: EmoticonItem): string {
-    return 'url' in item ? (item as PackImageReader).url : (item as IEmoji).unicode;
+    return 'url' in item ? item.url : item.unicode;
   }
 
   function getShortcode(item: EmoticonItem): string {
@@ -92,15 +95,15 @@ export function TiptapEmoticonAutocomplete({
         const key = getKey(item);
         const shortcode = getShortcode(item);
         const isMxc = key.startsWith('mxc://');
-        const imgSrc = isMxc
-          ? mxcUrlToHttp(mx, key, useAuthentication) ?? key
-          : undefined;
+        const imgSrc = isMxc ? (mxcUrlToHttp(mx, key, useAuthentication) ?? key) : undefined;
         return (
           <MenuItem
             key={key}
             as="button"
             radii="300"
-            onKeyDown={(e: ReactKbEvent<HTMLButtonElement>) => onTabPress(e, () => handleSelect(item))}
+            onKeyDown={(e: ReactKbEvent<HTMLButtonElement>) =>
+              onTabPress(e, () => handleSelect(item))
+            }
             onClick={() => handleSelect(item)}
             before={
               isMxc ? (

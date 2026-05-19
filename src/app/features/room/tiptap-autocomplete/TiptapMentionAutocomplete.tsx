@@ -19,7 +19,8 @@ import { TiptapAutocompleteMenu } from './TiptapAutocompleteMenu';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = { limit: 1000, matchOptions: { contain: true } };
 const mxIdToName = (id: string) => getMxIdLocalPart(id) ?? id;
-const getSearchStr: SearchItemStrGetter<RoomMember> = (m, q) => getMemberSearchStr(m, q, mxIdToName);
+const getSearchStr: SearchItemStrGetter<RoomMember> = (m, q) =>
+  getMemberSearchStr(m, q, mxIdToName);
 const allowedMembership = (m: RoomMember) =>
   m.membership === KnownMembership.Join ||
   m.membership === KnownMembership.Invite ||
@@ -97,7 +98,15 @@ export function TiptapMentionAutocomplete({ room, queryText, onSelect, onClose }
       {candidates.map((member) => {
         const name = getName(member);
         const avatarUrl = member.getMxcAvatarUrl()
-          ? mx.mxcUrlToHttp(member.getMxcAvatarUrl()!, 32, 32, 'crop', undefined, false, useAuthentication) ?? undefined
+          ? (mx.mxcUrlToHttp(
+              member.getMxcAvatarUrl()!,
+              32,
+              32,
+              'crop',
+              undefined,
+              false,
+              useAuthentication
+            ) ?? undefined)
           : undefined;
         return (
           <MenuItem

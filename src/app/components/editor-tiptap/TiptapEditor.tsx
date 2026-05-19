@@ -17,6 +17,7 @@ export type { TiptapEditorInstance };
 
 /** Imperative handle exposed via ref for parent components. */
 export type TiptapEditorHandle = {
+  // eslint-disable-next-line typescript-eslint/no-redundant-type-constituents
   editor: TiptapEditorInstance | null;
   focus: () => void;
   reset: () => void;

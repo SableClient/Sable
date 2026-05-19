@@ -3,7 +3,7 @@
  * existing AutocompleteMenu but with no Slate / ReactEditor dependency.
  */
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { Header, Menu, Scroll, config } from 'folds';

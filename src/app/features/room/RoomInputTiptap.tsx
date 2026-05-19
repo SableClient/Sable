@@ -25,7 +25,7 @@
  */
 
 import type { KeyboardEvent, RefObject } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Editor as TiptapEditorInstance } from '@tiptap/core';
 import type { Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
@@ -40,13 +40,13 @@ import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { trimCustomHtml } from '$components/editor/output';
-import { TiptapEditor } from '$components/editor-tiptap/TiptapEditor';
-import type { TiptapEditorHandle } from '$components/editor-tiptap/TiptapEditor';
+import { TiptapEditor } from '$components/editor-tiptap';
+import type { TiptapEditorHandle } from '$components/editor-tiptap';
 import {
   tiptapToMatrixCustomHTML,
   tiptapToPlainText,
   tiptapCustomHtmlEqualsPlainText,
-} from '$components/editor-tiptap/output';
+} from '$components/editor-tiptap';
 import { TiptapMentionAutocomplete } from './tiptap-autocomplete/TiptapMentionAutocomplete';
 import { TiptapRoomMentionAutocomplete } from './tiptap-autocomplete/TiptapRoomMentionAutocomplete';
 import { TiptapEmoticonAutocomplete } from './tiptap-autocomplete/TiptapEmoticonAutocomplete';
@@ -54,9 +54,7 @@ import { mobileOrTablet } from '$utils/user-agent';
 
 // ─── Autocomplete detection ──────────────────────────────────────────────────
 
-type AutocompleteState =
-  | { prefix: '@' | '#' | ':'; text: string; from: number; to: number }
-  | null;
+type AutocompleteState = { prefix: '@' | '#' | ':'; text: string; from: number; to: number } | null;
 
 /**
  * Look backwards from the cursor in the current paragraph's text content to find
@@ -70,11 +68,12 @@ function detectAutocomplete(editor: TiptapEditorInstance): AutocompleteState {
   const { $from } = selection;
   const nodeStart = $from.start();
   const cursorPos = $from.pos;
-  const textBefore = editor.state.doc.textBetween(nodeStart, cursorPos, '\n', '\0');
+  const textBefore = editor.state.doc.textBetween(nodeStart, cursorPos, '\n', '\u0000');
 
   // Walk backwards to find the last whitespace or start-of-line
   let wordStart = textBefore.length;
-  while (wordStart > 0 && !/[\s\0]/.test(textBefore[wordStart - 1]!)) {
+  // eslint-disable-next-line no-control-regex
+  while (wordStart > 0 && !/[\s\u0000]/.test(textBefore.charAt(wordStart - 1))) {
     wordStart--;
   }
 
@@ -158,15 +157,14 @@ export function RoomInputTiptap({ roomId, room }: RoomInputTiptapProps) {
           ? customHtmlRaw.replace(/^\/notice\s+/, '')
           : customHtmlRaw;
 
-    const content =
-      isPlainOnly
-        ? { msgtype: msgType, body }
-        : {
-            msgtype: msgType,
-            body,
-            format: 'org.matrix.custom.html' as const,
-            formatted_body: formattedBody,
-          };
+    const content = isPlainOnly
+      ? { msgtype: msgType, body }
+      : {
+          msgtype: msgType,
+          body,
+          format: 'org.matrix.custom.html' as const,
+          formatted_body: formattedBody,
+        };
 
     try {
       await mx.sendMessage(roomId, null, content);
@@ -245,7 +243,7 @@ export function RoomInputTiptap({ roomId, room }: RoomInputTiptapProps) {
   );
 
   const insertRoomMention = useCallback(
-    (roomId: string, roomAlias: string) => {
+    (mentionRoomId: string, roomAlias: string) => {
       const { editor } = editorRef.current ?? {};
       if (!editor || !autocomplete) return;
       const { from, to } = autocomplete;
@@ -255,7 +253,7 @@ export function RoomInputTiptap({ roomId, room }: RoomInputTiptapProps) {
         .deleteRange({ from, to })
         .insertContent({
           type: 'mention',
-          attrs: { id: roomId, label: roomAlias, nodeType: 'room', highlight: false },
+          attrs: { id: mentionRoomId, label: roomAlias, nodeType: 'room', highlight: false },
         })
         .insertContent(' ')
         .run();

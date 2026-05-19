@@ -25,17 +25,15 @@ function TiptapComposerToggle() {
             <>
               Replaces the Slate-based message composer with an experimental Tiptap-based one.
               <br />
-              <strong>Uploads, replies, scheduled messages and voice recording are not yet supported.</strong>
+              <strong>
+                Uploads, replies, scheduled messages and voice recording are not yet supported.
+              </strong>
               <br />
               Requires a page reload to take full effect.
             </>
           }
           after={
-            <Switch
-              variant="Primary"
-              value={useTiptapComposer}
-              onChange={setUseTiptapComposer}
-            />
+            <Switch variant="Primary" value={useTiptapComposer} onChange={setUseTiptapComposer} />
           }
         />
       </SequenceCard>

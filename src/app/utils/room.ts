@@ -312,6 +312,18 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // If the user's own message is the most recent event in the live timeline they
+  // implicitly read everything before it when they composed that reply. Return zero
+  // to suppress phantom unread badges that arise from stale SDK counters in sliding
+  // sync when no explicit read receipt is present.
+  if (userId && !room.getEventReadUpTo(userId)) {
+    const liveEvents = room.getLiveTimeline().getEvents();
+    const latestEvent = liveEvents[liveEvents.length - 1];
+    if (latestEvent && !latestEvent.isSending() && latestEvent.getSender() === userId) {
+      return { roomId: room.roomId, highlight: 0, total: 0 };
+    }
+  }
+
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
   const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
 

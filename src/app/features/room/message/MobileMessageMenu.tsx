@@ -3,8 +3,10 @@ import { Icon, Icons, Text } from 'folds';
 import type { MouseEventHandler, ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { EmojiBoard } from '$components/emoji-board';
-import { useSetAtom } from 'jotai';
-import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import { useAtomValue, useSetAtom } from 'jotai';
+import type { MatrixEvent, Relations, Room, RoomPinnedEventsEventContent } from '$types/matrix-sdk';
+import { EventType } from '$types/matrix-sdk';
+import type { StateEvents } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRecentEmoji } from '$hooks/useRecentEmoji';
 import { canEditEvent, getEventEdits } from '$utils/room';
@@ -14,6 +16,12 @@ import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { copyToClipboard } from '$utils/dom';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
+import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
+import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
+import { usePowerLevels } from '$hooks/usePowerLevels';
+import { useRoomCreators } from '$hooks/useRoomCreators';
+import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { useMemberPowerCompare } from '$hooks/useMemberPowerCompare';
 import * as css from './MobileMessageMenu.css';
 
 export type MobileMessageMenuProps = {
@@ -21,6 +29,8 @@ export type MobileMessageMenuProps = {
   mEvent: MatrixEvent;
   canDelete?: boolean;
   canSendReaction?: boolean;
+  canPinEvent?: boolean;
+  relations?: Relations;
   isThreadedMessage?: boolean;
   hideReadReceipts?: boolean;
   showDeveloperTools?: boolean;
@@ -98,6 +108,8 @@ export function MobileMessageMenu({
   mEvent,
   canDelete,
   canSendReaction,
+  canPinEvent,
+  relations,
   isThreadedMessage,
   hideReadReceipts,
   showDeveloperTools,
@@ -115,6 +127,28 @@ export function MobileMessageMenu({
     evtTimeline &&
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = edits !== undefined;
+
+  // Pinning
+  const pinnedEvents = useRoomPinnedEvents(room);
+  const isPinned = pinnedEvents.includes(evtId);
+
+  // Nicknames
+  const nicknames = useAtomValue(nicknamesAtom);
+  const setNickname = useSetAtom(setNicknameAtom);
+  const [nickEditOpen, setNickEditOpen] = useState(false);
+  const [nickDraft, setNickDraft] = useState('');
+
+  // Kick permissions
+  const powerLevels = usePowerLevels(room);
+  const creators = useRoomCreators(room);
+  const roomPermissions = useRoomPermissions(creators, powerLevels);
+  const { hasMorePower } = useMemberPowerCompare(creators, powerLevels);
+  const myUserId = mx.getSafeUserId();
+  const senderId = mEvent.getSender() ?? '';
+  const canKick =
+    senderId !== myUserId &&
+    roomPermissions.action('kick', myUserId) &&
+    hasMorePower(myUserId, senderId);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -213,6 +247,20 @@ export function MobileMessageMenu({
     onEditId?.(evtId);
     onClose();
   }, [evtId, onEditId, onClose]);
+
+  const handlePinClick = useCallback(() => {
+    const pinContent: RoomPinnedEventsEventContent = {
+      pinned: Array.from(pinnedEvents).filter((id) => id !== evtId),
+    };
+    if (!isPinned) pinContent.pinned.push(evtId);
+    mx.sendStateEvent(room.roomId, EventType.RoomPinnedEvents as keyof StateEvents, pinContent);
+    onClose();
+  }, [pinnedEvents, isPinned, evtId, mx, room, onClose]);
+
+  const handleKick = useCallback(async () => {
+    await mx.kick(room.roomId, senderId);
+    onClose();
+  }, [mx, room, senderId, onClose]);
 
   const stopPropHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
@@ -346,10 +394,82 @@ export function MobileMessageMenu({
                   }}
                 />
               )}
+              {relations && (
+                <ActionItem
+                  icon={<Icon src={Icons.Smile} size="200" />}
+                  label="View Reactions"
+                  onClick={() => {
+                    setModal({ type: ModalType.Reactions, room, relations });
+                    onClose();
+                  }}
+                />
+              )}
             </div>
 
             {/* Group 2: Utility actions */}
             <div className={css.ActionGroup}>
+              {canPinEvent && (
+                <ActionItem
+                  icon={<Icon src={Icons.Pin} size="200" />}
+                  label={isPinned ? 'Unpin Message' : 'Pin Message'}
+                  onClick={handlePinClick}
+                />
+              )}
+              {senderId !== myUserId &&
+                (nickEditOpen ? (
+                  <div className={css.NickEditSection}>
+                    <Text size="L400" as="span">
+                      Nickname
+                    </Text>
+                    <input
+                      // eslint-disable-next-line jsx-a11y/no-autofocus
+                      autoFocus
+                      className={css.NickEditInput}
+                      value={nickDraft}
+                      onChange={(e) => setNickDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setNickname(senderId, nickDraft || undefined, mx);
+                          setNickEditOpen(false);
+                          onClose();
+                        }
+                        if (e.key === 'Escape') setNickEditOpen(false);
+                      }}
+                    />
+                    <div className={css.NickEditActions}>
+                      <ActionItem
+                        icon={<Icon src={Icons.Check} size="200" />}
+                        label="Save"
+                        onClick={() => {
+                          setNickname(senderId, nickDraft || undefined, mx);
+                          setNickEditOpen(false);
+                          onClose();
+                        }}
+                      />
+                      {nicknames[senderId] && (
+                        <ActionItem
+                          icon={<Icon src={Icons.Cross} size="200" />}
+                          label="Clear"
+                          danger
+                          onClick={() => {
+                            setNickname(senderId, undefined, mx);
+                            setNickEditOpen(false);
+                            onClose();
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <ActionItem
+                    icon={<Icon src={Icons.Pencil} size="200" />}
+                    label={nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
+                    onClick={() => {
+                      setNickDraft(nicknames[senderId] ?? '');
+                      setNickEditOpen(true);
+                    }}
+                  />
+                ))}
               {(() => {
                 const content = mEvent.getContent();
                 const body: string | undefined = content['m.new_content']?.body ?? content.body;
@@ -380,8 +500,18 @@ export function MobileMessageMenu({
             </div>
 
             {/* Group 3: Destructive actions */}
-            {(!mEvent.isRedacted() && canDelete) || mEvent.getSender() !== mx.getUserId() ? (
+            {(!mEvent.isRedacted() && canDelete) ||
+            mEvent.getSender() !== mx.getUserId() ||
+            canKick ? (
               <div className={css.ActionGroup}>
+                {canKick && (
+                  <ActionItem
+                    icon={<Icon src={Icons.ArrowLeft} size="200" />}
+                    label="Kick from Room"
+                    danger
+                    onClick={handleKick}
+                  />
+                )}
                 {!mEvent.isRedacted() && canDelete && (
                   <MessageDeleteItem room={room} mEvent={mEvent} />
                 )}

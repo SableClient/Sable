@@ -9,6 +9,7 @@ import { settingsAtom } from '../state/settings';
 import { pushSubscriptionAtom } from '../state/pushSubscription';
 import { createDebugLogger } from '../utils/debugLogger';
 import { getSlidingSyncManager } from '$client/initMatrix';
+import { mobileOrTablet } from '../utils/user-agent';
 
 const debugLog = createDebugLogger('AppVisibility');
 

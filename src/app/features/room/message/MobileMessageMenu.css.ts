@@ -18,7 +18,7 @@ export const Sheet = style([
   DefaultReset,
   {
     position: 'fixed',
-    bottom: 0,
+    bottom: 'calc(100vh - var(--sable-visible-height, 100vh))',
     left: 0,
     right: 0,
     zIndex: 101,

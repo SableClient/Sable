@@ -6,6 +6,17 @@ import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import * as css from './RoomAvatar.css';
 
+// Module-level cache: maps a Matrix media URL → processed blob URL so that
+// SVG processing only runs once per unique image, even as virtual-list items
+// unmount and remount. MXC URLs are content-addressed and never change, so
+// the mapping is stable for the lifetime of the page.
+const svgBlobCache = new Map<string, string>();
+
+/** Number of SVG blob URLs currently held in the module-level cache. */
+export function getSvgCacheSize(): number {
+  return svgBlobCache.size;
+}
+
 type AvatarImageProps = {
   src: string;
   alt?: string;
@@ -23,9 +34,15 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
 
   useEffect(() => {
     let isMounted = true;
-    let objectUrl: string | null = null;
 
     const processImage = async () => {
+      // Return the cached blob URL immediately — no network round-trip needed.
+      const cachedBlobUrl = svgBlobCache.get(src);
+      if (cachedBlobUrl) {
+        setProcessedSrc(cachedBlobUrl);
+        return;
+      }
+
       try {
         const res = await fetch(src, { mode: 'cors' });
         const contentType = res.headers.get('content-type');
@@ -46,8 +63,10 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
           const newSvgString = serializer.serializeToString(doc);
           const blob = new Blob([newSvgString], { type: 'image/svg+xml' });
 
-          objectUrl = URL.createObjectURL(blob);
-          if (isMounted) setProcessedSrc(objectUrl);
+          const blobUrl = URL.createObjectURL(blob);
+          // Store in module cache so future remounts skip processing.
+          svgBlobCache.set(src, blobUrl);
+          if (isMounted) setProcessedSrc(blobUrl);
         } else if (isMounted) setProcessedSrc(src);
       } catch {
         if (isMounted) setProcessedSrc(src);
@@ -58,9 +77,8 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
 
     return () => {
       isMounted = false;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      // Blob URLs are retained in svgBlobCache — do not revoke them here so
+      // that subsequent remounts can use the cached result without re-fetching.
     };
   }, [src]);
 

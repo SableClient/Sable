@@ -190,6 +190,15 @@ export function getBlobCacheStats(): {
 }
 
 /**
+ * Async version of getBlobCacheStats that first ensures cache metadata is
+ * loaded from the Cache API. Use this in settings/diagnostics panels.
+ */
+export async function getBlobCacheStatsAsync(): Promise<ReturnType<typeof getBlobCacheStats>> {
+  await loadCacheMetadata();
+  return getBlobCacheStats();
+}
+
+/**
  * Hook to fetch and cache media blobs with persistent storage.
  * Checks in-memory cache first, then Cache API, then fetches from network.
  */

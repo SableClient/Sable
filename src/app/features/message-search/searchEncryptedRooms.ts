@@ -70,8 +70,10 @@ export function searchRoomTimeline(
 
     if (hasTypes && hasTypes.length > 0 && !mEventMatchesHasTypes(mEvent, hasTypes)) continue;
 
-    const body: string = mEvent.getContent().body ?? '';
-    if (!body || !body.toLowerCase().includes(lowerTerm)) continue;
+    if (lowerTerm !== '') {
+      const body: string = mEvent.getContent().body ?? '';
+      if (!body || !body.toLowerCase().includes(lowerTerm)) continue;
+    }
 
     items.push({
       rank: 1,

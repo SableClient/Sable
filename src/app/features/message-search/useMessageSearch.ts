@@ -118,7 +118,8 @@ export const useMessageSearch = (params: MessageSearchParams) => {
 
   const searchMessages = useCallback(
     async (nextBatch?: string) => {
-      if (!term)
+      const hasHasTypes = hasTypes && hasTypes.length > 0;
+      if (!term && !hasHasTypes)
         return {
           highlights: [],
           groups: [],
@@ -137,12 +138,14 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       // In-memory search only runs on the first page — encrypted rooms have no pagination.
       const inMemoryGroups =
         encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0
-          ? searchEncryptedRoomsInMemory(mx, term, encryptedRoomIds, senders, hasTypes)
+          ? searchEncryptedRoomsInMemory(mx, term ?? '', encryptedRoomIds, senders, hasTypes)
           : [];
 
-      if (skipServerSearch) {
+      // When there's no text term, skip server search (server requires search_term).
+      // Only in-memory encrypted rooms are searchable by has: type alone.
+      if (skipServerSearch || !term) {
         return {
-          highlights: term.split(/\s+/).filter(Boolean),
+          highlights: term ? term.split(/\s+/).filter(Boolean) : [],
           groups: filterGroupsByHasType(inMemoryGroups),
           inMemoryRoomCount: encryptedRoomIds.length,
         };

@@ -18,6 +18,8 @@ import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '$pages
 import { useSelectedRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { isRoom } from '$utils/room';
+import { useAtomValue } from 'jotai';
+import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';
 import type { MessageSearchParams } from './useMessageSearch';
 import { useMessageSearch } from './useMessageSearch';
@@ -54,6 +56,7 @@ export function MessageSearch({
   scrollRef,
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
+  const mDirects = useAtomValue(mDirectAtom);
   const allRoomsSelector = useCallback((rId: string) => !!isRoom(mx.getRoom(rId)), [mx]);
   const allRooms = useSelectedRooms(allRoomsAtom, allRoomsSelector);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
@@ -110,7 +113,7 @@ export function MessageSearch({
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    enabled: !!msgSearchParams.term,
+    enabled: !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0),
     queryKey: [
       'search',
       msgSearchParams.term,

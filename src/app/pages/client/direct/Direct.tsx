@@ -18,7 +18,7 @@ import {
 } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import FocusTrap from 'focus-trap-react';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
@@ -31,7 +31,7 @@ import {
   NavItem,
   NavItemContent,
 } from '$components/nav';
-import { getDirectCreatePath, getDirectRoomPath } from '$pages/pathUtils';
+import { getDirectCreatePath, getDirectRoomPath, getDirectSearchPath } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { VirtualTile } from '$components/virtualizer';
@@ -51,7 +51,7 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
-import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
+import { useDirectCreateSelected, useDirectSearchSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
@@ -198,6 +198,7 @@ export function Direct() {
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const createDirectSelected = useDirectCreateSelected();
+  const searchSelected = useDirectSearchSelected();
 
   const selectedRoomId = useSelectedRoom();
   const noRoomToDisplay = directs.length === 0;
@@ -297,6 +298,30 @@ export function Direct() {
                       </Box>
                     </NavItemContent>
                   </NavButton>
+                </NavItem>
+                <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
+                  <NavLink to={getDirectSearchPath()}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        gap="200"
+                        justifyContent="Center"
+                      >
+                        <Avatar size="200" radii="400">
+                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        </Avatar>
+                        {!hideText && (
+                          <Box as="span" grow="Yes">
+                            <Text as="span" size="Inherit" truncate>
+                              Message Search
+                            </Text>
+                          </Box>
+                        )}
+                      </Box>
+                    </NavItemContent>
+                  </NavLink>
                 </NavItem>
               </NavCategory>
               <NavCategory>

@@ -47,7 +47,7 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
+import { getDirectSearchPath, getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
 import { createLogger } from '$utils/debug';
 import {
   getCanonicalAliasOrRoomId,
@@ -562,7 +562,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     };
     const path = space
       ? getSpaceSearchPath(getCanonicalAliasOrRoomId(mx, space.roomId))
-      : getHomeSearchPath();
+      : isDirectConversation
+        ? getDirectSearchPath()
+        : getHomeSearchPath();
     navigate(withSearchParam(path, searchParams));
   };
 

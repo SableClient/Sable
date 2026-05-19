@@ -231,7 +231,7 @@ export const MessageBookmarkItem = as<
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Bookmark} />}
+      after={<Icon size="100" src={Icons.Bookmark} filled={isBookmarked} />}
       radii="300"
       onClick={handleClick}
       {...props}

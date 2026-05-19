@@ -52,8 +52,11 @@ const buildHash = resolveBuildHash();
 
 const injectedExperimentFlags: Record<string, boolean> = Object.fromEntries(
   Object.entries(process.env)
-    .filter(([key]) => key.startsWith('VITE_FEATURE_'))
-    .map(([key, val]) => [key.slice('VITE_FEATURE_'.length), val === 'true' || val === '1'])
+    .filter(([k]) => k.startsWith('VITE_FEATURE_'))
+    .map(([k, v]) => [
+      k.slice('VITE_FEATURE_'.length).toLowerCase().replace(/_/g, '-'),
+      v === 'true' || v === '1',
+    ])
 );
 
 const isReleaseTag = (() => {

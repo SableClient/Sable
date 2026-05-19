@@ -4,6 +4,10 @@ import type { ClientConfig } from '../../../hooks/useClientConfig';
 
 const debugLog = createDebugLogger('PushNotifications');
 
+export function isPushSupported(): boolean {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
 type PushSubscriptionState = [
   PushSubscriptionJSON | null,
   (subscription: PushSubscription | null) => void,
@@ -32,12 +36,12 @@ export async function enablePushNotifications(
   clientConfig: ClientConfig,
   pushSubscriptionAtom: PushSubscriptionState
 ): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (!isPushSupported()) {
     debugLog.error(
       'notification',
       'Push messaging not supported - missing serviceWorker or PushManager'
     );
-    throw new Error('Push messaging is not supported in this browser.');
+    return;
   }
   debugLog.info('notification', 'Enabling push notifications');
   const [pushSubAtom, setPushSubscription] = pushSubscriptionAtom;
@@ -178,6 +182,7 @@ export async function togglePusher(
   keepEnabledWhenVisible = false
 ): Promise<void> {
   if (usePushNotifications) {
+    if (!isPushSupported()) return;
     if (visible && !keepEnabledWhenVisible) {
       await disablePushNotifications(mx, clientConfig, pushSubscriptionAtom);
     } else {

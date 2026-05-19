@@ -18,6 +18,7 @@ import {
   requestBrowserNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
+  isPushSupported,
 } from './PushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
 
@@ -106,6 +107,8 @@ function WebPushNotificationSetting() {
   const pushSubAtom = useAtom(pushSubscriptionAtom);
 
   const browserPermission = usePermissionState('notifications', getNotificationState());
+
+  if (!isPushSupported()) return null;
   useEffect(() => {
     setIsLoading(false);
   }, []);

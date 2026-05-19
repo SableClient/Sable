@@ -251,7 +251,7 @@ export const defaultSettings: Settings = {
   // Push notifications (SW/Sygnal): default on for mobile, opt-in on desktop.
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
   // System (OS) notifications: desktop-only; hidden and disabled on mobile.
-  usePushNotifications: mobileOrTablet(),
+  usePushNotifications: mobileOrTablet() && 'serviceWorker' in navigator && 'PushManager' in window,
   useInAppNotifications: mobileOrTablet(),
   useSystemNotifications: !mobileOrTablet(),
   isNotificationSounds: true,

@@ -9,7 +9,7 @@ import { settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
-import { clearMediaCache, getBlobCacheStats } from '$hooks/useBlobCache';
+import { clearMediaCache, clearInMemoryBlobCache, getBlobCacheStats } from '$hooks/useBlobCache';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
@@ -43,6 +43,11 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
       setCacheStats(getBlobCacheStats());
     }, [])
   );
+
+  const clearInMemoryAction = useCallback(() => {
+    clearInMemoryBlobCache();
+    setCacheStats(getBlobCacheStats());
+  }, []);
 
   const [rotateState, rotateAllSessions] = useAsyncCallback<
     { rotated: number; total: number },
@@ -232,8 +237,25 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                     gap="400"
                   >
                     <SettingTile
+                      focusId="clear-in-memory-cache"
+                      title="In-Memory Cache"
+                      description={`${cacheStats.cacheSize} ${cacheStats.cacheSize === 1 ? 'item' : 'items'} · cleared on reload`}
+                      after={
+                        <Button
+                          onClick={clearInMemoryAction}
+                          variant="Secondary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                        >
+                          <Text size="B300">Clear</Text>
+                        </Button>
+                      }
+                    />
+                    <SettingTile
                       focusId="clear-media-cache"
-                      title="Media Cache"
+                      title="Persistent Media Cache"
                       description={`${cacheStats.persistentCacheCount} files · ${cacheStats.persistentCacheSizeMB.toFixed(1)} MB`}
                       after={
                         <Button
@@ -258,7 +280,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                     >
                       {clearCacheState.status === AsyncStatus.Success && (
                         <Text size="T200" style={{ color: color.Success.Main }}>
-                          Media cache cleared.
+                          Persistent cache cleared.
                         </Text>
                       )}
                       {clearCacheState.status === AsyncStatus.Error && (
@@ -267,6 +289,11 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                         </Text>
                       )}
                     </SettingTile>
+                    <SettingTile
+                      focusId="matrix-store-cache"
+                      title="Matrix Event Store"
+                      description="Rooms, messages, and sync state. To clear, use About → Clear Cache & Reload."
+                    />
                   </SequenceCard>
                 </Box>
               )}

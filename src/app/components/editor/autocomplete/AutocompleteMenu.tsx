@@ -60,6 +60,7 @@ export function AutocompleteMenu({
           isKeyForward: (evt: KeyboardEvent) => isKeyHotkey('arrowdown', evt),
           isKeyBackward: (evt: KeyboardEvent) => isKeyHotkey('arrowup', evt),
           escapeDeactivates: stopPropagation,
+          tabbableOptions: { displayCheck: 'none' },
         }}
       >
         <Menu

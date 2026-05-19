@@ -41,6 +41,8 @@ import { RenderMessageContent } from '$components/RenderMessageContent';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import type { GetContentCallback } from '$types/matrix/room';
+import type { Opts as LinkifyOpts } from 'linkifyjs';
+import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
 import {

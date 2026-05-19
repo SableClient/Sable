@@ -1337,6 +1337,8 @@ function MessageInternal(
           mEvent={mEvent}
           canDelete={canDelete}
           canSendReaction={canSendReaction}
+          canPinEvent={canPinEvent}
+          relations={relations}
           isThreadedMessage={isThreadedMessage}
           hideReadReceipts={hideReadReceipts}
           showDeveloperTools={showDeveloperTools}

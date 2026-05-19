@@ -139,3 +139,31 @@ export const EmojiPickerWrap = style({
   justifyContent: 'center',
   padding: config.space.S200,
 });
+
+export const NickEditSection = style({
+  padding: `${config.space.S300} ${config.space.S400}`,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: config.space.S200,
+});
+
+export const NickEditInput = style({
+  background: color.Surface.Container,
+  color: color.Surface.OnContainer,
+  border: `1px solid ${color.SurfaceVariant.ContainerLine}`,
+  borderRadius: toRem(6),
+  padding: `${config.space.S100} ${config.space.S200}`,
+  fontSize: toRem(14),
+  width: '100%',
+  outline: 'none',
+  selectors: {
+    '&:focus': {
+      borderColor: color.Primary.Main,
+    },
+  },
+});
+
+export const NickEditActions = style({
+  display: 'flex',
+  gap: config.space.S200,
+});

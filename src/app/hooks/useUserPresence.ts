@@ -49,7 +49,9 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
       // can re-evaluate once a presence event for this user is stored.
       const handleEvent = (event: MatrixEvent) => {
         if (event.getType() !== 'm.presence') return;
-        const sender = event.getSender();
+        // MSC4186 sliding sync presence events may carry the user ID in
+        // content.user_id rather than the sender field.
+        const sender = event.getSender() ?? (event.getContent().user_id as string | undefined);
         if (sender !== userId) return;
         const latestUser = mx.getUser(userId);
         if (latestUser) setPresence(getUserPresence(latestUser));

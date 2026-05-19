@@ -639,13 +639,51 @@ function validMediaRequest(url: string, baseUrl: string): boolean {
   });
 }
 
+/** Cache for authenticated Matrix media responses — keyed by URL. */
+const SW_MEDIA_CACHE = 'sable-media-sw-v1';
+
 function fetchConfig(token: string): RequestInit {
   return {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    cache: 'default',
+    // Use 'no-cache' to ensure we always check with the server on the first
+    // miss; successful responses are stored in SW_MEDIA_CACHE so avatars,
+    // stickers and other static media don't hit the network on every remount.
+    cache: 'no-cache',
   };
+}
+
+/**
+ * Fetch media with auth, returning a cached response if available.
+ * Successful (2xx) responses are written to SW_MEDIA_CACHE; errors are never
+ * cached so that a transient 401/404 doesn't permanently block a resource.
+ */
+async function fetchMediaWithCache(
+  url: string,
+  accessToken: string,
+  redirect: RequestRedirect
+): Promise<Response> {
+  let cache: Cache | undefined;
+  try {
+    cache = await self.caches.open(SW_MEDIA_CACHE);
+    const cached = await cache.match(url);
+    if (cached) return cached;
+  } catch {
+    // caches may be unavailable (e.g. in private browsing on some browsers)
+  }
+
+  const response = await fetch(url, { ...fetchConfig(accessToken), redirect });
+
+  if (cache && response.ok) {
+    // Store a clone — the original body is consumed by the browser.
+    // Failures are intentionally not cached.
+    cache.put(url, response.clone()).catch(() => {
+      // Ignore quota / write errors.
+    });
+  }
+
+  return response;
 }
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
@@ -678,7 +716,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    event.respondWith(fetchMediaWithCache(url, session.accessToken, redirect));
     return;
   }
 
@@ -698,7 +736,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       ? preloadedSession
       : undefined);
   if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(fetchMediaWithCache(url, byBaseUrl.accessToken, redirect));
     return;
   }
 
@@ -708,10 +746,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, {
-            ...fetchConfig(persisted.accessToken),
-            redirect,
-          });
+          return fetchMediaWithCache(url, persisted.accessToken, redirect);
         }
         return fetch(event.request);
       })
@@ -723,13 +758,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     requestSessionWithTimeout(clientId).then(async (s) => {
       // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+        return fetchMediaWithCache(url, s.accessToken, redirect);
       }
       // Fallback: try the persisted session (helps when SW restarts on iOS and
       // the client window hasn't responded to requestSession yet).
       const persisted = await loadPersistedSession();
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+        return fetchMediaWithCache(url, persisted.accessToken, redirect);
       }
       console.warn(
         '[SW fetch] No valid session for media request',

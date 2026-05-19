@@ -7,8 +7,8 @@ import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
-import { useUserPresence } from '$hooks/useUserPresence';
-import { PresenceBadge } from '$components/presence';
+import { Presence, useUserPresence } from '$hooks/useUserPresence';
+import { AvatarPresence, PresenceBadge } from '$components/presence';
 import * as css from './style.css';
 
 const getName = (room: Room, member: RoomMember, nicknames: Record<string, string>) =>
@@ -39,25 +39,30 @@ export const MemberTile = as<'button', MemberTileProps>(
 
     return (
       <AsMemberTile className={css.MemberTile} {...props} ref={ref}>
-        <Avatar size="300" radii="400">
-          <UserAvatar
-            userId={member.userId}
-            src={avatarUrl ?? undefined}
-            alt={name}
-            renderFallback={() => <Icon size="300" src={Icons.User} filled />}
-          />
-        </Avatar>
+        <AvatarPresence
+          badge={
+            presence && presence.presence !== Presence.Offline ? (
+              <PresenceBadge presence={presence.presence} size="200" />
+            ) : undefined
+          }
+        >
+          <Avatar size="300" radii="400">
+            <UserAvatar
+              userId={member.userId}
+              src={avatarUrl ?? undefined}
+              alt={name}
+              renderFallback={() => <Icon size="300" src={Icons.User} filled />}
+            />
+          </Avatar>
+        </AvatarPresence>
         <Box grow="Yes" as="span" direction="Column">
           <Text as="span" size="T300" truncate style={{ color, fontFamily: font }}>
             <b>{name}</b>
           </Text>
-          {presence && presence.status && (
-            <Box alignItems="Center" gap="100">
-              <PresenceBadge presence={presence.presence} size="200" />
-              <Text as="span" size="T200" priority="300" truncate>
-                {presence.status}
-              </Text>
-            </Box>
+          {presence?.status && (
+            <Text as="span" size="T200" priority="300" truncate>
+              {presence.status}
+            </Text>
           )}
         </Box>
         {after}

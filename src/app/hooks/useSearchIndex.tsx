@@ -15,11 +15,13 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  ClientEvent,
   Direction,
   EventTimelineSet,
   EventType,
   MatrixEventEvent,
   RoomEvent,
+  SyncState,
   type MatrixEvent,
   type Room,
 } from '$types/matrix-sdk';
@@ -70,12 +72,21 @@ export function useSearchIndex(): SearchIndexCtx | null {
 
 // ── Idle scheduler ───────────────────────────────────────────────────────────
 
+/**
+ * Maximum number of rooms whose backfill pagination may run concurrently.
+ * Keeping this small prevents flooding the HTTP connection pool (and starving
+ * the /sync long-poll) on low-bandwidth or constrained devices such as iOS.
+ */
+const MAX_CONCURRENT_BACKFILLS = 2;
+
 function scheduleIdle(cb: () => void): () => void {
   if (typeof requestIdleCallback === 'function') {
     const id = requestIdleCallback(cb, { timeout: 5000 });
     return () => cancelIdleCallback(id);
   }
-  const id = setTimeout(cb, 200);
+  // iOS Safari does not support requestIdleCallback — use a longer delay so the
+  // sync connection is not starved by rapid back-to-back pagination requests.
+  const id = setTimeout(cb, 1000);
   return () => clearTimeout(id);
 }
 
@@ -128,6 +139,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const headlessSetsRef = useRef<Map<string, EventTimelineSet>>(new Map());
   // cancellable idle callbacks for backfill
   const cancelIdlesRef = useRef<Array<() => void>>([]);
+  // Queue of rooms waiting to start backfill (for the concurrency limiter)
+  const backfillQueueRef = useRef<Array<{ room: Room; state: BackfillState }>>([]);
+  // Current Matrix sync state — used to pause backfill when sync is struggling
+  const syncStateRef = useRef<SyncState | null>(null);
 
   const postToWorker = useCallback((msg: WorkerInMessage) => {
     // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
@@ -220,19 +235,36 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       });
 
       if (!done) {
-        // Schedule next page in an idle callback
+        // Schedule next page — but yield to the main sync if it's struggling.
+        // resumeBackfill will restart this room once sync recovers.
+        const nextState: BackfillState = {
+          token: nextToken,
+          done: false,
+          indexedCount: state.indexedCount + events.length,
+        };
         const cancel = scheduleIdle(() => {
-          void backfillRoom(room, {
-            token: nextToken,
-            done: false,
-            indexedCount: state.indexedCount + events.length,
-          });
+          const s = syncStateRef.current;
+          if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) {
+            backfillingRoomsRef.current.delete(room.roomId);
+            backfillQueueRef.current.unshift({ room, state: nextState });
+            return;
+          }
+          void backfillRoom(room, nextState);
         });
         cancelIdlesRef.current.push(cancel);
       } else {
         backfillingRoomsRef.current.delete(room.roomId);
-        // Update isBackfilling state
-        if (backfillingRoomsRef.current.size === 0) {
+        // Dequeue the next room from the concurrency queue while under the limit
+        while (
+          backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
+          backfillQueueRef.current.length > 0
+        ) {
+          const next = backfillQueueRef.current.shift()!;
+          backfillingRoomsRef.current.add(next.room.roomId);
+          const cancel = scheduleIdle(() => void backfillRoom(next.room, next.state));
+          cancelIdlesRef.current.push(cancel);
+        }
+        if (backfillingRoomsRef.current.size === 0 && backfillQueueRef.current.length === 0) {
           setIsBackfilling(false);
         }
       }
@@ -240,14 +272,32 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     [mx, postToWorker]
   );
 
+  /**
+   * Dequeue rooms from the backfill queue up to the concurrency limit.
+   * Skips when the Matrix sync is not healthy so the /sync connection is
+   * never starved by background pagination requests.
+   */
+  const resumeBackfill = useCallback(() => {
+    const s = syncStateRef.current;
+    if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) return;
+
+    while (
+      backfillingRoomsRef.current.size < MAX_CONCURRENT_BACKFILLS &&
+      backfillQueueRef.current.length > 0
+    ) {
+      const next = backfillQueueRef.current.shift()!;
+      backfillingRoomsRef.current.add(next.room.roomId);
+      const cancel = scheduleIdle(() => void backfillRoom(next.room, next.state));
+      cancelIdlesRef.current.push(cancel);
+    }
+  }, [backfillRoom]);
+
   const startBackfill = useCallback(
     (backfillStates: Record<string, BackfillState>) => {
-      const encryptedRooms = mx
-        .getRooms()
-        .filter((r) => !r.isSpaceRoom());
+      const rooms = mx.getRooms().filter((r) => !r.isSpaceRoom());
 
-      let scheduled = 0;
-      for (const room of encryptedRooms) {
+      // Enqueue all unfinished rooms that are not already active
+      for (const room of rooms) {
         const state = backfillStates[room.roomId] ?? {
           token: null,
           done: false,
@@ -255,19 +305,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         };
         if (state.done) continue;
         if (backfillingRoomsRef.current.has(room.roomId)) continue;
+        if (backfillQueueRef.current.some((e) => e.room.roomId === room.roomId)) continue;
 
-        backfillingRoomsRef.current.add(room.roomId);
-        scheduled += 1;
-
-        const cancel = scheduleIdle(() => {
-          void backfillRoom(room, state);
-        });
-        cancelIdlesRef.current.push(cancel);
+        backfillQueueRef.current.push({ room, state });
       }
 
-      if (scheduled > 0) setIsBackfilling(true);
+      if (backfillQueueRef.current.length > 0 || backfillingRoomsRef.current.size > 0) {
+        setIsBackfilling(true);
+      }
+      resumeBackfill();
     },
-    [mx, backfillRoom]
+    [mx, resumeBackfill]
   );
 
   // ── Worker message handler ─────────────────────────────────────────────────
@@ -347,6 +395,19 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       maxMessagesPerRoom: searchIndexMessageLimit,
     } satisfies WorkerInMessage);
 
+    // Seed sync state so backfill is correctly paused if the worker becomes
+    // ready before the first PREPARED/SYNCING event fires.
+    syncStateRef.current = mx.getSyncState();
+
+    // When sync recovers, restart any rooms that were paused mid-backfill.
+    const handleSync = (state: SyncState) => {
+      syncStateRef.current = state;
+      if (state === SyncState.Syncing || state === SyncState.Prepared || state === SyncState.Catchup) {
+        resumeBackfill();
+      }
+    };
+    mx.on(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
+
     // Live indexing listener
     const handleTimeline = (mEvent: MatrixEvent, room: Room | undefined) => {
       if (!room) return;
@@ -360,6 +421,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       workerRef.current = null;
       setIsReady(false);
       setIsBackfilling(false);
+      mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
       mx.removeListener(
         RoomEvent.Timeline,
         handleTimeline as unknown as (...args: unknown[]) => void
@@ -376,8 +438,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       cancelIdlesRef.current = [];
       backfillingRooms.clear();
       headlessSets.clear();
+      backfillQueueRef.current = [];
     };
-  }, [idbSearchIndex, mx, searchIndexMessageLimit, handleWorkerMessage, indexEvent]);
+  }, [idbSearchIndex, mx, searchIndexMessageLimit, handleWorkerMessage, indexEvent, resumeBackfill]);
 
   // ── Public API ─────────────────────────────────────────────────────────────
 

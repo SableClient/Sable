@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
-import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -16,12 +15,13 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '$pages/pathUtils';
-import { useRooms } from '$state/hooks/roomList';
+import { useSelectedRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { mDirectAtom } from '$state/mDirectList';
+import { isRoom } from '$utils/room';
 import { VirtualTile } from '$components/virtualizer';
 import type { MessageSearchParams } from './useMessageSearch';
 import { useMessageSearch } from './useMessageSearch';
+import type { SearchHasType } from './useMessageSearch';
 import { SearchResultGroup } from './SearchResultGroup';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
@@ -34,6 +34,7 @@ const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSea
       order: searchParams.get('order') ?? undefined,
       rooms: searchParams.get('rooms') ?? undefined,
       senders: searchParams.get('senders') ?? undefined,
+      has: searchParams.get('has') ?? undefined,
     }),
     [searchParams]
   );
@@ -53,8 +54,8 @@ export function MessageSearch({
   scrollRef,
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
-  const mDirects = useAtomValue(mDirectAtom);
-  const allRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const allRoomsSelector = useCallback((rId: string) => !!isRoom(mx.getRoom(rId)), [mx]);
+  const allRooms = useSelectedRooms(allRoomsAtom, allRoomsSelector);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -83,6 +84,15 @@ export function MessageSearch({
     }
     return undefined;
   }, [searchPathSearchParams.senders]);
+  const VALID_HAS_TYPES: SearchHasType[] = ['image', 'file', 'audio', 'video', 'link'];
+  const searchParamHasTypes = useMemo(() => {
+    if (!searchPathSearchParams.has) return undefined;
+    const decoded = decodeSearchParamValueArray(searchPathSearchParams.has).filter(
+      (t): t is SearchHasType => VALID_HAS_TYPES.includes(t as SearchHasType)
+    );
+    return decoded.length > 0 ? decoded : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchPathSearchParams.has]);
 
   const msgSearchParams: MessageSearchParams = useMemo(() => {
     const isGlobal = searchPathSearchParams.global === 'true';
@@ -93,8 +103,9 @@ export function MessageSearch({
       order: searchPathSearchParams.order ?? SearchOrderBy.Recent,
       rooms: searchParamRooms ?? defaultRooms,
       senders: searchParamsSenders ?? senders,
+      hasTypes: searchParamHasTypes,
     };
-  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, rooms, senders]);
+  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, searchParamHasTypes, rooms, senders]);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
@@ -106,6 +117,7 @@ export function MessageSearch({
       msgSearchParams.order,
       msgSearchParams.rooms,
       msgSearchParams.senders,
+      msgSearchParams.hasTypes,
     ],
     queryFn: ({ pageParam }) => searchMessages(pageParam),
     initialPageParam: '',
@@ -179,6 +191,28 @@ export function MessageSearch({
     });
   };
 
+  const handleHasTypesChange = (hasTypes?: SearchHasType[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('has');
+      if (hasTypes && hasTypes.length > 0) {
+        newParams.append('has', encodeSearchParamValueArray(hasTypes));
+      }
+      return newParams;
+    });
+  };
+
+  const handleSendersChange = (newSenders?: string[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('senders');
+      if (newSenders && newSenders.length > 0) {
+        newParams.append('senders', encodeSearchParamValueArray(newSenders));
+      }
+      return newParams;
+    });
+  };
+
   const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
@@ -218,13 +252,17 @@ export function MessageSearch({
         <SearchFilters
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
-          roomList={searchPathSearchParams.global === 'true' ? allRooms : rooms}
+          roomList={allRooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}
           onGlobalChange={handleGlobalChange}
           order={msgSearchParams.order}
           onOrderChange={handleOrderChange}
+          hasTypes={searchParamHasTypes}
+          onHasTypesChange={handleHasTypesChange}
+          senders={searchParamsSenders ?? senders}
+          onSendersChange={handleSendersChange}
         />
       </Box>
 

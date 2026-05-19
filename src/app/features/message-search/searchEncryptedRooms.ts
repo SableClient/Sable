@@ -2,6 +2,26 @@ import { EventType } from '$types/matrix-sdk';
 import type { IEventWithRoomId, IResultContext, MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import type { ResultGroup, ResultItem } from './useMessageSearch';
 
+/** Media / content type filters — mirrors Discord's `has:` filter. */
+export type SearchHasType = 'image' | 'file' | 'audio' | 'video' | 'link';
+
+const HAS_TYPE_TO_MSGTYPE: Partial<Record<SearchHasType, string>> = {
+  image: 'm.image',
+  file: 'm.file',
+  audio: 'm.audio',
+  video: 'm.video',
+};
+
+function mEventMatchesHasTypes(mEvent: MatrixEvent, hasTypes: SearchHasType[]): boolean {
+  const content = mEvent.getContent() as { msgtype?: string; body?: string };
+  for (const type of hasTypes) {
+    const msgtype = HAS_TYPE_TO_MSGTYPE[type];
+    if (msgtype && content.msgtype === msgtype) return true;
+    if (type === 'link' && /https?:\/\//i.test(content.body ?? '')) return true;
+  }
+  return false;
+}
+
 // Shared empty context — in-memory results have no surrounding-event context.
 const EMPTY_CONTEXT: IResultContext = {
   events_before: [],
@@ -33,7 +53,8 @@ export function toSearchEvent(mEvent: MatrixEvent, roomId: string): IEventWithRo
 export function searchRoomTimeline(
   room: { roomId: string; getLiveTimeline: () => { getEvents: () => MatrixEvent[] } },
   lowerTerm: string,
-  senders?: string[]
+  senders?: string[],
+  hasTypes?: SearchHasType[]
 ): ResultGroup | undefined {
   const events = room.getLiveTimeline().getEvents();
   const items: ResultItem[] = [];
@@ -46,6 +67,8 @@ export function searchRoomTimeline(
     const sender = mEvent.getSender();
     if (!sender) continue;
     if (senders && !senders.includes(sender)) continue;
+
+    if (hasTypes && hasTypes.length > 0 && !mEventMatchesHasTypes(mEvent, hasTypes)) continue;
 
     const body: string = mEvent.getContent().body ?? '';
     if (!body || !body.toLowerCase().includes(lowerTerm)) continue;
@@ -73,7 +96,8 @@ export function searchEncryptedRoomsInMemory(
   mx: Pick<MatrixClient, 'getRoom'>,
   term: string,
   encryptedRoomIds: string[],
-  senders?: string[]
+  senders?: string[],
+  hasTypes?: SearchHasType[]
 ): ResultGroup[] {
   const lowerTerm = term.toLowerCase();
   const groups: ResultGroup[] = [];
@@ -82,7 +106,7 @@ export function searchEncryptedRoomsInMemory(
     const room = mx.getRoom(roomId);
     if (!room) continue;
 
-    const group = searchRoomTimeline(room, lowerTerm, senders);
+    const group = searchRoomTimeline(room, lowerTerm, senders, hasTypes);
     if (group) groups.push(group);
   }
 

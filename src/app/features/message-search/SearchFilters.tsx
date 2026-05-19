@@ -1,4 +1,4 @@
-import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import type { ChangeEventHandler, KeyboardEvent, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
 import {
@@ -34,6 +34,7 @@ import type { DebounceOptions } from '$hooks/useDebounce';
 import { useDebounce } from '$hooks/useDebounce';
 import { VirtualTile } from '$components/virtualizer';
 import { stopPropagation } from '$utils/keyboard';
+import type { SearchHasType } from './useMessageSearch';
 
 type OrderButtonProps = {
   order?: string;
@@ -333,6 +334,127 @@ function SelectRoomButton({ roomList, selectedRooms, onChange }: SelectRoomButto
   );
 }
 
+const HAS_FILTER_OPTIONS: { type: SearchHasType; label: string; icon: string }[] = [
+  { type: 'image', label: 'Image', icon: Icons.Photo },
+  { type: 'file', label: 'File', icon: Icons.File },
+  { type: 'audio', label: 'Audio', icon: Icons.VolumeHigh },
+  { type: 'video', label: 'Video', icon: Icons.Play },
+  { type: 'link', label: 'Link', icon: Icons.Link },
+];
+
+type HasFilterChipsProps = {
+  hasTypes?: SearchHasType[];
+  onChange: (hasTypes?: SearchHasType[]) => void;
+};
+function HasFilterChips({ hasTypes, onChange }: HasFilterChipsProps) {
+  const toggle = (type: SearchHasType) => {
+    if (hasTypes?.includes(type)) {
+      const next = hasTypes.filter((t) => t !== type);
+      onChange(next.length > 0 ? next : undefined);
+    } else {
+      onChange([...(hasTypes ?? []), type]);
+    }
+  };
+
+  return (
+    <>
+      {HAS_FILTER_OPTIONS.map(({ type, label, icon }) => {
+        const active = hasTypes?.includes(type);
+        return (
+          <Chip
+            key={type}
+            variant={active ? 'Success' : 'Surface'}
+            aria-pressed={active}
+            before={active ? <Icon size="100" src={Icons.Check} /> : <Icon size="100" src={icon} />}
+            outlined
+            onClick={() => toggle(type)}
+          >
+            <Text size="T200">{label}</Text>
+          </Chip>
+        );
+      })}
+    </>
+  );
+}
+
+type SelectSenderButtonProps = {
+  selectedSenders?: string[];
+  onChange: (senders?: string[]) => void;
+};
+function SelectSenderButton({ selectedSenders, onChange }: SelectSenderButtonProps) {
+  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const [inputValue, setInputValue] = useState('');
+
+  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const addSender = () => {
+    const value = inputValue.trim();
+    if (!value) return;
+    if (!selectedSenders?.includes(value)) {
+      onChange([...(selectedSenders ?? []), value]);
+    }
+    setInputValue('');
+    setMenuAnchor(undefined);
+  };
+
+  const handleKeyDown = (evt: KeyboardEvent<HTMLInputElement>) => {
+    if (evt.key === 'Enter') addSender();
+  };
+
+  const handleInputChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    setInputValue(evt.currentTarget.value);
+  };
+
+  return (
+    <PopOut
+      anchor={menuAnchor}
+      align="Center"
+      position="Bottom"
+      content={
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: false,
+            onDeactivate: () => setMenuAnchor(undefined),
+            clickOutsideDeactivates: true,
+            escapeDeactivates: stopPropagation,
+          }}
+        >
+          <Menu variant="Surface" style={{ width: toRem(260) }}>
+            <Box direction="Column" style={{ padding: config.space.S200 }} gap="200">
+              <Text size="L400">From (Matrix ID)</Text>
+              <Box gap="200">
+                <Input
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  size="300"
+                  radii="300"
+                  placeholder="@user:server"
+                  onKeyDown={handleKeyDown}
+                  style={{ flex: 1 }}
+                />
+                <Button size="300" variant="Secondary" radii="300" onClick={addSender}>
+                  <Text size="B300">Add</Text>
+                </Button>
+              </Box>
+            </Box>
+          </Menu>
+        </FocusTrap>
+      }
+    >
+      <Chip
+        onClick={handleOpenMenu}
+        variant="SurfaceVariant"
+        radii="Pill"
+        before={<Icon size="100" src={Icons.PlusCircle} />}
+      >
+        <Text size="T200">Add Sender</Text>
+      </Chip>
+    </PopOut>
+  );
+}
+
 type SearchFiltersProps = {
   defaultRoomsFilterName: string;
   allowGlobal?: boolean;
@@ -343,6 +465,10 @@ type SearchFiltersProps = {
   onGlobalChange: (global?: boolean) => void;
   order?: string;
   onOrderChange: (order?: string) => void;
+  hasTypes?: SearchHasType[];
+  onHasTypesChange: (hasTypes?: SearchHasType[]) => void;
+  senders?: string[];
+  onSendersChange: (senders?: string[]) => void;
 };
 export function SearchFilters({
   defaultRoomsFilterName,
@@ -354,6 +480,10 @@ export function SearchFilters({
   order,
   onGlobalChange,
   onOrderChange,
+  hasTypes,
+  onHasTypesChange,
+  senders,
+  onSendersChange,
 }: SearchFiltersProps) {
   const mx = useMatrixClient();
 
@@ -413,6 +543,37 @@ export function SearchFilters({
         />
         <Box grow="Yes" data-spacing-node />
         <OrderButton order={order} onChange={onOrderChange} />
+      </Box>
+      <Box gap="200" wrap="Wrap" alignItems="Center">
+        <Text size="L400" style={{ lineHeight: toRem(28) }}>
+          Has:
+        </Text>
+        <HasFilterChips hasTypes={hasTypes} onChange={onHasTypesChange} />
+        <Line
+          style={{ margin: `${config.space.S100} 0` }}
+          direction="Vertical"
+          variant="Surface"
+          size="300"
+        />
+        <Text size="L400" style={{ lineHeight: toRem(28) }}>
+          From:
+        </Text>
+        {senders?.map((sender) => (
+          <Chip
+            key={sender}
+            variant="Success"
+            onClick={() => {
+              const next = senders.filter((s) => s !== sender);
+              onSendersChange(next.length > 0 ? next : undefined);
+            }}
+            radii="Pill"
+            before={<Icon size="50" src={Icons.User} />}
+            after={<Icon size="50" src={Icons.Cross} />}
+          >
+            <Text size="T200">{mx.getUser(sender)?.displayName ?? sender}</Text>
+          </Chip>
+        ))}
+        <SelectSenderButton selectedSenders={senders} onChange={onSendersChange} />
       </Box>
     </Box>
   );

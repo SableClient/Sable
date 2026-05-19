@@ -16,6 +16,9 @@ import {
   partitionRoomsByEncryption,
   mergeSearchGroups,
 } from './searchEncryptedRooms';
+import type { SearchHasType } from './searchEncryptedRooms';
+
+export type { SearchHasType };
 
 export type ResultItem = {
   rank: number;
@@ -78,12 +81,40 @@ export type MessageSearchParams = {
   order?: string;
   rooms?: string[];
   senders?: string[];
+  hasTypes?: SearchHasType[];
 };
 export const useMessageSearch = (params: MessageSearchParams) => {
   const mx = useMatrixClient();
   const { features } = useClientConfig();
   const settings = useAtomValue(settingsAtom);
-  const { term, order, rooms, senders } = params;
+  const { term, order, rooms, senders, hasTypes } = params;
+
+  const filterGroupsByHasType = useCallback(
+    (grps: ResultGroup[]): ResultGroup[] => {
+      if (!hasTypes || hasTypes.length === 0) return grps;
+      const withMsgtype = hasTypes.filter((t) => t !== 'link');
+      return grps
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((item) => {
+            const content = item.event.content as { msgtype?: string; body?: string };
+            if (withMsgtype.length > 0) {
+              const msgtypeMap: Record<string, string> = {
+                image: 'm.image',
+                file: 'm.file',
+                audio: 'm.audio',
+                video: 'm.video',
+              };
+              if (withMsgtype.some((t) => content.msgtype === msgtypeMap[t])) return true;
+            }
+            if (hasTypes.includes('link') && /https?:\/\//i.test(content.body ?? '')) return true;
+            return false;
+          }),
+        }))
+        .filter((g) => g.items.length > 0);
+    },
+    [hasTypes]
+  );
 
   const searchMessages = useCallback(
     async (nextBatch?: string) => {
@@ -106,13 +137,13 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       // In-memory search only runs on the first page — encrypted rooms have no pagination.
       const inMemoryGroups =
         encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0
-          ? searchEncryptedRoomsInMemory(mx, term, encryptedRoomIds, senders)
+          ? searchEncryptedRoomsInMemory(mx, term, encryptedRoomIds, senders, hasTypes)
           : [];
 
       if (skipServerSearch) {
         return {
           highlights: term.split(/\s+/).filter(Boolean),
-          groups: inMemoryGroups,
+          groups: filterGroupsByHasType(inMemoryGroups),
           inMemoryRoomCount: encryptedRoomIds.length,
         };
       }
@@ -129,6 +160,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
               limit,
               rooms: serverRooms,
               senders,
+              ...(hasTypes?.includes('link') && { contains_url: true }),
             },
             include_state: false,
             order_by: order as SearchOrderBy.Recent,
@@ -142,20 +174,24 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         next_batch: nextBatch === '' ? undefined : nextBatch,
       });
       const serverResult = parseSearchResult(r);
+      const filteredServerResult = {
+        ...serverResult,
+        groups: filterGroupsByHasType(serverResult.groups),
+      };
 
       if (inMemoryGroups.length === 0) {
-        return serverResult;
+        return filteredServerResult;
       }
 
       const termWords = term.split(/\s+/).filter(Boolean);
       return {
-        ...serverResult,
-        groups: mergeSearchGroups(serverResult.groups, inMemoryGroups, order),
-        highlights: Array.from(new Set([...serverResult.highlights, ...termWords])),
+        ...filteredServerResult,
+        groups: mergeSearchGroups(filteredServerResult.groups, filterGroupsByHasType(inMemoryGroups), order),
+        highlights: Array.from(new Set([...filteredServerResult.highlights, ...termWords])),
         inMemoryRoomCount: encryptedRoomIds.length,
       };
     },
-    [mx, features, settings.encryptedSearch, term, order, rooms, senders]
+    [mx, features, settings.encryptedSearch, term, order, rooms, senders, hasTypes, filterGroupsByHasType]
   );
 
   return searchMessages;

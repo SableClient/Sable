@@ -37,6 +37,7 @@ export type SearchPathSearchParams = {
   order?: string;
   rooms?: string;
   senders?: string;
+  has?: string;
 };
 export const SEARCH_PATH_SEGMENT = 'search/';
 

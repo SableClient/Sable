@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Icon, Icons, Badge } from 'folds';
-import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
+import { Icon, Icons } from 'folds';
+import { SidebarAvatar, SidebarItem, SidebarItemTooltip, SidebarUnreadBadge } from '$components/sidebar';
 import { getInboxBookmarksPath } from '$pages/pathUtils';
 import { useInboxBookmarksSelected } from '$hooks/router/useInbox';
 import { useSetting } from '$state/hooks/settings';
@@ -25,14 +25,10 @@ export function BookmarksTab() {
         {(triggerRef) => (
           <SidebarAvatar as="button" ref={triggerRef} outlined onClick={handleClick}>
             <Icon src={Icons.Bookmark} filled={bookmarksSelected} />
-            {firedReminderCount > 0 && (
-              <Badge size="300" variant="Critical" fill="Solid" radii="Pill" outlined>
-                {firedReminderCount > 9 ? '9+' : firedReminderCount}
-              </Badge>
-            )}
           </SidebarAvatar>
         )}
       </SidebarItemTooltip>
+      {firedReminderCount > 0 && <SidebarUnreadBadge highlight count={firedReminderCount} />}
     </SidebarItem>
   );
 }

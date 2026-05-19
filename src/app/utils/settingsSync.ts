@@ -16,7 +16,8 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'memberSortFilterIndex',
   // Developer / diagnostic
   'developerTools',
-  // Input behaviour — mobile disables enter-for-newline; syncing would override that
+  // Input behaviour — on mobile the Enter-for-newline toggle is disabled, so syncing a
+  // desktop value would inadvertently re-enable Enter-to-send on the user's phone
   'enterForNewline',
   // Sync toggle itself must never be uploaded (it's device-local)
   'settingsSyncEnabled',

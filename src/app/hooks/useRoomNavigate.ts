@@ -36,6 +36,13 @@ export const useRoomNavigate = () => {
   const navigateRoom = useCallback(
     (roomId: string, eventId?: string, opts?: NavigateOptions) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
+
+      // DM rooms always navigate to /direct, regardless of space membership.
+      if (mDirects.has(roomId)) {
+        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
+        return;
+      }
+
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
       const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
@@ -53,11 +60,6 @@ export const useRoomNavigate = () => {
           getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
           opts
         );
-        return;
-      }
-
-      if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
         return;
       }
 

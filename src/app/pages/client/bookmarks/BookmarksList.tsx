@@ -56,6 +56,18 @@ import {
   useBookmarkReminderActions,
 } from '$features/bookmarks/useBookmarks';
 
+const REMINDER_PRESETS = [
+  { label: '30 min', ms: 30 * 60 * 1000 },
+  { label: '1h', ms: 60 * 60 * 1000 },
+  { label: '2h', ms: 2 * 60 * 60 * 1000 },
+  { label: '6h', ms: 6 * 60 * 60 * 1000 },
+  { label: '12h', ms: 12 * 60 * 60 * 1000 },
+  { label: '1 day', ms: 24 * 60 * 60 * 1000 },
+  { label: '3 days', ms: 3 * 24 * 60 * 60 * 1000 },
+  { label: '7 days', ms: 7 * 24 * 60 * 60 * 1000 },
+] as const;
+const CUSTOM_REMINDER = -1;
+
 /** Format a Unix timestamp as a `datetime-local` input value in the user's local timezone. */
 function toDateTimeLocal(ts: number): string {
   const d = new Date(ts);
@@ -147,14 +159,30 @@ function BookmarkItemRow({
   const reminders = useBookmarkReminders();
   const { setReminder, clearReminder } = useBookmarkReminderActions();
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
+  const [reminderPresetMs, setReminderPresetMs] = useState<number | null>(null);
   const [reminderInputValue, setReminderInputValue] = useState('');
   const reminder = reminders.find((r) => r.bookmarkId === item.bookmark_id);
 
   const handleOpenReminderPicker = () => {
+    setReminderPresetMs(null);
     const defaultValue = reminder ? toDateTimeLocal(reminder.remindAt) : '';
     setReminderInputValue(defaultValue);
     setReminderPickerOpen((prev) => !prev);
   };
+
+  const handleSelectPreset = useCallback(
+    async (ms: number) => {
+      await setReminder({
+        bookmarkId: item.bookmark_id,
+        eventId: item.event_id,
+        roomId: item.room_id,
+        remindAt: Date.now() + ms,
+        userId: mx.getUserId() ?? '',
+      });
+      setReminderPickerOpen(false);
+    },
+    [setReminder, item, mx]
+  );
 
   const handleSaveReminder = async () => {
     if (!reminderInputValue) return;
@@ -278,36 +306,60 @@ function BookmarkItemRow({
         )}
       </ModernLayout>
       {enableReminders && reminderPickerOpen && (
-        <Box
-          direction="Row"
-          gap="200"
-          alignItems="Center"
-          style={{ paddingTop: config.space.S200 }}
-        >
-          <Input
-            type="datetime-local"
-            value={reminderInputValue}
-            onChange={(e) => setReminderInputValue(e.currentTarget.value)}
-            style={{ flex: 1 }}
-            size="300"
-          />
-          <Chip
-            onClick={() => handleSaveReminder().catch(console.warn)}
-            variant="Primary"
-            radii="400"
-            as="button"
-          >
-            <Text size="T200">Set</Text>
-          </Chip>
-          {reminder && (
-            <Chip
-              onClick={() => handleClearReminder().catch(console.warn)}
-              variant="Critical"
-              radii="400"
-              as="button"
+        <Box direction="Column" gap="200" style={{ paddingTop: config.space.S200 }}>
+          <Box gap="200" wrap="Wrap">
+            {REMINDER_PRESETS.map(({ label, ms }) => (
+              <Button
+                key={ms}
+                size="300"
+                radii="300"
+                variant={reminderPresetMs === ms ? 'Primary' : 'Secondary'}
+                fill={reminderPresetMs === ms ? 'Solid' : 'Soft'}
+                onClick={() => handleSelectPreset(ms).catch(console.warn)}
+              >
+                <Text size="B300">{label}</Text>
+              </Button>
+            ))}
+            <Button
+              size="300"
+              radii="300"
+              variant={reminderPresetMs === CUSTOM_REMINDER ? 'Primary' : 'Secondary'}
+              fill={reminderPresetMs === CUSTOM_REMINDER ? 'Solid' : 'Soft'}
+              onClick={() => setReminderPresetMs(CUSTOM_REMINDER)}
             >
-              <Text size="T200">Clear</Text>
-            </Chip>
+              <Text size="B300">Custom</Text>
+            </Button>
+          </Box>
+          {reminderPresetMs === CUSTOM_REMINDER && (
+            <Box direction="Row" gap="200" alignItems="Center">
+              <Input
+                type="datetime-local"
+                value={reminderInputValue}
+                onChange={(e) => setReminderInputValue(e.currentTarget.value)}
+                style={{ flex: 1 }}
+                size="300"
+              />
+              <Chip
+                onClick={() => handleSaveReminder().catch(console.warn)}
+                variant="Primary"
+                radii="400"
+                as="button"
+              >
+                <Text size="T200">Set</Text>
+              </Chip>
+            </Box>
+          )}
+          {reminder && (
+            <Box>
+              <Chip
+                onClick={() => handleClearReminder().catch(console.warn)}
+                variant="Critical"
+                radii="400"
+                as="button"
+              >
+                <Text size="T200">Clear reminder</Text>
+              </Chip>
+            </Box>
           )}
         </Box>
       )}

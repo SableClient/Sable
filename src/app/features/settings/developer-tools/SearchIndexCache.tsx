@@ -57,7 +57,7 @@ export function SearchIndexCache() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Encrypted Search Index</Text>
+      <Text size="L400">Message Search Index</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"

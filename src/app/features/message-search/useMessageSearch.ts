@@ -34,7 +34,7 @@ function idbEventsToGroups(events: IndexableEvent[]): ResultGroup[] {
         room_id: ev.roomId,
         sender: ev.sender,
         origin_server_ts: ev.ts,
-        content: { msgtype: 'm.text', body: ev.body },
+        content: { msgtype: ev.msgtype, body: ev.body },
         type: 'm.room.message',
         unsigned: {},
       } as IEventWithRoomId,
@@ -168,13 +168,16 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       // For IDB search: only run on first page (IDB has no pagination cursor here).
       // Prefer IDB when available; fall back to in-memory live timeline.
       let inMemoryGroups: ResultGroup[] = [];
+      let usedIdb = false;
       if (encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0) {
-        if (useIdbSearch && term) {
-          const idbEvents = await searchIndex!.query(term, {
+        if (useIdbSearch && (term || hasHasTypes)) {
+          const idbEvents = await searchIndex!.query(term ?? '', {
             roomIds: encryptedRoomIds,
             senders,
+            hasTypes: hasHasTypes ? hasTypes : undefined,
           });
           inMemoryGroups = idbEventsToGroups(idbEvents);
+          usedIdb = true;
         } else {
           inMemoryGroups = searchEncryptedRoomsInMemory(
             mx,
@@ -187,10 +190,11 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       }
 
       // When there's no text term, skip server search (server requires search_term).
-      // For has: filters, scan all rooms' in-memory timelines (encrypted + unencrypted).
+      // For has: filters, scan all rooms' timelines (encrypted + unencrypted).
       if (skipServerSearch || !term) {
         let unencryptedMemoryGroups: ResultGroup[] = [];
         let unencryptedRoomCount = 0;
+        let usedIdbForUnencrypted = false;
         if (hasHasTypes && isFirstPage) {
           // When scoped (rooms defined), use only unencrypted rooms within scope (may be empty
           // when all scoped rooms are encrypted). When global (rooms undefined), fall back to
@@ -204,13 +208,23 @@ export const useMessageSearch = (params: MessageSearchParams) => {
                   .map((r) => r.roomId);
           unencryptedRoomCount = unencryptedRooms.length;
           if (unencryptedRooms.length > 0) {
-            unencryptedMemoryGroups = searchEncryptedRoomsInMemory(
-              mx,
-              '',
-              unencryptedRooms,
-              senders,
-              hasTypes
-            );
+            if (useIdbSearch) {
+              const idbEvents = await searchIndex!.query('', {
+                roomIds: unencryptedRooms,
+                senders,
+                hasTypes,
+              });
+              unencryptedMemoryGroups = idbEventsToGroups(idbEvents);
+              usedIdbForUnencrypted = true;
+            } else {
+              unencryptedMemoryGroups = searchEncryptedRoomsInMemory(
+                mx,
+                '',
+                unencryptedRooms,
+                senders,
+                hasTypes
+              );
+            }
           }
         }
         return {
@@ -220,7 +234,11 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             unencryptedMemoryGroups,
             order
           ),
-          inMemoryRoomCount: encryptedRoomIds.length + unencryptedRoomCount,
+          // Only report local-cache count for rooms that were actually searched in-memory.
+          inMemoryRoomCount:
+            ((usedIdb ? 0 : encryptedRoomIds.length) +
+              (usedIdbForUnencrypted ? 0 : unencryptedRoomCount)) ||
+            undefined,
         };
       }
 
@@ -268,7 +286,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           order
         ),
         highlights: Array.from(new Set([...filteredServerResult.highlights, ...termWords])),
-        inMemoryRoomCount: encryptedRoomIds.length,
+        inMemoryRoomCount: usedIdb ? undefined : encryptedRoomIds.length,
       };
     },
     [

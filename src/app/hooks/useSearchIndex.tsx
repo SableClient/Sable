@@ -48,7 +48,7 @@ type SearchIndexCtx = {
   /** Query the IDB-backed index. Resolves to an empty array when the index is unavailable. */
   query: (
     term: string,
-    opts?: { roomIds?: string[]; senders?: string[] }
+    opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }
   ) => Promise<IndexableEvent[]>;
   /** Request current stats from the worker. */
   getStats: () => Promise<SearchIndexStats>;
@@ -88,11 +88,13 @@ function toIndexableEvent(mEvent: MatrixEvent, roomId: string): IndexableEvent |
   if (mEvent.getType() === 'm.room.encrypted') return null;
   if (mEvent.getType() !== (EventType.RoomMessage as string)) return null;
   if (mEvent.isRedacted()) return null;
-  const body: string = mEvent.getContent<{ body?: string }>().body ?? '';
+  const content = mEvent.getContent<{ body?: string; msgtype?: string }>();
+  const body: string = content.body ?? '';
   if (!body.trim()) return null;
   const sender = mEvent.getSender();
   if (!sender) return null;
-  return { eventId, roomId, sender, body, ts: mEvent.getTs() };
+  const msgtype = content.msgtype ?? 'm.text';
+  return { eventId, roomId, sender, msgtype, body, ts: mEvent.getTs() };
 }
 
 // ── Provider ─────────────────────────────────────────────────────────────────
@@ -136,8 +138,6 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
   const indexEvent = useCallback(
     (mEvent: MatrixEvent, room: Room) => {
-      if (!mx.isRoomEncrypted(room.roomId)) return;
-
       const handleDecrypted = () => {
         const ev = toIndexableEvent(mEvent, room.roomId);
         if (ev) postToWorker({ type: 'INDEX_EVENTS', events: [ev] });
@@ -150,7 +150,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         handleDecrypted();
       }
     },
-    [mx, postToWorker]
+    [postToWorker]
   );
 
   // ── Headless backfill ──────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     (backfillStates: Record<string, BackfillState>) => {
       const encryptedRooms = mx
         .getRooms()
-        .filter((r) => mx.isRoomEncrypted(r.roomId) && !r.isSpaceRoom());
+        .filter((r) => !r.isSpaceRoom());
 
       let scheduled = 0;
       for (const room of encryptedRooms) {
@@ -384,7 +384,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const query = useCallback(
     (
       term: string,
-      opts?: { roomIds?: string[]; senders?: string[] }
+      opts?: { roomIds?: string[]; senders?: string[]; hasTypes?: string[] }
     ): Promise<IndexableEvent[]> => {
       if (!workerRef.current || !isReady) return Promise.resolve([]);
       const id = crypto.randomUUID();
@@ -396,6 +396,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           term,
           roomIds: opts?.roomIds,
           senders: opts?.senders,
+          hasTypes: opts?.hasTypes,
         });
       });
     },

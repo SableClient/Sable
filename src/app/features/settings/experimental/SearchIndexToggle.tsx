@@ -10,19 +10,19 @@ export function SearchIndexToggle() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Encrypted Search Index</Text>
+      <Text size="L400">Message Search Index</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           focusId="encrypted-search-index"
-          title="Build a local search index for encrypted rooms"
-          description="Indexes encrypted room messages in the background for faster, deeper search results across your full history. Uses IndexedDB storage — see Developer Tools › Cache for usage."
+          title="Build a local search index"
+          description="Indexes messages from all rooms in the background for deeper search history and chip filters (Has: Image, File, etc.). Message bodies are stored as plain text in IndexedDB on this device — Sable does not add extra encryption, though browsers sandbox and restrict access to this storage."
           after={
             <Switch
               variant="Primary"
               value={idbSearchIndex}
               onChange={setIdbSearchIndex}
               title={
-                idbSearchIndex ? 'Disable encrypted search index' : 'Enable encrypted search index'
+                idbSearchIndex ? 'Disable message search index' : 'Enable message search index'
               }
             />
           }

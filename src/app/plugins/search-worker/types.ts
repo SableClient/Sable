@@ -3,6 +3,8 @@ export type IndexableEvent = {
   eventId: string;
   roomId: string;
   sender: string;
+  /** Matrix msgtype, e.g. 'm.text', 'm.image', 'm.file', 'm.audio', 'm.video'. */
+  msgtype: string;
   body: string;
   ts: number;
 };
@@ -34,6 +36,8 @@ export type WorkerInMessage =
       term: string;
       roomIds?: string[];
       senders?: string[];
+      /** SearchHasType values to filter by, e.g. ['image', 'link']. */
+      hasTypes?: string[];
     }
   | {
       type: 'SET_BACKFILL_STATE';

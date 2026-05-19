@@ -20,7 +20,7 @@ export function EncryptedSearch() {
         <SettingTile
           focusId="encrypted-room-search"
           title="Search encrypted rooms"
-          description="Search messages in encrypted rooms using your locally cached messages. Results are limited to what your device has already received."
+          description="Search your locally decrypted message history in encrypted rooms. Results come from your device’s in-memory event cache — nothing is written to disk by this option. Results are limited to recently received messages."
           after={
             <Switch
               variant="Primary"

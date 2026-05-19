@@ -12,13 +12,19 @@ import type { IndexableEvent, BackfillState, WorkerInMessage, WorkerOutMessage }
 
 function openDb(dbName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 1);
-    req.onupgradeneeded = () => {
+    const req = indexedDB.open(dbName, 2);
+    req.onupgradeneeded = (event) => {
       const db = req.result;
-      if (!db.objectStoreNames.contains('index')) {
+      const oldVersion = event.oldVersion;
+      if (oldVersion < 1) {
         db.createObjectStore('index');
+        db.createObjectStore('backfill');
       }
-      if (!db.objectStoreNames.contains('backfill')) {
+      // v2: added msgtype to stored fields — clear persisted index/backfill so it rebuilds
+      if (oldVersion >= 1 && oldVersion < 2) {
+        db.deleteObjectStore('index');
+        db.deleteObjectStore('backfill');
+        db.createObjectStore('index');
         db.createObjectStore('backfill');
       }
     };
@@ -94,7 +100,7 @@ function makeIndex(): MiniSearch<IndexableEvent> {
   return new MiniSearch<IndexableEvent>({
     idField: 'eventId',
     fields: ['body', 'sender'],
-    storeFields: ['eventId', 'roomId', 'sender', 'ts', 'body'],
+    storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body'],
     searchOptions: {
       boost: { body: 2 },
       fuzzy: 0.2,
@@ -154,6 +160,37 @@ function evictOldestForRoom(roomId: string): void {
 
 // ── Message handler ────────────────────────────────────────────────────────
 
+/** Iterate every document stored in the MiniSearch index (uses internal _storedFields — tied to MiniSearch v7). */
+function iterateStoredDocs(idx: MiniSearch<IndexableEvent>): IterableIterator<IndexableEvent> {
+  const internal = idx as unknown as { _storedFields: Map<unknown, Record<string, unknown>> };
+  return (function* () {
+    for (const fields of internal._storedFields.values()) {
+      yield fields as IndexableEvent;
+    }
+  })();
+}
+
+/** Matrix msgtype for each SearchHasType chip. */
+const HAS_TYPE_TO_MSGTYPE: Record<string, string> = {
+  image: 'm.image',
+  file: 'm.file',
+  audio: 'm.audio',
+  video: 'm.video',
+};
+
+function makeTypeFilter(
+  hasTypes: string[] | undefined
+): ((ev: IndexableEvent) => boolean) | null {
+  if (!hasTypes || hasTypes.length === 0) return null;
+  const allowedMsgtypes = new Set(hasTypes.map((t) => HAS_TYPE_TO_MSGTYPE[t]).filter(Boolean));
+  const needsLink = hasTypes.includes('link');
+  return (ev: IndexableEvent) => {
+    if (allowedMsgtypes.has(ev.msgtype)) return true;
+    if (needsLink && /https?:\/\//i.test(ev.body)) return true;
+    return false;
+  };
+}
+
 async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
   maxMessagesPerRoom = maxPerRoom;
   const dbName = `sable-search-${userId}`;
@@ -166,7 +203,7 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       index = MiniSearch.loadJSON(serialized, {
         idField: 'eventId',
         fields: ['body', 'sender'],
-        storeFields: ['eventId', 'roomId', 'sender', 'ts', 'body'],
+        storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body'],
         searchOptions: {
           boost: { body: 2 },
           fuzzy: 0.2,
@@ -242,19 +279,33 @@ function handleIndexEvents(events: IndexableEvent[]): void {
   scheduleFlush();
 }
 
-function handleQuery(id: string, term: string, roomIds?: string[], senders?: string[]): void {
+function handleQuery(id: string, term: string, roomIds?: string[], senders?: string[], hasTypes?: string[]): void {
   if (!index) {
     post({ type: 'QUERY_RESULT', id, events: [] });
     return;
   }
 
+  const typeFilter = makeTypeFilter(hasTypes);
+
+  function matchesFilters(ev: IndexableEvent): boolean {
+    if (roomIds && roomIds.length > 0 && !roomIds.includes(ev.roomId)) return false;
+    if (senders && senders.length > 0 && !senders.includes(ev.sender)) return false;
+    if (typeFilter && !typeFilter(ev)) return false;
+    return true;
+  }
+
+  if (!term) {
+    // Chip-only query: scan all stored documents — MiniSearch can't search an empty term.
+    const results: IndexableEvent[] = [];
+    for (const ev of iterateStoredDocs(index)) {
+      if (matchesFilters(ev)) results.push(ev);
+    }
+    post({ type: 'QUERY_RESULT', id, events: results });
+    return;
+  }
+
   const rawResults = index.search(term, {
-    filter: (r) => {
-      const ev = r as unknown as IndexableEvent;
-      if (roomIds && roomIds.length > 0 && !roomIds.includes(ev.roomId)) return false;
-      if (senders && senders.length > 0 && !senders.includes(ev.sender)) return false;
-      return true;
-    },
+    filter: (r) => matchesFilters(r as unknown as IndexableEvent),
   }) as unknown as IndexableEvent[];
 
   post({ type: 'QUERY_RESULT', id, events: rawResults });
@@ -311,7 +362,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       handleIndexEvents(msg.events);
       break;
     case 'QUERY':
-      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders);
+      handleQuery(msg.id, msg.term, msg.roomIds, msg.senders, msg.hasTypes);
       break;
     case 'SET_BACKFILL_STATE':
       void handleSetBackfillState(msg.roomId, msg.state);

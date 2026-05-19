@@ -18,7 +18,11 @@ import {
   config,
 } from 'folds';
 import { PollStartEvent } from 'matrix-js-sdk/lib/extensible_events_v1/PollStartEvent';
-import { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED, M_POLL_START } from 'matrix-js-sdk/lib/@types/polls';
+import {
+  M_POLL_KIND_DISCLOSED,
+  M_POLL_KIND_UNDISCLOSED,
+  M_POLL_START,
+} from 'matrix-js-sdk/lib/@types/polls';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 
@@ -145,7 +149,18 @@ export function PollCreator({ room, onClose }: PollCreatorProps) {
       setError(err instanceof Error ? err.message : 'Failed to send poll.');
       setSending(false);
     }
-  }, [question, answers, multiSelect, maxSelections, disclosed, durationPresetMs, customEndInput, mx, room.roomId, onClose]);
+  }, [
+    question,
+    answers,
+    multiSelect,
+    maxSelections,
+    disclosed,
+    durationPresetMs,
+    customEndInput,
+    mx,
+    room.roomId,
+    onClose,
+  ]);
 
   return (
     <Overlay open backdrop={<OverlayBackdrop />}>

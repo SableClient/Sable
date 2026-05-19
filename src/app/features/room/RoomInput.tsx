@@ -161,7 +161,6 @@ import { AudioMessageRecorder } from './AudioMessageRecorder';
 import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 
-
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
 // falling back to the thread root if no replies exist yet.
 const getLatestThreadEventId = (room: Room, threadRootId: string): string => {

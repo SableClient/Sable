@@ -68,11 +68,30 @@ const REMINDER_PRESETS = [
 ] as const;
 const CUSTOM_REMINDER = -1;
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
 /** Format a Unix timestamp as a `datetime-local` input value in the user's local timezone. */
 function toDateTimeLocal(ts: number): string {
   const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Human-readable label for when a reminder fires. */
+function formatReminder(remindAt: number): string {
+  const diff = remindAt - Date.now();
+  if (diff <= 0) return 'overdue';
+  const minutes = Math.round(diff / (60 * 1000));
+  if (minutes < 60) return `in ${minutes}m`;
+  const hours = Math.round(diff / (60 * 60 * 1000));
+  if (hours < 24) return `in ${hours}h`;
+  const days = Math.round(diff / (24 * 60 * 60 * 1000));
+  if (days < 7) return `in ${days}d`;
+  return new Date(remindAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +295,17 @@ function BookmarkItemRow({
             >
               <Text size="T200">Jump</Text>
             </Chip>
+            {enableReminders && reminder && (
+              <Chip
+                onClick={handleOpenReminderPicker}
+                variant="Primary"
+                radii="400"
+                as="button"
+                aria-label="Edit reminder"
+              >
+                <Text size="T200">{formatReminder(reminder.remindAt)}</Text>
+              </Chip>
+            )}
             {enableReminders && (
               <IconButton
                 size="300"

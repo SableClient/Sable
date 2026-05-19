@@ -8,6 +8,12 @@ import type {
 } from '$types/matrix-sdk';
 import { useCallback } from 'react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useClientConfig } from '$hooks/useClientConfig';
+import {
+  searchEncryptedRoomsInMemory,
+  partitionRoomsByEncryption,
+  mergeSearchGroups,
+} from './searchEncryptedRooms';
 
 export type ResultItem = {
   rank: number;
@@ -24,6 +30,8 @@ export type SearchResult = {
   nextToken?: string;
   highlights: string[];
   groups: ResultGroup[];
+  /** Number of encrypted rooms whose in-memory timeline was searched. */
+  inMemoryRoomCount?: number;
 };
 
 const groupSearchResult = (results: ISearchResult[]): ResultGroup[] => {
@@ -71,6 +79,7 @@ export type MessageSearchParams = {
 };
 export const useMessageSearch = (params: MessageSearchParams) => {
   const mx = useMatrixClient();
+  const { features } = useClientConfig();
   const { term, order, rooms, senders } = params;
 
   const searchMessages = useCallback(
@@ -82,6 +91,27 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         };
       const limit = 20;
 
+      const encryptedSearchEnabled = features?.encryptedSearch !== false;
+      const isFirstPage = !nextBatch || nextBatch === '';
+
+      const { encryptedRoomIds, serverRooms, skipServerSearch } = encryptedSearchEnabled
+        ? partitionRoomsByEncryption(mx, rooms)
+        : { encryptedRoomIds: [], serverRooms: rooms, skipServerSearch: false };
+
+      // In-memory search only runs on the first page — encrypted rooms have no pagination.
+      const inMemoryGroups =
+        encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0
+          ? searchEncryptedRoomsInMemory(mx, term, encryptedRoomIds, senders)
+          : [];
+
+      if (skipServerSearch) {
+        return {
+          highlights: term.split(/\s+/).filter(Boolean),
+          groups: inMemoryGroups,
+          inMemoryRoomCount: encryptedRoomIds.length,
+        };
+      }
+
       const requestBody: ISearchRequestBody = {
         search_categories: {
           room_events: {
@@ -92,7 +122,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             },
             filter: {
               limit,
-              rooms,
+              rooms: serverRooms,
               senders,
             },
             include_state: false,
@@ -106,9 +136,21 @@ export const useMessageSearch = (params: MessageSearchParams) => {
         body: requestBody,
         next_batch: nextBatch === '' ? undefined : nextBatch,
       });
-      return parseSearchResult(r);
+      const serverResult = parseSearchResult(r);
+
+      if (inMemoryGroups.length === 0) {
+        return serverResult;
+      }
+
+      const termWords = term.split(/\s+/).filter(Boolean);
+      return {
+        ...serverResult,
+        groups: mergeSearchGroups(serverResult.groups, inMemoryGroups, order),
+        highlights: Array.from(new Set([...serverResult.highlights, ...termWords])),
+        inMemoryRoomCount: encryptedRoomIds.length,
+      };
     },
-    [mx, term, order, rooms, senders]
+    [mx, features, term, order, rooms, senders]
   );
 
   return searchMessages;

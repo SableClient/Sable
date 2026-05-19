@@ -117,6 +117,8 @@ export function MessageSearch({
     const mixed = data?.pages.flatMap((result) => result.highlights);
     return Array.from(new Set(mixed));
   }, [data]);
+  // Only the first page carries in-memory results (no pagination for encrypted rooms)
+  const inMemoryRoomCount = data?.pages[0]?.inMemoryRoomCount ?? 0;
 
   const virtualizer = useVirtualizer({
     count: groups.length,
@@ -225,6 +227,20 @@ export function MessageSearch({
           onOrderChange={handleOrderChange}
         />
       </Box>
+
+      {inMemoryRoomCount > 0 && status !== 'pending' && (
+        <Box
+          className={ContainerColor({ variant: 'Secondary' })}
+          style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
+          alignItems="Center"
+          gap="200"
+        >
+          <Icon size="200" src={Icons.Info} />
+          <Text size="T300">
+            {`${inMemoryRoomCount} encrypted ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
+          </Text>
+        </Box>
+      )}
 
       {!msgSearchParams.term && status === 'pending' && (
         <PageHeroEmpty>

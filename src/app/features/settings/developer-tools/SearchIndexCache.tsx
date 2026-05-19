@@ -58,7 +58,12 @@ export function SearchIndexCache() {
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Encrypted Search Index</Text>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column" gap="400">
+      <SequenceCard
+        className={SequenceCardStyle}
+        variant="SurfaceVariant"
+        direction="Column"
+        gap="400"
+      >
         <SettingTile
           title="Index status"
           focusId="search-index-status"

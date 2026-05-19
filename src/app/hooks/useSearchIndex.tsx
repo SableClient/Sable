@@ -26,7 +26,12 @@ import {
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import type { BackfillState, IndexableEvent, WorkerInMessage, WorkerOutMessage } from '$plugins/search-worker/types';
+import type {
+  BackfillState,
+  IndexableEvent,
+  WorkerInMessage,
+  WorkerOutMessage,
+} from '$plugins/search-worker/types';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -83,7 +88,7 @@ function toIndexableEvent(mEvent: MatrixEvent, roomId: string): IndexableEvent |
   if (mEvent.getType() === 'm.room.encrypted') return null;
   if (mEvent.getType() !== (EventType.RoomMessage as string)) return null;
   if (mEvent.isRedacted()) return null;
-  const body: string = (mEvent.getContent<{ body?: string }>()).body ?? '';
+  const body: string = mEvent.getContent<{ body?: string }>().body ?? '';
   if (!body.trim()) return null;
   const sender = mEvent.getSender();
   if (!sender) return null;
@@ -165,8 +170,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       // Seed the backward token: from IDB state, or from the room's live timeline
       const seedToken =
-        state.token ??
-        room.getLiveTimeline().getPaginationToken(Direction.Backward);
+        state.token ?? room.getLiveTimeline().getPaginationToken(Direction.Backward);
       if (!seedToken) {
         // Room has no history to paginate — mark done
         postToWorker({
@@ -344,10 +348,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     } satisfies WorkerInMessage);
 
     // Live indexing listener
-    const handleTimeline = (
-      mEvent: MatrixEvent,
-      room: Room | undefined,
-    ) => {
+    const handleTimeline = (mEvent: MatrixEvent, room: Room | undefined) => {
       if (!room) return;
       indexEvent(mEvent, room);
     };
@@ -359,14 +360,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       workerRef.current = null;
       setIsReady(false);
       setIsBackfilling(false);
-      mx.removeListener(RoomEvent.Timeline, handleTimeline as unknown as (...args: unknown[]) => void);
+      mx.removeListener(
+        RoomEvent.Timeline,
+        handleTimeline as unknown as (...args: unknown[]) => void
+      );
 
       // Cancel all pending idle callbacks
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
-        const cancels = cancelIdlesRef.current;
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
-        const backfillingRooms = backfillingRoomsRef.current;
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      const cancels = cancelIdlesRef.current;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      const backfillingRooms = backfillingRoomsRef.current;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
       const headlessSets = headlessSetsRef.current;
       for (const cancel of cancels) cancel();
       cancelIdlesRef.current = [];
@@ -378,7 +382,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   const query = useCallback(
-    (term: string, opts?: { roomIds?: string[]; senders?: string[] }): Promise<IndexableEvent[]> => {
+    (
+      term: string,
+      opts?: { roomIds?: string[]; senders?: string[] }
+    ): Promise<IndexableEvent[]> => {
       if (!workerRef.current || !isReady) return Promise.resolve([]);
       const id = crypto.randomUUID();
       return new Promise((resolve, reject) => {
@@ -427,10 +434,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
   const ctx = useMemo<SearchIndexCtx>(
     () => ({ query, getStats, clearIndex, isReady, isBackfilling }),
-    [query, getStats, clearIndex, isReady, isBackfilling],
+    [query, getStats, clearIndex, isReady, isBackfilling]
   );
 
-  return (
-    <SearchIndexContext.Provider value={ctx}>{children}</SearchIndexContext.Provider>
-  );
+  return <SearchIndexContext.Provider value={ctx}>{children}</SearchIndexContext.Provider>;
 }

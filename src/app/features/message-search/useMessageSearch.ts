@@ -176,7 +176,13 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           });
           inMemoryGroups = idbEventsToGroups(idbEvents);
         } else {
-          inMemoryGroups = searchEncryptedRoomsInMemory(mx, term ?? '', encryptedRoomIds, senders, hasTypes);
+          inMemoryGroups = searchEncryptedRoomsInMemory(
+            mx,
+            term ?? '',
+            encryptedRoomIds,
+            senders,
+            hasTypes
+          );
         }
       }
 

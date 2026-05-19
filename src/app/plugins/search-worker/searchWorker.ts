@@ -175,7 +175,11 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
         },
       });
       // Rebuild room queues from persisted data
-      const savedQueues = await idbGet<Record<string, Array<[string, number]>>>(db, 'index', 'rooms');
+      const savedQueues = await idbGet<Record<string, Array<[string, number]>>>(
+        db,
+        'index',
+        'rooms'
+      );
       if (savedQueues) {
         for (const [roomId, queue] of Object.entries(savedQueues)) {
           roomQueues.set(roomId, queue);

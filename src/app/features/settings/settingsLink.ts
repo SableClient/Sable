@@ -181,7 +181,13 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'session-replay',
     'traces-profiles',
   ],
-  experimental: ['bandwidth-saving-emojis', 'encrypted-room-search', 'encrypted-search-index', 'sharehistory-command', 'show-personas-tab'],
+  experimental: [
+    'bandwidth-saving-emojis',
+    'encrypted-room-search',
+    'encrypted-search-index',
+    'sharehistory-command',
+    'show-personas-tab',
+  ],
   about: [
     'base-url',
     'clear-cache-and-reload',

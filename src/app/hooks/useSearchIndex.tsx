@@ -73,20 +73,24 @@ export function useSearchIndex(): SearchIndexCtx | null {
 // ── Idle scheduler ───────────────────────────────────────────────────────────
 
 /**
- * Maximum number of rooms whose backfill pagination may run concurrently.
- * Keeping this small prevents flooding the HTTP connection pool (and starving
- * the /sync long-poll) on low-bandwidth or constrained devices such as iOS.
+ * On systems with requestIdleCallback (desktop, Android Chrome) the browser's
+ * own idle scheduler provides natural backpressure, so we allow unlimited
+ * concurrent backfills — this restores the fast pre-bf4d8d6 behaviour.
+ *
+ * On iOS Safari (no requestIdleCallback) we cap concurrency to prevent the
+ * HTTP connection pool from being saturated and starving the /sync long-poll.
  */
-const MAX_CONCURRENT_BACKFILLS = 2;
+const HAS_IDLE_CALLBACK = typeof requestIdleCallback === 'function';
+const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 4;
 
 function scheduleIdle(cb: () => void): () => void {
-  if (typeof requestIdleCallback === 'function') {
+  if (HAS_IDLE_CALLBACK) {
     const id = requestIdleCallback(cb, { timeout: 5000 });
     return () => cancelIdleCallback(id);
   }
-  // iOS Safari does not support requestIdleCallback — use a longer delay so the
-  // sync connection is not starved by rapid back-to-back pagination requests.
-  const id = setTimeout(cb, 1000);
+  // iOS Safari: no requestIdleCallback — use a short delay; the concurrency
+  // cap (MAX_CONCURRENT_BACKFILLS) prevents HTTP connection pool saturation.
+  const id = setTimeout(cb, 150);
   return () => clearTimeout(id);
 }
 

@@ -15,10 +15,37 @@ import {
   searchEncryptedRoomsInMemory,
   partitionRoomsByEncryption,
   mergeSearchGroups,
+  EMPTY_CONTEXT,
 } from './searchEncryptedRooms';
 import type { SearchHasType } from './searchEncryptedRooms';
+import type { IndexableEvent } from '$plugins/search-worker/types';
+import { useSearchIndex } from '$hooks/useSearchIndex';
 
 export type { SearchHasType };
+
+/** Convert IDB-indexed events back to the ResultGroup format used by the search UI. */
+function idbEventsToGroups(events: IndexableEvent[]): ResultGroup[] {
+  const byRoom = new Map<string, ResultItem[]>();
+  for (const ev of events) {
+    const item: ResultItem = {
+      rank: 1,
+      event: {
+        event_id: ev.eventId,
+        room_id: ev.roomId,
+        sender: ev.sender,
+        origin_server_ts: ev.ts,
+        content: { msgtype: 'm.text', body: ev.body },
+        type: 'm.room.message',
+        unsigned: {},
+      } as IEventWithRoomId,
+      context: EMPTY_CONTEXT as IResultContext,
+    };
+    const arr = byRoom.get(ev.roomId) ?? [];
+    arr.push(item);
+    byRoom.set(ev.roomId, arr);
+  }
+  return Array.from(byRoom.entries()).map(([roomId, items]) => ({ roomId, items }));
+}
 
 export type ResultItem = {
   rank: number;
@@ -87,6 +114,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
   const mx = useMatrixClient();
   const { features } = useClientConfig();
   const settings = useAtomValue(settingsAtom);
+  const searchIndex = useSearchIndex();
   const { term, order, rooms, senders, hasTypes } = params;
 
   const filterGroupsByHasType = useCallback(
@@ -129,17 +157,28 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       // Operator kill switch takes priority; user toggle controls the rest.
       const encryptedSearchEnabled =
         features?.encryptedSearch !== false && settings.encryptedSearch;
+      // Use IDB index when the user has enabled it and the index is ready.
+      const useIdbSearch = settings.idbSearchIndex && searchIndex?.isReady === true;
       const isFirstPage = !nextBatch || nextBatch === '';
 
       const { encryptedRoomIds, serverRooms, skipServerSearch } = encryptedSearchEnabled
         ? partitionRoomsByEncryption(mx, rooms)
         : { encryptedRoomIds: [], serverRooms: rooms, skipServerSearch: false };
 
-      // In-memory search only runs on the first page — encrypted rooms have no pagination.
-      const inMemoryGroups =
-        encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0
-          ? searchEncryptedRoomsInMemory(mx, term ?? '', encryptedRoomIds, senders, hasTypes)
-          : [];
+      // For IDB search: only run on first page (IDB has no pagination cursor here).
+      // Prefer IDB when available; fall back to in-memory live timeline.
+      let inMemoryGroups: ResultGroup[] = [];
+      if (encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0) {
+        if (useIdbSearch && term) {
+          const idbEvents = await searchIndex!.query(term, {
+            roomIds: encryptedRoomIds,
+            senders,
+          });
+          inMemoryGroups = idbEventsToGroups(idbEvents);
+        } else {
+          inMemoryGroups = searchEncryptedRoomsInMemory(mx, term ?? '', encryptedRoomIds, senders, hasTypes);
+        }
+      }
 
       // When there's no text term, skip server search (server requires search_term).
       // For has: filters, scan all rooms' in-memory timelines (encrypted + unencrypted).
@@ -230,6 +269,8 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       mx,
       features,
       settings.encryptedSearch,
+      settings.idbSearchIndex,
+      searchIndex,
       term,
       order,
       rooms,

@@ -11,6 +11,7 @@ import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
 import { EncryptedSearch } from './EncryptedSearch';
+import { SearchIndexToggle } from './SearchIndexToggle';
 
 function PersonaToggle() {
   const [showPersonaSetting, setShowPersonaSetting] = useSetting(
@@ -61,6 +62,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
             <Box direction="Column" gap="700">
               <Sync />
               <EncryptedSearch />
+              <SearchIndexToggle />
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />

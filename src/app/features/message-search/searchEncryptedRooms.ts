@@ -28,7 +28,7 @@ function mEventMatchesHasTypes(mEvent: MatrixEvent, hasTypes: SearchHasType[]): 
 }
 
 // Shared empty context — in-memory results have no surrounding-event context.
-const EMPTY_CONTEXT: IResultContext = {
+export const EMPTY_CONTEXT: IResultContext = {
   events_before: [],
   events_after: [],
   profile_info: {},

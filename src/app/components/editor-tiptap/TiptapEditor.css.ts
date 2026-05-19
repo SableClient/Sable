@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { style, globalStyle } from '@vanilla-extract/css';
 import { color, config, DefaultReset, toRem } from 'folds';
 
 export const TiptapEditorRoot = style([
@@ -73,51 +73,50 @@ export const TiptapEditorContent = style([
 ]);
 
 /** Wraps the ProseMirror editable div — resets prose styles from host page. */
-export const TiptapProseMirrorWrapper = style({
-  selectors: {
-    '& .ProseMirror': {
-      outline: 'none',
-      minHeight: toRem(20),
-      // Match Editable textarea in slate editor
-      paddingBottom: toRem(13),
-      wordBreak: 'break-word',
-      overflowWrap: 'break-word',
-    },
-    '& .ProseMirror p': {
-      margin: 0,
-    },
-    '& .ProseMirror p.is-editor-empty:first-child::before': {
-      content: 'attr(data-placeholder)',
-      float: 'left',
-      color: color.SurfaceVariant.OnContainer,
-      opacity: config.opacity.Placeholder,
-      pointerEvents: 'none',
-      height: 0,
-    },
-    // Mention chips
-    '& [data-mention]': {
-      display: 'inline',
-      borderRadius: config.radii.R300,
-      padding: `0 ${toRem(2)}`,
-      backgroundColor: color.Secondary.Container,
-      color: color.Secondary.OnContainer,
-      cursor: 'default',
-      userSelect: 'none',
-    },
-    // Emoticon
-    '& [data-emoticon] img': {
-      height: toRem(20),
-      verticalAlign: 'middle',
-    },
-    // Command chips
-    '& [data-command]': {
-      display: 'inline',
-      borderRadius: config.radii.R300,
-      padding: `0 ${toRem(2)}`,
-      backgroundColor: color.Primary.Container,
-      color: color.Primary.OnContainer,
-      cursor: 'default',
-      userSelect: 'none',
-    },
-  },
+export const TiptapProseMirrorWrapper = style({});
+
+globalStyle(`${TiptapProseMirrorWrapper} .ProseMirror`, {
+  outline: 'none',
+  minHeight: toRem(20),
+  paddingBottom: toRem(13),
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
+});
+
+globalStyle(`${TiptapProseMirrorWrapper} .ProseMirror p`, {
+  margin: 0,
+});
+
+globalStyle(`${TiptapProseMirrorWrapper} .ProseMirror p.is-editor-empty:first-child::before`, {
+  content: 'attr(data-placeholder)',
+  float: 'left',
+  color: color.SurfaceVariant.OnContainer,
+  opacity: config.opacity.Placeholder,
+  pointerEvents: 'none',
+  height: '0',
+});
+
+globalStyle(`${TiptapProseMirrorWrapper} [data-mention]`, {
+  display: 'inline',
+  borderRadius: config.radii.R300,
+  padding: `0 ${toRem(2)}`,
+  backgroundColor: color.Secondary.Container,
+  color: color.Secondary.OnContainer,
+  cursor: 'default',
+  userSelect: 'none',
+});
+
+globalStyle(`${TiptapProseMirrorWrapper} [data-emoticon] img`, {
+  height: toRem(20),
+  verticalAlign: 'middle',
+});
+
+globalStyle(`${TiptapProseMirrorWrapper} [data-command]`, {
+  display: 'inline',
+  borderRadius: config.radii.R300,
+  padding: `0 ${toRem(2)}`,
+  backgroundColor: color.Primary.Container,
+  color: color.Primary.OnContainer,
+  cursor: 'default',
+  userSelect: 'none',
 });

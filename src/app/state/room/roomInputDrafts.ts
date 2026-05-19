@@ -58,3 +58,11 @@ export type TReplyDraftAtom = ReturnType<typeof createReplyDraftAtom>;
 export const roomIdToReplyDraftAtomFamily = atomFamily<string, TReplyDraftAtom>(() =>
   createReplyDraftAtom()
 );
+
+/** Navigation request written by GlobalKeyboardShortcuts, consumed by RoomTimeline. */
+export type IEditNavRequest = { dir: 'prev' | 'next'; nonce: number };
+const createEditNavRequestAtom = () => atom<IEditNavRequest | undefined>(undefined);
+export type TEditNavRequestAtom = ReturnType<typeof createEditNavRequestAtom>;
+export const roomIdToEditNavRequestAtomFamily = atomFamily<string, TEditNavRequestAtom>(() =>
+  createEditNavRequestAtom()
+);

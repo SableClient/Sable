@@ -67,7 +67,10 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditNavRequestAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
   getRoomUnreadInfo,
@@ -815,6 +818,46 @@ export function RoomTimeline({
       if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
     };
   }, [onEditLastMessageRef, mx, actions]);
+
+  // Keep stable refs so the edit-nav effect below doesn't stale-close over them.
+  const editIdRef = useRef(editId);
+  editIdRef.current = editId;
+  const handleEditRef = useRef(handleEdit);
+  handleEditRef.current = handleEdit;
+
+  const editNavRequest = useAtomValue(roomIdToEditNavRequestAtomFamily(room.roomId));
+
+  useEffect(() => {
+    if (!editNavRequest) return;
+    const myUserId = mx.getUserId();
+    const editableEvents = processedEventsRef.current.filter(
+      (e) =>
+        e.mEvent.getSender() === myUserId &&
+        e.mEvent.getType() === 'm.room.message' &&
+        !e.mEvent.isRedacted()
+    );
+    if (editableEvents.length === 0) return;
+
+    const currentEditId = editIdRef.current;
+    const doHandleEdit = handleEditRef.current;
+
+    if (currentEditId === undefined) {
+      // No active edit — start at the most recent editable message.
+      const latest = editableEvents.at(-1)!;
+      const id = latest.mEvent.getId();
+      if (id) doHandleEdit(id);
+      return;
+    }
+
+    const currentIdx = editableEvents.findIndex((e) => e.mEvent.getId() === currentEditId);
+    const next =
+      editNavRequest.dir === 'prev'
+        ? editableEvents[currentIdx - 1]
+        : editableEvents[currentIdx + 1];
+    if (!next) return;
+    const id = next.mEvent.getId();
+    if (id) doHandleEdit(id);
+  }, [editNavRequest, mx]);
 
   useEffect(() => {
     const v = vListRef.current;

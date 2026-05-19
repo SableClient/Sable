@@ -2,10 +2,10 @@
  * Global keyboard shortcuts for navigation and accessibility.
  *
  * Shortcuts provided:
- *   Alt+N              — jump to the highest-priority unread room
- *   Alt+Shift+Down     — cycle forward through unread rooms
- *   Alt+Shift+Up       — cycle backward through unread rooms
- *   Ctrl+Down / Ctrl+Up: cycle through messages to reply to
+ *   Alt+N                  — jump to the highest-priority unread room
+ *   Alt+Shift+Down/Up      — cycle forward/backward through unread rooms
+ *   Ctrl+Down / Ctrl+Up    — cycle through messages to reply to
+ *   Ctrl+Alt+Down/Up       — cycle through your own messages to edit
  */
 import { useCallback, useRef } from 'react';
 import { useNavigate, useLocation, matchPath } from 'react-router-dom';
@@ -20,7 +20,10 @@ import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '$pages/pat
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditNavRequestAtomFamily,
+} from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
 
 export function GlobalKeyboardShortcuts() {
@@ -51,6 +54,9 @@ export function GlobalKeyboardShortcuts() {
   const replyDraftAtomFamily = roomIdToReplyDraftAtomFamily(currentRoom?.roomId ?? '');
   const replyDraft = useAtomValue(replyDraftAtomFamily);
   const setReplyDraft = useSetAtom(replyDraftAtomFamily);
+
+  const setEditNavRequest = useSetAtom(roomIdToEditNavRequestAtomFamily(currentRoom?.roomId ?? ''));
+  const editNavNonceRef = useRef(0);
 
   /** Navigate to a room by ID and announce it to screen readers. */
   const navigateToRoom = useCallback(
@@ -151,9 +157,24 @@ export function GlobalKeyboardShortcuts() {
     [currentRoom, replyDraft, setReplyDraft]
   );
 
+  /** Ctrl+Alt+Down / Ctrl+Alt+Up: cycle through the current user's editable messages. */
+  const handleEditKeyDown = useCallback(
+    (evt: KeyboardEvent) => {
+      const isDown = isKeyHotkey('mod+alt+down', evt);
+      const isUp = isKeyHotkey('mod+alt+up', evt);
+      if (!isDown && !isUp) return;
+      if (currentRoom === null) return;
+      evt.preventDefault();
+      editNavNonceRef.current += 1;
+      setEditNavRequest({ dir: isDown ? 'next' : 'prev', nonce: editNavNonceRef.current });
+    },
+    [currentRoom, setEditNavRequest]
+  );
+
   useKeyDown(window, handleNextUnreadKeyDown);
   useKeyDown(window, handleUnreadNavKeyDown);
   useKeyDown(window, handleReplyKeyDown);
+  useKeyDown(window, handleEditKeyDown);
 
   return null;
 }

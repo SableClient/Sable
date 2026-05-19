@@ -93,7 +93,12 @@ import { safeFile } from '$utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '$utils/common';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getMentionContent, isThreadRelationEvent, reactionOrEditEvent, getEditedEvent } from '$utils/room';
+import {
+  getMentionContent,
+  isThreadRelationEvent,
+  reactionOrEditEvent,
+  getEditedEvent,
+} from '$utils/room';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
 import { mobileOrTablet } from '$utils/user-agent';
 import { useElementSizeObserver } from '$hooks/useElementSizeObserver';

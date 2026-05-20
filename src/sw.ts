@@ -593,6 +593,12 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
       syncIsHealthy = (data as { healthy: boolean }).healthy;
     }
   }
+  if (type === 'ping') {
+    // iOS terminates SWs after ~30 s of inactivity. The page sends a cheap
+    // ping every 20 s (regardless of visibility) so that event.waitUntil
+    // extends the SW lifetime while the app is open.
+    event.waitUntil(Promise.resolve());
+  }
   if (type === 'setNotificationSettings') {
     if (
       typeof (data as { notificationSoundEnabled?: unknown }).notificationSoundEnabled === 'boolean'

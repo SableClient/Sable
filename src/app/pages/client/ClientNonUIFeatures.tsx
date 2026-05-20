@@ -685,7 +685,18 @@ function SyncNotificationSettingsWithServiceWorker() {
     // Report initial visibility immediately, then track changes.
     postVisibility();
     document.addEventListener('visibilitychange', postVisibility);
-    return () => document.removeEventListener('visibilitychange', postVisibility);
+
+    // iOS kills the SW after ~30 s of inactivity regardless of page
+    // visibility. Send a cheap keep-alive ping every 20 s so the SW
+    // stays alive whenever the page is open (foregrounded or not).
+    const keepAliveId = window.setInterval(() => {
+      navigator.serviceWorker.controller?.postMessage({ type: 'ping' });
+    }, 20_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', postVisibility);
+      window.clearInterval(keepAliveId);
+    };
   }, []);
 
   useEffect(() => {

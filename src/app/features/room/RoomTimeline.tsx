@@ -834,9 +834,9 @@ export function RoomTimeline({
             e.mEvent.getType() === 'm.room.message' &&
             !e.mEvent.isRedacted()
         );
-      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
+      if (found?.mEvent.getId()) handleEditCallback(found.mEvent.getId());
     };
-  }, [onEditLastMessageRef, mx, actions]);
+  }, [onEditLastMessageRef, mx, handleEditCallback]);
 
   useEffect(() => {
     const v = vListRef.current;

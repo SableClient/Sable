@@ -887,6 +887,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             newContent.format = 'org.matrix.custom.html';
             newContent.formatted_body = customHtml;
           }
+          // Preserve media and extension fields from the original event so
+          // that image/file/sticker captions retain their attachments, and
+          // vendor extensions (spoiler, link previews, per-message profile)
+          // are not silently dropped.
+          for (const key of [
+            'filename', 'info', 'file', 'url',
+            'page.codeberg.everypizza.msc4193.spoiler',
+            'com.beeper.linkpreviews',
+            'com.beeper.per_message_profile',
+          ] as const) {
+            if (key in oldContent) {
+              newContent[key as string] = oldContent[key as string];
+            }
+          }
           const mentionData = getMentions(mx, roomId, editor);
           newContent['m.mentions'] = getMentionContent(
             Array.from(mentionData.users),
@@ -917,6 +931,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           mx.sendMessage(roomId, sendContent as RoomMessageEventContent).catch((error: unknown) => {
             log.error('failed to send edit', { roomId }, error);
           });
+        } else {
+          // Original event evicted from timeline — cannot send edit.
+          // Clear the edit state so the user is not stuck.
+          log.error('failed to send edit: original event not found', {
+            roomId,
+            eventId: editDraft.eventId,
+          });
+          setEditDraft(undefined);
+          resetEditor(editor);
+          resetEditorHistory(editor);
+          sendTypingStatus(false);
         }
         return;
       }

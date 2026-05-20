@@ -209,7 +209,8 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return NotificationType.Default;
   }
 
-  if ((roomPushRule.actions as string[]).some((a) => a === 'notify')) return NotificationType.AllMessages;
+  if ((roomPushRule.actions as string[]).some((a) => a === 'notify'))
+    return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 

@@ -221,6 +221,15 @@ const NOTIFICATION_EVENT_TYPES = new Set([
   'm.sticker',
   'm.reaction',
 ]);
+
+// Event types that represent actual user-sent messages.
+// Used to guard phantom-unread suppression so state events (e.g. m.room.create,
+// m.room.member) and reactions do not incorrectly clear notification badges.
+const SUPPRESSABLE_SENT_EVENT_TYPES = new Set<string>([
+  'm.room.message',
+  'm.room.encrypted',
+  'm.sticker',
+]);
 export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
   if (!NOTIFICATION_EVENT_TYPES.has(eType)) {
@@ -322,8 +331,9 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     if (
       latestEvent &&
       !latestEvent.isSending() &&
+      SUPPRESSABLE_SENT_EVENT_TYPES.has(latestEvent.getType()) &&
       latestEvent.getSender() === userId &&
-      isNotificationEvent(latestEvent)
+      isNotificationEvent(latestEvent, room, userId)
     ) {
       return { roomId: room.roomId, highlight: 0, total: 0 };
     }

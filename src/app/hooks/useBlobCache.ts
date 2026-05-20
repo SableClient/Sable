@@ -111,9 +111,24 @@ async function getCachedMedia(url: string): Promise<Blob | undefined> {
       return undefined;
     }
 
-    return await response.blob();
+    const blob = await response.blob();
+    // Update LRU timestamp on cache hit
+    touchCacheEntry(url);
+    return blob;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Touch a cache entry to mark it as recently used (for LRU eviction).
+ */
+function touchCacheEntry(url: string): void {
+  const idx = cacheMetadata.findIndex((m) => m.url === url);
+  if (idx !== -1) {
+    const entry = cacheMetadata[idx]!;
+    cacheMetadata.splice(idx, 1);
+    cacheMetadata.push({ ...entry, cachedAt: Date.now() });
   }
 }
 

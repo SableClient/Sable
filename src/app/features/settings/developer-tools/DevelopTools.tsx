@@ -26,15 +26,11 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
-  const [svgCacheSize, setSvgCacheSize] = useState(0);
-
-  useEffect(() => {
-    setSvgCacheSize(getSvgCacheSize());
-  }, []);
+  const [svgCacheSize, setSvgCacheSize] = useState(() => getSvgCacheSize());
 
   const clearSvgCacheAction = useCallback(() => {
     clearSvgBlobCache();
-    setSvgCacheSize(0);
+    setSvgCacheSize(getSvgCacheSize());
   }, []);
 
   const submitAccountData: AccountDataSubmitCallback = useCallback(

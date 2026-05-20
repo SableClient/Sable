@@ -10,6 +10,7 @@ import * as css from './RoomAvatar.css';
 // SVG processing only runs once per unique image, even as virtual-list items
 // unmount and remount. MXC URLs are content-addressed and never change, so
 // the mapping is stable for the lifetime of the page.
+const SVG_BLOB_CACHE_MAX = 200;
 const svgBlobCache = new Map<string, string>();
 
 /** Number of SVG blob URLs currently held in the module-level cache. */
@@ -59,10 +60,22 @@ export function useProcessedAvatarSrc(src: string | undefined): string | undefin
 
     const processImage = async () => {
       try {
+        // Fast path: if the URL has a non-SVG extension we can skip the fetch
+        // entirely and let the browser's <img> element load it directly.
+        const urlPath = src.split('?')[0]?.toLowerCase() ?? '';
+        const hasSvgExtension = urlPath.endsWith('.svg');
+        const hasNonSvgExtension = /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/.test(urlPath);
+
+        if (hasNonSvgExtension) {
+          if (isMounted) setProcessedSrc(src);
+          return;
+        }
+
         const res = await fetch(src, { mode: 'cors' });
         const contentType = res.headers.get('content-type');
+        const isSvg = hasSvgExtension || (contentType ? contentType.includes('image/svg+xml') : false);
 
-        if (contentType && contentType.includes('image/svg+xml')) {
+        if (isSvg) {
           const text = await res.text();
           const parser = new DOMParser();
           const doc = parser.parseFromString(text, 'image/svg+xml');
@@ -79,6 +92,14 @@ export function useProcessedAvatarSrc(src: string | undefined): string | undefin
           const blob = new Blob([newSvgString], { type: 'image/svg+xml' });
 
           const blobUrl = URL.createObjectURL(blob);
+          // Cap cache size — evict the oldest entry (insertion order) when full.
+          if (svgBlobCache.size >= SVG_BLOB_CACHE_MAX) {
+            const firstKey = svgBlobCache.keys().next().value;
+            if (firstKey !== undefined) {
+              URL.revokeObjectURL(svgBlobCache.get(firstKey)!);
+              svgBlobCache.delete(firstKey);
+            }
+          }
           // Store in module cache so future remounts skip processing.
           svgBlobCache.set(src, blobUrl);
           if (isMounted) setProcessedSrc(blobUrl);

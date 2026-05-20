@@ -650,6 +650,18 @@ function fetchConfig(token: string): RequestInit {
   };
 }
 
+function mediaFetchConfig(token: string): RequestInit {
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    // MXC URLs are content-addressed and never change; use the browser's
+    // default HTTP cache so identical media requests are served from cache
+    // instead of hitting the network on every render.
+    cache: 'default',
+  };
+}
+
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data.type === 'togglePush') {
     const token = event.data?.token;
@@ -680,7 +692,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    event.respondWith(fetch(url, { ...mediaFetchConfig(session.accessToken), redirect }));
     return;
   }
 
@@ -700,7 +712,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       ? preloadedSession
       : undefined);
   if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(fetch(url, { ...mediaFetchConfig(byBaseUrl.accessToken), redirect }));
     return;
   }
 
@@ -711,7 +723,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
           return fetch(url, {
-            ...fetchConfig(persisted.accessToken),
+            ...mediaFetchConfig(persisted.accessToken),
             redirect,
           });
         }
@@ -725,13 +737,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     requestSessionWithTimeout(clientId).then(async (s) => {
       // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+        return fetch(url, { ...mediaFetchConfig(s.accessToken), redirect });
       }
       // Fallback: try the persisted session (helps when SW restarts on iOS and
       // the client window hasn't responded to requestSession yet).
       const persisted = await loadPersistedSession();
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
+        return fetch(url, { ...mediaFetchConfig(persisted.accessToken), redirect });
       }
       console.warn(
         '[SW fetch] No valid session for media request',

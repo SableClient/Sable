@@ -34,7 +34,6 @@ describe('NON_SYNCABLE_KEYS', () => {
       'developerTools',
       'enterForNewline',
       'settingsSyncEnabled',
-      'searchIndexMessageLimit',
     ] as const;
 
     expected.forEach((key) => {

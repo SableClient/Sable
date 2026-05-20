@@ -21,9 +21,6 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'enterForNewline',
   // Sync toggle itself must never be uploaded (it's device-local)
   'settingsSyncEnabled',
-  // Search index capacity varies by device (mobile is capped at 50 MB, desktop at 300 MB),
-  // so each device should keep its own limit rather than inheriting a desktop value.
-  'searchIndexMessageLimit',
 ]);
 
 export const SETTINGS_SYNC_VERSION = 1;

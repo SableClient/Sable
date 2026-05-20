@@ -21,6 +21,10 @@ import { TiptapAutocompleteMenu } from './TiptapAutocompleteMenu';
 type EmoticonItem = PackImageReader | IEmoji;
 const SEARCH_OPTIONS: UseAsyncSearchOptions = { matchOptions: { contain: true } };
 
+function getEmoticonKey(item: EmoticonItem): string {
+  return 'url' in item ? item.url : item.unicode;
+}
+
 type Props = {
   imagePackRooms: Room[];
   useAuthentication: boolean;
@@ -62,16 +66,12 @@ export function TiptapEmoticonAutocomplete({
     else resetSearch();
   }, [queryText, search, resetSearch]);
 
-  function getKey(item: EmoticonItem): string {
-    return 'url' in item ? item.url : item.unicode;
-  }
-
   function getShortcode(item: EmoticonItem): string {
     return 'shortcode' in item ? (item as PackImageReader).shortcode : (item as IEmoji).shortcode;
   }
 
   function handleSelect(item: EmoticonItem) {
-    const key = getKey(item);
+    const key = getEmoticonKey(item);
     const shortcode = getShortcode(item);
     onSelect(key, shortcode);
     onClose();

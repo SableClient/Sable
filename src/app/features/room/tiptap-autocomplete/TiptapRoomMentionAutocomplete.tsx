@@ -15,6 +15,11 @@ import { TiptapAutocompleteMenu } from './TiptapAutocompleteMenu';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = { matchOptions: { contain: true } };
 
+function getRoomSearchStr(room: Room): string {
+  const alias = room.getCanonicalAlias() ?? '';
+  return `${room.name}${alias}`;
+}
+
 type Props = {
   queryText: string;
   onSelect: (roomId: string, roomAlias: string) => void;
@@ -34,14 +39,9 @@ export function TiptapRoomMentionAutocomplete({ queryText, onSelect, onClose }: 
     [allRooms, mx]
   );
 
-  const getSearchStr = (room: Room) => {
-    const alias = room.getCanonicalAlias() ?? '';
-    return `${room.name}${alias}`;
-  };
-
   const [result, search, resetSearch] = useAsyncSearch(
     roomsWithAlias,
-    getSearchStr,
+    getRoomSearchStr,
     SEARCH_OPTIONS
   );
   const candidates = result ? result.items.slice(0, 20) : roomsWithAlias.slice(0, 20);

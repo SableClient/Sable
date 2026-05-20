@@ -93,7 +93,7 @@ function detectAutocomplete(editor: TiptapEditorInstance): AutocompleteState {
   const from = nodeStart + wordStart;
   const to = cursorPos;
 
-  return { prefix: prefix as '@' | '#' | ':', text: word.slice(1), from, to };
+  return { prefix, text: word.slice(1), from, to };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

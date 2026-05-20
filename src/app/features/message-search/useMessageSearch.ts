@@ -47,7 +47,7 @@ function idbEventsToGroups(
     const liveEvent = mx.getRoom(ev.roomId)?.findEventById(ev.eventId);
     const eventData: IEventWithRoomId = liveEvent
       ? toSearchEvent(liveEvent, ev.roomId)
-      : {
+      : ({
           event_id: ev.eventId,
           room_id: ev.roomId,
           sender: ev.sender,
@@ -66,7 +66,7 @@ function idbEventsToGroups(
           },
           type: 'm.room.message',
           unsigned: {},
-        } as IEventWithRoomId;
+        } as IEventWithRoomId);
     const item: ResultItem = {
       rank: 1,
       event: eventData,
@@ -288,9 +288,8 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           ),
           // Only report local-cache count for rooms that were actually searched in-memory.
           inMemoryRoomCount:
-            ((usedIdb ? 0 : encryptedRoomIds.length) +
-              (usedIdbForUnencrypted ? 0 : unencryptedRoomCount)) ||
-            undefined,
+            (usedIdb ? 0 : encryptedRoomIds.length) +
+              (usedIdbForUnencrypted ? 0 : unencryptedRoomCount) || undefined,
         };
       }
 

@@ -426,7 +426,11 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     // When sync recovers, restart any rooms that were paused mid-backfill.
     const handleSync = (state: SyncState) => {
       syncStateRef.current = state;
-      if (state === SyncState.Syncing || state === SyncState.Prepared || state === SyncState.Catchup) {
+      if (
+        state === SyncState.Syncing ||
+        state === SyncState.Prepared ||
+        state === SyncState.Catchup
+      ) {
         resumeBackfill();
       }
     };
@@ -487,7 +491,15 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       headlessSets.clear();
       backfillQueueRef.current = [];
     };
-  }, [idbSearchIndex, mx, searchIndexMessageLimit, handleWorkerMessage, indexEvent, resumeBackfill, postToWorker]);
+  }, [
+    idbSearchIndex,
+    mx,
+    searchIndexMessageLimit,
+    handleWorkerMessage,
+    indexEvent,
+    resumeBackfill,
+    postToWorker,
+  ]);
 
   // ── Public API ─────────────────────────────────────────────────────────────
 

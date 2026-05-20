@@ -107,7 +107,18 @@ function makeIndex(): MiniSearch<IndexableEvent> {
   return new MiniSearch<IndexableEvent>({
     idField: 'eventId',
     fields: ['body', 'sender'],
-    storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body', 'url', 'file', 'info', 'filename'],
+    storeFields: [
+      'eventId',
+      'roomId',
+      'sender',
+      'msgtype',
+      'ts',
+      'body',
+      'url',
+      'file',
+      'info',
+      'filename',
+    ],
     searchOptions: {
       boost: { body: 2 },
       fuzzy: 0.2,
@@ -185,9 +196,7 @@ const HAS_TYPE_TO_MSGTYPE: Record<string, string> = {
   video: 'm.video',
 };
 
-function makeTypeFilter(
-  hasTypes: string[] | undefined
-): ((ev: IndexableEvent) => boolean) | null {
+function makeTypeFilter(hasTypes: string[] | undefined): ((ev: IndexableEvent) => boolean) | null {
   if (!hasTypes || hasTypes.length === 0) return null;
   const allowedMsgtypes = new Set(hasTypes.map((t) => HAS_TYPE_TO_MSGTYPE[t]).filter(Boolean));
   const needsLink = hasTypes.includes('link');
@@ -210,7 +219,18 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       index = MiniSearch.loadJSON(serialized, {
         idField: 'eventId',
         fields: ['body', 'sender'],
-        storeFields: ['eventId', 'roomId', 'sender', 'msgtype', 'ts', 'body', 'url', 'file', 'info', 'filename'],
+        storeFields: [
+          'eventId',
+          'roomId',
+          'sender',
+          'msgtype',
+          'ts',
+          'body',
+          'url',
+          'file',
+          'info',
+          'filename',
+        ],
         searchOptions: {
           boost: { body: 2 },
           fuzzy: 0.2,
@@ -286,7 +306,13 @@ function handleIndexEvents(events: IndexableEvent[]): void {
   scheduleFlush();
 }
 
-function handleQuery(id: string, term: string, roomIds?: string[], senders?: string[], hasTypes?: string[]): void {
+function handleQuery(
+  id: string,
+  term: string,
+  roomIds?: string[],
+  senders?: string[],
+  hasTypes?: string[]
+): void {
   if (!index) {
     post({ type: 'QUERY_RESULT', id, events: [] });
     return;

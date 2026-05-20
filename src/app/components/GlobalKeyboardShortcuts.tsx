@@ -61,9 +61,7 @@ export function GlobalKeyboardShortcuts() {
   const setReplyDraft = useSetAtom(replyDraftAtomFamily);
 
   const setEditNavRequest = useSetAtom(
-    currentRoom?.roomId
-      ? roomIdToEditNavRequestAtomFamily(currentRoom.roomId)
-      : _noopEditNavAtom
+    currentRoom?.roomId ? roomIdToEditNavRequestAtomFamily(currentRoom.roomId) : _noopEditNavAtom
   );
   const editNavNonceRef = useRef(0);
 

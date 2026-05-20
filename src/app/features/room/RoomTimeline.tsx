@@ -825,7 +825,9 @@ export function RoomTimeline({
   const handleEditRef = useRef(handleEdit);
   handleEditRef.current = handleEdit;
 
-  const [editNavRequest, setEditNavRequest] = useAtom(roomIdToEditNavRequestAtomFamily(room.roomId));
+  const [editNavRequest, setEditNavRequest] = useAtom(
+    roomIdToEditNavRequestAtomFamily(room.roomId)
+  );
 
   useEffect(() => {
     if (!editNavRequest) return;

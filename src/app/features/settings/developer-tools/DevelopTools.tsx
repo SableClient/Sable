@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Box, Text, Scroll, Switch, Button } from 'folds';
 import { PageContent } from '$components/page';
 import { SequenceCard } from '$components/sequence-card';

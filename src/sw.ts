@@ -694,7 +694,10 @@ async function fetchMediaWithCache(
     // Store a clone — the original body is consumed by the browser.
     // Failures are intentionally not cached.
     const c = cache;
-    cache.put(url, response.clone()).then(() => evictSwMediaCacheIfNeeded(c)).catch(() => {});
+    cache
+      .put(url, response.clone())
+      .then(() => evictSwMediaCacheIfNeeded(c))
+      .catch(() => {});
   }
 
   return response;

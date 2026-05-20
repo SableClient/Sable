@@ -70,7 +70,7 @@ function idbEventsToGroups(
     const item: ResultItem = {
       rank: 1,
       event: eventData,
-      context: EMPTY_CONTEXT as IResultContext,
+      context: EMPTY_CONTEXT,
     };
     const arr = byRoom.get(ev.roomId) ?? [];
     arr.push(item);
@@ -223,7 +223,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
       let usedIdb = false;
       if (encryptedSearchEnabled && isFirstPage && encryptedRoomIds.length > 0) {
         if (useIdbSearch && (term || hasHasTypes)) {
-          const idbEvents = await searchIndex!.query(term ?? '', {
+          const idbEvents = await searchIndex.query(term ?? '', {
             roomIds: encryptedRoomIds,
             senders,
             hasTypes: hasHasTypes ? hasTypes : undefined,
@@ -261,7 +261,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
           unencryptedRoomCount = unencryptedRooms.length;
           if (unencryptedRooms.length > 0) {
             if (useIdbSearch) {
-              const idbEvents = await searchIndex!.query('', {
+              const idbEvents = await searchIndex.query('', {
                 roomIds: unencryptedRooms,
                 senders,
                 hasTypes,

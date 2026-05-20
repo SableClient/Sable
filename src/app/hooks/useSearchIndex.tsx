@@ -395,11 +395,11 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!idbSearchIndex) {
       setIsReady(false);
-      return;
+      return () => {};
     }
 
     const userId = mx.getUserId();
-    if (!userId) return;
+    if (!userId) return () => {};
 
     const worker = new Worker(
       new URL('../plugins/search-worker/searchWorker.ts', import.meta.url),
@@ -408,8 +408,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     workerRef.current = worker;
     worker.addEventListener('message', handleWorkerMessage);
 
-    // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
-    worker.postMessage({
+    postToWorker({
       type: 'INIT',
       userId,
       maxMessagesPerRoom: searchIndexMessageLimit,
@@ -460,7 +459,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       headlessSets.clear();
       backfillQueueRef.current = [];
     };
-  }, [idbSearchIndex, mx, searchIndexMessageLimit, handleWorkerMessage, indexEvent, resumeBackfill]);
+  }, [idbSearchIndex, mx, searchIndexMessageLimit, handleWorkerMessage, indexEvent, resumeBackfill, postToWorker]);
 
   // ── Public API ─────────────────────────────────────────────────────────────
 

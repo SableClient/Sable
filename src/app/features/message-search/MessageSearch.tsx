@@ -48,6 +48,9 @@ type MessageSearchProps = {
   senders?: string[];
   scrollRef: RefObject<HTMLDivElement | null>;
 };
+
+const VALID_HAS_TYPES = new Set<SearchHasType>(['image', 'file', 'audio', 'video', 'link']);
+
 export function MessageSearch({
   defaultRoomsFilterName,
   allowGlobal,
@@ -57,7 +60,7 @@ export function MessageSearch({
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
-  const allRoomsSelector = useCallback((rId: string) => !!isRoom(mx.getRoom(rId)), [mx]);
+  const allRoomsSelector = useCallback((rId: string) => isRoom(mx.getRoom(rId)), [mx]);
   const allRooms = useSelectedRooms(allRoomsAtom, allRoomsSelector);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
@@ -87,11 +90,10 @@ export function MessageSearch({
     }
     return undefined;
   }, [searchPathSearchParams.senders]);
-  const VALID_HAS_TYPES: SearchHasType[] = ['image', 'file', 'audio', 'video', 'link'];
   const searchParamHasTypes = useMemo(() => {
     if (!searchPathSearchParams.has) return undefined;
     const decoded = decodeSearchParamValueArray(searchPathSearchParams.has).filter(
-      (t): t is SearchHasType => VALID_HAS_TYPES.includes(t as SearchHasType)
+      (t): t is SearchHasType => VALID_HAS_TYPES.has(t as SearchHasType)
     );
     return decoded.length > 0 ? decoded : undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps

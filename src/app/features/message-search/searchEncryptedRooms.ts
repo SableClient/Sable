@@ -66,7 +66,7 @@ export function searchRoomTimeline(
 
   for (const mEvent of events) {
     // Skip non-message events and still-encrypted events (decryption failed or not yet decrypted)
-    if (mEvent.getType() !== EventType.RoomMessage) continue;
+    if ((mEvent.getType() as EventType) !== EventType.RoomMessage) continue;
     if (mEvent.isRedacted()) continue;
 
     const sender = mEvent.getSender();

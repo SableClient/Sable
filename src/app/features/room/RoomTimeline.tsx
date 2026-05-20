@@ -1088,7 +1088,6 @@ export function RoomTimeline({
                   {backPaginationJSX}
                   {dividers}
                   {renderedEvent}
-                  {isLastItem && frontPaginationJSX}
                 </Fragment>
               );
             }
@@ -1097,7 +1096,6 @@ export function RoomTimeline({
               <Fragment key={eventData.id}>
                 {dividers}
                 {renderedEvent}
-                {isLastItem && frontPaginationJSX}
               </Fragment>
             );
           }}
@@ -1116,15 +1114,26 @@ export function RoomTimeline({
         </TimelineFloat>
       )}
 
-      {frontPaginationJSX && (
-        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
+        <TimelineFloat position="Bottom">
           {frontPaginationJSX}
+          {!frontPaginationJSX && (
+            <Chip
+              variant="SurfaceVariant"
+              radii="Pill"
+              outlined
+              before={<Icon size="50" src={Icons.ArrowBottom} />}
+              onClick={() => {
+                if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
+                timelineSync.setTimeline(getInitialTimeline(room));
+                scrollToBottom();
+              }}
+            >
+              <Text size="L400">Jump to Latest</Text>
+            </Chip>
+          )}
         </TimelineFloat>
       )}
-
-      {/* While the real VList is invisible (opacity:0) during the initial
-          scroll-settle window, show skeleton placeholders so the user sees
-          loading feedback instead of a blank area. */}
       {!isReady && !showLoadingPlaceholders && (
         <div
           style={{
@@ -1162,23 +1171,6 @@ export function RoomTimeline({
         </div>
       )}
 
-      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
-        <TimelineFloat position="Bottom">
-          <Chip
-            variant="SurfaceVariant"
-            radii="Pill"
-            outlined
-            before={<Icon size="50" src={Icons.ArrowBottom} />}
-            onClick={() => {
-              if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
-              timelineSync.setTimeline(getInitialTimeline(room));
-              scrollToBottom();
-            }}
-          >
-            <Text size="L400">Jump to Latest</Text>
-          </Chip>
-        </TimelineFloat>
-      )}
     </Box>
   );
 }

@@ -429,7 +429,11 @@ export function RoomNavItem({
                   <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
                     {isGroupDM && showAvatar && groupMembers.length > 1 ? (
                       // Group DM: triangle layout of mini avatars
-                      <div className={css.GroupAvatarRow}>
+                      // In hideText mode the Avatar slot is 32px (size="300"); scale to match.
+                      <div
+                        className={css.GroupAvatarRow}
+                        style={hideText ? { width: '32px', height: '32px' } : undefined}
+                      >
                         {groupMembers.map((member) => {
                           const avatarSrc = member.avatarUrl
                             ? (mxcUrlToHttp(

@@ -61,7 +61,9 @@ export const useGroupDMMembers = (
   useEffect(() => {
     let cancelled = false;
     if (!room) {
-      setMembers([]);
+      // Use functional update to avoid a re-render when state is already empty
+      // (e.g. every 1:1 DM nav item that never had group members).
+      setMembers((prev) => (prev.length > 0 ? [] : prev));
       return undefined;
     }
     const fetchMembers = async () => {

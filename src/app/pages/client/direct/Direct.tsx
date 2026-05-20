@@ -257,6 +257,7 @@ export function Direct() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 38,
     overscan: 10,
+    getItemKey: (index) => sortedDirects[index] ?? index,
   });
 
   const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
@@ -272,6 +273,7 @@ export function Direct() {
       <Box
         shrink="No"
         style={{
+          position: 'relative',
           width: isMobile ? '100%' : toRem(curWidth),
         }}
       >
@@ -335,7 +337,7 @@ export function Direct() {
                       return (
                         <VirtualTile
                           virtualItem={vItem}
-                          key={vItem.index}
+                          key={roomId}
                           ref={virtualizer.measureElement}
                         >
                           <div
@@ -375,18 +377,18 @@ export function Direct() {
             </PageNavContent>
           )}
         </PageNav>
+        {!isMobile && (
+          <SidebarResizer
+            setCurWidth={setCurWidth}
+            sidebarWidth={roomSidebarWidth}
+            setSidebarWidth={setRoomSidebarWidth}
+            instep={80}
+            outstep={190}
+            minValue={50}
+            maxValue={500}
+          />
+        )}
       </Box>
-      {!isMobile && (
-        <SidebarResizer
-          setCurWidth={setCurWidth}
-          sidebarWidth={roomSidebarWidth}
-          setSidebarWidth={setRoomSidebarWidth}
-          instep={80}
-          outstep={190}
-          minValue={50}
-          maxValue={500}
-        />
-      )}
     </>
   );
 }

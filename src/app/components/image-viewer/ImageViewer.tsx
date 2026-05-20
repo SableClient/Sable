@@ -17,8 +17,12 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       useImageGestures(true, 0.2);
 
     const handleDownload = async () => {
-      const fileContent = await downloadMedia(src);
-      FileSaver.saveAs(fileContent, alt);
+      try {
+        const fileContent = await downloadMedia(src);
+        FileSaver.saveAs(fileContent, alt);
+      } catch {
+        // Download failed (e.g. network error or non-2xx response) — silently ignore.
+      }
     };
 
     return (

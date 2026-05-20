@@ -9,7 +9,7 @@
  */
 import { useCallback, useRef } from 'react';
 import { useNavigate, useLocation, matchPath } from 'react-router-dom';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, atom } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -23,8 +23,13 @@ import { announce } from '$utils/announce';
 import {
   roomIdToReplyDraftAtomFamily,
   roomIdToEditNavRequestAtomFamily,
+  type IEditNavRequest,
 } from '$state/room/roomInputDrafts';
 import type { Room } from '$types/matrix-sdk';
+
+// Stable fallback atom used when no room is active — prevents atomFamily from
+// creating a spurious entry under the empty-string key ''.
+const _noopEditNavAtom = atom<IEditNavRequest | undefined>(undefined);
 
 export function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
@@ -55,7 +60,11 @@ export function GlobalKeyboardShortcuts() {
   const replyDraft = useAtomValue(replyDraftAtomFamily);
   const setReplyDraft = useSetAtom(replyDraftAtomFamily);
 
-  const setEditNavRequest = useSetAtom(roomIdToEditNavRequestAtomFamily(currentRoom?.roomId ?? ''));
+  const setEditNavRequest = useSetAtom(
+    currentRoom?.roomId
+      ? roomIdToEditNavRequestAtomFamily(currentRoom.roomId)
+      : _noopEditNavAtom
+  );
   const editNavNonceRef = useRef(0);
 
   /** Navigate to a room by ID and announce it to screen readers. */

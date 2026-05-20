@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { Editor } from 'slate';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useAtom, useSetAtom } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { PushProcessor, Direction } from '$types/matrix-sdk';
 import classNames from 'classnames';
@@ -45,7 +45,7 @@ import {
   factoryRenderLinkifyWithMention,
 } from '$plugins/react-custom-html-parser';
 import { today, yesterday, timeDayMonthYear } from '$utils/time';
-import { unwrapRelationJumpTarget } from '$utils/room';
+import { unwrapRelationJumpTarget, canEditEvent } from '$utils/room';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -825,18 +825,17 @@ export function RoomTimeline({
   const handleEditRef = useRef(handleEdit);
   handleEditRef.current = handleEdit;
 
-  const editNavRequest = useAtomValue(roomIdToEditNavRequestAtomFamily(room.roomId));
+  const [editNavRequest, setEditNavRequest] = useAtom(roomIdToEditNavRequestAtomFamily(room.roomId));
 
   useEffect(() => {
     if (!editNavRequest) return;
-    const myUserId = mx.getUserId();
     const editableEvents = processedEventsRef.current.filter(
-      (e) =>
-        e.mEvent.getSender() === myUserId &&
-        e.mEvent.getType() === 'm.room.message' &&
-        !e.mEvent.isRedacted()
+      (e) => !e.mEvent.isRedacted() && canEditEvent(mx, e.mEvent)
     );
-    if (editableEvents.length === 0) return;
+    if (editableEvents.length === 0) {
+      setEditNavRequest(undefined);
+      return;
+    }
 
     const currentEditId = editIdRef.current;
     const doHandleEdit = handleEditRef.current;
@@ -846,6 +845,7 @@ export function RoomTimeline({
       const latest = editableEvents.at(-1)!;
       const id = latest.mEvent.getId();
       if (id) doHandleEdit(id);
+      setEditNavRequest(undefined);
       return;
     }
 
@@ -854,10 +854,11 @@ export function RoomTimeline({
       editNavRequest.dir === 'prev'
         ? editableEvents[currentIdx - 1]
         : editableEvents[currentIdx + 1];
+    setEditNavRequest(undefined);
     if (!next) return;
     const id = next.mEvent.getId();
     if (id) doHandleEdit(id);
-  }, [editNavRequest, mx]);
+  }, [editNavRequest, mx, setEditNavRequest]);
 
   useEffect(() => {
     const v = vListRef.current;

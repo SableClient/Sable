@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { mobileOrTablet } from '$utils/user-agent';
 
 const CACHE_NAME = 'sable-media-v1';
 const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const MAX_CACHE_SIZE_MB = 500; // Configurable limit
+// iOS/Android devices have limited Cache API quota; keep the persistent cache
+// much smaller on mobile to avoid triggering iOS PWA storage eviction.
+const MAX_CACHE_SIZE_MB = mobileOrTablet() ? 50 : 300;
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();

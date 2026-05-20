@@ -75,6 +75,8 @@ export function searchRoomTimeline(
 
     if (hasTypes && hasTypes.length > 0 && !mEventMatchesHasTypes(mEvent, hasTypes)) continue;
 
+    if (!mEvent.getId()) continue;
+
     if (lowerTerm !== '') {
       const body: string = mEvent.getContent().body ?? '';
       if (!body || !body.toLowerCase().includes(lowerTerm)) continue;

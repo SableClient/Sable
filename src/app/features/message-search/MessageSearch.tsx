@@ -97,8 +97,9 @@ export function MessageSearch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchPathSearchParams.has]);
 
+  const isGlobal = searchPathSearchParams.global === 'true';
+
   const msgSearchParams: MessageSearchParams = useMemo(() => {
-    const isGlobal = searchPathSearchParams.global === 'true';
     const defaultRooms = isGlobal ? undefined : rooms;
 
     return {
@@ -109,6 +110,7 @@ export function MessageSearch({
       hasTypes: searchParamHasTypes,
     };
   }, [
+    isGlobal,
     searchPathSearchParams,
     searchParamRooms,
     searchParamsSenders,
@@ -116,6 +118,10 @@ export function MessageSearch({
     rooms,
     senders,
   ]);
+
+  const isSearching =
+    !!msgSearchParams.term ||
+    (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
@@ -254,7 +260,7 @@ export function MessageSearch({
       </ScrollTopContainer>
       <Box ref={scrollTopAnchorRef} direction="Column" gap="300">
         <SearchInput
-          active={!!msgSearchParams.term}
+          active={isSearching}
           loading={status === 'pending'}
           searchInputRef={searchInputRef}
           onSearch={handleSearch}
@@ -263,8 +269,8 @@ export function MessageSearch({
         <SearchFilters
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
-          roomList={rooms}
-          defaultRooms={rooms}
+          roomList={isGlobal ? allRooms : rooms}
+          defaultRooms={isGlobal ? allRooms : rooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}
@@ -292,7 +298,7 @@ export function MessageSearch({
         </Box>
       )}
 
-      {!msgSearchParams.term && status === 'pending' && (
+      {!isSearching && status === 'pending' && (
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
@@ -304,7 +310,7 @@ export function MessageSearch({
         </PageHeroEmpty>
       )}
 
-      {msgSearchParams.term && groups.length === 0 && status === 'success' && (
+      {isSearching && groups.length === 0 && status === 'success' && (
         <Box
           className={ContainerColor({ variant: 'Warning' })}
           style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
@@ -313,12 +319,16 @@ export function MessageSearch({
         >
           <Icon size="200" src={Icons.Info} />
           <Text>
-            No results found for <b>{`"${msgSearchParams.term}"`}</b>
+            {msgSearchParams.term ? (
+              <>No results found for <b>{`"${msgSearchParams.term}"`}</b></>
+            ) : (
+              'No results found.'
+            )}
           </Text>
         </Box>
       )}
 
-      {((msgSearchParams.term && status === 'pending') ||
+      {((isSearching && status === 'pending') ||
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (

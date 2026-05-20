@@ -209,7 +209,7 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return NotificationType.Default;
   }
 
-  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions as string[]).some((a) => a === 'notify')) return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
@@ -319,7 +319,12 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   if (userId && !room.getEventReadUpTo(userId)) {
     const liveEvents = room.getLiveTimeline().getEvents();
     const latestEvent = liveEvents[liveEvents.length - 1];
-    if (latestEvent && !latestEvent.isSending() && latestEvent.getSender() === userId) {
+    if (
+      latestEvent &&
+      !latestEvent.isSending() &&
+      latestEvent.getSender() === userId &&
+      isNotificationEvent(latestEvent)
+    ) {
       return { roomId: room.roomId, highlight: 0, total: 0 };
     }
   }

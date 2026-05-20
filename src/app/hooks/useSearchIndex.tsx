@@ -223,6 +223,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
       headlessTimeline.setPaginationToken(seedToken, Direction.Backward);
 
+      // Snapshot event count before pagination so we can slice only new events
+      const prevEventCount = headlessTimeline.getEvents().length;
+
       let hasMore = false;
       try {
         hasMore = await mx.paginateEventTimeline(headlessTimeline, {
@@ -235,11 +238,23 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Collect decrypted events from the headless timeline
-      const events = headlessTimeline
-        .getEvents()
-        .map((ev) => toIndexableEvent(ev, room.roomId))
-        .filter((ev): ev is IndexableEvent => ev !== null);
+      // Only process events added by this pagination pass. The headless timeline
+      // accumulates all paginated events, so slicing from prevEventCount avoids
+      // re-indexing already-seen events (O(n²) → O(n) per page).
+      const allEvents = headlessTimeline.getEvents();
+      const newEvents = allEvents.slice(0, allEvents.length - prevEventCount);
+
+      const events: IndexableEvent[] = [];
+      for (const ev of newEvents) {
+        if (ev.getType() === 'm.room.encrypted') {
+          // Still encrypted — re-use the live-indexing path which registers a
+          // Decrypted listener so the event is indexed once keys arrive.
+          indexEvent(ev, room);
+        } else {
+          const indexable = toIndexableEvent(ev, room.roomId);
+          if (indexable) events.push(indexable);
+        }
+      }
 
       if (events.length > 0) {
         postToWorker({ type: 'INDEX_EVENTS', events });
@@ -293,7 +308,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [mx, postToWorker]
+    [mx, indexEvent, postToWorker]
   );
 
   /**
@@ -463,9 +478,21 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     mx.on(ClientEvent.Room, handleRoomAdded as unknown as (...args: unknown[]) => void);
 
     return () => {
+      // Ask the worker to flush before terminating. We wait up to 2 s then
+      // force-terminate regardless so the cleanup never hangs.
       worker.removeEventListener('message', handleWorkerMessage);
-      worker.terminate();
-      workerRef.current = null;
+      postToWorker({ type: 'FLUSH' });
+      const terminateTimeout = setTimeout(() => {
+        worker.terminate();
+        workerRef.current = null;
+      }, 2000);
+      worker.addEventListener('message', (ev: MessageEvent<WorkerOutMessage>) => {
+        if (ev.data.type === 'FLUSH_DONE') {
+          clearTimeout(terminateTimeout);
+          worker.terminate();
+          workerRef.current = null;
+        }
+      }, { once: true });
       setIsReady(false);
       setIsBackfilling(false);
       mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
@@ -490,6 +517,25 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       backfillingRooms.clear();
       headlessSets.clear();
       backfillQueueRef.current = [];
+
+      // Reject any in-flight search/stats promises so callers don't hang forever
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      const pendingQueries = pendingQueriesRef.current;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time
+      const pendingStats = pendingStatsRef.current;
+      for (const { reject } of pendingQueries.values()) {
+        reject(new Error('Search index unmounted'));
+      }
+      pendingQueries.clear();
+      if (pendingStats) {
+        pendingStats.resolve({
+          indexedEventCount: 0,
+          roomCount: 0,
+          estimatedBytes: 0,
+          backfillingRoomCount: 0,
+        });
+        pendingStatsRef.current = null;
+      }
     };
   }, [
     idbSearchIndex,

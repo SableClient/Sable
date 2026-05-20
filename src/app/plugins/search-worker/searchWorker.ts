@@ -97,6 +97,13 @@ let maxMessagesPerRoom = 2000;
  */
 const roomQueues = new Map<string, Array<[eventId: string, ts: number]>>();
 
+/**
+ * Parallel store of all indexed documents, keyed by eventId.
+ * Maintained alongside the MiniSearch index to avoid relying on
+ * private MiniSearch internals (_storedFields) for full-scan queries.
+ */
+const storedDocs = new Map<string, IndexableEvent>();
+
 /** Dirty flag — index changed since last flush */
 let dirty = false;
 
@@ -144,7 +151,7 @@ function scheduleFlush(): void {
 async function flushIndex(): Promise<void> {
   if (!db || !index || !dirty) return;
   try {
-    await navigator.locks.request('sable-search-index-writer', { mode: 'exclusive' }, async () => {
+    const doFlush = async () => {
       if (!db || !index) return;
       // Persist serialized MiniSearch
       await idbPut(db, 'index', 'v1', JSON.stringify(index));
@@ -155,7 +162,12 @@ async function flushIndex(): Promise<void> {
       }
       await idbPut(db, 'index', 'rooms', roomQueuesData);
       dirty = false;
-    });
+    };
+    if ('locks' in navigator) {
+      await navigator.locks.request('sable-search-index-writer', { mode: 'exclusive' }, doFlush);
+    } else {
+      await doFlush();
+    }
   } catch {
     // Non-fatal: will retry on next flush
   }
@@ -173,19 +185,15 @@ function evictOldestForRoom(roomId: string): void {
   const toRemove = queue.splice(0, excess);
   for (const [eventId] of toRemove) {
     index.discard(eventId);
+    storedDocs.delete(eventId);
   }
 }
 
 // ── Message handler ────────────────────────────────────────────────────────
 
-/** Iterate every document stored in the MiniSearch index (uses internal _storedFields — tied to MiniSearch v7). */
-function iterateStoredDocs(idx: MiniSearch<IndexableEvent>): IterableIterator<IndexableEvent> {
-  const internal = idx as unknown as { _storedFields: Map<unknown, Record<string, unknown>> };
-  return (function* () {
-    for (const fields of internal._storedFields.values()) {
-      yield fields as IndexableEvent;
-    }
-  })();
+/** Iterate every document stored in the index using the parallel storedDocs map. */
+function iterateStoredDocs(): IterableIterator<IndexableEvent> {
+  return storedDocs.values();
 }
 
 /** Matrix msgtype for each SearchHasType chip. */
@@ -273,7 +281,7 @@ function handleIndexEvents(events: IndexableEvent[]): void {
     if (index.has(ev.eventId)) continue;
 
     index.add(ev);
-
+    storedDocs.set(ev.eventId, ev);
     let queue = roomQueues.get(ev.roomId);
     if (!queue) {
       queue = [];
@@ -330,7 +338,7 @@ function handleQuery(
   if (!term) {
     // Chip-only query: scan all stored documents — MiniSearch can't search an empty term.
     const results: IndexableEvent[] = [];
-    for (const ev of iterateStoredDocs(index)) {
+    for (const ev of iterateStoredDocs()) {
       if (matchesFilters(ev)) results.push(ev);
     }
     post({ type: 'QUERY_RESULT', id, events: results });
@@ -380,6 +388,7 @@ async function handleClearIndex(): Promise<void> {
   if (!db) return;
   index = makeIndex();
   roomQueues.clear();
+  storedDocs.clear();
   dirty = false;
   await idbClear(db, 'index');
   await idbClear(db, 'backfill');
@@ -409,12 +418,12 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
     case 'CLEAR_INDEX':
       void handleClearIndex();
       break;
+    case 'FLUSH':
+      void flushIndex().then(() => {
+        self.postMessage({ type: 'FLUSH_DONE' });
+      });
+      break;
     default:
       break;
   }
-});
-
-// Flush on termination
-self.addEventListener('beforeunload', () => {
-  void flushIndex();
 });

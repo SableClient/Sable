@@ -61,6 +61,9 @@ export type WorkerInMessage =
     }
   | {
       type: 'CLEAR_INDEX';
+    }
+  | {
+      type: 'FLUSH';
     };
 
 // ── Worker → Main ──────────────────────────────────────────────────────────
@@ -89,4 +92,7 @@ export type WorkerOutMessage =
   | {
       type: 'ERROR';
       message: string;
+    }
+  | {
+      type: 'FLUSH_DONE';
     };

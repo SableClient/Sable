@@ -99,8 +99,9 @@ export function MessageSearch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchPathSearchParams.has]);
 
+  const isGlobal = searchPathSearchParams.global === 'true';
+
   const msgSearchParams: MessageSearchParams = useMemo(() => {
-    const isGlobal = searchPathSearchParams.global === 'true';
     const defaultRooms = isGlobal ? undefined : rooms;
 
     return {
@@ -111,6 +112,7 @@ export function MessageSearch({
       hasTypes: searchParamHasTypes,
     };
   }, [
+    isGlobal,
     searchPathSearchParams,
     searchParamRooms,
     searchParamsSenders,
@@ -265,8 +267,8 @@ export function MessageSearch({
         <SearchFilters
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
-          roomList={rooms}
-          defaultRooms={rooms}
+          roomList={isGlobal ? allRooms : rooms}
+          defaultRooms={isGlobal ? allRooms : rooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}

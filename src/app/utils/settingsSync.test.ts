@@ -33,6 +33,7 @@ describe('NON_SYNCABLE_KEYS', () => {
       'memberSortFilterIndex',
       'developerTools',
       'settingsSyncEnabled',
+      'searchIndexMessageLimit',
     ] as const;
 
     expected.forEach((key) => {

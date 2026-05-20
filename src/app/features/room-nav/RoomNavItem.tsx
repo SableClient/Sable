@@ -431,9 +431,7 @@ export function RoomNavItem({
                       // Group DM: triangle layout of mini avatars.
                       // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
                       // use the larger container+mini variant so the composite scales properly.
-                      <div
-                        className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}
-                      >
+                      <div className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}>
                         {groupMembers.map((member) => {
                           const avatarSrc = member.avatarUrl
                             ? (mxcUrlToHttp(
@@ -446,7 +444,12 @@ export function RoomNavItem({
                               ) ?? undefined)
                             : undefined;
                           return (
-                            <Avatar key={member.userId} className={hideText ? css.GroupAvatarMiniHideText : css.GroupAvatarMini}>
+                            <Avatar
+                              key={member.userId}
+                              className={
+                                hideText ? css.GroupAvatarMiniHideText : css.GroupAvatarMini
+                              }
+                            >
                               <UserAvatar
                                 userId={member.userId}
                                 src={avatarSrc}

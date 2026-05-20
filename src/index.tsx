@@ -59,7 +59,10 @@ if ('serviceWorker' in navigator) {
           installingWorker.addEventListener('statechange', () => {
             if (installingWorker.state === 'installed') {
               if (navigator.serviceWorker.controller) {
-                window.location.reload();
+                // Notify the app rather than silently reloading — the user
+                // should see a banner and choose when to refresh, especially
+                // on mobile where an unexpected reload is very disorienting.
+                window.dispatchEvent(new CustomEvent('sable:sw-update'));
               }
             }
           });

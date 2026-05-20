@@ -7,6 +7,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  Line,
   Menu,
   MenuItem,
   PopOut,
@@ -51,9 +52,11 @@ import { useAppVisibility } from '$hooks/useAppVisibility';
 import { getHomePath } from '$pages/pathUtils';
 import { useClientConfig } from '$hooks/useClientConfig';
 import { pushSessionToSW } from '../../../sw-session';
+import { useSwUpdateAvailable } from '$hooks/useSwUpdateAvailable';
 import { SyncStatus } from './SyncStatus';
 import { SpecVersions } from './SpecVersions';
 import { AutoDiscovery } from './AutoDiscovery';
+import { ContainerColor } from '$styles/ContainerColor.css';
 
 const log = createLogger('ClientRoot');
 
@@ -259,6 +262,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   useSyncNicknames(mx);
   useLogoutListener(mx);
   useAppVisibility(mx);
+  const swUpdateAvailable = useSwUpdateAvailable();
 
   // Keep the SW session warm so media fetches and push notifications work
   // reliably after iOS kills and restarts the SW in the background.
@@ -395,6 +399,28 @@ export function ClientRoot({ children }: ClientRootProps) {
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
       <SpecVersions baseUrl={baseUrl ?? ''}>
         {mx && <SyncStatus mx={mx} />}
+        {swUpdateAvailable && (
+          <Box direction="Column" shrink="No">
+            <Box
+              as="button"
+              type="button"
+              className={ContainerColor({ variant: 'Primary' })}
+              style={{
+                padding: `${config.space.S100} 0`,
+                width: '100%',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'none',
+              }}
+              alignItems="Center"
+              justifyContent="Center"
+              onClick={() => window.location.reload()}
+            >
+              <Text size="L400">Update available — tap to reload</Text>
+            </Box>
+            <Line variant="Primary" size="300" />
+          </Box>
+        )}
         {(loading || !mx) && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {hasClientRootError ? (
           <SplashScreen>

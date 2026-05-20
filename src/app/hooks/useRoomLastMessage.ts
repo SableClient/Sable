@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Direction,
   EventType,
   MatrixEventEvent,
   MsgType,
@@ -173,6 +174,20 @@ export function useRoomLastMessage(
     const lastDisplayable = findLastDisplayableEvent(events);
     if (lastDisplayable && lastDisplayable.isEncrypted()) {
       mx.decryptEventIfNeeded(lastDisplayable).catch(() => undefined);
+    }
+
+    // Background paginate when the timeline is sparse and contains no
+    // displayable message (typical for sliding sync list rooms which initially
+    // receive only listTimelineLimit=3 events, all of which may be state events).
+    // The RoomEvent.Timeline listener fires when events are loaded, triggering
+    // another update() call that will find and display the preview.
+    if (!lastDisplayable && events.length <= 5) {
+      const liveTimeline = room.getLiveTimeline();
+      if (typeof liveTimeline.getPaginationToken(Direction.Backward) === 'string') {
+        mx.paginateEventTimeline(liveTimeline, { backwards: true, limit: 20 }).catch(
+          () => undefined
+        );
+      }
     }
 
     return () => {

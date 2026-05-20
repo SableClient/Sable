@@ -80,6 +80,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { BreakWord } from '$styles/Text.css';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { mobileOrTablet, mobileOrTabletLayout } from '$utils/user-agent';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
@@ -859,6 +860,9 @@ export function Space() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
+
   return (
     <Box
       shrink="No"

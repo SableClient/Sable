@@ -65,6 +65,7 @@ import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -265,6 +266,8 @@ export function Home() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
 
   return (
     <Box

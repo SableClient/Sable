@@ -56,6 +56,7 @@ import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -258,6 +259,8 @@ export function Direct() {
   const screenSize = useScreenSizeContext();
   const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
 
   return (
     <Box

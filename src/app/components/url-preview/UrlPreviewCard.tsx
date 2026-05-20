@@ -54,9 +54,13 @@ const openMediaInNewTab = async (url: string | undefined) => {
     console.warn('Attempted to open an empty url');
     return;
   }
-  const blob = await downloadMedia(url);
-  const blobUrl = URL.createObjectURL(blob);
-  window.open(blobUrl, '_blank');
+  try {
+    const blob = await downloadMedia(url);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    console.error('Failed to open media in new tab', err);
+  }
 };
 
 function ogPositiveDimension(value: unknown): number | undefined {

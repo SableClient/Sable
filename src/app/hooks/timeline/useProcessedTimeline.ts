@@ -31,7 +31,7 @@ export interface UseProcessedTimelineOptions {
    * full user header. Defaults to 2 (the original behaviour). Set higher
    * (e.g. 15) for Discord-style compact grouping.
    */
-  messageGroupingThreshold?: number;
+  messageGroupingThreshold: number;
 }
 
 export interface ProcessedEvent {
@@ -84,7 +84,7 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
-  messageGroupingThreshold = 2,
+  messageGroupingThreshold,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   return useMemo(() => {
     let prevEvent: MatrixEvent | undefined;

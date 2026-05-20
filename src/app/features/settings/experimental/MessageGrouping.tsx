@@ -6,6 +6,7 @@ import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 
 const THRESHOLD_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: 'Off (no grouping)' },
   { value: 2, label: '2 min (default)' },
   { value: 5, label: '5 min' },
   { value: 15, label: '15 min (Discord-style)' },

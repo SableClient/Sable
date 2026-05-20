@@ -20,10 +20,6 @@ import { getViaServers } from '$plugins/via-servers';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { useKeyboardHeight } from '$hooks/ios-keyboard-fix';
-import { computeBookmarkId, createBookmarkItem } from '$features/bookmarks/bookmarkDomain';
-import { useIsBookmarked, useBookmarkActions } from '$features/bookmarks/useBookmarks';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -144,11 +140,6 @@ export function MobileMessageMenu({
   const [nickEditOpen, setNickEditOpen] = useState(false);
   const [nickDraft, setNickDraft] = useState('');
   const nickInputRef = useRef<HTMLInputElement>(null);
-
-  // Bookmarks
-  const [enableMessageBookmarks] = useSetting(settingsAtom, 'enableMessageBookmarks');
-  const isBookmarked = useIsBookmarked(room.roomId, evtId);
-  const { add: addBookmark, remove: removeBookmark } = useBookmarkActions();
 
   // Register a keyboard-height listener so --sable-visible-height is set when the
   // nickname input is focused. The Sheet CSS uses that variable to stay above the keyboard.
@@ -287,16 +278,6 @@ export function MobileMessageMenu({
     await mx.kick(room.roomId, senderId);
     onClose();
   }, [mx, room, senderId, onClose]);
-
-  const handleBookmarkClick = useCallback(async () => {
-    if (isBookmarked) {
-      await removeBookmark(computeBookmarkId(room.roomId, evtId));
-    } else {
-      const item = createBookmarkItem(room, mEvent);
-      if (item) await addBookmark(item);
-    }
-    onClose();
-  }, [isBookmarked, removeBookmark, room, evtId, mEvent, addBookmark, onClose]);
 
   const stopPropHandler = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
@@ -449,13 +430,6 @@ export function MobileMessageMenu({
                   icon={<Icon src={Icons.Pin} size="200" />}
                   label={isPinned ? 'Unpin Message' : 'Pin Message'}
                   onClick={handlePinClick}
-                />
-              )}
-              {enableMessageBookmarks && (
-                <ActionItem
-                  icon={<Icon src={Icons.Bookmark} size="200" filled={isBookmarked} />}
-                  label={isBookmarked ? 'Remove Bookmark' : 'Bookmark Message'}
-                  onClick={handleBookmarkClick}
                 />
               )}
               {senderId !== myUserId &&

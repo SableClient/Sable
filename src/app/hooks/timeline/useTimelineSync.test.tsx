@@ -77,13 +77,9 @@ function createRoom(
   return { room, timelineSet, events };
 }
 
-describe('useTimelineSync', () => {
-  // Minimal MatrixClient stub that satisfies getRoomUnreadInfo's call chain.
-  // getAccountData returns null so getNotificationType returns Default (not Mute),
-  // then getEventReadUpTo returning null short-circuits roomHaveUnread to false.
-  const makeMx = () =>
-    ({ getUserId: () => '@alice:test', getAccountData: () => null }) as never;
+const makeMx = () => ({ getUserId: () => '@alice:test', getAccountData: () => null }) as never;
 
+describe('useTimelineSync', () => {
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {
     const { room, timelineSet, events } = createRoom();
     const scrollToBottom = vi.fn<() => void>();

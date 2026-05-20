@@ -86,7 +86,7 @@ export function useProcessedTimeline({
     // batch at once) and for bridge-backfilled or federated messages where
     // receipt order ≠ timestamp order.  Receipt order is preserved as a
     // tiebreaker so threading / causality is not affected.
-    const sortedItems = [...items].sort((a, b) => {
+    const sortedItems = items.toSorted((a, b) => {
       const [tlA, baseA] = getTimelineAndBaseIndex(linkedTimelines, a);
       const [tlB, baseB] = getTimelineAndBaseIndex(linkedTimelines, b);
       const evA = tlA ? getTimelineEvent(tlA, getTimelineRelativeIndex(a, baseA)) : null;

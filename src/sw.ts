@@ -642,6 +642,27 @@ function validMediaRequest(url: string, baseUrl: string): boolean {
 /** Cache for authenticated Matrix media responses — keyed by URL. */
 const SW_MEDIA_CACHE = 'sable-media-sw-v1';
 
+// iOS/Android devices have limited Cache API quota. Use a smaller entry cap on
+// mobile to prevent storage pressure that causes iOS to evict the PWA origin.
+const isMobileSW = /iPhone|iPad|iPod|Android/i.test(self.navigator.userAgent);
+/** Maximum number of entries kept in the SW media cache (FIFO eviction). */
+const SW_MEDIA_CACHE_MAX_ENTRIES = isMobileSW ? 200 : 1000;
+
+/**
+ * Evict oldest SW media cache entries when the count exceeds the platform limit.
+ * Cache API returns keys in insertion order so slicing from the front gives FIFO.
+ */
+async function evictSwMediaCacheIfNeeded(cache: Cache): Promise<void> {
+  try {
+    const keys = await cache.keys();
+    if (keys.length <= SW_MEDIA_CACHE_MAX_ENTRIES) return;
+    const toDelete = keys.slice(0, keys.length - SW_MEDIA_CACHE_MAX_ENTRIES);
+    await Promise.all(toDelete.map((req) => cache.delete(req)));
+  } catch {
+    // best-effort
+  }
+}
+
 function fetchConfig(token: string): RequestInit {
   return {
     headers: {
@@ -678,7 +699,8 @@ async function fetchMediaWithCache(
   if (cache && response.ok) {
     // Store a clone — the original body is consumed by the browser.
     // Failures are intentionally not cached.
-    cache.put(url, response.clone()).catch(() => {
+    const c = cache;
+    cache.put(url, response.clone()).then(() => evictSwMediaCacheIfNeeded(c)).catch(() => {
       // Ignore quota / write errors.
     });
   }

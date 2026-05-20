@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import type { MatrixClient } from '$types/matrix-sdk';
-import { RoomEvent } from '$types/matrix-sdk';
 import { getSlidingSyncManager } from '$client/initMatrix';
 import { mobileOrTablet } from '$utils/user-agent';
 
@@ -120,17 +119,13 @@ export function usePullToRefresh(
 
       showRefreshing();
 
-      mx.retryImmediately();
-      getSlidingSyncManager(mx)?.retryNow();
-
-      // Rebuild timelines for every room that currently has a RoomTimeline
-      // mounted.  For rooms without an active subscriber this is a no-op.
-      // Rooms that received a server-side TimelineReset will already rebuild
-      // via the SDK event; this covers the case where the sync response has
-      // no gap (limited: false) but the user still wants fresh React state.
-      mx.getRooms().forEach((room) => {
-        room.emit(RoomEvent.TimelineRefresh, room, room.getUnfilteredTimelineSet());
-      });
+      // Temporarily clear all active room subscriptions so the server sees
+      // an empty-subscription request.  On the following cycle, subscriptions
+      // are restored and the server returns initial:true for each room,
+      // triggering a clean timeline reset with proper backward-pagination
+      // tokens.  This recovers from stale or out-of-order in-memory timelines
+      // that a normal delta sync cannot fix.
+      getSlidingSyncManager(mx)?.scheduleForceReset();
 
       // Brief delay so the spinner is visible before snapping back.
       setTimeout(() => {

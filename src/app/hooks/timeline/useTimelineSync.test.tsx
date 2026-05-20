@@ -64,10 +64,13 @@ function createRoom(
     emit: roomEmitter.emit.bind(roomEmitter),
     roomId,
     getUnfilteredTimelineSet: () => timelineSet as never,
+    getLiveTimeline: () => timeline,
     getEventReadUpTo: () => null,
     getThread: () => null,
+    getUnreadNotificationCount: () => 0,
     client: {
       getUserId: () => '@alice:test',
+      getAccountData: () => null,
     },
   } as unknown as FakeRoom;
 
@@ -75,6 +78,12 @@ function createRoom(
 }
 
 describe('useTimelineSync', () => {
+  // Minimal MatrixClient stub that satisfies getRoomUnreadInfo's call chain.
+  // getAccountData returns null so getNotificationType returns Default (not Mute),
+  // then getEventReadUpTo returning null short-circuits roomHaveUnread to false.
+  const makeMx = () =>
+    ({ getUserId: () => '@alice:test', getAccountData: () => null }) as never;
+
   it('does not snap a non-bottom user to latest after TimelineReset', async () => {
     const { room, timelineSet, events } = createRoom();
     const scrollToBottom = vi.fn<() => void>();
@@ -82,7 +91,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: { getUserId: () => '@alice:test' } as never,
+        mx: makeMx(),
         isAtBottom: false,
         isAtBottomRef: { current: false },
         scrollToBottom,
@@ -114,7 +123,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: { getUserId: () => '@alice:test' } as never,
+        mx: makeMx(),
         isAtBottom: true,
         isAtBottomRef: { current: true },
         scrollToBottom,
@@ -142,7 +151,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: makeMx(),
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -179,7 +188,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: makeMx(),
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -214,7 +223,7 @@ describe('useTimelineSync', () => {
       ({ room }) =>
         useTimelineSync({
           room,
-          mx: { getUserId: () => '@alice:test' } as never,
+          mx: makeMx(),
           eventId: undefined,
           isAtBottom: false,
           isAtBottomRef: { current: false },

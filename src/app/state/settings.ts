@@ -593,7 +593,11 @@ export const getSettings = (): Settings =>
   mergePersistedSettings(localStorage.getItem(STORAGE_KEY), runtimeSettingsDefaults);
 
 export const setSettings = (settings: Settings) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // QuotaExceededError: write best-effort; ignore if storage is full
+  }
 };
 
 export const settingsAtom = atom<Settings, [Settings], undefined>(

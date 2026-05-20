@@ -30,23 +30,6 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
-const showUpdateAvailablePrompt = (registration: ServiceWorkerRegistration) => {
-  const DONT_SHOW_PROMPT_KEY = 'cinny_dont_show_sw_update_prompt';
-  const userPreference = localStorage.getItem(DONT_SHOW_PROMPT_KEY);
-
-  if (userPreference === 'true') {
-    return;
-  }
-
-  if (window.confirm('A new version of the app is available. Refresh to update?')) {
-    if (registration.waiting) {
-      // oxlint-disable-next-line unicorn/require-post-message-target-origin
-      registration.waiting.postMessage({ type: 'SKIP_WAITING_AND_CLAIM' });
-    }
-    window.location.reload();
-  }
-};
-
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
   const swUrl = isProduction
@@ -76,7 +59,7 @@ if ('serviceWorker' in navigator) {
           installingWorker.addEventListener('statechange', () => {
             if (installingWorker.state === 'installed') {
               if (navigator.serviceWorker.controller) {
-                showUpdateAvailablePrompt(registration);
+                window.location.reload();
               }
             }
           });

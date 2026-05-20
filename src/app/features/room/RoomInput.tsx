@@ -892,7 +892,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           // vendor extensions (spoiler, link previews, per-message profile)
           // are not silently dropped.
           for (const key of [
-            'filename', 'info', 'file', 'url',
+            'filename',
+            'info',
+            'file',
+            'url',
             'page.codeberg.everypizza.msc4193.spoiler',
             'com.beeper.linkpreviews',
             'com.beeper.per_message_profile',

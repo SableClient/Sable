@@ -17,8 +17,11 @@ export function getRecentRoomIds(userId: string): string[] {
     const stored = localStorage.getItem(RECENT_ROOMS_KEY);
     if (!stored) return [];
 
-    const data: RecentRoomsStore = JSON.parse(stored);
-    return data[userId] ?? [];
+    const data: unknown = JSON.parse(stored);
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) return [];
+    const userRooms = (data as Record<string, unknown>)[userId];
+    if (!Array.isArray(userRooms)) return [];
+    return userRooms.filter((id): id is string => typeof id === 'string');
   } catch {
     return [];
   }

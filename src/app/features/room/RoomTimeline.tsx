@@ -1168,7 +1168,6 @@ export function RoomTimeline({
           </MessageBase>
         </div>
       )}
-
     </Box>
   );
 }

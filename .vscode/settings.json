@@ -14,5 +14,9 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
-  "nixEnvSelector.useFlakes": true
+  "nixEnvSelector.useFlakes": true,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "AGENTS.md": "AGENTS.md, CLAUDE.md, COPILOT.md, .cursorrules"
+  }
 }

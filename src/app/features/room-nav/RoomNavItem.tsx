@@ -428,11 +428,11 @@ export function RoomNavItem({
                 <NavItemContent style={hideTextStyling(hideText)}>
                   <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
                     {isGroupDM && showAvatar && groupMembers.length > 1 ? (
-                      // Group DM: triangle layout of mini avatars
-                      // In hideText mode the Avatar slot is 32px (size="300"); scale to match.
+                      // Group DM: triangle layout of mini avatars.
+                      // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
+                      // use the larger container+mini variant so the composite scales properly.
                       <div
-                        className={css.GroupAvatarRow}
-                        style={hideText ? { width: '32px', height: '32px' } : undefined}
+                        className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}
                       >
                         {groupMembers.map((member) => {
                           const avatarSrc = member.avatarUrl
@@ -446,7 +446,7 @@ export function RoomNavItem({
                               ) ?? undefined)
                             : undefined;
                           return (
-                            <Avatar key={member.userId} className={css.GroupAvatarMini}>
+                            <Avatar key={member.userId} className={hideText ? css.GroupAvatarMiniHideText : css.GroupAvatarMini}>
                               <UserAvatar
                                 userId={member.userId}
                                 src={avatarSrc}

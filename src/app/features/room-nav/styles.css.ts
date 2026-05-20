@@ -46,3 +46,41 @@ export const GroupAvatarMini = style({
     },
   },
 });
+
+/**
+ * Scaled-up variant used when the nav item is in hideText (icon-only) mode.
+ * Matches the Avatar size="300" (32 px) slot; minis are proportionally larger.
+ */
+export const GroupAvatarRowHideText = style({
+  position: 'relative',
+  width: '32px',
+  height: '32px',
+  flexShrink: 0,
+});
+
+export const GroupAvatarMiniHideText = style({
+  position: 'absolute',
+  width: '18px',
+  height: '18px',
+  border: `2px solid ${color.Surface.Container}`,
+  borderRadius: '50%',
+  overflow: 'hidden',
+  selectors: {
+    '&:nth-child(1)': {
+      top: '0',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 3,
+    },
+    '&:nth-child(2)': {
+      bottom: '0',
+      left: '0',
+      zIndex: 2,
+    },
+    '&:nth-child(3)': {
+      bottom: '0',
+      right: '0',
+      zIndex: 1,
+    },
+  },
+});

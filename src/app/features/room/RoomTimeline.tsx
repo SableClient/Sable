@@ -1071,8 +1071,6 @@ export function RoomTimeline({
               </>
             ) : null;
 
-            const isLastItem = index === processedEvents.length - 1;
-
             if (index === 0) {
               return (
                 <Fragment key="first-item-block">

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification small icon: monochrome (white-on-transparent) silhouette of
+     the Sable bird. Android's status bar tints this with the notification
+     accent colour, so only the bird shape should be opaque. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@mipmap/ic_notification" />
+

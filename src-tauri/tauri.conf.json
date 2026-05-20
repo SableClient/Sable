@@ -1,0 +1,56 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "sable",
+  "version": "0.1.0",
+  "identifier": "moe.sable.client",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8080",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri:; script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: data: filesystem: ws: wss: http: https: tauri:; img-src 'self' data: blob: filesystem: http: https:; connect-src 'self' ipc: ws: wss: http: https: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "linux": {
+      "deb": {
+        "depends": ["xwayland"]
+      },
+      "rpm": {
+        "depends": ["xorg-x11-server-Xwayland"]
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "typegen": {
+      "projectPath": ".",
+      "outputPath": "../src/app/generated/tauri",
+      "validationLibrary": "none",
+      "verbose": false
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["sable"]
+      },
+      "mobile": [
+        {
+          "scheme": ["sable"],
+          "appLink": false
+        }
+      ]
+    }
+  }
+}

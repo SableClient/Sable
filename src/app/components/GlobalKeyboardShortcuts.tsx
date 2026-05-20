@@ -42,10 +42,6 @@ export function GlobalKeyboardShortcuts() {
   const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
   const selectedRoomId = useSelectedRoom();
 
-  const filteredRooms = allRooms.filter(
-    (item) => !hiddenRooms.includes(item) && !hiddenSpaces.includes(item)
-  );
-
   // Derive the current room ID from the URL so we know which room is active.
   const roomMatch =
     matchPath(HOME_ROOM_PATH, location.pathname) ??
@@ -89,9 +85,11 @@ export function GlobalKeyboardShortcuts() {
       }
       const roomName = mx.getRoom(roomId)?.name ?? 'Room';
       const roomType = isDirect ? 'Direct Message' : 'Group Room';
-      announce(
-        `${roomName}, ${roomType}.${remaining && `${remaining} room${remaining === 1 ? '' : 's'} unread.`}`
-      );
+      if (remaining)
+        announce(
+          `${roomName}, ${roomType}. ${remaining} room${remaining === 1 ? '' : 's'} unread.`
+        );
+      else announce(`${roomName}, ${roomType}`);
     },
     [mx, mDirects, roomToParents, navigate]
   );
@@ -171,6 +169,9 @@ export function GlobalKeyboardShortcuts() {
   const handleHideRoomsKeyDown = useCallback(
     (evt: KeyboardEvent) => {
       if (!isKeyHotkey('alt+shift+h', evt)) return;
+      const filteredRooms = allRooms.filter(
+        (item) => !hiddenRooms.includes(item) && !hiddenSpaces.includes(item)
+      );
       evt.preventDefault();
       announce(`${isHidingRooms ? 'Disabling' : 'Enabling'} hiding rooms.`);
       setIsHidingRooms(!isHidingRooms);
@@ -182,7 +183,15 @@ export function GlobalKeyboardShortcuts() {
       )
         navigateToRoom(filteredRooms[0]);
     },
-    [setIsHidingRooms, isHidingRooms, navigateToRoom, filteredRooms, selectedRoomId]
+    [
+      setIsHidingRooms,
+      isHidingRooms,
+      navigateToRoom,
+      selectedRoomId,
+      allRooms,
+      hiddenRooms,
+      hiddenSpaces,
+    ]
   );
 
   useKeyDown(window, handleNextUnreadKeyDown);

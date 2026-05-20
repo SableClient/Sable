@@ -163,6 +163,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillQueueRef = useRef<Array<{ room: Room; state: BackfillState }>>([]);
   // Current Matrix sync state — used to pause backfill when sync is struggling
   const syncStateRef = useRef<SyncState | null>(null);
+  // Persisted backfill states received from the worker — used by the ClientEvent.Room
+  // listener to correctly handle rooms that are added after the initial startBackfill call
+  // (e.g. rooms loaded by sliding sync after the initial window of 100).
+  const backfillStatesRef = useRef<Record<string, BackfillState>>({});
 
   const postToWorker = useCallback((msg: WorkerInMessage) => {
     // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
@@ -314,6 +318,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
   const startBackfill = useCallback(
     (backfillStates: Record<string, BackfillState>) => {
+      backfillStatesRef.current = backfillStates;
       const rooms = mx.getRooms().filter((r) => !r.isSpaceRoom());
 
       // Enqueue all unfinished rooms that are not already active
@@ -434,6 +439,25 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     mx.on(RoomEvent.Timeline, handleTimeline as unknown as (...args: unknown[]) => void);
 
+    // Enqueue rooms added by sliding sync after the initial startBackfill call.
+    // Sliding sync starts with an initial window of 100 rooms; additional rooms
+    // are received progressively as the list expands, firing ClientEvent.Room.
+    const handleRoomAdded = (room: Room) => {
+      if (room.isSpaceRoom()) return;
+      if (backfillingRoomsRef.current.has(room.roomId)) return;
+      if (backfillQueueRef.current.some((e) => e.room.roomId === room.roomId)) return;
+      const state = backfillStatesRef.current[room.roomId] ?? {
+        token: null,
+        done: false,
+        indexedCount: 0,
+      };
+      if (state.done) return;
+      backfillQueueRef.current.push({ room, state });
+      setIsBackfilling(true);
+      resumeBackfill();
+    };
+    mx.on(ClientEvent.Room, handleRoomAdded as unknown as (...args: unknown[]) => void);
+
     return () => {
       worker.removeEventListener('message', handleWorkerMessage);
       worker.terminate();
@@ -444,6 +468,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       mx.removeListener(
         RoomEvent.Timeline,
         handleTimeline as unknown as (...args: unknown[]) => void
+      );
+      mx.removeListener(
+        ClientEvent.Room,
+        handleRoomAdded as unknown as (...args: unknown[]) => void
       );
 
       // Cancel all pending idle callbacks

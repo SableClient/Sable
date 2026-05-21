@@ -11,7 +11,7 @@ import type {
   IRoomTimelineData,
   RoomEventHandlerMap,
 } from '$types/matrix-sdk';
-import { Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
+import { ClientEvent, Direction, RoomEvent, RelationType, ThreadEvent } from '$types/matrix-sdk';
 
 import { useAlive } from '$hooks/useAlive';
 import { markAsRead } from '$utils/notifications';
@@ -587,6 +587,25 @@ export function useTimelineSync({
   // data (no initial:true in the sliding sync response), that event may never
   // arrive — leaving the initial-scroll guard permanently blocked and the room
   // invisible.
+  // After initial:true (pull-to-refresh force-reset, reconnect, or first join),
+  // the sliding-sync SDK injects events into the live timeline via
+  // injectRoomEvents and then emits ClientEvent.Room.  When all injected events
+  // are historical (num_live === 0 → fromCache: true → liveEvent: false),
+  // useLiveEventArrive's 60-second timestamp gate silently drops them, so React
+  // never re-renders and the timeline stays blank indefinitely.  Listening here
+  // guarantees a re-render once all events are in the SDK's timeline, no matter
+  // how old they are.
+  useEffect(() => {
+    const handleRoomInitialized = (eventRoom: Room) => {
+      if (eventRoom.roomId !== room.roomId) return;
+      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+    };
+    mx.on(ClientEvent.Room, handleRoomInitialized);
+    return () => {
+      mx.off(ClientEvent.Room, handleRoomInitialized);
+    };
+  }, [mx, room]);
+
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);
   eventIdRef.current = eventId;

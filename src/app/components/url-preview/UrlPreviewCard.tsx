@@ -123,7 +123,9 @@ export const UrlPreviewCard = as<
   );
 
   useEffect(() => {
-    loadPreview();
+    // Suppress unhandled rejection — errors are captured by useAsyncCallback
+    // (status set to Error) and the component returns null in that state.
+    loadPreview().catch(() => undefined);
   }, [url, loadPreview]);
 
   if (previewStatus.status === AsyncStatus.Error) return null;

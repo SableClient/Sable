@@ -81,16 +81,24 @@ export function useSearchIndex(): SearchIndexCtx | null {
  * HTTP connection pool from being saturated and starving the /sync long-poll.
  */
 const HAS_IDLE_CALLBACK = typeof requestIdleCallback === 'function';
-const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 4;
+const MAX_CONCURRENT_BACKFILLS = HAS_IDLE_CALLBACK ? Infinity : 2;
+
+/**
+ * How long to wait after the worker is ready before starting the first backfill
+ * pass. Gives the initial /sync and room-list load time to settle before we add
+ * background pagination pressure.
+ */
+const BACKFILL_STARTUP_DELAY_MS = 30_000;
 
 function scheduleIdle(cb: () => void): () => void {
   if (HAS_IDLE_CALLBACK) {
     const id = requestIdleCallback(cb, { timeout: 5000 });
     return () => cancelIdleCallback(id);
   }
-  // iOS Safari: no requestIdleCallback — use a short delay; the concurrency
-  // cap (MAX_CONCURRENT_BACKFILLS) prevents HTTP connection pool saturation.
-  const id = setTimeout(cb, 150);
+  // iOS Safari: no requestIdleCallback — use a longer delay; combined with the
+  // concurrency cap (MAX_CONCURRENT_BACKFILLS) this prevents HTTP connection
+  // pool saturation and gives WASM crypto breathing room between pages.
+  const id = setTimeout(cb, 500);
   return () => clearTimeout(id);
 }
 
@@ -113,7 +121,7 @@ function toIndexableEvent(mEvent: MatrixEvent, roomId: string): IndexableEvent |
     info?: Record<string, unknown>;
     filename?: string;
   }>();
-  const body: string = content.body ?? '';
+  const body: string = typeof content.body === 'string' ? content.body : '';
   if (!body.trim()) return null;
   const sender = mEvent.getSender();
   if (!sender) return null;
@@ -167,6 +175,11 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   // listener to correctly handle rooms that are added after the initial startBackfill call
   // (e.g. rooms loaded by sliding sync after the initial window of 100).
   const backfillStatesRef = useRef<Record<string, BackfillState>>({});
+  // True after the startup delay has elapsed — gates resumeBackfill so we don't
+  // hammer /messages during the initial sync and room-list load.
+  const backfillReadyRef = useRef(false);
+  // Handle for the startup-delay timer so we can cancel it on cleanup.
+  const backfillStartDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const postToWorker = useCallback((msg: WorkerInMessage) => {
     // oxlint-disable-next-line require-post-message-target-origin -- Worker.postMessage has no targetOrigin
@@ -233,7 +246,22 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           limit: BACKFILL_PAGE_SIZE,
         });
       } catch {
-        // Pagination error — stop this room for now
+        // Pagination error — the stored token has likely expired.
+        // If we have an established frontier (oldestTs), re-queue this room
+        // with token:null so the next attempt falls back to the live timeline
+        // token and fast-forwards past already-indexed history instead of
+        // abandoning the room permanently.
+        if (state.oldestTs !== undefined && state.token !== null) {
+          backfillQueueRef.current.unshift({
+            room,
+            state: {
+              token: null,
+              done: false,
+              indexedCount: state.indexedCount,
+              oldestTs: state.oldestTs,
+            },
+          });
+        }
         backfillingRoomsRef.current.delete(room.roomId);
         return;
       }
@@ -244,8 +272,20 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const allEvents = headlessTimeline.getEvents();
       const newEvents = allEvents.slice(0, allEvents.length - prevEventCount);
 
+      // Expired-token recovery: when state.token was null (we fell back to the
+      // live timeline's backward token after an expiry), skip events that fall
+      // within the already-indexed time range. We compare by timestamp rather
+      // than event ID to avoid fetching and decrypting every page looking for
+      // a known ID — only this first fallback page needs the filter; subsequent
+      // pages resume from the returned token and are always past the frontier.
+      const recoveryFrontier = state.token === null ? state.oldestTs : undefined;
+      const unindexedEvents =
+        recoveryFrontier !== undefined
+          ? newEvents.filter((ev) => ev.getTs() < recoveryFrontier)
+          : newEvents;
+
       const events: IndexableEvent[] = [];
-      for (const ev of newEvents) {
+      for (const ev of unindexedEvents) {
         if (ev.getType() === 'm.room.encrypted') {
           // Still encrypted — re-use the live-indexing path which registers a
           // Decrypted listener so the event is indexed once keys arrive.
@@ -263,6 +303,16 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const nextToken = headlessTimeline.getPaginationToken(Direction.Backward);
       const done = !hasMore || !nextToken;
 
+      // Track the oldest event timestamp we've indexed so far. Only update when
+      // we actually processed new events (unindexedEvents may be empty on the
+      // first page of expired-token recovery while fast-forwarding the frontier).
+      const minTsThisPage =
+        unindexedEvents.length > 0 ? Math.min(...unindexedEvents.map((e) => e.getTs())) : undefined;
+      const newOldestTs =
+        minTsThisPage !== undefined
+          ? Math.min(state.oldestTs ?? Infinity, minTsThisPage)
+          : state.oldestTs;
+
       postToWorker({
         type: 'SET_BACKFILL_STATE',
         roomId: room.roomId,
@@ -270,6 +320,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           token: nextToken,
           done,
           indexedCount: state.indexedCount + events.length,
+          oldestTs: newOldestTs,
         },
       });
 
@@ -280,10 +331,18 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           token: nextToken,
           done: false,
           indexedCount: state.indexedCount + events.length,
+          oldestTs: newOldestTs,
         };
         const cancel = scheduleIdle(() => {
           const s = syncStateRef.current;
           if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) {
+            backfillingRoomsRef.current.delete(room.roomId);
+            backfillQueueRef.current.unshift({ room, state: nextState });
+            return;
+          }
+          // On mobile, pause when the tab is hidden to avoid unnecessary
+          // network traffic and WASM crypto work in the background.
+          if (!HAS_IDLE_CALLBACK && document.visibilityState === 'hidden') {
             backfillingRoomsRef.current.delete(room.roomId);
             backfillQueueRef.current.unshift({ room, state: nextState });
             return;
@@ -317,6 +376,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
    * never starved by background pagination requests.
    */
   const resumeBackfill = useCallback(() => {
+    // Don't start until the startup grace period has elapsed.
+    if (!backfillReadyRef.current) return;
     const s = syncStateRef.current;
     if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) return;
 
@@ -353,7 +414,13 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       if (backfillQueueRef.current.length > 0 || backfillingRoomsRef.current.size > 0) {
         setIsBackfilling(true);
       }
-      resumeBackfill();
+      // Delay the first backfill pass so the initial sync and room list have
+      // time to settle before we start paginating history.
+      backfillStartDelayRef.current = setTimeout(() => {
+        backfillStartDelayRef.current = null;
+        backfillReadyRef.current = true;
+        resumeBackfill();
+      }, BACKFILL_STARTUP_DELAY_MS);
     },
     [mx, resumeBackfill]
   );
@@ -477,6 +544,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     };
     mx.on(ClientEvent.Room, handleRoomAdded as unknown as (...args: unknown[]) => void);
 
+    // On mobile, resume backfill when the tab becomes visible again after being
+    // hidden (backfill pauses when hidden to avoid unnecessary background work).
+    const handleVisibilityChange = () => {
+      if (!HAS_IDLE_CALLBACK && document.visibilityState === 'visible') {
+        resumeBackfill();
+      }
+    };
+    if (!HAS_IDLE_CALLBACK) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
     return () => {
       // Ask the worker to flush before terminating. We wait up to 2 s then
       // force-terminate regardless so the cleanup never hangs.
@@ -486,13 +564,17 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         worker.terminate();
         workerRef.current = null;
       }, 2000);
-      worker.addEventListener('message', (ev: MessageEvent<WorkerOutMessage>) => {
-        if (ev.data.type === 'FLUSH_DONE') {
-          clearTimeout(terminateTimeout);
-          worker.terminate();
-          workerRef.current = null;
-        }
-      }, { once: true });
+      worker.addEventListener(
+        'message',
+        (ev: MessageEvent<WorkerOutMessage>) => {
+          if (ev.data.type === 'FLUSH_DONE') {
+            clearTimeout(terminateTimeout);
+            worker.terminate();
+            workerRef.current = null;
+          }
+        },
+        { once: true }
+      );
       setIsReady(false);
       setIsBackfilling(false);
       mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
@@ -504,6 +586,14 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         ClientEvent.Room,
         handleRoomAdded as unknown as (...args: unknown[]) => void
       );
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      // Cancel the startup delay and reset the ready gate
+      if (backfillStartDelayRef.current !== null) {
+        clearTimeout(backfillStartDelayRef.current);
+        backfillStartDelayRef.current = null;
+      }
+      backfillReadyRef.current = false;
 
       // Cancel all pending idle callbacks
       // eslint-disable-next-line react-hooks/exhaustive-deps -- mutable non-DOM refs, current is intentional at cleanup time

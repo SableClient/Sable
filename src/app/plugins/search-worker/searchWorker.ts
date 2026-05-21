@@ -283,7 +283,8 @@ function handleIndexEvents(events: IndexableEvent[]): void {
   if (!index) return;
 
   for (const ev of events) {
-    if (!ev.eventId || !ev.body.trim()) continue;
+    const body = typeof ev.body === 'string' ? ev.body : String(ev.body ?? '');
+    if (!ev.eventId || !body.trim()) continue;
 
     // Skip duplicates already in the index
     if (index.has(ev.eventId)) continue;

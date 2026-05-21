@@ -19,12 +19,24 @@ export type IndexableEvent = {
 };
 
 export type BackfillState = {
-  /** Pagination token to resume backward pagination, or null when at the beginning. */
+  /**
+   * Backward pagination token to resume from, or null to start from the
+   * room's live timeline token (first run, or expired-token recovery).
+   */
   token: string | null;
   /** True once we've reached the beginning of the room history. */
   done: boolean;
   /** How many events for this room are currently in the index. */
   indexedCount: number;
+  /**
+   * Unix-ms timestamp of the oldest event indexed for this room across all
+   * sessions. Primary purpose: when the stored token has expired and we must
+   * restart from the live timeline's backward token, we compare each page's
+   * events against this frontier and skip those already covered (ts >= oldestTs)
+   * rather than re-indexing them. In normal operation (valid token) this field
+   * is never used as a filter — it only records progress.
+   */
+  oldestTs?: number;
 };
 
 // ── Main → Worker ──────────────────────────────────────────────────────────

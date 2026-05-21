@@ -8,7 +8,6 @@ import { settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
-import { getSvgCacheSize, clearSvgBlobCache } from '$components/room-avatar/AvatarImage';
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
@@ -26,13 +25,6 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
-  const [svgCacheSize, setSvgCacheSize] = useState(() => getSvgCacheSize());
-
-  const clearSvgCacheAction = useCallback(() => {
-    clearSvgBlobCache();
-    setSvgCacheSize(getSvgCacheSize());
-  }, []);
-
   const submitAccountData: AccountDataSubmitCallback = useCallback(
     async (type, content) => {
       // TODO: remove cast once account data typing is unified.
@@ -132,35 +124,6 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
               {developerTools && (
                 <Box direction="Column" gap="100">
                   <SentrySettings />
-                </Box>
-              )}
-              {developerTools && (
-                <Box direction="Column" gap="100">
-                  <Text size="L400">Caches</Text>
-                  <SequenceCard
-                    className={SequenceCardStyle}
-                    variant="SurfaceVariant"
-                    direction="Column"
-                    gap="400"
-                  >
-                    <SettingTile
-                      focusId="svg-cache"
-                      title="SVG Avatar Cache"
-                      description={`${svgCacheSize} ${svgCacheSize === 1 ? 'item' : 'items'} · processed SVG avatars, reused while app is open · cleared on reload`}
-                      after={
-                        <Button
-                          onClick={clearSvgCacheAction}
-                          variant="Secondary"
-                          fill="Soft"
-                          size="300"
-                          radii="300"
-                          outlined
-                        >
-                          <Text size="B300">Clear</Text>
-                        </Button>
-                      }
-                    />
-                  </SequenceCard>
                 </Box>
               )}
             </Box>

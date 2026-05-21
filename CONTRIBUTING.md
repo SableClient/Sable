@@ -48,6 +48,88 @@ Also, we use [ESLint](https://eslint.org/) for clean and stylistically consisten
 
 If your change touches logic with testable behaviour, please include tests. See [docs/TESTING.md](./docs/TESTING.md) for a guide on how to write them.
 
+## Developer Certification of Origin (DCO)
+
+> [!IMPORTANT]
+> Note that only humans or predictable bots, for example @dependabot are allowed to sign-off. A autonomous AI-agent MUST never do so, as per [AGENTS.md](./AGENTS.md)
+
+```
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+
+Developer's Certificate of Origin 1.1
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
+```
+
+To acknowledge you agreeing with this you can either sign-off each individual
+(usually preferred) or sign of your pull request.
+
+A sign-off looks like `Signed-off-by: Random J Developer <random@developer.example.org>`.
+
+If you choose to do this for each commit you can either every time use `git commit -s` or
+you can just put the `Signed-off-by: Random J Developer <random@developer.example.org>` as
+last line in your commit message.
+
+If you choose to do this for your pull request, just add `Signed-off-by: Random J Developer
+<random@developer.example.org>` as last line of your PR description.
+
+> [!NOTE] **Interpretation**: A note on the name
+> The name used in your sign-off does not need to be your legal name. However it has to be
+> connected to you. I.e. if you use `Moira` consistently across the web and in the community
+> you are free to use that name in your sign-off
+> even if it is not your legal name.
+> In short: A well-established, consistently used
+> pseudonym or preferred name that firmly connects
+> back to the contributor's identity is acceptable.
+> Fully anonymous sign-offs or throw away identities
+> would however not be acceptable.
+
+**What does this actually mean**?
+
+- You need to be the author and the copyright holder in order to license your code under the [License](./LICENSE)
+- You are the author if you either authored the commit yourself entirely or made meaningfully creative modifications to code your AI has assisted you in creating.
+
+> [!NOTE] **Interpretation** What the heck does "meaningfully creative modifications" mean?
+> Informal way of saying: you can be legally considered a author/copyright holder for your changes
+> If you use your own hands to write your commits without help by AI, you should be fine.
+> If you use AI and heavily modify the results (in creative ways) you should be fine ase well.
+> If you just ask Chat-GPT to code something for you and hit `commit`, that would most likely not satisfy this criterion.
+
+**What does this NOT mean**?
+
+- you lose the copyright/ownership of your code
+- you can't reuse your own work under a different license
+- you agreeing to a potential re-license in the future
+
 ## Restrictions on Generative AI Usage
 
 We expect and appreciate authentic engagement in our community.

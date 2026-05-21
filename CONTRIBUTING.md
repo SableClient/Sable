@@ -124,7 +124,7 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 > Informal way of saying: you can be legally considered a author/copyright holder for your changes  
 > If you use your own hands to write your commits without help by AI, you should be fine.  
 > If you use AI and heavily modify the results (in creative ways) you should be fine ase well.  
-> If you just ask Chat-GPT to code something for you and hit `commit`, that would most likely not satisfy this criterion.  
+> If you just ask Chat-GPT to code something for you and hit `commit`, that would most likely not satisfy this criterion.
 
 **What does this NOT mean**?
 

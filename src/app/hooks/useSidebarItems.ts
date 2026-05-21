@@ -102,6 +102,18 @@ export const useSidebarItems = (
   return [sidebarItems, setSidebarItems];
 };
 
+export const renameSidebarFolderItem = (
+  items: SidebarItems,
+  folderId: string,
+  name: string | undefined
+): SidebarItems => {
+  const trimmed = name?.trim();
+  const nextName = trimmed ? trimmed : undefined;
+  return items.map((item) =>
+    typeof item === 'object' && item.id === folderId ? { ...item, name: nextName } : item
+  );
+};
+
 export const sidebarItemWithout = (items: SidebarItems, roomId: string) => {
   const newItems: SidebarItems = items
     .map((item) => {

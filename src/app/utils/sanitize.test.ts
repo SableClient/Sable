@@ -122,6 +122,14 @@ describe('sanitizeCustomHtml', () => {
     expect(result.match(/\ssrc=/g)).toHaveLength(1);
   });
 
+  it('drops invalid ol start values', () => {
+    expect(sanitizeCustomHtml('<ol start="2"><li>ok</li></ol>')).toContain('start="2"');
+    expect(sanitizeCustomHtml('<ol start="javascript:alert(1)"><li>x</li></ol>')).not.toContain(
+      'start='
+    );
+    expect(sanitizeCustomHtml('<ol start="1.5"><li>x</li></ol>')).not.toContain('start=');
+  });
+
   it('drops invalid Matrix color attributes instead of translating them to style', () => {
     const result = sanitizeCustomHtml(
       '<span data-mx-color="red" data-mx-bg-color="#123">text</span>'

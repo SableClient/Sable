@@ -35,7 +35,7 @@ import {
 import { NotificationType } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
-import LogoSVG from '$public/res/svg/cinny-logo.svg';
+import LogoSVG from '$public/res/svg/logo.svg';
 import { nicknamesAtom } from '$state/nicknames';
 import {
   buildRoomMessageNotification,

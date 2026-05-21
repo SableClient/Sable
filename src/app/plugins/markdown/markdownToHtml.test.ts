@@ -43,6 +43,17 @@ describe('markdownToHtml', () => {
     expect(result).toContain('spoiler');
   });
 
+  it('converts MFM fg.color syntax', () => {
+    const result = markdownToHtml('$[fg.color=f00 red]');
+    expect(result).toContain('data-mx-color="#ff0000"');
+    expect(result).toContain('red');
+  });
+
+  it('converts MFM bg.color with 6-digit hex', () => {
+    const result = markdownToHtml('$[bg.color=00ff00 green]');
+    expect(result).toContain('data-mx-bg-color="#00ff00"');
+  });
+
   it('converts inline math syntax', () => {
     const result = markdownToHtml('$E = mc^2$');
     expect(result).toContain('data-mx-maths');
@@ -114,6 +125,73 @@ describe('markdownToHtml', () => {
     expect(html).toContain('fenced');
   });
 
+  describe('single-newline block boundaries', () => {
+    it('parses matrix -# after a single newline following text', () => {
+      const result = markdownToHtml('test\n-# caption');
+      expect(result).toContain('<sub');
+      expect(result).toContain('data-md="-#"');
+      expect(result).toContain('caption');
+    });
+
+    it('parses ATX heading after a single newline', () => {
+      expect(markdownToHtml('intro\n# Heading')).toContain('<h1');
+      expect(markdownToHtml('intro\n# Heading')).toContain('Heading');
+    });
+
+    it('parses unordered list after a single newline', () => {
+      const html = markdownToHtml('intro\n- item');
+      expect(html).toContain('<ul');
+      expect(html).toContain('<li');
+    });
+
+    it('parses blockquote after a single newline', () => {
+      expect(markdownToHtml('intro\n> quote')).toContain('<blockquote>');
+    });
+
+    it('ends blockquote when the next line does not start with >', () => {
+      const html = markdownToHtml('> test\ntest 2');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('test');
+      expect(html).not.toMatch(/<blockquote>[\s\S]*test 2[\s\S]*<\/blockquote>/);
+      expect(html).toContain('test 2');
+    });
+
+    it('keeps consecutive blockquote lines with > markers', () => {
+      const html = markdownToHtml('> line one\n> line two');
+      expect(html).toContain('<blockquote>');
+      expect(html).toContain('line one');
+      expect(html).toContain('line two');
+    });
+
+    it('does not promote -# inside fenced code when the fence follows a single newline', () => {
+      const html = markdownToHtml('test\n```\n-# not sub\n```');
+      expect(html).not.toContain('<sub');
+      expect(html).toContain('-# not sub');
+    });
+
+    it('parses -# after a fenced block when separated by a single newline', () => {
+      const html = markdownToHtml('test\n```\ncode\n```\n-# cap');
+      expect(html).toContain('<pre>');
+      expect(html).toContain('<sub');
+      expect(html).toContain('cap');
+    });
+
+    it('keeps existing double-newline behavior before -#', () => {
+      const result = markdownToHtml('test\n\n-# caption');
+      expect(result).toContain('<sub');
+      expect(result).toContain('caption');
+    });
+
+    it('does not treat the second line of k. Hello as a new ordered list', () => {
+      const html = markdownToHtml('k. Hello world\nHello again');
+      expect(html).not.toContain('<ol>');
+    });
+
+    it('does not promote escaped line-start -# after a single newline', () => {
+      expect(markdownToHtml('x\n\\-# literal')).not.toContain('data-md="-#"');
+    });
+  });
+
   it('does not parse escaped \\-# as small/sub', () => {
     const result = markdownToHtml('\\-# literal caption');
     expect(result).not.toContain('<sub');
@@ -138,15 +216,59 @@ describe('markdownToHtml', () => {
     expect(result).not.toContain('<ul>');
   });
 
+  it('preserves arbitrary ordered list start numbers', () => {
+    const result = markdownToHtml('23423. hello');
+    expect(result).toContain('start="23423"');
+  });
+
+  it('strips invalid ol start values', () => {
+    const result = markdownToHtml('<ol start="javascript:alert(1)"><li>x</li></ol>');
+    expect(result).toContain('<ol>');
+    expect(result).not.toContain('start=');
+  });
+
   it('handles text without markdown', () => {
     const result = markdownToHtml('Plain text without any formatting');
     expect(result).toContain('Plain text');
+  });
+
+  it('omits a single outer paragraph wrapper for one-paragraph messages', () => {
+    expect(markdownToHtml('Hello')).toBe('Hello');
+    expect(markdownToHtml('**bold**')).toBe('<strong>bold</strong>');
+    expect(markdownToHtml('a<br>b')).toBe('a<br>b');
+  });
+
+  it('keeps paragraph tags when there are multiple paragraphs', () => {
+    const result = markdownToHtml('First\n\nSecond');
+    expect(result).toContain('<p>');
+    expect(result).toContain('First');
+    expect(result).toContain('Second');
+  });
+
+  it('does not strip the first <p> when there are three paragraphs with extra blank lines', () => {
+    const result = markdownToHtml('test\n\ntest 2\n\n\ntest 3');
+    expect(result).toMatch(/^<p>test<\/p>/i);
+    expect(result).toContain('<p>test 2</p>');
+    expect(result).toContain('<p>test 3</p>');
+    expect(result).not.toMatch(/^test<\/p>/i);
+  });
+
+  it('with emote: strips only the first <p> when multiple paragraphs are present', () => {
+    const result = markdownToHtml('first\n\nsecond', { emote: true });
+    expect(result).toMatch(/^first<p>/i);
+    expect(result).toContain('second');
+    expect(result).not.toMatch(/^<p>first<\/p>\s*<p>second<\/p>$/i);
+  });
+
+  it('with emote: still unwraps a single-paragraph body like the default path', () => {
+    expect(markdownToHtml('**waves**', { emote: true })).toBe('<strong>waves</strong>');
   });
 
   it('handles multiline content', () => {
     const result = markdownToHtml('Line 1\nLine 2\nLine 3');
     expect(result).toContain('Line 1');
     expect(result).toContain('Line 2');
+    expect(result).toContain('Line 3');
   });
 
   it('handles escaped markdown characters', () => {
@@ -222,5 +344,57 @@ describe('markdownToHtml', () => {
     const html = '<img data-mx-emoticon src="mxc://example.com/image?x=y" alt="test" />';
     const result = markdownToHtml(html);
     expect(result).not.toContain('?');
+  });
+
+  it('keeps normal markdown links valid when many bare matrix.to URLs are shielded', () => {
+    const matrixLines = Array.from(
+      { length: 12 },
+      (_, i) => `https://matrix.to/#/@u${i}:example.org`
+    ).join('\n');
+    const md = `${matrixLines}\n[docs](https://example.com/doc)`;
+    const result = markdownToHtml(md);
+    expect(result).toContain('<a href="https://example.com/doc"');
+    expect(result).not.toContain('&lt;a href=');
+  });
+
+  it('emits bare matrix.to text for unformatted URLs, not anchor tags', () => {
+    const result = markdownToHtml('join https://matrix.to/#/#room:example.org please');
+    expect(result).toContain('https://matrix.to/#/#room:example.org');
+    expect(result).not.toMatch(/<a[^>]*matrix\.to/);
+  });
+
+  it('renders backslash-escaped angle brackets as literal < and > in HTML output', () => {
+    const html = markdownToHtml(String.raw`\<test\>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('does not double-encode when only the opening bracket is backslash-escaped', () => {
+    const html = markdownToHtml(String.raw`\<test>`);
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toContain('&amp;lt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('entity-escapes unknown html-like tags instead of stripping them', () => {
+    expect(markdownToHtml('<test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<test>')).not.toMatch(/<test[^>]*>/);
+    expect(markdownToHtml('<test> <\\test>')).toContain('&lt;test&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('&lt;b&gt;');
+    expect(markdownToHtml('<b>nope</b>')).toContain('nope');
+  });
+
+  it('entity-escapes allowlisted tags without a proper closing tag', () => {
+    const result = markdownToHtml('<strong>bold');
+    expect(result).toContain('&lt;strong&gt;');
+    expect(result).toContain('bold');
+    expect(result).not.toMatch(/<strong[^>]*>bold/);
+  });
+
+  it('preserves preview-suppressed angle-bracket URLs', () => {
+    const url = 'https://example.com/doc';
+    const result = markdownToHtml(`see <${url}> there`);
+    expect(result).toContain(url);
+    expect(result).not.toContain('&lt;https');
   });
 });

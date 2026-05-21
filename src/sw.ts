@@ -433,8 +433,8 @@ async function handleMinimalPushPayload(
     console.debug('[SW push] minimal payload: no session, showing generic notification');
     await self.registration.showNotification('New Message', {
       body: undefined,
-      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
-      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+      icon: '/public/res/logo-maskable/logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/logo-maskable-72x72.png',
       tag: `room-${roomId}`,
       renotify: true,
       data: { room_id: roomId, event_id: eventId },
@@ -452,8 +452,8 @@ async function handleMinimalPushPayload(
   if (!rawEvent) {
     await self.registration.showNotification('New Message', {
       body: undefined,
-      icon: '/public/res/logo-maskable/cinny-logo-maskable-180x180.png',
-      badge: '/public/res/logo-maskable/cinny-logo-maskable-72x72.png',
+      icon: '/public/res/logo-maskable/logo-maskable-180x180.png',
+      badge: '/public/res/logo-maskable/logo-maskable-72x72.png',
       tag: `room-${roomId}`,
       renotify: true,
       data: { room_id: roomId, event_id: eventId, user_id: session.userId },

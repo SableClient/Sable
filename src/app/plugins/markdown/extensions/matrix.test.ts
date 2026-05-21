@@ -7,10 +7,11 @@ import {
   shieldDollarRunsForMarked,
 } from './matrix-math';
 import { matrixSubscriptExtension } from './matrix-subscript';
-
+import { matrixMfmColorExtension } from './matrix-mfm-color';
 function parse(input: string): string {
   const processor = marked.use({
     extensions: [
+      matrixMfmColorExtension,
       matrixSpoilerExtension,
       matrixMathExtension,
       matrixMathBlockExtension,
@@ -19,6 +20,14 @@ function parse(input: string): string {
   });
   return processor.parse(shieldDollarRunsForMarked(input)) as string;
 }
+
+describe('matrixMfmColorExtension', () => {
+  it('parses fg.color syntax', () => {
+    const result = parse('$[fg.color=ff0000 red text]');
+    expect(result).toContain('data-mx-color="#ff0000"');
+    expect(result).toContain('red text');
+  });
+});
 
 describe('matrixSpoilerExtension', () => {
   it('parses ||spoiler|| syntax', () => {

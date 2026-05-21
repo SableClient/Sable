@@ -44,7 +44,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
       zoomOut,
       setZoom,
       onPointerDown,
-    } = useImageGestures(true, 0.2);
+    } = useImageGestures(true, 0.2, 0.1, 5);
 
     const [pdfJSState, loadPdfJS] = usePdfJSLoader();
     const [docState, loadPdfDocument] = usePdfDocumentLoader(

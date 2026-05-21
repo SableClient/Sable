@@ -1,9 +1,24 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
-import { type MouseEventHandler, useState } from 'react';
-import { Box, Chip, config, Icon, Icons, Input, Switch, Text, toRem } from 'folds';
+import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
+import {
+  Box,
+  Button,
+  Chip,
+  config,
+  Icon,
+  Icons,
+  Input,
+  Menu,
+  MenuItem,
+  PopOut,
+  Switch,
+  Text,
+  toRem,
+  type RectCords,
+} from 'folds';
 import { isKeyHotkey } from 'is-hotkey';
 
-import { SettingMenuSelector } from '$components/setting-menu-selector';
+import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
 import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import {
@@ -14,9 +29,16 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
+import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
+import { stopPropagation } from '$utils/keyboard';
+import FocusTrap from 'focus-trap-react';
+import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
+import type { PanelSizetItem } from '$hooks/usePanelSizes';
+import { usePanelSizeItems } from '$hooks/usePanelSizes';
+import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
 
 const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
 
@@ -195,6 +217,16 @@ function ThemeVisualPreferences() {
   const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
+    settingsAtom,
+    'pixelatedImageRendering'
+  );
+  const pixelatedImageRenderingOptions: SettingMenuOption<PixelatedImageRenderingMode>[] = [
+    { value: 'both', label: 'Both' },
+    { value: 'chat', label: 'Chat' },
+    { value: 'viewer', label: 'Image viewer' },
+    { value: 'none', label: 'Neither' },
+  ];
   const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,
     'incomingInlineImagesDefaultHeight'
@@ -216,6 +248,7 @@ function ThemeVisualPreferences() {
   const [linkPreviewMaxHeightInput, setLinkPreviewMaxHeightInput] = useState(
     linkPreviewImageMaxHeight.toString()
   );
+  const [showRoomBanners, setShowRoomBanners] = useSetting(settingsAtom, 'showRoomBanners');
 
   const handleIncomingDefaultHeightChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;
@@ -307,6 +340,20 @@ function ThemeVisualPreferences() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
+          title="Pixelated image scaling"
+          focusId="pixelated-image-rendering"
+          description="Use crisp nearest-neighbor scaling where selected. Improves pixel art but makes normal images worse."
+          after={
+            <SettingMenuSelector
+              value={pixelatedImageRendering}
+              options={pixelatedImageRenderingOptions}
+              onSelect={setPixelatedImageRendering}
+            />
+          }
+        />
+      </SequenceCard>
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
           title="Autoplay Stickers"
           focusId="autoplay-stickers"
           description="Automatically play animated stickers."
@@ -321,6 +368,14 @@ function ThemeVisualPreferences() {
           focusId="autoplay-emojis"
           description="Automatically play animated custom emojis."
           after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
+        />
+      </SequenceCard>
+
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Display Room banners"
+          focusId="display-room-banners"
+          after={<Switch variant="Primary" value={showRoomBanners} onChange={setShowRoomBanners} />}
         />
       </SequenceCard>
 
@@ -508,11 +563,251 @@ function PageZoomInput() {
   );
 }
 
+function PanelSelector({
+  sidebarSelector,
+  setSidebarSelector,
+}: {
+  sidebarSelector: string;
+  setSidebarSelector: (arg0: string) => void;
+}) {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const panelSizeItems = usePanelSizeItems();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position: PanelSizetItem) => {
+    setSidebarSelector(position.layout);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {panelSizeItems.find((i) => i.layout === sidebarSelector)?.name ?? sidebarSelector}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {panelSizeItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={sidebarSelector === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
+function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
+  const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
+  const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
+    settingsAtom,
+    'memberSidebarWidth'
+  );
+  const [threadSidebarWidth, setThreadSidebarWidth] = useSetting(
+    settingsAtom,
+    'threadSidebarWidth'
+  );
+  const [threadRootHeight, setThreadRootHeight] = useSetting(settingsAtom, 'threadRootHeight');
+  const [vcmsgSidebarWidth, setvcmsgSidebarWidth] = useSetting(settingsAtom, 'vcmsgSidebarWidth');
+  const [widgetSidebarWidth, setWidgetSidebarWidth] = useSetting(
+    settingsAtom,
+    'widgetSidebarWidth'
+  );
+  const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
+
+  // Yandere style code but it works  and is as straight forward as can be :shrug:
+  const getCurValue = useMemo(() => {
+    if (sidebarSelector === 'roomSidebarWidth') return roomSidebarWidth;
+    if (sidebarSelector === 'memberSidebarWidth') return memberSidebarWidth;
+    if (sidebarSelector === 'threadSidebarWidth') return threadSidebarWidth;
+    if (sidebarSelector === 'threadRootHeight') return threadRootHeight;
+    if (sidebarSelector === 'vcmsgSidebarWidth') return vcmsgSidebarWidth;
+    if (sidebarSelector === 'widgetSidebarWidth') return widgetSidebarWidth;
+    if (sidebarSelector === 'roomBannerHeight') return roomBannerHeight;
+    return undefined;
+  }, [
+    sidebarSelector,
+    roomSidebarWidth,
+    memberSidebarWidth,
+    threadSidebarWidth,
+    threadRootHeight,
+    vcmsgSidebarWidth,
+    widgetSidebarWidth,
+    roomBannerHeight,
+  ]);
+  const [curValue, setCurValue] = useState(getCurValue);
+  const setValue = (value: number) => {
+    if (sidebarSelector === 'roomSidebarWidth') setRoomSidebarWidth(value);
+    if (sidebarSelector === 'memberSidebarWidth') setMemberSidebarWidth(value);
+    if (sidebarSelector === 'threadSidebarWidth') setThreadSidebarWidth(value);
+    if (sidebarSelector === 'threadRootHeight') setThreadRootHeight(value);
+    if (sidebarSelector === 'vcmsgSidebarWidth') setvcmsgSidebarWidth(value);
+    if (sidebarSelector === 'widgetSidebarWidth') setWidgetSidebarWidth(value);
+    if (sidebarSelector === 'roomBannerHeight') setRoomBannerHeight(value);
+  };
+
+  useEffect(() => {
+    setInputValue(curValue?.toString());
+  }, [curValue]);
+  useEffect(() => {
+    setCurValue(getCurValue);
+  }, [getCurValue]);
+
+  const [inputValue, setInputValue] = useState(curValue?.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+
+    const parsed = parseInt(val, 10);
+    if (!Number.isNaN(parsed)) {
+      setValue(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(curValue?.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      style={{ width: toRem(80) }}
+      variant={parseInt(inputValue ?? '', 10) === curValue ? 'Secondary' : 'Success'}
+      size="300"
+      radii="300"
+      type="number"
+      min="0"
+      max="1000"
+      value={inputValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      outlined
+    />
+  );
+}
+
+function SelectShowRoomIcon() {
+  const [menuCords, setMenuCords] = useState<RectCords>();
+  const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
+  const showRoomIconItems = useShowRoomIcon();
+
+  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    setMenuCords(evt.currentTarget.getBoundingClientRect());
+  };
+
+  const handleSelect = (position?: ShowRoomIcon) => {
+    if (!position) return;
+    setShowRoomIcon(position);
+    setMenuCords(undefined);
+  };
+
+  return (
+    <>
+      <Button
+        size="300"
+        variant="Secondary"
+        outlined
+        fill="Soft"
+        radii="300"
+        after={<Icon size="300" src={Icons.ChevronBottom} />}
+        onClick={handleMenu}
+      >
+        <Text size="T300">
+          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
+        </Text>
+      </Button>
+      <PopOut
+        anchor={menuCords}
+        offset={5}
+        position="Bottom"
+        align="End"
+        content={
+          <FocusTrap
+            focusTrapOptions={{
+              initialFocus: false,
+              onDeactivate: () => setMenuCords(undefined),
+              clickOutsideDeactivates: true,
+              isKeyForward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
+              isKeyBackward: (evt: KeyboardEvent) =>
+                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
+              escapeDeactivates: stopPropagation,
+            }}
+          >
+            <Menu>
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {showRoomIconItems.map((item) => (
+                  <MenuItem
+                    key={item.layout}
+                    size="300"
+                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
+                    radii="300"
+                    onClick={() => handleSelect(item.layout)}
+                  >
+                    <Text size="T300">{item.name}</Text>
+                  </MenuItem>
+                ))}
+              </Box>
+            </Menu>
+          </FocusTrap>
+        }
+      />
+    </>
+  );
+}
 export function Appearance({
   onThemeBrowserOpenChange,
 }: {
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
+  const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
@@ -594,6 +889,42 @@ export function Appearance({
                 focusId="subspace-hierarchy-limit"
                 description="The maximum nesting depth for Subspaces in the sidebar. Once this limit is reached, deeper Subspaces appear as links instead of nested folders."
                 after={<SubnestedSpaceLinkDepthInput />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons In Sidebars"
+                focusId="show-room-icons"
+                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                after={<SelectShowRoomIcon />}
+              />
+            </SequenceCard>
+            {/*THIS SHOULD BE MOVED TO A NEW SETTINGS MENU INSIDE OF THE HOME SETTINGS AS SOON AS THERE IS A REASON TO CREATE A HOME MENU SETTINGS PANEL
+              it is currently here because it would be eerie to have an entire home settings menu for just one single setting*/}
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Show Room Icons In Home menu sidebar"
+                focusId="show-room-home-icons"
+                description="Show Room icons in the home menu? (overrides setting above if set)"
+                after={<SelectShowPerRoomRoomIcon roomId={'Home'} />}
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Sidebar Size"
+                focusId="sidebar-size"
+                description="The Size of the sidebar, it can be changed either here numerically or by hovering and dragging the lighting bar"
+                after={
+                  <>
+                    <PanelSelector
+                      sidebarSelector={sidebarSelector}
+                      setSidebarSelector={setSidebarSelector}
+                    />
+                    <SidebarWidth sidebarSelector={sidebarSelector} />
+                  </>
+                }
               />
             </SequenceCard>
           </Box>

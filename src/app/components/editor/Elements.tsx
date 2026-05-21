@@ -9,7 +9,7 @@ import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { nicknamesAtom } from '$state/nicknames';
 import { BlockType } from './types';
-import { getBeginCommand } from './utils';
+import { formatMentionElementDisplayName, getBeginCommand } from './utils';
 import type { CommandElement, EmoticonElement, LinkElement, MentionElement } from './slate';
 
 // Put this at the start and end of an inline component to work around this Chromium bug:
@@ -32,7 +32,7 @@ function RenderMentionElement({
   const nicknames = useAtomValue(nicknamesAtom);
 
   const nickname = nicknames[element.id];
-  const displayName = nickname ? `@${nickname}` : element.name;
+  const displayName = nickname ? `@${nickname}` : formatMentionElementDisplayName(element);
 
   return (
     <span

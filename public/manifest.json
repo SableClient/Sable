@@ -11,163 +11,163 @@
   "theme_color": "#1b1a21",
   "icons": [
     {
-      "src": "./public/svg/cinny-logo-maskable.svg",
+      "src": "./public/svg/logo-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-512x512.png",
+      "src": "./public/logo-maskable/logo-maskable-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-384x384.png",
+      "src": "./public/logo-maskable/logo-maskable-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-256x256.png",
+      "src": "./public/logo-maskable/logo-maskable-256x256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-192x192.png",
+      "src": "./public/logo-maskable/logo-maskable-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-180x180.png",
+      "src": "./public/logo-maskable/logo-maskable-180x180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-167x167.png",
+      "src": "./public/logo-maskable/logo-maskable-167x167.png",
       "sizes": "167x167",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-152x152.png",
+      "src": "./public/logo-maskable/logo-maskable-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-144x144.png",
+      "src": "./public/logo-maskable/logo-maskable-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-120x120.png",
+      "src": "./public/logo-maskable/logo-maskable-120x120.png",
       "sizes": "120x120",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-114x114.png",
+      "src": "./public/logo-maskable/logo-maskable-114x114.png",
       "sizes": "114x114",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-96x96.png",
+      "src": "./public/logo-maskable/logo-maskable-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-76x76.png",
+      "src": "./public/logo-maskable/logo-maskable-76x76.png",
       "sizes": "76x76",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-72x72.png",
+      "src": "./public/logo-maskable/logo-maskable-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-60x60.png",
+      "src": "./public/logo-maskable/logo-maskable-60x60.png",
       "sizes": "60x60",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-57x57.png",
+      "src": "./public/logo-maskable/logo-maskable-57x57.png",
       "sizes": "57x57",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-48x48.png",
+      "src": "./public/logo-maskable/logo-maskable-48x48.png",
       "sizes": "48x48",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/logo-maskable/cinny-logo-maskable-36x36.png",
+      "src": "./public/logo-maskable/logo-maskable-36x36.png",
       "sizes": "36x36",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./public/svg/cinny-logo.svg",
+      "src": "./public/svg/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-512x512.png",
+      "src": "./public/logo/logo-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-384x384.png",
+      "src": "./public/logo/logo-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-256x256.png",
+      "src": "./public/logo/logo-256x256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-192x192.png",
+      "src": "./public/logo/logo-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-144x144.png",
+      "src": "./public/logo/logo-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-96x96.png",
+      "src": "./public/logo/logo-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-72x72.png",
+      "src": "./public/logo/logo-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/logo/cinny-logo-48x48.png",
+      "src": "./public/logo/logo-48x48.png",
       "sizes": "48x48",
       "type": "image/png",
       "purpose": "any"

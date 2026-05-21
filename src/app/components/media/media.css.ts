@@ -10,6 +10,10 @@ export const Image = style([
   },
 ]);
 
+export const ImagePixelated = style({
+  imageRendering: 'pixelated',
+});
+
 export const Video = style([
   DefaultReset,
   {

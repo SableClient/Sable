@@ -22,6 +22,17 @@ export enum CaptionPosition {
   Hidden = 'hidden',
   Below = 'below',
 }
+
+export enum ShowRoomIcon {
+  Always = 'always',
+  Smart = 'smart',
+  Never = 'never',
+}
+export type PerRoomShowRoomIcon = {
+  roomId: string;
+  display: ShowRoomIcon;
+};
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -43,6 +54,17 @@ export type ThemeRemoteTweakFavorite = {
 
 /** Custom profile card hero colors: which brightness schemes to honor. */
 export type RenderUserCardsMode = 'both' | 'light' | 'dark' | 'none';
+
+/** Where to use crisp nearest-neighbor (pixelated) image scaling. */
+export type PixelatedImageRenderingMode = 'both' | 'chat' | 'viewer' | 'none';
+
+export function isPixelatedChatRendering(mode: PixelatedImageRenderingMode): boolean {
+  return mode === 'both' || mode === 'chat';
+}
+
+export function isPixelatedViewerRendering(mode: PixelatedImageRenderingMode): boolean {
+  return mode === 'both' || mode === 'viewer';
+}
 
 export function shouldApplyUserHeroCards(
   mode: RenderUserCardsMode,
@@ -140,12 +162,14 @@ export interface Settings {
   autoplayGifs: boolean;
   autoplayStickers: boolean;
   autoplayEmojis: boolean;
+  pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
   incomingInlineImagesMaxHeight: number;
   linkPreviewImageMaxHeight: number;
   saveStickerEmojiBandwidth: boolean;
   subspaceHierarchyLimit: number;
   alwaysShowCallButton: boolean;
+  joinCallOnSingleClick: boolean;
   faviconForMentionsOnly: boolean;
   highlightMentions: boolean;
   pkCompat: boolean;
@@ -153,6 +177,17 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  perRoomShowRoomIcon: PerRoomShowRoomIcon[];
+  showRoomIcon: ShowRoomIcon;
+  showRoomBanners: boolean;
+  roomSidebarWidth: number;
+  roomBannerHeight: number;
+  memberSidebarWidth: number;
+  threadSidebarWidth: number;
+  threadRootHeight: number;
+  vcmsgSidebarWidth: number;
+  widgetSidebarWidth: number;
+  isShowingAllRoomsInHome: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -262,12 +297,14 @@ export const defaultSettings: Settings = {
   autoplayGifs: true,
   autoplayStickers: true,
   autoplayEmojis: true,
+  pixelatedImageRendering: 'viewer',
   incomingInlineImagesDefaultHeight: 32,
   incomingInlineImagesMaxHeight: 64,
   linkPreviewImageMaxHeight: 640,
   saveStickerEmojiBandwidth: false,
   subspaceHierarchyLimit: 3,
   alwaysShowCallButton: false,
+  joinCallOnSingleClick: true,
   faviconForMentionsOnly: false,
   highlightMentions: true,
   pkCompat: false,
@@ -275,7 +312,17 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
-
+  perRoomShowRoomIcon: [],
+  showRoomIcon: ShowRoomIcon.Smart,
+  showRoomBanners: true,
+  roomSidebarWidth: 256,
+  roomBannerHeight: 190,
+  memberSidebarWidth: 262,
+  threadSidebarWidth: 440,
+  threadRootHeight: 220,
+  vcmsgSidebarWidth: 399,
+  widgetSidebarWidth: 420,
+  isShowingAllRoomsInHome: false,
   // furry stuff
   renderAnimals: true,
 
@@ -325,6 +372,17 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.renderUserCards !== 'none'
   ) {
     parsed.renderUserCards = 'both';
+  }
+
+  if (typeof parsed.pixelatedImageRendering === 'boolean') {
+    parsed.pixelatedImageRendering = parsed.pixelatedImageRendering ? 'both' : 'none';
+  } else if (
+    parsed.pixelatedImageRendering !== 'both' &&
+    parsed.pixelatedImageRendering !== 'chat' &&
+    parsed.pixelatedImageRendering !== 'viewer' &&
+    parsed.pixelatedImageRendering !== 'none'
+  ) {
+    delete parsed.pixelatedImageRendering;
   }
 
   if (
@@ -448,6 +506,10 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
     case 'renderUserCards':
       return val === 'both' || val === 'light' || val === 'dark' || val === 'none'
+        ? val
+        : undefined;
+    case 'pixelatedImageRendering':
+      return val === 'both' || val === 'chat' || val === 'viewer' || val === 'none'
         ? val
         : undefined;
     case 'jumboEmojiSize':

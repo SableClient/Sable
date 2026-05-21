@@ -144,7 +144,7 @@ export const ImageContent = as<'div', ImageContentProps>(
     useEffect(() => {
       if (!viewer) {
         setViewerFullSrc(null);
-        return;
+        return undefined;
       }
       if (
         typeof matrixThumbnailMaxEdge !== 'number' ||
@@ -152,7 +152,7 @@ export const ImageContent = as<'div', ImageContentProps>(
         encInfo ||
         url.startsWith('http')
       ) {
-        return;
+        return undefined;
       }
       let cancelled = false;
       void (async () => {
@@ -182,7 +182,9 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
 
-    const hasDimensions = typeof info?.w === 'number' && typeof info?.h === 'number';
+    const imageW = info?.w;
+    const imageH = info?.h;
+    const hasDimensions = typeof imageW === 'number' && typeof imageH === 'number';
     const isContained = mediaLayout === 'contained';
     const fillsSlot = Boolean(fillsPreviewSlot && isContained);
     const containedReserveStrip =
@@ -200,7 +202,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       : isContained
         ? { minHeight: containedReserveStrip ? toRem(stripMin) : undefined }
         : hasDimensions
-          ? { aspectRatio: `${info!.w} / ${info!.h}` }
+          ? { aspectRatio: `${imageW} / ${imageH}` }
           : { minHeight: '150px' };
 
     const fillPreviewSlotStyle = fillsSlot

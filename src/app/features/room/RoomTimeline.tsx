@@ -420,7 +420,7 @@ export function RoomTimeline({
   useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
-    timelineSyncRef.current.loadEventTimeline(eventId);
+    void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
 
   useEffect(() => {
@@ -536,7 +536,7 @@ export function RoomTimeline({
         }
         timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
       } else {
-        timelineSync.loadEventTimeline(anchorId);
+        void timelineSync.loadEventTimeline(anchorId);
       }
     },
   });
@@ -680,14 +680,14 @@ export function RoomTimeline({
       }
 
       if (offset < 500 && canPaginateBackRef.current && backwardStatusRef.current === 'idle') {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
       if (
         distanceFromBottom < 500 &&
         !liveTimelineLinkedRef.current &&
         forwardStatusRef.current === 'idle'
       ) {
-        timelineSyncRef.current.handleTimelinePagination(false);
+        void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
     [setAtBottom]
@@ -720,12 +720,6 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      backPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
 
@@ -752,14 +746,19 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
-    } else if (timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0) {
-      frontPaginationJSX = (
-        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
-          <Spinner variant="Secondary" size="400" />
-        </Box>
-      );
     }
   }
+
+  const showBackPaginationSpinner =
+    timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const showFrontPaginationSpinner =
+    timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0;
+  const timelineBottomFloatLift =
+    !atBottomState && isReady ? { bottom: `calc(${config.space.S400} + ${toRem(52)})` } : undefined;
+  const timelineTopFloatLift =
+    unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady
+      ? { top: `calc(${config.space.S400} + ${toRem(52)})` }
+      : undefined;
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
@@ -825,7 +824,7 @@ export function RoomTimeline({
       backwardStatusRef.current === 'idle' &&
       v.scrollSize <= v.viewportSize
     ) {
-      timelineSyncRef.current.handleTimelinePagination(true);
+      void timelineSyncRef.current.handleTimelinePagination(true);
     }
   }, [timelineSync.eventsLength, timelineSync.backwardStatus]);
 
@@ -855,7 +854,7 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        timelineSyncRef.current.handleTimelinePagination(true);
+        void timelineSyncRef.current.handleTimelinePagination(true);
       }
     };
 
@@ -955,7 +954,9 @@ export function RoomTimeline({
               eventData.collapsed
             );
 
-            const dividers = (
+            const showDividers = renderedEvent !== null;
+
+            const dividers = showDividers ? (
               <>
                 {eventData.willRenderDayDivider && (
                   <MessageBase space={messageSpacing}>
@@ -976,7 +977,7 @@ export function RoomTimeline({
                   </MessageBase>
                 )}
               </>
-            );
+            ) : null;
 
             if (index === 0) {
               return (
@@ -1007,7 +1008,23 @@ export function RoomTimeline({
         </VList>
       </div>
 
-      {frontPaginationJSX}
+      {showBackPaginationSpinner && (
+        <TimelineFloat position="Top" style={timelineTopFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {showFrontPaginationSpinner && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          <Spinner variant="Secondary" size="400" />
+        </TimelineFloat>
+      )}
+
+      {frontPaginationJSX && (
+        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+          {frontPaginationJSX}
+        </TimelineFloat>
+      )}
 
       {!atBottomState && isReady && (
         <TimelineFloat position="Bottom">

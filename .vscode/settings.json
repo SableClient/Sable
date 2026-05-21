@@ -17,6 +17,12 @@
   "nixEnvSelector.useFlakes": true,
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "AGENTS.md": "AGENTS.md, CLAUDE.md, COPILOT.md, .cursorrules"
+    "AGENTS.md": "AGENTS.md, CLAUDE.md, COPILOT.md, .cursorrules",
+    "package.json": "pnpm-*.yaml, yarn.lock, package-lock.json, .npmrc, .nvmrc, .node-version",
+    "tsconfig.json": "tsconfig.*.json",
+    "Dockerfile": ".dockerignore",
+    ".env": ".env.*",
+    "flake.nix": "flake.lock",
+    ".gitattributes": ".gitignore"
   }
 }

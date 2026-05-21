@@ -1,10 +1,9 @@
 import { style } from '@vanilla-extract/css';
-import { config, toRem } from 'folds';
+import { config } from 'folds';
 
 export const WidgetsDrawer = style({
-  width: toRem(420),
   maxWidth: '100vw',
-  minWidth: '20vw',
+  minWidth: '9vw',
 });
 
 export const WidgetsDrawerHeader = style({

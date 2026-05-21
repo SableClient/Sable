@@ -49,13 +49,13 @@ const getClientCache = (mx: MatrixClient): Map<string, Promise<IPreviewUrlRespon
   return clientCache;
 };
 
-const openMediaInNewTab = async (url: string | undefined) => {
+const openMediaInNewTab = async (url: string | undefined, accessToken: string | null) => {
   if (!url) {
     console.warn('Attempted to open an empty url');
     return;
   }
   try {
-    const blob = await downloadMedia(url);
+    const blob = await downloadMedia(url, accessToken);
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
   } catch (err) {
@@ -153,7 +153,7 @@ export const UrlPreviewCard = as<
           console.error('Error converting mxc:// url.');
           return;
         }
-        openMediaInNewTab(mxcUrl);
+        openMediaInNewTab(mxcUrl, mx.getAccessToken());
       }
     };
 

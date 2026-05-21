@@ -28,7 +28,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       if (!mediaUrl) throw new Error('Invalid media URL');
       if (encInfo) {
         const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
+          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo), mx.getAccessToken()
         );
         return URL.createObjectURL(fileContent);
       }

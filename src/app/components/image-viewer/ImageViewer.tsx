@@ -2,6 +2,7 @@ import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
 
@@ -13,12 +14,13 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
+    const mx = useMatrixClient();
     const { transforms, cursor, handleWheel, onPointerDown, resetTransforms, zoomIn, zoomOut } =
       useImageGestures(true, 0.2);
 
     const handleDownload = async () => {
       try {
-        const fileContent = await downloadMedia(src);
+        const fileContent = await downloadMedia(src, mx.getAccessToken());
         FileSaver.saveAs(fileContent, alt);
       } catch {
         // Download failed (e.g. network error or non-2xx response) — silently ignore.

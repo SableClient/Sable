@@ -84,9 +84,9 @@ export const VideoContent = as<'div', VideoContentProps>(
         if (!mediaUrl) throw new Error('Invalid media URL');
         const fileContent = encInfo
           ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
+              decryptFile(encBuf, mimeType, encInfo), mx.getAccessToken()
             )
-          : await downloadMedia(mediaUrl);
+          : await downloadMedia(mediaUrl, mx.getAccessToken());
         return URL.createObjectURL(fileContent);
       }, [mx, url, useAuthentication, mimeType, encInfo])
     );

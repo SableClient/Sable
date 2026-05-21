@@ -18,7 +18,7 @@ import {
 import { copyToClipboard } from '$utils/dom';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getSvgCacheSize } from '$components/room-avatar/AvatarImage';
+import { getSvgCacheSize, clearSvgBlobCache } from '$components/room-avatar/AvatarImage';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { AccountData } from './AccountData';
 import { SyncDiagnostics } from './SyncDiagnostics';
@@ -73,6 +73,11 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const clearInMemoryAction = useCallback(() => {
     clearInMemoryBlobCache();
     setCacheStats(getBlobCacheStats());
+  }, []);
+
+  const clearSvgCacheAction = useCallback(() => {
+    clearSvgBlobCache();
+    setSvgCacheSize(getSvgCacheSize());
   }, []);
 
   const [clearSwCacheState, clearSwCacheAction] = useAsyncCallback<void, Error, []>(
@@ -288,6 +293,18 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                       focusId="svg-cache"
                       title="SVG Avatar Cache"
                       description={`${svgCacheSize} ${svgCacheSize === 1 ? 'item' : 'items'} · processed SVG avatars, reused while app is open · cleared on reload`}
+                      after={
+                        <Button
+                          onClick={clearSvgCacheAction}
+                          variant="Secondary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                        >
+                          <Text size="B300">Clear</Text>
+                        </Button>
+                      }
                     />
                     <SettingTile
                       focusId="clear-in-memory-cache"

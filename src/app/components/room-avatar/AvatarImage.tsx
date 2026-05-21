@@ -17,6 +17,11 @@ export function getSvgCacheSize(): number {
   return svgBlobCache.size;
 }
 
+/** Clear all SVG blob URLs from the module-level cache. */
+export function clearSvgBlobCache(): void {
+  svgBlobCache.clear();
+}
+
 type AvatarImageProps = {
   src: string;
   alt?: string;

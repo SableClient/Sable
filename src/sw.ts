@@ -542,7 +542,19 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
-      await self.clients.claim();
+      // Do NOT call clients.claim() here.
+      //
+      // Calling clients.claim() in activate evicts iOS bfcache entries: it fires
+      // controllerchange on every client — including cached ones — and iOS evicts
+      // any page whose SW controller changes while it is in bfcache.  On iOS PWA
+      // (no browser chrome) this looks identical to a hard reload: the user sees
+      // the splash screen instead of an instant restore.
+      //
+      // Pages detect a stale/missing controller on every foreground event
+      // (pageshow[persisted] and visibilitychange→visible) and send CLAIM_CLIENTS
+      // so the SW claims them lazily once they are already visible.  New page
+      // navigations are automatically controlled by the active SW without an
+      // explicit claim.
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
@@ -571,6 +583,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setSession') {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
+  }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+      (async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients so media auth is
+        // restored immediately without waiting for the next media fetch.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
   }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload

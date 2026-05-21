@@ -30,6 +30,41 @@ const log = createLogger('index');
 
 document.body.classList.add(configClass, varsClass);
 
+// Lazy SW re-claim — avoids iOS bfcache eviction.
+//
+// clients.claim() is NOT called unconditionally in the SW's activate handler
+// because doing so fires controllerchange on every open client including
+// bfcached ones, which evicts them from bfcache and causes a hard reload.
+//
+// Instead, the page requests a claim whenever it comes to the foreground and
+// detects that the active SW is not yet its controller (e.g. after iOS killed
+// and restarted the SW while the page was backgrounded).  Safe to call
+// speculatively: if the SW is already the controller, clients.claim() is a
+// no-op and controllerchange does not re-fire.
+const requestSWClaim = () => {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready
+    .then((reg) => {
+      if (reg.active && reg.active !== navigator.serviceWorker.controller) {
+        // oxlint-disable-next-line unicorn/require-post-message-target-origin
+        reg.active.postMessage({ type: 'CLAIM_CLIENTS' });
+      }
+    })
+    .catch(() => undefined);
+};
+
+// Bfcache restore: page snaps back instantly; check whether the SW was
+// restarted while the page was away.
+window.addEventListener('pageshow', (ev) => {
+  if (ev.persisted) requestSWClaim();
+});
+
+// Visibility-change foreground: covers the case where iOS kills the SW
+// while the screen is on (memory pressure) and the user touches the app.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestSWClaim();
+});
+
 if ('serviceWorker' in navigator) {
   const isProduction = import.meta.env.MODE === 'production';
   const swUrl = isProduction
@@ -131,10 +166,12 @@ const CHUNK_RETRY_KEY = 'cinny_chunk_retry_count';
 const MAX_CHUNK_RETRIES = 2;
 
 window.addEventListener('error', (event) => {
-  // Check if this is a chunk loading error
+  // Check if this is a chunk loading error.
+  // Deliberately excludes 'Failed to fetch' — that string matches generic network
+  // errors (e.g. media auth failures after a SW restart) which must not trigger a
+  // page reload.
   const isChunkLoadError =
     event.message?.includes('dynamically imported module') ||
-    event.message?.includes('Failed to fetch') ||
     event.error?.name === 'ChunkLoadError';
 
   if (isChunkLoadError) {

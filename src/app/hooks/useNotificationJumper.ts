@@ -8,7 +8,7 @@ import { useSyncState } from './useSyncState';
 import { useMatrixClient } from './useMatrixClient';
 import { getCanonicalAliasOrRoomId } from '../utils/matrix';
 import { getDirectRoomPath, getHomeRoomPath, getSpaceRoomPath } from '../pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '../utils/room';
+import { getShallowParents, guessPerfectParent } from '../utils/room';
 import { roomToParentsAtom } from '../state/room/roomToParents';
 import { createLogger } from '../utils/debug';
 
@@ -63,13 +63,12 @@ export function NotificationJumper() {
         // If the room lives inside a space, route through the space path so
         // SpaceRouteRoomProvider can resolve it — HomeRouteRoomProvider only
         // knows orphan rooms and would show JoinBeforeNavigate otherwise.
-        // Use getOrphanParents + guessPerfectParent (same as useRoomNavigate) so
-        // we always navigate to a root-level space, not a subspace — subspace
-        // paths are not recognised by the router and land on JoinBeforeNavigate.
-        const orphanParents = getOrphanParents(roomToParents, pending.roomId);
-        if (orphanParents.length > 0) {
+        // Prefer the shallowest direct parent so the user lands in the most
+        // specific space context rather than a distant top-level ancestor.
+        const shallowParents = getShallowParents(roomToParents, pending.roomId);
+        if (shallowParents.length > 0) {
           const parentSpace =
-            guessPerfectParent(mx, pending.roomId, orphanParents) ?? orphanParents[0];
+            guessPerfectParent(mx, pending.roomId, shallowParents) ?? shallowParents[0];
           navigate(
             getSpaceRoomPath(
               getCanonicalAliasOrRoomId(mx, parentSpace ?? pending.roomId),

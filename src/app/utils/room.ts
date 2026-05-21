@@ -179,6 +179,29 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
+/**
+ * Returns the direct parent(s) of a room that are "most top-level" — i.e., the
+ * direct parents with the fewest ancestor spaces of their own.  Prefers parents
+ * that are themselves orphans (0 ancestors) when any exist.
+ *
+ * Falls back to {@link getOrphanParents} when the room has no direct parent
+ * mapping, preserving the existing behaviour for rooms joined outside any space.
+ */
+export const getShallowParents = (roomToParents: RoomToParents, roomId: string): string[] => {
+  const directParents = roomToParents.get(roomId);
+  if (!directParents || directParents.size === 0) {
+    return getOrphanParents(roomToParents, roomId);
+  }
+  const parents = Array.from(directParents);
+  if (parents.length === 1) return parents;
+  // Among multiple direct parents, keep those with the fewest ancestors
+  // (most top-level). This handles rooms that appear in both a top-level
+  // space and a sub-space, preferring the top-level one.
+  const ancestorCounts = parents.map((p) => getAllParents(roomToParents, p).size);
+  const minCount = Math.min(...ancestorCounts);
+  return parents.filter((_, i) => ancestorCounts[i] === minCount);
+};
+
 const hasNotifyPushAction = (actions: IPushRule['actions']): boolean =>
   actions.some((a) => typeof a === 'string' && a === PushRuleActionName.Notify);
 

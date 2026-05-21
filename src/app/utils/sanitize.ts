@@ -46,7 +46,7 @@ const permittedHtmlTags = [
 
 const permittedTagToAttributes = {
   span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths', 'data-md'],
-  a: ['target', 'href', 'data-md'],
+  a: ['href', 'data-md'],
   img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'], // data-mx-emoticon is for MSC2545
   ol: ['start', 'data-md'],
   ul: ['data-md'],

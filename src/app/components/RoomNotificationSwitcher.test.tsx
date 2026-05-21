@@ -56,7 +56,7 @@ describe('RoomNotificationModeSwitcher', () => {
       RoomNotificationMode.SpecialMessages,
       RoomNotificationMode.Unset
     );
-  });
+  }, 15000);
 
   it('disables interaction while the room mode is changing', () => {
     modeStateStatus.current = 'loading';

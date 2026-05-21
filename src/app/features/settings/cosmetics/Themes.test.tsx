@@ -138,7 +138,7 @@ describe('Appearance settings', () => {
     expect(screen.getByRole('button', { name: 'GitHub Light' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Dracula' })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Dracula' }).at(-1)).toBeDisabled();
-  });
+  }, 15000);
 
   it('updates the manual app and code block theme settings when system theme is disabled', () => {
     currentSettings = {

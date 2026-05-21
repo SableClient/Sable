@@ -4,6 +4,7 @@ import type { Position, RectCords } from 'folds';
 import type { UserProfile } from '$hooks/useUserProfile';
 import type { UserRoomProfileState } from '$state/userRoomProfile';
 import { userRoomProfileAtom } from '$state/userRoomProfile';
+import { prefetchUserProfileModal } from '$pages/routePrefetch';
 
 export const useUserRoomProfileState = (): UserRoomProfileState | undefined => {
   const data = useAtomValue(userRoomProfileAtom);
@@ -35,6 +36,7 @@ export const useOpenUserRoomProfile = (): OpenCallback => {
 
   const open: OpenCallback = useCallback(
     (roomId, spaceId, userId, cords, position, initialProfile) => {
+      void prefetchUserProfileModal();
       setUserRoomProfile({
         roomId,
         spaceId,

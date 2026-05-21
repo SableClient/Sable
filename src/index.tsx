@@ -3,10 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { enableMapSet } from 'immer';
 import '@fontsource-variable/nunito';
 import '@fontsource-variable/nunito/wght-italic.css';
-import '@fontsource/space-mono/400.css';
-import '@fontsource/space-mono/700.css';
-import '@fontsource/space-mono/400-italic.css';
-import '@fontsource/space-mono/700-italic.css';
 import 'folds/dist/style.css';
 import { configClass, varsClass } from 'folds';
 import { trimTrailingSlash } from './app/utils/common';
@@ -58,20 +54,26 @@ if ('serviceWorker' in navigator) {
     swRegisterOptions.type = 'module';
   }
 
-  navigator.serviceWorker.register(swUrl, swRegisterOptions).then((registration) => {
-    registration.addEventListener('updatefound', () => {
-      const installingWorker = registration.installing;
-      if (installingWorker) {
-        installingWorker.addEventListener('statechange', () => {
-          if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              showUpdateAvailablePrompt(registration);
+  const serviceWorkerRegistration = navigator.serviceWorker.register(swUrl, swRegisterOptions);
+
+  serviceWorkerRegistration
+    .then((registration) => {
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (installingWorker) {
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                showUpdateAvailablePrompt(registration);
+              }
             }
-          }
-        });
-      }
+          });
+        }
+      });
+    })
+    .catch((err) => {
+      log.warn('SW registration failed:', err);
     });
-  });
 
   const sendSessionToSW = () => {
     // Use the active session from the new multi-session store, fall back to legacy
@@ -82,12 +84,9 @@ if ('serviceWorker' in navigator) {
     pushSessionToSW(active?.baseUrl, active?.accessToken, active?.userId);
   };
 
-  navigator.serviceWorker
-    .register(swUrl)
-    .then(sendSessionToSW)
-    .catch((err) => {
-      log.warn('SW registration failed:', err);
-    });
+  serviceWorkerRegistration.then(sendSessionToSW).catch((err) => {
+    log.warn('SW session sync registration failed:', err);
+  });
   navigator.serviceWorker.ready.then(sendSessionToSW).catch((err) => {
     log.warn('SW ready failed:', err);
   });

@@ -12,6 +12,7 @@ import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { nicknamesAtom } from '$state/nicknames';
 import { useCallEmbed } from '$hooks/useCallEmbed';
+import { prefetchUserProfileModal } from '$pages/routePrefetch';
 
 type RoomNavUserProps = {
   room: Room;
@@ -40,12 +41,20 @@ export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps
   const handleNavUserClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
     openProfile(room.roomId, space?.roomId, userId, evt.currentTarget.getBoundingClientRect());
   };
+  const handlePrefetch = () => {
+    void prefetchUserProfileModal();
+  };
 
   const ariaLabel = isCallParticipant ? `Call Participant: ${name}` : name;
 
   return (
     <NavItem variant="Background" radii="400">
-      <NavButton onClick={handleNavUserClick} aria-label={ariaLabel}>
+      <NavButton
+        onClick={handleNavUserClick}
+        onMouseEnter={handlePrefetch}
+        onFocus={handlePrefetch}
+        aria-label={ariaLabel}
+      >
         <NavItemContent as="div" style={hideText ? { padding: '0' } : {}}>
           <Box direction="Column" grow="Yes" gap="200" justifyContent="Stretch">
             <Box alignItems="Center" gap="200" justifyContent={hideText ? 'Center' : 'Start'}>

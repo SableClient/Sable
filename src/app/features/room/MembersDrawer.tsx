@@ -55,6 +55,7 @@ import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMembe
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
+import { prefetchUserProfileModal } from '$pages/routePrefetch';
 import * as css from './MembersDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
@@ -123,6 +124,10 @@ function MemberItem({
   typing,
   hideText,
 }: MemberItemProps) {
+  const handlePrefetch = () => {
+    void prefetchUserProfileModal();
+  };
+
   const nicknames = useAtomValue(nicknamesAtom);
   const name =
     getMemberDisplayName(room, member.userId, nicknames) ??
@@ -186,6 +191,8 @@ function MemberItem({
       variant="Background"
       radii="400"
       onClick={onClick}
+      onMouseEnter={handlePrefetch}
+      onFocus={handlePrefetch}
       before={MemberAvatar}
       after={
         typing && (

@@ -38,6 +38,7 @@ import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
+import { prefetchSpaceSettingsModal } from '$pages/routePrefetch';
 import * as css from './LobbyHeader.css';
 
 type LobbyMenuProps = {
@@ -63,6 +64,9 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
     const handleRoomSettings = () => {
       openSpaceSettings(space.roomId);
       requestClose();
+    };
+    const handleSettingsPrefetch = () => {
+      void prefetchSpaceSettingsModal();
     };
 
     return (
@@ -93,6 +97,8 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
           </MenuItem>
           <MenuItem
             onClick={handleRoomSettings}
+            onMouseEnter={handleSettingsPrefetch}
+            onFocus={handleSettingsPrefetch}
             size="300"
             after={<Icon size="100" src={Icons.Setting} />}
             radii="300"
@@ -156,6 +162,9 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+  };
+  const handleSettingsPrefetch = () => {
+    void prefetchSpaceSettingsModal();
   };
 
   return (
@@ -243,6 +252,8 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               <IconButton
                 fill="None"
                 onClick={handleOpenMenu}
+                onMouseEnter={handleSettingsPrefetch}
+                onFocus={handleSettingsPrefetch}
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >

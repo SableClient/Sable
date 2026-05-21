@@ -45,9 +45,11 @@ export function getProcessedRowIndexForRawTimelineIndex(
   startRawIndex: number
 ): { rowIndex: number; focusRawIndex: number } | undefined {
   if (startRawIndex < 0) return undefined;
-  for (let i = startRawIndex; i >= 0; i -= 1) {
-    const rowIndex = processedEvents.findIndex((e) => e.itemIndex === i);
-    if (rowIndex >= 0) return { rowIndex, focusRawIndex: i };
+  for (let rowIndex = processedEvents.length - 1; rowIndex >= 0; rowIndex -= 1) {
+    const event = processedEvents[rowIndex];
+    if (event && event.itemIndex <= startRawIndex) {
+      return { rowIndex, focusRawIndex: event.itemIndex };
+    }
   }
   return undefined;
 }

@@ -45,6 +45,8 @@ export function Room() {
   const [isWidgetDrawerOpen] = useSetting(settingsAtom, 'isWidgetDrawer');
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const screenSize = useScreenSizeContext();
+  const callView = room.isCallRoom();
+  const showMembersDrawer = !callView && screenSize === ScreenSize.Desktop && isDrawer;
 
   // Log drawer state changes
   useEffect(() => {
@@ -61,7 +63,7 @@ export function Room() {
     });
   }, [isWidgetDrawerOpen, room.roomId]);
   const powerLevels = usePowerLevels(room);
-  const members = useRoomMembers(mx, room.roomId);
+  const members = useRoomMembers(mx, room.roomId, showMembersDrawer);
   const chat = useAtomValue(callChatAtom);
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -100,7 +102,6 @@ export function Room() {
     )
   );
 
-  const callView = room.isCallRoom();
   const abbreviations = useMergedAbbreviations(room);
 
   // Log call view state
@@ -137,7 +138,7 @@ export function Room() {
               <CallChatView />
             </>
           )}
-          {!callView && screenSize === ScreenSize.Desktop && isDrawer && (
+          {showMembersDrawer && (
             <>
               <Line variant="Background" direction="Vertical" size="300" />
               <MembersDrawer key={room.roomId} room={room} members={members} />

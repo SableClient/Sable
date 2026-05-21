@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Box,
   config,
@@ -18,7 +19,11 @@ import { SpaceProvider } from '$hooks/useSpace';
 import { useCloseCreateSpaceModal, useCreateSpaceModalState } from '$state/hooks/createSpaceModal';
 import type { CreateSpaceModalState } from '$state/createSpaceModal';
 import { stopPropagation } from '$utils/keyboard';
-import { CreateSpaceForm } from './CreateSpace';
+
+const CreateSpaceForm = lazy(async () => {
+  const mod = await import('./CreateSpace');
+  return { default: mod.CreateSpaceForm };
+});
 
 type CreateSpaceModalProps = {
   state: CreateSpaceModalState;
@@ -71,7 +76,9 @@ function CreateSpaceModal({ state }: CreateSpaceModalProps) {
                     direction="Column"
                     gap="500"
                   >
-                    <CreateSpaceForm space={space} onCreate={closeDialog} />
+                    <Suspense fallback={null}>
+                      <CreateSpaceForm space={space} onCreate={closeDialog} />
+                    </Suspense>
                   </Box>
                 </Scroll>
               </Box>

@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Room } from '$types/matrix-sdk';
-import { RoomEvent } from '$types/matrix-sdk';
+import { Direction, RoomEvent } from '$types/matrix-sdk';
 import { useTimelineSync } from './useTimelineSync';
 
 vi.mock('@sentry/react', () => ({
@@ -17,8 +17,8 @@ vi.mock('@sentry/react', () => ({
 
 type FakeTimeline = {
   getEvents: () => unknown[];
-  getNeighbouringTimeline: () => undefined;
-  getPaginationToken: () => undefined;
+  getNeighbouringTimeline: (direction: Direction) => FakeTimeline | undefined;
+  getPaginationToken: (direction: Direction) => string | undefined;
   getRoomId: () => string;
 };
 
@@ -32,25 +32,31 @@ type FakeRoom = Room &
     emit: EventEmitter['emit'];
   };
 
-function createTimeline(events: unknown[] = [{}]): FakeTimeline {
+function createTimeline(
+  events: unknown[] = [{}],
+  paginationToken?: string,
+  neighbour?: FakeTimeline
+): FakeTimeline {
   return {
     getEvents: () => events,
-    getNeighbouringTimeline: () => undefined,
-    getPaginationToken: () => undefined,
+    getNeighbouringTimeline: (direction: Direction) =>
+      direction === Direction.Forward ? neighbour : undefined,
+    getPaginationToken: () => paginationToken,
     getRoomId: () => '!room:test',
   };
 }
 
 function createRoom(
   roomId = '!room:test',
-  events: unknown[] = [{}]
+  events: unknown[] = [{}],
+  paginationToken?: string
 ): {
   room: FakeRoom;
   timelineSet: FakeTimelineSet;
   events: unknown[];
 } {
   const timeline = {
-    ...createTimeline(events),
+    ...createTimeline(events, paginationToken),
     getRoomId: () => roomId,
   };
   const timelineSet = new EventEmitter() as FakeTimelineSet;
@@ -237,5 +243,68 @@ describe('useTimelineSync', () => {
     });
 
     expect(result.current.timeline.linkedTimelines[0]).toBe(roomOne.timelineSet.getLiveTimeline());
+  });
+
+  it('does not auto-scroll to bottom while a jump focus item is active', async () => {
+    const { room, events } = createRoom();
+    const scrollToBottom = vi.fn<() => void>();
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: { getUserId: () => '@alice:test' } as never,
+        isAtBottom: true,
+        isAtBottomRef: { current: true },
+        scrollToBottom,
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      result.current.setFocusItem({ index: 0, scrollTo: true, highlight: true });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      events.push({});
+      room.emit(RoomEvent.LocalEchoUpdated, {}, room);
+      await Promise.resolve();
+    });
+
+    expect(scrollToBottom).not.toHaveBeenCalled();
+  });
+
+  it('does not recursively paginate sparse pages from a single pagination request', async () => {
+    const { room, events } = createRoom('!room:test', [{}], 'token');
+    const paginateEventTimeline = vi.fn<() => Promise<void>>(async () => {
+      events.push({});
+    });
+
+    const { result } = renderHook(() =>
+      useTimelineSync({
+        room: room as Room,
+        mx: {
+          getUserId: () => '@alice:test',
+          paginateEventTimeline,
+          getRoom: () => null,
+        } as never,
+        isAtBottom: false,
+        isAtBottomRef: { current: false },
+        scrollToBottom: vi.fn<() => void>(),
+        unreadInfo: undefined,
+        setUnreadInfo: vi.fn<() => void>(),
+        hideReadsRef: { current: false },
+        readUptoEventIdRef: { current: undefined },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleTimelinePagination(true);
+    });
+
+    expect(paginateEventTimeline).toHaveBeenCalledTimes(1);
   });
 });

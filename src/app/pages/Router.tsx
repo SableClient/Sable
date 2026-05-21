@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import {
   Outlet,
   Route,
@@ -10,27 +11,25 @@ import * as Sentry from '@sentry/react';
 
 import type { ClientConfig } from '$hooks/useClientConfig';
 import { ErrorPage } from '$components/DefaultErrorPage';
-import { SettingsRoute } from '$features/settings';
-import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
 import { Room } from '$features/room';
-import { Lobby } from '$features/lobby';
 import { PageRoot } from '$components/page';
 import { ScreenSize } from '$hooks/useScreenSize';
 import { ReceiveSelfDeviceVerification } from '$components/DeviceVerification';
 import { AutoRestoreBackupOnVerification } from '$components/BackupRestore';
-import { RoomSettingsRenderer } from '$features/room-settings';
-import { SpaceSettingsRenderer } from '$features/space-settings';
-import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
-import { CreateRoomModalRenderer } from '$features/create-room';
-import { CreateSpaceModalRenderer } from '$features/create-space';
-import { BugReportModalRenderer } from '$features/bug-report';
 import type { Sessions } from '$state/sessions';
 import { getFallbackSession, MATRIX_SESSIONS_KEY } from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { NotificationJumper } from '$hooks/useNotificationJumper';
-import { SearchModalRenderer } from '$features/search';
 import { GlobalKeyboardShortcuts } from '$components/GlobalKeyboardShortcuts';
 import { CallEmbedProvider } from '$components/CallEmbedProvider';
+import { SearchModalRenderer } from '$features/search/SearchModalRenderer';
+import { UserRoomProfileRenderer } from '$components/UserRoomProfileRenderer';
+import { CreateRoomModalRenderer } from '$features/create-room/CreateRoomModal';
+import { CreateSpaceModalRenderer } from '$features/create-space/CreateSpaceModal';
+import { BugReportModalRenderer } from '$features/bug-report/BugReportModalRenderer';
+import { SettingsShallowRouteRenderer } from '$features/settings/SettingsShallowRouteRenderer';
+import { RoomSettingsRenderer } from '$features/room-settings/RoomSettingsRenderer';
+import { SpaceSettingsRenderer } from '$features/space-settings/SpaceSettingsRenderer';
 import { AuthLayout, Login, Register, ResetPassword } from './auth';
 import {
   DIRECT_PATH,
@@ -68,8 +67,6 @@ import { HandleNotificationClick, ClientNonUIFeatures } from './client/ClientNon
 import { Home, HomeRouteRoomProvider, HomeSearch } from './client/home';
 import { Direct, DirectCreate, DirectRouteRoomProvider } from './client/direct';
 import { RouteSpaceProvider, Space, SpaceRouteRoomProvider, SpaceSearch } from './client/space';
-import { Explore, FeaturedRooms, PublicRooms } from './client/explore';
-import { Notifications, Inbox, Invites } from './client/inbox';
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
@@ -77,10 +74,54 @@ import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { AuthRouteThemeManager, UnAuthRouteThemeManager } from './ThemeManager';
 import { ClientRoomsNotificationPreferences } from './client/ClientRoomsNotificationPreferences';
-import { HomeCreateRoom } from './client/home/CreateRoom';
-import { Create } from './client/create';
-import { ToRoomEvent } from './client/ToRoomEvent';
 import { CallStatusRenderer } from './CallStatusRenderer';
+import { ConfigConfigLoading } from './ConfigConfig';
+
+const SettingsRoute = lazy(async () => {
+  const mod = await import('$features/settings/SettingsRoute');
+  return { default: mod.SettingsRoute };
+});
+const Lobby = lazy(async () => {
+  const mod = await import('$features/lobby/Lobby');
+  return { default: mod.Lobby };
+});
+const Explore = lazy(async () => {
+  const mod = await import('./client/explore/Explore');
+  return { default: mod.Explore };
+});
+const FeaturedRooms = lazy(async () => {
+  const mod = await import('./client/explore/Featured');
+  return { default: mod.FeaturedRooms };
+});
+const PublicRooms = lazy(async () => {
+  const mod = await import('./client/explore/Server');
+  return { default: mod.PublicRooms };
+});
+const Inbox = lazy(async () => {
+  const mod = await import('./client/inbox/Inbox');
+  return { default: mod.Inbox };
+});
+const Notifications = lazy(async () => {
+  const mod = await import('./client/inbox/Notifications');
+  return { default: mod.Notifications };
+});
+const Invites = lazy(async () => {
+  const mod = await import('./client/inbox/Invites');
+  return { default: mod.Invites };
+});
+const Create = lazy(async () => {
+  const mod = await import('./client/create/Create');
+  return { default: mod.Create };
+});
+const ToRoomEvent = lazy(async () => {
+  const mod = await import('./client/ToRoomEvent');
+  return { default: mod.ToRoomEvent };
+});
+const HomeCreateRoom = lazy(async () => {
+  const mod = await import('./client/home/CreateRoom');
+  return { default: mod.HomeCreateRoom };
+});
+const routeFallback = <ConfigConfigLoading />;
 
 /**
  * Returns true if there is at least one stored session.
@@ -191,14 +232,30 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
                           </ClientLayout>
                           <CallStatusRenderer />
                         </CallEmbedProvider>
-                        <SearchModalRenderer />
-                        <UserRoomProfileRenderer />
-                        <CreateRoomModalRenderer />
-                        <CreateSpaceModalRenderer />
-                        <BugReportModalRenderer />
-                        <SettingsShallowRouteRenderer />
-                        <RoomSettingsRenderer />
-                        <SpaceSettingsRenderer />
+                        <Suspense fallback={null}>
+                          <SearchModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <UserRoomProfileRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <CreateRoomModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <CreateSpaceModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <BugReportModalRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <SettingsShallowRouteRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <RoomSettingsRenderer />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <SpaceSettingsRenderer />
+                        </Suspense>
                         <GlobalKeyboardShortcuts />
                         {/* Screen reader live region — populated by announce() in utils/announce.ts */}
                         <div
@@ -241,7 +298,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
           }
         >
           {mobile ? null : <Route index element={<WelcomePage />} />}
-          <Route path={CREATE_PATH_SEGMENT} element={<HomeCreateRoom />} />
+          <Route
+            path={CREATE_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <HomeCreateRoom />
+              </Suspense>
+            }
+          />
           <Route path={JOIN_PATH_SEGMENT} element={<p>join</p>} />
           <Route path={SEARCH_PATH_SEGMENT} element={<HomeSearch />} />
           <Route
@@ -310,7 +374,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={LOBBY_PATH_SEGMENT} element={<Lobby />} />
+          <Route
+            path={LOBBY_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <Lobby />
+              </Suspense>
+            }
+          />
           <Route path={SEARCH_PATH_SEGMENT} element={<SpaceSearch />} />
           <Route
             path={ROOM_PATH_SEGMENT}
@@ -327,7 +398,9 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={EXPLORE_PATH}>
-                  <Explore />
+                  <Suspense fallback={routeFallback}>
+                    <Explore />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -342,18 +415,48 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={FEATURED_PATH_SEGMENT} element={<FeaturedRooms />} />
-          <Route path={SERVER_PATH_SEGMENT} element={<PublicRooms />} />
+          <Route
+            path={FEATURED_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <FeaturedRooms />
+              </Suspense>
+            }
+          />
+          <Route
+            path={SERVER_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <PublicRooms />
+              </Suspense>
+            }
+          />
         </Route>
-        <Route path={CREATE_PATH} element={<Create />} />
-        <Route path={SETTINGS_PATH} element={<SettingsRoute />} />
+        <Route
+          path={CREATE_PATH}
+          element={
+            <Suspense fallback={routeFallback}>
+              <Create />
+            </Suspense>
+          }
+        />
+        <Route
+          path={SETTINGS_PATH}
+          element={
+            <Suspense fallback={routeFallback}>
+              <SettingsRoute />
+            </Suspense>
+          }
+        />
         <Route
           path={INBOX_PATH}
           element={
             <PageRoot
               nav={
                 <MobileFriendlyPageNav path={INBOX_PATH}>
-                  <Inbox />
+                  <Suspense fallback={routeFallback}>
+                    <Inbox />
+                  </Suspense>
                 </MobileFriendlyPageNav>
               }
             >
@@ -368,10 +471,31 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
               element={<WelcomePage />}
             />
           )}
-          <Route path={NOTIFICATIONS_PATH_SEGMENT} element={<Notifications />} />
-          <Route path={INVITES_PATH_SEGMENT} element={<Invites />} />
+          <Route
+            path={NOTIFICATIONS_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <Notifications />
+              </Suspense>
+            }
+          />
+          <Route
+            path={INVITES_PATH_SEGMENT}
+            element={
+              <Suspense fallback={routeFallback}>
+                <Invites />
+              </Suspense>
+            }
+          />
         </Route>
-        <Route path={TO_ROOM_EVENT_PATH} element={<ToRoomEvent />} />
+        <Route
+          path={TO_ROOM_EVENT_PATH}
+          element={
+            <Suspense fallback={routeFallback}>
+              <ToRoomEvent />
+            </Suspense>
+          }
+        />
       </Route>
       <Route path="/*" element={<p>Page not found</p>} />
     </Route>

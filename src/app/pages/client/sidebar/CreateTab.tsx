@@ -17,6 +17,7 @@ import {
 } from '$pages/pathUtils';
 import { useCreateSelected } from '$hooks/router/useCreateSelected';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
+import { prefetchCreateRoute } from '../../routePrefetch';
 
 export function CreateTab() {
   const createSelected = useCreateSelected();
@@ -24,6 +25,9 @@ export function CreateTab() {
   const navigate = useNavigate();
   const [menuCords, setMenuCords] = useState<RectCords>();
   const [joinAddress, setJoinAddress] = useState(false);
+  const handlePrefetch = () => {
+    void prefetchCreateRoute();
+  };
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuCords(menuCords ? undefined : evt.currentTarget.getBoundingClientRect());
@@ -108,6 +112,8 @@ export function CreateTab() {
               ref={triggerRef}
               outlined
               onClick={handleMenu}
+              onMouseEnter={handlePrefetch}
+              onFocus={handlePrefetch}
             >
               <Icon src={Icons.Plus} />
             </SidebarAvatar>

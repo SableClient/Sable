@@ -91,6 +91,7 @@ import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
+import { prefetchRoomSettingsModal } from '$pages/routePrefetch';
 import { JumpToTime } from './jump-to-time';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
@@ -186,6 +187,9 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
     openSettings(room.roomId, parentSpace?.roomId);
     requestClose();
   };
+  const handleSettingsPrefetch = () => {
+    void prefetchRoomSettingsModal();
+  };
 
   return (
     <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
@@ -274,6 +278,8 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
         </MenuItem>
         <MenuItem
           onClick={handleOpenSettings}
+          onMouseEnter={handleSettingsPrefetch}
+          onFocus={handleSettingsPrefetch}
           size="300"
           after={<Icon size="100" src={Icons.Setting} />}
           radii="300"
@@ -562,6 +568,9 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+  };
+  const handleRoomSettingsPrefetch = () => {
+    void prefetchRoomSettingsModal();
   };
 
   const handleOpenPinMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -898,6 +907,8 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               <IconButton
                 fill="None"
                 onClick={handleOpenMenu}
+                onMouseEnter={handleRoomSettingsPrefetch}
+                onFocus={handleRoomSettingsPrefetch}
                 ref={triggerRef}
                 aria-pressed={!!menuAnchor}
               >

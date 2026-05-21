@@ -61,6 +61,7 @@ import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { nicknamesAtom } from '$state/nicknames';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import { prefetchRoomSettingsModal } from '$pages/routePrefetch';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
@@ -136,6 +137,9 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
       openRoomSettings(room.roomId, space?.roomId);
       requestClose();
     };
+    const handleSettingsPrefetch = () => {
+      void prefetchRoomSettingsModal();
+    };
 
     return (
       <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
@@ -210,6 +214,8 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
           </MenuItem>
           <MenuItem
             onClick={handleRoomSettings}
+            onMouseEnter={handleSettingsPrefetch}
+            onFocus={handleSettingsPrefetch}
             size="300"
             after={<Icon size="100" src={Icons.Setting} />}
             radii="300"
@@ -327,6 +333,9 @@ export function RoomNavItem({
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
+  };
+  const handleSettingsPrefetch = () => {
+    void prefetchRoomSettingsModal();
   };
 
   const handleNavItemClick: MouseEventHandler<HTMLElement> = (evt) => {
@@ -608,6 +617,8 @@ export function RoomNavItem({
                 {!hideText && (
                   <IconButton
                     onClick={handleOpenMenu}
+                    onMouseEnter={handleSettingsPrefetch}
+                    onFocus={handleSettingsPrefetch}
                     aria-pressed={!!menuAnchor}
                     aria-controls={`menu-${room.roomId}`}
                     aria-label="More Options"

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 import { Provider as JotaiProvider } from 'jotai';
 import { createStore } from 'jotai/vanilla';
 import { OverlayContainerProvider, PopOutContainerProvider, TooltipContainerProvider } from 'folds';
@@ -39,12 +39,13 @@ function BootstrappedAppShell({ clientConfig, screenSize }: BootstrappedAppShell
   }
   bootstrapSettingsStore(jotaiStoreRef.current, clientConfig.settingsDefaults);
   const reactQueryDevtoolsEnabled = isReactQueryDevtoolsEnabled();
+  const router = useMemo(() => createRouter(clientConfig, screenSize), [clientConfig, screenSize]);
 
   return (
     <ClientConfigProvider value={clientConfig}>
       <QueryClientProvider client={queryClient}>
         <JotaiProvider store={jotaiStoreRef.current}>
-          <RouterProvider router={createRouter(clientConfig, screenSize)} />
+          <RouterProvider router={router} />
         </JotaiProvider>
         {reactQueryDevtoolsEnabled && (
           <Suspense fallback={null}>

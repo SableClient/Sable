@@ -29,7 +29,7 @@ import { useForceUpdate } from '$hooks/useForceUpdate';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import type { MatrixError } from '$types/matrix-sdk';
 import type { AbbreviationEntry, RoomAbbreviationsContent } from '$utils/abbreviations';
-import { getAllParents, getStateEvent } from '$utils/room';
+import { getAllParents, getStateEvent, hasRecursiveParent } from '$utils/room';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
@@ -61,7 +61,7 @@ export function RoomAbbreviations({ requestClose, isSpace }: AbbreviationsProps)
       (event) => {
         if (event.getType() !== (CustomStateEvent.RoomAbbreviations as string)) return;
         const eventRoomId = event.getRoomId();
-        if (eventRoomId && getAllParents(roomToParents, room.roomId).has(eventRoomId)) {
+        if (eventRoomId && hasRecursiveParent(roomToParents, room.roomId, eventRoomId)) {
           forceAncestorUpdate();
         }
       },

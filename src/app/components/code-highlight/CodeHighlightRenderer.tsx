@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { highlightCode, type HighlightResult, useArboriumThemeStatus } from '$plugins/arborium';
+import { loadSpaceMono } from '$utils/loadSpaceMono';
 import * as css from './CodeHighlightRenderer.css';
 
 type CodeHighlightRendererProps = {
@@ -43,6 +44,10 @@ export function CodeHighlightRenderer({
     key: requestKey,
     result: createPlainResult(code, language),
   }));
+
+  useEffect(() => {
+    void loadSpaceMono();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

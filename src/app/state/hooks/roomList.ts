@@ -3,7 +3,7 @@ import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
-import { getAllParents, isRoom, isSpace, isUnsupportedRoom } from '$utils/room';
+import { hasRecursiveParent, isRoom, isSpace, isUnsupportedRoom } from '$utils/room';
 import type { RoomToParents } from '$types/matrix/room';
 import { compareRoomsEqual } from '$state/room-list/utils';
 
@@ -31,7 +31,7 @@ export const useRecursiveChildScopeFactory = (
     (parentId: string) => (roomId) =>
       isRoom(mx.getRoom(roomId)) &&
       roomToParents.has(roomId) &&
-      getAllParents(roomToParents, roomId).has(parentId),
+      hasRecursiveParent(roomToParents, roomId, parentId),
     [mx, roomToParents]
   );
 
@@ -53,7 +53,7 @@ export const useRecursiveChildSpaceScopeFactory = (
     (parentId: string) => (roomId) =>
       isSpace(mx.getRoom(roomId)) &&
       roomToParents.has(roomId) &&
-      getAllParents(roomToParents, roomId).has(parentId),
+      hasRecursiveParent(roomToParents, roomId, parentId),
     [mx, roomToParents]
   );
 
@@ -80,7 +80,7 @@ export const useRecursiveChildRoomScopeFactory = (
       isRoom(mx.getRoom(roomId)) &&
       !mDirects.has(roomId) &&
       roomToParents.has(roomId) &&
-      getAllParents(roomToParents, roomId).has(parentId),
+      hasRecursiveParent(roomToParents, roomId, parentId),
     [mx, mDirects, roomToParents]
   );
 
@@ -107,7 +107,7 @@ export const useRecursiveChildDirectScopeFactory = (
       isRoom(mx.getRoom(roomId)) &&
       mDirects.has(roomId) &&
       roomToParents.has(roomId) &&
-      getAllParents(roomToParents, roomId).has(parentId),
+      hasRecursiveParent(roomToParents, roomId, parentId),
     [mx, mDirects, roomToParents]
   );
 

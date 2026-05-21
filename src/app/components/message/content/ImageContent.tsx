@@ -141,7 +141,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       }, [mx, url, useAuthentication, mimeType, encInfo, matrixThumbnailMaxEdge, info?.w, info?.h])
     );
 
-    useEffect(() => {
+    useEffect((): void | (() => void) => {
       if (!viewer) {
         setViewerFullSrc(null);
         return undefined;

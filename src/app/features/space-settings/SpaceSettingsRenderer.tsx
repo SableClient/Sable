@@ -1,10 +1,15 @@
+import { lazy, Suspense } from 'react';
 import { Modal500 } from '$components/Modal500';
 import { useCloseSpaceSettings, useSpaceSettingsState } from '$state/hooks/spaceSettings';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import type { SpaceSettingsState } from '$state/spaceSettings';
 import { RoomProvider } from '$hooks/useRoom';
 import { SpaceProvider } from '$hooks/useSpace';
-import { SpaceSettings } from './SpaceSettings';
+
+const SpaceSettings = lazy(async () => {
+  const mod = await import('./SpaceSettings');
+  return { default: mod.SpaceSettings };
+});
 
 type RenderSettingsProps = {
   state: SpaceSettingsState;
@@ -23,7 +28,9 @@ function RenderSettings({ state }: RenderSettingsProps) {
     <Modal500 requestClose={closeSettings}>
       <SpaceProvider value={space ?? null}>
         <RoomProvider value={room}>
-          <SpaceSettings initialPage={page} requestClose={closeSettings} />
+          <Suspense fallback={null}>
+            <SpaceSettings initialPage={page} requestClose={closeSettings} />
+          </Suspense>
         </RoomProvider>
       </SpaceProvider>
     </Modal500>

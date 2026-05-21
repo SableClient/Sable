@@ -15,7 +15,7 @@ import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
 import * as prefix from '$unstable/prefixes';
-import { RoomSearchModal } from '$features/search';
+import { RoomSearchModal } from '$features/search/Search';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component

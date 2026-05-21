@@ -1,1 +1,0 @@
-export { BugReportModalRenderer } from './BugReportModal';

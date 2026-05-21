@@ -1,7 +1,6 @@
 import { Box, Button, Dialog, Icon, Icons, Text, color, config } from 'folds';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
-import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
 
 type ErrorPageProps = {
   error: Error;
@@ -25,7 +24,9 @@ ${error.message}
 ${stacktrace}
 \`\`\``;
 
-  return buildGitHubUrl('bug', `Error: ${error.message}`, { context: automatedBugReport });
+  const title = encodeURIComponent(`Error: ${error.message}`);
+  const body = encodeURIComponent(automatedBugReport);
+  return `https://github.com/SableClient/Sable/issues/new?template=bug_report.yml&title=${title}&description=${body}`;
 }
 
 // This component is used as the fallback for the ErrorBoundary in App.tsx, which means it will be rendered whenever an uncaught error is thrown in any of the child components and not handled locally.

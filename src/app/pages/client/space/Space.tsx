@@ -84,6 +84,7 @@ import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { SwipeableOverlayWrapper } from '$components/SwipeableOverlayWrapper';
 import { useCallEmbed } from '$hooks/useCallEmbed';
 import { createDebugLogger } from '$utils/debugLogger';
+import { prefetchSpaceSettingsModal } from '$pages/routePrefetch';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { RoomAvatar } from '$components/room-avatar';
@@ -146,6 +147,9 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
     openSpaceSettings(room.roomId);
     requestClose();
   };
+  const handleSettingsPrefetch = () => {
+    void prefetchSpaceSettingsModal();
+  };
 
   const handleOpenTimeline = () => {
     debugLog.info('ui', 'Space timeline opened', { roomId: room.roomId });
@@ -205,6 +209,8 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(({ room, requestClo
         </MenuItem>
         <MenuItem
           onClick={handleRoomSettings}
+          onMouseEnter={handleSettingsPrefetch}
+          onFocus={handleSettingsPrefetch}
           size="300"
           after={<Icon size="100" src={Icons.Setting} />}
           radii="300"
@@ -277,6 +283,10 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
       return cords;
     });
   };
+  const handleSettingsPrefetch = () => {
+    void prefetchSpaceSettingsModal();
+  };
+
   const [showBanners] = useSetting(settingsAtom, 'showRoomBanners');
   const [roomBannerHeight, setRoomBannerHeight] = useSetting(settingsAtom, 'roomBannerHeight');
   const [curHeight, setCurHeight] = useState(roomBannerHeight);
@@ -338,6 +348,8 @@ function SpaceHeader({ hideText, mx }: { hideText?: boolean; mx: MatrixClient })
                     variant="Background"
                     style={hasBanner ? { backgroundColor: '#0000', color: '#fff' } : {}}
                     onClick={handleOpenMenu}
+                    onMouseEnter={handleSettingsPrefetch}
+                    onFocus={handleSettingsPrefetch}
                   >
                     <Icon src={Icons.VerticalDots} size="200" />
                   </IconButton>
@@ -514,7 +526,7 @@ export function Space() {
   const roomToParents = useAtomValue(roomToParentsAtom);
   const roomToChildren = useAtomValue(roomToChildrenAtom);
   const allRooms = useAtomValue(allRoomsAtom);
-  const [spaceRooms] = useAtom(spaceRoomsAtom);
+  const spaceRooms = useAtomValue(spaceRoomsAtom);
   const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
@@ -555,10 +567,15 @@ export function Space() {
 
   const closedCategoriesCache = useRef(new Map());
   const ancestorsCollapsedCache = useRef(new Map());
+  const containsShowRoomCache = useRef(new Map<string, boolean>());
   useEffect(() => {
     closedCategoriesCache.current.clear();
     ancestorsCollapsedCache.current.clear();
   }, [closedCategories, roomToParents, getRoom]);
+
+  useEffect(() => {
+    containsShowRoomCache.current.clear();
+  }, [roomToUnread, selectedRoomId, roomToChildren]);
 
   /**
    * Recursively checks if a given parentId (or all its ancestors) is in a closed category.
@@ -626,20 +643,31 @@ export function Space() {
    */
   const getContainsShowRoom = useCallback(
     (roomId: string, visited: Set<string> = new Set()): boolean => {
+      const cached = containsShowRoomCache.current.get(roomId);
+      if (cached !== undefined) return cached;
+
       if (roomToUnread.has(roomId) || roomId === selectedRoomId) {
+        containsShowRoomCache.current.set(roomId, true);
         return true;
       }
 
       // Prevent infinite recursion
-      if (visited.has(roomId)) return false;
+      if (visited.has(roomId)) {
+        containsShowRoomCache.current.set(roomId, false);
+        return false;
+      }
       visited.add(roomId);
 
       const childIds = roomToChildren.get(roomId);
       if (!childIds || childIds.size === 0) {
+        containsShowRoomCache.current.set(roomId, false);
         return false;
       }
 
-      return Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+      const contains = Array.from(childIds).some((id) => getContainsShowRoom(id, visited));
+      visited.delete(roomId);
+      containsShowRoomCache.current.set(roomId, contains);
+      return contains;
     },
     [roomToUnread, selectedRoomId, roomToChildren]
   );

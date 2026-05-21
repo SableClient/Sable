@@ -103,11 +103,11 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 <random@developer.example.org>` as last line of your PR description.
 
 > [!NOTE]
-> **Interpretation**: A note on the name
-> The name used in your sign-off does not need to be your legal name. However it has to be
-> connected to you. I.e. if you use `Moira` consistently across the web and in the community
-> you are free to use that name in your sign-off
-> even if it is not your legal name.
+> **Interpretation**: A note on the name  
+> The name used in your sign-off does not need to be your legal name.  
+> However it has to be connected to you. I.e. if you use `Moira` consistently
+> across the web or in the community you are free to use that name in your sign-off
+> even if it is not your legal name.  
 > In short: A well-established, consistently used
 > pseudonym or preferred name that firmly connects
 > back to the contributor's identity is acceptable.
@@ -120,11 +120,11 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 - You are the author if you either authored the commit yourself entirely or made meaningfully creative modifications to code your AI has assisted you in creating.
 
 > [!NOTE]
-> **Interpretation** What the heck does "meaningfully creative modifications" mean?
-> Informal way of saying: you can be legally considered a author/copyright holder for your changes
-> If you use your own hands to write your commits without help by AI, you should be fine.
-> If you use AI and heavily modify the results (in creative ways) you should be fine ase well.
-> If you just ask Chat-GPT to code something for you and hit `commit`, that would most likely not satisfy this criterion.
+> **Interpretation** What the heck does "meaningfully creative modifications" mean?  
+> Informal way of saying: you can be legally considered a author/copyright holder for your changes  
+> If you use your own hands to write your commits without help by AI, you should be fine.  
+> If you use AI and heavily modify the results (in creative ways) you should be fine ase well.  
+> If you just ask Chat-GPT to code something for you and hit `commit`, that would most likely not satisfy this criterion.  
 
 **What does this NOT mean**?
 

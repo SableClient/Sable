@@ -246,7 +246,9 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
           combineWith: 'AND',
         },
       });
-      // Rebuild room queues from persisted data
+      // Rebuild room queues and storedDocs from persisted data.
+      // storedDocs must be repopulated so that chip-only queries (e.g. image
+      // filter with no text term) can scan events from previous sessions.
       const savedQueues = await idbGet<Record<string, Array<[string, number]>>>(
         db,
         'index',
@@ -255,6 +257,12 @@ async function handleInit(userId: string, maxPerRoom: number): Promise<void> {
       if (savedQueues) {
         for (const [roomId, queue] of Object.entries(savedQueues)) {
           roomQueues.set(roomId, queue);
+          for (const [eventId] of queue) {
+            const fields = index.getStoredFields(eventId);
+            if (fields) {
+              storedDocs.set(eventId, fields as unknown as IndexableEvent);
+            }
+          }
         }
       }
     } catch {

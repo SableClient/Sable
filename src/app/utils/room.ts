@@ -390,9 +390,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (!event) break;
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
-        fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
-        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
+        // Only count events that would actually generate a push notification.
+        // This excludes reactions (which use dont_notify by default push rules)
+        // and prevents the fallback from creating phantom unreads the SDK ignores.
+        if (pushActions?.notify) {
+          fallbackTotal += 1;
+          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+        }
       }
     }
     if (fallbackTotal > 0) {
@@ -408,7 +413,10 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with
   // member_count condition failures, or sliding sync with limited required_state).
-  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
+  // Guard on room-level (non-thread) total: thread-only unreads in DMs should not
+  // be force-highlighted — the thread's own push rules handle highlight there.
+  const roomLevelTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
+  if (shouldForceDMHighlight && roomLevelTotal > 0 && highlight === 0) {
     return {
       roomId: room.roomId,
       highlight: total, // Treat all unread messages as highlights for DMs

@@ -66,15 +66,15 @@ function processNodes(nodes: ChildNode[]): string {
     const prev = filtered[i - 1];
     // Adjacent <p> blocks must become \n\n in markdown so the editor gets separate Slate
     // paragraphs and marked emits <p> per block again on send (single \n would collapse).
-    if (
-      i > 0 &&
-      prev &&
-      isTag(prev) &&
-      isTag(cur) &&
-      prev.name.toLowerCase() === 'p' &&
-      cur.name.toLowerCase() === 'p'
-    ) {
-      parts.push('\n');
+    if (i > 0 && prev && isTag(prev) && isTag(cur)) {
+      const prevTag = prev.name.toLowerCase();
+      const curTag = cur.name.toLowerCase();
+      if (
+        (prevTag === 'p' && curTag === 'p') ||
+        (prevTag === 'blockquote' && curTag === 'blockquote')
+      ) {
+        parts.push('\n');
+      }
     }
     parts.push(processNode(cur));
   }
@@ -333,19 +333,57 @@ function processParagraph(
   return `${content}\n`;
 }
 
+function collectBlockquoteBodyLines(
+  node: Element,
+  listDepth: number,
+  insideCode: boolean
+): string[] {
+  const lines: string[] = [];
+  const pushLine = (line: string) => {
+    lines.push(line);
+  };
+  const pushMultiline = (text: string) => {
+    for (const part of text.split('\n')) {
+      pushLine(part);
+    }
+  };
+
+  for (const child of node.children) {
+    if (isText(child)) {
+      if (/^\s*$/.test(child.data)) continue;
+      const text = insideCode ? child.data : escapeMarkdownInlineSequences(child.data);
+      pushMultiline(text);
+      continue;
+    }
+
+    if (!isTag(child)) continue;
+
+    const tag = child.name.toLowerCase();
+    if (tag === 'p') {
+      pushMultiline(processChildren(child.children, listDepth, insideCode));
+    } else if (tag === 'br') {
+      pushLine('');
+    } else if (tag === 'blockquote') {
+      lines.push(...collectBlockquoteBodyLines(child, listDepth, insideCode));
+    } else {
+      pushMultiline(processNode(child, listDepth, insideCode).trimEnd());
+    }
+  }
+
+  return lines;
+}
+
 function processBlockquote(
   node: Element,
   listDepth: number = 0,
   insideCode: boolean = false
 ): string {
-  const content = node.children
-    .map((child) => {
-      if (isTag(child) && child.name === 'br') return '\n';
-      const text = processNode(child, listDepth, insideCode);
-      return text.replace(/\n/g, '\n> ');
-    })
-    .join('');
-  return `> ${content}\n`;
+  const marker = node.attribs['data-md'] ? `${node.attribs['data-md']} ` : '> ';
+  const lines = collectBlockquoteBodyLines(node, listDepth, insideCode);
+  const body = lines
+    .map((line) => (line.length === 0 ? marker.trimEnd() : `${marker}${line}`))
+    .join('\n');
+  return `${body}\n`;
 }
 
 /**

@@ -136,6 +136,10 @@ function nextLineIsBlockStarter(md: string, newlineIdx: number): boolean {
 }
 
 function shouldExpandSingleNewline(md: string, newlineIdx: number): boolean {
+  // Consecutive `>` lines belong to one blockquote, keep the single `\n` between them.
+  if (prevLineIsBlockquote(md, newlineIdx) && nextLineContinuesBlockquote(md, newlineIdx)) {
+    return false;
+  }
   if (nextLineIsBlockStarter(md, newlineIdx)) return true;
   // CommonMark lazy continuation keeps non-`>` lines inside blockquotes, close on single `\n`.
   if (prevLineIsBlockquote(md, newlineIdx) && !nextLineContinuesBlockquote(md, newlineIdx)) {

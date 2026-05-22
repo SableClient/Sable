@@ -163,6 +163,12 @@ describe('markdownToHtml', () => {
       expect(html).toContain('<blockquote>');
       expect(html).toContain('line one');
       expect(html).toContain('line two');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
+    it('keeps three or more consecutive blockquote lines in one blockquote', () => {
+      const html = markdownToHtml('> test\n> test\n> test');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
     });
 
     it('does not promote -# inside fenced code when the fence follows a single newline', () => {

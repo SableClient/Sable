@@ -1,3 +1,7 @@
 {
-  "recommendations": ["webpro.vscode-knip", "oxc.oxc-vscode"]
+  "recommendations": [
+    "webpro.vscode-knip",
+    "oxc.oxc-vscode",
+    "lokalise.i18n-ally"
+  ]
 }

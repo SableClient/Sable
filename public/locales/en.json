@@ -5,7 +5,7 @@
     }
   },
   "Settings": {
-    "device_verification_setup": {
+    "device_verification": {
       "error_uia_action_without_data": "Unexpected Error! UIA action is perform without data.",
       "authentication_failed_failed_to_setup_device_verification": "Authentication failed! Failed to setup device verification.",
       "unexpected_error_crypto_module_not_found": "Unexpected Error! Crypto module not found!",
@@ -18,7 +18,20 @@
       "reset_device_verification": "Reset Device Verification",
       "resetting_device_verification_is_permanent": "Resetting device verification is permanent.",
       "anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption": "Anyone you have verified with will see security alerts and your encryption backup will be lost. You almost certainly do not want to do this, unless you have lost",
-      "and_every_device_you_can_verify_from": "and every device you can verify from."
+      "and_every_device_you_can_verify_from": "and every device you can verify from.",
+      "please_accept_the_request_from_other_device": "Please accept the request from other device.",
+      "click_accept_to_start_the_verification_process": "Click accept to start the verification process.",
+      "waiting_for_request_to_be_accepted": "Waiting for request to be accepted...",
+      "confirm_the_emoji_below_are_displayed_on_both_devices_in_the_same_order": "Confirm the emoji below are displayed on both devices, in the same order:",
+      "they_match": "They Match",
+      "do_not_match": "Do not Match",
+      "starting_verification_using_emoji_comparison": "Starting verification using emoji comparison...",
+      "your_device_is_verified": "Your device is verified.",
+      "verification_has_been_canceled": "Verification has been canceled.",
+      "device_verification": "Device Verification",
+      "unexpected_error_verification_is_started_but_verifier_is_missing": "Unexpected Error! Verification is started but verifier is missing.",
+      "verification_request_has_been_accepted": "Verification request has been accepted.",
+      "waiting_for_the_response_from_other_device": "Waiting for the response from other device..."
     }
   },
   "General": {
@@ -32,6 +45,9 @@
     "hide": "Hide",
     "show": "Show",
     "recovery_passphrase": "Recovery Passphrase",
-    "reset": "Reset"
+    "reset": "Reset",
+    "close": "Close",
+    "accept": "Accept",
+    "okay": "Okay"
   }
 }

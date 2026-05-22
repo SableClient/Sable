@@ -27,6 +27,7 @@ import { useAlive } from '$hooks/useAlive';
 import { PasswordInput } from './password-input';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { UseStateProvider } from './UseStateProvider';
+import { t } from 'i18next';
 
 type UIACallback<T> = (
   authDict: AuthDict | null
@@ -82,7 +83,7 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   const handleAction = useCallback(
     async (authDict: AuthDict) => {
       if (!uiaAction) {
-        throw new Error('Unexpected Error! UIA action is perform without data.');
+        throw new Error(t('Settings.device_verification_setup.error_uia_action_without_data'));
       }
       if (alive()) {
         setNextAuthData(null);
@@ -125,7 +126,7 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
               if (alive()) {
                 setUIAAction(action);
               } else {
-                reject(new Error('Authentication failed! Failed to setup device verification.'));
+                reject(new Error(t('Settings.device_verification_setup.authentication_failed_failed_to_setup_device_verification')));
               }
               return;
             }
@@ -139,11 +140,11 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
     useCallback(
       async (passphrase) => {
         const crypto = mx.getCrypto();
-        if (!crypto) throw new Error('Unexpected Error! Crypto module not found!');
+        if (!crypto) throw new Error(t('Settings.device_verification_setup.unexpected_error_crypto_module_not_found'));
 
         const recoveryKeyData = await crypto.createRecoveryKeyFromPassphrase(passphrase);
         if (!recoveryKeyData.encodedPrivateKey) {
-          throw new Error('Unexpected Error! Failed to create recovery key.');
+          throw new Error(t('Settings.device_verification_setup.unexpected_error_failed_to_create_recovery_key'));
         }
         clearSecretStorageKeys();
 
@@ -184,11 +185,10 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
-        Generate a <b>Recovery Key</b> for verifying identity if you do not have access to other
-        devices. Additionally, setup a passphrase as a memorable alternative.
+        {t('Settings.device_verification_setup.generate_a')} <b>{t('General.recovery_key')}</b> {t('Settings.device_verification_setup.for_verifying_identity_if_you_do_not_have_access_to_other_devices_additiona')}
       </Text>
       <Box direction="Column" gap="100">
-        <Text size="L400">Passphrase (Optional)</Text>
+        <Text size="L400">{t('General.passphrase')} ({t('General.optional')})</Text>
         <PasswordInput name="passphraseInput" size="400" readOnly={loading} />
       </Box>
       <Button
@@ -196,11 +196,11 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
         disabled={loading}
         before={loading && <Spinner size="200" variant="Primary" fill="Solid" />}
       >
-        <Text size="B400">Continue</Text>
+        <Text size="B400">t('General.continue')</Text>
       </Button>
       {setupState.status === AsyncStatus.Error && (
         <Text size="T200" style={{ color: color.Critical.Main }}>
-          <b>{setupState.error ? setupState.error.message : 'Unexpected Error!'}</b>
+          <b>{setupState.error ? setupState.error.message : t('General.unexpected_error')}</b>
         </Text>
       )}
       {nextAuthData !== null && uiaAction && (
@@ -208,7 +208,7 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
           authData={nextAuthData ?? uiaAction.authData}
           unsupported={() => (
             <Text size="T200">
-              Authentication steps to perform this action are not supported by client.
+              {t('Settings.device_verification_setup.authentication_steps_to_perform_this_action_are_not_supported_by_client')}
             </Text>
           )}
         >
@@ -248,11 +248,10 @@ function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) 
   return (
     <Box direction="Column" gap="400">
       <Text size="T300">
-        Store the Recovery Key in a safe place for future use, as you will need it to verify your
-        identity if you do not have access to other devices.
+        {t('Settings.device_verification_setup.store_the_recovery_key_in_a_safe_place_for_future_use_as_you_will_need_it_t')}
       </Text>
       <Box direction="Column" gap="100">
-        <Text size="L400">Recovery Key</Text>
+        <Text size="L400">{t('General.recovery_key')}</Text>
         <Box
           className={ContainerColor({ variant: 'SurfaceVariant' })}
           style={{
@@ -267,16 +266,16 @@ function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) 
             {safeToDisplayKey}
           </Text>
           <Chip onClick={() => setShow(!show)} variant="Secondary" radii="Pill">
-            <Text size="B300">{show ? 'Hide' : 'Show'}</Text>
+            <Text size="B300">{show ? t('General.hide') : t('General.show')}</Text>
           </Chip>
         </Box>
       </Box>
       <Box direction="Column" gap="200">
         <Button onClick={handleCopy}>
-          <Text size="B400">Copy</Text>
+          <Text size="B400">{t('General.copy')}</Text>
         </Button>
         <Button onClick={handleDownload} fill="Soft">
-          <Text size="B400">Download</Text>
+          <Text size="B400">{t('General.download')}</Text>
         </Button>
       </Box>
     </Box>
@@ -301,7 +300,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Setup Device Verification</Text>
+            <Text size="H4">{t('Settings.device_verification_setup.setup_device_verification')}</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
             <Icon src={Icons.Cross} />
@@ -336,7 +335,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
           size="500"
         >
           <Box grow="Yes">
-            <Text size="H4">Reset Device Verification</Text>
+            <Text size="H4">{t('Settings.device_verification_setup.reset_device_verification')}</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
             <Icon src={Icons.Cross} />
@@ -358,16 +357,14 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
             <Box direction="Column" gap="200">
               <Text size="H1">✋🧑‍🚒🤚</Text>
-              <Text size="T300">Resetting device verification is permanent.</Text>
+              <Text size="T300">{t('Settings.device_verification_setup.resetting_device_verification_is_permanent')}</Text>
               <Text size="T300">
-                Anyone you have verified with will see security alerts and your encryption backup
-                will be lost. You almost certainly do not want to do this, unless you have lost{' '}
-                <b>Recovery Key</b> or <b>Recovery Passphrase</b> and every device you can verify
-                from.
+                {t('Settings.device_verification_setup.anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption')}{' '}
+                <b>{t('General.recovery_key')}</b> or <b>{t('General.recovery_passphrase')}</b> {t('Settings.device_verification_setup.and_every_device_you_can_verify_from')}
               </Text>
             </Box>
             <Button variant="Critical" onClick={() => setReset(true)}>
-              <Text size="B400">Reset</Text>
+              <Text size="B400">{t('General.reset')}</Text>
             </Button>
           </Box>
         )}

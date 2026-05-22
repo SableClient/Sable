@@ -3,5 +3,35 @@
     "RoomCommon": {
       "changed_room_name": " changed room name"
     }
+  },
+  "Settings": {
+    "device_verification_setup": {
+      "error_uia_action_without_data": "Unexpected Error! UIA action is perform without data.",
+      "authentication_failed_failed_to_setup_device_verification": "Authentication failed! Failed to setup device verification.",
+      "unexpected_error_crypto_module_not_found": "Unexpected Error! Crypto module not found!",
+      "unexpected_error_failed_to_create_recovery_key": "Unexpected Error! Failed to create recovery key.",
+      "generate_a": "Generate a",
+      "for_verifying_identity_if_you_do_not_have_access_to_other_devices_additiona": "for verifying identity if you do not have access to other devices. Additionally, setup a passphrase as a memorable alternative.",
+      "authentication_steps_to_perform_this_action_are_not_supported_by_client": "Authentication steps to perform this action are not supported by client.",
+      "store_the_recovery_key_in_a_safe_place_for_future_use_as_you_will_need_it_t": "Store the Recovery Key in a safe place for future use, as you will need it to verify your identity if you do not have access to other devices.",
+      "setup_device_verification": "Setup Device Verification",
+      "reset_device_verification": "Reset Device Verification",
+      "resetting_device_verification_is_permanent": "Resetting device verification is permanent.",
+      "anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption": "Anyone you have verified with will see security alerts and your encryption backup will be lost. You almost certainly do not want to do this, unless you have lost",
+      "and_every_device_you_can_verify_from": "and every device you can verify from."
+    }
+  },
+  "General": {
+    "continue": "Continue",
+    "passphrase": "Passphrase",
+    "optional": "optional",
+    "unexpected_error": "Unexpected Error!",
+    "recovery_key": "Recovery Key",
+    "download": "Download",
+    "copy": "Copy",
+    "hide": "Hide",
+    "show": "Show",
+    "recovery_passphrase": "Recovery Passphrase",
+    "reset": "Reset"
   }
 }

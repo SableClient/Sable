@@ -82,7 +82,7 @@ const elementToCustomHtml = (
     case BlockType.Link:
       return testMatrixTo(node.href)
         ? sanitizeText(node.href)
-        : `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
+        : `<a href="${encodeURI(node.href)}">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:

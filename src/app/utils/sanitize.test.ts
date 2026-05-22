@@ -53,8 +53,8 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-maths="x"');
     expect(result).toContain('data-md="**"');
     expect(result).toContain('href="https://example.com"');
-    expect(result).toContain('target="_blank"');
     expect(result).toContain('data-md="[]()"');
+    expect(result).not.toContain('target=');
     expect(result).not.toContain('rel=');
     expect(result).toContain('<ol start="2" data-md="1.">');
     expect(result).not.toContain('type=');

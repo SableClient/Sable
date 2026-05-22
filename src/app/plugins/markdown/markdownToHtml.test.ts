@@ -35,6 +35,8 @@ describe('markdownToHtml', () => {
   it('converts links', () => {
     const result = markdownToHtml('[link](https://example.com)');
     expect(result).toContain('<a href="https://example.com"');
+    expect(result).not.toContain('target=');
+    expect(result).not.toContain('rel=');
   });
 
   it('converts spoiler syntax', () => {

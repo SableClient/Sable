@@ -18,9 +18,11 @@ Bug reports and feature suggestions must use descriptive and concise titles and 
 
 ## Pull requests
 
-> ### Legal Notice
+> [!CAUTION]
 >
-> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
+> When contributing to this project, you must agree that you have authored 100% of the content, that you have the
+> necessary rights to the content and that the content you contribute may be provided under the project license.
+> See the [section about DCO below](#developer-certification-of-origin-dco) for details.
 
 **NOTE: If you want to add new features, please discuss with maintainers before coding or opening a pull request.** This is to ensure that we are on same track and following our roadmap.
 
@@ -51,6 +53,7 @@ If your change touches logic with testable behaviour, please include tests. See 
 ## Developer Certification of Origin (DCO)
 
 > [!IMPORTANT]
+> **Interpretation, non authoritative**: **coding assistant and bots signing off**   
 > Note that only humans or predictable bots, for example @dependabot are allowed to sign-off. A autonomous AI-agent MUST never do so, as per [AGENTS.md](./AGENTS.md)
 
 ```
@@ -103,7 +106,7 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 <random@developer.example.org>` as last line of your PR description.
 
 > [!NOTE]
-> **Interpretation**: A note on the name  
+> **Interpretation, non authoritative**: **A note on the name**  
 > The name used in your sign-off does not need to be your legal name.  
 > However it has to be connected to you. I.e. if you use `Moira` consistently
 > across the web or in the community you are free to use that name in your sign-off
@@ -120,7 +123,7 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 - You are the author if you either authored the commit yourself entirely or made meaningfully creative modifications to code your AI has assisted you in creating.
 
 > [!NOTE]
-> **Interpretation** What the heck does "meaningfully creative modifications" mean?  
+> **Interpretation, non authoritative** **What the heck does "meaningfully creative modifications" mean**?  
 > Informal way of saying: you can be legally considered a author/copyright holder for your changes  
 > If you use your own hands to write your commits without help by AI, you should be fine.  
 > If you use AI and heavily modify the results (in creative ways) you should be fine ase well.  

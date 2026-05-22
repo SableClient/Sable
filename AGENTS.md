@@ -22,6 +22,13 @@ Examples of prohibited autonomous behavior include:
 Interactive editor assistance used directly by a human contributor is permitted
 subject to the disclosure requirements below.
 
+> [!NOTE]
+> *note, none authoritative*: the requirements outlined in this document apply to generative ai
+> ("autonomous ai agent") and does not apply to **predictable/deterministic** coding tools, bots, scripts,
+> and linter. For example: usage of SonarQube and usage of its recommondations are permitted
+> and not subject to these restrictions. in fact: usage of SonarQube and similiar tools for coding
+> quality are encouraged :3
+
 ## RESTRICTIONS
 
 We expect and appreciate authentic engagement in our community.

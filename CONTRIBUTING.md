@@ -116,6 +116,17 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 > back to the contributor's identity is acceptable.
 > Fully anonymous sign-offs or throw away identities
 > would however not be acceptable.
+>
+> Importantly this requirement does NOT mean that you have to use your deadname, if
+> you wish to contribute and your legal name doesn't match what you identify with. 🏳️‍⚧️🫶
+
+> [!TIP]
+> **Interpretation, non authoritative**: **What if i don't have a consistent name**?  
+> In cases where you don't have a consistent, well-known name, for various reasons, you
+> may consider your GitHub username as your well-known name.  
+> So for example, if your GitHub handle is @octocat you may sign off as
+> `Signed-off-by: octocat <octocat@developer.example.org>`
+
 
 **What does this actually mean**?
 
@@ -123,7 +134,7 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 - You are the author if you either authored the commit yourself entirely or made meaningfully creative modifications to code your AI has assisted you in creating.
 
 > [!NOTE]
-> **Interpretation, non authoritative** **What the heck does "meaningfully creative modifications" mean**?  
+> **Interpretation, non authoritative**: **What the heck does "meaningfully creative modifications" mean**?  
 > Informal way of saying: you can be legally considered a author/copyright holder for your changes  
 > If you use your own hands to write your commits without help by AI, you should be fine.  
 > If you use AI and heavily modify the results (in creative ways) you should be fine ase well.  

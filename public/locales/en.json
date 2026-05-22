@@ -48,6 +48,23 @@
     "reset": "Reset",
     "close": "Close",
     "accept": "Accept",
-    "okay": "Okay"
+    "okay": "Okay",
+    "retry": "Retry",
+    "user": "User"
+  },
+  "RoomView": {
+    "failed_to_load_history": "Failed to load history.",
+    "failed_to_load_messages": "Failed to load messages.",
+    "jump_to_unread": "Jump to Unread",
+    "mark_as_read": "Mark as Read",
+    "new_messages": "New Messages",
+    "jump_to_latest": "Jump to Latest",
+    "call_started_by": "Call started by",
+    "start_voice_call": "Start Voice Call",
+    "typing": {
+      "are_typing": " are typing...",
+      "typing_sep_word": " and "
+    },
+    "is_typing": "is typing..."
   }
 }

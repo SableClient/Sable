@@ -5,6 +5,7 @@ import { useCallStart, useCallJoined } from '$hooks/useCallEmbed';
 import { callEmbedAtom } from '$state/callEmbed';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCallPreferences } from '$state/hooks/callPreferences';
+import { t } from 'i18next';
 
 interface RoomCallButtonProps {
   room: Room;
@@ -40,7 +41,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
           call_id: room.roomId,
           'm.text': [
             {
-              body: `Call started by ${mx.getUser(mx.getSafeUserId())?.displayName || 'User'} 🎶`,
+              body: `${t('RoomView.call_started_by')} ${mx.getUser(mx.getSafeUserId())?.displayName || t('General.user')} 🎶`,
             },
           ],
         } as unknown as TimelineEvents[keyof TimelineEvents]
@@ -56,7 +57,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
       offset={4}
       tooltip={
         <Tooltip>
-          <Text>Start Voice Call</Text>
+          <Text>{t('RoomView.start_voice_call')}</Text>
         </Tooltip>
       }
     >
@@ -65,7 +66,7 @@ export function RoomCallButton({ room }: RoomCallButtonProps) {
           fill="None"
           ref={triggerRef}
           onClick={handleStartCall}
-          aria-label="Start Voice Call"
+          aria-label={t('RoomView.start_voice_call')}
         >
           <Icon size="400" src={Icons.Phone} />
         </IconButton>

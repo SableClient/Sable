@@ -53,7 +53,7 @@ If your change touches logic with testable behaviour, please include tests. See 
 ## Developer Certification of Origin (DCO)
 
 > [!IMPORTANT]
-> **Interpretation, non authoritative**: **coding assistant and bots signing off**   
+> **Interpretation, non authoritative**: **coding assistant and bots signing off**  
 > Note that only humans or predictable bots, for example @dependabot are allowed to sign-off. A autonomous AI-agent MUST never do so, as per [AGENTS.md](./AGENTS.md)
 
 ```
@@ -126,7 +126,6 @@ If you choose to do this for your pull request, just add `Signed-off-by: Random 
 > may consider your GitHub username as your well-known name.  
 > So for example, if your GitHub handle is @octocat you may sign off as
 > `Signed-off-by: octocat <octocat@developer.example.org>`
-
 
 **What does this actually mean**?
 

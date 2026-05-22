@@ -20,9 +20,9 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import {
   createMentionElement,
+  mentionNameForUserAutocomplete,
   moveCursor,
   replaceWithElement,
-  resolveUserMentionName,
 } from '$components/editor/utils';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
@@ -115,11 +115,13 @@ export function UserMentionAutocomplete({
     else resetSearch();
   }, [query.text, search, resetSearch]);
 
-  const handleAutocomplete: MentionAutoCompleteHandler = (uId) => {
+  const handleAutocomplete: MentionAutoCompleteHandler = (id, displayName) => {
+    const isRoomPing = displayName === '@room';
+    const isCurrentRoom = roomId === id || room.getCanonicalAlias() === id || roomAliasOrId === id;
     const mentionEl = createMentionElement(
-      uId,
-      resolveUserMentionName(uId, { room, nicknames }),
-      mx.getUserId() === uId || roomAliasOrId === uId
+      id,
+      mentionNameForUserAutocomplete(id, displayName, { room, nicknames }),
+      isRoomPing ? isCurrentRoom : mx.getUserId() === id || isCurrentRoom
     );
     replaceWithElement(editor, query.range, mentionEl);
     moveCursor(editor, true);

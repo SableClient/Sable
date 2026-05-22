@@ -31,6 +31,16 @@ export const resolveUserMentionName = (userId: string, options?: MentionResolveO
   return formatUserMentionDisplayName(base);
 };
 
+/** {@link UserMentionAutocomplete} passes a display label, @room must stay literal, not resolved as a user. */
+export const mentionNameForUserAutocomplete = (
+  id: string,
+  displayName: string,
+  options?: MentionResolveOptions
+): string => {
+  if (displayName === '@room') return '@room';
+  return resolveUserMentionName(id, options);
+};
+
 /** Same #-prefix rule as {@link RoomMentionAutocomplete}. */
 export const formatRoomMentionDisplayName = (name: string): string => {
   if (name === '@room') return '@room';

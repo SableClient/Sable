@@ -100,9 +100,17 @@ describe('htmlToMarkdown', () => {
   });
 
   it('converts blockquotes', () => {
-    const result = htmlToMarkdown('<blockquote>Quote text</blockquote>');
-    expect(result).toContain('>');
-    expect(result).toContain('Quote text');
+    expect(htmlToMarkdown('<blockquote>Quote text</blockquote>')).toBe('> Quote text');
+    expect(htmlToMarkdown('<blockquote><p>test</p></blockquote><p>test</p>')).toBe('> test\ntest');
+    expect(htmlToMarkdown('<blockquote><p>line one</p><p>line two</p></blockquote>')).toBe(
+      '> line one\n> line two'
+    );
+    expect(htmlToMarkdown('<blockquote><p>line one<br>line two</p></blockquote>')).toBe(
+      '> line one\n> line two'
+    );
+    expect(
+      htmlToMarkdown('<blockquote><p>first</p></blockquote><blockquote><p>second</p></blockquote>')
+    ).toBe('> first\n\n> second');
   });
 
   it('converts unordered lists', () => {

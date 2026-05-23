@@ -55,6 +55,7 @@ import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { t } from 'i18next';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -215,7 +216,7 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
               </UnreadBadgeCenter>
             )}
             <Chip data-event-id={thread.id} onClick={handleJumpClick} radii="Pill">
-              <Text size="T200">Jump</Text>
+              <Text size="T200">{t('RoomView.Threads.jump')}</Text>
             </Chip>
           </Box>
         </Box>
@@ -471,7 +472,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         <Box grow="Yes" alignItems="Center" gap="200">
           <Icon size="200" src={Icons.Thread} />
           <Text size="H4" truncate>
-            Threads
+            {t('RoomView.Threads.threads')}
           </Text>
         </Box>
         <Box alignItems="Center" gap="200" shrink="No">
@@ -480,7 +481,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             variant="SurfaceVariant"
             size="300"
             radii="300"
-            aria-label="Close threads"
+            aria-label={t('RoomView.close_threads')}
           >
             <Icon size="200" src={Icons.Cross} />
           </IconButton>
@@ -497,7 +498,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           ref={searchRef}
           value={query}
           onChange={handleSearchChange}
-          placeholder="Search threads..."
+          placeholder={t('RoomView.search_threads')}
           variant="Surface"
           size="400"
           radii="400"
@@ -512,7 +513,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                   setQuery('');
                   searchRef.current?.focus();
                 }}
-                aria-label="Clear search"
+                aria-label={t('RoomView.clear_search')}
               >
                 <Icon size="50" src={Icons.Cross} />
               </IconButton>
@@ -552,7 +553,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 >
                   <Icon size="400" src={Icons.Thread} />
                   <Text size="T300" align="Center">
-                    {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
+                    {lowerQuery ? t('RoomView.Threads.no_threads_match_your_search') : t('RoomView.Threads.no_threads_yet')}
                   </Text>
                 </Box>
               );

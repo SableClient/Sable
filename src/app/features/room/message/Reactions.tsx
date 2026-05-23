@@ -24,6 +24,7 @@ import { stopPropagation } from '$utils/keyboard';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { ReactionViewer } from '$features/room/reaction-viewer';
 import * as css from './styles.css';
+import { t } from 'i18next';
 
 export type ReactionsProps = {
   room: Room;

@@ -66,6 +66,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTablet } from '$utils/user-agent';
+import { t } from 'i18next';
 
 /**
  * Resolve the list of reply events to show in the thread drawer.
@@ -777,7 +778,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
         <Box grow="Yes" alignItems="Center" gap="200">
           <Icon size="200" src={Icons.Thread} />
           <Text size="H4" truncate>
-            Thread
+            {t('RoomView.Threads.thread')}
           </Text>
         </Box>
         <Box alignItems="Center" gap="200" shrink="No">
@@ -870,7 +871,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
                 >
                   <Icon size="400" src={Icons.Thread} />
                   <Text size="T300" align="Center">
-                    No replies yet. Start the thread below!
+                    {t('RoomView.Threads.no_replies_yet_start_the_thread_below')}
                   </Text>
                 </Box>
               );

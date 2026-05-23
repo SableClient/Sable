@@ -67,6 +67,8 @@ import {
   readdAngleBracketsForHiddenPreviews,
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
+import { t } from 'i18next';
+import * as prefixes from '$unstable/prefixes'
 
 type MessageEditorProps = {
   roomId: string;
@@ -229,8 +231,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             : undefined;
 
         const rawPmp =
-          editedEvent?.getContent()?.['m.new_content']?.['com.beeper.per_message_profile'] ??
-          mEvent.getContent()?.['com.beeper.per_message_profile'];
+          editedEvent?.getContent()?.['m.new_content']?.[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] ??
+          mEvent.getContent()?.[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME];
 
         const pmpDisplayname =
           rawPmp !== null &&
@@ -253,7 +255,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             customHtml = htmlPrefix + customHtml;
           }
 
-          newContent['com.beeper.per_message_profile'] = rawPmp;
+          newContent[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] = rawPmp;
         }
 
         const contentBody: IContent & Omit<ReplacementEvent<IContent>, 'm.relates_to'> = {
@@ -301,11 +303,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           if (oldContent.file !== undefined) content['m.new_content'].file = oldContent.file;
           if (oldContent.url !== undefined) content['m.new_content'].url = oldContent.url;
 
-          if (oldContent['page.codeberg.everypizza.msc4193.spoiler'] !== undefined) {
-            content['page.codeberg.everypizza.msc4193.spoiler'] =
+          if (oldContent[prefixes.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] !== undefined) {
+            content[prefixes.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] =
               oldContent['page.codeberg.everypizza.msc4193.spoiler'];
-            content['m.new_content']['page.codeberg.everypizza.msc4193.spoiler'] =
-              oldContent['page.codeberg.everypizza.msc4193.spoiler'];
+            content['m.new_content'][prefixes.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] =
+              oldContent[prefixes.MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME];
           }
         }
         content['com.beeper.linkpreviews'] = [];
@@ -519,7 +521,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           >
             <CustomEditor
               editor={editor}
-              placeholder="Edit message..."
+              placeholder={t('RoomView.Message.Editor.edit_message')}
               onKeyDown={handleKeyDown}
               onKeyUp={handleKeyUp}
               bottom={
@@ -544,10 +546,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                           ) : undefined
                         }
                       >
-                        <Text size="B300">Save</Text>
+                        <Text size="B300">{t('General.save')}</Text>
                       </Chip>
                       <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
-                        <Text size="B300">Cancel</Text>
+                        <Text size="B300">{t('General.cancel')}</Text>
                       </Chip>
                     </Box>
                     <Box gap="Inherit">

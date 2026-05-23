@@ -50,7 +50,15 @@
     "accept": "Accept",
     "okay": "Okay",
     "retry": "Retry",
-    "user": "User"
+    "user": "User",
+    "delete": "Delete",
+    "dismiss": "Dismiss",
+    "nickname": "Nickname",
+    "save": "Save",
+    "clear": "Clear",
+    "edit_nickname": "Edit Nickname",
+    "set_nickname": "Set Nickname",
+    "cancel": "Cancel"
   },
   "RoomView": {
     "failed_to_load_history": "Failed to load history.",
@@ -65,6 +73,46 @@
       "are_typing": " are typing...",
       "typing_sep_word": " and "
     },
-    "is_typing": "is typing..."
+    "is_typing": "is typing...",
+    "close_threads": "Close threads",
+    "search_threads": "Search threads...",
+    "clear_search": "Clear search",
+    "Threads": {
+      "no_threads_match_your_search": "No threads match your search.",
+      "no_threads_yet": "No threads yet.",
+      "jump": "Jump",
+      "threads": "Threads",
+      "thread": "Thread",
+      "no_replies_yet_start_the_thread_below": "No replies yet. Start the thread below!"
+    },
+    "join_new_room": "Join New Room",
+    "this_room_has_been_replaced_and_is_no_longer_active": "This room has been replaced and is no longer active.",
+    "failed_to_join_replacement_room": "Failed to join replacement room!",
+    "open_new_room": "Open New Room",
+    "scroll_to_top": "Scroll to Top",
+    "Message": {
+      "pin_message": "Pin Message",
+      "unpin_message": "Unpin Message",
+      "forwarded_private_message": "Forwarded private message",
+      "forwarded_from_earlier_in_this_room": "Forwarded from earlier in this room",
+      "forwarded_from_another_room": "Forwarded from another room",
+      "jump_to_original": "jump to original",
+      "failed_to_send": "Failed to send.",
+      "only_you_can_see_this": "Only you can see this.",
+      "add_reaction": "Add Reaction",
+      "add_to_user_sticker_pack": "Add to User Sticker Pack",
+      "reply": "Reply",
+      "reply_in_thread": "Reply in Thread",
+      "edit_message": "Edit Message",
+      "Editor": {
+        "edit_message": "Edit message..."
+      }
+    },
+    "Reactions": {
+      "reacted_with": "Reacted with"
+    }
+  },
+  "RoomInput": {
+    "recording_duration": "Recording duration:"
   }
 }

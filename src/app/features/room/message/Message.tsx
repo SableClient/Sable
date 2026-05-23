@@ -83,6 +83,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
+import { t } from 'i18next';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -193,7 +194,7 @@ export const MessagePinItem = as<
       ref={ref}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-        {isPinned ? 'Unpin Message' : 'Pin Message'}
+        {isPinned ? t('RoomView.Message.unpin_message') : t('RoomView.Message.pin_message')}
       </Text>
     </MenuItem>
   );
@@ -640,10 +641,10 @@ function MessageInternal(
       const originalRoomId = messageForwardedProps.originalRoomId;
       return {
         label: messageForwardedProps.originalEventPrivate
-          ? 'Forwarded private message'
+          ? t('RoomView.Message.forwarded_private_message')
           : isSameRoomForward(originalRoomId)
-            ? 'Forwarded from earlier in this room'
-            : 'Forwarded from another room',
+            ? t('RoomView.Message.forwarded_from_earlier_in_this_room')
+            : t('RoomView.Message.forwarded_from_another_room'),
         roomId: originalRoomId,
         eventId: messageForwardedProps.originalEventId,
         ts: messageForwardedProps.originalTimestamp ?? 0,
@@ -655,8 +656,8 @@ function MessageInternal(
       const originalRoomId = msc2723ForwardedMessageProps.room_id;
       return {
         label: isSameRoomForward(originalRoomId)
-          ? 'Forwarded from earlier in this room'
-          : 'Forwarded from another room',
+          ? t('RoomView.Message.forwarded_from_earlier_in_this_room')
+          : t('RoomView.Message.forwarded_from_another_room'),
         roomId: originalRoomId,
         eventId: msc2723ForwardedMessageProps.event_id,
         ts: msc2723ForwardedMessageProps.origin_server_ts ?? 0,
@@ -712,7 +713,7 @@ function MessageInternal(
                   data-mention-event-id={forwardedNotice.eventId}
                   onClick={mentionClickHandler}
                 >
-                  jump to original
+                  {t('RoomView.Message.jump_to_original')}
                 </a>
               </>
             )}
@@ -746,11 +747,11 @@ function MessageInternal(
       {isFailedSend && (
         <Box className={css.SendStatusRow}>
           <Text size="T200" priority="300">
-            Failed to send.
+            {t('RoomView.Message.failed_to_send')}
           </Text>
           {canResend && (
             <Chip type="button" variant="Primary" radii="Pill" outlined onClick={handleResendClick}>
-              <Text size="B300">Retry</Text>
+              <Text size="B300">{t('General.retry')}</Text>
             </Chip>
           )}
           {canDeleteFailedSend && (
@@ -760,7 +761,7 @@ function MessageInternal(
               radii="Pill"
               onClick={handleDeleteFailedSendClick}
             >
-              <Text size="B300">Delete</Text>
+              <Text size="B300">{t('General.delete')}</Text>
             </Chip>
           )}
         </Box>
@@ -769,7 +770,7 @@ function MessageInternal(
         <Box className={css.SendStatusRow} alignItems="Center" gap="100">
           <Icon src={Icons.Info} size="100" />
           <Text size="T200" priority="300" as="span">
-            Only you can see this.
+            {t('RoomView.Message.only_you_can_see_this')}
           </Text>
           <Chip
             type="button"
@@ -786,7 +787,7 @@ function MessageInternal(
               }
             }}
           >
-            <Text size="B300">Dismiss</Text>
+            <Text size="B300">{t('General.dismiss')}</Text>
           </Chip>
         </Box>
       )}
@@ -1004,7 +1005,7 @@ function MessageInternal(
                               size="T300"
                               truncate
                             >
-                              Add Reaction
+                              {t('RoomView.Message.add_reaction')}
                             </Text>
                           </MenuItem>
                         )}
@@ -1033,7 +1034,7 @@ function MessageInternal(
                                 size="T300"
                                 truncate
                               >
-                                Add to User Sticker Pack
+                                {t('RoomView.Message.add_to_user_sticker_pack')}
                               </Text>
                             </MenuItem>
                           )}
@@ -1051,7 +1052,7 @@ function MessageInternal(
                           }}
                         >
                           <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
-                            Reply
+                            {t('RoomView.Message.reply')}
                           </Text>
                         </MenuItem>
                         {!isThreadedMessage && (
@@ -1076,7 +1077,7 @@ function MessageInternal(
                               size="T300"
                               truncate
                             >
-                              Reply in Thread
+                              {t('RoomView.Message.reply_in_thread')}
                             </Text>
                           </MenuItem>
                         )}
@@ -1097,7 +1098,7 @@ function MessageInternal(
                               size="T300"
                               truncate
                             >
-                              Edit Message
+                              {t('RoomView.Message.edit_message')}
                             </Text>
                           </MenuItem>
                         )}
@@ -1128,7 +1129,7 @@ function MessageInternal(
                                 padding: `${config.space.S100} ${config.space.S200}`,
                               }}
                             >
-                              <Text size="L400">Nickname</Text>
+                              <Text size="L400">{t('General.nickname')}</Text>
                               <input
                                 autoFocus
                                 value={nickDraft}
@@ -1163,7 +1164,7 @@ function MessageInternal(
                                     closeMenu();
                                   }}
                                 >
-                                  <Text size="B300">Save</Text>
+                                  <Text size="B300">{t('General.save')}</Text>
                                 </MenuItem>
                                 {nicknames[senderId] && (
                                   <MenuItem
@@ -1176,7 +1177,7 @@ function MessageInternal(
                                       closeMenu();
                                     }}
                                   >
-                                    <Text size="B300">Clear</Text>
+                                    <Text size="B300">{t('General.clear')}</Text>
                                   </MenuItem>
                                 )}
                               </Box>
@@ -1197,7 +1198,7 @@ function MessageInternal(
                                 size="T300"
                                 truncate
                               >
-                                {nicknames[senderId] ? 'Edit Nickname' : 'Set Nickname'}
+                                {nicknames[senderId] ? t('General.edit_nickname') : t('General.set_nickname')}
                               </Text>
                             </MenuItem>
                           ))}
@@ -1436,7 +1437,7 @@ export const Event = as<'div', EventProps>(
                                 size="T300"
                                 truncate
                               >
-                                Reply
+                                {t('RoomView.Message.reply')}
                               </Text>
                             </MenuItem>
                             {!hideReadReceipts && (

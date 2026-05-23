@@ -283,8 +283,13 @@ export const useUserProfile = (
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
     const rawHeroBrightness = data?.heroColorScheme?.brightness;
-    const heroCardsAllowed = shouldApplyUserHeroCards(renderUserCardsMode, rawHeroBrightness);
-    const validHeroColor = heroCardsAllowed ? isValidHex(data?.heroColorScheme?.color) : undefined;
+    const rawHeroColor = data?.heroColorScheme?.color;
+    const heroCardsAllowed = shouldApplyUserHeroCards(
+      renderUserCardsMode,
+      rawHeroBrightness,
+      rawHeroColor
+    );
+    const validHeroColor = heroCardsAllowed ? isValidHex(rawHeroColor) : undefined;
     const heroBrightness = heroCardsAllowed ? rawHeroBrightness : undefined;
     const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
 

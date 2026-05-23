@@ -3,5 +3,73 @@
     "RoomCommon": {
       "changed_room_name": " hat den Raum Name geändert"
     }
+  },
+  "General": {
+    "cancel": "Abbrechen",
+    "clear": "Leeren",
+    "close": "Schließen",
+    "continue": "Weitermachen",
+    "copy": "kopieren",
+    "dismiss": "Verwerfen",
+    "download": "Herunterladen",
+    "hide": "Verstecken",
+    "okay": "Okay",
+    "passphrase": "Passphrase",
+    "recovery_key": "Wiederherstellungsschlüssel",
+    "retry": "Wiederholen",
+    "save": "Speichern",
+    "reset": "Zurücksetzen",
+    "user": "Benutzer",
+    "show": "Zeigen",
+    "set_nickname": "Spitznamen festlegen",
+    "optional": "optional",
+    "nickname": "Spitzname",
+    "delete": "Löschen",
+    "accept": "Akzeptieren",
+    "edit_nickname": "Spitzname bearbeiten",
+    "recovery_passphrase": "Wiederherstellungspassphrase",
+    "unexpected_error": "Unerwarteter Fehler!"
+  },
+  "RoomView": {
+    "Message": {
+      "forwarded_from_another_room": "Aus einem anderen Raum weitergeleitet",
+      "failed_to_send": "Senden fehlgeschlagen.",
+      "reply": "antworten",
+      "unpin_message": "Nachricht lösen",
+      "pin_message": "Nachricht anpinnen"
+    },
+    "is_typing": "tippt...",
+    "open_new_room": "Neuen Raum öffnen",
+    "jump_to_unread": "Zu „Ungelesen“ wechseln",
+    "scroll_to_top": "Nach oben scrollen",
+    "mark_as_read": "Als gelesen markieren",
+    "search_threads": "Threads durchsuchen...",
+    "new_messages": "Neue Nachrichten",
+    "start_voice_call": "Sprachanruf starten",
+    "typing": {
+      "are_typing": "schreiben..."
+    },
+    "jump_to_latest": "Zum Neuesten springen",
+    "join_new_room": "Neuem Raum beitreten",
+    "clear_search": "Suche löschen",
+    "call_started_by": "Anruf gestartet von",
+    "Threads": {
+      "thread": "Thema",
+      "threads": "Themen",
+      "jump": "Springen"
+    },
+    "close_threads": "Themen schließen"
+  },
+  "Settings": {
+    "device_verification": {
+      "setup_device_verification": "Richten Sie die Geräteverifizierung ein",
+      "they_match": "Sie passen zusammen",
+      "unexpected_error_crypto_module_not_found": "Unerwarteter Fehler! \nKryptomodul nicht gefunden!",
+      "starting_verification_using_emoji_comparison": "Verifizierung mit Emoji-Vergleich wird gestartet...",
+      "unexpected_error_verification_is_started_but_verifier_is_missing": "Unerwarteter Fehler! \nDie Verifizierung wurde gestartet, aber der Prüfer fehlt."
+    }
+  },
+  "RoomInput": {
+    "recording_duration": "Aufnahmedauer:"
   }
 }

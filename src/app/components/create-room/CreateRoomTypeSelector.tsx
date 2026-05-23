@@ -4,6 +4,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
 import { CreateRoomType } from './types';
+import { t } from 'i18next';
 
 type CreateRoomTypeSelectorProps = {
   value?: CreateRoomType;
@@ -36,10 +37,10 @@ export function CreateRoomTypeSelector({
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>
-              Chat Room
+              {t('RoomCreate.chat_room')}
             </Text>
             <Text size="T300" priority="300" truncate>
-              - Messages, photos, and videos.
+              {t('RoomCreate.messages_photos_and_videos')}
             </Text>
           </Box>
         </SettingTile>
@@ -61,10 +62,10 @@ export function CreateRoomTypeSelector({
         >
           <Box gap="200" alignItems="Baseline">
             <Text size="H6" style={{ flexShrink: 0 }}>
-              Voice Room
+              {t('RoomCreate.voice_room')}
             </Text>
             <Text size="T300" priority="300" truncate>
-              - Live audio and video conversations.
+              {t('RoomCreate.live_audio_and_video_conversations')}
             </Text>
             <BetaNoticeBadge />
           </Box>

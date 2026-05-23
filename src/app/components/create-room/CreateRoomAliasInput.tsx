@@ -9,6 +9,7 @@ import type { AsyncState } from '$hooks/useAsyncCallback';
 import { AsyncStatus, useAsync } from '$hooks/useAsyncCallback';
 import { useDebounce } from '$hooks/useDebounce';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { t } from 'i18next';
 
 export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
   const mx = useMatrixClient();
@@ -73,9 +74,9 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
 
   return (
     <Box shrink="No" direction="Column" gap="100">
-      <Text size="L400">Address (Optional)</Text>
+      <Text size="L400">{t('RoomCreate.address_optional')}</Text>
       <Text size="T200" priority="300">
-        Pick an unique address to make it discoverable.
+        {t('RoomCreate.pick_an_unique_address_to_make_it_discoverable')}
       </Text>
       <Input
         ref={aliasInputRef}
@@ -104,7 +105,7 @@ export function CreateRoomAliasInput({ disabled }: { disabled?: boolean }) {
         <Box style={{ color: color.Critical.Main }} alignItems="Center" gap="100">
           <Icon src={Icons.Warning} filled size="50" />
           <Text size="T200">
-            <b>This address is already taken. Please select a different one.</b>
+            <b>{t('RoomCreate.this_address_is_already_taken_please_select_a_different_one')}</b>
           </Text>
         </Box>
       )}

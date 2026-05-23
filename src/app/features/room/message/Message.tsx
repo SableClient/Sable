@@ -220,6 +220,7 @@ export type MessageProps = {
   collapse: boolean;
   highlight: boolean;
   notifyHighlight?: 'silent' | 'loud';
+  isMarked?: boolean;
   edit?: boolean;
   canDelete?: boolean;
   canSendReaction?: boolean;
@@ -333,6 +334,7 @@ function MessageInternal(
     collapse,
     highlight,
     notifyHighlight,
+    isMarked,
     edit,
     canDelete,
     canSendReaction,
@@ -876,6 +878,7 @@ function MessageInternal(
       highlight={highlight}
       notifyHighlight={highlightMentions ? notifyHighlight : undefined}
       selected={!!menuAnchor || !!emojiBoardAnchor}
+      isMarked={isMarked}
       {...props}
       {...hoverProps}
       {...focusWithinProps}
@@ -1275,6 +1278,7 @@ export type EventProps = {
   mEvent: MatrixEvent;
   highlight: boolean;
   notifyHighlight?: 'silent' | 'loud';
+  isMarked?: boolean;
   canDelete?: boolean;
   onReplyClick: (
     ev: Parameters<MouseEventHandler<HTMLButtonElement>>[0],
@@ -1293,6 +1297,7 @@ export const Event = as<'div', EventProps>(
       mEvent,
       highlight,
       notifyHighlight,
+      isMarked,
       collapse,
       canDelete,
       onReplyClick,
@@ -1388,6 +1393,7 @@ export const Event = as<'div', EventProps>(
         highlight={highlight}
         notifyHighlight={highlightMentions ? notifyHighlight : undefined}
         selected={!!menuAnchor}
+        isMarked={isMarked}
         {...props}
         {...hoverProps}
         {...focusWithinProps}

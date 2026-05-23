@@ -374,6 +374,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
 
         const pushActions = pushProcessor.actionsForEvent(mEvent);
         let notifyHighlight: 'silent' | 'loud' | undefined;
@@ -429,6 +430,7 @@ export function useTimelineEventRenderer({
             messageSpacing={messageSpacing}
             messageLayout={messageLayout}
             highlight={highlighted}
+            isMarked={marked}
             notifyHighlight={notifyHighlight}
             edit={editId === mEventId}
             canDelete={canRedact || (canDeleteOwn && senderId === mx.getUserId())}
@@ -533,6 +535,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
@@ -553,6 +556,7 @@ export function useTimelineEventRenderer({
             messageSpacing={messageSpacing}
             messageLayout={messageLayout}
             highlight={highlighted}
+            isMarked={marked}
             notifyHighlight={notifyHighlight}
             edit={editId === mEventId}
             canDelete={canRedact || (canDeleteOwn && senderId === mx.getUserId())}
@@ -703,6 +707,7 @@ export function useTimelineEventRenderer({
         const reactions = reactionRelations?.getSortedAnnotationsByKey();
         const hasReactions = reactions && reactions.length > 0;
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderDisplayName =
           getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
@@ -718,6 +723,7 @@ export function useTimelineEventRenderer({
             messageSpacing={messageSpacing}
             messageLayout={messageLayout}
             highlight={highlighted}
+            isMarked={marked}
             canDelete={canRedact || (canDeleteOwn && senderId === mx.getUserId())}
             canSendReaction={canSendReaction}
             canPinEvent={canPinEvent}
@@ -814,6 +820,7 @@ export function useTimelineEventRenderer({
         if (!membershipChanged && hideNickAvatarEvents) return null;
 
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const parsed = parseMemberEvent(mEvent);
 
         const timeJSX = (
@@ -833,6 +840,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || mEvent.getSender() === mx.getUserId()}
             onReplyClick={onReplyClick}
@@ -857,6 +865,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomName]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -877,6 +886,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || senderId === mx.getUserId()}
             onReplyClick={onReplyClick}
@@ -902,6 +912,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomTopic]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -923,6 +934,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || senderId === mx.getUserId()}
             onReplyClick={onReplyClick}
@@ -948,6 +960,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.RoomAvatar]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -969,6 +982,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || senderId === mx.getUserId()}
             onReplyClick={onReplyClick}
@@ -994,6 +1008,7 @@ export function useTimelineEventRenderer({
       },
       [EventType.GroupCallMemberPrefix]: (mEventId, mEvent, item, timelineSet, collapse) => {
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderName = getMemberDisplayName(room, senderId) || getMxIdLocalPart(senderId);
 
@@ -1022,6 +1037,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || senderId === mx.getUserId()}
             hideReadReceipts={hideReads}
@@ -1048,6 +1064,7 @@ export function useTimelineEventRenderer({
       [EventType.RoomPinnedEvents]: (mEventId, mEvent, item, timelineSet, collapse) => {
         if (!showHiddenEvents) return null;
         const highlighted = focusItem?.index === item && focusItem.highlight;
+        const marked = activeReplyId === mEventId;
         const senderId = mEvent.getSender() ?? '';
         const senderName =
           getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1080,6 +1097,7 @@ export function useTimelineEventRenderer({
             room={room}
             mEvent={mEvent}
             highlight={highlighted}
+            isMarked={marked}
             collapse={collapse}
             canDelete={canRedact || senderId === mx.getUserId()}
             onReplyClick={onReplyClick}
@@ -1133,6 +1151,7 @@ export function useTimelineEventRenderer({
     (mEventId, mEvent, item, timelineSet, collapse) => {
       if (!showHiddenEvents) return null;
       const highlighted = focusItem?.index === item && focusItem.highlight;
+      const marked = activeReplyId === mEventId;
       const senderId = mEvent.getSender() ?? '';
       const senderName =
         getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1154,6 +1173,7 @@ export function useTimelineEventRenderer({
           room={room}
           mEvent={mEvent}
           highlight={highlighted}
+          isMarked={marked}
           collapse={collapse}
           canDelete={canRedact || senderId === mx.getUserId()}
           onReplyClick={onReplyClick}
@@ -1186,6 +1206,7 @@ export function useTimelineEventRenderer({
       if (mEvent.isRedaction()) return null;
 
       const highlighted = focusItem?.index === item && focusItem.highlight;
+      const marked = activeReplyId === mEventId;
       const senderId = mEvent.getSender() ?? '';
       const senderName =
         getMemberDisplayName(room, senderId, nicknames) || getMxIdLocalPart(senderId);
@@ -1207,6 +1228,7 @@ export function useTimelineEventRenderer({
           room={room}
           mEvent={mEvent}
           highlight={highlighted}
+          isMarked={marked}
           collapse={collapse}
           canDelete={canRedact || senderId === mx.getUserId()}
           onReplyClick={onReplyClick}

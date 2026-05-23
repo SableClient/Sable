@@ -85,6 +85,11 @@ const SelectedVariant = styleVariants({
     backgroundColor: color.Surface.ContainerActive,
   },
 });
+const MarkedVariant = styleVariants({
+  true: {
+    backgroundColor: color.Other.Overlay,
+  },
+});
 
 const AutoCollapse = style({
   selectors: {
@@ -118,6 +123,7 @@ export const MessageBase = recipe({
     highlight: HighlightVariant,
     notifyHighlight: NotifyHighlightVariant,
     selected: SelectedVariant,
+    isMarked: MarkedVariant,
   },
   defaultVariants: {
     space: '400',

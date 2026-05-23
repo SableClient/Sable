@@ -18,6 +18,14 @@ i18n
   // init i18next
   // for all options read: https://www.i18next.com/overview/configuration-options
   .init<HttpBackendOptions>({
+    // Prefer the browser / navigator language and avoid using cached localStorage value
+    detection: {
+      // prefer querystring first (e.g. ?lng=de), then navigator, then html tag, path, subdomain
+      order: ['querystring', 'navigator', 'htmlTag', 'path', 'subdomain'],
+      lookupQuerystring: 'lng',
+      // do not cache the detected language in localStorage to avoid stale overrides
+      caches: [],
+    },
     debug: false,
     fallbackLng: 'en',
     interpolation: {

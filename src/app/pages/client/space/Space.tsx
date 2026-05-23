@@ -519,6 +519,7 @@ export function Space() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
 
   const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
+  const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
   const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
@@ -819,7 +820,11 @@ export function Space() {
   );
   const hierarchy = isHidingRooms
     ? baseHierarchy.filter(
-        (item) => !hiddenRooms.includes(item.roomId) || item.roomId === selectedRoomId
+        (item) =>
+          (!hiddenRooms.includes(item.roomId) &&
+            !hiddenSpaces.includes(item.roomId) &&
+            (!item.parentId || !hiddenSpaces.includes(item.parentId))) ||
+          item.roomId === selectedRoomId
       )
     : baseHierarchy;
 

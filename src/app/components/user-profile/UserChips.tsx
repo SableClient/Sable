@@ -52,6 +52,8 @@ import { heroMenuItemStyle } from './heroMenuItemStyle';
 import * as css from './styles.css';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { roomToChildrenAtom } from '$state/room/roomToChildren';
+import { useAtomValue } from 'jotai';
 
 export function ServerChip({
   server,
@@ -373,17 +375,28 @@ export function MutualRoomsChip({
   const [isHidingRooms] = useSetting(settingsAtom, 'isHidingRooms');
   const [hiddenRooms] = useSetting(settingsAtom, 'hiddenRooms');
   const [hiddenSpaces] = useSetting(settingsAtom, 'hiddenSpaces');
-  const baseMutualRooms = useMemo(
-    () =>
-      (mutualRoomsState.status === AsyncStatus.Success &&
-        (!isHidingRooms
-          ? mutualRoomsState.data
-          : mutualRoomsState.data.filter(
-              (item) => !hiddenRooms.includes(item) && !hiddenSpaces.includes(item)
-            ))) ||
-      [],
-    [isHidingRooms, hiddenRooms, hiddenSpaces, mutualRoomsState]
-  );
+  const roomToChildren = useAtomValue(roomToChildrenAtom);
+  const baseMutualRooms = useMemo(() => {
+    if (mutualRoomsState.status === AsyncStatus.Success) {
+      if (!isHidingRooms) return mutualRoomsState.data;
+      let hideList = new Set<string>();
+      for (const item of mutualRoomsState.data) {
+        if (hiddenRooms.includes(item)) {
+          hideList.add(item);
+          continue;
+        }
+        if (hiddenSpaces.includes(item)) {
+          hideList.add(item);
+          const childrenSet = roomToChildren.get(item);
+          if (childrenSet) {
+            hideList = hideList.union(childrenSet);
+          }
+        }
+      }
+      return mutualRoomsState.data.filter((item) => !hideList.has(item));
+    }
+    return [];
+  }, [isHidingRooms, hiddenRooms, hiddenSpaces, mutualRoomsState, roomToChildren]);
 
   const open: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setCords(evt.currentTarget.getBoundingClientRect());

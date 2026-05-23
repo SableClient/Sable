@@ -53,8 +53,8 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-maths="x"');
     expect(result).toContain('data-md="**"');
     expect(result).toContain('href="https://example.com"');
-    expect(result).toContain('target="_blank"');
     expect(result).toContain('data-md="[]()"');
+    expect(result).not.toContain('target=');
     expect(result).not.toContain('rel=');
     expect(result).toContain('<ol start="2" data-md="1.">');
     expect(result).not.toContain('type=');
@@ -120,6 +120,14 @@ describe('sanitizeCustomHtml', () => {
     expect(result).not.toContain('mxc://example.com/secondary');
     expect(result).not.toContain('srcset=');
     expect(result.match(/\ssrc=/g)).toHaveLength(1);
+  });
+
+  it('drops invalid ol start values', () => {
+    expect(sanitizeCustomHtml('<ol start="2"><li>ok</li></ol>')).toContain('start="2"');
+    expect(sanitizeCustomHtml('<ol start="javascript:alert(1)"><li>x</li></ol>')).not.toContain(
+      'start='
+    );
+    expect(sanitizeCustomHtml('<ol start="1.5"><li>x</li></ol>')).not.toContain('start=');
   });
 
   it('drops invalid Matrix color attributes instead of translating them to style', () => {

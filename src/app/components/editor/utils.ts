@@ -1,5 +1,9 @@
 import type { BasePoint, BaseRange } from 'slate';
 import { Editor, Element, Point, Range, Text, Transforms } from 'slate';
+import type { Room } from '$types/matrix-sdk';
+import type { Nicknames } from '$state/nicknames';
+import { getMxIdLocalPart, isUserId } from '$utils/matrix';
+import { getMemberDisplayName } from '$utils/room';
 import { BlockType } from './types';
 import type {
   CommandElement,
@@ -8,6 +12,80 @@ import type {
   LinkElement,
   MentionElement,
 } from './slate';
+
+export type MentionResolveOptions = {
+  room?: Room;
+  nicknames?: Nicknames;
+  mxUserId?: string;
+};
+
+/** Same @-prefix rule as {@link UserMentionAutocomplete} and timeline mention insertion. */
+export const formatUserMentionDisplayName = (name: string): string =>
+  name.startsWith('@') ? name : `@${name}`;
+
+export const resolveUserMentionName = (userId: string, options?: MentionResolveOptions): string => {
+  const base =
+    (options?.room && getMemberDisplayName(options.room, userId, options.nicknames)) ??
+    getMxIdLocalPart(userId) ??
+    userId;
+  return formatUserMentionDisplayName(base);
+};
+
+/** {@link UserMentionAutocomplete} passes a display label, @room must stay literal, not resolved as a user. */
+export const mentionNameForUserAutocomplete = (
+  id: string,
+  displayName: string,
+  options?: MentionResolveOptions
+): string => {
+  if (displayName === '@room') return '@room';
+  return resolveUserMentionName(id, options);
+};
+
+/** Same #-prefix rule as {@link RoomMentionAutocomplete}. */
+export const formatRoomMentionDisplayName = (name: string): string => {
+  if (name === '@room') return '@room';
+  return name.startsWith('#') ? name : `#${name}`;
+};
+
+export const resolveRoomMentionName = (
+  roomIdOrAlias: string,
+  label: string,
+  options?: MentionResolveOptions
+): string => {
+  const trimmed = label.trim();
+  if (trimmed === '@room') return '@room';
+  if (trimmed) return formatRoomMentionDisplayName(trimmed);
+  if (
+    options?.room &&
+    (options.room.roomId === roomIdOrAlias || options.room.getCanonicalAlias() === roomIdOrAlias)
+  ) {
+    return formatRoomMentionDisplayName(options.room.name || roomIdOrAlias);
+  }
+  return formatRoomMentionDisplayName(roomIdOrAlias);
+};
+
+export const resolveUserMentionHighlight = (
+  userId: string,
+  options?: MentionResolveOptions
+): boolean => options?.mxUserId === userId;
+
+export const resolveRoomMentionHighlight = (
+  roomIdOrAlias: string,
+  options?: MentionResolveOptions
+): boolean => {
+  if (!options?.room) return true;
+  const { roomId } = options.room;
+  const alias = options.room.getCanonicalAlias();
+  return roomId === roomIdOrAlias || alias === roomIdOrAlias;
+};
+
+export const formatMentionElementDisplayName = (element: MentionElement): string => {
+  if (isUserId(element.id)) {
+    return formatUserMentionDisplayName(element.name);
+  }
+  if (element.name === '@room') return '@room';
+  return formatRoomMentionDisplayName(element.name);
+};
 
 export const resetEditor = (editor: Editor) => {
   Transforms.delete(editor, {

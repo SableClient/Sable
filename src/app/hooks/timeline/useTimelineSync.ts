@@ -186,18 +186,24 @@ const useTimelinePagination = (
           // that countAfter/stillHasToken comparisons are meaningful.
           const freshLTimelines = timelineRef.current.linkedTimelines;
           const firstTimeline = freshLTimelines[0];
-          if (!firstTimeline) return;
+          if (!firstTimeline) {
+            (backwards ? setBackwardStatus : setForwardStatus)('idle');
+            return;
+          }
           recalibratePagination(freshLTimelines);
-          (backwards ? setBackwardStatus : setForwardStatus)('idle');
 
           const countAfter = getTimelinesEventsCount(getLinkedTimelines(firstTimeline));
           const fetched = countAfter - countBefore;
 
+          let willContinue = false;
           if (fetched > 0 && fetched < 5) {
             const checkTimeline = backwards
               ? freshLTimelines[0]
               : freshLTimelines[freshLTimelines.length - 1];
-            if (!checkTimeline) return;
+            if (!checkTimeline) {
+              (backwards ? setBackwardStatus : setForwardStatus)('idle');
+              return;
+            }
             const checkDirection = backwards ? Direction.Backward : Direction.Forward;
             const stillHasToken =
               typeof getLinkedTimelines(checkTimeline)[0]?.getPaginationToken(checkDirection) ===
@@ -207,11 +213,17 @@ const useTimelinePagination = (
               // so the finally block below does NOT reset it after inner claims.
               fetchingRef.current[directionKey] = false;
               continuing = true;
+              willContinue = true;
               paginate(backwards);
               // At this point the inner paginate has synchronously set
               // fetchingRef.current[directionKey] = true before hitting its own
               // await.  The finally below will skip the reset.
             }
+          }
+
+          // Stay in 'loading' across auto-continuation chunks so the spinner does not flicker.
+          if (!willContinue) {
+            (backwards ? setBackwardStatus : setForwardStatus)('idle');
           }
         }
       } finally {

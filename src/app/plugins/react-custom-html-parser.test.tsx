@@ -11,6 +11,7 @@ import {
   makeMentionCustomProps,
   renderMatrixMention,
 } from './react-custom-html-parser';
+import { markdownToHtml } from './markdown/markdownToHtml';
 
 const settingsLinkBaseUrl = 'https://app.example';
 
@@ -435,4 +436,14 @@ describe('react custom html parser', () => {
       })
     ).toHaveAttribute('href', 'https://github.com/SableClient/Sable/pull/PR/626');
   });
+
+  it.each([String.raw`\<test\>`, String.raw`\<test>`])(
+    'renders %s as literal angle brackets, not entity text',
+    (md) => {
+      renderParsedHtml(markdownToHtml(md));
+
+      expect(screen.getByText('<test>')).toBeInTheDocument();
+      expect(screen.queryByText('&lt;test&gt;')).not.toBeInTheDocument();
+    }
+  );
 });

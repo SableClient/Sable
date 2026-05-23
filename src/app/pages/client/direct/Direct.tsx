@@ -54,7 +54,6 @@ import {
 import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type DirectMenuProps = {
@@ -268,7 +267,7 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -379,7 +378,7 @@ export function Direct() {
           </PageNavContent>
         )}
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

@@ -870,7 +870,7 @@ export function Space() {
   }, [lastRoomId, spaceIdOrAlias, mx, navigate]);
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
   return (
     <Box
@@ -1061,7 +1061,7 @@ export function Space() {
           </PageNavContent>
         </SwipeableOverlayWrapper>
       </PageNav>
-      {!mobileOrTablet() && (
+      {!isMobile && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

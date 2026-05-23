@@ -6,6 +6,10 @@ import {
   validateMxcUrl,
 } from './extensions/matrix-emoticon';
 import { escapeMarkdownInlineSequences } from './utils';
+import { testMatrixTo } from '$plugins/matrix-to';
+import { isAllowedHtmlTag } from './allowedHtmlTags';
+import { formatMfmColorDataMd } from './extensions/matrix-mfm-color';
+import { isMatrixHexColor } from '$utils/matrixHtml';
 
 /**
  * Converts Matrix-compatible HTML back to markdown for round-trip editing.
@@ -62,15 +66,15 @@ function processNodes(nodes: ChildNode[]): string {
     const prev = filtered[i - 1];
     // Adjacent <p> blocks must become \n\n in markdown so the editor gets separate Slate
     // paragraphs and marked emits <p> per block again on send (single \n would collapse).
-    if (
-      i > 0 &&
-      prev &&
-      isTag(prev) &&
-      isTag(cur) &&
-      prev.name.toLowerCase() === 'p' &&
-      cur.name.toLowerCase() === 'p'
-    ) {
-      parts.push('\n');
+    if (i > 0 && prev && isTag(prev) && isTag(cur)) {
+      const prevTag = prev.name.toLowerCase();
+      const curTag = cur.name.toLowerCase();
+      if (
+        (prevTag === 'p' && curTag === 'p') ||
+        (prevTag === 'blockquote' && curTag === 'blockquote')
+      ) {
+        parts.push('\n');
+      }
     }
     parts.push(processNode(cur));
   }
@@ -97,13 +101,17 @@ function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean
       return processMath(node, 'inline');
     }
     if (node.attribs['data-md'] !== undefined) {
+      const dataMd = node.attribs['data-md'];
+      if (typeof dataMd === 'string' && dataMd.startsWith('$[')) {
+        return processMfmColorSpan(node, listDepth, insideCode);
+      }
       return processInlineMarkdown(node, listDepth, insideCode);
     }
     if (
       node.attribs['data-mx-color'] !== undefined ||
       node.attribs['data-mx-bg-color'] !== undefined
     ) {
-      return reconstructTag(node, listDepth, insideCode);
+      return processMfmColorSpan(node, listDepth, insideCode);
     }
   }
 
@@ -177,8 +185,28 @@ function processNode(node: ChildNode, listDepth: number = 0, insideCode: boolean
       return processImage(node);
 
     default:
+      if (!isAllowedHtmlTag(tag)) {
+        return processUnknownHtmlTag(node, listDepth, insideCode);
+      }
       return processInlineElements(node, listDepth, insideCode);
   }
+}
+
+function formatHtmlTagAttributes(attribs: Element['attribs']): string {
+  return Object.entries(attribs)
+    .map(([key, value]) => ` ${key}="${value}"`)
+    .join('');
+}
+
+function processUnknownHtmlTag(
+  node: Element,
+  listDepth: number = 0,
+  insideCode: boolean = false
+): string {
+  const content = processChildren(node.children, listDepth, insideCode);
+  const attrs = formatHtmlTagAttributes(node.attribs);
+  const raw = `<${node.name}${attrs}>${content}</${node.name}>`;
+  return escapeMarkdownInlineSequences(raw);
 }
 function reconstructTag(node: Element, listDepth: number = 0, insideCode: boolean = false): string {
   const content = processInlineElements(node, listDepth, insideCode);
@@ -232,8 +260,11 @@ function processChildren(
     ) {
       const href = next.attribs.href ?? '';
       const content = next.children.map((c) => processNode(c, listDepth, insideCode)).join('');
-      // Suppressed autolink: [label](<href>) so bracket text is not run through escapeMarkdown as "\<".
-      out.push(`[${content}](<${href}>)`);
+      if (testMatrixTo(href)) {
+        out.push(`[${content}](${href})`);
+      } else {
+        out.push(`[${content}](<${href}>)`);
+      }
       i += 2;
       continue;
     }
@@ -302,19 +333,57 @@ function processParagraph(
   return `${content}\n`;
 }
 
+function collectBlockquoteBodyLines(
+  node: Element,
+  listDepth: number,
+  insideCode: boolean
+): string[] {
+  const lines: string[] = [];
+  const pushLine = (line: string) => {
+    lines.push(line);
+  };
+  const pushMultiline = (text: string) => {
+    for (const part of text.split('\n')) {
+      pushLine(part);
+    }
+  };
+
+  for (const child of node.children) {
+    if (isText(child)) {
+      if (/^\s*$/.test(child.data)) continue;
+      const text = insideCode ? child.data : escapeMarkdownInlineSequences(child.data);
+      pushMultiline(text);
+      continue;
+    }
+
+    if (!isTag(child)) continue;
+
+    const tag = child.name.toLowerCase();
+    if (tag === 'p') {
+      pushMultiline(processChildren(child.children, listDepth, insideCode));
+    } else if (tag === 'br') {
+      pushLine('');
+    } else if (tag === 'blockquote') {
+      lines.push(...collectBlockquoteBodyLines(child, listDepth, insideCode));
+    } else {
+      pushMultiline(processNode(child, listDepth, insideCode).trimEnd());
+    }
+  }
+
+  return lines;
+}
+
 function processBlockquote(
   node: Element,
   listDepth: number = 0,
   insideCode: boolean = false
 ): string {
-  const content = node.children
-    .map((child) => {
-      if (isTag(child) && child.name === 'br') return '\n';
-      const text = processNode(child, listDepth, insideCode);
-      return text.replace(/\n/g, '\n> ');
-    })
-    .join('');
-  return `> ${content}\n`;
+  const marker = node.attribs['data-md'] ? `${node.attribs['data-md']} ` : '> ';
+  const lines = collectBlockquoteBodyLines(node, listDepth, insideCode);
+  const body = lines
+    .map((line) => (line.length === 0 ? marker.trimEnd() : `${marker}${line}`))
+    .join('\n');
+  return `${body}\n`;
 }
 
 /**
@@ -409,6 +478,30 @@ function processLink(node: Element, listDepth = 0, insideCode = false): string {
   const href = node.attribs.href ?? '';
   const content = node.children.map((c) => processNode(c, listDepth, insideCode)).join('');
   return `[${content}](${href})`;
+}
+
+function processMfmColorSpan(
+  node: Element,
+  listDepth: number = 0,
+  insideCode: boolean = false
+): string {
+  const content = processChildren(node.children, listDepth, insideCode);
+  const dataMd = node.attribs['data-md'];
+  if (typeof dataMd === 'string' && dataMd.startsWith('$[')) {
+    return `${dataMd} ${content}]`;
+  }
+
+  const args: { fg?: string; bg?: string } = {};
+  const fg = node.attribs['data-mx-color'];
+  const bg = node.attribs['data-mx-bg-color'];
+  if (typeof fg === 'string' && isMatrixHexColor(fg)) args.fg = fg;
+  if (typeof bg === 'string' && isMatrixHexColor(bg)) args.bg = bg;
+
+  if (args.fg !== undefined || args.bg !== undefined) {
+    return `${formatMfmColorDataMd(args)} ${content}]`;
+  }
+
+  return reconstructTag(node, listDepth, insideCode);
 }
 
 function processSpoiler(node: Element, listDepth = 0, insideCode = false): string {

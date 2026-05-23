@@ -73,11 +73,16 @@ describe('bidirectional round-trip', () => {
   });
 
   it('round-trips blockquotes', () => {
-    const markdown = '> Quote text';
-    const html = markdownToHtml(markdown);
-    const injected = injectDataMd(html);
-    const result = htmlToMarkdown(injected);
-    expect(result).toContain('> Quote text');
+    const roundtrip = (markdown: string) => {
+      const html = markdownToHtml(markdown);
+      const injected = injectDataMd(html);
+      return htmlToMarkdown(injected);
+    };
+    expect(roundtrip('> Quote text')).toBe('> Quote text');
+    expect(roundtrip('> line one\n> line two')).toBe('> line one\n> line two');
+    expect(roundtrip('> test\ntest')).toBe('> test\ntest');
+    expect(roundtrip('> test\n\n> test')).toBe('> test\n\n> test');
+    expect((markdownToHtml('> test\n\n> test').match(/<blockquote/g) ?? []).length).toBe(2);
   });
 
   it('round-trips unordered lists', () => {
@@ -94,7 +99,6 @@ describe('bidirectional round-trip', () => {
     const html = markdownToHtml(markdown);
     const injected = injectDataMd(html);
     const result = htmlToMarkdown(injected);
-    // Note: marked normalizes ordered lists to start at 1, but we increment for output
     expect(result).toContain('1. First');
     expect(result).toContain('2. Second');
   });

@@ -185,6 +185,52 @@ describe('toMatrixCustomHTML matrix.to', () => {
   });
 });
 
+describe('toMatrixCustomHTML angle bracket escapes', () => {
+  it('renders backslash-escaped angle brackets as literal characters in formatted output', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [{ text: String.raw`\<test\>` }],
+          } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toMatch(/<test[^>]*>/);
+  });
+
+  it('does not double-encode when the editor already contains entity text', () => {
+    const html = trimCustomHtml(
+      toMatrixCustomHTML(
+        [
+          {
+            type: BlockType.Paragraph,
+            children: [{ text: '&lt;test&gt;' }],
+          } as never,
+        ],
+        {}
+      )
+    );
+
+    expect(html).toContain('&lt;test&gt;');
+    expect(html).not.toContain('&amp;lt;');
+  });
+
+  it('keeps backslash escapes in plain body for round-trip editing', () => {
+    const children = [
+      {
+        type: BlockType.Paragraph,
+        children: [{ text: String.raw`\<test\>` }],
+      } as never,
+    ];
+    expect(toPlainText(children).trim()).toBe(String.raw`\<test\>`);
+  });
+});
+
 describe('toMatrixCustomHTML single-newline markdown blocks', () => {
   it('parses -# on a second Slate paragraph joined with a single newline', () => {
     const html = trimCustomHtml(

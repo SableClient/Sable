@@ -1,5 +1,41 @@
 # Sable Client Changelog
 
+## 1.17.0 (2026-05-22)
+
+### Features
+
+* Add support for misskey-flavored markdown color definitions. E.g. `$[fg.color=f00 bg.color=00ff00 red on green]`. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Add per Space setting for when to show room icons in sidebar ([#851](<https://github.com/SableClient/Sable/pull/851>) by @nushea)
+* Add toggle to list all rooms inside of the home sidebar. ([#866](<https://github.com/SableClient/Sable/pull/866>) by @nushea)
+
+#### Change Image Viewer to feel more natural to use. ([#686](<https://github.com/SableClient/Sable/pull/686>) by @7w1, @nushea, @Septicity)
+
+- Fixed zoom gestures generally not working on mobile.
+- Changed the % number in the top right to reflect the zoom of the original image as opposed to the change from it fitting the container.
+- Made the zoom pill allow entering custom values.
+- Added a button that zooms you to the original size of the image, and a button to return to the size that fills the container.
+- Added a pixelated image scaling setting: choose Both, Chat, Image viewer (default), or Neither for crisp nearest-neighbor rendering.
+- Transitions are now disabled for manual panning to improve responsiveness.
+
+### Fixes
+
+* Fixed starting lists at arbitrary numbers and list markers extending off screen with long numbers. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix single new lines after block quotes being block-quoted. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix emojis not rendering in reply chips. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Hardened html parsing in standard input box, should no longer randomly delete text in arrow brackets (unless valid, properly closed, legal html). ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fixed the message loading spinner flickering instead of continuing during large pagination chunks. ([#895](<https://github.com/SableClient/Sable/pull/895>) by @7w1)
+* Fix matrix.to links getting arrow brackets inserted when editing messages. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix mentions breaking after editing messages with mentions. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix account switching and logging in with multiple (SSO) accounts silently failing ([#882](<https://github.com/SableClient/Sable/pull/882>) by @770grappenmaker)
+* Removed the arbitrary bio limit from the bio editor. ([#863](<https://github.com/SableClient/Sable/pull/863>) by @7w1)
+* Remove target and rel attributes from outgoing html links. ([#891](<https://github.com/SableClient/Sable/pull/891>) by @7w1)
+* Fix tablet layouts having the sidebar fill up the screen. ([#864](<https://github.com/SableClient/Sable/pull/864>) by @7w1)
+* Add support for stable mutual rooms endpoint, manually ported from [this commit](https://github.com/cinnyapp/cinny/commit/bef267257a28b3be8a96852fed1718f63cf570f9) by ajbura upstream. ([#852](<https://github.com/SableClient/Sable/pull/852>) by @7w1)
+
+### Documentation
+
+* Docker build tags have been updated: `latest` now tracks the latest versioned release and `dev` now tracks the dev branch. ([#892](<https://github.com/SableClient/Sable/pull/892>) by @7w1)
+
 ## 1.16.1 (2026-05-15)
 
 ### Fixes

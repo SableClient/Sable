@@ -82,7 +82,7 @@ const elementToCustomHtml = (
     case BlockType.Link:
       return testMatrixTo(node.href)
         ? sanitizeText(node.href)
-        : `<a href="${encodeURI(node.href)}" target="_blank" rel="noreferrer noopener">${children}</a>`;
+        : `<a href="${encodeURI(node.href)}">${children}</a>`;
     case BlockType.Command:
       return `/${sanitizeText(node.command)}`;
     default:
@@ -160,7 +160,6 @@ const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 export const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
 const SPOILEREDLINKINPUTREGEX = new RegExp(`<(${LINK_URL})>`, 'g');
 const SPOILEREDLINKDIRECTREGEX = new RegExp(`\\|\\|(${LINK_URL})\\|\\|`, 'g');
-
 /**
  * convert slate internal representation to a plain text string that can be sent to the server
  * @param node the slate node

@@ -32,6 +32,63 @@
       "unexpected_error_verification_is_started_but_verifier_is_missing": "Unexpected Error! Verification is started but verifier is missing.",
       "verification_request_has_been_accepted": "Verification request has been accepted.",
       "waiting_for_the_response_from_other_device": "Waiting for the response from other device..."
+    },
+    "PerMessageProfiles": {
+      "profile_id": "Profile ID:",
+      "display_name": "Display Name:"
+    },
+    "Profile": {
+      "avatar_and_upload": "Avatar and upload",
+      "profile_avatar": "Profile avatar",
+      "avatar_fallback": "Avatar fallback",
+      "upload_avatar_image": "Upload avatar image",
+      "display_name_input": "Display name input",
+      "reset_display_name": "Reset display name"
+    },
+    "Cosmetics": {
+      "light_and_dark": "Light & dark",
+      "light_only": "Light only",
+      "dark_only": "Dark only",
+      "off": "Off",
+      "jumbo_emoji": "Jumbo Emoji",
+      "jumbo_emoji_size": "Jumbo Emoji Size",
+      "adjust_the_size_of_emojis_sent_without_text": "Adjust the size of emojis sent without text.",
+      "privacy_and_security": "Privacy & Security",
+      "blur_media": "Blur Media",
+      "blurs_images_and_videos_in_the_timeline": "Blurs images and videos in the timeline.",
+      "blur_avatars": "Blur Avatars",
+      "blurs_user_profile_pictures_and_room_icons": "Blurs user profile pictures and room icons.",
+      "blur_emotes": "Blur Emotes",
+      "blurs_emoticons_within_messages": "Blurs emoticons within messages.",
+      "identity": "Identity",
+      "colorful_names": "Colorful Names",
+      "assign_unique_colors_to_users_based_on_their_id_does_not_override_room_spac": "Assign unique colors to users based on their ID. Does not override room/space custom colors. Will override default role colors.",
+      "show_pronoun_pills": "Show Pronoun Pills",
+      "display_user_pronouns_in_the_message_timeline": "Display user pronouns in the message timeline.",
+      "pronoun_pills_for_all": "Pronoun Pills for All",
+      "attempts_to_convert_pronouns_in_names_into_pills_e_g_they_them_or_it_its_tu": "Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill).",
+      "render_custom_profile_cards": "Render Custom Profile Cards",
+      "choose_whose_profile_card_colors_to_show_everyone_with_a_scheme_only_light": "Choose whose profile card colors to show: everyone with a scheme, only light or dark schemes, or hide them.",
+      "render_global_username_colors": "Render Global Username Colors",
+      "display_the_username_colors_anyone_can_set_in_their_account_settings": "Display the username colors anyone can set in their account settings.",
+      "render_space_room_username_colors": "Render Space/Room Username Colors",
+      "display_the_username_colors_that_can_be_set_with_color": "Display the username colors that can be set with /color.",
+      "render_space_room_fonts": "Render Space/Room Fonts",
+      "display_the_username_fonts_that_can_be_set_with_font": "Display the username fonts that can be set with /font.",
+      "consistent_icon_style": "Consistent Icon Style",
+      "harmonize_icon_appearance_with_background_fill": "Harmonize icon appearance with background fill",
+      "extra_small": "Extra Small",
+      "none_same_size_as_text": "None (Same size as text)",
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large",
+      "extra_large": "Extra Large",
+      "language_specific_pronouns": "Language Specific Pronouns",
+      "show_pronouns_only_in_selected_language": "Show pronouns only in selected language",
+      "if_enabled_pronouns_are_only_shown_when_they_match_your_selected_language_t": "If enabled, pronouns are only shown when they match your selected language. This helps if your contacts set pronouns in different languages. It doesn't affect how your pronouns are shared with others.",
+      "selected_language_for_pronouns": "Selected language for pronouns",
+      "the_language_to_show_pronouns_for_when_the_above_setting_is_enabled": "The language to show pronouns for when the above setting is enabled.",
+      "language_code_e_g_en_de_en_de": "Language code (e.g. 'en', 'de', 'en,de')"
     }
   },
   "General": {
@@ -58,7 +115,11 @@
     "clear": "Clear",
     "edit_nickname": "Edit Nickname",
     "set_nickname": "Set Nickname",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "upload": "Upload",
+    "upload_area": "Upload area",
+    "display_name": "Display name",
+    "pronouns": "Pronouns"
   },
   "RoomView": {
     "failed_to_load_history": "Failed to load history.",
@@ -133,5 +194,18 @@
     "live_audio_and_video_conversations": "- Live audio and video conversations.",
     "chat_room": "Chat Room",
     "messages_photos_and_videos": "- Messages, photos, and videos."
+  },
+  "Room": {
+    "DirectInvite": {
+      "this_is_a": "This is a",
+      "direct_message": "Direct Message",
+      "room_intended_for_a_conversation_between_two_persons_would_you_like_to_conv": "room, intended for a conversation between two persons. Would you like to convert it into a",
+      "group_chat": "group chat",
+      "before_continuing": "before continuing?",
+      "failed_to_convert_direct_message_to_room": "Failed to convert direct message to room!",
+      "convert_to_group_chat_and_invite": "Convert to Group Chat and Invite",
+      "invite_to_direct_message_anyway": "Invite to Direct Message anyway",
+      "invite_another_member": "Invite another Member"
+    }
   }
 }

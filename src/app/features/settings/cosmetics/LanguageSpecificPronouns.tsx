@@ -4,6 +4,7 @@ import { SequenceCard } from '$components/sequence-card';
 import { useEffect, useState } from 'react';
 import { getSettings, setSettings } from '$state/settings';
 import { SequenceCardStyle } from '../styles.css';
+import { t } from 'i18next';
 
 export type LanguageSpecificPronounsConfig = {
   enabled?: boolean | string;
@@ -69,7 +70,7 @@ export function LanguageSpecificPronouns() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Language Specific Pronouns</Text>
+      <Text size="L400">{t('Settings.Cosmetics.language_specific_pronouns')}</Text>
       <SequenceCard
         className={SequenceCardStyle}
         variant="SurfaceVariant"
@@ -77,9 +78,9 @@ export function LanguageSpecificPronouns() {
         gap="100"
       >
         <SettingTile
-          title="Show pronouns only in selected language"
+          title={t('Settings.Cosmetics.show_pronouns_only_in_selected_language')}
           focusId="show-pronouns-only-in-selected-language"
-          description="If enabled, pronouns are only shown when they match your selected language. This helps if your contacts set pronouns in different languages. It doesn't affect how your pronouns are shared with others."
+          description={t('Settings.Cosmetics.if_enabled_pronouns_are_only_shown_when_they_match_your_selected_language_t')}
           after={
             <Switch
               variant="Primary"
@@ -90,9 +91,9 @@ export function LanguageSpecificPronouns() {
         />
         {useLanguageSpecificPronouns && (
           <SettingTile
-            title="Selected language for pronouns"
+            title={t('Settings.Cosmetics.selected_language_for_pronouns')}
             focusId="selected-language-for-pronouns"
-            description="The language to show pronouns for when the above setting is enabled."
+            description={t('Settings.Cosmetics.the_language_to_show_pronouns_for_when_the_above_setting_is_enabled')}
             after={
               <Input
                 value={languageList}
@@ -100,7 +101,7 @@ export function LanguageSpecificPronouns() {
                 radii="300"
                 variant="Secondary"
                 // input should be a comma separated list of language codes, e.g. "en", "de", "en,de"
-                placeholder="Language code (e.g. 'en', 'de', 'en,de')"
+                placeholder={t('Settings.Cosmetics.language_code_e_g_en_de_en_de')}
                 disabled={!useLanguageSpecificPronouns}
                 onChange={handleLanguageListChange}
                 style={{ width: '232px' }}

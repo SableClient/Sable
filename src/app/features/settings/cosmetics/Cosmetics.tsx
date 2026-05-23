@@ -26,14 +26,15 @@ import { SequenceCardStyle } from '$features/settings/styles.css';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
+import { t } from 'i18next';
 
 const emojiSizeItems = [
-  { id: 'none', name: 'None (Same size as text)' },
-  { id: 'extraSmall', name: 'Extra Small' },
-  { id: 'small', name: 'Small' },
-  { id: 'normal', name: 'Normal' },
-  { id: 'large', name: 'Large' },
-  { id: 'extraLarge', name: 'Extra Large' },
+  { id: 'none', name: t('Settings.Cosmetics.none_same_size_as_text') },
+  { id: 'extraSmall', name: t('Settings.Cosmetics.extra_small') },
+  { id: 'small', name: t('Settings.Cosmetics.small') },
+  { id: 'normal', name: t('Settings.Cosmetics.normal') },
+  { id: 'large', name: t('Settings.Cosmetics.large') },
+  { id: 'extraLarge', name: t('Settings.Cosmetics.extra_large') },
 ];
 
 function SelectJumboEmojiSize() {
@@ -105,10 +106,10 @@ function SelectJumboEmojiSize() {
 }
 
 const profileCardRenderItems: { id: RenderUserCardsMode; name: string }[] = [
-  { id: 'both', name: 'Light & dark' },
-  { id: 'light', name: 'Light only' },
-  { id: 'dark', name: 'Dark only' },
-  { id: 'none', name: 'Off' },
+  { id: 'both', name: t('Settings.Cosmetics.light_and_dark') },
+  { id: 'light', name: t('Settings.Cosmetics.light_only') },
+  { id: 'dark', name: t('Settings.Cosmetics.dark_only') },
+  { id: 'none', name: t('Settings.Cosmetics.off') },
 ];
 
 function SelectRenderCustomProfileCards() {
@@ -125,7 +126,7 @@ function SelectRenderCustomProfileCards() {
   };
 
   const currentLabel =
-    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ?? 'Light & dark';
+    profileCardRenderItems.find((i) => i.id === renderUserCardsMode)?.name ?? t('Settings.Cosmetics.light_and_dark');
 
   return (
     <>
@@ -183,12 +184,12 @@ function SelectRenderCustomProfileCards() {
 function JumboEmoji() {
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Jumbo Emoji</Text>
+      <Text size="L400">{t('Settings.Cosmetics.jumbo_emoji')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Jumbo Emoji Size"
+          title={t('Settings.Cosmetics.jumbo_emoji_size')}
           focusId="jumbo-emoji-size"
-          description="Adjust the size of emojis sent without text."
+          description={t('Settings.Cosmetics.adjust_the_size_of_emojis_sent_without_text')}
           after={<SelectJumboEmojiSize />}
         />
       </SequenceCard>
@@ -206,22 +207,22 @@ function Privacy() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Privacy & Security</Text>
+      <Text size="L400">{t('Settings.Cosmetics.privacy_and_security')}</Text>
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Blur Media"
+          title={t('Settings.Cosmetics.blur_media')}
           focusId="blur-media"
-          description="Blurs images and videos in the timeline."
+          description={t('Settings.Cosmetics.blurs_images_and_videos_in_the_timeline')}
           after={<Switch variant="Primary" value={privacyBlur} onChange={setPrivacyBlur} />}
         />
       </SequenceCard>
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Blur Avatars"
+          title={t('Settings.Cosmetics.blur_avatars')}
           focusId="blur-avatars"
-          description="Blurs user profile pictures and room icons."
+          description={t('Settings.Cosmetics.blurs_user_profile_pictures_and_room_icons')}
           after={
             <Switch variant="Primary" value={privacyBlurAvatars} onChange={setPrivacyBlurAvatars} />
           }
@@ -230,9 +231,9 @@ function Privacy() {
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Blur Emotes"
+          title={t('Settings.Cosmetics.blur_emotes')}
           focusId="blur-emotes"
-          description="Blurs emoticons within messages."
+          description={t('Settings.Cosmetics.blurs_emoticons_within_messages')}
           after={
             <Switch variant="Primary" value={privacyBlurEmotes} onChange={setPrivacyBlurEmotes} />
           }
@@ -259,12 +260,12 @@ function IdentityCosmetics() {
 
   return (
     <Box direction="Column" gap="100">
-      <Text size="L400">Identity</Text>
+      <Text size="L400">{t('Settings.Cosmetics.identity')}</Text>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Colorful Names"
+          title={t('Settings.Cosmetics.colorful_names')}
           focusId="colorful-names"
-          description="Assign unique colors to users based on their ID. Does not override room/space custom colors. Will override default role colors."
+          description={t('Settings.Cosmetics.assign_unique_colors_to_users_based_on_their_id_does_not_override_room_spac')}
           after={
             <Switch
               variant="Primary"
@@ -276,33 +277,33 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Show Pronoun Pills"
+          title={t('Settings.Cosmetics.show_pronoun_pills')}
           focusId="show-pronoun-pills"
-          description="Display user pronouns in the message timeline."
+          description={t('Settings.Cosmetics.display_user_pronouns_in_the_message_timeline')}
           after={<Switch variant="Primary" value={showPronouns} onChange={setShowPronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Pronoun Pills for All"
+          title={t('Settings.Cosmetics.pronoun_pills_for_all')}
           focusId="pronoun-pills-for-all"
-          description="Attempts to convert pronouns in names into pills (e.g. [they/them] or (it/its) turns into a pill)."
+          description={t('Settings.Cosmetics.attempts_to_convert_pronouns_in_names_into_pills_e_g_they_them_or_it_its_tu')}
           after={<Switch variant="Primary" value={parsePronouns} onChange={setParsePronouns} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Render Custom Profile Cards"
+          title={t('Settings.Cosmetics.render_custom_profile_cards')}
           focusId="custom-profile-cards"
-          description="Choose whose profile card colors to show: everyone with a scheme, only light or dark schemes, or hide them."
+          description={t('Settings.Cosmetics.choose_whose_profile_card_colors_to_show_everyone_with_a_scheme_only_light')}
           after={<SelectRenderCustomProfileCards />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Render Global Username Colors"
+          title={t('Settings.Cosmetics.render_global_username_colors')}
           focusId="render-global-username-colors"
-          description="Display the username colors anyone can set in their account settings."
+          description={t('Settings.Cosmetics.display_the_username_colors_anyone_can_set_in_their_account_settings')}
           after={
             <Switch variant="Primary" value={renderGlobalColors} onChange={setRenderGlobalColors} />
           }
@@ -310,9 +311,9 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Render Space/Room Username Colors"
+          title={t('Settings.Cosmetics.render_space_room_username_colors')}
           focusId="render-space-room-username-colors"
-          description="Display the username colors that can be set with /color."
+          description={t('Settings.Cosmetics.display_the_username_colors_that_can_be_set_with_color')}
           after={
             <Switch variant="Primary" value={renderRoomColors} onChange={setRenderRoomColors} />
           }
@@ -320,17 +321,17 @@ function IdentityCosmetics() {
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Render Space/Room Fonts"
+          title={t('Settings.Cosmetics.render_space_room_fonts')}
           focusId="render-space-room-fonts"
-          description="Display the username fonts that can be set with /font."
+          description={t('Settings.Cosmetics.display_the_username_fonts_that_can_be_set_with_font')}
           after={<Switch variant="Primary" value={renderRoomFonts} onChange={setRenderRoomFonts} />}
         />
       </SequenceCard>
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
-          title="Consistent Icon Style"
+          title={t('Settings.Cosmetics.consistent_icon_style')}
           focusId="consistent-icon-style"
-          description="Harmonize icon appearance with background fill"
+          description={t('Settings.Cosmetics.harmonize_icon_appearance_with_background_fill')}
           after={<Switch variant="Primary" value={uniformIcons} onChange={setUniformIcons} />}
         />
       </SequenceCard>

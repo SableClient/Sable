@@ -35,7 +35,9 @@ export function RoomTombstone({ roomId, body, replacementRoomId }: RoomTombstone
   return (
     <RoomInputPlaceholder alignItems="Center" gap="600" className={css.RoomTombstone}>
       <Box direction="Column" grow="Yes">
-        <Text size="T400">{body || t('RoomView.this_room_has_been_replaced_and_is_no_longer_active')}</Text>
+        <Text size="T400">
+          {body || t('RoomView.this_room_has_been_replaced_and_is_no_longer_active')}
+        </Text>
         {joinState.status === AsyncStatus.Error && (
           <Text style={{ color: color.Critical.Main }} size="T200">
             {(joinState.error as Error)?.message ?? t('RoomView.failed_to_join_replacement_room')}

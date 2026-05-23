@@ -553,7 +553,9 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 >
                   <Icon size="400" src={Icons.Thread} />
                   <Text size="T300" align="Center">
-                    {lowerQuery ? t('RoomView.Threads.no_threads_match_your_search') : t('RoomView.Threads.no_threads_yet')}
+                    {lowerQuery
+                      ? t('RoomView.Threads.no_threads_match_your_search')
+                      : t('RoomView.Threads.no_threads_yet')}
                   </Text>
                 </Box>
               );

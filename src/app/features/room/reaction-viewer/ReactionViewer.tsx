@@ -100,7 +100,9 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
         <Box grow="Yes" direction="Column">
           <Header className={css.Header} variant="Surface" size="600">
             <Box grow="Yes">
-              <Text size="H3" truncate>{t('RoomView.Reactions.reacted_with')} {`:${selectedShortcode}:`}</Text>
+              <Text size="H3" truncate>
+                {t('RoomView.Reactions.reacted_with')} {`:${selectedShortcode}:`}
+              </Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>
               <Icon src={Icons.Cross} />

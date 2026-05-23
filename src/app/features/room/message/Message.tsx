@@ -1198,7 +1198,9 @@ function MessageInternal(
                                 size="T300"
                                 truncate
                               >
-                                {nicknames[senderId] ? t('General.edit_nickname') : t('General.set_nickname')}
+                                {nicknames[senderId]
+                                  ? t('General.edit_nickname')
+                                  : t('General.set_nickname')}
                               </Text>
                             </MenuItem>
                           ))}

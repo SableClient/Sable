@@ -62,7 +62,9 @@ function VerificationWaitAccept() {
   return (
     <Box direction="Column" gap="400">
       <Text>{t('Settings.device_verification.please_accept_the_request_from_other_device')}</Text>
-      <WaitingMessage message={t('Settings.device_verification.waiting_for_request_to_be_accepted')} />
+      <WaitingMessage
+        message={t('Settings.device_verification.waiting_for_request_to_be_accepted')}
+      />
     </Box>
   );
 }
@@ -76,7 +78,9 @@ function VerificationAccept({ onAccept }: VerificationAcceptProps) {
   const accepting = acceptState.status === AsyncStatus.Loading;
   return (
     <Box direction="Column" gap="400">
-      <Text>{t('Settings.device_verification.click_accept_to_start_the_verification_process')}</Text>
+      <Text>
+        {t('Settings.device_verification.click_accept_to_start_the_verification_process')}
+      </Text>
       <Button
         variant="Primary"
         fill="Solid"
@@ -94,7 +98,9 @@ function VerificationWaitStart() {
   return (
     <Box direction="Column" gap="400">
       <Text>{t('Settings.device_verification.verification_request_has_been_accepted')}</Text>
-      <WaitingMessage message={t('Settings.device_verification.waiting_for_the_response_from_other_device')} />
+      <WaitingMessage
+        message={t('Settings.device_verification.waiting_for_the_response_from_other_device')}
+      />
     </Box>
   );
 }
@@ -109,7 +115,9 @@ function AutoVerificationStart({ onStart }: VerificationStartProps) {
 
   return (
     <Box direction="Column" gap="400">
-      <WaitingMessage message={t('Settings.device_verification.starting_verification_using_emoji_comparison')} />
+      <WaitingMessage
+        message={t('Settings.device_verification.starting_verification_using_emoji_comparison')}
+      />
     </Box>
   );
 }
@@ -131,7 +139,11 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
 
   return (
     <Box direction="Column" gap="400">
-      <Text>{t('Settings.device_verification.confirm_the_emoji_below_are_displayed_on_both_devices_in_the_same_order')}</Text>
+      <Text>
+        {t(
+          'Settings.device_verification.confirm_the_emoji_below_are_displayed_on_both_devices_in_the_same_order'
+        )}
+      </Text>
       <Box
         className={ContainerColor({ variant: 'SurfaceVariant' })}
         style={{
@@ -192,7 +204,9 @@ function SasVerification({ verifier, onCancel }: SasVerificationProps) {
 
   return (
     <Box direction="Column" gap="400">
-      <WaitingMessage message={t('Settings.device_verification.starting_verification_using_emoji_comparison')} />
+      <WaitingMessage
+        message={t('Settings.device_verification.starting_verification_using_emoji_comparison')}
+      />
     </Box>
   );
 }
@@ -295,7 +309,9 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
                   <SasVerification verifier={request.verifier} onCancel={handleCancel} />
                 ) : (
                   <VerificationUnexpected
-                    message={t('Settings.device_verification.unexpected_error_verification_is_started_but_verifier_is_missing')}
+                    message={t(
+                      'Settings.device_verification.unexpected_error_verification_is_started_but_verifier_is_missing'
+                    )}
                     onClose={handleCancel}
                   />
                 ))}

@@ -68,7 +68,7 @@ import {
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
 import { t } from 'i18next';
-import * as prefixes from '$unstable/prefixes'
+import * as prefixes from '$unstable/prefixes';
 
 type MessageEditorProps = {
   roomId: string;
@@ -231,8 +231,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             : undefined;
 
         const rawPmp =
-          editedEvent?.getContent()?.['m.new_content']?.[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME] ??
-          mEvent.getContent()?.[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME];
+          editedEvent?.getContent()?.['m.new_content']?.[
+            prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME
+          ] ?? mEvent.getContent()?.[prefixes.MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME];
 
         const pmpDisplayname =
           rawPmp !== null &&

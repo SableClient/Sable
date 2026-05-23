@@ -126,7 +126,13 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
               if (alive()) {
                 setUIAAction(action);
               } else {
-                reject(new Error(t('Settings.device_verification.authentication_failed_failed_to_setup_device_verification')));
+                reject(
+                  new Error(
+                    t(
+                      'Settings.device_verification.authentication_failed_failed_to_setup_device_verification'
+                    )
+                  )
+                );
               }
               return;
             }
@@ -140,11 +146,16 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
     useCallback(
       async (passphrase) => {
         const crypto = mx.getCrypto();
-        if (!crypto) throw new Error(t('Settings.device_verification.unexpected_error_crypto_module_not_found'));
+        if (!crypto)
+          throw new Error(
+            t('Settings.device_verification.unexpected_error_crypto_module_not_found')
+          );
 
         const recoveryKeyData = await crypto.createRecoveryKeyFromPassphrase(passphrase);
         if (!recoveryKeyData.encodedPrivateKey) {
-          throw new Error(t('Settings.device_verification.unexpected_error_failed_to_create_recovery_key'));
+          throw new Error(
+            t('Settings.device_verification.unexpected_error_failed_to_create_recovery_key')
+          );
         }
         clearSecretStorageKeys();
 
@@ -185,10 +196,15 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
-        {t('Settings.device_verification.generate_a')} <b>{t('General.recovery_key')}</b> {t('Settings.device_verification.for_verifying_identity_if_you_do_not_have_access_to_other_devices_additiona')}
+        {t('Settings.device_verification.generate_a')} <b>{t('General.recovery_key')}</b>{' '}
+        {t(
+          'Settings.device_verification.for_verifying_identity_if_you_do_not_have_access_to_other_devices_additiona'
+        )}
       </Text>
       <Box direction="Column" gap="100">
-        <Text size="L400">{t('General.passphrase')} ({t('General.optional')})</Text>
+        <Text size="L400">
+          {t('General.passphrase')} ({t('General.optional')})
+        </Text>
         <PasswordInput name="passphraseInput" size="400" readOnly={loading} />
       </Box>
       <Button
@@ -208,7 +224,9 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
           authData={nextAuthData ?? uiaAction.authData}
           unsupported={() => (
             <Text size="T200">
-              {t('Settings.device_verification.authentication_steps_to_perform_this_action_are_not_supported_by_client')}
+              {t(
+                'Settings.device_verification.authentication_steps_to_perform_this_action_are_not_supported_by_client'
+              )}
             </Text>
           )}
         >
@@ -248,7 +266,9 @@ function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) 
   return (
     <Box direction="Column" gap="400">
       <Text size="T300">
-        {t('Settings.device_verification.store_the_recovery_key_in_a_safe_place_for_future_use_as_you_will_need_it_t')}
+        {t(
+          'Settings.device_verification.store_the_recovery_key_in_a_safe_place_for_future_use_as_you_will_need_it_t'
+        )}
       </Text>
       <Box direction="Column" gap="100">
         <Text size="L400">{t('General.recovery_key')}</Text>
@@ -357,10 +377,15 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
             <Box direction="Column" gap="200">
               <Text size="H1">✋🧑‍🚒🤚</Text>
-              <Text size="T300">{t('Settings.device_verification.resetting_device_verification_is_permanent')}</Text>
               <Text size="T300">
-                {t('Settings.device_verification.anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption')}{' '}
-                <b>{t('General.recovery_key')}</b> or <b>{t('General.recovery_passphrase')}</b> {t('Settings.device_verification.and_every_device_you_can_verify_from')}
+                {t('Settings.device_verification.resetting_device_verification_is_permanent')}
+              </Text>
+              <Text size="T300">
+                {t(
+                  'Settings.device_verification.anyone_you_have_verified_with_will_see_security_alerts_and_your_encryption'
+                )}{' '}
+                <b>{t('General.recovery_key')}</b> or <b>{t('General.recovery_passphrase')}</b>{' '}
+                {t('Settings.device_verification.and_every_device_you_can_verify_from')}
               </Text>
             </Box>
             <Button variant="Critical" onClick={() => setReset(true)}>

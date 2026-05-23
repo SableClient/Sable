@@ -268,7 +268,16 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, hiddenRooms, isHidingRooms, isShowingAllRoomsInHome]);
+  }, [
+    mx,
+    rooms,
+    closedCategories,
+    roomToUnread,
+    selectedRoomId,
+    hiddenRooms,
+    isHidingRooms,
+    isShowingAllRoomsInHome,
+  ]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,

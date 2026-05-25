@@ -40,6 +40,10 @@ jobs:
   plan:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    environment: preview
+    env:
+      CLIENT_CONFIG_OVERRIDES_JSON: ${{ vars.CLIENT_CONFIG_OVERRIDES_JSON }}
+      CLIENT_CONFIG_OVERRIDES_STRICT: ${{ vars.CLIENT_CONFIG_OVERRIDES_STRICT || 'false' }}
     permissions:
       contents: read
       pull-requests: write
@@ -73,6 +77,10 @@ jobs:
   apply:
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLIENT_CONFIG_OVERRIDES_JSON: ${{ vars.CLIENT_CONFIG_OVERRIDES_JSON }}
+      CLIENT_CONFIG_OVERRIDES_STRICT: ${{ vars.CLIENT_CONFIG_OVERRIDES_STRICT || 'false' }}
     permissions:
       contents: read
     defaults:

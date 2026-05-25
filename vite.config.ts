@@ -50,6 +50,15 @@ const resolveBuildHash = (): string | undefined => {
 const appVersion = packageJson.version;
 const buildHash = resolveBuildHash();
 
+const injectedExperimentFlags: Record<string, boolean> = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([k]) => k.startsWith('VITE_FEATURE_'))
+    .map(([k, v]) => [
+      k.slice('VITE_FEATURE_'.length).toLowerCase().replace(/_/g, '-'),
+      v === 'true' || v === '1',
+    ])
+);
+
 const isReleaseTag = (() => {
   const envVal = process.env.VITE_IS_RELEASE_TAG;
   if (envVal !== undefined && envVal !== '') return envVal === 'true';
@@ -131,6 +140,7 @@ export default defineConfig(({ command }) => ({
     APP_VERSION: JSON.stringify(appVersion),
     BUILD_HASH: JSON.stringify(buildHash ?? ''),
     IS_RELEASE_TAG: JSON.stringify(isReleaseTag),
+    INJECTED_EXPERIMENT_FLAGS: JSON.stringify(injectedExperimentFlags),
   },
   resolve: {
     alias: {

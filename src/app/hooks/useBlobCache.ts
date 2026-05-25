@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
-import { mobileOrTablet } from '$utils/user-agent';
 
 const CACHE_NAME = 'sable-media-v1';
 const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-// iOS/Android devices have limited Cache API quota; keep the persistent cache
-// much smaller on mobile to avoid triggering iOS PWA storage eviction.
-const MAX_CACHE_SIZE_MB = mobileOrTablet() ? 50 : 300;
+const MAX_CACHE_SIZE_MB = 500; // Configurable limit
 
 const imageBlobCache = new Map<string, string>();
 const inflightRequests = new Map<string, Promise<string>>();
@@ -114,24 +111,9 @@ async function getCachedMedia(url: string): Promise<Blob | undefined> {
       return undefined;
     }
 
-    const blob = await response.blob();
-    // Update LRU timestamp on cache hit
-    touchCacheEntry(url);
-    return blob;
+    return await response.blob();
   } catch {
     return undefined;
-  }
-}
-
-/**
- * Touch a cache entry to mark it as recently used (for LRU eviction).
- */
-function touchCacheEntry(url: string): void {
-  const idx = cacheMetadata.findIndex((m) => m.url === url);
-  if (idx !== -1) {
-    const entry = cacheMetadata[idx]!;
-    cacheMetadata.splice(idx, 1);
-    cacheMetadata.push({ ...entry, cachedAt: Date.now() });
   }
 }
 
@@ -165,7 +147,17 @@ async function evictIfNeeded(): Promise<void> {
 }
 
 /**
+ * Clear the in-memory blob cache and any in-flight fetch requests.
+ * Does not affect persistent Cache API storage.
+ */
+export function clearInMemoryBlobCache(): void {
+  imageBlobCache.clear();
+  inflightRequests.clear();
+}
+
+/**
  * Clear all media from persistent cache.
+ * Also clears the in-memory cache.
  * Useful for "Clear Cache" settings option.
  */
 export async function clearMediaCache(): Promise<void> {
@@ -173,7 +165,7 @@ export async function clearMediaCache(): Promise<void> {
     await caches.delete(CACHE_NAME);
     cacheMetadata = [];
     metadataLoaded = false;
-    imageBlobCache.clear();
+    clearInMemoryBlobCache();
   } catch {
     // Cache clear failed — silent ignore
   }
@@ -195,6 +187,15 @@ export function getBlobCacheStats(): {
     persistentCacheSizeMB: totalSizeBytes / (1024 * 1024),
     persistentCacheCount: cacheMetadata.length,
   };
+}
+
+/**
+ * Async version of getBlobCacheStats that first ensures cache metadata is
+ * loaded from the Cache API. Use this in settings/diagnostics panels.
+ */
+export async function getBlobCacheStatsAsync(): Promise<ReturnType<typeof getBlobCacheStats>> {
+  await loadCacheMetadata();
+  return getBlobCacheStats();
 }
 
 /**

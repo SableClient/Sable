@@ -25,7 +25,6 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const [expand, setExpend] = useState(false);
   const [accountDataType, setAccountDataType] = useState<string | null>();
-
   const submitAccountData: AccountDataSubmitCallback = useCallback(
     async (type, content) => {
       // TODO: remove cast once account data typing is unified.

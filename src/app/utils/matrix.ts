@@ -332,18 +332,32 @@ export const mxcUrlToHttp = (
     useAuthentication
   );
 
-export const downloadMedia = async (src: string): Promise<Blob> => {
-  // this request is authenticated by service worker
-  const res = await fetch(src, { method: 'GET' });
+export const downloadMedia = async (
+  src: string,
+  /** Belt-and-suspenders fallback for when the service worker session is
+   * unavailable (e.g. iOS SW restart before setSession fires). The SW still
+   * adds auth for normal browser sub-resource loads when active. */
+  accessToken?: string | null
+): Promise<Blob> => {
+  // The service worker intercepts this request and adds auth; accessToken is a
+  // direct fallback so the header is present even when the SW has no session.
+  // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
+  const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  const res = await fetch(src, { method: 'GET', cache: 'no-cache', headers });
+  if (!res.ok) {
+    throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+  }
   const blob = await res.blob();
   return blob;
 };
 
 export const downloadEncryptedMedia = async (
   src: string,
-  decryptContent: (buf: ArrayBuffer) => Promise<Blob>
+  decryptContent: (buf: ArrayBuffer) => Promise<Blob>,
+  /** Forwarded to {@link downloadMedia} — see its doc for context. */
+  accessToken?: string | null
 ): Promise<Blob> => {
-  const encryptedContent = await downloadMedia(src);
+  const encryptedContent = await downloadMedia(src, accessToken);
   const decryptedContent = await decryptContent(await encryptedContent.arrayBuffer());
 
   return decryptedContent;

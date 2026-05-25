@@ -3,6 +3,7 @@ import type { ReactEventHandler, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';
+import { useProcessedAvatarSrc } from '$components/room-avatar/AvatarImage';
 import * as css from './UserAvatar.css';
 
 type UserAvatarProps = {
@@ -19,12 +20,13 @@ const handleImageLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
 
 export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
   const [error, setError] = useState(false);
+  const processedSrc = useProcessedAvatarSrc(src);
 
   useEffect(() => {
     setError(false);
   }, [src]);
 
-  if (!src || error) {
+  if (!processedSrc || error) {
     return (
       <AvatarFallback
         style={{ backgroundColor: colorMXID(userId), color: color.Surface.Container }}
@@ -38,7 +40,7 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
   return (
     <AvatarImage
       className={classNames(css.UserAvatar, className)}
-      src={src}
+      src={processedSrc}
       alt={alt}
       onError={() => setError(true)}
       onLoad={handleImageLoad}

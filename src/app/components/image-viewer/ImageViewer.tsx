@@ -3,6 +3,7 @@ import FileSaver from 'file-saver';
 import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useSetting } from '$state/hooks/settings';
 import { isPixelatedViewerRendering, settingsAtom } from '$state/settings';
 import { downloadMedia } from '$utils/matrix';
@@ -16,6 +17,7 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
+    const mx = useMatrixClient();
     const zoomInputRef = useRef<HTMLInputElement>(null);
     const [pixelatedImageRendering] = useSetting(settingsAtom, 'pixelatedImageRendering');
 
@@ -63,8 +65,12 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     }, [isEditingZoom]);
 
     const handleDownload = async () => {
-      const fileContent = await downloadMedia(src);
-      FileSaver.saveAs(fileContent, alt);
+      try {
+        const fileContent = await downloadMedia(src, mx.getAccessToken());
+        FileSaver.saveAs(fileContent, alt);
+      } catch {
+        // Download failed (e.g. network error or non-2xx response) — silently ignore.
+      }
     };
 
     return (

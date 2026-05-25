@@ -6,6 +6,7 @@ import type {
   MSC3575RoomSubscription,
   MSC3575SlidingSyncResponse,
 } from '$types/matrix-sdk';
+import { getRecentRoomIds } from '$utils/recentRooms';
 import {
   ClientEvent,
   ExtensionState,
@@ -43,9 +44,13 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// One event of timeline per list room is enough to compute unread counts;
-// the full history is loaded when the user opens the room.
-const LIST_TIMELINE_LIMIT = 1;
+// No timeline events for list rooms: server-provided notification_count is used
+// for unread counts. Timeline is loaded when the user opens a room. Requesting
+// events here causes ~N decryption calls for every list room on every sync cycle
+// (via room.decryptCriticalEvents()), producing noisy "Decrypted event is not in
+// room" SDK log spam for thread replies / reactions. Set > 0 only when a message
+// preview feature is enabled.
+const LIST_TIMELINE_LIMIT = 0;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -59,7 +64,7 @@ const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
 // Timeline limit for the active-room subscription (full history load).
-// List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
+// List entries use LIST_TIMELINE_LIMIT=0 (no events) to avoid startup decryption noise.
 const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
 
 export type PartialSlidingSyncRequest = {
@@ -157,10 +162,10 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
 
-  // Start with a reasonable initial range that will quickly expand to full list
-  // Since timeline_limit=1, loading many rooms is very cheap
-  // This prevents the white page issue from progressive loading delays
-  const initialRange = Math.min(pageSize, 100);
+  // Start with a small initial window so the first sync response is cheap:
+  // fewer rooms to process means less SDK work before the UI becomes interactive.
+  // expandListsToKnownCount() will progressively widen the range each cycle.
+  const initialRange = Math.min(pageSize, 20);
 
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
@@ -442,6 +447,12 @@ export class SlidingSyncManager {
       }
 
       this.expandListsToKnownCount();
+
+      // Prefetch recently-visited rooms after the initial sync completes so that
+      // navigating back to a recent room is fast (active subscription already warm).
+      if (this.syncCount === 1) {
+        this.prefetchRecentRooms();
+      }
 
       Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
         attributes: { transport: 'sliding' },
@@ -977,6 +988,84 @@ export class SlidingSyncManager {
     };
     this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
     this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
+  }
+
+  /**
+   * Prefetch recently-visited rooms by subscribing to them in a single batched
+   * call to modifyRoomSubscriptions. Calling subscribeToRoom() per room would
+   * trigger a modifyRoomSubscriptions + resend() for each room individually
+   * (N+1 resend calls), whereas this method collects all rooms first and issues
+   * one call, keeping startup sync churn to a minimum.
+   */
+  public prefetchRecentRooms(): void {
+    if (this.disposed) return;
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const toPrefetch = recentRoomIds.slice(0, 5); // Top 5 most recent
+
+    if (toPrefetch.length === 0) return;
+
+    debugLog.info('sync', 'Prefetching recent rooms', {
+      count: toPrefetch.length,
+      roomIds: toPrefetch,
+    });
+
+    // Phase 1: batch — add all rooms to activeRoomSubscriptions and set custom
+    // subscriptions, but defer modifyRoomSubscriptions until all are registered.
+    const toSubscribe: string[] = [];
+    for (const roomId of toPrefetch) {
+      const room = this.mx.getRoom(roomId);
+      if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
+      const isEncrypted = this.mx.isRoomEncrypted(roomId);
+      if (!isEncrypted) {
+        this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
+      }
+      this.activeRoomSubscriptions.add(roomId);
+      toSubscribe.push(roomId);
+    }
+
+    if (toSubscribe.length === 0) return;
+
+    // Phase 2: single modifyRoomSubscriptions covers all rooms at once.
+    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
+      attributes: { transport: 'sliding' },
+    });
+    debugLog.info('sync', 'Batch-subscribed recent rooms (prefetch)', {
+      count: toSubscribe.length,
+      roomIds: toSubscribe,
+      activeSubscriptions: this.activeRoomSubscriptions.size,
+      syncCycle: this.syncCount,
+    });
+
+    // Phase 3: register one-shot latency listeners per room (no modifyRoomSubscriptions needed).
+    const subscribeMs = performance.now();
+    for (const roomId of toSubscribe) {
+      const existingListener = this.pendingRoomDataListeners.get(roomId);
+      if (existingListener) {
+        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, existingListener);
+      }
+      const onFirstRoomData = (dataRoomId: string) => {
+        if (dataRoomId !== roomId) return;
+        const latencyMs = Math.round(performance.now() - subscribeMs);
+        const subscribedRoom = this.mx.getRoom(roomId);
+        const eventCount = subscribedRoom?.getLiveTimeline().getEvents().length ?? 0;
+        debugLog.info('sync', 'Room subscription: first data received (sliding prefetch)', {
+          latencyMs,
+          syncCycle: this.syncCount,
+          eventCount,
+        });
+        Sentry.metrics.distribution('sable.sync.room_sub_latency_ms', latencyMs, {
+          attributes: { transport: 'sliding' },
+        });
+        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
+        this.pendingRoomDataListeners.delete(roomId);
+      };
+      this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
+      this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
+    }
   }
 
   /**

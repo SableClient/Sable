@@ -60,7 +60,6 @@ import { useSpaceOptionally } from '$hooks/useSpace';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useImagePackRooms } from '$hooks/useImagePackRooms';
-import { MediaUrlCacheProvider } from '$hooks/useMediaUrlCacheContext';
 import { settingsAtom, MessageLayout } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { nicknamesAtom } from '$state/nicknames';
@@ -238,6 +237,9 @@ export function RoomTimeline({
   // viewportSize, we chase the bottom immediately instead of letting
   // setAtBottom(false) fire.
   const prevVListViewportRef = useRef(0);
+  // Track when viewport last changed (keyboard open/close) to suppress
+  // setAtBottom(false) during the settle window.
+  const lastViewportChangeTimeRef = useRef(0);
   const messageListRef = useRef<HTMLDivElement>(null);
 
   const mediaAuthentication = useMediaAuthentication();
@@ -915,6 +917,9 @@ export function RoomTimeline({
       // bottom before setAtBottom(false) is called.
       const viewportChanged =
         prevVListViewportRef.current > 0 && v.viewportSize !== prevVListViewportRef.current;
+      if (viewportChanged) {
+        lastViewportChangeTimeRef.current = Date.now();
+      }
       prevVListViewportRef.current = v.viewportSize;
 
       // Skip content-chase and cache saves during init: the timeline is hidden
@@ -946,7 +951,11 @@ export function RoomTimeline({
         });
         return;
       }
-      if (isNowAtBottom !== atBottomRef.current) {
+      // Don't flip atBottom to false while viewport change is settling (keyboard
+      // open/close). Wait for the chase RAF to complete and subsequent scroll
+      // events to stabilize before re-evaluating atBottom.
+      const withinViewportChangeWindow = Date.now() - lastViewportChangeTimeRef.current < 150;
+      if (isNowAtBottom !== atBottomRef.current && !withinViewportChangeWindow) {
         setAtBottom(isNowAtBottom);
       }
 
@@ -1174,8 +1183,7 @@ export function RoomTimeline({
   }, [timelineSync.eventsLength, timelineSync.backwardStatus, processedEvents.length]);
 
   return (
-    <MediaUrlCacheProvider>
-      <Box grow="Yes" style={{ position: 'relative' }}>
+    <Box grow="Yes" style={{ position: 'relative' }}>
         {unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady && (
           <TimelineFloat position="Top">
           <Chip
@@ -1389,6 +1397,5 @@ export function RoomTimeline({
         </div>
       )}
     </Box>
-    </MediaUrlCacheProvider>
   );
 }

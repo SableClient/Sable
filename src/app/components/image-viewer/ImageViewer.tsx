@@ -4,8 +4,6 @@ import classNames from 'classnames';
 import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useSetting } from '$state/hooks/settings';
-import { isPixelatedViewerRendering, settingsAtom } from '$state/settings';
 import { downloadMedia } from '$utils/matrix';
 import * as css from './ImageViewer.css';
 
@@ -19,7 +17,6 @@ export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, requestClose, ...props }, ref) => {
     const mx = useMatrixClient();
     const zoomInputRef = useRef<HTMLInputElement>(null);
-    const [pixelatedImageRendering] = useSetting(settingsAtom, 'pixelatedImageRendering');
 
     const [isImageReady, setIsImageReady] = useState(false);
     const [isEditingZoom, setIsEditingZoom] = useState(false);
@@ -231,10 +228,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
           onPointerDown={onPointerDown}
         >
           <img
-            className={classNames(
-              css.ImageViewerImg,
-              isPixelatedViewerRendering(pixelatedImageRendering) && css.ImageViewerImgPixelated
-            )}
+            className={css.ImageViewerImg}
             draggable={false}
             data-gestures="ignore"
             style={{

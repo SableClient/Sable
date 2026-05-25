@@ -605,6 +605,12 @@ export const setSettings = (settings: Settings) => {
   }
 };
 
+/**
+ * Ephemeral atom — true when the auto-idle hook has transitioned the user to idle.
+ * Not persisted to localStorage; resets to false on every page load.
+ */
+export const presenceAutoIdledAtom = atom(false);
+
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),
   (_get, set, update) => {

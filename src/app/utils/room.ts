@@ -124,6 +124,11 @@ export function isValidChild(mEvent: MatrixEvent): boolean {
   );
 }
 
+export const getShallowParents = (roomToParents: RoomToParents, roomId: string): string[] => {
+  const parents = roomToParents.get(roomId);
+  return parents ? Array.from(parents) : [];
+};
+
 export const getAllParents = (roomToParents: RoomToParents, roomId: string): Set<string> => {
   const allParents = new Set<string>();
 

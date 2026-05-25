@@ -12,22 +12,19 @@ import * as css from './RoomAvatar.css';
 // the mapping is stable for the lifetime of the page.
 const svgBlobCache = new Map<string, string>();
 
-type AvatarImageProps = {
-  src: string;
-  alt?: string;
-  uniformIcons?: boolean;
-  onError: () => void;
-};
-
-export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
-  const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
-  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const [processedSrc, setProcessedSrc] = useState<string>(src);
-
-  const useUniformIcons = uniformIconsSetting && uniformIcons === true;
-  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
+/**
+ * Hook to process avatar images, specifically handling SVG animations.
+ * Shares a module-level cache to avoid redundant processing.
+ */
+export function useProcessedAvatarSrc(src?: string): string | undefined {
+  const [processedSrc, setProcessedSrc] = useState<string | undefined>(src);
 
   useEffect(() => {
+    if (!src) {
+      setProcessedSrc(undefined);
+      return;
+    }
+
     let isMounted = true;
 
     const processImage = async () => {
@@ -77,18 +74,36 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
     };
   }, [src]);
 
+  return processedSrc;
+}
+
+type AvatarImageProps = {
+  src: string;
+  alt?: string;
+  uniformIcons?: boolean;
+  onError: () => void;
+};
+
+export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
+  const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
+  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
+  const processedSrc = useProcessedAvatarSrc(src);
+
+  const useUniformIcons = uniformIconsSetting && uniformIcons === true;
+  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
+
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');
     setImage(evt.currentTarget);
   };
 
-  const isBlobUrl = processedSrc.startsWith('blob:');
+  const isBlobUrl = processedSrc?.startsWith('blob:') ?? false;
 
   return (
     <FoldsAvatarImage
       className={css.RoomAvatar}
       style={{ backgroundColor: useUniformIcons ? normalizedBg : undefined }}
-      src={processedSrc}
+      src={processedSrc ?? src}
       crossOrigin={isBlobUrl ? undefined : 'anonymous'}
       alt={alt}
       onError={() => {
@@ -99,4 +114,19 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
       draggable={false}
     />
   );
+}
+
+/**
+ * Get the current size of the SVG blob cache (number of cached URLs).
+ */
+export function getSvgCacheSize(): number {
+  return svgBlobCache.size;
+}
+
+/**
+ * Clear all cached SVG blob URLs and revoke the blob URLs to free memory.
+ */
+export function clearSvgBlobCache(): void {
+  svgBlobCache.forEach((blobUrl) => URL.revokeObjectURL(blobUrl));
+  svgBlobCache.clear();
 }

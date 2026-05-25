@@ -315,17 +315,10 @@ export function ClientRoot({ children }: ClientRootProps) {
     }
   }, [mx]);
 
-  // Once the client has started (store loaded from IndexedDB, sync loop running),
-  // hide the splash immediately if there are cached rooms — no need to wait for
-  // the first server response. The SyncStatus banner shows "Connecting..." instead.
-  useEffect(() => {
-    if (startState.status !== AsyncStatus.Success || !mx) return;
-    if (isClientReady(mx.getSyncState())) return;
-    if (mx.getRooms().length > 0) {
-      setLoading(false);
-    }
-  }, [mx, startState.status]);
-
+  // Wait for the first sync response before hiding the splash, even if cached rooms
+  // exist. This prevents rooms from visibly jumping between spaces as the sort order
+  // stabilizes during the first few sync cycles. The ~1-2 second delay is worth the
+  // improved UX of a stable, correctly-sorted room list on first render.
   useSyncState(
     mx,
     useCallback((state: string) => {
@@ -398,7 +391,6 @@ export function ClientRoot({ children }: ClientRootProps) {
   return (
     <AutoDiscovery userId={userId ?? ''} baseUrl={baseUrl ?? ''}>
       <SpecVersions baseUrl={baseUrl ?? ''}>
-        {mx && <SyncStatus mx={mx} />}
         {swUpdateAvailable && (
           <Box direction="Column" shrink="No">
             <Box
@@ -421,6 +413,7 @@ export function ClientRoot({ children }: ClientRootProps) {
             <Line variant="Primary" size="300" />
           </Box>
         )}
+        {mx && <SyncStatus mx={mx} />}
         {(loading || !mx) && <ClientRootOptions mx={mx} onLogout={handleLogout} />}
         {hasClientRootError ? (
           <SplashScreen>

@@ -167,12 +167,14 @@ const MAX_CHUNK_RETRIES = 2;
 
 window.addEventListener('error', (event) => {
   // Check if this is a chunk loading error.
-  // Deliberately excludes 'Failed to fetch' — that string matches generic network
-  // errors (e.g. media auth failures after a SW restart) which must not trigger a
-  // page reload.
+  // Include 'Failed to fetch' only if it's from a script/style resource (not media/API).
   const isChunkLoadError =
     event.message?.includes('dynamically imported module') ||
-    event.error?.name === 'ChunkLoadError';
+    event.error?.name === 'ChunkLoadError' ||
+    (event.message?.includes('Failed to fetch') &&
+      (event.filename?.endsWith('.js') ||
+        event.filename?.endsWith('.css') ||
+        event.filename?.includes('/assets/')));
 
   if (isChunkLoadError) {
     const retryCount = parseInt(sessionStorage.getItem(CHUNK_RETRY_KEY) ?? '0', 10);

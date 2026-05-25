@@ -43,6 +43,9 @@ async function persistSettings() {
           showMessageContent,
           showEncryptedMessageContent,
           clearNotificationsOnRead,
+          // Persist when the app was last visible so cold-SW-restart suppression works on iOS/iPad.
+          // A timestamp lets us expire stale entries (app may have closed without sending false).
+          appVisibleAt: appIsVisible ? Date.now() : 0,
         }),
         { headers: { 'Content-Type': 'application/json' } }
       )
@@ -65,6 +68,18 @@ async function loadPersistedSettings() {
       showEncryptedMessageContent = s.showEncryptedMessageContent;
     if (typeof s.clearNotificationsOnRead === 'boolean')
       clearNotificationsOnRead = s.clearNotificationsOnRead;
+    // Restore appIsVisible from the last-known visibility timestamp.
+    // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
+    // If the app reported itself visible within the last 10 s, trust that it still is.
+    // Use a short window (10s) to reduce false positives from stale cache after crashes.
+    // The page will send an explicit visible=true message once it initializes anyway.
+    if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
+      const ageMs = Date.now() - s.appVisibleAt;
+      if (ageMs < 10_000) {
+        appIsVisible = true;
+        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
+      }
+    }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
   }

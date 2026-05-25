@@ -68,10 +68,24 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
       getSlidingSyncManager(mx)?.retryNow();
     };
 
+    // Debounce foreground events: both pageshow[persisted] and visibilitychange can
+    // fire within milliseconds of each other on iOS bfcache restore, so coalesce them
+    // to avoid duplicate sync retries.
+    let debounceTimer: number | undefined;
+    const debouncedRetry = () => {
+      if (debounceTimer !== undefined) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(() => {
+        debounceTimer = undefined;
+        doRetry();
+      }, 100); // 100ms window to catch both events
+    };
+
     const handleForeground = () => {
       if (document.visibilityState !== 'visible') return;
-      doRetry();
       debugLog.info('general', 'App foregrounded — sync retry triggered');
+      debouncedRetry();
 
       if (!mobileOrTablet()) return;
       // On iOS the network layer is not always immediately available when
@@ -94,6 +108,10 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
         if (document.visibilityState === 'visible') return;
         clearTimeout(t1);
         clearTimeout(t2);
+        if (debounceTimer !== undefined) {
+          clearTimeout(debounceTimer);
+          debounceTimer = undefined;
+        }
         document.removeEventListener('visibilitychange', cancelOnHide);
       };
       document.addEventListener('visibilitychange', cancelOnHide);
@@ -103,7 +121,10 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     // cache (bfcache). On some iOS versions the PWA can be restored from bfcache
     // without a visibilitychange event, so this acts as an extra safety net.
     const handlePageShow = (ev: PageTransitionEvent) => {
-      if (ev.persisted) handleForeground();
+      if (ev.persisted) {
+        debugLog.info('general', 'App restored from bfcache');
+        handleForeground();
+      }
     };
 
     document.addEventListener('visibilitychange', handleForeground);
@@ -111,6 +132,9 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     return () => {
       document.removeEventListener('visibilitychange', handleForeground);
       window.removeEventListener('pageshow', handlePageShow);
+      if (debounceTimer !== undefined) {
+        clearTimeout(debounceTimer);
+      }
     };
   }, [mx]);
 }

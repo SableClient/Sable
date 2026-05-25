@@ -343,12 +343,32 @@ export const downloadMedia = async (
   // direct fallback so the header is present even when the SW has no session.
   // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
   const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-  const res = await fetch(src, { method: 'GET', cache: 'no-cache', headers });
-  if (!res.ok) {
-    throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+  
+  // Add a 30-second timeout to prevent infinite hangs
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    const res = await fetch(src, { 
+      method: 'GET', 
+      cache: 'no-cache', 
+      headers,
+      signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
+    }
+    const blob = await res.blob();
+    return blob;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Media download timed out after 30 seconds', { cause: err });
+    }
+    throw err;
   }
-  const blob = await res.blob();
-  return blob;
 };
 
 export const downloadEncryptedMedia = async (

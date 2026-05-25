@@ -184,6 +184,21 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (autoPlay) loadSrc();
     }, [autoPlay, loadSrc]);
 
+    // Safety timeout: if the image src is ready but hasn't loaded within 30s,
+    // treat it as an error. This prevents infinite spinners when the browser
+    // silently fails to load the image (e.g. bad URL, CORS issue).
+    useEffect(() => {
+      if (srcState.status !== AsyncStatus.Success || load || error) return undefined;
+      const timeoutId = setTimeout(() => {
+        if (!load && !error) {
+          // eslint-disable-next-line no-console
+          console.warn('[ImageContent] Image load timeout after 30s:', url);
+          setError(true);
+        }
+      }, 30000);
+      return () => clearTimeout(timeoutId);
+    }, [srcState.status, load, error, url]);
+
     const imageW = info?.w;
     const imageH = info?.h;
     const hasDimensions = typeof imageW === 'number' && typeof imageH === 'number';

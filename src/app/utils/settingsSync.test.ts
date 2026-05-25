@@ -32,6 +32,7 @@ describe('NON_SYNCABLE_KEYS', () => {
       'isWidgetDrawer',
       'memberSortFilterIndex',
       'developerTools',
+      'enterForNewline',
       'settingsSyncEnabled',
     ] as const;
 

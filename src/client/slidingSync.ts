@@ -400,6 +400,30 @@ export class SlidingSyncManager {
         Sentry.metrics.count('sable.sync.error', 1, {
           attributes: { transport: 'sliding', state },
         });
+        
+        // Detect M_UNKNOWN_POS error (sliding sync position lost)
+        const errorData = err as { errcode?: string; httpStatus?: number };
+        if (errorData.errcode === 'M_UNKNOWN_POS' || (err.message && err.message.includes('M_UNKNOWN_POS'))) {
+          Sentry.addBreadcrumb({
+            category: 'sync.slidingSync',
+            message: 'Sliding sync position lost (M_UNKNOWN_POS) — full resync required',
+            data: {
+              syncNumber: this.syncCount,
+              lastPos: this.slidingSync.getPositionForList(this.listKeys[0] ?? 'default'),
+              roomsLoaded: this.mx.getRooms().length,
+              errorMessage: err.message,
+            },
+            level: 'error',
+          });
+          Sentry.captureMessage('Sliding sync M_UNKNOWN_POS detected', {
+            level: 'warning',
+            tags: { sync_transport: 'sliding' },
+            extra: {
+              syncNumber: this.syncCount,
+              roomCount: this.mx.getRooms().length,
+            },
+          });
+        }
       }
 
       if (this.disposed) {

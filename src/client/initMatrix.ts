@@ -462,6 +462,7 @@ export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | un
 
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
+  
   disposeSlidingSync(mx);
   const slidingConfig = config?.slidingSync;
   const slidingEnabledOnServer = resolveSlidingEnabled(slidingConfig?.enabled);
@@ -550,6 +551,17 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     let classicSyncCount = 0;
     const classicSyncStartMs = performance.now();
     let classicInitialSyncDone = false;
+    
+    // Create span for sync connecting stage
+    const syncConnectSpan = Sentry.startInactiveSpan({
+      name: 'app.startup.sync',
+      op: 'app.startup',
+      attributes: { 
+        'startup.stage': 'connecting',
+        'startup.transport': 'classic',
+      },
+    });
+    
     const classicSyncListener = (
       state: SyncState,
       prevState: SyncState | null,
@@ -601,6 +613,20 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         Sentry.metrics.distribution('sable.sync.initial_ms', elapsed, {
           attributes: { transport: 'classic' },
         });
+        
+        // End sync connect span and record first sync metrics
+        syncConnectSpan.setAttribute('startup.first_sync_rooms', mx.getRooms().length);
+        syncConnectSpan.setAttribute('startup.elapsed_ms', elapsed);
+        syncConnectSpan.end();
+        
+        // Start room list ready span
+        const roomListSpan = Sentry.startInactiveSpan({
+          name: 'app.startup.room_list',
+          op: 'app.startup',
+          attributes: { 'startup.room_count': mx.getRooms().length },
+        });
+        // End immediately for classic sync (room list is ready when first sync completes)
+        roomListSpan.end();
       }
     };
     classicSyncObserverByClient.set(mx, classicSyncListener);

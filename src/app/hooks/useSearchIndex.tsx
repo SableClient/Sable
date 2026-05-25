@@ -210,6 +210,22 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillRoom = useCallback(
     async (room: Room, state: BackfillState): Promise<void> => {
       if (state.done) return;
+      
+      const isEncrypted = room.hasEncryptionStateEvent();
+      
+      // Start per-room backfill span
+      const roomSpan = Sentry.startInactiveSpan({
+        name: 'search.backfill.room',
+        op: 'search.backfill',
+        attributes: {
+          'backfill.room_id': room.roomId,
+          'backfill.is_encrypted': isEncrypted,
+          'backfill.starting_count': state.indexedCount,
+        },
+      });
+      
+      let totalEventsThisSession = 0;
+      let totalPagesThisSession = 0;
 
       // Get or create headless timeline set for this room
       let headlessSet = headlessSetsRef.current.get(room.roomId);
@@ -240,12 +256,23 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       const prevEventCount = headlessTimeline.getEvents().length;
 
       let hasMore = false;
+      const pageSpan = Sentry.startInactiveSpan({
+        name: 'search.backfill.page',
+        op: 'search.backfill',
+        attributes: {
+          'backfill.page': totalPagesThisSession,
+          'backfill.from_token': seedToken,
+        },
+      });
+      
       try {
         hasMore = await mx.paginateEventTimeline(headlessTimeline, {
           backwards: true,
           limit: BACKFILL_PAGE_SIZE,
         });
       } catch {
+        pageSpan.setAttribute('backfill.error', true);
+        pageSpan.end();
         // Pagination error — the stored token has likely expired.
         // If we have an established frontier (oldestTs), re-queue this room
         // with token:null so the next attempt falls back to the live timeline
@@ -263,8 +290,16 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           });
         }
         backfillingRoomsRef.current.delete(room.roomId);
+        roomSpan.setAttribute('backfill.stopped_reason', 'pagination_error');
+        roomSpan.setAttribute('backfill.total_events', totalEventsThisSession);
+        roomSpan.setAttribute('backfill.total_pages', totalPagesThisSession);
+        roomSpan.end();
         return;
       }
+      
+      pageSpan.setAttribute('backfill.events_in_page', headlessTimeline.getEvents().length - prevEventCount);
+      pageSpan.end();
+      totalPagesThisSession += 1;
 
       // Only process events added by this pagination pass. The headless timeline
       // accumulates all paginated events, so slicing from prevEventCount avoids
@@ -299,6 +334,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       if (events.length > 0) {
         postToWorker({ type: 'INDEX_EVENTS', events });
       }
+      
+      totalEventsThisSession += events.length;
 
       const nextToken = headlessTimeline.getPaginationToken(Direction.Backward);
       const done = !hasMore || !nextToken;
@@ -338,6 +375,12 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           if (s !== SyncState.Syncing && s !== SyncState.Prepared && s !== SyncState.Catchup) {
             backfillingRoomsRef.current.delete(room.roomId);
             backfillQueueRef.current.unshift({ room, state: nextState });
+            Sentry.addBreadcrumb({
+              category: 'search.backfill',
+              message: `Backfill deferred for room ${room.roomId}`,
+              data: { reason: 'sync_not_healthy', syncState: s },
+              level: 'info',
+            });
             return;
           }
           // On mobile, pause when the tab is hidden to avoid unnecessary
@@ -345,12 +388,27 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           if (!HAS_IDLE_CALLBACK && document.visibilityState === 'hidden') {
             backfillingRoomsRef.current.delete(room.roomId);
             backfillQueueRef.current.unshift({ room, state: nextState });
+            Sentry.addBreadcrumb({
+              category: 'search.backfill',
+              message: `Backfill deferred for room ${room.roomId}`,
+              data: { 
+                reason: 'mobile_hidden', 
+                isMobile: !HAS_IDLE_CALLBACK, 
+                visibilityState: document.visibilityState 
+              },
+              level: 'info',
+            });
             return;
           }
           void backfillRoom(room, nextState);
         });
         cancelIdlesRef.current.push(cancel);
       } else {
+        // Backfill complete for this room
+        roomSpan.setAttribute('backfill.stopped_reason', hasMore ? 'no_token' : 'all_known');
+        roomSpan.setAttribute('backfill.total_events', totalEventsThisSession);
+        roomSpan.setAttribute('backfill.total_pages', totalPagesThisSession);
+        roomSpan.end();
         backfillingRoomsRef.current.delete(room.roomId);
         // Dequeue the next room from the concurrency queue while under the limit
         while (

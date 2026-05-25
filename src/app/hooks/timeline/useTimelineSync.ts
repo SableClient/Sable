@@ -600,16 +600,22 @@ export function useTimelineSync({
       // object, but with eventsLength still at 0 (before the re-render). Detect this
       // by comparing the SDK's current event count with React's last known count.
       const reactEventsLength = eventsLengthRef.current;
-      const isStale = timeline.linkedTimelines[0] !== getLiveTimeline(room);
+      const currentLiveTimeline = getLiveTimeline(room);
+      // linkedTimelines is ordered oldest→newest, so live timeline is last
+      const isStale =
+        timeline.linkedTimelines.length === 0 ||
+        timeline.linkedTimelines[timeline.linkedTimelines.length - 1] !== currentLiveTimeline;
       const needsUpdate = reactEventsLength === 0 || isStale;
       if (!needsUpdate) return;
-      setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
+      // Force timeline update with fresh SDK state. This ensures the React
+      // timeline state picks up the newly-injected events after PTR.
+      setTimeline({ linkedTimelines: getLinkedTimelines(currentLiveTimeline) });
     };
     mx.on(ClientEvent.Room, handleRoomInitialized);
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room, timeline.linkedTimelines]);
+  }, [mx, room, timeline.linkedTimelines, eventsLengthRef]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);

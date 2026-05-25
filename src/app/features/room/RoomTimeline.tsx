@@ -519,12 +519,13 @@ export function RoomTimeline({
       const newHeight = entries[0]!.contentRect.height;
       const prev = prevViewportHeightRef.current;
       const atBottom = atBottomRef.current;
-      const shrank = newHeight < prev;
+      const changed = newHeight !== prev;
 
-      if (shrank && atBottom) {
+      // Handle both viewport shrinking (keyboard open) and expanding (keyboard close)
+      // to prevent the "Jump to Present" button from flashing during these transitions.
+      if (changed && atBottom) {
         // Record the programmatic pin so handleVListScroll sees withinSettleWindow=true
         // and doesn't flip atBottom to false while VList commits the new scroll position.
-        // Without this, the "Jump to Present" button flashes every time the keyboard opens.
         lastProgrammaticBottomPinAtRef.current = Date.now();
         vListRef.current?.scrollTo(vListRef.current.scrollSize);
       }

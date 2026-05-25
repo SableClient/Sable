@@ -51,6 +51,10 @@ export type ClientConfig = {
 
   settingsDefaults?: Partial<Settings>;
 
+  features?: {
+    encryptedSearch?: boolean;
+  };
+
   experiments?: Record<string, ExperimentConfig>;
 };
 

@@ -92,7 +92,7 @@ export function TiptapEmoticonAutocomplete({
         </Text>
       )}
       {candidates.map((item) => {
-        const key = getKey(item);
+        const key = getEmoticonKey(item);
         const shortcode = getShortcode(item);
         const isMxc = key.startsWith('mxc://');
         const imgSrc = isMxc ? (mxcUrlToHttp(mx, key, useAuthentication) ?? key) : undefined;

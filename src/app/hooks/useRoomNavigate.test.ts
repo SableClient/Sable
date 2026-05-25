@@ -74,7 +74,7 @@ describe('useRoomNavigate', () => {
       const roomId = '!room:example.org';
       const spaceId = '!space:example.org';
 
-      store.set(mDirectAtom, { type: 'INITIALIZE', rooms: new Set() });
+      store.set(mDirectAtom, { type: 'INITIALIZE', rooms: new Set<string>() });
       // spaceId is a parent of roomId and is itself an orphan (top-level space)
       const roomToParents = new Map<string, Set<string>>();
       roomToParents.set(roomId, new Set([spaceId]));
@@ -96,7 +96,7 @@ describe('useRoomNavigate', () => {
       const store = createStore();
       const roomId = '!room:example.org';
 
-      store.set(mDirectAtom, { type: 'INITIALIZE', rooms: new Set() });
+      store.set(mDirectAtom, { type: 'INITIALIZE', rooms: new Set<string>() });
       store.set(roomToParentsAtom, { type: 'INITIALIZE', roomToParents: new Map() });
 
       const { result } = renderHook(() => useRoomNavigate(), {

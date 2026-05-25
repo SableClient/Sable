@@ -269,14 +269,21 @@ type RoomNavItemProps = {
   customDMCards?: boolean;
   hideText?: boolean;
   joinCallOnSingleClick?: boolean;
+  roomTopicPreview?: boolean;
+  roomMessagePreview?: boolean;
+  dmMessagePreview?: boolean;
 };
 
+/* oxlint-disable no-unused-vars */
 export function RoomNavItem({
   room,
   selected,
   showAvatar,
   direct,
   customDMCards,
+  roomTopicPreview: _roomTopicPreview = false,
+  roomMessagePreview: _roomMessagePreview = false,
+  dmMessagePreview: _dmMessagePreview = true,
   notificationMode,
   linkPath,
   hideText,

@@ -192,6 +192,8 @@ export interface Settings {
   // experimental
   enableMessageBookmarks: boolean;
   enableBookmarkReminders: boolean;
+  editInInput: boolean;
+  messageGroupingThreshold: number;
 
   // furry stuff
   renderAnimals: boolean;
@@ -360,6 +362,8 @@ export const defaultSettings: Settings = {
   // experimental
   enableMessageBookmarks: false,
   enableBookmarkReminders: false,
+  editInInput: false,
+  messageGroupingThreshold: 180000,
 };
 
 function cloneDefaultSettings(): Settings {

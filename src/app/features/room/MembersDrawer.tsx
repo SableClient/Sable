@@ -36,7 +36,7 @@ import { TypingIndicator } from '$components/typing-indicator';
 import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { ScrollTopContainer } from '$components/scroll-top-container';
@@ -138,6 +138,35 @@ function MemberItem({
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);
+
+  // Own presence badge is driven from settings state rather than the SDK's User object.
+  // The SDK won't echo your own presence back on MSC4186 sliding sync, so reading
+  // user.presence would leave the badge stuck at the SDK default forever.
+  const isOwnUser = member.userId === mx.getUserId();
+  const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const autoIdled = useAtomValue(presenceAutoIdledAtom);
+
+  let presenceBadge: React.ReactNode = undefined;
+  let statusMessage: string | undefined = undefined;
+
+  if (isOwnUser) {
+    // Show own presence badge from settings state
+    if (sendPresence) {
+      const effectiveDisplayMode = autoIdled ? Presence.Unavailable : (presenceMode ?? Presence.Online);
+      presenceBadge = <PresenceBadge presence={effectiveDisplayMode} size="200" />;
+    }
+    // Show own status message from settings state (status msg never echoed back on sliding sync)
+    statusMessage = presenceStatusMsg;
+  } else {
+    // Show other users' presence badges from SDK User object
+    if (presence && presence.presence !== Presence.Offline) {
+      presenceBadge = <PresenceBadge presence={presence.presence} size="200" />;
+    }
+    statusMessage = presence?.status;
+  }
+
   const MemberAvatar = (
     <div
       style={{
@@ -148,13 +177,7 @@ function MemberItem({
         transformOrigin: 'center',
       }}
     >
-      <AvatarPresence
-        badge={
-          presence && presence.presence !== Presence.Offline ? (
-            <PresenceBadge presence={presence.presence} size="200" />
-          ) : undefined
-        }
-      >
+      <AvatarPresence badge={presenceBadge}>
         <Avatar size="300" radii="400">
           <UserAvatar
             userId={member.userId}
@@ -200,7 +223,7 @@ function MemberItem({
         <Text size="T300" truncate style={{ color, fontFamily: font, lineHeight: '1.2' }}>
           {name}
         </Text>
-        {presence?.status && (
+        {statusMessage && (
           <Text
             size="T200"
             truncate
@@ -210,7 +233,7 @@ function MemberItem({
               marginTop: '-2px',
             }}
           >
-            {presence.status}
+            {statusMessage}
           </Text>
         )}
       </Box>

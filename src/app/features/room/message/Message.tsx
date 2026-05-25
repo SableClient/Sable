@@ -281,10 +281,9 @@ const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, 
 type MorePronounsPillProps = {
   pronouns: PronounSet[];
   tagColor: string;
-  maxPillLength: number;
 };
 
-function MorePronounsPill({ pronouns, tagColor, maxPillLength }: MorePronounsPillProps) {
+function MorePronounsPill({ pronouns, tagColor }: MorePronounsPillProps) {
   const [anchor, setAnchor] = useState<RectCords | undefined>();
 
   const toggleAnchor = (target: HTMLElement) => {
@@ -312,7 +311,7 @@ function MorePronounsPill({ pronouns, tagColor, maxPillLength }: MorePronounsPil
     return () => document.removeEventListener('click', dismiss);
   }, [anchor]);
 
-  const tooltipText = pronouns.map((p) => clamp(p.summary, maxPillLength)).join(', ');
+  const tooltipText = pronouns.map((p) => clamp(p.summary, 16)).join(', ');
 
   const tooltipContent = (
     <Tooltip style={{ maxWidth: toRem(250) }}>
@@ -393,11 +392,7 @@ const Pronouns = as<
         </PronounPill>
       ))}
       {visiblePronouns.length > limit && (
-        <MorePronounsPill
-          pronouns={visiblePronouns.slice(limit)}
-          tagColor={tagColor}
-          maxPillLength={maxPillLength}
-        />
+        <MorePronounsPill pronouns={visiblePronouns.slice(limit)} tagColor={tagColor} />
       )}
     </AsPronouns>
   );

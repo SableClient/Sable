@@ -477,10 +477,13 @@ export class SlidingSyncManager {
               }
             }
 
-            // Check if this room has been visited in this session - never reset those
-            // to avoid blanking the UI when the user is actively viewing the room.
-            if (this.visitedRoomsThisSession.has(roomId)) {
-              debugLog.info('sync', 'Skipping timeline reset for visited room', {
+            // Check if this room has been visited in this session - skip automatic
+            // resets to avoid blanking the UI when the user is actively viewing the room.
+            // Exception: allow resets during PTR (pendingResubscriptions set) because the
+            // user explicitly requested a refresh.
+            const isPTRMode = this.pendingResubscriptions && this.pendingResubscriptions.size > 0;
+            if (!isPTRMode && this.visitedRoomsThisSession.has(roomId)) {
+              debugLog.info('sync', 'Skipping automatic timeline reset for visited room', {
                 roomId,
                 localEvents: localEvents.length,
                 serverEvents: serverEvents.length,

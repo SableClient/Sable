@@ -43,6 +43,7 @@ export * from 'matrix-js-sdk/lib/@types/spaces';
 export * from 'matrix-js-sdk/lib/@types/read_receipts';
 export * from 'matrix-js-sdk/lib/@types/membership';
 export * from 'matrix-js-sdk/lib/@types/registration';
+export * from 'matrix-js-sdk/lib/@types/polls';
 
 export * from 'matrix-js-sdk/lib/oidc/validate';
 export { VerificationMethod } from 'matrix-js-sdk/lib/types';

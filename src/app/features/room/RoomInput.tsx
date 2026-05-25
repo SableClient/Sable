@@ -165,6 +165,7 @@ import type {
   AudioRecordingCompletePayload,
 } from './AudioMessageRecorder';
 import { AudioMessageRecorder } from './AudioMessageRecorder';
+import { PollCreator } from './PollCreator';
 import * as prefix from '$unstable/prefixes';
 
 // Returns the event ID of the most recent non-reaction/non-edit event in a thread,
@@ -391,6 +392,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     );
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
     const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+    const [pollCreatorOpen, setPollCreatorOpen] = useState(false);
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
@@ -861,6 +863,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       } else if (commandName === Command.UnFlip) {
         plainText = `${UNFLIP} ${plainText}`;
         customHtml = `${UNFLIP} ${customHtml}`;
+      } else if (commandName === Command.CreatePoll) {
+        setPollCreatorOpen(true);
+        resetEditor(editor);
+        resetEditorHistory(editor);
+        sendTypingStatus(false);
+        return;
       } else if (commandName) {
         const commandContent = commands[commandName as Command];
         if (commandContent) {
@@ -1941,6 +1949,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             }}
           />
         )}
+        {pollCreatorOpen && <PollCreator room={room} onClose={() => setPollCreatorOpen(false)} />}
       </div>
     );
   }

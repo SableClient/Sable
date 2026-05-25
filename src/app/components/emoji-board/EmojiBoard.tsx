@@ -545,6 +545,7 @@ export function EmojiBoard({
         isKeyBackward: (evt: KeyboardEvent) =>
           !editableActiveElement() && isKeyHotkey(['arrowup', 'arrowleft'], evt),
         escapeDeactivates: stopPropagation,
+        tabbableOptions: { displayCheck: 'none' },
       }}
     >
       <EmojiBoardLayout

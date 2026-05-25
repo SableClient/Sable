@@ -381,7 +381,11 @@ export function BackgroundNotifications() {
             // For "Mention & Keywords": respect the push rule (only notify if it matches).
             const shouldForceDMNotification =
               isDM && notificationType !== NotificationType.MentionsAndKeywords;
-            const shouldNotify = pushActions?.notify || shouldForceDMNotification;
+            // For rooms explicitly set to "All Messages": force-notify, mirroring the DM bypass.
+            const shouldForceRoomLoudNotification =
+              !isDM && notificationType === NotificationType.AllMessages;
+            const shouldNotify =
+              pushActions?.notify || shouldForceDMNotification || shouldForceRoomLoudNotification;
 
             if (!shouldNotify) {
               debugLog.debug('notification', 'Event filtered - no push action match', {
@@ -395,6 +399,9 @@ export function BackgroundNotifications() {
 
             const loudByRule = Boolean(pushActions.tweaks?.sound);
             const isHighlight = Boolean(pushActions.tweaks?.highlight);
+            // Treat DMs and "All Messages" rooms as inherently loud when the push rule lacks a
+            // sound tweak (common with sliding sync where room_member_count conditions fail).
+            const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
 
             debugLog.info('notification', 'Processing notification event', {
               eventId,
@@ -402,7 +409,7 @@ export function BackgroundNotifications() {
               eventType,
               isDM,
               isHighlight,
-              loud: loudByRule,
+              loud: isLoud,
             });
 
             const senderName =
@@ -429,7 +436,7 @@ export function BackgroundNotifications() {
             });
 
             // Silent-rule events: unread badge updated above; no OS notification or sound.
-            if (!loudByRule && !isHighlight) {
+            if (!isLoud && !isHighlight) {
               debugLog.debug('notification', 'Silent notification - badge updated only', {
                 eventId,
                 roomId: room.roomId,
@@ -458,8 +465,8 @@ export function BackgroundNotifications() {
                 showMessageContent: showMessageContentRef.current,
                 showEncryptedMessageContent: showEncryptedMessageContentRef.current,
               }),
-              // Play sound only if the push rule requests it and the user has sounds enabled.
-              silent: !notificationSoundRef.current || !loudByRule,
+              // Play sound only if the event is loud and the user has sounds enabled.
+              silent: !notificationSoundRef.current || !isLoud,
               eventId,
               data: {
                 type: mEvent.getType(),
@@ -502,9 +509,9 @@ export function BackgroundNotifications() {
                 icon: notificationPayload.options.icon,
                 onClick: notifOnClick,
               });
-            } else if (loudByRule) {
-              // App is backgrounded or in-app notifications disabled â€” fire an OS notification.
-              // Only send for loud (sound-tweak) rules; highlight-only events are silently counted.
+            } else if (isLoud) {
+              // App is backgrounded or in-app notifications disabled — fire an OS notification.
+              // Send for loud events (includes DMs and rooms set to "All Messages").
               debugLog.info('notification', 'Sending OS notification', {
                 eventId,
                 roomId: room.roomId,

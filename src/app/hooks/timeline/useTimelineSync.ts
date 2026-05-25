@@ -63,16 +63,6 @@ const useEventTimelineLoader = (
       Sentry.startSpan({ name: 'timeline.jump_load', op: 'matrix.timeline' }, async () => {
         const jumpLoadStart = performance.now();
 
-        if (!room.getUnfilteredTimelineSet().getTimelineForEvent(eventId)) {
-          await withTimeout(
-            mx.roomInitialSync(room.roomId, PAGINATION_LIMIT),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-          await withTimeout(
-            mx.getLatestTimeline(room.getUnfilteredTimelineSet()),
-            EVENT_TIMELINE_LOAD_TIMEOUT_MS
-          );
-        }
         const [err, replyEvtTimeline] = await to(
           withTimeout(
             mx.getEventTimeline(room.getUnfilteredTimelineSet(), eventId),
@@ -535,13 +525,21 @@ export function useTimelineSync({
   useLiveTimelineRefresh(
     room,
     useCallback(() => {
+      // If the user arrived via a notification event link, reload that event's
+      // context rather than dropping back to the live timeline — otherwise a
+      // sync gap (TimelineReset / TimelineRefresh) would silently discard the
+      // loaded context and the notification event would no longer be visible.
+      if (eventId) {
+        void loadEventTimeline(eventId);
+        return;
+      }
       const wasAtBottom = isAtBottomRef.current;
       resetAutoScrollPendingRef.current = wasAtBottom;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
       if (wasAtBottom) {
         scrollToBottom('instant');
       }
-    }, [room, isAtBottomRef, scrollToBottom])
+    }, [eventId, loadEventTimeline, room, isAtBottomRef, scrollToBottom])
   );
 
   useRelationUpdate(

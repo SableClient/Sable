@@ -199,7 +199,7 @@ function InviteNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play().catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -273,7 +273,7 @@ function MessageNotifications() {
 
   const playSound = useCallback(() => {
     const audioElement = audioRef.current;
-    audioElement?.play();
+    audioElement?.play().catch(() => {});
     clearMediaSessionQuickly();
   }, []);
 
@@ -383,7 +383,13 @@ function MessageNotifications() {
       // For "Mention & Keywords": respect the push rule (only notify if it matches).
       const shouldForceDMNotification =
         isDM && notificationType !== NotificationType.MentionsAndKeywords;
-      const shouldNotify = pushActions?.notify || shouldForceDMNotification;
+      // For rooms explicitly set to "All Messages": also force-notify, mirroring the DM
+      // bypass above.  Push-rule evaluation can silently return notify=false when the
+      // room-specific rule was written by another client with a different action format.
+      const shouldForceRoomLoudNotification =
+        !isDM && notificationType === NotificationType.AllMessages;
+      const shouldNotify =
+        pushActions?.notify || shouldForceDMNotification || shouldForceRoomLoudNotification;
 
       // If we shouldn't notify based on rules/settings, skip everything
       if (!shouldNotify) return;
@@ -397,7 +403,10 @@ function MessageNotifications() {
       // messages fall through to .m.rule.message which carries no sound tweak —
       // leaving loudByRule=false.  Treat known DMs as inherently loud so that
       // the OS notification and badge are consistent with the DM context.
-      const isLoud = loudByRule || isDM;
+      // Similarly, rooms explicitly set to "All Messages" are treated as loud
+      // even when the room-specific push rule was written by another client
+      // without a sound tweak, or when push-rule evaluation fails silently.
+      const isLoud = loudByRule || isDM || shouldForceRoomLoudNotification;
 
       // Record as notified to prevent duplicate banners (e.g. re-emitted decrypted events).
       notifiedEventsRef.current.add(eventId);
@@ -454,13 +463,17 @@ function MessageNotifications() {
         }
       }
 
-      // Everything below requires the page to be visible (in-app UI + audio).
+      // In-app audio plays regardless of tab visibility — sound doesn't require the page to be visible.
+      if (notificationSound && isLoud) {
+        playSound();
+      }
+
+      // Everything below requires the page to be visible (in-app UI only).
       if (document.visibilityState !== 'visible') return;
 
       // Page is visible — show the themed in-app notification banner.
-      // For non-DM rooms, only show banner for highlighted messages (mentions/keywords).
-      // For DMs, show banner for all messages.
-      if (showNotifications && (isHighlightByRule || isDM)) {
+      // Show for DMs, highlighted messages (mentions/keywords), or any loud push-rule match.
+      if (showNotifications && (isHighlightByRule || isDM || isLoud)) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         const roomAvatar = avatarMxc
@@ -532,10 +545,7 @@ function MessageNotifications() {
         });
       }
 
-      // In-app audio: play when notification sounds are enabled AND this notification is loud.
-      if (notificationSound && isLoud) {
-        playSound();
-      }
+      // (Audio is handled above the visibility gate.)
     };
     mx.on(RoomEvent.Timeline, handleTimelineEvent);
     return () => {

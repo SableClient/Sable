@@ -179,29 +179,6 @@ export const getOrphanParents = (roomToParents: RoomToParents, roomId: string): 
   return Array.from(parents).filter((parentRoomId) => !roomToParents.has(parentRoomId));
 };
 
-/**
- * Returns the direct parent(s) of a room that are "most top-level" — i.e., the
- * direct parents with the fewest ancestor spaces of their own.  Prefers parents
- * that are themselves orphans (0 ancestors) when any exist.
- *
- * Falls back to {@link getOrphanParents} when the room has no direct parent
- * mapping, preserving the existing behaviour for rooms joined outside any space.
- */
-export const getShallowParents = (roomToParents: RoomToParents, roomId: string): string[] => {
-  const directParents = roomToParents.get(roomId);
-  if (!directParents || directParents.size === 0) {
-    return getOrphanParents(roomToParents, roomId);
-  }
-  const parents = Array.from(directParents);
-  if (parents.length === 1) return parents;
-  // Among multiple direct parents, keep those with the fewest ancestors
-  // (most top-level). This handles rooms that appear in both a top-level
-  // space and a sub-space, preferring the top-level one.
-  const ancestorCounts = parents.map((p) => getAllParents(roomToParents, p).size);
-  const minCount = Math.min(...ancestorCounts);
-  return parents.filter((_, i) => ancestorCounts[i] === minCount);
-};
-
 const hasNotifyPushAction = (actions: IPushRule['actions']): boolean =>
   actions.some((a) => typeof a === 'string' && a === PushRuleActionName.Notify);
 
@@ -232,7 +209,8 @@ export const getNotificationType = (mx: MatrixClient, roomId: string): Notificat
     return NotificationType.Default;
   }
 
-  if ((roomPushRule.actions[0] as string) === 'notify') return NotificationType.AllMessages;
+  if ((roomPushRule.actions as string[]).some((a) => a === 'notify'))
+    return NotificationType.AllMessages;
   return NotificationType.MentionsAndKeywords;
 };
 
@@ -243,15 +221,6 @@ const NOTIFICATION_EVENT_TYPES = new Set([
   'm.room.member',
   'm.sticker',
   'm.reaction',
-]);
-
-// Event types that represent actual user-sent messages.
-// Used to guard phantom-unread suppression so state events (e.g. m.room.create,
-// m.room.member) and reactions do not incorrectly clear notification badges.
-const SUPPRESSABLE_SENT_EVENT_TYPES = new Set<string>([
-  'm.room.message',
-  'm.room.encrypted',
-  'm.sticker',
 ]);
 export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
@@ -354,9 +323,8 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     if (
       latestEvent &&
       !latestEvent.isSending() &&
-      SUPPRESSABLE_SENT_EVENT_TYPES.has(latestEvent.getType()) &&
       latestEvent.getSender() === userId &&
-      isNotificationEvent(latestEvent, room, userId)
+      isNotificationEvent(latestEvent)
     ) {
       return { roomId: room.roomId, highlight: 0, total: 0 };
     }
@@ -413,14 +381,9 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (!event) break;
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
+        fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
-        // Only count events that would actually generate a push notification.
-        // This excludes reactions (which use dont_notify by default push rules)
-        // and prevents the fallback from creating phantom unreads the SDK ignores.
-        if (pushActions?.notify) {
-          fallbackTotal += 1;
-          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
-        }
+        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
       }
     }
     if (fallbackTotal > 0) {
@@ -432,14 +395,36 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // Sliding sync limitation: unvisited rooms don't have read receipt data, but may have
+  // timeline activity. Check for notification events from others in the timeline to show a
+  // badge even when SDK counts are 0 (or unreliable without receipts).
+  if (userId) {
+    const readUpToId = room.getEventReadUpTo(userId);
+
+    // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
+    if (!readUpToId) {
+      const liveEvents = room.getLiveTimeline().getEvents();
+
+      const hasActivity = liveEvents.some(
+        (event) => event.getSender() !== userId && isNotificationEvent(event, room, userId)
+      );
+
+      if (hasActivity) {
+        // If SDK already has counts, use those. Otherwise show dot badge (count=1).
+        if (total === 0 && highlight === 0) {
+          return { roomId: room.roomId, highlight: 0, total: 1 };
+        }
+        // SDK has counts but no receipt - trust the counts and show them
+        return { roomId: room.roomId, highlight, total };
+      }
+    }
+  }
+
   // For DMs with Default or AllMessages notification type: if there are unread messages,
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with
   // member_count condition failures, or sliding sync with limited required_state).
-  // Guard on room-level (non-thread) total: thread-only unreads in DMs should not
-  // be force-highlighted — the thread's own push rules handle highlight there.
-  const roomLevelTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
-  if (shouldForceDMHighlight && roomLevelTotal > 0 && highlight === 0) {
+  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
     return {
       roomId: room.roomId,
       highlight: total, // Treat all unread messages as highlights for DMs

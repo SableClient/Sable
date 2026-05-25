@@ -607,10 +607,17 @@ export function useTimelineSync({
       const isStale =
         timeline.linkedTimelines.length === 0 ||
         timeline.linkedTimelines[timeline.linkedTimelines.length - 1] !== currentLiveTimeline;
-      const needsUpdate = reactEventsLength === 0 || isStale;
+      
+      // Calculate actual event count from SDK's current timeline chain to detect
+      // if events were appended without changing the timeline object reference
+      const currentSdkEventCount = getTimelinesEventsCount(getLinkedTimelines(currentLiveTimeline));
+      const eventCountChanged = currentSdkEventCount !== reactEventsLength;
+      
+      const needsUpdate = reactEventsLength === 0 || isStale || eventCountChanged;
       if (!needsUpdate) return;
       // Force timeline update with fresh SDK state. This ensures the React
-      // timeline state picks up the newly-injected events after PTR.
+      // timeline state picks up the newly-injected events after PTR or when
+      // the SDK appends events (e.g., room subscription expanded timeline_limit).
       setTimeline({ linkedTimelines: getLinkedTimelines(currentLiveTimeline) });
     };
     mx.on(ClientEvent.Room, handleRoomInitialized);

@@ -128,12 +128,13 @@ export function usePullToRefresh(
       getSlidingSyncManager(mx)?.scheduleForceReset();
 
       // Brief delay so the spinner is visible before snapping back.
+      // Reduced from 800ms to 400ms for faster perceived responsiveness.
       setTimeout(() => {
         refreshingRef.current = false;
         el.style.transform = '';
         el.style.transition = '';
         hideIndicator();
-      }, 800);
+      }, 400);
     };
 
     const onTouchStart = (e: TouchEvent) => {

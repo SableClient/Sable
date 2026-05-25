@@ -48,6 +48,7 @@ import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/use
 import { useGetMemberPowerLevel, usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
 import { MemberSortMenu } from '$components/MemberSortMenu';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -124,6 +125,7 @@ function MemberItem({
   typing,
   hideText,
 }: MemberItemProps) {
+  const convertMxc = useCachedMxcConverter();
   const nicknames = useAtomValue(nicknamesAtom);
   const name =
     getMemberDisplayName(room, member.userId, nicknames) ??
@@ -133,7 +135,7 @@ function MemberItem({
   // Increased the request size to 128x128 to maintain quality for the larger avatar
   const avatarMxcUrl = member.getMxcAvatarUrl();
   const avatarUrl = avatarMxcUrl
-    ? mx.mxcUrlToHttp(avatarMxcUrl, 128, 128, 'crop', undefined, false, useAuthentication)
+    ? convertMxc(mx, avatarMxcUrl, useAuthentication, 128, 128, 'crop')
     : undefined;
 
   const presence = useUserPresence(member.userId);

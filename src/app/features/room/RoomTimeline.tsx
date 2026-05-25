@@ -953,8 +953,10 @@ export function RoomTimeline({
       }
       // Don't flip atBottom to false while viewport change is settling (keyboard
       // open/close). Wait for the chase RAF to complete and subsequent scroll
-      // events to stabilize before re-evaluating atBottom.
-      const withinViewportChangeWindow = Date.now() - lastViewportChangeTimeRef.current < 150;
+      // events to stabilize before re-evaluating atBottom. 500ms window allows
+      // for slower devices and multiple rapid viewport changes (keyboard animations,
+      // address bar hiding, etc.) to complete before checking scroll position.
+      const withinViewportChangeWindow = Date.now() - lastViewportChangeTimeRef.current < 500;
       if (isNowAtBottom !== atBottomRef.current && !withinViewportChangeWindow) {
         setAtBottom(isNowAtBottom);
       }

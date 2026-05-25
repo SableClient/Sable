@@ -25,6 +25,7 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
@@ -40,6 +41,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
   ({ className, room, initialKey, relations, requestClose, ...props }, ref) => {
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
+    const convertMxc = useCachedMxcConverter();
     const reactions = useRelations(
       relations,
       useCallback((rel) => [...(rel.getSortedAnnotationsByKey() ?? [])], [])
@@ -117,14 +119,13 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
 
                   const avatarMxcUrl = member?.getMxcAvatarUrl();
                   const avatarUrl = avatarMxcUrl
-                    ? mx.mxcUrlToHttp(
+                    ? convertMxc(
+                        mx,
                         avatarMxcUrl,
+                        useAuthentication,
                         100,
                         100,
-                        'crop',
-                        undefined,
-                        false,
-                        useAuthentication
+                        'crop'
                       )
                     : undefined;
 

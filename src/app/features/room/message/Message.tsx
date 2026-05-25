@@ -40,7 +40,6 @@ import {
   getMemberAvatarMxc,
   isThreadRelationEvent,
 } from '$utils/room';
-import { mxcUrlToHttp } from '$utils/matrix';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { nicknamesAtom, setNicknameAtom } from '$state/nicknames';
@@ -77,6 +76,7 @@ import { MessageReportItem } from '$components/message/modals/MessageReport';
 import { filterPronounsByLanguage, getParsedPronouns } from '$utils/pronouns';
 import type { PronounSet } from '$utils/pronouns';
 import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import {
   addStickerToDefaultPack,
   doesStickerExistInDefaultPack,
@@ -505,6 +505,7 @@ function MessageInternal(
 ) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
 
   const [contentVersion, setContentVersion] = useState(0);
 
@@ -590,8 +591,8 @@ function MessageInternal(
   const avatarUrl = useMemo(() => {
     if (collapse) return undefined;
     const mxc = pmp?.avatar_url || memberAvatarMxc || profile.avatarUrl;
-    return mxc ? mxcUrlToHttp(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
-  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication]);
+    return mxc ? convertMxc(mx, mxc, useAuthentication, 48, 48, 'crop') : undefined;
+  }, [pmp, collapse, memberAvatarMxc, profile.avatarUrl, mx, useAuthentication, convertMxc]);
 
   const cachedAvatar = useBlobCache(avatarUrl ?? undefined);
 

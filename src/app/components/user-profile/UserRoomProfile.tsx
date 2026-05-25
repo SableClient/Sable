@@ -17,10 +17,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
 import { useUserPresence } from '$hooks/useUserPresence';
@@ -404,6 +404,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const theme = useTheme();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const navigate = useNavigate();
   const closeUserRoomProfile = useCloseUserRoomProfile();
   const ignoredUsers = useIgnoredUsers();
@@ -437,7 +438,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const nicknames = useAtomValue(nicknamesAtom);
   const displayName = getMemberDisplayName(room, userId, nicknames);
   const avatarMxc = getMemberAvatarMxc(room, userId);
-  const avatarUrl = (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
+  const avatarUrl = (avatarMxc && convertMxc(mx, avatarMxc, useAuthentication)) ?? undefined;
 
   const presence = useUserPresence(userId);
 
@@ -453,7 +454,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       : undefined;
 
   const bannerHttpUrl = parsedBanner
-    ? (mxcUrlToHttp(mx, parsedBanner, useAuthentication) ?? undefined)
+    ? (convertMxc(mx, parsedBanner, useAuthentication) ?? undefined)
     : undefined;
 
   const handleMessage = () => {

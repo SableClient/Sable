@@ -28,6 +28,11 @@ export enum ShowRoomIcon {
   Smart = 'smart',
   Never = 'never',
 }
+export type PerRoomShowRoomIcon = {
+  roomId: string;
+  display: ShowRoomIcon;
+};
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 export type ThemeRemoteFavorite = {
@@ -79,7 +84,6 @@ export interface Settings {
   isWidgetDrawer: boolean;
   memberSortFilterIndex: number;
   enterForNewline: boolean;
-  isMarkdown: boolean;
   editorToolbar: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
@@ -113,9 +117,7 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
-  encryptedSearch: boolean;
-  idbSearchIndex: boolean;
-  searchIndexMessageLimit: number;
+  progressivePrefetch: boolean;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -135,11 +137,6 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
-  presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
-  autoIdlePresence: boolean;
-  presenceIdleTimeoutMins: number;
-  /** User-set status message, cached locally so it survives mode changes and sliding-sync restarts. */
-  presenceStatusMsg: string;
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -169,6 +166,7 @@ export interface Settings {
   mentionInReplies: boolean;
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
+  perRoomShowRoomIcon: PerRoomShowRoomIcon[];
   showRoomIcon: ShowRoomIcon;
   showRoomBanners: boolean;
   roomSidebarWidth: number;
@@ -178,9 +176,6 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
-
-  // experimental
-  editInInput: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -222,7 +217,6 @@ export const defaultSettings: Settings = {
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
   enterForNewline: false,
-  isMarkdown: true,
   editorToolbar: false,
   composerToolbarOpen: false,
   messageLayout: 0,
@@ -259,9 +253,7 @@ export const defaultSettings: Settings = {
 
   developerTools: false,
   settingsSyncEnabled: false,
-  encryptedSearch: false,
-  idbSearchIndex: false,
-  searchIndexMessageLimit: 2000,
+  progressivePrefetch: false,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',
@@ -279,10 +271,6 @@ export const defaultSettings: Settings = {
 
   // Sable features!
   sendPresence: true,
-  presenceMode: 'online',
-  autoIdlePresence: true,
-  presenceIdleTimeoutMins: 5,
-  presenceStatusMsg: '',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
@@ -312,6 +300,7 @@ export const defaultSettings: Settings = {
   mentionInReplies: true,
   showPersonaSetting: false,
   closeFoldersByDefault: false,
+  perRoomShowRoomIcon: [],
   showRoomIcon: ShowRoomIcon.Smart,
   showRoomBanners: true,
   roomSidebarWidth: 256,
@@ -321,9 +310,6 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
-
-  // experimental
-  editInInput: false,
   // furry stuff
   renderAnimals: true,
 
@@ -492,10 +478,6 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         val === CaptionPosition.Below
         ? val
         : undefined;
-    case 'presenceMode':
-      return val === 'online' || val === 'unavailable' || val === 'dnd' || val === 'offline'
-        ? val
-        : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
     case 'renderUserCards':
@@ -587,12 +569,6 @@ export const getSettings = (): Settings =>
 export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
-
-/**
- * Ephemeral atom — true when the auto-idle hook has transitioned the user to idle.
- * Not persisted to localStorage; resets to false on every page load.
- */
-export const presenceAutoIdledAtom = atom(false);
 
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),

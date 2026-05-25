@@ -14,16 +14,11 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'isPeopleDrawer',
   'isWidgetDrawer',
   'memberSortFilterIndex',
-  // Developer / diagnostic
+  // Developer / diagnostic / experimental performance features
   'developerTools',
-  // Input behaviour — on mobile the Enter-for-newline toggle is disabled, so syncing a
-  // desktop value would inadvertently re-enable Enter-to-send on the user's phone
-  'enterForNewline',
+  'progressivePrefetch',
   // Sync toggle itself must never be uploaded (it's device-local)
   'settingsSyncEnabled',
-  // Search index capacity varies by device (mobile is capped at 50 MB, desktop at 300 MB),
-  // so each device should keep its own limit rather than inheriting a desktop value.
-  'searchIndexMessageLimit',
 ]);
 
 export const SETTINGS_SYNC_VERSION = 1;

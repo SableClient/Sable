@@ -6,7 +6,6 @@ import type {
   MSC3575RoomSubscription,
   MSC3575SlidingSyncResponse,
 } from '$types/matrix-sdk';
-import { getRecentRoomIds } from '$utils/recentRooms';
 import {
   ClientEvent,
   ExtensionState,
@@ -23,6 +22,7 @@ import {
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { getRecentRoomIds } from '$utils/recentRooms';
 import * as Sentry from '@sentry/react';
 
 const log = createLogger('slidingSync');
@@ -44,13 +44,9 @@ export const LIST_SEARCH = 'search';
 export const LIST_ROOM_SEARCH = 'room_search';
 // Dynamic list key used for space-scoped room views.
 export const LIST_SPACE = 'space';
-// No timeline events for list rooms: server-provided notification_count is used
-// for unread counts. Timeline is loaded when the user opens a room. Requesting
-// events here causes ~N decryption calls for every list room on every sync cycle
-// (via room.decryptCriticalEvents()), producing noisy "Decrypted event is not in
-// room" SDK log spam for thread replies / reactions. Set > 0 only when a message
-// preview feature is enabled.
-const LIST_TIMELINE_LIMIT = 0;
+// Timeline events per list room. Element Web uses 20 which provides enough context
+// for notification dot computation. The full history is loaded when opening a room.
+const LIST_TIMELINE_LIMIT = 20;
 const DEFAULT_LIST_PAGE_SIZE = 250;
 const DEFAULT_POLL_TIMEOUT_MS = 20000;
 const DEFAULT_MAX_ROOMS = 5000;
@@ -64,7 +60,7 @@ const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 // Encrypted rooms get [*,*] required_state; unencrypted rooms also request lazy members.
 const UNENCRYPTED_SUBSCRIPTION_KEY = 'unencrypted';
 // Timeline limit for the active-room subscription (full history load).
-// List entries use LIST_TIMELINE_LIMIT=0 (no events) to avoid startup decryption noise.
+// List entries always use LIST_TIMELINE_LIMIT=1 for lightweight previews.
 const ACTIVE_ROOM_TIMELINE_LIMIT = 50;
 
 export type PartialSlidingSyncRequest = {
@@ -162,10 +158,10 @@ const buildLists = (pageSize: number, includeInviteList: boolean): Map<string, M
   const lists = new Map<string, MSC3575List>();
   const listRequiredState = buildListRequiredState();
 
-  // Start with a small initial window so the first sync response is cheap:
-  // fewer rooms to process means less SDK work before the UI becomes interactive.
-  // expandListsToKnownCount() will progressively widen the range each cycle.
-  const initialRange = Math.min(pageSize, 20);
+  // Start with a reasonable initial range that will quickly expand to full list
+  // Since timeline_limit=1, loading many rooms is very cheap
+  // This prevents the white page issue from progressive loading delays
+  const initialRange = Math.min(pageSize, 100);
 
   lists.set(LIST_JOINED, {
     ranges: [[0, Math.max(0, initialRange - 1)]],
@@ -205,11 +201,8 @@ const getListEndIndex = (list: MSC3575List | null): number => {
 };
 
 // MSC4186 presence extension: requests `extensions.presence` in every sliding sync
-// poll.  NOTE: Synapse's MSC4186 implementation does not currently support this
-// extension (its get_extensions_response only handles to_device, e2ee, account_data,
-// receipts, typing, and thread_subscriptions).  The extension is kept here so that
-// clients automatically benefit if/when server support is added; live presence for
-// now is handled by the direct REST fallback in useUserPresence.
+// poll and feeds received `m.presence` events into the SDK's User objects so that
+// components using `useUserPresence` see live updates (same path as regular /sync).
 class ExtensionPresence implements Extension<{ enabled: boolean }, { events?: object[] }> {
   private enabled = true;
 
@@ -283,6 +276,15 @@ export class SlidingSyncManager {
   private syncCount = 0;
 
   private previousListCounts: Map<string, number> = new Map();
+
+  /** Whether progressive prefetch is enabled (controlled by experimental setting). */
+  private progressivePrefetchEnabled = false;
+
+  /** Timer ID for progressive prefetch batches. */
+  private progressivePrefetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Current offset in the recentRoomIds array for progressive prefetch. */
+  private progressivePrefetchOffset = 0;
 
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
@@ -379,11 +381,37 @@ export class SlidingSyncManager {
         Object.entries(rooms)
           .filter(([, roomData]) => roomData.initial || roomData.limited)
           .filter(([roomId]) => this.activeRoomSubscriptions.has(roomId))
-          .forEach(([roomId]) => {
+          .forEach(([roomId, roomData]) => {
             const room = this.mx.getRoom(roomId);
             if (!room) return;
             const timelineSet = room.getUnfilteredTimelineSet();
-            if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
+            const liveTimeline = timelineSet.getLiveTimeline();
+            const localEvents = liveTimeline.getEvents();
+
+            // Empty timeline: reset is fine, no flicker
+            if (localEvents.length === 0) return;
+
+            // Check for event overlap with server data
+            const serverEvents = roomData.timeline ?? [];
+            if (serverEvents.length === 0) {
+              // No incoming events: preserve local timeline
+              return;
+            }
+
+            // Build set of local event IDs for fast lookup
+            const localIds = new Set(localEvents.map((e) => e.getId()));
+            const serverIds = serverEvents.map((e) => e.event_id);
+
+            // Check if any server event ID exists in local timeline
+            const hasOverlap = serverIds.some((id) => localIds.has(id));
+
+            if (hasOverlap) {
+              // Overlap detected: SDK will merge naturally, no reset needed
+              // This prevents flicker when reopening recently-viewed rooms
+              return;
+            }
+
+            // No overlap: local events are stale, reset needed
             timelineSet.resetLiveTimeline();
           });
       }
@@ -447,15 +475,12 @@ export class SlidingSyncManager {
         });
         this.initialSyncSpan?.end();
         this.initialSyncSpan = null;
+
+        // Prefetch recently-visited rooms to warm the cache for likely next navigations
+        this.prefetchRecentRooms();
       }
 
       this.expandListsToKnownCount();
-
-      // Prefetch recently-visited rooms after the initial sync completes so that
-      // navigating back to a recent room is fast (active subscription already warm).
-      if (this.syncCount === 1) {
-        this.prefetchRecentRooms();
-      }
 
       Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
         attributes: { transport: 'sliding' },
@@ -555,6 +580,12 @@ export class SlidingSyncManager {
       initialSyncCompleted: this.initialSyncCompleted,
     });
 
+    // Clean up progressive prefetch timer
+    if (this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+    }
+
     // Clean up pending room-data latency listeners before marking disposed.
     // SlidingSync.stop() will removeAllListeners anyway, but this keeps the Map tidy.
     this.pendingRoomDataListeners.clear();
@@ -593,30 +624,26 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Synthesizes an own-presence update into the SDK store.
-   * MSC4186 servers never echo back the client's own m.presence events, so after
-   * calling mx.setPresence() we manually build a synthetic event and feed it into
-   * the SDK's User object — exactly what ExtensionPresence.onResponse does for others.
+   * Enable or disable progressive prefetch. When enabled, after the initial
+   * batch of 25 rooms is prefetched, additional rooms are loaded in the
+   * background in batches of 25 until all rooms are subscribed.
    */
-  public updateOwnPresence(presence: string, statusMsg: string): void {
-    const userId = this.mx.getUserId();
-    if (!userId) return;
-    const mapper = this.mx.getEventMapper();
-    const rawEvent = {
-      type: 'm.presence',
-      sender: userId,
-      content: { presence, status_msg: statusMsg, currently_active: presence === 'online' },
-    };
-    const event = mapper(rawEvent as Parameters<typeof mapper>[0]);
-    let user = this.mx.store.getUser(userId);
-    if (user) {
-      user.setPresenceEvent(event);
-    } else {
-      user = User.createUser(userId, this.mx);
-      user.setPresenceEvent(event);
-      this.mx.store.storeUser(user);
+  public setProgressivePrefetch(enabled: boolean): void {
+    if (this.progressivePrefetchEnabled === enabled) return;
+    this.progressivePrefetchEnabled = enabled;
+    debugLog.info('sync', `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`);
+
+    // If disabling, cancel any pending prefetch
+    if (!enabled && this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+      this.progressivePrefetchOffset = 0;
     }
-    this.mx.emit(ClientEvent.Event, event);
+
+    // If enabling and we already completed initial sync, start prefetch
+    if (enabled && this.initialSyncCompleted) {
+      this.scheduleNextProgressivePrefetch();
+    }
   }
 
   public getDiagnostics(): SlidingSyncDiagnostics {
@@ -1021,84 +1048,6 @@ export class SlidingSyncManager {
   }
 
   /**
-   * Prefetch recently-visited rooms by subscribing to them in a single batched
-   * call to modifyRoomSubscriptions. Calling subscribeToRoom() per room would
-   * trigger a modifyRoomSubscriptions + resend() for each room individually
-   * (N+1 resend calls), whereas this method collects all rooms first and issues
-   * one call, keeping startup sync churn to a minimum.
-   */
-  public prefetchRecentRooms(): void {
-    if (this.disposed) return;
-    const userId = this.mx.getUserId();
-    if (!userId) return;
-
-    const recentRoomIds = getRecentRoomIds(userId);
-    const toPrefetch = recentRoomIds.slice(0, 5); // Top 5 most recent
-
-    if (toPrefetch.length === 0) return;
-
-    debugLog.info('sync', 'Prefetching recent rooms', {
-      count: toPrefetch.length,
-      roomIds: toPrefetch,
-    });
-
-    // Phase 1: batch — add all rooms to activeRoomSubscriptions and set custom
-    // subscriptions, but defer modifyRoomSubscriptions until all are registered.
-    const toSubscribe: string[] = [];
-    for (const roomId of toPrefetch) {
-      const room = this.mx.getRoom(roomId);
-      if (!room || this.activeRoomSubscriptions.has(roomId)) continue;
-      const isEncrypted = this.mx.isRoomEncrypted(roomId);
-      if (!isEncrypted) {
-        this.slidingSync.useCustomSubscription(roomId, UNENCRYPTED_SUBSCRIPTION_KEY);
-      }
-      this.activeRoomSubscriptions.add(roomId);
-      toSubscribe.push(roomId);
-    }
-
-    if (toSubscribe.length === 0) return;
-
-    // Phase 2: single modifyRoomSubscriptions covers all rooms at once.
-    this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
-    Sentry.metrics.gauge('sable.sync.active_subscriptions', this.activeRoomSubscriptions.size, {
-      attributes: { transport: 'sliding' },
-    });
-    debugLog.info('sync', 'Batch-subscribed recent rooms (prefetch)', {
-      count: toSubscribe.length,
-      roomIds: toSubscribe,
-      activeSubscriptions: this.activeRoomSubscriptions.size,
-      syncCycle: this.syncCount,
-    });
-
-    // Phase 3: register one-shot latency listeners per room (no modifyRoomSubscriptions needed).
-    const subscribeMs = performance.now();
-    for (const roomId of toSubscribe) {
-      const existingListener = this.pendingRoomDataListeners.get(roomId);
-      if (existingListener) {
-        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, existingListener);
-      }
-      const onFirstRoomData = (dataRoomId: string) => {
-        if (dataRoomId !== roomId) return;
-        const latencyMs = Math.round(performance.now() - subscribeMs);
-        const subscribedRoom = this.mx.getRoom(roomId);
-        const eventCount = subscribedRoom?.getLiveTimeline().getEvents().length ?? 0;
-        debugLog.info('sync', 'Room subscription: first data received (sliding prefetch)', {
-          latencyMs,
-          syncCycle: this.syncCount,
-          eventCount,
-        });
-        Sentry.metrics.distribution('sable.sync.room_sub_latency_ms', latencyMs, {
-          attributes: { transport: 'sliding' },
-        });
-        this.slidingSync.removeListener(SlidingSyncEvent.RoomData, onFirstRoomData);
-        this.pendingRoomDataListeners.delete(roomId);
-      };
-      this.pendingRoomDataListeners.set(roomId, onFirstRoomData);
-      this.slidingSync.on(SlidingSyncEvent.RoomData, onFirstRoomData);
-    }
-  }
-
-  /**
    * Remove the explicit room subscription for a room.
    * Rooms that are still in a list will continue to receive background updates.
    * This is a no-op after dispose().
@@ -1121,6 +1070,105 @@ export class SlidingSyncManager {
       remainingSubscriptions: this.activeRoomSubscriptions.size,
       syncCycle: this.syncCount,
     });
+  }
+
+  /**
+   * Prefetch recently-visited rooms by subscribing to them immediately.
+   * This reduces the time between room navigation and timeline appearing,
+   * especially beneficial for rooms not in the initial sync window.
+   *
+   * Called after initial sync completes to warm up the cache for likely
+   * next-room-to-be-opened scenarios.
+   */
+  public prefetchRecentRooms(): void {
+    if (this.disposed) return;
+
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const toPrefetch = recentRoomIds.slice(0, 25); // Top 25 most recent
+
+    if (toPrefetch.length === 0) return;
+
+    debugLog.info('sync', 'Prefetching recent rooms', {
+      count: toPrefetch.length,
+      roomIds: toPrefetch,
+    });
+
+    for (const roomId of toPrefetch) {
+      // Only subscribe if room exists and not already subscribed
+      const room = this.mx.getRoom(roomId);
+      if (room && !this.activeRoomSubscriptions.has(roomId)) {
+        this.subscribeToRoom(roomId);
+      }
+    }
+
+    // Set offset for progressive prefetch to start after initial batch
+    this.progressivePrefetchOffset = 25;
+
+    // If progressive prefetch is enabled, schedule the next batch
+    if (this.progressivePrefetchEnabled) {
+      this.scheduleNextProgressivePrefetch();
+    }
+  }
+
+  /**
+   * Schedule the next batch of progressive prefetch. Loads rooms in batches
+   * of 25 with a 3-second delay between batches to avoid overwhelming the
+   * server and client. Continues until all rooms are subscribed or maxRooms
+   * is reached.
+   */
+  private scheduleNextProgressivePrefetch(): void {
+    if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+    // Cancel any existing timer
+    if (this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+    }
+
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const batchSize = 25;
+    const nextBatch = recentRoomIds.slice(
+      this.progressivePrefetchOffset,
+      this.progressivePrefetchOffset + batchSize
+    );
+
+    if (nextBatch.length === 0) {
+      debugLog.info('sync', 'Progressive prefetch complete', {
+        totalPrefetched: this.progressivePrefetchOffset,
+      });
+      return;
+    }
+
+    // Schedule next batch after 3 seconds
+    this.progressivePrefetchTimer = setTimeout(() => {
+      if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+      debugLog.info('sync', 'Progressive prefetch batch', {
+        offset: this.progressivePrefetchOffset,
+        count: nextBatch.length,
+      });
+
+      for (const roomId of nextBatch) {
+        const room = this.mx.getRoom(roomId);
+        if (room && !this.activeRoomSubscriptions.has(roomId)) {
+          this.subscribeToRoom(roomId);
+        }
+      }
+
+      // Move offset forward
+      this.progressivePrefetchOffset += batchSize;
+
+      // Schedule next batch if progressive prefetch is still enabled
+      if (this.progressivePrefetchEnabled) {
+        this.scheduleNextProgressivePrefetch();
+      }
+    }, 3000); // 3 second delay between batches
   }
 
   public static async probe(

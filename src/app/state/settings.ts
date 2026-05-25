@@ -118,6 +118,9 @@ export interface Settings {
   enableMSC4268CMD: boolean;
   settingsSyncEnabled: boolean;
   progressivePrefetch: boolean;
+  encryptedSearch: boolean;
+  idbSearchIndex: boolean;
+  searchIndexMessageLimit: number;
 
   // Cosmetics!
   jumboEmojiSize: JumboEmojiSize;
@@ -267,6 +270,9 @@ export const defaultSettings: Settings = {
   developerTools: false,
   settingsSyncEnabled: false,
   progressivePrefetch: false,
+  encryptedSearch: false,
+  idbSearchIndex: false,
+  searchIndexMessageLimit: 2000,
 
   // Cosmetics!
   jumboEmojiSize: 'normal',

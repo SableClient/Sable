@@ -61,6 +61,8 @@ type SearchIndexCtx = {
   isReady: boolean;
   /** True while background backfill is actively running. */
   isBackfilling: boolean;
+  /** Error message if initialization failed, null otherwise. */
+  initError: string | null;
 };
 
 // ── Context ──────────────────────────────────────────────────────────────────
@@ -158,6 +160,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
   const [isReady, setIsReady] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
   const pendingQueriesRef = useRef<Map<string, PendingQuery>>(new Map());
@@ -587,6 +590,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
 
     // Set a timeout to detect if the worker never sends READY
     const initTimeout = setTimeout(() => {
+      setInitError('Worker initialization timed out (30s) — READY message never received');
       Sentry.captureMessage('Search worker INIT timeout — READY message never received', {
         level: 'error',
         tags: { component: 'search-index' },
@@ -599,6 +603,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
     const wrappedHandler = (event: MessageEvent<WorkerOutMessage>) => {
       if (event.data.type === 'READY') {
         clearTimeout(initTimeout);
+        setInitError(null); // Clear any previous error
       }
       originalHandler(event);
     };
@@ -688,6 +693,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       );
       setIsReady(false);
       setIsBackfilling(false);
+      setInitError(null);
       mx.removeListener(ClientEvent.Sync, handleSync as unknown as (...args: unknown[]) => void);
       mx.removeListener(
         RoomEvent.Timeline,

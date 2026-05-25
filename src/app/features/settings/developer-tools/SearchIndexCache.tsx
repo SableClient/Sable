@@ -68,9 +68,11 @@ export function SearchIndexCache() {
           title="Index status"
           focusId="search-index-status"
           description={
-            searchIndex?.isReady
-              ? `Ready — ${stats?.indexedEventCount.toLocaleString() ?? '…'} events across ${stats?.roomCount.toLocaleString() ?? '…'} rooms (${formatBytes(stats?.estimatedBytes ?? 0)})`
-              : 'Initialising…'
+            searchIndex?.initError
+              ? `Error: ${searchIndex.initError}`
+              : searchIndex?.isReady
+                ? `Ready — ${stats?.indexedEventCount.toLocaleString() ?? '…'} events across ${stats?.roomCount.toLocaleString() ?? '…'} rooms (${formatBytes(stats?.estimatedBytes ?? 0)})`
+                : 'Initialising…'
           }
         />
         {searchIndex?.isBackfilling && (
@@ -110,7 +112,7 @@ export function SearchIndexCache() {
               size="300"
               radii="300"
               outlined
-              disabled={clearing || !searchIndex?.isReady}
+              disabled={clearing || (!searchIndex?.isReady && !searchIndex?.initError)}
             >
               <Text size="B300">{clearing ? 'Clearing…' : 'Clear'}</Text>
             </Button>

@@ -65,11 +65,41 @@ const startBackgroundClient = async (
     rustCryptoPrefix: `bg-sync${session.userId}`,
   };
 
+  Sentry.addBreadcrumb({
+    category: 'notification.background_client',
+    message: 'Creating IndexedDBStore for background client',
+    level: 'info',
+    data: { userId: session.userId, dbName: storeName.sync },
+  });
+
   const indexedDBStore = new IndexedDBStore({
     indexedDB: global.indexedDB,
     localStorage: global.localStorage,
     dbName: storeName.sync,
   });
+
+  // CRITICAL: Must call startup() before using the store, otherwise matrix-js-sdk
+  // will detect a failure and trigger the "degrade" path (delete + recreate).
+  try {
+    await indexedDBStore.startup();
+    Sentry.addBreadcrumb({
+      category: 'notification.background_client',
+      message: 'IndexedDBStore startup succeeded',
+      level: 'info',
+      data: { userId: session.userId },
+    });
+  } catch (err: unknown) {
+    Sentry.addBreadcrumb({
+      category: 'notification.background_client',
+      message: 'IndexedDBStore startup failed — store will degrade',
+      level: 'error',
+      data: {
+        userId: session.userId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    // Don't throw — let the client proceed with degraded mode (in-memory only)
+  }
 
   const mx = createClient({
     baseUrl: session.baseUrl,

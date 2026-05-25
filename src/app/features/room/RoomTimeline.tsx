@@ -483,17 +483,14 @@ export function RoomTimeline({
     let retryIntervalId: ReturnType<typeof setInterval> | undefined;
     
     if (timelineSync.focusItem) {
-      // Reveal the timeline in the same effect that scrolls to the focus event so
-      // both the scroll and opacity-1 land in a single commit — no intermediate
-      // frame where events are rendered but still opacity-0.
-      setIsReady(true);
-      
       let scrollSucceeded = false;
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
         
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
+          // Reveal timeline and scroll in the same frame to avoid flash
+          setIsReady(true);
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
           timelineSync.setFocusItem((prev) => (prev ? { ...prev, scrollTo: false } : undefined));
@@ -509,11 +506,11 @@ export function RoomTimeline({
         // This handles the case where pagination just loaded the event but React hasn't
         // finished processing/rendering it yet.
         retryIntervalId = setInterval(() => {
-          if (attemptScroll() && retryIntervalId) {
-            clearInterval(retryIntervalId);
+          if (attemptScroll()) {
+            clearInterval(retryIntervalId!);
             retryIntervalId = undefined;
           }
-        }, 100);
+        }, 200);
       }
 
       // Clear highlight after scroll settles. Use longer timeout for history jumps

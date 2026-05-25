@@ -30,8 +30,9 @@ import {
   NavEmptyLayout,
   NavItem,
   NavItemContent,
+  NavLink,
 } from '$components/nav';
-import { getDirectCreatePath, getDirectRoomPath } from '$pages/pathUtils';
+import { getDirectCreatePath, getDirectRoomPath, getDirectSearchPath } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { VirtualTile } from '$components/virtualizer';
@@ -51,7 +52,7 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
-import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
+import { useDirectCreateSelected, useDirectSearchSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { mobileOrTabletLayout } from '$utils/user-agent';
@@ -200,6 +201,7 @@ export function Direct() {
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const createDirectSelected = useDirectCreateSelected();
+  const searchSelected = useDirectSearchSelected();
 
   const selectedRoomId = useSelectedRoom();
   const noRoomToDisplay = directs.length === 0;
@@ -301,6 +303,34 @@ export function Direct() {
                       </Box>
                     </NavItemContent>
                   </NavButton>
+                </NavItem>
+                <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
+                  <NavLink to={getDirectSearchPath()}>
+                    <NavItemContent>
+                      <Box
+                        as="span"
+                        grow="Yes"
+                        alignItems="Center"
+                        justifyContent="Start"
+                        gap="200"
+                      >
+                        <Avatar
+                          size={hideText ? undefined : '200'}
+                          radii="400"
+                          style={hideText ? { width: '100%' } : undefined}
+                        >
+                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
+                        </Avatar>
+                        <Box as="span" grow="Yes">
+                          {!hideText && (
+                            <Text as="span" size="Inherit" truncate>
+                              Message Search
+                            </Text>
+                          )}
+                        </Box>
+                      </Box>
+                    </NavItemContent>
+                  </NavLink>
                 </NavItem>
               </NavCategory>
               <NavCategory>

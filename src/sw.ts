@@ -12,6 +12,10 @@ let notificationSoundEnabled = true;
 // The clients.matchAll() visibilityState is unreliable on iOS Safari PWA,
 // so we use this explicit flag as a fallback.
 let appIsVisible = false;
+// Tracks whether the Matrix sync connection is healthy.
+// Defaults to true; set false when the app reports Reconnecting/Error so that
+// OS push notifications are not suppressed while the in-app path is broken.
+let syncIsHealthy = true;
 let showMessageContent = false;
 let showEncryptedMessageContent = false;
 let clearNotificationsOnRead = false;
@@ -27,23 +31,6 @@ const SW_SETTINGS_URL = '/sw-settings-meta';
 /** Cache key used to persist the active session so push-event fetches work after SW restart. */
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
-
-// Inline type — mirrors BookmarkReminder in src/types/matrix/accountData.ts.
-// Defined here to avoid importing from the app bundle into the service worker.
-type BookmarkReminder = {
-  bookmarkId: string;
-  eventId: string;
-  roomId: string;
-  remindAt: number;
-  userId: string;
-  note?: string;
-  /** Timestamp (ms) when this device fired the reminder — suppresses re-firing. */
-  firedAt?: number;
-};
-
-/** Cache key used to persist bookmark reminders so the SW can fire them after a restart. */
-const SW_REMINDERS_CACHE = 'sable-reminders-v1';
-const SW_REMINDERS_URL = '/sw-reminders-meta';
 
 async function persistSettings() {
   try {
@@ -83,11 +70,15 @@ async function loadPersistedSettings() {
       clearNotificationsOnRead = s.clearNotificationsOnRead;
     // Restore appIsVisible from the last-known visibility timestamp.
     // On iOS/iPad, the SW is killed between pushes so appIsVisible always resets to false.
-    // If the app reported itself visible within the last 30 s, trust that it still is.
-    // The 30-second window is a safety net in case the app crashed without sending visible=false.
+    // If the app reported itself visible within the last 10 s, trust that it still is.
+    // Use a short window (10s) to reduce false positives from stale cache after crashes.
+    // The page will send an explicit visible=true message once it initializes anyway.
     if (typeof s.appVisibleAt === 'number' && s.appVisibleAt > 0) {
       const ageMs = Date.now() - s.appVisibleAt;
-      if (ageMs < 30_000) appIsVisible = true;
+      if (ageMs < 10_000) {
+        appIsVisible = true;
+        console.debug('[SW] Restored appIsVisible from cache (age:', ageMs, 'ms)');
+      }
     }
   } catch {
     // Ignore — stale or missing cache is fine; we fall back to defaults.
@@ -135,82 +126,6 @@ async function loadPersistedSession(): Promise<SessionInfo | undefined> {
     return undefined;
   }
 }
-
-async function persistReminders(reminders: BookmarkReminder[]): Promise<void> {
-  try {
-    const cache = await self.caches.open(SW_REMINDERS_CACHE);
-    await cache.put(
-      SW_REMINDERS_URL,
-      new Response(JSON.stringify(reminders), { headers: { 'Content-Type': 'application/json' } })
-    );
-  } catch {
-    // best-effort
-  }
-}
-
-async function loadPersistedReminders(): Promise<BookmarkReminder[]> {
-  try {
-    const cache = await self.caches.open(SW_REMINDERS_CACHE);
-    const response = await cache.match(SW_REMINDERS_URL);
-    if (!response) return [];
-    const data = await response.json();
-    if (Array.isArray(data)) return data as BookmarkReminder[];
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-async function checkDueReminders(): Promise<void> {
-  const reminders = await loadPersistedReminders();
-  if (reminders.length === 0) return;
-
-  const now = Date.now();
-  // Only fire reminders that are due AND haven't been fired on this device yet.
-  const due = reminders.filter((r) => r.remindAt <= now && !r.firedAt);
-
-  if (due.length === 0) return;
-
-  // Mark as fired in the cache so the same reminder doesn't re-fire on this device
-  // after the next updateReminders push (which would otherwise re-add it without firedAt).
-  const updatedReminders = reminders.map((r) =>
-    due.some((d) => d.bookmarkId === r.bookmarkId) ? { ...r, firedAt: now } : r
-  );
-  await persistReminders(updatedReminders);
-
-  // If the app is open in a visible tab, route reminders as in-app banners instead
-  // of OS notifications — avoids duplicate alerts on iPad and provides a nicer UX.
-  const windowClients = await self.clients.matchAll({ type: 'window' });
-  const visibleClients = windowClients.filter((c) => c.visibilityState === 'visible');
-
-  if (visibleClients.length > 0) {
-    visibleClients[0]!.postMessage({
-      type: 'remindersInApp',
-      reminders: due.map((r) => ({
-        bookmarkId: r.bookmarkId,
-        note: r.note,
-        roomId: r.roomId,
-        eventId: r.eventId,
-      })),
-    });
-  } else {
-    await Promise.allSettled(
-      due.map((r) =>
-        self.registration.showNotification('Bookmark Reminder', {
-          body: r.note ?? 'You have a bookmark reminder.',
-          tag: `reminder-${r.bookmarkId}`,
-          data: { isReminder: true, roomId: r.roomId, eventId: r.eventId },
-          icon: '/res/ic_launcher-192.png',
-        })
-      )
-    );
-  }
-  // Each device fires independently. No remindersFired message — users dismiss
-  // overdue reminders explicitly via "Clear Reminder" in the bookmarks panel.
-}
-
-// Check for due reminders every minute.
-setInterval(() => checkDueReminders().catch(() => undefined), 60_000);
 
 type SessionInfo = {
   accessToken: string;
@@ -482,7 +397,7 @@ async function requestDecryptionFromClient(
   const eventId = rawEvent.event_id as string;
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  const result = await Array.from(windowClients).reduce(
+  return Array.from(windowClients).reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;
@@ -514,16 +429,6 @@ async function requestDecryptionFromClient(
     },
     Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
   );
-
-  // If all clients timed out, the page is likely crashed/unresponsive.
-  // Mark appIsVisible=false so future push notifications aren't suppressed.
-  if (!result && windowClients.length > 0) {
-    console.warn('[SW] All clients timed out — marking app as not visible');
-    appIsVisible = false;
-    persistSettings().catch(() => undefined);
-  }
-
-  return result;
 }
 
 /**
@@ -539,14 +444,7 @@ async function handleMinimalPushPayload(
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
   // the app (same pattern as settings persistence).
-  let session = getAnyStoredSession() ?? (await loadPersistedSession());
-
-  // Validate session before using: if the access token is too short or looks malformed,
-  // it's likely corrupted cache from a failed logout. Skip fetch to avoid 401 spam.
-  if (session && (!session.accessToken || session.accessToken.length < 16)) {
-    console.warn('[SW push] session token looks invalid, discarding');
-    session = undefined;
-  }
+  const session = getAnyStoredSession() ?? (await loadPersistedSession());
 
   if (!session) {
     // No session anywhere — app was never opened since install, or the user logged out.
@@ -659,7 +557,19 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
-      await self.clients.claim();
+      // Do NOT call clients.claim() here.
+      //
+      // Calling clients.claim() in activate evicts iOS bfcache entries: it fires
+      // controllerchange on every client — including cached ones — and iOS evicts
+      // any page whose SW controller changes while it is in bfcache.  On iOS PWA
+      // (no browser chrome) this looks identical to a hard reload: the user sees
+      // the splash screen instead of an instant restore.
+      //
+      // Pages detect a stale/missing controller on every foreground event
+      // (pageshow[persisted] and visibilitychange→visible) and send CLAIM_CLIENTS
+      // so the SW claims them lazily once they are already visible.  New page
+      // navigations are automatically controlled by the active SW without an
+      // explicit claim.
       await cleanupDeadClients();
       // Pre-load the persisted session into memory so that media fetches arriving
       // before the first setSession message from the page are immediately
@@ -670,22 +580,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       // media fetch to trigger requestSessionWithTimeout.
       const windowClients = await self.clients.matchAll({ type: 'window' });
       windowClients.forEach((client) => client.postMessage({ type: 'requestSession' }));
-      // Fire any bookmark reminders that became due while the SW was inactive.
-      checkDueReminders().catch(() => undefined);
-      // Register for a periodic background sync to check reminders (1-hour minimum interval).
-      if ('periodicSync' in self.registration) {
-        try {
-          await (
-            self.registration as ServiceWorkerRegistration & {
-              periodicSync: {
-                register(tag: string, options?: { minInterval: number }): Promise<void>;
-              };
-            }
-          ).periodicSync.register('check-reminders', { minInterval: 3_600_000 });
-        } catch {
-          // periodicSync not granted — the setInterval fallback above covers this.
-        }
-      }
     })()
   );
 });
@@ -705,6 +599,21 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     setSession(client.id, accessToken, baseUrl, userId);
     event.waitUntil(cleanupDeadClients());
   }
+  if (type === 'CLAIM_CLIENTS') {
+    // Sent by the page on pageshow[persisted] or visibilitychange→visible when it
+    // detects that its SW controller is stale (e.g. after iOS killed and restarted
+    // the SW while the page was in bfcache or in the foreground under memory
+    // pressure).  Claiming here — after the page is visible — never evicts bfcache.
+    event.waitUntil(
+      (async () => {
+        await self.clients.claim();
+        // Re-request sessions from all newly-claimed clients so media auth is
+        // restored immediately without waiting for the next media fetch.
+        const claimedClients = await self.clients.matchAll({ type: 'window' });
+        claimedClients.forEach((c) => c.postMessage({ type: 'requestSession' }));
+      })()
+    );
+  }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
     const { eventId } = data as { eventId?: string };
@@ -719,10 +628,18 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (type === 'setAppVisible') {
     if (typeof (data as { visible?: unknown }).visible === 'boolean') {
       appIsVisible = (data as { visible: boolean }).visible;
-      // Persist the visibility timestamp so cold SW restarts (iOS/iPad) can still
-      // suppress duplicate OS notifications when the app was recently visible.
-      persistSettings().catch(() => undefined);
     }
+  }
+  if (type === 'setSyncState') {
+    if (typeof (data as { healthy?: unknown }).healthy === 'boolean') {
+      syncIsHealthy = (data as { healthy: boolean }).healthy;
+    }
+  }
+  if (type === 'ping') {
+    // iOS terminates SWs after ~30 s of inactivity. The page sends a cheap
+    // ping every 20 s (regardless of visibility) so that event.waitUntil
+    // extends the SW lifetime while the app is open.
+    event.waitUntil(Promise.resolve());
   }
   if (type === 'setNotificationSettings') {
     if (
@@ -749,31 +666,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
     // Persist so settings survive SW restart (iOS kills the SW aggressively).
     event.waitUntil(persistSettings());
-  }
-  if (data.type === 'updateReminders') {
-    const incoming = (data as { type: string; reminders: BookmarkReminder[] }).reminders;
-    // Preserve per-device firedAt for entries where bookmarkId AND remindAt both match
-    // the cached entry — same reminder, already fired on this device.  If remindAt
-    // changed (user set a new time), firedAt is dropped so the new time fires fresh.
-    event.waitUntil(
-      (async () => {
-        const cached = await loadPersistedReminders();
-        const merged = incoming.map((r) => {
-          const existing = cached.find(
-            (c) => c.bookmarkId === r.bookmarkId && c.remindAt === r.remindAt && c.firedAt
-          );
-          return existing ? { ...r, firedAt: existing.firedAt } : r;
-        });
-        await persistReminders(merged);
-      })()
-    );
-  }
-});
-
-self.addEventListener('periodicsync', (event: Event) => {
-  const syncEvent = event as Event & { tag: string; waitUntil: (p: Promise<unknown>) => void };
-  if (syncEvent.tag === 'check-reminders') {
-    syncEvent.waitUntil(checkDueReminders());
   }
 });
 
@@ -809,20 +701,6 @@ function fetchConfig(token: string): RequestInit {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    // Use 'no-cache' to ensure we check with the server on each request
-    // This prevents stale/expired token responses from being cached
-    cache: 'no-cache',
-  };
-}
-
-function mediaFetchConfig(token: string): RequestInit {
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    // MXC URLs are content-addressed and never change; use the browser's
-    // default HTTP cache so identical media requests are served from cache
-    // instead of hitting the network on every render.
     cache: 'default',
   };
 }
@@ -857,7 +735,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...mediaFetchConfig(session.accessToken), redirect }));
+    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
     return;
   }
 
@@ -877,7 +755,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       ? preloadedSession
       : undefined);
   if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...mediaFetchConfig(byBaseUrl.accessToken), redirect }));
+    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
     return;
   }
 
@@ -888,7 +766,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       loadPersistedSession().then((persisted) => {
         if (persisted && validMediaRequest(url, persisted.baseUrl)) {
           return fetch(url, {
-            ...mediaFetchConfig(persisted.accessToken),
+            ...fetchConfig(persisted.accessToken),
             redirect,
           });
         }
@@ -902,13 +780,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     requestSessionWithTimeout(clientId).then(async (s) => {
       // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...mediaFetchConfig(s.accessToken), redirect });
+        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
       }
       // Fallback: try the persisted session (helps when SW restarts on iOS and
       // the client window hasn't responded to requestSession yet).
       const persisted = await loadPersistedSession();
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...mediaFetchConfig(persisted.accessToken), redirect });
+        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
       console.warn(
         '[SW fetch] No valid session for media request',
@@ -942,19 +820,36 @@ const onPushNotification = async (event: PushEvent) => {
 
   // If the app is open and visible, skip the OS push notification — the in-app
   // pill notification handles the alert instead.
-  // Combine clients.matchAll() visibility with the explicit appIsVisible flag
-  // because iOS Safari PWA often returns empty or stale results from matchAll().
+  //
+  // Require BOTH the explicit appIsVisible flag AND a visible client from
+  // matchAll() before suppressing.  appIsVisible resets to false every time the
+  // SW starts fresh; on iOS the browser kills the SW between pushes, so on the
+  // next push appIsVisible is always false — we never suppress on a cold SW
+  // restart, which prevents the "notifications stop after a while" bug where
+  // stale matchAll() data (visibilityState stuck at 'visible') would cause all
+  // subsequent notifications to be silently dropped.
+  //
+  // Also require syncIsHealthy: if the Matrix sync is in Reconnecting/Error
+  // state, the in-app notification path is broken, so we must show the OS
+  // notification even when the app is visible.
+  //
+  // When matchAll() returns zero clients (iOS Safari PWA fully-suspended quirk),
+  // clients.some() returns false — do NOT suppress.  Better to show a duplicate
+  // (handled gracefully by the in-app banner) than to silently drop a
+  // notification while the app is backgrounded.
   const hasVisibleClient =
-    appIsVisible || clients.some((client) => client.visibilityState === 'visible');
+    appIsVisible && syncIsHealthy && clients.some((client) => client.visibilityState === 'visible');
   console.debug(
     '[SW push] appIsVisible:',
     appIsVisible,
+    '| syncIsHealthy:',
+    syncIsHealthy,
     '| clients:',
     clients.map((c) => ({ url: c.url, visibility: c.visibilityState }))
   );
   console.debug('[SW push] hasVisibleClient:', hasVisibleClient);
   if (hasVisibleClient) {
-    console.debug('[SW push] suppressing OS notification — app is visible');
+    console.debug('[SW push] suppressing OS notification — app is visible and sync is healthy');
     return;
   }
 
@@ -1027,7 +922,6 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   });
 
   const isCall = data?.isCall === true;
-  const isReminder = data?.isReminder === true;
 
   // Build a canonical deep-link URL.
   //
@@ -1049,12 +943,6 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
       ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
       : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
     targetUrl = new URL(segments, scope).href;
-  } else if (isReminder) {
-    // Reminder notifications don't carry a user_id, so the /to/:user/:room/:event
-    // pattern is inapplicable.  Navigate straight to the bookmarks inbox page.
-    // On a warm start the HandleNotificationClick message handler also routes to
-    // this page; here we handle the cold-start (app was killed) case.
-    targetUrl = new URL('inbox/bookmarks/', scope).href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -1092,7 +980,6 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
-            isReminder,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

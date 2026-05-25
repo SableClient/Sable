@@ -9,6 +9,27 @@ type PushSubscriptionState = [
   (subscription: PushSubscription | null) => void,
 ];
 
+function postToServiceWorker(data: unknown): void {
+  if (!('serviceWorker' in navigator)) return;
+
+  const posted = new Set<ServiceWorker>();
+  const postToWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || posted.has(worker)) return;
+    posted.add(worker);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    worker.postMessage(data);
+  };
+
+  postToWorker(navigator.serviceWorker.controller);
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      postToWorker(registration.active);
+      postToWorker(registration.waiting);
+      postToWorker(registration.installing);
+    })
+    .catch(() => undefined);
+}
+
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
     debugLog.warn('notification', 'Notification API not available in this browser');
@@ -57,7 +78,7 @@ export async function enablePushNotifications(
       kind: 'http' as const,
       app_id: clientConfig.pushNotificationDetails?.webPushAppID,
       pushkey: keys.p256dh,
-      app_display_name: 'Cinny',
+      app_display_name: 'Sable',
       device_display_name: 'This Browser',
       lang: navigator.language || 'en',
       data: {
@@ -69,7 +90,7 @@ export async function enablePushNotifications(
       },
       append: false,
     };
-    navigator.serviceWorker.controller?.postMessage({
+    postToServiceWorker({
       url: mx.baseUrl,
       type: 'togglePush',
       pusherData,
@@ -104,7 +125,7 @@ export async function enablePushNotifications(
     kind: 'http' as const,
     app_id: clientConfig.pushNotificationDetails?.webPushAppID,
     pushkey: keys.p256dh,
-    app_display_name: 'Cinny',
+    app_display_name: 'Sable',
     device_display_name:
       (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
     lang: navigator.language || 'en',
@@ -118,7 +139,7 @@ export async function enablePushNotifications(
     append: false,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
+  postToServiceWorker({
     url: mx.baseUrl,
     type: 'togglePush',
     pusherData,
@@ -144,7 +165,7 @@ export async function disablePushNotifications(
     pushkey: pushSubAtom?.keys?.p256dh,
   };
 
-  navigator.serviceWorker.controller?.postMessage({
+  postToServiceWorker({
     url: mx.baseUrl,
     type: 'togglePush',
     pusherData,

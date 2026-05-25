@@ -292,6 +292,16 @@ export class SlidingSyncManager {
   private previousListCounts: Map<string, number> = new Map();
 
   /**
+   * When non-null, contains the set of room IDs that were active subscriptions
+   * before a force-reset was scheduled (pull-to-refresh). The rooms are
+   * temporarily cleared from activeRoomSubscriptions so the server processes
+   * one empty-subscription cycle, and then restored here so the server treats
+   * them as fresh subscriptions and returns initial:true with full data and
+   * backward-pagination tokens.
+   */
+  private pendingResubscriptions: Set<string> | null = null;
+
+  /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
    * Cleaned up automatically after first fire or on unsubscribe/dispose.
@@ -394,6 +404,18 @@ export class SlidingSyncManager {
             if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
             timelineSet.resetLiveTimeline();
           });
+
+        // If a force-resubscription cycle was scheduled (pull-to-refresh), restore
+        // all subscriptions now that the server has seen the empty-subscription
+        // request.  On the next sync cycle the server will treat these as new
+        // subscriptions and return initial:true with fresh data and backward-
+        // pagination tokens, which the block above will then handle.
+        if (this.pendingResubscriptions !== null) {
+          const toRestore = this.pendingResubscriptions;
+          this.pendingResubscriptions = null;
+          toRestore.forEach((roomId) => this.activeRoomSubscriptions.add(roomId));
+          this.slidingSync.modifyRoomSubscriptions(new Set(this.activeRoomSubscriptions));
+        }
       }
 
       if (err || !resp || state !== SlidingSyncState.Complete) return;
@@ -499,9 +521,10 @@ export class SlidingSyncManager {
           syncNumber: this.syncCount,
         });
       } else {
-        debugLog.info('network', 'Device back online - sync will resume', {
+        debugLog.info('network', 'Device back online - triggering immediate resync', {
           syncNumber: this.syncCount,
         });
+        this.slidingSync.resend();
       }
     };
   }
@@ -588,6 +611,53 @@ export class SlidingSyncManager {
     debugLog.info('sync', 'Sliding sync disposed successfully', {
       totalSyncCycles: this.syncCount,
     });
+  }
+
+  /**
+   * Abort any in-flight sliding sync request and retry immediately.
+   * Safe to call at any time; if the sync is healthy the next poll just fires sooner.
+   */
+  public retryNow(): void {
+    if (this.disposed) return;
+    this.slidingSync.resend();
+  }
+
+  /**
+   * Force a full re-subscription for all currently active room subscriptions.
+   *
+   * Immediately resets the live timeline of every active room so stale or
+   * out-of-order in-memory data is cleared synchronously.  Then clears all
+   * room subscriptions and triggers a sync with an empty room_subscriptions
+   * map.  When RequestFinished fires for that empty-subscription cycle, the
+   * subscriptions are restored; the server treats them as brand-new and
+   * returns initial:true with a full event window and a valid backward-
+   * pagination token for each room on the following cycle.
+   *
+   * This recovers from stale or out-of-order in-memory timeline state that
+   * cannot be fixed by a normal delta sync.  Called by pull-to-refresh.
+   */
+  public scheduleForceReset(): void {
+    if (this.disposed) return;
+    // Save the current subscriptions before modifying anything.
+    this.pendingResubscriptions = new Set(this.activeRoomSubscriptions);
+    // Immediately reset every active-room timeline so stale or out-of-order
+    // data is cleared right now.  TimelineReset fires here, putting React
+    // into a loading state.  The SDK will refill the timelines with fresh
+    // data once the re-subscription cycle below completes.
+    this.pendingResubscriptions.forEach((roomId) => {
+      const room = this.mx.getRoom(roomId);
+      if (!room) return;
+      const timelineSet = room.getUnfilteredTimelineSet();
+      if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
+      timelineSet.resetLiveTimeline();
+    });
+    // Clear subscriptions so the next sync request carries an empty
+    // room_subscriptions map.  When RequestFinished fires, the subscriptions
+    // are restored; the server then treats them as brand-new and returns
+    // initial:true with a full event window and a valid prev_batch token.
+    this.activeRoomSubscriptions.clear();
+    this.slidingSync.modifyRoomSubscriptions(new Set());
+    this.slidingSync.resend();
   }
 
   public setPresenceEnabled(enabled: boolean): void {

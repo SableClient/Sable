@@ -87,12 +87,29 @@ export function useProcessedTimeline({
   messageGroupingThreshold,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   return useMemo(() => {
+    // Sort items by origin_server_ts so events always render in chronological
+    // order even when the SDK stores them in receipt order.  This is visible
+    // after a sliding-sync gap on mobile resume (TimelineReset delivers a full
+    // batch at once) and for bridge-backfilled or federated messages where
+    // receipt order ≠ timestamp order.  Receipt order is preserved as a
+    // tiebreaker so threading / causality is not affected.
+    const sortedItems = items.toSorted((a, b) => {
+      const [tlA, baseA] = getTimelineAndBaseIndex(linkedTimelines, a);
+      const [tlB, baseB] = getTimelineAndBaseIndex(linkedTimelines, b);
+      const evA = tlA ? getTimelineEvent(tlA, getTimelineRelativeIndex(a, baseA)) : null;
+      const evB = tlB ? getTimelineEvent(tlB, getTimelineRelativeIndex(b, baseB)) : null;
+      const tsA = evA?.getTs() ?? 0;
+      const tsB = evB?.getTs() ?? 0;
+      if (tsA !== tsB) return tsA - tsB;
+      return a - b; // receipt order tiebreaker keeps causally-related events stable
+    });
+
     let prevEvent: MatrixEvent | undefined;
     let isPrevRendered = false;
     let newDivider = false;
     let dayDivider = false;
 
-    const result = items.reduce<ProcessedEvent[]>((acc, item) => {
+    const result = sortedItems.reduce<ProcessedEvent[]>((acc, item) => {
       const [eventTimeline, baseIndex] = getTimelineAndBaseIndex(linkedTimelines, item);
       if (!eventTimeline) return acc;
 

@@ -33,7 +33,7 @@ import type { DateFormat, MessageSpacing, CaptionPosition } from '$state/setting
 import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile } from '$components/setting-tile';
 import { KeySymbol } from '$utils/key-symbol';
-import { isMacOS, mobileOrTablet } from '$utils/user-agent';
+import { isMacOS, isPhone, mobileOrTablet } from '$utils/user-agent';
 import { stopPropagation } from '$utils/keyboard';
 import { useMessageLayoutItems } from '$hooks/useMessageLayout';
 import { useCaptionPositionItems } from '$hooks/useCaptionPosition';
@@ -1524,7 +1524,7 @@ export function General({ requestBack, requestClose }: Readonly<GeneralProps>) {
             <Box direction="Column" gap="700">
               <DateAndTime />
               <Gestures isMobile={mobileOrTablet()} />
-              <Editor isMobile={mobileOrTablet()} />
+              <Editor isMobile={isPhone()} />
               <Messages />
               <Embeds />
               <Calls />

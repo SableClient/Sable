@@ -63,8 +63,9 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
+import { mobileOrTabletLayout } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { usePullToRefresh } from '$hooks/usePullToRefresh';
 
 type HomeMenuProps = {
   requestClose: () => void;
@@ -210,21 +211,23 @@ export function Home() {
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
-  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
-  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-
-  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
-  const showIcons = () => {
-    if (showRoomIcon === ShowRoomIcon.Always) return true;
-    if (showRoomIcon === ShowRoomIcon.Never) return false;
-    return curWidth < 96;
-  };
   useEffect(() => {
     setCurWidth(roomSidebarWidth);
   }, [roomSidebarWidth]);
+
+  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
+  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
+  const showRoomIcon =
+    showRoomIconArray.find((item) => item.roomId === 'Home')?.display ?? showRoomIconGeneral;
+  const showIcons = () => {
+    if (showRoomIcon === ShowRoomIcon.Always) return true;
+    if (showRoomIcon === ShowRoomIcon.Never) return false;
+    return curWidth < 144;
+  };
+
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const selectedRoomId = useSelectedRoom();
@@ -261,8 +264,10 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTabletLayout() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+
+  usePullToRefresh(scrollRef, mx);
 
   return (
     <Box
@@ -425,6 +430,7 @@ export function Home() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
+                                  flexDirection: 'column',
                                 }
                               : {}
                           }
@@ -440,8 +446,6 @@ export function Home() {
                               room.roomId
                             )}
                             joinCallOnSingleClick={joinCallOnSingleClick}
-                            roomTopicPreview={roomTopicPreview}
-                            roomMessagePreview={roomMessagePreview}
                           />
                         </div>
                       </VirtualTile>
@@ -451,9 +455,9 @@ export function Home() {
               </NavCategory>
             </Box>
           </PageNavContent>
-          )}
-        </PageNav>
-      {!mobileOrTablet() && (
+        )}
+      </PageNav>
+      {!mobileOrTabletLayout() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

@@ -1,5 +1,6 @@
 import type { KeyboardEventHandler, MouseEvent, RefObject } from 'react';
 import { forwardRef, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { isKeyHotkey } from 'is-hotkey';
@@ -68,7 +69,6 @@ import {
 import { plainToEditorInput } from '$components/editor/input';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
-import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
 import { encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction } from '$utils/matrix';
 import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
@@ -150,6 +150,7 @@ import {
 import { ImageUsage } from '$plugins/custom-emoji';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import { useKeyboardHeight, useScrollLock } from '$hooks/ios-keyboard-fix';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
@@ -284,6 +285,42 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [pkCompatEnable] = useSetting(settingsAtom, 'pkCompat');
     const [pmpProxyingEnable] = useSetting(settingsAtom, 'pmpProxying');
     const emojiBtnRef = useRef<HTMLButtonElement>(null);
+    // Hoisted from the UseStateProvider in JSX so EmojiBoard can be kept mounted
+    // after first open (avoids re-initializing virtualizer on every open).
+    const [emojiBoardTab, setEmojiBoardTab] = useState<EmojiBoardTab | undefined>(undefined);
+    const [emojiBoardAnchorRect, setEmojiBoardAnchorRect] = useState<DOMRect | null>(null);
+    const openEmojiBoard = useCallback((tab: EmojiBoardTab) => {
+      const rect = emojiBtnRef.current?.getBoundingClientRect() ?? null;
+      setEmojiBoardAnchorRect(rect);
+      setEmojiBoardTab(tab);
+    }, []);
+    // Keep the emoji/sticker picker position in sync with viewport changes (e.g.
+    // the iOS virtual keyboard appearing/disappearing while the board is open).
+    useEffect(() => {
+      if (emojiBoardTab === undefined) return undefined;
+      const updateRect = () => {
+        setEmojiBoardAnchorRect(emojiBtnRef.current?.getBoundingClientRect() ?? null);
+      };
+      const vp = window.visualViewport;
+      if (vp) {
+        vp.addEventListener('resize', updateRect);
+        vp.addEventListener('scroll', updateRect);
+        return () => {
+          vp.removeEventListener('resize', updateRect);
+          vp.removeEventListener('scroll', updateRect);
+        };
+      }
+      return undefined;
+    }, [emojiBoardTab]);
+    const closeEmojiBoard = useCallback(() => {
+      setEmojiBoardTab((t) => {
+        if (t) {
+          if (!mobileOrTablet()) ReactEditor.focus(editor);
+          return undefined;
+        }
+        return t;
+      });
+    }, [editor]);
     const micBtnRef = useRef<HTMLButtonElement>(null);
     // Preserve stable list keys across metadata/description replacements without
     // storing UI-only IDs in the upload draft state.
@@ -356,6 +393,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               },
             })
           );
+          // If all files failed to encrypt (e.g. iCloud file not yet downloaded
+          // on iOS), surface an error rather than silently producing no items.
+          if (fileItems.length === 0 && safeFiles.length > 0) {
+            setSendError('Could not read the file. Try downloading it first, then try again.');
+            return;
+          }
         } else {
           safeFiles.forEach((f) =>
             fileItems.push({
@@ -398,6 +441,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const setServerMaxDelayMs = useSetAtom(serverMaxDelayMsAtom);
     const [sendError, setSendError] = useState<string | undefined>();
     const isEncrypted = room.hasEncryptionStateEvent();
+
+    const { triggerPreLift } = useKeyboardHeight();
+    // Always active on mobile: iOS can apply window.scrollY even with overflow:hidden
+    // on body (scroll-prediction bug). The lock snaps scrollY back to 0 immediately
+    // on any scroll event, preventing the "header scrolls up then snaps" jank.
+    // useKeyboardHeight now manages --sable-visible-height synchronously in its own
+    // event handler, so no useEffect here is needed for CSS variable management.
+    useScrollLock(mobileOrTablet());
 
     useElementSizeObserver(
       useCallback(() => fileDropContainerRef.current, [fileDropContainerRef]),
@@ -1413,7 +1464,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     };
 
     return (
-      <div ref={ref}>
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+      <div ref={ref} onMouseDown={mobileOrTablet() ? triggerPreLift : undefined}>
         {selectedFiles.length > 0 && (
           <UploadBoard
             header={
@@ -1763,77 +1815,72 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
               <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
 
-              <UseStateProvider initial={undefined}>
-                {(emojiBoardTab: EmojiBoardTab | undefined, setEmojiBoardTab) => (
-                  <PopOut
-                    offset={16}
-                    alignOffset={-44}
-                    position="Top"
-                    align="End"
-                    anchor={
-                      emojiBoardTab === undefined
-                        ? undefined
-                        : (emojiBtnRef.current?.getBoundingClientRect() ?? undefined)
-                    }
-                    content={
-                      <EmojiBoard
-                        tab={emojiBoardTab}
-                        onTabChange={setEmojiBoardTab}
-                        imagePackRooms={imagePackRooms}
-                        returnFocusOnDeactivate={false}
-                        onEmojiSelect={handleEmoticonSelect}
-                        onCustomEmojiSelect={handleEmoticonSelect}
-                        onStickerSelect={handleStickerSelect}
-                        requestClose={() => {
-                          setEmojiBoardTab((t) => {
-                            if (t) {
-                              if (!mobileOrTablet()) ReactEditor.focus(editor);
-                              return undefined;
-                            }
-                            return t;
-                          });
-                        }}
-                      />
-                    }
+              {/* Emoji/sticker board: kept mounted after first open to avoid re-initialising
+                  the virtualizer on every open. FocusTrap is deactivated when hidden. */}
+              {emojiBoardAnchorRect &&
+                createPortal(
+                  <div
+                    style={{
+                      position: 'fixed',
+                      zIndex: 999,
+                      // Position above the emoji button (mirrors PopOut position="Top" offset=16).
+                      bottom: window.innerHeight - emojiBoardAnchorRect.top + 16,
+                      // Right-align with the emoji button, but clamp so the picker
+                      // never extends past the left edge of the screen.
+                      // The EmojiBoard is min(432px, 100vw-32px) wide; ensure
+                      // viewportWidth − right − boardWidth ≥ 0.
+                      right: (() => {
+                        const rawRight = window.innerWidth - emojiBoardAnchorRect.right;
+                        const boardWidth = Math.min(432, window.innerWidth - 32);
+                        return Math.max(0, Math.min(rawRight, window.innerWidth - boardWidth));
+                      })(),
+                      display: emojiBoardTab !== undefined ? undefined : 'none',
+                    }}
                   >
-                    {!hideStickerBtn && (
-                      <IconButton
-                        aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
-                        onClick={() => setEmojiBoardTab(EmojiBoardTab.Sticker)}
-                        variant="SurfaceVariant"
-                        size="300"
-                        radii="300"
-                        title="open sticker picker"
-                        aria-label="Open sticker picker"
-                      >
-                        <Icon
-                          src={Icons.Sticker}
-                          filled={emojiBoardTab === EmojiBoardTab.Sticker}
-                        />
-                      </IconButton>
-                    )}
-                    <IconButton
-                      ref={emojiBtnRef}
-                      aria-pressed={
-                        hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                      }
-                      onClick={() => setEmojiBoardTab(EmojiBoardTab.Emoji)}
-                      variant="SurfaceVariant"
-                      size="300"
-                      radii="300"
-                      title="open emoji picker"
-                      aria-label="Open emoji picker"
-                    >
-                      <Icon
-                        src={Icons.Smile}
-                        filled={
-                          hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
-                        }
-                      />
-                    </IconButton>
-                  </PopOut>
+                    <EmojiBoard
+                      active={emojiBoardTab !== undefined}
+                      tab={emojiBoardTab ?? EmojiBoardTab.Emoji}
+                      onTabChange={setEmojiBoardTab}
+                      imagePackRooms={imagePackRooms}
+                      returnFocusOnDeactivate={false}
+                      onEmojiSelect={handleEmoticonSelect}
+                      onCustomEmojiSelect={handleEmoticonSelect}
+                      onStickerSelect={handleStickerSelect}
+                      requestClose={closeEmojiBoard}
+                    />
+                  </div>,
+                  document.body
                 )}
-              </UseStateProvider>
+              {!hideStickerBtn && (
+                <IconButton
+                  aria-pressed={emojiBoardTab === EmojiBoardTab.Sticker}
+                  onClick={() => openEmojiBoard(EmojiBoardTab.Sticker)}
+                  variant="SurfaceVariant"
+                  size="300"
+                  radii="300"
+                  title="open sticker picker"
+                  aria-label="Open sticker picker"
+                >
+                  <Icon src={Icons.Sticker} filled={emojiBoardTab === EmojiBoardTab.Sticker} />
+                </IconButton>
+              )}
+              <IconButton
+                ref={emojiBtnRef}
+                aria-pressed={
+                  hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji
+                }
+                onClick={() => openEmojiBoard(EmojiBoardTab.Emoji)}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+                title="open emoji picker"
+                aria-label="Open emoji picker"
+              >
+                <Icon
+                  src={Icons.Smile}
+                  filled={hideStickerBtn ? !!emojiBoardTab : emojiBoardTab === EmojiBoardTab.Emoji}
+                />
+              </IconButton>
               <PopOut
                 anchor={scheduleMenuAnchor}
                 position="Top"

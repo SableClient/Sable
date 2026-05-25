@@ -14,8 +14,9 @@ export const NON_SYNCABLE_KEYS = new Set<keyof Settings>([
   'isPeopleDrawer',
   'isWidgetDrawer',
   'memberSortFilterIndex',
-  // Developer / diagnostic
+  // Developer / diagnostic / experimental performance features
   'developerTools',
+  'progressivePrefetch',
   // Sync toggle itself must never be uploaded (it's device-local)
   'settingsSyncEnabled',
 ]);

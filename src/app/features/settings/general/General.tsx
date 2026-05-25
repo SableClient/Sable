@@ -1157,6 +1157,10 @@ export function Sync() {
   const activeSessionId = useAtomValue(activeSessionIdAtom);
   const setSessions = useSetAtom(sessionsAtom);
   const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
+  const [progressivePrefetch, setProgressivePrefetch] = useSetting(
+    settingsAtom,
+    'progressivePrefetch'
+  );
 
   const serverSlidingEnabled = resolveSlidingEnabled(clientConfig.slidingSync?.enabled);
   const useSlidingSync = activeSession?.slidingSyncOptIn === true;
@@ -1183,6 +1187,7 @@ export function Sync() {
         variant="SurfaceVariant"
         direction="Column"
         style={{ opacity: serverSlidingEnabled ? 1 : 0.5 }}
+        gap="400"
       >
         <SettingTile
           title="Use Sliding Sync"
@@ -1232,6 +1237,20 @@ export function Sync() {
             />
           }
         />
+        {useSlidingSync && serverSlidingEnabled && (
+          <SettingTile
+            title="Progressive Prefetch"
+            focusId="progressive-prefetch"
+            description="After loading the initial 25 most recent rooms, automatically prefetch the next batch of rooms in the background. Helps populate room lists faster but may increase bandwidth and memory usage."
+            after={
+              <Switch
+                variant="Primary"
+                value={progressivePrefetch}
+                onChange={setProgressivePrefetch}
+              />
+            }
+          />
+        )}
       </SequenceCard>
     </Box>
   );

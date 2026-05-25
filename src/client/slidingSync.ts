@@ -277,6 +277,15 @@ export class SlidingSyncManager {
 
   private previousListCounts: Map<string, number> = new Map();
 
+  /** Whether progressive prefetch is enabled (controlled by experimental setting). */
+  private progressivePrefetchEnabled = false;
+
+  /** Timer ID for progressive prefetch batches. */
+  private progressivePrefetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Current offset in the recentRoomIds array for progressive prefetch. */
+  private progressivePrefetchOffset = 0;
+
   /**
    * One-shot RoomData listeners keyed by roomId, used to measure the latency
    * between subscribeToRoom() and the first data arriving for that room.
@@ -571,6 +580,12 @@ export class SlidingSyncManager {
       initialSyncCompleted: this.initialSyncCompleted,
     });
 
+    // Clean up progressive prefetch timer
+    if (this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+    }
+
     // Clean up pending room-data latency listeners before marking disposed.
     // SlidingSync.stop() will removeAllListeners anyway, but this keeps the Map tidy.
     this.pendingRoomDataListeners.clear();
@@ -606,6 +621,29 @@ export class SlidingSyncManager {
 
   public setPresenceEnabled(enabled: boolean): void {
     this.presenceExtension.setEnabled(enabled);
+  }
+
+  /**
+   * Enable or disable progressive prefetch. When enabled, after the initial
+   * batch of 25 rooms is prefetched, additional rooms are loaded in the
+   * background in batches of 25 until all rooms are subscribed.
+   */
+  public setProgressivePrefetch(enabled: boolean): void {
+    if (this.progressivePrefetchEnabled === enabled) return;
+    this.progressivePrefetchEnabled = enabled;
+    debugLog.info('sync', `Progressive prefetch ${enabled ? 'enabled' : 'disabled'}`);
+
+    // If disabling, cancel any pending prefetch
+    if (!enabled && this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+      this.progressivePrefetchOffset = 0;
+    }
+
+    // If enabling and we already completed initial sync, start prefetch
+    if (enabled && this.initialSyncCompleted) {
+      this.scheduleNextProgressivePrefetch();
+    }
   }
 
   public getDiagnostics(): SlidingSyncDiagnostics {
@@ -1065,6 +1103,72 @@ export class SlidingSyncManager {
         this.subscribeToRoom(roomId);
       }
     }
+
+    // Set offset for progressive prefetch to start after initial batch
+    this.progressivePrefetchOffset = 25;
+
+    // If progressive prefetch is enabled, schedule the next batch
+    if (this.progressivePrefetchEnabled) {
+      this.scheduleNextProgressivePrefetch();
+    }
+  }
+
+  /**
+   * Schedule the next batch of progressive prefetch. Loads rooms in batches
+   * of 25 with a 3-second delay between batches to avoid overwhelming the
+   * server and client. Continues until all rooms are subscribed or maxRooms
+   * is reached.
+   */
+  private scheduleNextProgressivePrefetch(): void {
+    if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+    // Cancel any existing timer
+    if (this.progressivePrefetchTimer) {
+      clearTimeout(this.progressivePrefetchTimer);
+      this.progressivePrefetchTimer = null;
+    }
+
+    const userId = this.mx.getUserId();
+    if (!userId) return;
+
+    const recentRoomIds = getRecentRoomIds(userId);
+    const batchSize = 25;
+    const nextBatch = recentRoomIds.slice(
+      this.progressivePrefetchOffset,
+      this.progressivePrefetchOffset + batchSize
+    );
+
+    if (nextBatch.length === 0) {
+      debugLog.info('sync', 'Progressive prefetch complete', {
+        totalPrefetched: this.progressivePrefetchOffset,
+      });
+      return;
+    }
+
+    // Schedule next batch after 3 seconds
+    this.progressivePrefetchTimer = setTimeout(() => {
+      if (this.disposed || !this.progressivePrefetchEnabled) return;
+
+      debugLog.info('sync', 'Progressive prefetch batch', {
+        offset: this.progressivePrefetchOffset,
+        count: nextBatch.length,
+      });
+
+      for (const roomId of nextBatch) {
+        const room = this.mx.getRoom(roomId);
+        if (room && !this.activeRoomSubscriptions.has(roomId)) {
+          this.subscribeToRoom(roomId);
+        }
+      }
+
+      // Move offset forward
+      this.progressivePrefetchOffset += batchSize;
+
+      // Schedule next batch if progressive prefetch is still enabled
+      if (this.progressivePrefetchEnabled) {
+        this.scheduleNextProgressivePrefetch();
+      }
+    }, 3000); // 3 second delay between batches
   }
 
   public static async probe(

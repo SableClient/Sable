@@ -856,6 +856,17 @@ function PresenceFeature() {
   return null;
 }
 
+function ProgressivePrefetchFeature() {
+  const mx = useMatrixClient();
+  const [progressivePrefetch] = useSetting(settingsAtom, 'progressivePrefetch');
+
+  useEffect(() => {
+    getSlidingSyncManager(mx)?.setProgressivePrefetch(progressivePrefetch);
+  }, [mx, progressivePrefetch]);
+
+  return null;
+}
+
 function SettingsSyncFeature() {
   useSettingsSyncEffect();
   return null;
@@ -880,6 +891,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <ThemeMigrationBanner />
       <SlidingSyncActiveRoomSubscriber />
       <PresenceFeature />
+      <ProgressivePrefetchFeature />
       <SentryRoomContextFeature />
       <SentryTagsFeature />
       <HealthMonitor />

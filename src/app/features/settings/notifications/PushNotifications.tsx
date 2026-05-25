@@ -61,7 +61,7 @@ export async function enablePushNotifications(
     );
     throw new Error('Push messaging is not supported in this browser.');
   }
-  
+
   const span = Sentry.startInactiveSpan({
     name: 'push.register',
     op: 'notification',
@@ -72,114 +72,114 @@ export async function enablePushNotifications(
       'push.has_application_server_key': !!clientConfig.pushNotificationDetails?.vapidPublicKey,
     },
   });
-  
+
   debugLog.info('notification', 'Enabling push notifications');
   const [pushSubAtom, setPushSubscription] = pushSubscriptionAtom;
   const registration = await navigator.serviceWorker.ready;
-  
+
   const currentBrowserSub = await registration.pushManager.getSubscription();
-  
+
   Sentry.addBreadcrumb({
     category: 'push',
     message: 'Push registration attempt',
     data: {
       existingSubscription: !!currentBrowserSub,
-      permissionState: ('Notification' in window) ? window.Notification.permission : 'unsupported',
+      permissionState: 'Notification' in window ? window.Notification.permission : 'unsupported',
       swControllerState: navigator.serviceWorker.controller?.state ?? 'none',
     },
     level: 'info',
   });
-  
+
   try {
-  /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
+    /* Self-Healing Check. Effectively checks if the browser has invalidated our subscription and recreates it
      only when necessary. This prevents us from needing an external call to get back the web push info.
   */
-  if (currentBrowserSub && pushSubAtom && currentBrowserSub.endpoint === pushSubAtom.endpoint) {
-    debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
-      endpoint: pushSubAtom.endpoint,
+    if (currentBrowserSub && pushSubAtom && currentBrowserSub.endpoint === pushSubAtom.endpoint) {
+      debugLog.info('notification', 'Push subscription already exists and is valid - reusing', {
+        endpoint: pushSubAtom.endpoint,
+      });
+      const { keys } = pushSubAtom;
+      if (!keys?.p256dh || !keys.auth) return;
+      const pusherData = {
+        kind: 'http' as const,
+        app_id: clientConfig.pushNotificationDetails?.webPushAppID,
+        pushkey: keys.p256dh,
+        app_display_name: 'Sable',
+        device_display_name: 'This Browser',
+        lang: navigator.language || 'en',
+        data: {
+          url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
+          format: 'event_id_only' as const,
+          endpoint: pushSubAtom.endpoint,
+          p256dh: keys.p256dh,
+          auth: keys.auth,
+        },
+        append: false,
+      };
+      postToServiceWorker({
+        url: mx.baseUrl,
+        type: 'togglePush',
+        pusherData,
+        token: mx.getAccessToken(),
+      });
+
+      span.setAttribute('push.endpoint', pushSubAtom.endpoint);
+      span.setAttribute('push.success', true);
+      span.setAttribute('push.reused_subscription', true);
+      span.end();
+      return;
+    }
+
+    if (currentBrowserSub) {
+      debugLog.info('notification', 'Unsubscribing old push subscription');
+      await currentBrowserSub.unsubscribe();
+    }
+
+    debugLog.info('notification', 'Creating new push subscription');
+    const newSubscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: clientConfig.pushNotificationDetails?.vapidPublicKey,
     });
-    const { keys } = pushSubAtom;
-    if (!keys?.p256dh || !keys.auth) return;
+
+    debugLog.info('notification', 'Push subscription created successfully', {
+      endpoint: newSubscription.endpoint,
+    });
+    setPushSubscription(newSubscription);
+
+    const subJson = newSubscription.toJSON();
+    const { keys } = subJson;
+    if (!keys?.p256dh || !keys.auth) {
+      debugLog.error('notification', 'Push subscription missing required keys');
+      throw new Error('Push subscription keys missing.');
+    }
     const pusherData = {
       kind: 'http' as const,
       app_id: clientConfig.pushNotificationDetails?.webPushAppID,
       pushkey: keys.p256dh,
       app_display_name: 'Sable',
-      device_display_name: 'This Browser',
+      device_display_name:
+        (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
       lang: navigator.language || 'en',
       data: {
         url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
         format: 'event_id_only' as const,
-        endpoint: pushSubAtom.endpoint,
+        endpoint: newSubscription.endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
       },
       append: false,
     };
+
     postToServiceWorker({
       url: mx.baseUrl,
       type: 'togglePush',
       pusherData,
       token: mx.getAccessToken(),
     });
-    
-    span.setAttribute('push.endpoint', pushSubAtom.endpoint);
+
+    span.setAttribute('push.endpoint', newSubscription.endpoint);
     span.setAttribute('push.success', true);
-    span.setAttribute('push.reused_subscription', true);
     span.end();
-    return;
-  }
-
-  if (currentBrowserSub) {
-    debugLog.info('notification', 'Unsubscribing old push subscription');
-    await currentBrowserSub.unsubscribe();
-  }
-
-  debugLog.info('notification', 'Creating new push subscription');
-  const newSubscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: clientConfig.pushNotificationDetails?.vapidPublicKey,
-  });
-
-  debugLog.info('notification', 'Push subscription created successfully', {
-    endpoint: newSubscription.endpoint,
-  });
-  setPushSubscription(newSubscription);
-
-  const subJson = newSubscription.toJSON();
-  const { keys } = subJson;
-  if (!keys?.p256dh || !keys.auth) {
-    debugLog.error('notification', 'Push subscription missing required keys');
-    throw new Error('Push subscription keys missing.');
-  }
-  const pusherData = {
-    kind: 'http' as const,
-    app_id: clientConfig.pushNotificationDetails?.webPushAppID,
-    pushkey: keys.p256dh,
-    app_display_name: 'Sable',
-    device_display_name:
-      (await mx.getDevice(mx.getDeviceId() ?? '')).display_name ?? 'Unknown Device',
-    lang: navigator.language || 'en',
-    data: {
-      url: clientConfig.pushNotificationDetails?.pushNotifyUrl,
-      format: 'event_id_only' as const,
-      endpoint: newSubscription.endpoint,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-    },
-    append: false,
-  };
-
-  postToServiceWorker({
-    url: mx.baseUrl,
-    type: 'togglePush',
-    pusherData,
-    token: mx.getAccessToken(),
-  });
-  
-  span.setAttribute('push.endpoint', newSubscription.endpoint);
-  span.setAttribute('push.success', true);
-  span.end();
   } catch (err) {
     span.setAttribute('push.success', false);
     span.setAttribute('push.error', err instanceof Error ? err.message : String(err));

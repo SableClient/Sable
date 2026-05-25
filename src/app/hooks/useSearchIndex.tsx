@@ -214,9 +214,9 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   const backfillRoom = useCallback(
     async (room: Room, state: BackfillState): Promise<void> => {
       if (state.done) return;
-      
+
       const isEncrypted = room.hasEncryptionStateEvent();
-      
+
       // Start per-room backfill span
       const roomSpan = Sentry.startInactiveSpan({
         name: 'search.backfill.room',
@@ -227,7 +227,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           'backfill.starting_count': state.indexedCount,
         },
       });
-      
+
       let totalEventsThisSession = 0;
       let totalPagesThisSession = 0;
 
@@ -268,7 +268,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
           'backfill.from_token': seedToken,
         },
       });
-      
+
       try {
         hasMore = await mx.paginateEventTimeline(headlessTimeline, {
           backwards: true,
@@ -300,8 +300,11 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
         roomSpan.end();
         return;
       }
-      
-      pageSpan.setAttribute('backfill.events_in_page', headlessTimeline.getEvents().length - prevEventCount);
+
+      pageSpan.setAttribute(
+        'backfill.events_in_page',
+        headlessTimeline.getEvents().length - prevEventCount
+      );
       pageSpan.end();
       totalPagesThisSession += 1;
 
@@ -338,7 +341,7 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
       if (events.length > 0) {
         postToWorker({ type: 'INDEX_EVENTS', events });
       }
-      
+
       totalEventsThisSession += events.length;
 
       const nextToken = headlessTimeline.getPaginationToken(Direction.Backward);
@@ -395,10 +398,10 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
             Sentry.addBreadcrumb({
               category: 'search.backfill',
               message: `Backfill deferred for room ${room.roomId}`,
-              data: { 
-                reason: 'mobile_hidden', 
-                isMobile: !HAS_IDLE_CALLBACK, 
-                visibilityState: document.visibilityState 
+              data: {
+                reason: 'mobile_hidden',
+                isMobile: !HAS_IDLE_CALLBACK,
+                visibilityState: document.visibilityState,
               },
               level: 'info',
             });

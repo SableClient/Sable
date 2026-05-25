@@ -24,11 +24,7 @@ const createCacheKey = (
   return `${mxcUrl}|${useAuthentication ? 'auth' : 'noauth'}|${dims}|${method}`;
 };
 
-const createBlobCacheKey = (
-  mxcUrl: string,
-  isEncrypted: boolean,
-  params?: string
-): CacheKey => {
+const createBlobCacheKey = (mxcUrl: string, isEncrypted: boolean, params?: string): CacheKey => {
   const extra = params ?? '';
   return `blob:${mxcUrl}|${isEncrypted ? 'enc' : 'plain'}|${extra}`;
 };
@@ -81,21 +77,12 @@ export const useMediaUrlCache = () => {
       return httpUrl;
     },
 
-    getBlob: (
-      mxcUrl: string,
-      isEncrypted: boolean,
-      params?: string
-    ): string | undefined => {
+    getBlob: (mxcUrl: string, isEncrypted: boolean, params?: string): string | undefined => {
       const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
       return cacheRef.current.get(key) ?? undefined;
     },
 
-    setBlob: (
-      mxcUrl: string,
-      isEncrypted: boolean,
-      blobUrl: string,
-      params?: string
-    ): void => {
+    setBlob: (mxcUrl: string, isEncrypted: boolean, blobUrl: string, params?: string): void => {
       const key = createBlobCacheKey(mxcUrl, isEncrypted, params);
       cacheRef.current.set(key, blobUrl);
       blobUrlsRef.current.add(blobUrl);

@@ -22,22 +22,25 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string): RoomMember[] =
 
     if (room) {
       setMembers(room.getMembers());
-      
+
       // Only load members if we haven't already loaded them for this room
       // Fixes N+1 issue where every component mount triggers a /members API call
       const alreadyLoaded = loadedRooms.has(roomId);
       if (!alreadyLoaded && !loadInitiatedRef.current) {
         loadInitiatedRef.current = true;
-        room.loadMembersIfNeeded().then(() => {
-          loadedRooms.add(roomId);
-          loadingMembers = false;
-          if (disposed) return;
-          updateMemberList();
-        }).catch(() => {
-          // If loading fails, allow retry on next mount
-          loadInitiatedRef.current = false;
-          loadingMembers = false;
-        });
+        room
+          .loadMembersIfNeeded()
+          .then(() => {
+            loadedRooms.add(roomId);
+            loadingMembers = false;
+            if (disposed) return;
+            updateMemberList();
+          })
+          .catch(() => {
+            // If loading fails, allow retry on next mount
+            loadInitiatedRef.current = false;
+            loadingMembers = false;
+          });
       } else {
         loadingMembers = false;
         updateMemberList();

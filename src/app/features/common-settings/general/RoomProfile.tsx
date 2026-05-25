@@ -33,9 +33,9 @@ import { mDirectAtom } from '$state/mDirectList';
 import { BreakWord, LineClamp3 } from '$styles/Text.css';
 import { LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import { mxcUrlToHttp } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 
 import { CompactUploadCardRenderer } from '$components/upload-card';
 import { useObjectURL } from '$hooks/useObjectURL';
@@ -78,11 +78,12 @@ export function RoomProfileEdit({
   const mx = useMatrixClient();
   const alive = useAlive();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const joinRule = useRoomJoinRule(room);
   const [roomAvatar, setRoomAvatar] = useState(avatar);
 
   const avatarUrl = roomAvatar
-    ? (mxcUrlToHttp(mx, roomAvatar, useAuthentication) ?? undefined)
+    ? (convertMxc(mx, roomAvatar, useAuthentication) ?? undefined)
     : undefined;
 
   const [imageFile, setImageFile] = useState<File>();
@@ -491,6 +492,7 @@ type RoomProfileProps = {
 export function RoomProfile({ permissions }: RoomProfileProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const room = useRoom();
   const directs = useAtomValue(mDirectAtom);
   const isDm = directs.has(room.roomId);
@@ -507,7 +509,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
   const canEdit = canEditAvatar || canEditName || canEditTopic;
 
   const avatarUrl = avatar
-    ? (mxcUrlToHttp(mx, avatar, useAuthentication, 96, 96, 'crop') ?? undefined)
+    ? (convertMxc(mx, avatar, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
 
   const [edit, setEdit] = useState(false);
@@ -516,7 +518,7 @@ export function RoomProfile({ permissions }: RoomProfileProps) {
 
   const bannerState = useStateEvent(room, CustomStateEvent.RoomBanner);
   const bannerMXC = bannerState?.getContent<RoomBannerContent>()?.url;
-  const bannerURI = mxcUrlToHttp(mx, bannerMXC ?? '', true);
+  const bannerURI = bannerMXC ? (convertMxc(mx, bannerMXC, true) ?? undefined) : undefined;
 
   return (
     <Box direction="Column" gap="100">

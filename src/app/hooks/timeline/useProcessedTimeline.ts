@@ -162,8 +162,14 @@ export function useProcessedTimeline({
         if (threadRootId !== undefined) return threadRootId;
         const relation =
           mEvent.getRelation?.() ??
-          (mEvent.getWireContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } })?.['m.relates_to'] ??
-          (mEvent.getContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } })?.['m.relates_to'];
+          (
+            mEvent.getWireContent?.() as {
+              'm.relates_to'?: { rel_type?: unknown; event_id?: unknown };
+            }
+          )?.['m.relates_to'] ??
+          (
+            mEvent.getContent?.() as { 'm.relates_to'?: { rel_type?: unknown; event_id?: unknown } }
+          )?.['m.relates_to'];
         if (relation?.rel_type === 'm.thread' && typeof relation.event_id === 'string') {
           return relation.event_id;
         }

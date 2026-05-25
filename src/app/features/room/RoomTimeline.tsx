@@ -1186,8 +1186,8 @@ export function RoomTimeline({
 
   return (
     <Box grow="Yes" style={{ position: 'relative' }}>
-        {unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady && (
-          <TimelineFloat position="Top">
+      {unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady && (
+        <TimelineFloat position="Top">
           <Chip
             variant="Primary"
             radii="Pill"

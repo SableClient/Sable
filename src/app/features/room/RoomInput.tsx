@@ -741,7 +741,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 'message.is_thread': !!threadRootId,
               },
             });
-            
+
             return mx
               .sendMessage(roomId, threadRootId ?? null, content as RoomMessageEventContent)
               .then((res: { event_id: string }) => {
@@ -761,7 +761,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                   error: error instanceof Error ? error.message : String(error),
                 });
                 log.error('failed to send uploaded message', { roomId }, error);
-                span.setAttribute('message.error', error instanceof Error ? error.message : String(error));
+                span.setAttribute(
+                  'message.error',
+                  error instanceof Error ? error.message : String(error)
+                );
                 span.end();
                 throw error;
               });

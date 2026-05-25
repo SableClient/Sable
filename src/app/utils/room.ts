@@ -510,29 +510,50 @@ export const getRoomIconSrc = (
   return icons.Hash;
 };
 
+export type MxcConverter = (
+  mx: MatrixClient,
+  mxcUrl: string,
+  useAuthentication: boolean,
+  width?: number,
+  height?: number,
+  resizeMethod?: string,
+  allowDirectLinks?: boolean
+) => string | null;
+
 export const getRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getMxcAvatarUrl();
-  return mxcUrl
-    ? (mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ??
-        undefined)
-    : undefined;
+  if (!mxcUrl) return undefined;
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
+  }
+
+  return (
+    mx.mxcUrlToHttp(mxcUrl, size, size, 'crop', undefined, false, useAuthentication) ?? undefined
+  );
 };
 
 export const getDirectRoomAvatarUrl = (
   mx: MatrixClient,
   room: Room,
   size: 32 | 96 = 32,
-  useAuthentication = false
+  useAuthentication = false,
+  converter?: MxcConverter
 ): string | undefined => {
   const mxcUrl = room.getAvatarFallbackMember()?.getMxcAvatarUrl();
 
   if (!mxcUrl) {
-    return getRoomAvatarUrl(mx, room, size, useAuthentication);
+    return getRoomAvatarUrl(mx, room, size, useAuthentication, converter);
+  }
+
+  if (converter) {
+    return converter(mx, mxcUrl, useAuthentication, size, size, 'crop') ?? undefined;
   }
 
   return (

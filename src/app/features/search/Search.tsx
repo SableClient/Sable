@@ -53,6 +53,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { getHomeSearchPath, getDirectSearchPath, getSpaceSearchPath } from '$pages/pathUtils';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 
 enum SearchRoomType {
   Rooms = '#',
@@ -141,6 +142,7 @@ export type RoomSearchModalProps = {
 export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
@@ -519,8 +521,20 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
                                       roomId={room.roomId}
                                       src={
                                         dm
-                                          ? getDirectRoomAvatarUrl(mx, room, 32, useAuthentication)
-                                          : getRoomAvatarUrl(mx, room, 32, useAuthentication)
+                                          ? getDirectRoomAvatarUrl(
+                                              mx,
+                                              room,
+                                              32,
+                                              useAuthentication,
+                                              convertMxc
+                                            )
+                                          : getRoomAvatarUrl(
+                                              mx,
+                                              room,
+                                              32,
+                                              useAuthentication,
+                                              convertMxc
+                                            )
                                       }
                                       alt={room.name}
                                       renderFallback={() => (

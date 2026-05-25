@@ -389,7 +389,7 @@ export class SlidingSyncManager {
         syncNumber: this.syncCount,
         isInitialSync: !this.initialSyncCompleted,
       });
-      
+
       // Add breadcrumb for all state transitions (not just errors) to have full picture before crashes
       const roomsInResponse = (resp as MSC3575SlidingSyncResponse)?.rooms
         ? Object.keys((resp as MSC3575SlidingSyncResponse).rooms).length
@@ -404,7 +404,7 @@ export class SlidingSyncManager {
           roomsInResponse,
           hasError: !!err,
         },
-        level: state === SlidingSyncState.RequestFinished ? 'info' : (err ? 'error' : 'warning'),
+        level: state === SlidingSyncState.RequestFinished ? 'info' : err ? 'error' : 'warning',
       });
 
       if (err) {
@@ -417,10 +417,13 @@ export class SlidingSyncManager {
         Sentry.metrics.count('sable.sync.error', 1, {
           attributes: { transport: 'sliding', state },
         });
-        
+
         // Detect M_UNKNOWN_POS error (sliding sync position lost)
         const errorData = err as { errcode?: string; httpStatus?: number };
-        if (errorData.errcode === 'M_UNKNOWN_POS' || (err.message && err.message.includes('M_UNKNOWN_POS'))) {
+        if (
+          errorData.errcode === 'M_UNKNOWN_POS' ||
+          (err.message && err.message.includes('M_UNKNOWN_POS'))
+        ) {
           Sentry.addBreadcrumb({
             category: 'sync.slidingSync',
             message: 'Sliding sync position lost (M_UNKNOWN_POS) — full resync required',
@@ -541,7 +544,7 @@ export class SlidingSyncManager {
               serverEvents: serverEvents.length,
             });
             timelineSet.resetLiveTimeline();
-            
+
             // If this was a PTR refresh, remove from the set now that reset is complete
             if (isPTRMode) {
               this.ptrRefreshRooms.delete(roomId);
@@ -796,12 +799,12 @@ export class SlidingSyncManager {
     if (this.disposed) return;
     // Save the current subscriptions before modifying anything.
     this.pendingResubscriptions = new Set(this.activeRoomSubscriptions);
-    
+
     // Mark these rooms as undergoing PTR refresh so the reset logic allows
     // timeline resets even for visited rooms.
     this.ptrRefreshRooms.clear();
     this.pendingResubscriptions.forEach((roomId) => this.ptrRefreshRooms.add(roomId));
-    
+
     // Clear subscriptions so the next sync request carries an empty
     // room_subscriptions map.  When RequestFinished fires, the subscriptions
     // are restored; the server then treats them as brand-new and returns

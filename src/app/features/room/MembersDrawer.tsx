@@ -158,7 +158,7 @@ function MemberItem({
     if (sendPresence) {
       const effectiveDisplayMode = autoIdled
         ? Presence.Unavailable
-        : (presenceMode ?? 'online') as Presence;
+        : ((presenceMode ?? 'online') as Presence);
       presenceBadge = <PresenceBadge presence={effectiveDisplayMode} size="200" />;
     }
     // Show own status message from settings state (status msg never echoed back on sliding sync)

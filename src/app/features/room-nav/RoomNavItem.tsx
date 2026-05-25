@@ -42,9 +42,10 @@ import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { TypingIndicator } from '$components/typing-indicator';
 import { stopPropagation } from '$utils/keyboard';
 import { getMatrixToRoom } from '$plugins/matrix-to';
-import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
 import { getViaServers } from '$plugins/via-servers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
@@ -291,6 +292,7 @@ export function RoomNavItem({
 }: RoomNavItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const [hover, setHover] = useState(false);
   const { hoverProps } = useHover({ onHoverChange: setHover });
   const { focusWithinProps } = useFocusWithin({ onFocusWithinChange: setHover });
@@ -451,7 +453,7 @@ export function RoomNavItem({
                       <div className={hideText ? css.GroupAvatarRowHideText : css.GroupAvatarRow}>
                         {groupMembers.map((member) => {
                           const avatarSrc = member.avatarUrl
-                            ? (mxcUrlToHttp(
+                            ? (convertMxc(
                                 mx,
                                 member.avatarUrl,
                                 useAuthentication,
@@ -504,8 +506,8 @@ export function RoomNavItem({
                               roomId={room.roomId}
                               src={
                                 ((!direct || customDMCards) &&
-                                  getRoomAvatarUrl(mx, room, 96, useAuthentication)) ||
-                                getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+                                  getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)) ||
+                                getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)
                               }
                               uniformIcons
                               alt={roomName}

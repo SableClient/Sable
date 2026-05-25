@@ -28,7 +28,15 @@ export const useCachedMxcConverter = () => {
       resizeMethod?: string,
       allowDirectLinks?: boolean
     ): string | null => {
-      return cache.get(mx, mxcUrl, useAuthentication, width, height, resizeMethod, allowDirectLinks);
+      return cache.get(
+        mx,
+        mxcUrl,
+        useAuthentication,
+        width,
+        height,
+        resizeMethod,
+        allowDirectLinks
+      );
     },
     [cache]
   );

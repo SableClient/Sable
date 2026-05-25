@@ -284,10 +284,7 @@ export const useUserProfile = (
 
     const rawHeroBrightness = data?.heroColorScheme?.brightness;
     const rawHeroColor = data?.heroColorScheme?.color;
-    const heroCardsAllowed = shouldApplyUserHeroCards(
-      renderUserCardsMode,
-      rawHeroBrightness
-    );
+    const heroCardsAllowed = shouldApplyUserHeroCards(renderUserCardsMode, rawHeroBrightness);
     const validHeroColor = heroCardsAllowed ? isValidHex(rawHeroColor) : undefined;
     const heroBrightness = heroCardsAllowed ? rawHeroBrightness : undefined;
     const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);

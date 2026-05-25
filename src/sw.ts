@@ -795,10 +795,11 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       if (persisted && validMediaRequest(url, persisted.baseUrl)) {
         return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
       }
-      console.warn(
-        '[SW fetch] No valid session for media request',
-        { url, clientId, hasSession: !!s },
-      );
+      console.warn('[SW fetch] No valid session for media request', {
+        url,
+        clientId,
+        hasSession: !!s,
+      });
       // Log fetch failure to help diagnose FetchEvent.respondWith errors
       return fetch(event.request).catch((err) => {
         console.error('[SW fetch] Media fetch failed:', { url, error: err.message });

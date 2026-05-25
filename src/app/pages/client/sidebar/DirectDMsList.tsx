@@ -17,8 +17,9 @@ import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { nameInitials } from '$utils/common';
-import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
@@ -36,6 +37,7 @@ type DMItemProps = {
 function DMItem({ room, selected }: DMItemProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const convertMxc = useCachedMxcConverter();
   const navigate = useNavigate();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
 
@@ -62,7 +64,7 @@ function DMItem({ room, selected }: DMItemProps) {
     if (groupMembers.length !== 1 || !member?.avatarUrl) {
       return undefined;
     }
-    return mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
+    return convertMxc(mx, member.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined;
   };
 
   // Render appropriate avatar based on DM type
@@ -74,8 +76,8 @@ function DMItem({ room, selected }: DMItemProps) {
           <RoomAvatar
             roomId={room.roomId}
             src={
-              getRoomAvatarUrl(mx, room, 96, useAuthentication) ||
-              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication)
+              getRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc) ||
+              getDirectRoomAvatarUrl(mx, room, 96, useAuthentication, convertMxc)
             }
             alt={room.name}
             renderFallback={() => (
@@ -113,7 +115,7 @@ function DMItem({ room, selected }: DMItemProps) {
         <Box className={css.GroupAvatarRow}>
           {groupMembers.map((member) => {
             const avatarUrl = member.avatarUrl
-              ? (mxcUrlToHttp(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
+              ? (convertMxc(mx, member.avatarUrl, useAuthentication, 48, 48, 'crop') ?? undefined)
               : undefined;
 
             return (

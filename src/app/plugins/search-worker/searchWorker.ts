@@ -228,10 +228,14 @@ function instrumentIDB(idb: IDBDatabase, dbName: string): void {
       level: 'error',
     });
   });
-  
+
   idb.addEventListener('versionchange', (event: IDBVersionChangeEvent) => {
     // eslint-disable-next-line no-console
-    console.warn(`[SearchWorker] IDB version change requested: ${dbName}`, event.oldVersion, event.newVersion);
+    console.warn(
+      `[SearchWorker] IDB version change requested: ${dbName}`,
+      event.oldVersion,
+      event.newVersion
+    );
     postMessage({
       type: '_sentry_breadcrumb',
       category: 'idb',

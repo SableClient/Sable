@@ -148,7 +148,17 @@ export const ImageContent = as<'div', ImageContentProps>(
           return blobUrl;
         }
         return mediaUrl;
-      }, [mx, url, useAuthentication, mimeType, encInfo, matrixThumbnailMaxEdge, info?.w, info?.h, mediaUrlCache])
+      }, [
+        mx,
+        url,
+        useAuthentication,
+        mimeType,
+        encInfo,
+        matrixThumbnailMaxEdge,
+        info?.w,
+        info?.h,
+        mediaUrlCache,
+      ])
     );
 
     useEffect(() => {

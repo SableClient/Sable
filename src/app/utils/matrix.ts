@@ -348,30 +348,30 @@ export const downloadMedia = async (
       'media.has_access_token': !!accessToken,
     },
   });
-  
+
   try {
     // The service worker intercepts this request and adds auth; accessToken is a
     // direct fallback so the header is present even when the SW has no session.
     // Use 'no-cache' to ensure retries hit the network instead of returning cached failures.
     const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-    
+
     // Add a 30-second timeout to prevent infinite hangs
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
-    
+
     try {
-      const res = await fetch(src, { 
-        method: 'GET', 
-        cache: 'no-cache', 
+      const res = await fetch(src, {
+        method: 'GET',
+        cache: 'no-cache',
         headers,
-        signal: controller.signal 
+        signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
+
       if (!res.ok) {
         span.setAttribute('media.status_code', res.status);
         span.setAttribute('media.error', `${res.status} ${res.statusText}`);
-        
+
         // Log 401 specifically for auth failures (SABLE-39)
         if (res.status === 401) {
           Sentry.addBreadcrumb({
@@ -381,11 +381,11 @@ export const downloadMedia = async (
             level: 'error',
           });
         }
-        
+
         span.end();
         throw new Error(`Failed to download media: ${res.status} ${res.statusText}`);
       }
-      
+
       const blob = await res.blob();
       span.setAttribute('media.size_bytes', blob.size);
       span.setAttribute('media.mime_type', blob.type);

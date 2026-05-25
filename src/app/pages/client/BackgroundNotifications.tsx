@@ -287,20 +287,20 @@ export function BackgroundNotifications() {
     const startSession = (session: Session, attempt = 0): void => {
       let sessionMx: MatrixClient | undefined;
       const initTime = Date.now();
-      
+
       Sentry.addBreadcrumb({
         category: 'notification.background_client',
         message: 'Background client stage: init',
         data: { stage: 'init', userId: session.userId, attempt },
         level: 'info',
       });
-      
+
       startBackgroundClient(session, clientConfig.slidingSync)
         .then(async (mx) => {
           sessionMx = mx;
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
-          
+
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
             message: 'Background client stage: sync_start',
@@ -309,7 +309,7 @@ export function BackgroundNotifications() {
           });
 
           await waitForSync(mx);
-          
+
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
             message: 'Background client stage: sync_ready',
@@ -356,10 +356,14 @@ export function BackgroundNotifications() {
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
             message: 'Background client stage: push_registered',
-            data: { stage: 'push_registered', userId: session.userId, elapsedMs: Date.now() - initTime },
+            data: {
+              stage: 'push_registered',
+              userId: session.userId,
+              elapsedMs: Date.now() - initTime,
+            },
             level: 'info',
           });
-          
+
           const handleTimeline = (
             mEvent: MatrixEvent,
             room: Room | undefined,
@@ -604,7 +608,7 @@ export function BackgroundNotifications() {
             userId: session.userId,
             error: err,
           });
-          
+
           Sentry.addBreadcrumb({
             category: 'notification.background_client',
             message: 'Background client stage: failed',
@@ -618,7 +622,7 @@ export function BackgroundNotifications() {
             },
             level: 'error',
           });
-          
+
           Sentry.captureException(err, {
             tags: { component: 'BackgroundNotifications' },
           });

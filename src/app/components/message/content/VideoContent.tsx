@@ -84,7 +84,7 @@ export const VideoContent = as<'div', VideoContentProps>(
 
         const mediaUrl = mediaUrlCache.get(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
-        
+
         // Check blob cache first
         const isEncrypted = !!encInfo;
         const cachedBlob = mediaUrlCache.getBlob(url, isEncrypted, mimeType);
@@ -97,7 +97,7 @@ export const VideoContent = as<'div', VideoContentProps>(
               mx.getAccessToken()
             )
           : await downloadMedia(mediaUrl, mx.getAccessToken());
-        
+
         const blobUrl = URL.createObjectURL(fileContent);
         mediaUrlCache.setBlob(url, isEncrypted, blobUrl, mimeType);
         return blobUrl;

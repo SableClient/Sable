@@ -4,6 +4,7 @@ import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { getMemberDisplayName } from '$utils/room';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { useCachedMxcConverter } from '$hooks/useCachedMxcConverter';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
@@ -26,12 +27,13 @@ type MemberTileProps = {
 export const MemberTile = as<'button', MemberTileProps>(
   ({ as: AsMemberTile = 'button', mx, room, member, useAuthentication, after, ...props }, ref) => {
     const nicknames = useAtomValue(nicknamesAtom);
+    const convertMxc = useCachedMxcConverter();
     const name = getName(room, member, nicknames);
     const presence = useUserPresence(member.userId ?? '');
 
     const avatarMxcUrl = member.getMxcAvatarUrl() ?? mx.getUser(member.userId)?.avatarUrl;
     const avatarUrl = avatarMxcUrl
-      ? mx.mxcUrlToHttp(avatarMxcUrl, 100, 100, 'crop', undefined, false, useAuthentication)
+      ? (convertMxc(mx, avatarMxcUrl, useAuthentication, 100, 100, 'crop') ?? undefined)
       : undefined;
 
     // Sable username color and fonts

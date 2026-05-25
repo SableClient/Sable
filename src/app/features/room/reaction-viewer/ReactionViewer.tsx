@@ -119,14 +119,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
 
                   const avatarMxcUrl = member?.getMxcAvatarUrl();
                   const avatarUrl = avatarMxcUrl
-                    ? convertMxc(
-                        mx,
-                        avatarMxcUrl,
-                        useAuthentication,
-                        100,
-                        100,
-                        'crop'
-                      )
+                    ? convertMxc(mx, avatarMxcUrl, useAuthentication, 100, 100, 'crop')
                     : undefined;
 
                   return (

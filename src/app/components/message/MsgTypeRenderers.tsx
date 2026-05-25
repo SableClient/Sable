@@ -511,6 +511,28 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
   );
 }
 
+const getAudioDurationMs = (content: IAudioContent, info?: IAudioInfo): number | undefined => {
+  const fromInfo = info?.duration;
+  if (typeof fromInfo === 'number' && Number.isFinite(fromInfo) && fromInfo > 0) {
+    return fromInfo;
+  }
+  const voiceV2 = (content as Record<string, unknown>)['org.matrix.msc3245.voice.v2'];
+  if (voiceV2 && typeof voiceV2 === 'object') {
+    const seconds = (voiceV2 as { duration?: number }).duration;
+    if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
+  }
+  const msc1767Audio = (content as Record<string, unknown>)['org.matrix.msc1767.audio'];
+  if (msc1767Audio && typeof msc1767Audio === 'object') {
+    const ms = (msc1767Audio as { duration?: number }).duration;
+    if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) {
+      return ms;
+    }
+  }
+  return undefined;
+};
+
 type RenderAudioContentProps = {
   info: IAudioInfo;
   mimeType: string;
@@ -536,6 +558,9 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
   }
 
   const filename = content.filename ?? content.body ?? 'Audio';
+  const durationMs = getAudioDurationMs(content, audioInfo);
+  const resolvedInfo =
+    durationMs !== undefined ? { ...audioInfo, duration: durationMs } : audioInfo;
   return (
     <Attachment outlined={outlined}>
       <AttachmentHeader>
@@ -555,7 +580,7 @@ export function MAudio({ content, renderAsFile, renderAudioContent, outlined }: 
       <AttachmentBox>
         <AttachmentContent>
           {renderAudioContent({
-            info: audioInfo,
+            info: resolvedInfo,
             mimeType: safeMimeType,
             url: mxcUrl,
             encInfo: content.file,

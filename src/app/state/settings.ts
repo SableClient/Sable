@@ -79,6 +79,7 @@ export interface Settings {
   isWidgetDrawer: boolean;
   memberSortFilterIndex: number;
   enterForNewline: boolean;
+  isMarkdown: boolean;
   editorToolbar: boolean;
   composerToolbarOpen: boolean;
   messageLayout: MessageLayout;
@@ -134,6 +135,11 @@ export interface Settings {
 
   // Sable features!
   sendPresence: boolean;
+  presenceMode: 'online' | 'unavailable' | 'dnd' | 'offline';
+  autoIdlePresence: boolean;
+  presenceIdleTimeoutMins: number;
+  /** User-set status message, cached locally so it survives mode changes and sliding-sync restarts. */
+  presenceStatusMsg: string;
   mobileGestures: boolean;
   rightSwipeAction: RightSwipeAction;
   hideMembershipInReadOnly: boolean;
@@ -216,6 +222,7 @@ export const defaultSettings: Settings = {
   isWidgetDrawer: false,
   memberSortFilterIndex: 0,
   enterForNewline: false,
+  isMarkdown: true,
   editorToolbar: false,
   composerToolbarOpen: false,
   messageLayout: 0,
@@ -272,6 +279,10 @@ export const defaultSettings: Settings = {
 
   // Sable features!
   sendPresence: true,
+  presenceMode: 'online',
+  autoIdlePresence: true,
+  presenceIdleTimeoutMins: 5,
+  presenceStatusMsg: '',
   mobileGestures: true,
   rightSwipeAction: RightSwipeAction.Reply,
   hideMembershipInReadOnly: true,
@@ -481,6 +492,10 @@ function sanitizeSettingsKey(key: keyof Settings, val: unknown): unknown {
         val === CaptionPosition.Below
         ? val
         : undefined;
+    case 'presenceMode':
+      return val === 'online' || val === 'unavailable' || val === 'dnd' || val === 'offline'
+        ? val
+        : undefined;
     case 'rightSwipeAction':
       return val === RightSwipeAction.Members || val === RightSwipeAction.Reply ? val : undefined;
     case 'renderUserCards':
@@ -572,6 +587,12 @@ export const getSettings = (): Settings =>
 export const setSettings = (settings: Settings) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 };
+
+/**
+ * Ephemeral atom — true when the auto-idle hook has transitioned the user to idle.
+ * Not persisted to localStorage; resets to false on every page load.
+ */
+export const presenceAutoIdledAtom = atom(false);
 
 export const settingsAtom = atom<Settings, [Settings], undefined>(
   (get) => get(baseSettings),

@@ -419,7 +419,7 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
   const [hideActivity, setHideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [hideReads, setHideReads] = useSetting(settingsAtom, 'hideReads');
   const [sendPresence, setSendPresence] = useSetting(settingsAtom, 'sendPresence');
-
+  const [autoIdlePresence, setAutoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
   const [mentionInReplies, setMentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
 
   return (
@@ -477,7 +477,28 @@ function Editor({ isMobile }: Readonly<{ isMobile: boolean }>) {
           after={<Switch variant="Primary" value={sendPresence} onChange={setSendPresence} />}
         />
       </SequenceCard>
-
+      {sendPresence && (
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Auto-Idle"
+            focusId="auto-idle-presence"
+            description="Automatically appear unavailable after a period of inactivity or when the app isn't active."
+            after={
+              <Switch variant="Primary" value={autoIdlePresence} onChange={setAutoIdlePresence} />
+            }
+          />
+        </SequenceCard>
+      )}
+      {sendPresence && autoIdlePresence && (
+        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+          <SettingTile
+            title="Idle Timeout"
+            focusId="presence-idle-timeout"
+            description="Minutes of inactivity before appearing unavailable."
+            after={<PresenceIdleTimeoutInput />}
+          />
+        </SequenceCard>
+      )}
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Send notifications for replies"
@@ -839,6 +860,52 @@ function EmojiSelectorThresholdInput() {
       onKeyDown={handleKeyDown}
       outlined
     />
+  );
+}
+
+function PresenceIdleTimeoutInput() {
+  const [idleTimeoutMins, setIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+  const [inputValue, setInputValue] = useState(idleTimeoutMins.toString());
+
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
+    const val = evt.target.value;
+    setInputValue(val);
+    const parsed = Number.parseInt(val, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 60) {
+      setIdleTimeoutMins(parsed);
+    }
+  };
+
+  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      setInputValue(idleTimeoutMins.toString());
+      (evt.target as HTMLInputElement).blur();
+    }
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Box alignItems="Center" gap="200">
+      <Input
+        style={{ width: toRem(80) }}
+        variant={Number.parseInt(inputValue, 10) === idleTimeoutMins ? 'Secondary' : 'Success'}
+        size="300"
+        radii="300"
+        type="number"
+        min="1"
+        max="60"
+        value={inputValue}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        outlined
+      />
+      <Text size="T200" priority="300">
+        min
+      </Text>
+    </Box>
   );
 }
 

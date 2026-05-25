@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -25,7 +25,7 @@ import NotificationSound from '$public/sound/notification.ogg';
 import InviteSound from '$public/sound/invite.ogg';
 import { notificationPermission, setFavicon } from '$utils/dom';
 import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { settingsAtom, presenceAutoIdledAtom } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
@@ -61,6 +61,7 @@ import { useCallSignaling } from '$hooks/useCallSignaling';
 import { getBlobCacheStats } from '$hooks/useBlobCache';
 import { lastVisitedRoomIdAtom } from '$state/room/lastRoom';
 import { useSettingsSyncEffect } from '$hooks/useSettingsSync';
+import { usePresenceAutoIdle } from '$hooks/usePresenceAutoIdle';
 import { getInboxInvitesPath } from '../pathUtils';
 import { BackgroundNotifications } from './BackgroundNotifications';
 
@@ -845,14 +846,49 @@ function HandleDecryptPushEvent() {
 function PresenceFeature() {
   const mx = useMatrixClient();
   const [sendPresence] = useSetting(settingsAtom, 'sendPresence');
+  const [presenceMode] = useSetting(settingsAtom, 'presenceMode');
+  const [autoIdlePresence] = useSetting(settingsAtom, 'autoIdlePresence');
+  const [presenceIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
+  const [presenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const [autoIdled] = useAtom(presenceAutoIdledAtom);
+
+  const timeoutMs = autoIdlePresence ? Math.max(1, presenceIdleTimeoutMins) * 60 * 1000 : 0;
+  usePresenceAutoIdle(mx, presenceMode ?? 'online', sendPresence, timeoutMs);
 
   useEffect(() => {
+    // When auto-idled, broadcast as unavailable regardless of the configured mode.
+    const effectiveMode = autoIdled ? 'unavailable' : (presenceMode ?? 'online');
+    // DND broadcasts as online (you're active but don't want to be disturbed) with a status_msg.
+    const activePresence = effectiveMode === 'dnd' ? 'online' : effectiveMode;
+    const effectiveState = sendPresence ? activePresence : 'offline';
+    const broadcasting = effectiveState !== 'offline';
+    // DND overrides the user's custom status message with the 'dnd' sentinel.
+    const effectiveStatusMsg = sendPresence && effectiveMode === 'dnd' ? 'dnd' : presenceStatusMsg;
+
     // Classic sync: set_presence query param on every /sync poll.
     // Passing undefined restores the default (online); Offline suppresses broadcasting.
-    mx.setSyncPresence(sendPresence ? undefined : SetPresence.Offline);
-    // Sliding sync: enable/disable the presence extension on the next poll.
+    mx.setSyncPresence(broadcasting ? undefined : SetPresence.Offline);
+    // Sliding sync: keep the extension enabled so we always receive others' presence.
+    // Only disable it when the master sendPresence toggle is off (full privacy mode).
     getSlidingSyncManager(mx)?.setPresenceEnabled(sendPresence);
-  }, [mx, sendPresence]);
+
+    // Explicitly PUT /presence/{userId}/status so the server knows the exact state.
+    // Do the optimistic update AFTER the network call to avoid inconsistency if it fails.
+    mx.setPresence({
+      presence: effectiveState,
+      status_msg: effectiveStatusMsg,
+    })
+      .then(() => {
+        // Optimistically update own presence in the local SDK store so the member list
+        // badge and status editor reflect the change immediately. MSC4186 servers never
+        // echo own presence back, so we rely on this local update for consistency.
+        getSlidingSyncManager(mx)?.updateOwnPresence(effectiveState, effectiveStatusMsg);
+      })
+      .catch(() => {
+        // Server doesn't support presence or network error — the local SDK store
+        // won't be updated, but that's acceptable since the server state is canonical.
+      });
+  }, [mx, sendPresence, presenceMode, presenceStatusMsg, autoIdled]);
 
   return null;
 }

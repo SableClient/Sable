@@ -43,6 +43,9 @@ import { useCapabilities } from '$hooks/useCapabilities';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useUserPresence } from '$hooks/useUserPresence';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import type { MSC1767Text } from '$types/matrix/common';
 import { TimezoneEditor } from './TimezoneEditor';
 import { PronounEditor } from './PronounEditor';
@@ -485,7 +488,13 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const pronouns = (profile.pronouns as PronounSet[]) || [];
   const presence = useUserPresence(userId);
-  const currentStatus = presence?.status || '';
+  // presenceStatusMsg is the locally-cached status. On sliding sync, own presence is
+  // never echoed back by the server, so presence?.status would always be stale/empty.
+  // The settings atom is the authoritative local source; fall back to the SDK value for
+  // other clients (e.g. when viewing another user's profile page — but this component
+  // is only rendered for the own user, so the atom always wins in practice).
+  const [presenceStatusMsg, setPresenceStatusMsg] = useSetting(settingsAtom, 'presenceStatusMsg');
+  const currentStatus = presenceStatusMsg || presence?.status || '';
 
   // Keys we don't render here nor handle seperately but still need to exclude
   const EXCLUDED_KEYS = new Set([
@@ -513,14 +522,24 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const handleSaveStatus = useCallback(
     async (newStatus: string) => {
-      const currentState = presence?.presence || 'online';
+      // Only update the local atom. PresenceFeature's effect will broadcast the new
+      // status_msg to the server on its next run (triggered by this atom change).
+      // We don't call mx.setPresence here to avoid passing our internal Presence.Dnd
+      // value ('dnd'), which is not a valid Matrix presence state.
+      setPresenceStatusMsg(newStatus);
 
-      await mx.setPresence({
-        presence: currentState,
-        status_msg: newStatus,
-      });
+      // Eagerly mirror the change in the SDK store so the member list updates without
+      // waiting for the PresenceFeature effect to resolve the network call.
+      const myUser = mx.getUser(mx.getUserId() ?? '');
+      const isDnd = myUser?.presence === 'online' && myUser?.presenceStatusMsg === 'dnd';
+      if (!isDnd) {
+        // Not in DND: update local presence to reflect the new status immediately.
+        getSlidingSyncManager(mx)?.updateOwnPresence(myUser?.presence ?? 'online', newStatus);
+      }
+      // In DND mode the sentinel ('dnd') stays as status_msg on the wire; the user's
+      // custom status is preserved in the atom and used once they leave DND.
     },
-    [mx, presence]
+    [mx, setPresenceStatusMsg]
   );
 
   return (

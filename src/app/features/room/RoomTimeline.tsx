@@ -487,7 +487,18 @@ export function RoomTimeline({
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
         
-        const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+        let processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
+        
+        // Fallback: if index lookup fails but we have an eventId, search by ID.
+        // This handles fragmented timelines from sliding sync where absolute indices
+        // don't align across different timeline contexts.
+        if (processedIndex === undefined && timelineSync.focusItem.eventId) {
+          const found = processedEventsRef.current.findIndex(
+            (e) => e.mEvent.getId() === timelineSync.focusItem!.eventId
+          );
+          if (found >= 0) processedIndex = found;
+        }
+        
         if (processedIndex !== undefined) {
           // Reveal timeline and scroll in the same frame to avoid flash
           setIsReady(true);
@@ -732,7 +743,12 @@ export function RoomTimeline({
           vListRef.current.scrollToIndex(processedIndex, { align: 'center' });
           startJumpScrollBlock();
         }
-        timelineSync.setFocusItem({ index: focusRawIndex, scrollTo: false, highlight: true });
+        timelineSync.setFocusItem({
+          index: focusRawIndex,
+          eventId: anchorId,
+          scrollTo: false,
+          highlight: true,
+        });
       } else {
         void timelineSync.loadEventTimeline(anchorId);
       }

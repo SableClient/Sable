@@ -380,6 +380,7 @@ export function useTimelineSync({
   const [focusItem, setFocusItem] = useState<
     | {
         index: number;
+        eventId?: string;
         scrollTo: boolean;
         highlight: boolean;
       }
@@ -452,6 +453,7 @@ export function useTimelineSync({
 
         setFocusItem({
           index: evtAbsIndex,
+          eventId: evtId,
           scrollTo: true,
           highlight: evtId !== readUptoEventIdRef.current,
         });

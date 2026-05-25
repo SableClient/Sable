@@ -227,7 +227,7 @@ export function ClientRoot({ children }: ClientRootProps) {
           baseUrl: activeSession?.baseUrl,
           slidingSync: {
             ...clientConfig.slidingSync,
-            listTimelineLimit: needsPreviewTimeline ? 3 : undefined,
+            listTimelineLimit: needsPreviewTimeline ? 20 : undefined,
           },
           sessionSlidingSyncOptIn: activeSession?.slidingSyncOptIn,
         });

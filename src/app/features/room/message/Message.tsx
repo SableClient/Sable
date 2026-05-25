@@ -1240,6 +1240,9 @@ function MessageInternal(
                         <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         <MessageCopyTextItem mEvent={mEvent} onClose={closeMenu} />
                         <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                      </Box>
+                      <Line size="300" />
+                      <Box direction="Column" gap="100" className={css.MessageMenuGroup}>
                         <MessageBookmarkItem room={room} mEvent={mEvent} onClose={closeMenu} />
                         {canPinEvent && (
                           <MessagePinItem room={room} mEvent={mEvent} onClose={closeMenu} />

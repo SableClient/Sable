@@ -592,13 +592,21 @@ export function useTimelineSync({
   useEffect(() => {
     const handleRoomInitialized = (eventRoom: Room) => {
       if (eventRoom.roomId !== room.roomId) return;
+      // Only update if the live timeline actually has events now — prevents
+      // spurious updates that would reset scroll position during normal sync.
+      const liveEvents = getLiveTimeline(room).getEvents();
+      if (liveEvents.length === 0) return;
+      // Only update if our current timeline is empty or stale — avoids clobbering
+      // timelines that are already populated and working correctly.
+      const currentEvents = timeline.linkedTimelines[0]?.getEvents() ?? [];
+      if (currentEvents.length > 0) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
     };
     mx.on(ClientEvent.Room, handleRoomInitialized);
     return () => {
       mx.off(ClientEvent.Room, handleRoomInitialized);
     };
-  }, [mx, room]);
+  }, [mx, room, timeline.linkedTimelines]);
 
   const prevRoomIdRef = useRef(room.roomId);
   const eventIdRef = useRef(eventId);

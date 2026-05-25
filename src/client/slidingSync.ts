@@ -276,6 +276,9 @@ export class SlidingSyncManager {
   /** Rooms that have been actively opened/viewed in this session. Never reset these. */
   private readonly visitedRoomsThisSession = new Set<string>();
 
+  /** Rooms currently in a PTR refresh cycle - allow resets for these. */
+  private readonly ptrRefreshRooms = new Set<string>();
+
   private readonly listPageSize: number;
 
   private readonly listTimelineLimit: number;
@@ -479,9 +482,8 @@ export class SlidingSyncManager {
 
             // Check if this room has been visited in this session - skip automatic
             // resets to avoid blanking the UI when the user is actively viewing the room.
-            // Exception: allow resets during PTR (pendingResubscriptions set) because the
-            // user explicitly requested a refresh.
-            const isPTRMode = this.pendingResubscriptions && this.pendingResubscriptions.size > 0;
+            // Exception: allow resets during PTR (room is in ptrRefreshRooms set).
+            const isPTRMode = this.ptrRefreshRooms.has(roomId);
             if (!isPTRMode && this.visitedRoomsThisSession.has(roomId)) {
               debugLog.info('sync', 'Skipping automatic timeline reset for visited room', {
                 roomId,
@@ -492,7 +494,18 @@ export class SlidingSyncManager {
             }
 
             // No overlap and server has newer events: local timeline is stale, reset needed
+            debugLog.info('sync', 'Resetting timeline', {
+              roomId,
+              isPTR: isPTRMode,
+              localEvents: localEvents.length,
+              serverEvents: serverEvents.length,
+            });
             timelineSet.resetLiveTimeline();
+            
+            // If this was a PTR refresh, remove from the set now that reset is complete
+            if (isPTRMode) {
+              this.ptrRefreshRooms.delete(roomId);
+            }
           });
 
         // If a force-resubscription cycle was scheduled (pull-to-refresh), restore
@@ -743,21 +756,17 @@ export class SlidingSyncManager {
     if (this.disposed) return;
     // Save the current subscriptions before modifying anything.
     this.pendingResubscriptions = new Set(this.activeRoomSubscriptions);
-    // Immediately reset every active-room timeline so stale or out-of-order
-    // data is cleared right now.  TimelineReset fires here, putting React
-    // into a loading state.  The SDK will refill the timelines with fresh
-    // data once the re-subscription cycle below completes.
-    this.pendingResubscriptions.forEach((roomId) => {
-      const room = this.mx.getRoom(roomId);
-      if (!room) return;
-      const timelineSet = room.getUnfilteredTimelineSet();
-      if (timelineSet.getLiveTimeline().getEvents().length === 0) return;
-      timelineSet.resetLiveTimeline();
-    });
+    
+    // Mark these rooms as undergoing PTR refresh so the reset logic allows
+    // timeline resets even for visited rooms.
+    this.ptrRefreshRooms.clear();
+    this.pendingResubscriptions.forEach((roomId) => this.ptrRefreshRooms.add(roomId));
+    
     // Clear subscriptions so the next sync request carries an empty
     // room_subscriptions map.  When RequestFinished fires, the subscriptions
     // are restored; the server then treats them as brand-new and returns
     // initial:true with a full event window and a valid prev_batch token.
+    // The timeline resets will happen automatically when initial:true arrives.
     this.activeRoomSubscriptions.clear();
     this.slidingSync.modifyRoomSubscriptions(new Set());
     this.slidingSync.resend();

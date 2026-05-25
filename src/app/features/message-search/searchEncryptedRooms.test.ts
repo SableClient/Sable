@@ -13,6 +13,7 @@ import type { ResultGroup } from './useMessageSearch';
 function makeEvent(overrides: {
   type?: string;
   body?: string;
+  msgtype?: string;
   sender?: string;
   ts?: number;
   id?: string;
@@ -20,7 +21,7 @@ function makeEvent(overrides: {
 }): MatrixEvent {
   return {
     getType: () => overrides.type ?? EventType.RoomMessage,
-    getContent: () => ({ body: overrides.body ?? '', msgtype: 'm.text' }),
+    getContent: () => ({ body: overrides.body ?? '', msgtype: overrides.msgtype ?? 'm.text' }),
     getSender: () => overrides.sender ?? '@alice:example.org',
     getTs: () => overrides.ts ?? 1000,
     getId: () => overrides.id ?? '$event1',
@@ -98,6 +99,97 @@ describe('searchRoomTimeline', () => {
     const group = searchRoomTimeline(room, 'secret');
     expect(group!.items[0]!.event.type).toBe(EventType.RoomMessage);
     expect(group!.items[0]!.event.content.body).toBe('secret message');
+  });
+
+  describe('hasTypes filter', () => {
+    it('returns image events when hasTypes includes "image"', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'photo.png', msgtype: 'm.image', id: '$img' }),
+        makeEvent({ body: 'hello', msgtype: 'm.text', id: '$txt' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['image']);
+      expect(group).toBeDefined();
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$img');
+    });
+
+    it('returns file events when hasTypes includes "file"', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'doc.pdf', msgtype: 'm.file', id: '$file' }),
+        makeEvent({ body: 'hello', msgtype: 'm.text', id: '$txt' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['file']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$file');
+    });
+
+    it('returns audio events when hasTypes includes "audio"', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'voice.ogg', msgtype: 'm.audio', id: '$audio' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['audio']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$audio');
+    });
+
+    it('returns video events when hasTypes includes "video"', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'clip.mp4', msgtype: 'm.video', id: '$video' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['video']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$video');
+    });
+
+    it('returns events containing a URL when hasTypes includes "link"', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'check https://example.com out', msgtype: 'm.text', id: '$link' }),
+        makeEvent({ body: 'no url here', msgtype: 'm.text', id: '$nolink' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['link']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$link');
+    });
+
+    it('also matches http:// links for "link" type', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'see http://example.com', msgtype: 'm.text', id: '$http' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['link']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$http');
+    });
+
+    it('excludes non-matching message types', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'hello', msgtype: 'm.text', id: '$txt' }),
+      ]);
+      expect(searchRoomTimeline(room, '', undefined, ['image'])).toBeUndefined();
+    });
+
+    it('matches multiple hasTypes in a single call (OR logic)', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'photo.png', msgtype: 'm.image', id: '$img' }),
+        makeEvent({ body: 'doc.pdf', msgtype: 'm.file', id: '$file' }),
+        makeEvent({ body: 'plain text', msgtype: 'm.text', id: '$txt' }),
+      ]);
+      const group = searchRoomTimeline(room, '', undefined, ['image', 'file']);
+      expect(group!.items).toHaveLength(2);
+      const ids = group!.items.map((i) => i.event.event_id);
+      expect(ids).toContain('$img');
+      expect(ids).toContain('$file');
+    });
+
+    it('can combine term and hasTypes filters', () => {
+      const room = makeRoom('!room:example.org', [
+        makeEvent({ body: 'vacation photo', msgtype: 'm.image', id: '$match' }),
+        makeEvent({ body: 'random photo', msgtype: 'm.image', id: '$nomatch' }),
+        makeEvent({ body: 'vacation text', msgtype: 'm.text', id: '$text' }),
+      ]);
+      const group = searchRoomTimeline(room, 'vacation', undefined, ['image']);
+      expect(group!.items).toHaveLength(1);
+      expect(group!.items[0]!.event.event_id).toBe('$match');
+    });
   });
 });
 

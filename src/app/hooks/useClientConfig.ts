@@ -70,7 +70,11 @@ export type ClientConfig = {
 
   features?: {
     polls?: boolean;
-    /** Enable in-memory search for encrypted rooms (default: true). */
+    /** Operator kill-switch for in-memory search of encrypted rooms.
+     *  Defaults to enabled (true) when not configured.
+     *  Note: the user-facing setting (`encryptedSearch` in Settings) defaults to disabled,
+     *  so users must opt in even when this flag is on.
+     */
     encryptedSearch?: boolean;
   };
 };

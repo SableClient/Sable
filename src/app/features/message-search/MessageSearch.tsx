@@ -121,6 +121,10 @@ export function MessageSearch({
     senders,
   ]);
 
+  const isSearching =
+    !!msgSearchParams.term ||
+    (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
+
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -258,7 +262,7 @@ export function MessageSearch({
       </ScrollTopContainer>
       <Box ref={scrollTopAnchorRef} direction="Column" gap="300">
         <SearchInput
-          active={!!msgSearchParams.term}
+          active={isSearching}
           loading={status === 'pending'}
           searchInputRef={searchInputRef}
           onSearch={handleSearch}
@@ -296,7 +300,7 @@ export function MessageSearch({
         </Box>
       )}
 
-      {!msgSearchParams.term && status === 'pending' && (
+      {!isSearching && status === 'pending' && (
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
@@ -308,7 +312,7 @@ export function MessageSearch({
         </PageHeroEmpty>
       )}
 
-      {msgSearchParams.term && groups.length === 0 && status === 'success' && (
+      {isSearching && groups.length === 0 && status === 'success' && (
         <Box
           className={ContainerColor({ variant: 'Warning' })}
           style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
@@ -317,12 +321,16 @@ export function MessageSearch({
         >
           <Icon size="200" src={Icons.Info} />
           <Text>
-            No results found for <b>{`"${msgSearchParams.term}"`}</b>
+            {msgSearchParams.term ? (
+              <>No results found for <b>{`"${msgSearchParams.term}"`}</b></>
+            ) : (
+              'No results found.'
+            )}
           </Text>
         </Box>
       )}
 
-      {((msgSearchParams.term && status === 'pending') ||
+      {((isSearching && status === 'pending') ||
         (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (

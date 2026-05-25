@@ -218,9 +218,8 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
       let basePath: string;
       if (pathname.startsWith('/direct/')) {
         basePath = getDirectSearchPath();
-      } else if (!pathname.startsWith('/home/')) {
-        const spaceIdOrAlias = decodeURIComponent(pathname.split('/').find(Boolean) ?? '');
-        basePath = spaceIdOrAlias ? getSpaceSearchPath(spaceIdOrAlias) : getHomeSearchPath();
+      } else if (selectedSpaceId) {
+        basePath = getSpaceSearchPath(selectedSpaceId);
       } else {
         basePath = getHomeSearchPath();
       }
@@ -228,7 +227,7 @@ export function RoomSearchModal({ requestClose, pickRoom }: RoomSearchModalProps
       navigate(`${basePath}${qs}`);
       requestClose();
     },
-    [pathname, navigate, requestClose]
+    [pathname, selectedSpaceId, navigate, requestClose]
   );
 
   const queryHighlighRegex = result?.query

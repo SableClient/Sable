@@ -77,6 +77,7 @@ import {
   getEventTimeline,
   getFirstLinkedTimeline,
   getInitialTimeline,
+  getEmptyTimeline,
   getEventIdAbsoluteIndex,
 } from '$utils/timeline';
 import { useTimelineSync } from '$hooks/timeline/useTimelineSync';
@@ -215,6 +216,12 @@ export function RoomTimeline({
   const openThreadId = useAtomValue(openThreadAtom);
   const setOpenThread = useSetAtom(openThreadAtom);
 
+  // Preserved scroll offset from just before the thread drawer was opened, so
+  // we can restore position when the drawer closes and the main column reflows
+  // to a wider width (remeasured items would otherwise leave the VList at an
+  // unexpected position).
+  const scrollOffsetBeforeThreadRef = useRef<number | undefined>(undefined);
+
   const vListRef = useRef<VListHandle>(null);
   const [atBottomState, setAtBottomState] = useState(true);
   const atBottomRef = useRef(atBottomState);
@@ -240,6 +247,8 @@ export function RoomTimeline({
   const currentRoomIdRef = useRef(room.roomId);
 
   const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(isReady);
+  isReadyRef.current = isReady;
 
   if (currentRoomIdRef.current !== room.roomId) {
     hasInitialScrolledRef.current = false;
@@ -292,6 +301,10 @@ export function RoomTimeline({
 
   const forwardStatusRef = useRef(timelineSync.forwardStatus);
   forwardStatusRef.current = timelineSync.forwardStatus;
+
+  // Caps consecutive auto-pagination calls so a sparse timeline that never fills
+  // the viewport cannot loop indefinitely. Reset on every timeline clear/room jump.
+  const autopagAttemptsRef = useRef(0);
 
   const getRawIndexToProcessedIndex = useCallback((rawIndex: number): number | undefined => {
     const events = processedEventsRef.current;
@@ -354,6 +367,7 @@ export function RoomTimeline({
     if (timelineSync.eventsLength > 0) return;
     setIsReady(false);
     hasInitialScrolledRef.current = false;
+    autopagAttemptsRef.current = 0;
   }, [isReady, timelineSync.eventsLength]);
 
   const recalcTopSpacer = useCallback(() => {
@@ -398,6 +412,10 @@ export function RoomTimeline({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (timelineSync.focusItem) {
+      // Reveal the timeline in the same effect that scrolls to the focus event so
+      // both the scroll and opacity-1 land in a single commit — no intermediate
+      // frame where events are rendered but still opacity-0.
+      setIsReady(true);
       if (timelineSync.focusItem.scrollTo && vListRef.current) {
         const processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
         if (processedIndex !== undefined) {
@@ -415,16 +433,69 @@ export function RoomTimeline({
   }, [timelineSync.focusItem, timelineSync, reducedMotion, getRawIndexToProcessedIndex]);
 
   useEffect(() => {
-    if (timelineSync.focusItem) {
-      setIsReady(true);
-    }
-  }, [timelineSync.focusItem]);
-
-  useEffect(() => {
     if (!eventId) return;
     setIsReady(false);
+    // Re-arm the initial-scroll guard so that if the jump fails and falls back
+    // to the live timeline, the useLayoutEffect can fire via the normal path.
+    hasInitialScrolledRef.current = false;
+    // Reset auto-pagination cap so the new timeline can fill the viewport.
+    autopagAttemptsRef.current = 0;
+    // Cancel any pending error-recovery scroll timer from a previous eventId load
+    // so it cannot reveal the timeline mid-flight of a new load.
+    if (initialScrollTimerRef.current !== undefined) {
+      clearTimeout(initialScrollTimerRef.current);
+      initialScrollTimerRef.current = undefined;
+    }
+    // Clear the stale live-timeline content immediately so loading placeholders
+    // are shown while the event-context API call is in flight, rather than
+    // having the entire message area go invisible (opacity:0) with no feedback.
+    timelineSyncRef.current.setTimeline(getEmptyTimeline());
     void timelineSyncRef.current.loadEventTimeline(eventId);
   }, [eventId, room.roomId]);
+
+  // Recovery: loadEventTimeline's onError callback restores the live timeline but
+  // scrollToBottom fires before the VList has rendered the new events (the list is
+  // still empty at that point), so it returns early and no scroll happens.
+  // Detect the "eventId load failed, fell back to live" state and reveal the
+  // timeline scrolled to the bottom so the room is usable rather than stuck at
+  // opacity-0 or stranded at the top of history.
+  useEffect(() => {
+    if (!eventId) return;
+    if (isReady) return;
+    if (timelineSync.eventsLength === 0) return;
+    if (timelineSync.focusItem) return;
+    if (!timelineSync.liveTimelineLinked) return;
+    // Guard: don't start a second timer if one is already in flight.
+    if (initialScrollTimerRef.current !== undefined) return;
+
+    // Virtua has no measured item heights yet when data first populates
+    // (transition from 0 → N items).  A single scrollToIndex call lands at the
+    // estimated position (often 0) because every item is still at its default
+    // height.  Mirror the double-scroll pattern from the initial-scroll
+    // useLayoutEffect: scroll once immediately to warm up virtua's layout pass,
+    // then scroll again after 80 ms when heights are measured, then reveal.
+    const lastIdx = processedEventsRef.current.length - 1;
+    if (lastIdx >= 0) vListRef.current?.scrollToIndex(lastIdx, { align: 'end' });
+
+    initialScrollTimerRef.current = setTimeout(() => {
+      initialScrollTimerRef.current = undefined;
+      // Bail out if the timeline was already revealed by another code path
+      // (e.g. loadEventTimeline succeeded and set focusItem in the meantime).
+      if (isReadyRef.current) return;
+      if (timelineSyncRef.current.focusItem) return;
+      if (timelineSyncRef.current.eventsLength === 0) return;
+      if (!timelineSyncRef.current.liveTimelineLinked) return;
+      const idx = processedEventsRef.current.length - 1;
+      if (idx >= 0) vListRef.current?.scrollToIndex(idx, { align: 'end' });
+      setIsReady(true);
+    }, 80);
+  }, [
+    eventId,
+    isReady,
+    timelineSync.eventsLength,
+    timelineSync.focusItem,
+    timelineSync.liveTimelineLinked,
+  ]);
 
   useEffect(() => {
     if (eventId) return;
@@ -484,6 +555,24 @@ export function RoomTimeline({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // When the thread drawer opens/closes on desktop, the main timeline column
+  // changes width and Virtua remeasures all item heights.  Save the scroll
+  // offset just before the open so we can restore it after the close once
+  // layout has settled (two RAFs to let Virtua finish its resize cycle).
+  useEffect(() => {
+    if (openThreadId) {
+      scrollOffsetBeforeThreadRef.current = vListRef.current?.scrollOffset;
+    } else if (scrollOffsetBeforeThreadRef.current !== undefined) {
+      const savedOffset = scrollOffsetBeforeThreadRef.current;
+      scrollOffsetBeforeThreadRef.current = undefined;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          vListRef.current?.scrollTo(savedOffset);
+        });
+      });
+    }
+  }, [openThreadId]);
 
   const actions = useTimelineActions({
     room,
@@ -900,7 +989,10 @@ export function RoomTimeline({
       const hasRealScrollRoom = v.scrollSize > v.viewportSize + 300;
 
       if (!hasRealScrollRoom || (atTop && noVisibleGrowth)) {
-        void timelineSyncRef.current.handleTimelinePagination(true);
+        if (autopagAttemptsRef.current < 20) {
+          autopagAttemptsRef.current += 1;
+          void timelineSyncRef.current.handleTimelinePagination(true);
+        }
       }
     };
 
@@ -1066,28 +1158,61 @@ export function RoomTimeline({
         </TimelineFloat>
       )}
 
-      {frontPaginationJSX && (
-        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
+        <TimelineFloat position="Bottom">
           {frontPaginationJSX}
+          {!frontPaginationJSX && (
+            <Chip
+              variant="SurfaceVariant"
+              radii="Pill"
+              outlined
+              before={<Icon size="50" src={Icons.ArrowBottom} />}
+              onClick={() => {
+                if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
+                timelineSync.setTimeline(getInitialTimeline(room));
+                scrollToBottom();
+              }}
+            >
+              <Text size="L400">Jump to Latest</Text>
+            </Chip>
+          )}
         </TimelineFloat>
       )}
-
-      {!atBottomState && isReady && (
-        <TimelineFloat position="Bottom">
-          <Chip
-            variant="SurfaceVariant"
-            radii="Pill"
-            outlined
-            before={<Icon size="50" src={Icons.ArrowBottom} />}
-            onClick={() => {
-              if (eventId) navigateRoom(room.roomId, undefined, { replace: true });
-              timelineSync.setTimeline(getInitialTimeline(room));
-              scrollToBottom();
-            }}
-          >
-            <Text size="L400">Jump to Latest</Text>
-          </Chip>
-        </TimelineFloat>
+      {!isReady && !showLoadingPlaceholders && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            padding: `0 0 ${config.space.S600} 0`,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+          <MessageBase space={messageSpacing}>
+            {messageLayout === MessageLayout.Compact ? (
+              <CompactPlaceholder />
+            ) : (
+              <DefaultPlaceholder />
+            )}
+          </MessageBase>
+        </div>
       )}
     </Box>
   );

@@ -22,7 +22,7 @@ export const usePanelSizeItems = (): PanelSizetItem[] =>
       },
       {
         layout: 'threadRootHeight',
-        name: 'Thread Root Height',
+        name: 'Thread Root Max Height',
       },
       {
         layout: 'vcmsgSidebarWidth',

@@ -156,7 +156,14 @@ export function useProcessedTimeline({
       }
 
       if (!dayDivider) {
-        dayDivider = prevEvent ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) : false;
+        // Only insert a day divider when moving *forward* to a new calendar day.
+        // Bridged messages (Discord, Signal, …) arrive with an origin_server_ts from
+        // an earlier day but are inserted at the end of the timeline by the SDK.
+        // Showing a backward day divider ("Yesterday" after "Today" messages) breaks
+        // the visual ordering, so we suppress dividers for out-of-order events.
+        dayDivider = prevEvent
+          ? !inSameDay(prevEvent.getTs(), mEvent.getTs()) && mEvent.getTs() > prevEvent.getTs()
+          : false;
       }
 
       const isMessageEvent = MESSAGE_EVENT_TYPES.has(type);

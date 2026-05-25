@@ -421,6 +421,22 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     };
   }, [mx, room, threadRootId]);
 
+  // Listen directly on the thread for timeline and reset events.
+  // This provides a shorter, more reliable signal path than the
+  // timelineSet → thread → room → mx re-emission chain, and also
+  // catches RoomEvent.TimelineReset (fired when the thread timeline
+  // is cleared and re-populated during initialisation).
+  useEffect(() => {
+    if (!thread) return;
+    const onDirectUpdate = () => forceUpdate((n) => n + 1);
+    thread.on(RoomEvent.Timeline, onDirectUpdate);
+    thread.on(RoomEvent.TimelineReset, onDirectUpdate);
+    return () => {
+      thread.off(RoomEvent.Timeline, onDirectUpdate);
+      thread.off(RoomEvent.TimelineReset, onDirectUpdate);
+    };
+  }, [thread]);
+
   // Mark thread as read when viewing it
   useEffect(() => {
     const markThreadAsRead = async () => {
@@ -774,6 +790,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   useEffect(() => {
     setCurHeight(threadRootHeight);
   }, [threadRootHeight]);
+
   return (
     <Box
       className={overlay ? css.ThreadDrawerOverlay : css.ThreadDrawer}
@@ -826,7 +843,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
               size="300"
               hideTrack
               style={{
-                height: toRem(curHeight),
+                maxHeight: toRem(curHeight),
                 flexShrink: 0,
               }}
             >

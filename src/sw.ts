@@ -176,13 +176,18 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     console.debug('[SW] setSession: stored', clientId, baseUrl);
     // Persist so push-event fetches work after iOS restarts the SW.
     persistSession(info).catch(() => undefined);
+    // Clear media cache when session changes to avoid serving stale auth failures.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
     preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
     clearPersistedSession().catch(() => undefined);
+    // Clear media cache on logout.
+    self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
+
 
   const resolveSession = clientToResolve.get(clientId);
   if (resolveSession) {
@@ -209,7 +214,7 @@ function requestSession(client: Client): Promise<SessionInfo | undefined> {
 
 async function requestSessionWithTimeout(
   clientId: string,
-  timeoutMs = 3000
+  timeoutMs = 10000
 ): Promise<SessionInfo | undefined> {
   const client = await self.clients.get(clientId);
   if (!client) {

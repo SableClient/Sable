@@ -10,6 +10,7 @@ import { Sync } from '../general';
 import { SettingsSectionPage } from '../SettingsSectionPage';
 import { BandwidthSavingEmojis } from './BandwithSavingEmojis';
 import { MSC4268HistoryShare } from './MSC4268HistoryShare';
+import { EncryptedSearch } from './EncryptedSearch';
 import { SearchIndexToggle } from './SearchIndexToggle';
 
 function TiptapComposerToggle() {
@@ -92,6 +93,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <Sync />
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
+              <EncryptedSearch />
               <SearchIndexToggle />
               <PersonaToggle />
               <TiptapComposerToggle />

@@ -389,6 +389,8 @@ export function useTimelineSync({
   const resetAutoScrollPendingRef = useRef(false);
 
   const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
+  const eventsLengthRef = useRef(eventsLength);
+  eventsLengthRef.current = eventsLength;
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
 
   const canPaginateBack =
@@ -596,10 +598,13 @@ export function useTimelineSync({
       // spurious updates that would reset scroll position during normal sync.
       const liveEvents = getLiveTimeline(room).getEvents();
       if (liveEvents.length === 0) return;
-      // Only update if our current timeline is empty or stale — avoids clobbering
-      // timelines that are already populated and working correctly.
-      const currentEvents = timeline.linkedTimelines[0]?.getEvents() ?? [];
-      if (currentEvents.length > 0) return;
+      // After PTR, React's timeline state may reference the correct live timeline
+      // object, but with eventsLength still at 0 (before the re-render). Detect this
+      // by comparing the SDK's current event count with React's last known count.
+      const reactEventsLength = eventsLengthRef.current;
+      const isStale = timeline.linkedTimelines[0] !== getLiveTimeline(room);
+      const needsUpdate = reactEventsLength === 0 || isStale;
+      if (!needsUpdate) return;
       setTimeline({ linkedTimelines: getInitialTimeline(room).linkedTimelines });
     };
     mx.on(ClientEvent.Room, handleRoomInitialized);

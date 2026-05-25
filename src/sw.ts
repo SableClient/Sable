@@ -378,7 +378,7 @@ async function requestDecryptionFromClient(
   const eventId = rawEvent.event_id as string;
 
   // Chain clients sequentially using reduce to avoid await-in-loop and for-of.
-  return Array.from(windowClients).reduce(
+  const result = await Array.from(windowClients).reduce(
     async (prevPromise, client) => {
       const prev = await prevPromise;
       if (prev?.success) return prev;
@@ -410,6 +410,16 @@ async function requestDecryptionFromClient(
     },
     Promise.resolve(undefined) as Promise<DecryptionResult | undefined>
   );
+
+  // If all clients timed out, the page is likely crashed/unresponsive.
+  // Mark appIsVisible=false so future push notifications aren't suppressed.
+  if (!result && windowClients.length > 0) {
+    console.warn('[SW] All clients timed out — marking app as not visible');
+    appIsVisible = false;
+    persistSettings().catch(() => undefined);
+  }
+
+  return result;
 }
 
 /**
@@ -425,7 +435,14 @@ async function handleMinimalPushPayload(
   // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
   // Map.  Fall back to the Cache Storage copy that was written when the user last opened
   // the app (same pattern as settings persistence).
-  const session = getAnyStoredSession() ?? (await loadPersistedSession());
+  let session = getAnyStoredSession() ?? (await loadPersistedSession());
+
+  // Validate session before using: if the access token is too short or looks malformed,
+  // it's likely corrupted cache from a failed logout. Skip fetch to avoid 401 spam.
+  if (session && (!session.accessToken || session.accessToken.length < 16)) {
+    console.warn('[SW push] session token looks invalid, discarding');
+    session = undefined;
+  }
 
   if (!session) {
     // No session anywhere — app was never opened since install, or the user logged out.

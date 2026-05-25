@@ -1,5 +1,5 @@
 ---
-applyTo: "src/**"
+applyTo: 'src/**'
 ---
 
 ## TypeScript & React
@@ -11,7 +11,7 @@ applyTo: "src/**"
 
 ## Comments & Documentation
 
-- Comments must be **short and purposeful** — explain *why*, not *what*.
+- Comments must be **short and purposeful** — explain _why_, not _what_.
 - No decorative separator lines (`//------`), no block comments restating the code.
 - Do not add docstrings, comments, or type annotations to code that was not changed in the current task.
 - Add concise docstrings, comments, and/or type annotations to new or updated code.

@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createStore, Provider } from 'jotai';
+import type * as ReactRouterDom from 'react-router-dom';
 import { mDirectAtom } from '$state/mDirectList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useRoomNavigate } from './useRoomNavigate';
@@ -10,7 +11,7 @@ const mockNavigate = vi.fn<(path: string) => void>();
 
 // Preserve the real generatePath (used by $pages/pathUtils) while stubbing useNavigate.
 vi.mock('react-router-dom', async (importOriginal) => {
-  const original = await importOriginal<typeof import('react-router-dom')>();
+  const original = await importOriginal<typeof ReactRouterDom>();
   return {
     ...original,
     useNavigate: () => mockNavigate,
@@ -31,7 +32,7 @@ vi.mock('$hooks/router/useSelectedSpace', () => ({
 }));
 
 vi.mock('$state/hooks/settings', () => ({
-  useSetting: () => [false, vi.fn()],
+  useSetting: () => [false, vi.fn<(value: boolean) => void>()],
 }));
 
 function makeWrapper(store: ReturnType<typeof createStore>) {
@@ -86,7 +87,7 @@ describe('useRoomNavigate', () => {
       result.current.navigateRoom(roomId);
 
       expect(mockNavigate).toHaveBeenCalledOnce();
-      const navigatedPath = mockNavigate.mock.calls[0]![0] as string;
+      const navigatedPath = mockNavigate.mock.calls[0]![0];
       expect(navigatedPath).not.toMatch(/^\/direct\//);
       expect(navigatedPath).not.toMatch(/^\/home\//);
     });

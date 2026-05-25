@@ -1,5 +1,5 @@
 ---
-applyTo: "src/**,Caddyfile,Dockerfile"
+applyTo: 'src/**,Caddyfile,Dockerfile'
 ---
 
 ## Security

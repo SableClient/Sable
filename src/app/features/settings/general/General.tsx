@@ -865,7 +865,7 @@ function EmojiSelectorThresholdInput() {
 
 function PresenceIdleTimeoutInput() {
   const [idleTimeoutMins, setIdleTimeoutMins] = useSetting(settingsAtom, 'presenceIdleTimeoutMins');
-  const [inputValue, setInputValue] = useState(idleTimeoutMins.toString());
+  const [inputValue, setInputValue] = useState(String(idleTimeoutMins ?? 5));
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (evt) => {
     const val = evt.target.value;

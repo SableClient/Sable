@@ -481,14 +481,14 @@ export function RoomTimeline({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let retryIntervalId: ReturnType<typeof setInterval> | undefined;
-    
+
     if (timelineSync.focusItem) {
       let scrollSucceeded = false;
       const attemptScroll = () => {
         if (!timelineSync.focusItem?.scrollTo || !vListRef.current || scrollSucceeded) return false;
-        
+
         let processedIndex = getRawIndexToProcessedIndex(timelineSync.focusItem.index);
-        
+
         // Fallback: if index lookup fails but we have an eventId, search by ID.
         // This handles fragmented timelines from sliding sync where absolute indices
         // don't align across different timeline contexts.
@@ -498,7 +498,7 @@ export function RoomTimeline({
           );
           if (found >= 0) processedIndex = found;
         }
-        
+
         if (processedIndex !== undefined) {
           // Reveal timeline and scroll in the same frame to avoid flash
           setIsReady(true);

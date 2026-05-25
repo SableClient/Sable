@@ -45,13 +45,16 @@ export const useRoomNavigate = () => {
 
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
 
-      const shallowParents = openSpaceTimeline ? [roomId] : getShallowParents(roomToParents, roomId);
+      const shallowParents = openSpaceTimeline
+        ? [roomId]
+        : getShallowParents(roomToParents, roomId);
       if (shallowParents.length > 0) {
         let parentSpace: string;
         if (spaceSelectedId && shallowParents.includes(spaceSelectedId)) {
           parentSpace = spaceSelectedId;
         } else {
-          parentSpace = guessPerfectParent(mx, roomId, shallowParents) ?? shallowParents[0] ?? roomId;
+          parentSpace =
+            guessPerfectParent(mx, roomId, shallowParents) ?? shallowParents[0] ?? roomId;
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);

@@ -188,7 +188,6 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     self.caches.delete(SW_MEDIA_CACHE).catch(() => undefined);
   }
 
-
   const resolveSession = clientToResolve.get(clientId);
   if (resolveSession) {
     resolveSession(sessions.get(clientId));

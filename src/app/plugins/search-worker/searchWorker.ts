@@ -429,7 +429,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
       break;
     case 'FLUSH':
       void flushIndex().then(() => {
-        self.postMessage({ type: 'FLUSH_DONE' });
+        self.postMessage({ type: 'FLUSH_DONE' }, self.location.origin);
       });
       break;
     default:

@@ -122,8 +122,7 @@ export function MessageSearch({
   ]);
 
   const isSearching =
-    !!msgSearchParams.term ||
-    (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
+    !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
@@ -322,7 +321,9 @@ export function MessageSearch({
           <Icon size="200" src={Icons.Info} />
           <Text>
             {msgSearchParams.term ? (
-              <>No results found for <b>{`"${msgSearchParams.term}"`}</b></>
+              <>
+                No results found for <b>{`"${msgSearchParams.term}"`}</b>
+              </>
             ) : (
               'No results found.'
             )}
@@ -330,8 +331,7 @@ export function MessageSearch({
         </Box>
       )}
 
-      {((isSearching && status === 'pending') ||
-        (groups.length > 0 && vItems.length === 0)) && (
+      {((isSearching && status === 'pending') || (groups.length > 0 && vItems.length === 0)) && (
         <Box direction="Column" gap="100">
           {Array.from({ length: 8 }).map(() => (
             <SequenceCard

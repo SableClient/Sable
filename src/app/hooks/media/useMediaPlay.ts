@@ -17,8 +17,19 @@ export const useMediaPlay = (
     (play: boolean) => {
       const targetEl = getTargetElement();
       if (!targetEl) return;
-      if (play) targetEl.play();
-      else targetEl.pause();
+      if (play) {
+        // Browsers block autoplay without a prior user gesture — catch NotAllowedError
+        targetEl.play().catch((err: Error) => {
+          if (err.name === 'NotAllowedError') {
+            // Silently ignore autoplay blocking — user must manually start playback
+            return;
+          }
+          // Re-throw other errors (e.g., network, decoding issues)
+          throw err;
+        });
+      } else {
+        targetEl.pause();
+      }
     },
     [getTargetElement]
   );

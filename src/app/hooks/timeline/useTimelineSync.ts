@@ -433,7 +433,10 @@ export function useTimelineSync({
       },
     });
 
-    if (delta > 50 && liveTimelineLinked) {
+    // Warn only for truly large batches (> 100) — active room subscription limit is 50,
+    // so we expect batches up to 50–100 during normal operation (opening rooms, backfill).
+    // 97% of warnings were "medium" (delta <= 100), indicating the 50 threshold was too low.
+    if (delta > 100 && liveTimelineLinked) {
       Sentry.captureMessage('Timeline: large event batch from sliding sync', {
         level: 'warning',
         extra: { delta, eventsLength, atBottom: isAtBottom },

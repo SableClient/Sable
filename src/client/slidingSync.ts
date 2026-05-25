@@ -426,7 +426,6 @@ export class SlidingSyncManager {
             message: 'Sliding sync position lost (M_UNKNOWN_POS) — full resync required',
             data: {
               syncNumber: this.syncCount,
-              lastPos: this.slidingSync.getPositionForList(this.listKeys[0] ?? 'default'),
               roomsLoaded: this.mx.getRooms().length,
               errorMessage: err.message,
             },

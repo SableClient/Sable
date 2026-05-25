@@ -809,8 +809,8 @@ export function SearchIndexProvider({ children }: { children: ReactNode }) {
   }, [postToWorker]);
 
   const ctx = useMemo<SearchIndexCtx>(
-    () => ({ query, getStats, clearIndex, isReady, isBackfilling }),
-    [query, getStats, clearIndex, isReady, isBackfilling]
+    () => ({ query, getStats, clearIndex, isReady, isBackfilling, initError }),
+    [query, getStats, clearIndex, isReady, isBackfilling, initError]
   );
 
   return <SearchIndexContext.Provider value={ctx}>{children}</SearchIndexContext.Provider>;

@@ -1,6 +1,7 @@
 import type { MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
 import type { ClientConfig } from '../../../hooks/useClientConfig';
+import * as Sentry from '@sentry/react';
 
 const debugLog = createDebugLogger('PushNotifications');
 

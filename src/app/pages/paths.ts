@@ -37,6 +37,7 @@ export type SearchPathSearchParams = {
   order?: string;
   rooms?: string;
   senders?: string;
+  has?: string;
 };
 export const SEARCH_PATH_SEGMENT = 'search/';
 
@@ -57,6 +58,7 @@ export type DirectCreateSearchParams = {
   userId?: string;
 };
 export const DIRECT_CREATE_PATH = `/direct/${CREATE_PATH_SEGMENT}`;
+export const DIRECT_SEARCH_PATH = `/direct/${SEARCH_PATH_SEGMENT}`;
 export const DIRECT_ROOM_PATH = `/direct/${ROOM_PATH_SEGMENT}`;
 
 export const SPACE_PATH = '/:spaceIdOrAlias/';

@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
-import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -16,12 +15,15 @@ import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { decodeSearchParamValueArray, encodeSearchParamValueArray } from '$pages/pathUtils';
-import { useRooms } from '$state/hooks/roomList';
+import { useSelectedRooms } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
+import { isRoom } from '$utils/room';
+import { useAtomValue } from 'jotai';
 import { mDirectAtom } from '$state/mDirectList';
 import { VirtualTile } from '$components/virtualizer';
 import type { MessageSearchParams } from './useMessageSearch';
 import { useMessageSearch } from './useMessageSearch';
+import type { SearchHasType } from './useMessageSearch';
 import { SearchResultGroup } from './SearchResultGroup';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
@@ -34,6 +36,7 @@ const useSearchPathSearchParams = (searchParams: URLSearchParams): SearchPathSea
       order: searchParams.get('order') ?? undefined,
       rooms: searchParams.get('rooms') ?? undefined,
       senders: searchParams.get('senders') ?? undefined,
+      has: searchParams.get('has') ?? undefined,
     }),
     [searchParams]
   );
@@ -45,6 +48,9 @@ type MessageSearchProps = {
   senders?: string[];
   scrollRef: RefObject<HTMLDivElement | null>;
 };
+
+const VALID_HAS_TYPES = new Set<SearchHasType>(['image', 'file', 'audio', 'video', 'link']);
+
 export function MessageSearch({
   defaultRoomsFilterName,
   allowGlobal,
@@ -54,7 +60,8 @@ export function MessageSearch({
 }: Readonly<MessageSearchProps>) {
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
-  const allRooms = useRooms(mx, allRoomsAtom, mDirects);
+  const allRoomsSelector = useCallback((rId: string) => isRoom(mx.getRoom(rId)), [mx]);
+  const allRooms = useSelectedRooms(allRoomsAtom, allRoomsSelector);
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
@@ -83,9 +90,18 @@ export function MessageSearch({
     }
     return undefined;
   }, [searchPathSearchParams.senders]);
+  const searchParamHasTypes = useMemo(() => {
+    if (!searchPathSearchParams.has) return undefined;
+    const decoded = decodeSearchParamValueArray(searchPathSearchParams.has).filter(
+      (t): t is SearchHasType => VALID_HAS_TYPES.has(t as SearchHasType)
+    );
+    return decoded.length > 0 ? decoded : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchPathSearchParams.has]);
+
+  const isGlobal = searchPathSearchParams.global === 'true';
 
   const msgSearchParams: MessageSearchParams = useMemo(() => {
-    const isGlobal = searchPathSearchParams.global === 'true';
     const defaultRooms = isGlobal ? undefined : rooms;
 
     return {
@@ -93,19 +109,30 @@ export function MessageSearch({
       order: searchPathSearchParams.order ?? SearchOrderBy.Recent,
       rooms: searchParamRooms ?? defaultRooms,
       senders: searchParamsSenders ?? senders,
+      hasTypes: searchParamHasTypes,
     };
-  }, [searchPathSearchParams, searchParamRooms, searchParamsSenders, rooms, senders]);
+  }, [
+    isGlobal,
+    searchPathSearchParams,
+    searchParamRooms,
+    searchParamsSenders,
+    searchParamHasTypes,
+    rooms,
+    senders,
+  ]);
 
   const searchMessages = useMessageSearch(msgSearchParams);
 
   const { status, data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    enabled: !!msgSearchParams.term,
+    enabled:
+      !!msgSearchParams.term || (!!msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0),
     queryKey: [
       'search',
       msgSearchParams.term,
       msgSearchParams.order,
       msgSearchParams.rooms,
       msgSearchParams.senders,
+      msgSearchParams.hasTypes,
     ],
     queryFn: ({ pageParam }) => searchMessages(pageParam),
     initialPageParam: '',
@@ -117,6 +144,8 @@ export function MessageSearch({
     const mixed = data?.pages.flatMap((result) => result.highlights);
     return Array.from(new Set(mixed));
   }, [data]);
+  // Only the first page carries in-memory results (no pagination for encrypted rooms)
+  const inMemoryRoomCount = data?.pages[0]?.inMemoryRoomCount ?? 0;
 
   const virtualizer = useVirtualizer({
     count: groups.length,
@@ -177,6 +206,28 @@ export function MessageSearch({
     });
   };
 
+  const handleHasTypesChange = (hasTypes?: SearchHasType[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('has');
+      if (hasTypes && hasTypes.length > 0) {
+        newParams.append('has', encodeSearchParamValueArray(hasTypes));
+      }
+      return newParams;
+    });
+  };
+
+  const handleSendersChange = (newSenders?: string[]) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('senders');
+      if (newSenders && newSenders.length > 0) {
+        newParams.append('senders', encodeSearchParamValueArray(newSenders));
+      }
+      return newParams;
+    });
+  };
+
   const lastVItem = vItems.at(-1);
   const lastVItemIndex: number | undefined = lastVItem?.index;
   const lastGroupIndex = groups.length - 1;
@@ -216,15 +267,34 @@ export function MessageSearch({
         <SearchFilters
           defaultRoomsFilterName={defaultRoomsFilterName}
           allowGlobal={allowGlobal}
-          roomList={searchPathSearchParams.global === 'true' ? allRooms : rooms}
+          roomList={isGlobal ? allRooms : rooms}
+          defaultRooms={isGlobal ? allRooms : rooms}
           selectedRooms={searchParamRooms}
           onSelectedRoomsChange={handleSelectedRoomsChange}
           global={searchPathSearchParams.global === 'true'}
           onGlobalChange={handleGlobalChange}
           order={msgSearchParams.order}
           onOrderChange={handleOrderChange}
+          hasTypes={searchParamHasTypes}
+          onHasTypesChange={handleHasTypesChange}
+          senders={searchParamsSenders ?? senders}
+          onSendersChange={handleSendersChange}
         />
       </Box>
+
+      {inMemoryRoomCount > 0 && status !== 'pending' && (
+        <Box
+          className={ContainerColor({ variant: 'Secondary' })}
+          style={{ padding: config.space.S300, borderRadius: config.radii.R400 }}
+          alignItems="Center"
+          gap="200"
+        >
+          <Icon size="200" src={Icons.Info} />
+          <Text size="T300">
+            {`${inMemoryRoomCount} ${inMemoryRoomCount === 1 ? 'room' : 'rooms'} searched from local cache only.`}
+          </Text>
+        </Box>
+      )}
 
       {!msgSearchParams.term && status === 'pending' && (
         <PageHeroEmpty>
@@ -268,7 +338,13 @@ export function MessageSearch({
       {vItems.length > 0 && (
         <Box direction="Column" gap="300">
           <Box direction="Column" gap="200">
-            <Text size="H5">{`Results for "${msgSearchParams.term}"`}</Text>
+            <Text size="H5">
+              {msgSearchParams.term
+                ? `Results for "${msgSearchParams.term}"`
+                : msgSearchParams.hasTypes && msgSearchParams.hasTypes.length > 0
+                  ? `Results for ${msgSearchParams.hasTypes.join(', ')}`
+                  : 'Results'}
+            </Text>
             <Line size="300" variant="Surface" />
           </Box>
           <div

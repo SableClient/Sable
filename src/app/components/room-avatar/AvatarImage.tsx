@@ -17,37 +17,47 @@ export function getSvgCacheSize(): number {
   return svgBlobCache.size;
 }
 
-/** Clear all SVG blob URLs from the module-level cache. */
+/** Revoke all cached SVG blob URLs and clear the cache to free memory. */
 export function clearSvgBlobCache(): void {
+  svgBlobCache.forEach((url) => URL.revokeObjectURL(url));
   svgBlobCache.clear();
 }
 
-type AvatarImageProps = {
-  src: string;
-  alt?: string;
-  uniformIcons?: boolean;
-  onError: () => void;
-};
-
-export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
-  const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
-  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const [processedSrc, setProcessedSrc] = useState<string>(src);
-
-  const useUniformIcons = uniformIconsSetting && uniformIcons === true;
-  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
+/**
+ * Resolves an avatar HTTP URL through the SVG blob cache.
+ * - If `src` is already cached as a processed blob URL, returns it immediately.
+ * - If `src` is an SVG, fetches, sanitises animations, stores in cache, and
+ *   returns the blob URL (falls back to raw `src` on error).
+ * - For non-SVG images, returns `src` unchanged (no extra processing needed).
+ * - If `src` is `undefined`, returns `undefined`.
+ *
+ * Sharing this hook between `AvatarImage` (room avatars) and `UserAvatar`
+ * (user avatars) means SVG avatars are processed and cached only once,
+ * regardless of which component first encounters them.
+ */
+export function useProcessedAvatarSrc(src: string | undefined): string | undefined {
+  const [processedSrc, setProcessedSrc] = useState<string | undefined>(src);
 
   useEffect(() => {
+    if (!src) {
+      setProcessedSrc(undefined);
+      return;
+    }
+
     let isMounted = true;
 
-    const processImage = async () => {
-      // Return the cached blob URL immediately — no network round-trip needed.
-      const cachedBlobUrl = svgBlobCache.get(src);
-      if (cachedBlobUrl) {
-        setProcessedSrc(cachedBlobUrl);
-        return;
-      }
+    // Reset to raw src while we check/process, so stale blob URLs never linger.
+    setProcessedSrc(src);
 
+    const cachedBlobUrl = svgBlobCache.get(src);
+    if (cachedBlobUrl) {
+      setProcessedSrc(cachedBlobUrl);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const processImage = async () => {
       try {
         const res = await fetch(src, { mode: 'cors' });
         const contentType = res.headers.get('content-type');
@@ -86,6 +96,24 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
       // that subsequent remounts can use the cached result without re-fetching.
     };
   }, [src]);
+
+  return processedSrc;
+}
+
+type AvatarImageProps = {
+  src: string;
+  alt?: string;
+  uniformIcons?: boolean;
+  onError: () => void;
+};
+
+export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
+  const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
+  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
+  const processedSrc = useProcessedAvatarSrc(src) ?? src;
+
+  const useUniformIcons = uniformIconsSetting && uniformIcons === true;
+  const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
 
   const handleLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
     evt.currentTarget.setAttribute('data-image-loaded', 'true');

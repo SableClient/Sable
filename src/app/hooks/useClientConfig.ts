@@ -67,6 +67,12 @@ export type ClientConfig = {
   themeCatalogApprovedHostPrefixes?: string[];
 
   settingsDefaults?: Partial<Settings>;
+
+  features?: {
+    polls?: boolean;
+    /** Enable in-memory search for encrypted rooms (default: true). */
+    encryptedSearch?: boolean;
+  };
 };
 
 const ClientConfigContext = createContext<ClientConfig | null>(null);

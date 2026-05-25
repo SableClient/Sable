@@ -76,6 +76,7 @@
     "marked": "^18.0.2",
     "matrix-js-sdk": "^38.4.0",
     "matrix-widget-api": "^1.16.1",
+    "minisearch": "^7.2.0",
     "pdfjs-dist": "^5.4.624",
     "react": "^18.3.1",
     "react-aria": "^3.46.0",

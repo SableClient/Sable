@@ -25,6 +25,7 @@ import { SyncDiagnostics } from './SyncDiagnostics';
 import { ExperimentsPanel } from './ExperimentsPanel';
 import { DebugLogViewer } from './DebugLogViewer';
 import { SentrySettings } from './SentrySettings';
+import { SearchIndexCache } from './SearchIndexCache';
 
 const JOIN_MEMBERSHIP: string = KnownMembership.Join;
 
@@ -422,6 +423,7 @@ export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProp
                   <SentrySettings />
                 </Box>
               )}
+              {developerTools && <SearchIndexCache />}
             </Box>
           </PageContent>
         </Scroll>

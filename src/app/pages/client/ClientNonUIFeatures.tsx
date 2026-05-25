@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SearchIndexProvider } from '$hooks/useSearchIndex';
 import type { RoomEventHandlerMap } from '$types/matrix-sdk';
 import {
   MatrixEvent,
@@ -864,7 +865,7 @@ function SettingsSyncFeature() {
 export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
   useCallSignaling();
   return (
-    <>
+    <SearchIndexProvider>
       <SettingsSyncFeature />
       <SystemEmojiFeature />
       <PageZoomFeature />
@@ -884,6 +885,6 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <SentryTagsFeature />
       <HealthMonitor />
       {children}
-    </>
+    </SearchIndexProvider>
   );
 }

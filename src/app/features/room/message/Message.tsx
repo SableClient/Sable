@@ -280,9 +280,10 @@ const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, 
 type MorePronounsPillProps = {
   pronouns: PronounSet[];
   tagColor: string;
+  maxPillLength: number;
 };
 
-function MorePronounsPill({ pronouns, tagColor }: MorePronounsPillProps) {
+function MorePronounsPill({ pronouns, tagColor, maxPillLength }: MorePronounsPillProps) {
   const [anchor, setAnchor] = useState<RectCords | undefined>();
 
   const toggleAnchor = (target: HTMLElement) => {
@@ -310,7 +311,7 @@ function MorePronounsPill({ pronouns, tagColor }: MorePronounsPillProps) {
     return () => document.removeEventListener('click', dismiss);
   }, [anchor]);
 
-  const tooltipText = pronouns.map((p) => clamp(p.summary, 16)).join(', ');
+  const tooltipText = pronouns.map((p) => clamp(p.summary, maxPillLength)).join(', ');
 
   const tooltipContent = (
     <Tooltip style={{ maxWidth: toRem(250) }}>
@@ -375,7 +376,8 @@ const Pronouns = as<
     selectedLanguages
   );
 
-  const limit = mobileOrTablet() ? 1 : 3;
+  const limit = getSettings().pronounPillMaxCount ?? 3;
+  const maxPillLength = getSettings().pronounPillMaxLength ?? 16;
 
   // if language specific pronouns can't be found matching the filter return unfiltered
   if (visiblePronouns.length === 0) {
@@ -386,11 +388,15 @@ const Pronouns = as<
     <AsPronouns {...props} ref={ref}>
       {visiblePronouns.slice(0, limit).map((p) => (
         <PronounPill key={p.summary} style={{ color: tagColor }}>
-          {clamp(p.summary, 16)}
+          {clamp(p.summary, maxPillLength)}
         </PronounPill>
       ))}
       {visiblePronouns.length > limit && (
-        <MorePronounsPill pronouns={visiblePronouns.slice(limit)} tagColor={tagColor} />
+        <MorePronounsPill
+          pronouns={visiblePronouns.slice(limit)}
+          tagColor={tagColor}
+          maxPillLength={maxPillLength}
+        />
       )}
     </AsPronouns>
   );

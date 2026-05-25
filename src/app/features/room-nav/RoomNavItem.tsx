@@ -426,7 +426,13 @@ export function RoomNavItem({
                 style={hideTextStyling(hideText)}
               >
                 <NavItemContent style={hideTextStyling(hideText)}>
-                  <Box as="span" grow="Yes" alignItems="Center" style={hideTextStyling(hideText)}>
+                  <Box
+                    as="span"
+                    grow="Yes"
+                    alignItems="Center"
+                    gap="200"
+                    style={hideTextStyling(hideText)}
+                  >
                     {isGroupDM && showAvatar && groupMembers.length > 1 ? (
                       // Group DM: triangle layout of mini avatars.
                       // In hideText (icon-only) mode the Avatar slot is 32px (size="300");
@@ -524,7 +530,12 @@ export function RoomNavItem({
 
                     {!hideText && (
                       <>
-                        <Box as="span" grow="Yes" direction="Column" style={{ minWidth: 0 }}>
+                        <Box
+                          as="span"
+                          grow="Yes"
+                          direction="Column"
+                          style={{ minWidth: 0, marginLeft: '4px' }}
+                        >
                           <Text
                             priority={unread || hasRoomUnread || isActiveCall ? '500' : '400'}
                             as="span"

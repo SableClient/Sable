@@ -221,6 +221,15 @@ const NOTIFICATION_EVENT_TYPES = new Set([
   'm.sticker',
   'm.reaction',
 ]);
+
+// Event types that represent actual user-sent messages.
+// Used to guard phantom-unread suppression so state events (e.g. m.room.create,
+// m.room.member) and reactions do not incorrectly clear notification badges.
+const SUPPRESSABLE_SENT_EVENT_TYPES = new Set<string>([
+  'm.room.message',
+  'm.room.encrypted',
+  'm.sticker',
+]);
 export const isNotificationEvent = (mEvent: MatrixEvent, room?: Room, userId?: string) => {
   const eType = mEvent.getType();
   if (!NOTIFICATION_EVENT_TYPES.has(eType)) {
@@ -312,6 +321,24 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
+  // If the user's own message is the most recent event in the live timeline they
+  // implicitly read everything before it when they composed that reply. Return zero
+  // to suppress phantom unread badges that arise from stale SDK counters in sliding
+  // sync when no explicit read receipt is present.
+  if (userId && !room.getEventReadUpTo(userId)) {
+    const liveEvents = room.getLiveTimeline().getEvents();
+    const latestEvent = liveEvents[liveEvents.length - 1];
+    if (
+      latestEvent &&
+      !latestEvent.isSending() &&
+      SUPPRESSABLE_SENT_EVENT_TYPES.has(latestEvent.getType()) &&
+      latestEvent.getSender() === userId &&
+      isNotificationEvent(latestEvent, room, userId)
+    ) {
+      return { roomId: room.roomId, highlight: 0, total: 0 };
+    }
+  }
+
   let total = room.getUnreadNotificationCount(NotificationCountType.Total);
   const highlight = room.getUnreadNotificationCount(NotificationCountType.Highlight);
 
@@ -363,9 +390,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
       if (!event) break;
       if (event.getId() === readUpToId) break;
       if (isNotificationEvent(event, room, userId) && event.getSender() !== userId) {
-        fallbackTotal += 1;
         const pushActions = pushProcessor.actionsForEvent(event);
-        if (pushActions?.tweaks?.highlight) fallbackHighlight += 1;
+        // Only count events that would actually generate a push notification.
+        // This excludes reactions (which use dont_notify by default push rules)
+        // and prevents the fallback from creating phantom unreads the SDK ignores.
+        if (pushActions?.notify) {
+          fallbackTotal += 1;
+          if (pushActions.tweaks?.highlight) fallbackHighlight += 1;
+        }
       }
     }
     if (fallbackTotal > 0) {
@@ -377,36 +409,14 @@ export const getUnreadInfo = (room: Room, options?: UnreadInfoOptions): UnreadIn
     }
   }
 
-  // Sliding sync limitation: unvisited rooms don't have read receipt data, but may have
-  // timeline activity. Check for notification events from others in the timeline to show a
-  // badge even when SDK counts are 0 (or unreliable without receipts).
-  if (userId) {
-    const readUpToId = room.getEventReadUpTo(userId);
-
-    // If we have no read receipt, SDK counts may be unreliable. Always check timeline.
-    if (!readUpToId) {
-      const liveEvents = room.getLiveTimeline().getEvents();
-
-      const hasActivity = liveEvents.some(
-        (event) => event.getSender() !== userId && isNotificationEvent(event, room, userId)
-      );
-
-      if (hasActivity) {
-        // If SDK already has counts, use those. Otherwise show dot badge (count=1).
-        if (total === 0 && highlight === 0) {
-          return { roomId: room.roomId, highlight: 0, total: 1 };
-        }
-        // SDK has counts but no receipt - trust the counts and show them
-        return { roomId: room.roomId, highlight, total };
-      }
-    }
-  }
-
   // For DMs with Default or AllMessages notification type: if there are unread messages,
   // ensure we show a notification badge (treat as highlight for badge color purposes).
   // This handles cases where push rules don't properly match (e.g., classic sync with
   // member_count condition failures, or sliding sync with limited required_state).
-  if (shouldForceDMHighlight && total > 0 && highlight === 0) {
+  // Guard on room-level (non-thread) total: thread-only unreads in DMs should not
+  // be force-highlighted — the thread's own push rules handle highlight there.
+  const roomLevelTotal = room.getRoomUnreadNotificationCount(NotificationCountType.Total);
+  if (shouldForceDMHighlight && roomLevelTotal > 0 && highlight === 0) {
     return {
       roomId: room.roomId,
       highlight: total, // Treat all unread messages as highlights for DMs

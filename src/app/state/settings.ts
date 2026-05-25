@@ -176,6 +176,9 @@ export interface Settings {
   threadRootHeight: number;
   vcmsgSidebarWidth: number;
   widgetSidebarWidth: number;
+  roomTopicPreview: boolean;
+  roomMessagePreview: boolean;
+  dmMessagePreview: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -310,6 +313,9 @@ export const defaultSettings: Settings = {
   threadRootHeight: 220,
   vcmsgSidebarWidth: 399,
   widgetSidebarWidth: 420,
+  roomTopicPreview: false,
+  roomMessagePreview: false,
+  dmMessagePreview: true,
   // furry stuff
   renderAnimals: true,
 

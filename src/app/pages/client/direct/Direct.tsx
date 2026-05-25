@@ -30,9 +30,8 @@ import {
   NavEmptyLayout,
   NavItem,
   NavItemContent,
-  NavLink,
 } from '$components/nav';
-import { getDirectCreatePath, getDirectRoomPath, getDirectSearchPath } from '$pages/pathUtils';
+import { getDirectCreatePath, getDirectRoomPath } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { VirtualTile } from '$components/virtualizer';
@@ -52,9 +51,10 @@ import {
   getRoomNotificationMode,
   useRoomsNotificationPreferencesContext,
 } from '$hooks/useRoomsNotificationPreferences';
-import { useDirectCreateSelected, useDirectSearchSelected } from '$hooks/router/useDirectSelected';
+import { useDirectCreateSelected } from '$hooks/router/useDirectSelected';
 import { useDirectRooms } from './useDirectRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
 
 type DirectMenuProps = {
@@ -197,35 +197,37 @@ export function Direct() {
   }, [roomSidebarWidth]);
 
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
+  const [dmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
 
   const createDirectSelected = useDirectCreateSelected();
-  const searchSelected = useDirectSearchSelected();
 
   const selectedRoomId = useSelectedRoom();
   const noRoomToDisplay = directs.length === 0;
   const [closedCategories, setClosedCategories] = useAtom(useClosedNavCategoriesAtom());
 
   // Track timeline activity to trigger re-sorting when messages arrive.
-  // Without this, DMs only re-sort when you switch rooms because getLastActiveTimestamp()
-  // is internal SDK state not tracked by React dependencies.
+  // Debounced to prevent excessive re-renders on rapid events (reactions, edits, etc.).
   const [activityCounter, setActivityCounter] = useState(0);
-  const directsSetRef = useRef(directs);
-  directsSetRef.current = directs;
+  const activityTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
+    const directRoomIds = Array.from(directs);
     const handleTimeline = () => {
-      // Increment counter to trigger re-sort when any timeline event happens
-      setActivityCounter((prev) => prev + 1);
+      clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = setTimeout(() => {
+        setActivityCounter((prev) => prev + 1);
+      }, 500);
     };
 
     // Listen to timeline events only for direct message rooms
-    directsSetRef.current.forEach((roomId) => {
+    directRoomIds.forEach((roomId) => {
       const room = mx.getRoom(roomId);
       room?.on(RoomEvent.Timeline, handleTimeline);
     });
 
     return () => {
-      directsSetRef.current.forEach((roomId) => {
+      clearTimeout(activityTimerRef.current);
+      directRoomIds.forEach((roomId) => {
         const room = mx.getRoom(roomId);
         room?.off(RoomEvent.Timeline, handleTimeline);
       });
@@ -257,7 +259,7 @@ export function Direct() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -283,14 +285,10 @@ export function Direct() {
                         as="span"
                         grow="Yes"
                         alignItems="Center"
-                        justifyContent="Start"
                         gap="200"
+                        justifyContent="Center"
                       >
-                        <Avatar
-                          size={hideText ? undefined : '200'}
-                          radii="400"
-                          style={hideText ? { width: '100%' } : undefined}
-                        >
+                        <Avatar size="200" radii="400">
                           <Icon src={Icons.Plus} size="100" />
                         </Avatar>
                         {!hideText && (
@@ -303,34 +301,6 @@ export function Direct() {
                       </Box>
                     </NavItemContent>
                   </NavButton>
-                </NavItem>
-                <NavItem variant="Background" radii="400" aria-selected={searchSelected}>
-                  <NavLink to={getDirectSearchPath()}>
-                    <NavItemContent>
-                      <Box
-                        as="span"
-                        grow="Yes"
-                        alignItems="Center"
-                        justifyContent="Start"
-                        gap="200"
-                      >
-                        <Avatar
-                          size={hideText ? undefined : '200'}
-                          radii="400"
-                          style={hideText ? { width: '100%' } : undefined}
-                        >
-                          <Icon src={Icons.Search} size="100" filled={searchSelected} />
-                        </Avatar>
-                        {!hideText && (
-                          <Box as="span" grow="Yes">
-                            <Text as="span" size="Inherit" truncate>
-                              Message Search
-                            </Text>
-                          </Box>
-                        )}
-                      </Box>
-                    </NavItemContent>
-                  </NavLink>
                 </NavItem>
               </NavCategory>
               <NavCategory>
@@ -371,7 +341,6 @@ export function Direct() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
-                                  flexDirection: 'column',
                                 }
                               : {}
                           }
@@ -389,6 +358,7 @@ export function Direct() {
                               room.roomId
                             )}
                             joinCallOnSingleClick={joinCallOnSingleClick}
+                            dmMessagePreview={dmMessagePreview}
                           />
                         </div>
                       </VirtualTile>
@@ -398,9 +368,9 @@ export function Direct() {
               </NavCategory>
             </Box>
           </PageNavContent>
-        )}
-      </PageNav>
-      {!isMobile && (
+          )}
+        </PageNav>
+      {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

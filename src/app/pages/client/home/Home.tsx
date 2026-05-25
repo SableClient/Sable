@@ -63,6 +63,7 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { JoinAddressPrompt } from '$components/join-address-prompt';
 import { useHomeRooms } from './useHomeRooms';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
+import { mobileOrTablet } from '$utils/user-agent';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 type HomeMenuProps = {
@@ -71,10 +72,6 @@ type HomeMenuProps = {
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useHomeRooms();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [isShowingAllRoomsInHome, setIsShowingAllRoomsInHome] = useSetting(
-    settingsAtom,
-    'isShowingAllRoomsInHome'
-  );
   const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const mx = useMatrixClient();
 
@@ -96,16 +93,6 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Mark as Read
-          </Text>
-        </MenuItem>
-        <MenuItem
-          onClick={() => setIsShowingAllRoomsInHome(!isShowingAllRoomsInHome)}
-          size="300"
-          after={<Icon size="100" src={isShowingAllRoomsInHome ? Icons.Home : Icons.Globe} />}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            {isShowingAllRoomsInHome ? 'Show Home Rooms' : 'Show All Rooms'}
           </Text>
         </MenuItem>
       </Box>
@@ -219,28 +206,25 @@ export function Home() {
   const mx = useMatrixClient();
   useNavToActivePathMapper('home');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isShowingAllRoomsInHome] = useSetting(settingsAtom, 'isShowingAllRoomsInHome');
-  const rooms = useHomeRooms(isShowingAllRoomsInHome);
+  const rooms = useHomeRooms();
   const notificationPreferences = useRoomsNotificationPreferencesContext();
   const roomToUnread = useAtomValue(roomToUnreadAtom);
   const navigate = useNavigate();
+  const [roomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview] = useSetting(settingsAtom, 'roomMessagePreview');
 
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [curWidth, setCurWidth] = useState(roomSidebarWidth);
-  useEffect(() => {
-    setCurWidth(roomSidebarWidth);
-  }, [roomSidebarWidth]);
 
-  const [showRoomIconGeneral] = useSetting(settingsAtom, 'showRoomIcon');
-  const [showRoomIconArray] = useSetting(settingsAtom, 'perRoomShowRoomIcon');
-  const showRoomIcon =
-    showRoomIconArray.find((item) => item.roomId === 'Home')?.display ?? showRoomIconGeneral;
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
   const showIcons = () => {
     if (showRoomIcon === ShowRoomIcon.Always) return true;
     if (showRoomIcon === ShowRoomIcon.Never) return false;
-    return curWidth < 144;
+    return curWidth < 96;
   };
-
+  useEffect(() => {
+    setCurWidth(roomSidebarWidth);
+  }, [roomSidebarWidth]);
   const [joinCallOnSingleClick] = useSetting(settingsAtom, 'joinCallOnSingleClick');
 
   const selectedRoomId = useSelectedRoom();
@@ -251,7 +235,7 @@ export function Home() {
 
   const sortedRooms = useMemo(() => {
     const items = Array.from(rooms).toSorted(
-      closedCategories.has(DEFAULT_CATEGORY_ID) || isShowingAllRoomsInHome
+      closedCategories.has(DEFAULT_CATEGORY_ID)
         ? factoryRoomIdByActivity(mx)
         : factoryRoomIdByAtoZ(mx)
     );
@@ -263,7 +247,7 @@ export function Home() {
       return items.filter((rId) => hasUnread(rId) || rId === selectedRoomId);
     }
     return items;
-  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId, isShowingAllRoomsInHome]);
+  }, [mx, rooms, closedCategories, roomToUnread, selectedRoomId]);
 
   const virtualizer = useVirtualizer({
     count: sortedRooms.length,
@@ -277,7 +261,7 @@ export function Home() {
   );
 
   const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
+  const isMobile = mobileOrTablet() || screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
 
   return (
@@ -426,7 +410,6 @@ export function Home() {
                     const room = mx.getRoom(roomId);
                     if (!room) return null;
                     const selected = selectedRoomId === roomId;
-                    const canonicalName = getCanonicalAliasOrRoomId(mx, roomId);
 
                     return (
                       <VirtualTile
@@ -442,7 +425,6 @@ export function Home() {
                                   width: '100%',
                                   aspectRatio: 1,
                                   display: 'flex',
-                                  flexDirection: 'column',
                                 }
                               : {}
                           }
@@ -452,12 +434,14 @@ export function Home() {
                             selected={selected}
                             showAvatar={showIcons()}
                             hideText={hideText}
-                            linkPath={getHomeRoomPath(canonicalName)}
+                            linkPath={getHomeRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
                             notificationMode={getRoomNotificationMode(
                               notificationPreferences,
                               room.roomId
                             )}
                             joinCallOnSingleClick={joinCallOnSingleClick}
+                            roomTopicPreview={roomTopicPreview}
+                            roomMessagePreview={roomMessagePreview}
                           />
                         </div>
                       </VirtualTile>
@@ -467,9 +451,9 @@ export function Home() {
               </NavCategory>
             </Box>
           </PageNavContent>
-        )}
-      </PageNav>
-      {!isMobile && (
+          )}
+        </PageNav>
+      {!mobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={roomSidebarWidth}

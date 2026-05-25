@@ -810,11 +810,17 @@ export function Appearance({
   const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const [dmMessagePreview, setDmMessagePreview] = useSetting(settingsAtom, 'dmMessagePreview');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
+  );
+  const [roomTopicPreview, setRoomTopicPreview] = useSetting(settingsAtom, 'roomTopicPreview');
+  const [roomMessagePreview, setRoomMessagePreview] = useSetting(
+    settingsAtom,
+    'roomMessagePreview'
   );
 
   return (
@@ -864,6 +870,51 @@ export function Appearance({
                 description="Show a custom DM card instead of the DM-ed's details"
                 after={
                   <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="DM Message Preview"
+                focusId="dm-message-preview"
+                description="Show a preview of the last message below DM room names."
+                after={
+                  <Switch
+                    variant="Primary"
+                    value={dmMessagePreview}
+                    onChange={setDmMessagePreview}
+                  />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Room Topic Preview"
+                focusId="room-topic-preview"
+                description="Show the room topic below room names in spaces and Home."
+                after={
+                  <Switch
+                    variant="Primary"
+                    value={roomTopicPreview}
+                    onChange={setRoomTopicPreview}
+                  />
+                }
+              />
+            </SequenceCard>
+
+            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+              <SettingTile
+                title="Room Message Preview"
+                focusId="room-message-preview"
+                description="Show the latest message below room names in spaces and Home."
+                after={
+                  <Switch
+                    variant="Primary"
+                    value={roomMessagePreview}
+                    onChange={setRoomMessagePreview}
+                  />
                 }
               />
             </SequenceCard>

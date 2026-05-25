@@ -171,7 +171,7 @@ export interface Settings {
   widgetSidebarWidth: number;
 
   // experimental
-  messageGroupingThreshold: number;
+  editInInput: boolean;
 
   // furry stuff
   renderAnimals: boolean;
@@ -306,7 +306,7 @@ export const defaultSettings: Settings = {
   widgetSidebarWidth: 420,
 
   // experimental
-  messageGroupingThreshold: 2,
+  editInInput: false,
   // furry stuff
   renderAnimals: true,
 

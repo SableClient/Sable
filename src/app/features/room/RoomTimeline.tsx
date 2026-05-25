@@ -67,7 +67,10 @@ import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
 import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { profilesCacheAtom } from '$state/userRoomProfile';
 import { roomToParentsAtom } from '$state/room/roomToParents';
-import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
+import {
+  roomIdToReplyDraftAtomFamily,
+  roomIdToEditDraftAtomFamily,
+} from '$state/room/roomInputDrafts';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
 import {
   getRoomUnreadInfo,
@@ -85,24 +88,6 @@ import {
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
-
-function findLastOwnEditableProcessedEvent(
-  events: ProcessedEvent[],
-  myUserId: string | null | undefined
-): ProcessedEvent | undefined {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const event = events[i];
-    if (!event) continue;
-    if (
-      event.mEvent.getSender() === myUserId &&
-      event.mEvent.getEffectiveEvent()?.type === 'm.room.message' &&
-      !event.mEvent.isRedacted()
-    ) {
-      return event;
-    }
-  }
-  return undefined;
-}
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -154,6 +139,19 @@ export function RoomTimeline({
   const { editId, handleEdit } = useMessageEdit(editor, { onReset: onEditorReset, alive });
   const { navigateRoom } = useRoomNavigate();
 
+  const [editInInput] = useSetting(settingsAtom, 'editInInput');
+  const setEditDraft = useSetAtom(roomIdToEditDraftAtomFamily(room.roomId));
+  const handleEditCallback = useCallback(
+    (id?: string) => {
+      if (editInInput) {
+        setEditDraft(id ? { eventId: id } : undefined);
+        return;
+      }
+      handleEdit(id);
+    },
+    [editInInput, handleEdit, setEditDraft]
+  );
+
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [messageSpacing] = useSetting(settingsAtom, 'messageSpacing');
@@ -179,7 +177,6 @@ export function RoomTimeline({
   );
   const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
-  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -635,7 +632,12 @@ export function RoomTimeline({
       hideNickAvatarEvents,
       showHiddenEvents,
     },
-    state: { focusItem: timelineSync.focusItem, editId, activeReplyId, openThreadId },
+    state: {
+      focusItem: timelineSync.focusItem,
+      editId: editInInput ? undefined : editId,
+      activeReplyId,
+      openThreadId,
+    },
     permissions: {
       canRedact: permissions.action('redact', mx.getSafeUserId()),
       canDeleteOwn: permissions.event('m.room.redaction', mx.getSafeUserId()),
@@ -647,7 +649,7 @@ export function RoomTimeline({
       onUsernameClick: actions.handleUsernameClick,
       onReplyClick: actions.handleReplyClick,
       onReactionToggle: actions.handleReactionToggle,
-      onEditId: actions.handleEdit,
+      onEditId: handleEditCallback,
       onResend: actions.handleResend,
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,
@@ -739,6 +741,12 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
+    } else if (timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0) {
+      backPaginationJSX = (
+        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
+          <Spinner variant="Secondary" size="400" />
+        </Box>
+      );
     }
   }
 
@@ -765,19 +773,14 @@ export function RoomTimeline({
           </Chip>
         </Box>
       );
+    } else if (timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0) {
+      frontPaginationJSX = (
+        <Box justifyContent="Center" style={{ padding: config.space.S300 }}>
+          <Spinner variant="Secondary" size="400" />
+        </Box>
+      );
     }
   }
-
-  const showBackPaginationSpinner =
-    timelineSync.backwardStatus === 'loading' && timelineSync.eventsLength > 0;
-  const showFrontPaginationSpinner =
-    timelineSync.forwardStatus === 'loading' && timelineSync.eventsLength > 0;
-  const timelineBottomFloatLift =
-    !atBottomState && isReady ? { bottom: `calc(${config.space.S400} + ${toRem(52)})` } : undefined;
-  const timelineTopFloatLift =
-    unreadInfo?.readUptoEventId && !unreadInfo?.inLiveTimeline && isReady
-      ? { top: `calc(${config.space.S400} + ${toRem(52)})` }
-      : undefined;
 
   const vListItemCount =
     timelineSync.eventsLength === 0 &&
@@ -802,7 +805,6 @@ export function RoomTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
-    messageGroupingThreshold,
   });
 
   processedEventsRef.current = processedEvents;
@@ -824,10 +826,17 @@ export function RoomTimeline({
     const ref = onEditLastMessageRef;
     ref.current = () => {
       const myUserId = mx.getUserId();
-      const found = findLastOwnEditableProcessedEvent(processedEventsRef.current, myUserId);
-      if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
+      const found = [...processedEventsRef.current]
+        .toReversed()
+        .find(
+          (e) =>
+            e.mEvent.getSender() === myUserId &&
+            e.mEvent.getType() === 'm.room.message' &&
+            !e.mEvent.isRedacted()
+        );
+      if (found?.mEvent.getId()) handleEditCallback(found.mEvent.getId());
     };
-  }, [onEditLastMessageRef, mx, actions]);
+  }, [onEditLastMessageRef, mx, handleEditCallback]);
 
   useEffect(() => {
     const v = vListRef.current;
@@ -1021,23 +1030,7 @@ export function RoomTimeline({
         </VList>
       </div>
 
-      {showBackPaginationSpinner && (
-        <TimelineFloat position="Top" style={timelineTopFloatLift}>
-          <Spinner variant="Secondary" size="400" />
-        </TimelineFloat>
-      )}
-
-      {showFrontPaginationSpinner && (
-        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
-          <Spinner variant="Secondary" size="400" />
-        </TimelineFloat>
-      )}
-
-      {frontPaginationJSX && (
-        <TimelineFloat position="Bottom" style={timelineBottomFloatLift}>
-          {frontPaginationJSX}
-        </TimelineFloat>
-      )}
+      {frontPaginationJSX}
 
       {!atBottomState && isReady && (
         <TimelineFloat position="Bottom">

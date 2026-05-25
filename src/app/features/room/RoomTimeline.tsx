@@ -86,6 +86,24 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import * as css from './RoomTimeline.css';
 
+function findLastOwnEditableProcessedEvent(
+  events: ProcessedEvent[],
+  myUserId: string | null | undefined
+): ProcessedEvent | undefined {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (!event) continue;
+    if (
+      event.mEvent.getSender() === myUserId &&
+      event.mEvent.getEffectiveEvent()?.type === 'm.room.message' &&
+      !event.mEvent.isRedacted()
+    ) {
+      return event;
+    }
+  }
+  return undefined;
+}
+
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
     <Box
@@ -161,6 +179,7 @@ export function RoomTimeline({
   );
   const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
 
   const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
   const showClientUrlPreview = room.hasEncryptionStateEvent()
@@ -783,6 +802,7 @@ export function RoomTimeline({
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   processedEventsRef.current = processedEvents;
@@ -804,14 +824,7 @@ export function RoomTimeline({
     const ref = onEditLastMessageRef;
     ref.current = () => {
       const myUserId = mx.getUserId();
-      const found = [...processedEventsRef.current]
-        .toReversed()
-        .find(
-          (e) =>
-            e.mEvent.getSender() === myUserId &&
-            e.mEvent.getType() === 'm.room.message' &&
-            !e.mEvent.isRedacted()
-        );
+      const found = findLastOwnEditableProcessedEvent(processedEventsRef.current, myUserId);
       if (found?.mEvent.getId()) actions.handleEdit(found.mEvent.getId());
     };
   }, [onEditLastMessageRef, mx, actions]);

@@ -146,6 +146,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
   const [autoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [showHiddenEvents] = useSetting(settingsAtom, 'showHiddenEvents');
+  const [messageGroupingThreshold] = useSetting(settingsAtom, 'messageGroupingThreshold');
   const [showTombstoneEvents] = useSetting(settingsAtom, 'showTombstoneEvents');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [showBundledPreview] = useSetting(settingsAtom, 'bundledPreview');
@@ -262,6 +263,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     hideNickAvatarEvents: true,
     isReadOnly,
     hideMemberInReadOnly,
+    messageGroupingThreshold,
   });
 
   // When the thread's own timeline is empty (server-side threads not yet fetched,

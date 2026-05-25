@@ -407,7 +407,15 @@ self.addEventListener('message', (event: MessageEvent<WorkerInMessage>) => {
   const msg = event.data;
   switch (msg.type) {
     case 'INIT':
-      void handleInit(msg.userId, msg.maxMessagesPerRoom);
+      handleInit(msg.userId, msg.maxMessagesPerRoom).catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('[SearchWorker] INIT failed:', err);
+        post({
+          type: 'READY',
+          indexedEventCount: 0,
+          roomCount: 0,
+        });
+      });
       break;
     case 'INDEX_EVENTS':
       handleIndexEvents(msg.events);
